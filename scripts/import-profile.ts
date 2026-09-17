@@ -53,12 +53,15 @@ function slug(s: string): string {
 }
 
 function emailFor(nameEn: string, its: string): string {
-  const parts = nameEn.split(" ").filter(Boolean).filter((p) => !/^bhai$/i.test(p));
-  const name = slug(parts[0] || nameEn);
-  const middle = parts.length > 2 ? slug(parts[parts.length - 2]) : "";
-  const surname = slug(parts[parts.length - 1] || nameEn);
-  const base = [name, middle, surname].filter(Boolean).join(".");
-  return base ? `${base}.${its}@darseburhani.edu` : `${its}@darseburhani.edu`;
+  const parts = nameEn
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((p) => !/^(bhai|shaikh|mulla|syedna|shk)$/i.test(p));
+  if (parts.length === 0) return `${its}@darseburhani.edu`;
+  if (parts.length === 1) return `${slug(parts[0])}@darseburhani.edu`;
+  const first = slug(parts[0]);
+  const last = slug(parts[parts.length - 1]);
+  return `${first}.${last}@darseburhani.edu`;
 }
 
 function rowOfAnchor(row: number, rowOff: number): number {
