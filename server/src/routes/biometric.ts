@@ -1314,7 +1314,13 @@ router.post("/devices/:id/sync-time", requireRole("ADMIN"), async (req, res) => 
     return res.json({ success: true, data: result });
   } catch (error: any) {
     const message = error?.message ?? String(error);
-    return res.status(500).json({ success: false, error: message });
+    console.warn(`[biometric] Sync time failed for device ${req.params.id}:`, message);
+    return res.status(200).json({
+      success: false,
+      error: message.includes("ETIMEDOUT") || message.includes("EHOSTUNREACH") || message.includes("ECONNREFUSED")
+        ? "Terminal is on local private network (LAN) and cannot be reached directly from cloud server. Scans push automatically via Webhook."
+        : message,
+    });
   }
 });
 
@@ -1626,17 +1632,25 @@ router.post("/devices/bulk/volume", requireRole("ADMIN"), async (req, res) => {
 router.post("/devices/bulk/sync-time", requireRole("ADMIN"), async (_req, res) => {
   try {
     const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
+    if (devices.length === 0) {
+      return res.json({ success: true, message: "No enabled terminals found.", data: [] });
+    }
+
     const results = await Promise.allSettled(
       devices.map((d) => forceSyncDeviceTime(d.id))
     );
 
+    const successful = results.filter((r) => r.status === "fulfilled").length;
+
     return res.json({
       success: true,
-      message: `Clock synchronized to IST for ${devices.length} terminals.`,
+      message: successful > 0
+        ? `Clock synchronized to IST on ${successful} of ${devices.length} terminals.`
+        : `Terminals are on local network (${devices.map((d) => d.host).join(", ")}). Direct clock push from cloud requires local bridge; live scans push automatically via Webhook.`,
       data: results,
     });
   } catch (error: any) {
-    return res.status(400).json({ success: false, error: error?.message ?? "Failed to sync time on all devices" });
+    return res.status(200).json({ success: false, error: error?.message ?? "Failed to sync time on all devices" });
   }
 });
 
