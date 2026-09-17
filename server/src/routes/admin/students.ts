@@ -162,32 +162,21 @@ router.put("/:userId", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// DELETE /api/admin/students/:userId - Delete a student profile + user
+import { completelyDeleteUser } from "../../lib/user-deletion";
+
+// DELETE /api/admin/students/:userId - Delete a student profile + user + physical terminals
 router.delete("/:userId", requireRole("ADMIN"), async (req, res) => {
   const { userId } = req.params;
   try {
-    const student = await prisma.studentProfile.findUnique({
-      where: { userId },
-      select: { id: true },
+    const result = await completelyDeleteUser(userId);
+    return res.json({
+      success: true,
+      message: "Student profile completely purged from database and biometric terminals.",
+      data: result,
     });
-
-    if (!student) {
-      return res.status(404).json({ success: false, error: "Student not found" });
-    }
-
-    const studentId = student.id;
-
-    // Delete child records that do not cascade, then the user (which cascades the rest)
-    await prisma.$transaction([
-      prisma.attendanceRecord.deleteMany({ where: { studentId } }),
-      prisma.pointLog.deleteMany({ where: { studentId } }),
-      prisma.user.delete({ where: { id: userId } }),
-    ]);
-
-    return res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Admin student delete error:", error);
-    return res.status(500).json({ success: false, error: "Failed to delete student" });
+    return res.status(500).json({ success: false, error: error?.message || "Failed to delete student" });
   }
 });
 

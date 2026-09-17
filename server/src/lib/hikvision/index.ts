@@ -14,7 +14,7 @@ import {
 } from "./isapi";
 export * from "./isapi";
 export * from "./device-control";
-import { deployUserToDevice } from "./device-control";
+import { deployUserToDevice, deleteUserFromDevice } from "./device-control";
 import type { BiometricDevice } from "@prisma/client";
 
 const ALGO = "aes-256-gcm";
@@ -977,5 +977,36 @@ export async function deployAllTeachersToDevice(deviceId: string): Promise<{
   }
 
   return { total: teachers.length, successful, failed, errors };
+}
+
+/**
+ * Completely purge a user/student/teacher from all active Hikvision biometric terminals
+ */
+export async function deleteUserFromAllDevices(candidateEmployeeNos: (string | null | undefined)[]): Promise<{
+  success: boolean;
+  deletedFrom: string[];
+  errors: Array<{ host: string; error: string }>;
+}> {
+  const cleanNos = Array.from(new Set(candidateEmployeeNos.map((s) => s?.trim()).filter(Boolean))) as string[];
+  if (cleanNos.length === 0) return { success: true, deletedFrom: [], errors: [] };
+
+  const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
+  const deletedFrom: string[] = [];
+  const errors: Array<{ host: string; error: string }> = [];
+
+  for (const dev of devices) {
+    const conn = toConnection(dev);
+    for (const empNo of cleanNos) {
+      try {
+        await deleteUserFromDevice(conn, empNo);
+        deletedFrom.push(`${dev.host}:${empNo}`);
+      } catch (err: any) {
+        // May already not exist on terminal
+        errors.push({ host: dev.host, error: err?.message || String(err) });
+      }
+    }
+  }
+
+  return { success: true, deletedFrom, errors };
 }
 

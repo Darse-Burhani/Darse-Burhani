@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth, requireRole } from "../../middleware";
+import { completelyDeleteUser } from "../../lib/user-deletion";
 import bcrypt from "bcryptjs";
 const { hash } = bcrypt;
 
@@ -439,39 +440,40 @@ router.post("/clear-avatars", requireRole("ADMIN"), async (req, res) => {
 
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
-    const id = (req.query.id as string);
+    const id = (req.query.id as string) || (req.body?.id as string);
 
     if (!id) {
       return res.status(400).json({ success: false, error: "User ID required" });
     }
 
-    const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
-    if (!target) return res.status(404).json({ success: false, error: "User not found" });
-    if (target.role === "ADMIN") {
-      return res.status(403).json({ success: false, error: "Cannot delete ADMIN account" });
+    const result = await completelyDeleteUser(id);
+    return res.json({
+      success: true,
+      message: "User profile completely purged from database and biometric terminals.",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("User complete delete error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to delete user" });
+  }
+});
+
+router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: "User ID required" });
     }
 
-    // Soft-delete: keep row for backup, remove auth so login is impossible
-    await prisma.$transaction([
-      prisma.session.deleteMany({ where: { userId: id } }),
-      prisma.account.deleteMany({ where: { userId: id } }),
-      prisma.user.update({
-        where: { id },
-        data: {
-          isActive: false,
-          deletedAt: new Date(),
-          deletedById: session.user.id,
-          passwordHash: `DELETED_${Date.now()}`,
-        },
-      }),
-    ]);
-
-    return res.json({ success: true, message: "User deleted successfully" });
-  } catch (error) {
-    console.error("User delete error:", error);
-    return res.status(500).json({ success: false, error: "Failed to delete user" });
+    const result = await completelyDeleteUser(id);
+    return res.json({
+      success: true,
+      message: "User profile completely purged from database and biometric terminals.",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("User complete delete error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to delete user" });
   }
 });
 

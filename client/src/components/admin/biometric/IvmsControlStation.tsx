@@ -821,6 +821,42 @@ export default function IvmsControlStation({
     }
   };
 
+  // Complete Cascade Purge (Database + All Physical Terminals)
+  const handlePurgeUserCompletely = async (m: EnrolledMember) => {
+    const displayName = m.matchedEntityName || m.name || m.employeeNo;
+    const targetUserId = m.matchedEntityId || m.employeeNo;
+
+    if (
+      !confirm(
+        `⚠️ COMPLETE HARD PURGE CONFIRMATION\n\nAre you sure you want to permanently delete:\n• Name: ${displayName}\n• ID / Employee No: ${m.employeeNo}\n\nThis will completely purge their profile, attendance history, and facial/fingerprint data from both the database and ALL physical biometric terminals.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/biometric/users/${encodeURIComponent(targetUserId)}/purge`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "Profile & Hardware Purged",
+          description: `Successfully wiped ${displayName} from database and biometric terminals.`,
+          variant: "success",
+        });
+        setDeviceMembers((prev) => prev.filter((item) => item.employeeNo !== m.employeeNo));
+        if (onRefreshDevices) onRefreshDevices();
+      } else {
+        // Fallback to removing from device if database record was already deleted
+        await handleDeleteDeviceUser(m.employeeNo, selectedDeviceId || dev1?.id || "");
+      }
+    } catch (err: any) {
+      toast({ title: "Purge Error", description: err?.message, variant: "destructive" });
+    }
+  };
+
   // Assign RFID card
   const handleAssignCard = async () => {
     if (!cardModalUser || !cardNumber.trim() || !selectedDeviceId) return;
@@ -2083,6 +2119,7 @@ export default function IvmsControlStation({
                                 setCardNumber("");
                               }}
                               className="h-7 px-2 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-500/10"
+                              title="Assign RFID Card"
                             >
                               <CreditCard className="w-3.5 h-3.5 mr-1" />
                               Card
@@ -2090,10 +2127,12 @@ export default function IvmsControlStation({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => selectedDeviceId && handleDeleteDeviceUser(m.employeeNo, selectedDeviceId)}
-                              className="h-7 w-7 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10"
+                              onClick={() => handlePurgeUserCompletely(m)}
+                              className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/15 font-semibold flex items-center gap-1"
+                              title="Completely delete profile from Database AND physical terminals"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              Purge
                             </Button>
                           </div>
                         </div>

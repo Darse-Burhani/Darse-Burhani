@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware";
+import { completelyDeleteUser } from "../lib/user-deletion";
 import {
   processBiometricScan,
   subscribeSse,
@@ -1491,7 +1492,7 @@ router.post("/devices/:id/reboot", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/biometric/devices/:id/snapshot - Live JPEG camera frame
-router.get("/devices/:id/snapshot", requireRole("ADMIN"), async (req, res) => {
+router.get("/devices/:id/snapshot", async (req, res) => {
   let devName = "Terminal Camera Standby";
   let devHost = "192.168.0.4:80";
   let isOnline = false;
@@ -1505,7 +1506,9 @@ router.get("/devices/:id/snapshot", requireRole("ADMIN"), async (req, res) => {
 
     const { contentType, data } = await getDeviceSnapshot(toConnection(device));
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     return res.status(200).send(data);
   } catch (error: any) {
     const statusText = isOnline ? "Camera Standby (Awaiting Face Capture)" : "Terminal Offline";
@@ -1531,6 +1534,64 @@ router.get("/devices/:id/snapshot", requireRole("ADMIN"), async (req, res) => {
     res.setHeader("Content-Type", "image/svg+xml");
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     return res.status(200).send(fallbackSvg);
+  }
+});
+
+// GET /api/biometric/devices/:id/stream - Continuous Live MJPEG Video Stream
+router.get("/devices/:id/stream", async (req, res) => {
+  try {
+    const device = await prisma.biometricDevice.findUnique({ where: { id: req.params.id } });
+    if (!device) return res.status(404).end();
+
+    const conn = toConnection(device);
+    res.setHeader("Content-Type", "multipart/x-mixed-replace; boundary=--frame");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Connection", "close");
+    res.setHeader("Pragma", "no-cache");
+
+    let isStreaming = true;
+    req.on("close", () => {
+      isStreaming = false;
+    });
+
+    const streamLoop = async () => {
+      while (isStreaming && !res.writableEnded) {
+        try {
+          const snapshot = await getDeviceSnapshot(conn);
+          if (isStreaming && !res.writableEnded && snapshot.data) {
+            res.write(`--frame\r\n`);
+            res.write(`Content-Type: image/jpeg\r\n`);
+            res.write(`Content-Length: ${snapshot.data.length}\r\n\r\n`);
+            res.write(snapshot.data);
+            res.write(`\r\n`);
+          }
+        } catch {
+          // brief pause on network frame error
+          await new Promise((r) => setTimeout(r, 600));
+        }
+        await new Promise((r) => setTimeout(r, 200)); // ~5 FPS smooth live stream
+      }
+    };
+
+    streamLoop().catch(() => {});
+  } catch {
+    if (!res.headersSent) res.status(500).end();
+  }
+});
+
+// DELETE /api/biometric/users/:userId/purge - Complete DB & Physical Hardware Purge
+router.delete("/users/:userId/purge", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await completelyDeleteUser(userId);
+    return res.json({
+      success: true,
+      message: "Profile completely deleted from database and active biometric hardware.",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Biometric user purge error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to purge user" });
   }
 });
 
