@@ -266,84 +266,48 @@ export default function LoginPage() {
         description="Secure gateway for Aljamea-tus-Saifiyah administrators, faculty, talabat, and parents."
       />
 
-      <main className="h-screen max-h-[100dvh] overflow-hidden flex flex-col items-center justify-between p-2.5 sm:p-4 bg-[#01140e] text-white relative select-none selection:bg-amber-400 selection:text-black">
+      <main className="min-h-[100dvh] h-full sm:h-screen sm:overflow-hidden overflow-y-auto flex flex-col items-center justify-between p-3 sm:p-4 bg-[#01140e] text-white relative select-none selection:bg-amber-400 selection:text-black touch-manipulation">
         
         {/* ══════════════════════════════════════════════════════════════ */}
-        {/* ── FLOWING AMBIENT LIGHT & ANIMATED SILK WAVES ── */}
+        {/* ── HARDWARE-ACCELERATED AMBIENT LIGHTING (GPU Optimized) ── */}
         {/* ══════════════════════════════════════════════════════════════ */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden will-change-transform">
           
-          {/* Dynamic Floating Volumetric Light Orbs */}
-          <motion.div
-            animate={{
-              x: [0, 50, -30, 20, 0],
-              y: [0, -30, 20, -15, 0],
-              scale: [1, 1.1, 0.95, 1.05, 1],
-              opacity: [0.2, 0.28, 0.18, 0.24, 0.2],
-            }}
-            transition={{
-              duration: 18,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute -top-36 -right-24 w-[500px] h-[450px] rounded-full bg-[radial-gradient(circle_at_60%_40%,rgba(245,158,11,0.25)_0%,rgba(217,119,6,0.08)_45%,transparent_75%)] blur-3xl"
+          {/* Static High-Performance CSS Radial Gradients (Zero Mobile CPU/GPU Overhead) */}
+          <div
+            className="absolute -top-32 -right-20 w-[420px] h-[380px] sm:w-[500px] sm:h-[450px] rounded-full bg-[radial-gradient(circle_at_60%_40%,rgba(245,158,11,0.22)_0%,rgba(217,119,6,0.06)_50%,transparent_75%)] blur-2xl pointer-events-none"
           />
 
-          <motion.div
-            animate={{
-              x: [0, -40, 30, -20, 0],
-              y: [0, 30, -20, 15, 0],
-              scale: [1, 1.12, 0.92, 1.06, 1],
-              opacity: [0.18, 0.25, 0.15, 0.22, 0.18],
-            }}
-            transition={{
-              duration: 22,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute -top-32 -left-28 w-[500px] h-[450px] rounded-full bg-[radial-gradient(circle_at_40%_40%,rgba(0,201,136,0.18)_0%,rgba(4,120,87,0.06)_50%,transparent_75%)] blur-3xl"
+          <div
+            className="absolute -top-28 -left-20 w-[420px] h-[380px] sm:w-[500px] sm:h-[450px] rounded-full bg-[radial-gradient(circle_at_40%_40%,rgba(0,201,136,0.18)_0%,rgba(4,120,87,0.05)_50%,transparent_75%)] blur-2xl pointer-events-none"
           />
 
-          {/* Active Portal Color Ambient Orb Pulsing */}
-          <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.12, 0.2, 0.12],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full blur-[80px] pointer-events-none transition-colors duration-1000"
+          {/* Active Portal Ambient Glow */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[550px] h-[300px] sm:h-[380px] rounded-full blur-[70px] opacity-15 pointer-events-none transition-colors duration-500 will-change-transform"
             style={{ background: portal.accentColor }}
           />
 
           {/* Showroom Gloss Floor Grid at Base */}
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/80 via-[#01140e]/50 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 via-[#01140e]/50 to-transparent pointer-events-none" />
         </div>
 
         {/* ══════════════════════════════════════════════════════════════ */}
-        {/* ── MAIN AUTH CARD CONTENT (No Vertical Scroll) ── */}
+        {/* ── MAIN AUTH CARD CONTENT (Mobile-Adaptive & Fast) ── */}
         {/* ══════════════════════════════════════════════════════════════ */}
-        <div className="w-full flex-1 flex flex-col items-center justify-center relative z-10 my-auto py-0">
+        <div className="w-full flex-1 flex flex-col items-center justify-center relative z-10 my-auto py-2 sm:py-0">
           
-          <div className="w-full max-w-[460px] mx-auto flex flex-col items-center">
+          <div className="w-full max-w-[440px] sm:max-w-[460px] mx-auto flex flex-col items-center px-1 sm:px-0">
             
             {/* ── Top Brand Title & Logo ── */}
-            <motion.div
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="text-center mb-2 flex flex-col items-center"
-            >
+            <div className="text-center mb-2 flex flex-col items-center">
               {/* Gold Extruded App Icon */}
               <div className="relative mb-1.5 group cursor-pointer">
                 <div
-                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative overflow-hidden transition-transform duration-300 group-hover:scale-105 shadow-lg"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-lg"
                   style={{
                     background: "linear-gradient(135deg, #ffe066 0%, #f59e0b 35%, #d97706 70%, #92400e 100%)",
-                    boxShadow: "0 8px 20px -4px rgba(245, 158, 11, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.8)",
+                    boxShadow: "0 6px 18px -4px rgba(245, 158, 11, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.8)",
                     border: "1.5px solid rgba(254, 240, 138, 0.65)",
                   }}
                 >
@@ -373,23 +337,18 @@ export default function LoginPage() {
                     </svg>
                   </div>
                 </div>
-                <div className="absolute -inset-1.5 rounded-2xl bg-amber-400/25 blur-lg -z-10 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -inset-1.5 rounded-2xl bg-amber-400/20 blur-md -z-10" />
               </div>
 
               {/* Brand Title */}
               <h1 className="font-display font-extrabold text-xl sm:text-2xl text-white tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                 Darse Burhani
               </h1>
-            </motion.div>
+            </div>
 
             {/* ── Segmented Tab Pill Controller ── */}
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.05 }}
-              className="w-full mb-2.5 flex justify-center"
-            >
-              <div className="inline-flex items-center p-1 rounded-full bg-[#031d17]/90 border border-emerald-500/30 backdrop-blur-2xl shadow-xl shadow-black/50">
+            <div className="w-full mb-2.5 flex justify-center">
+              <div className="inline-flex items-center p-1 rounded-full bg-[#031d17]/95 border border-emerald-500/30 backdrop-blur-xl shadow-lg shadow-black/50 max-w-full overflow-x-auto no-scrollbar">
                 {portals.map((p) => {
                   const isActive = p.role === selectedRole;
                   const PIcon = p.icon;
@@ -398,7 +357,7 @@ export default function LoginPage() {
                       key={p.role}
                       type="button"
                       onClick={() => handlePortalChange(p.role)}
-                      className={`relative flex items-center justify-center gap-1.5 py-1 px-3 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer ${
+                      className={`relative flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer touch-manipulation select-none shrink-0 ${
                         isActive ? "text-white" : "text-gray-400 hover:text-gray-200"
                       }`}
                     >
@@ -408,10 +367,10 @@ export default function LoginPage() {
                           className="absolute inset-0 rounded-full shadow-md"
                           style={{
                             background: p.btnGradient,
-                            boxShadow: `0 2px 14px ${p.glowColor}, inset 0 1px 1px rgba(255,255,255,0.4)`,
+                            boxShadow: `0 2px 10px ${p.glowColor}, inset 0 1px 1px rgba(255,255,255,0.4)`,
                             border: "1px solid rgba(255, 255, 255, 0.25)",
                           }}
-                          transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 40 }}
                         />
                       )}
                       <PIcon className="w-3.5 h-3.5 relative z-10 shrink-0" />
@@ -422,50 +381,43 @@ export default function LoginPage() {
                   );
                 })}
               </div>
-            </motion.div>
+            </div>
 
-            {/* ── 3D Chamfered Glassmorphism Login Card ── */}
+            {/* ── Responsive Login Card ── */}
             <div
               ref={cardContainerRef}
               onMouseMove={handleMouseMove}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={handleMouseLeave}
-              className="w-full relative group perspective-[1000px]"
+              className="w-full relative group"
             >
-              <motion.div
-                animate={{
-                  rotateX: isHovered ? coords.x : 0,
-                  rotateY: isHovered ? coords.y : 0,
-                  scale: isHovered ? 1.006 : 1,
-                }}
-                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                className="w-full relative rounded-3xl p-[2px] transition-all duration-500"
+              <div
+                className="w-full relative rounded-3xl p-[2px] transition-shadow duration-300"
                 style={{
-                  background: `linear-gradient(135deg, ${portal.accentColor} 0%, rgba(255,255,255,0.25) 30%, ${portal.accentColor} 70%, rgba(255,255,255,0.12) 100%)`,
-                  boxShadow: `0 16px 36px -8px ${portal.glowColor}, 0 0 20px ${portal.glowColor}`,
+                  background: `linear-gradient(135deg, ${portal.accentColor} 0%, rgba(255,255,255,0.2) 30%, ${portal.accentColor} 70%, rgba(255,255,255,0.1) 100%)`,
+                  boxShadow: `0 12px 30px -8px ${portal.glowColor}, 0 0 15px ${portal.glowColor}`,
                 }}
               >
-                {/* 3D Specular Light Sheen Overlay */}
+                {/* Specular Light Sheen (Desktop Only) */}
                 {isHovered && (
                   <div
-                    className="absolute inset-0 pointer-events-none rounded-3xl z-30 transition-opacity duration-300"
+                    className="absolute inset-0 pointer-events-none rounded-3xl z-30 transition-opacity duration-300 hidden sm:block"
                     style={{
-                      background: `radial-gradient(circle 240px at ${coords.px * 100}% ${coords.py * 100}%, rgba(255, 255, 255, 0.16), transparent 70%)`,
+                      background: `radial-gradient(circle 240px at ${coords.px * 100}% ${coords.py * 100}%, rgba(255, 255, 255, 0.14), transparent 70%)`,
                     }}
                   />
                 )}
 
                 {/* Inner Card Body */}
                 <div
-                  className="w-full rounded-[calc(1.5rem-2px)] p-4 sm:p-5 relative overflow-hidden backdrop-blur-3xl text-white"
+                  className="w-full rounded-[calc(1.5rem-2px)] p-4 sm:p-5 relative overflow-hidden bg-[#031e17]/95 backdrop-blur-xl text-white shadow-inner"
                   style={{
-                    background: portal.cardBg,
                     border: "1px solid rgba(255, 255, 255, 0.08)",
                   }}
                 >
                   {/* Glowing Top Hairline */}
                   <div
-                    className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-500"
+                    className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-300"
                     style={{
                       background: `linear-gradient(90deg, transparent, ${portal.accentColor}, #ffd700, transparent)`,
                     }}
@@ -478,7 +430,7 @@ export default function LoginPage() {
                       <div
                         className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-md relative shrink-0 ${portal.iconBg}`}
                         style={{
-                          boxShadow: `0 0 14px ${portal.glowColor}`,
+                          boxShadow: `0 0 12px ${portal.glowColor}`,
                         }}
                       >
                         <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5" style={{ color: portal.accentColor }} />
@@ -515,17 +467,14 @@ export default function LoginPage() {
                   {/* ── Form Inputs ── */}
                   <form onSubmit={handleSubmit} className="space-y-2.5">
                     {error && (
-                      <motion.div
+                      <div
                         role="alert"
                         aria-live="assertive"
-                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1, x: [0, -4, 4, -2, 2, 0] }}
-                        transition={{ duration: 0.3 }}
-                        className="p-2.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2 shadow-md"
+                        className="p-2.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2 shadow-md animate-in fade-in"
                       >
                         <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
                         <span className="font-semibold text-xs">{error}</span>
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* Email / Identifier Field */}
@@ -548,6 +497,10 @@ export default function LoginPage() {
                           id="login-email"
                           name="email"
                           type={portal.role === "STUDENT" ? "text" : "email"}
+                          inputMode={portal.role === "STUDENT" ? "text" : "email"}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
                           required
                           aria-invalid={Boolean(error)}
                           autoComplete="username"
@@ -557,7 +510,7 @@ export default function LoginPage() {
                             if (error) setError("");
                           }}
                           placeholder={portal.placeholder}
-                          className={`w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-full border bg-[#021f18]/90 text-xs sm:text-sm text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium relative z-0 ${
+                          className={`w-full pl-10 pr-4 py-2.5 sm:py-2.5 rounded-full border bg-[#021f18]/90 text-[15px] sm:text-sm text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium relative z-0 touch-manipulation ${
                             error
                               ? "border-rose-500/80 ring-2 ring-rose-500/30"
                               : "border-white/15 focus:border-[#00c988] focus:ring-2 focus:ring-[#00c988]/25 hover:border-white/25"
@@ -578,7 +531,7 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={() => setShowForgotModal(true)}
-                          className="text-[10px] sm:text-xs text-amber-300/95 hover:text-amber-200 hover:underline cursor-pointer font-bold"
+                          className="text-[10px] sm:text-xs text-amber-300/95 hover:text-amber-200 hover:underline cursor-pointer font-bold touch-manipulation"
                         >
                           Forgot Password?
                         </button>
@@ -591,6 +544,9 @@ export default function LoginPage() {
                           id="login-password"
                           name="password"
                           type={showPassword ? "text" : "password"}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
                           required
                           aria-invalid={Boolean(error)}
                           autoComplete="current-password"
@@ -600,7 +556,7 @@ export default function LoginPage() {
                             if (error) setError("");
                           }}
                           placeholder="••••••••••••"
-                          className={`w-full pl-10 pr-10 py-2 sm:py-2.5 rounded-full border bg-[#021f18]/90 text-xs sm:text-sm text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium relative z-0 ${
+                          className={`w-full pl-10 pr-10 py-2.5 sm:py-2.5 rounded-full border bg-[#021f18]/90 text-[15px] sm:text-sm text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium relative z-0 touch-manipulation ${
                             error
                               ? "border-rose-500/80 ring-2 ring-rose-500/30"
                               : "border-white/15 focus:border-[#00c988] focus:ring-2 focus:ring-[#00c988]/25 hover:border-white/25"
@@ -609,7 +565,7 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-0.5 cursor-pointer z-10 flex items-center justify-center"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1.5 cursor-pointer z-10 flex items-center justify-center touch-manipulation"
                           aria-label={showPassword ? "Hide password" : "Show password"}
                         >
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -619,7 +575,7 @@ export default function LoginPage() {
 
                     {/* Remember Me Checkbox */}
                     <div className="flex items-center justify-between pt-0.5">
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <label className="flex items-center gap-2 cursor-pointer select-none touch-manipulation">
                         <input
                           type="checkbox"
                           checked={rememberMe}
@@ -634,10 +590,10 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                      className="w-full group relative inline-flex items-center justify-between p-1.5 rounded-full font-extrabold text-xs sm:text-sm text-white shadow-lg transition-all duration-300 disabled:opacity-50 cursor-pointer active:scale-98 overflow-hidden hover:brightness-110 mt-0.5"
+                      className="w-full group relative inline-flex items-center justify-between p-1.5 rounded-full font-extrabold text-xs sm:text-sm text-white shadow-lg transition-all duration-200 disabled:opacity-50 cursor-pointer active:scale-98 overflow-hidden hover:brightness-110 mt-0.5 touch-manipulation min-h-[44px]"
                       style={{
                         background: portal.btnGradient,
-                        boxShadow: `0 4px 16px ${portal.glowColor}, inset 0 1px 1.5px rgba(255,255,255,0.45)`,
+                        boxShadow: `0 4px 14px ${portal.glowColor}, inset 0 1px 1.5px rgba(255,255,255,0.45)`,
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                       }}
                     >
@@ -647,7 +603,7 @@ export default function LoginPage() {
                           : isSuccess
                           ? `Launching ${portal.shortLabel}...`
                           : isLoading
-                          ? "Verifying Credentials..."
+                          ? "Verifying..."
                           : `Sign In to ${portal.label}`}
                       </span>
 
@@ -676,7 +632,7 @@ export default function LoginPage() {
                     </span>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
