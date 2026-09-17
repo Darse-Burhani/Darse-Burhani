@@ -266,206 +266,91 @@ export default function LoginPage() {
         description="Secure gateway for Aljamea-tus-Saifiyah administrators, faculty, talabat, and parents."
       />
 
-      <main className="min-h-[100dvh] flex flex-col items-center justify-between p-4 sm:p-6 md:p-8 bg-[#01140e] text-white relative overflow-hidden select-none selection:bg-amber-400 selection:text-black">
+      <main className="h-screen max-h-[100dvh] overflow-hidden flex flex-col items-center justify-between p-2.5 sm:p-4 bg-[#01140e] text-white relative select-none selection:bg-amber-400 selection:text-black">
         
         {/* ══════════════════════════════════════════════════════════════ */}
         {/* ── FLOWING AMBIENT LIGHT & ANIMATED SILK WAVES ── */}
         {/* ══════════════════════════════════════════════════════════════ */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
           
-          {/* 1. Dynamic Floating Volumetric Light Orbs (Continuous Fluid Motion) */}
+          {/* Dynamic Floating Volumetric Light Orbs */}
           <motion.div
             animate={{
-              x: [0, 80, -60, 40, 0],
-              y: [0, -60, 50, -30, 0],
-              scale: [1, 1.15, 0.95, 1.1, 1],
-              opacity: [0.25, 0.35, 0.22, 0.3, 0.25],
+              x: [0, 50, -30, 20, 0],
+              y: [0, -30, 20, -15, 0],
+              scale: [1, 1.1, 0.95, 1.05, 1],
+              opacity: [0.2, 0.28, 0.18, 0.24, 0.2],
             }}
             transition={{
               duration: 18,
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="absolute -top-36 -right-24 w-[700px] h-[650px] rounded-full bg-[radial-gradient(circle_at_60%_40%,rgba(245,158,11,0.32)_0%,rgba(217,119,6,0.12)_45%,transparent_75%)] blur-3xl"
+            className="absolute -top-36 -right-24 w-[500px] h-[450px] rounded-full bg-[radial-gradient(circle_at_60%_40%,rgba(245,158,11,0.25)_0%,rgba(217,119,6,0.08)_45%,transparent_75%)] blur-3xl"
           />
 
           <motion.div
             animate={{
-              x: [0, -70, 50, -40, 0],
-              y: [0, 60, -50, 40, 0],
-              scale: [1, 1.2, 0.9, 1.12, 1],
-              opacity: [0.22, 0.32, 0.18, 0.28, 0.22],
+              x: [0, -40, 30, -20, 0],
+              y: [0, 30, -20, 15, 0],
+              scale: [1, 1.12, 0.92, 1.06, 1],
+              opacity: [0.18, 0.25, 0.15, 0.22, 0.18],
             }}
             transition={{
               duration: 22,
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="absolute -top-40 -left-36 w-[680px] h-[650px] rounded-full bg-[radial-gradient(circle_at_40%_40%,rgba(0,201,136,0.25)_0%,rgba(4,120,87,0.1)_50%,transparent_75%)] blur-3xl"
+            className="absolute -top-32 -left-28 w-[500px] h-[450px] rounded-full bg-[radial-gradient(circle_at_40%_40%,rgba(0,201,136,0.18)_0%,rgba(4,120,87,0.06)_50%,transparent_75%)] blur-3xl"
           />
 
           {/* Active Portal Color Ambient Orb Pulsing */}
           <motion.div
             animate={{
-              scale: [1, 1.18, 1],
-              opacity: [0.18, 0.28, 0.18],
+              scale: [1, 1.1, 1],
+              opacity: [0.12, 0.2, 0.12],
             }}
             transition={{
               duration: 12,
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[550px] rounded-full blur-[100px] pointer-events-none transition-colors duration-1000"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full blur-[80px] pointer-events-none transition-colors duration-1000"
             style={{ background: portal.accentColor }}
           />
 
-          {/* 2. Animated Flowing Silk Ribbons with Continuous Undulation */}
-          <motion.svg
-            animate={{
-              y: [0, -12, 8, -6, 0],
-              scaleY: [1, 1.04, 0.98, 1.02, 1],
-            }}
-            transition={{
-              duration: 16,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="absolute inset-0 w-full h-full object-cover opacity-70 pointer-events-none"
-            viewBox="0 0 1440 900"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="none"
-          >
-            {/* Emerald Silk Wave 1 */}
-            <path
-              d="M-100 400 C 200 250, 450 650, 800 420 C 1150 190, 1350 480, 1600 350 L 1600 1000 L -100 1000 Z"
-              fill="url(#emeraldGradient1)"
-              opacity="0.38"
-            />
-            {/* Gold Edge Contour 1 */}
-            <path
-              d="M-100 400 C 200 250, 450 650, 800 420 C 1150 190, 1350 480, 1600 350"
-              stroke="url(#goldStroke1)"
-              strokeWidth="3"
-              fill="none"
-              opacity="0.85"
-            />
-            {/* Deep Silk Wave 2 */}
-            <path
-              d="M-150 620 C 250 480, 500 850, 950 560 C 1300 350, 1450 680, 1650 500 L 1650 1000 L -150 1000 Z"
-              fill="url(#emeraldGradient2)"
-              opacity="0.5"
-            />
-            {/* Gold Edge Contour 2 */}
-            <path
-              d="M-150 620 C 250 480, 500 850, 950 560 C 1300 350, 1450 680, 1650 500"
-              stroke="url(#goldStroke2)"
-              strokeWidth="3.5"
-              fill="none"
-              opacity="0.95"
-            />
-
-            <defs>
-              <linearGradient id="emeraldGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#004330" />
-                <stop offset="50%" stopColor="#02281e" />
-                <stop offset="100%" stopColor="#00140e" />
-              </linearGradient>
-              <linearGradient id="emeraldGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00583e" />
-                <stop offset="50%" stopColor="#013324" />
-                <stop offset="100%" stopColor="#00140e" />
-              </linearGradient>
-              <linearGradient id="goldStroke1" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#d4af37" stopOpacity="0.2" />
-                <stop offset="30%" stopColor="#fef08a" stopOpacity="0.95" />
-                <stop offset="70%" stopColor="#d4af37" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#eab308" stopOpacity="0.3" />
-              </linearGradient>
-              <linearGradient id="goldStroke2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#fde047" stopOpacity="0.95" />
-                <stop offset="40%" stopColor="#ca8a04" stopOpacity="0.85" />
-                <stop offset="80%" stopColor="#fef08a" stopOpacity="1" />
-                <stop offset="100%" stopColor="#a16207" stopOpacity="0.45" />
-              </linearGradient>
-            </defs>
-          </motion.svg>
-
-          {/* 3. Sweeping Diagonal Light Beam / Caustic Shimmer */}
-          <motion.div
-            animate={{
-              x: ["-100%", "200%"],
-            }}
-            transition={{
-              duration: 9,
-              repeat: Infinity,
-              ease: "easeInOut",
-              repeatDelay: 2,
-            }}
-            className="absolute top-0 bottom-0 w-[450px] bg-gradient-to-r from-transparent via-white/[0.04] to-transparent transform -skew-x-25 pointer-events-none"
-          />
-
-          {/* 4. Floating Micro Star Dust Sparkles */}
-          {[
-            { top: "15%", left: "20%", delay: 0, duration: 4 },
-            { top: "35%", left: "80%", delay: 1.5, duration: 5 },
-            { top: "65%", left: "15%", delay: 2.5, duration: 4.5 },
-            { top: "75%", left: "85%", delay: 0.8, duration: 6 },
-            { top: "25%", left: "65%", delay: 3, duration: 5.5 },
-          ].map((star, idx) => (
-            <motion.div
-              key={idx}
-              animate={{
-                opacity: [0.1, 0.8, 0.1],
-                scale: [0.8, 1.3, 0.8],
-                y: [0, -25, 0],
-              }}
-              transition={{
-                duration: star.duration,
-                repeat: Infinity,
-                delay: star.delay,
-                ease: "easeInOut",
-              }}
-              className="absolute w-1.5 h-1.5 rounded-full bg-amber-200/80 shadow-[0_0_8px_rgba(254,240,138,0.9)] pointer-events-none"
-              style={{ top: star.top, left: star.left }}
-            />
-          ))}
-
           {/* Showroom Gloss Floor Grid at Base */}
-          <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black/85 via-[#01140e]/65 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/80 via-[#01140e]/50 to-transparent pointer-events-none" />
         </div>
 
         {/* ══════════════════════════════════════════════════════════════ */}
-        {/* ── MAIN LARGER AUTH CARD CONTENT ── */}
+        {/* ── MAIN AUTH CARD CONTENT (No Vertical Scroll) ── */}
         {/* ══════════════════════════════════════════════════════════════ */}
-        <div className="w-full flex-1 flex flex-col items-center justify-center py-6 sm:py-8 relative z-10">
+        <div className="w-full flex-1 flex flex-col items-center justify-center relative z-10 my-auto py-0">
           
-          {/* Expanded Container Width (Larger Presence) */}
-          <div className="w-full max-w-[520px] sm:max-w-[560px] md:max-w-[580px] mx-auto flex flex-col items-center">
+          <div className="w-full max-w-[460px] mx-auto flex flex-col items-center">
             
-            {/* ── Top 3D Golden App Tile & Brand Title ── */}
+            {/* ── Top Brand Title & Logo ── */}
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: "easeOut" }}
-              className="text-center mb-6 flex flex-col items-center"
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="text-center mb-2 flex flex-col items-center"
             >
-              {/* 3D Gold Extruded App Icon Squircle */}
-              <div className="relative mb-3.5 group cursor-pointer">
+              {/* Gold Extruded App Icon */}
+              <div className="relative mb-1.5 group cursor-pointer">
                 <div
-                  className="w-18 h-18 sm:w-20 sm:h-20 rounded-[1.5rem] flex items-center justify-center relative overflow-hidden transition-transform duration-300 group-hover:scale-105"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative overflow-hidden transition-transform duration-300 group-hover:scale-105 shadow-lg"
                   style={{
                     background: "linear-gradient(135deg, #ffe066 0%, #f59e0b 35%, #d97706 70%, #92400e 100%)",
-                    boxShadow: "0 16px 40px -6px rgba(245, 158, 11, 0.6), inset 0 2.5px 3px rgba(255, 255, 255, 0.8), inset 0 -3px 6px rgba(0, 0, 0, 0.45)",
+                    boxShadow: "0 8px 20px -4px rgba(245, 158, 11, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.8)",
                     border: "1.5px solid rgba(254, 240, 138, 0.65)",
                   }}
                 >
-                  {/* Top Gloss Specular Highlight */}
-                  <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none rounded-t-[1.5rem]" />
+                  <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none rounded-t-2xl" />
                   
-                  {/* 3D Relief Gold Star / Compass */}
-                  <div className="relative z-10 drop-shadow-[0_2px_5px_rgba(0,0,0,0.55)] text-white flex items-center justify-center">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <div className="relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.55)] text-white flex items-center justify-center">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
                         d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8L12 2Z"
                         fill="url(#starGoldGradLarge)"
@@ -488,25 +373,23 @@ export default function LoginPage() {
                     </svg>
                   </div>
                 </div>
-
-                {/* Soft Golden Under-Aura */}
-                <div className="absolute -inset-2 rounded-3xl bg-amber-400/30 blur-xl -z-10 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -inset-1.5 rounded-2xl bg-amber-400/25 blur-lg -z-10 group-hover:opacity-100 transition-opacity" />
               </div>
 
               {/* Brand Title */}
-              <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-white tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
+              <h1 className="font-display font-extrabold text-xl sm:text-2xl text-white tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                 Darse Burhani
               </h1>
             </motion.div>
 
             {/* ── Segmented Tab Pill Controller ── */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.1 }}
-              className="w-full mb-5 flex justify-center"
+              transition={{ duration: 0.35, delay: 0.05 }}
+              className="w-full mb-2.5 flex justify-center"
             >
-              <div className="inline-flex items-center p-1.5 rounded-full bg-[#031d17]/90 border border-emerald-500/30 backdrop-blur-2xl shadow-2xl shadow-black/50">
+              <div className="inline-flex items-center p-1 rounded-full bg-[#031d17]/90 border border-emerald-500/30 backdrop-blur-2xl shadow-xl shadow-black/50">
                 {portals.map((p) => {
                   const isActive = p.role === selectedRole;
                   const PIcon = p.icon;
@@ -515,24 +398,24 @@ export default function LoginPage() {
                       key={p.role}
                       type="button"
                       onClick={() => handlePortalChange(p.role)}
-                      className={`relative flex items-center justify-center gap-2 py-2 px-4 sm:px-5 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
+                      className={`relative flex items-center justify-center gap-1.5 py-1 px-3 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer ${
                         isActive ? "text-white" : "text-gray-400 hover:text-gray-200"
                       }`}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="activePillTabIndicator"
-                          className="absolute inset-0 rounded-full shadow-lg"
+                          className="absolute inset-0 rounded-full shadow-md"
                           style={{
                             background: p.btnGradient,
-                            boxShadow: `0 4px 20px ${p.glowColor}, inset 0 1px 1.5px rgba(255,255,255,0.4)`,
+                            boxShadow: `0 2px 14px ${p.glowColor}, inset 0 1px 1px rgba(255,255,255,0.4)`,
                             border: "1px solid rgba(255, 255, 255, 0.25)",
                           }}
                           transition={{ type: "spring", stiffness: 450, damping: 35 }}
                         />
                       )}
-                      <PIcon className="w-4 h-4 relative z-10" />
-                      <span className="relative z-10 tracking-tight font-bold">
+                      <PIcon className="w-3.5 h-3.5 relative z-10 shrink-0" />
+                      <span className="relative z-10 tracking-tight font-bold text-xs">
                         {p.shortLabel}
                       </span>
                     </button>
@@ -541,7 +424,7 @@ export default function LoginPage() {
               </div>
             </motion.div>
 
-            {/* ── 3D Chamfered Glassmorphism Login Card (Enlarged) ── */}
+            {/* ── 3D Chamfered Glassmorphism Login Card ── */}
             <div
               ref={cardContainerRef}
               onMouseMove={handleMouseMove}
@@ -553,28 +436,28 @@ export default function LoginPage() {
                 animate={{
                   rotateX: isHovered ? coords.x : 0,
                   rotateY: isHovered ? coords.y : 0,
-                  scale: isHovered ? 1.01 : 1,
+                  scale: isHovered ? 1.006 : 1,
                 }}
                 transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                className="w-full relative rounded-[2.25rem] p-[2.5px] transition-all duration-500"
+                className="w-full relative rounded-3xl p-[2px] transition-all duration-500"
                 style={{
                   background: `linear-gradient(135deg, ${portal.accentColor} 0%, rgba(255,255,255,0.25) 30%, ${portal.accentColor} 70%, rgba(255,255,255,0.12) 100%)`,
-                  boxShadow: `0 25px 60px -12px ${portal.glowColor}, 0 0 35px ${portal.glowColor}`,
+                  boxShadow: `0 16px 36px -8px ${portal.glowColor}, 0 0 20px ${portal.glowColor}`,
                 }}
               >
                 {/* 3D Specular Light Sheen Overlay */}
                 {isHovered && (
                   <div
-                    className="absolute inset-0 pointer-events-none rounded-[2.25rem] z-30 transition-opacity duration-300"
+                    className="absolute inset-0 pointer-events-none rounded-3xl z-30 transition-opacity duration-300"
                     style={{
-                      background: `radial-gradient(circle 300px at ${coords.px * 100}% ${coords.py * 100}%, rgba(255, 255, 255, 0.18), transparent 70%)`,
+                      background: `radial-gradient(circle 240px at ${coords.px * 100}% ${coords.py * 100}%, rgba(255, 255, 255, 0.16), transparent 70%)`,
                     }}
                   />
                 )}
 
-                {/* Inner Card Body with Spacious Padding */}
+                {/* Inner Card Body */}
                 <div
-                  className="w-full rounded-[calc(2.25rem-2.5px)] p-7 sm:p-9 md:p-10 relative overflow-hidden backdrop-blur-3xl text-white"
+                  className="w-full rounded-[calc(1.5rem-2px)] p-4 sm:p-5 relative overflow-hidden backdrop-blur-3xl text-white"
                   style={{
                     background: portal.cardBg,
                     border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -582,35 +465,34 @@ export default function LoginPage() {
                 >
                   {/* Glowing Top Hairline */}
                   <div
-                    className="absolute top-0 left-0 right-0 h-[2.5px] transition-all duration-500"
+                    className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-500"
                     style={{
                       background: `linear-gradient(90deg, transparent, ${portal.accentColor}, #ffd700, transparent)`,
                     }}
                   />
 
                   {/* ── Card Header ── */}
-                  <div className="flex items-center justify-between pb-6 mb-6 border-b border-white/10">
-                    <div className="flex items-center gap-4">
-                      {/* Larger 3D Squircle Icon Badge with Neon Ring */}
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      {/* 3D Squircle Icon Badge */}
                       <div
-                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-lg relative ${portal.iconBg}`}
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shadow-md relative shrink-0 ${portal.iconBg}`}
                         style={{
-                          boxShadow: `0 0 20px ${portal.glowColor}`,
+                          boxShadow: `0 0 14px ${portal.glowColor}`,
                         }}
                       >
-                        <Icon className="w-7 h-7 sm:w-8 sm:h-8" style={{ color: portal.accentColor }} />
+                        <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5" style={{ color: portal.accentColor }} />
                       </div>
 
                       <div>
-                        {/* Pill Badge */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <span
-                            className={`text-[10px] sm:text-xs font-extrabold uppercase tracking-wider px-3 py-0.5 rounded-full border transition-colors ${portal.badgeBg}`}
+                            className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${portal.badgeBg}`}
                           >
                             {portal.badgeLabel}
                           </span>
                         </div>
-                        <h2 className="font-extrabold text-xl sm:text-2xl text-white mt-1.5 tracking-tight">
+                        <h2 className="font-extrabold text-sm sm:text-base text-white mt-0.5 tracking-tight">
                           Sign In to Continue
                         </h2>
                       </div>
@@ -618,11 +500,11 @@ export default function LoginPage() {
 
                     {/* Role Access Tag on Right */}
                     <div className="flex flex-col items-end text-right">
-                      <span className="text-[10px] uppercase tracking-widest text-emerald-300/70 font-bold">
-                        ROLE ACCESS
+                      <span className="text-[9px] uppercase tracking-widest text-emerald-300/70 font-bold">
+                        ACCESS
                       </span>
                       <span
-                        className="text-xs sm:text-sm font-extrabold tracking-wide mt-0.5"
+                        className="text-xs font-extrabold tracking-wide mt-0.5"
                         style={{ color: portal.accentColor }}
                       >
                         {portal.shortLabel}
@@ -631,18 +513,18 @@ export default function LoginPage() {
                   </div>
 
                   {/* ── Form Inputs ── */}
-                  <form onSubmit={handleSubmit} className="space-y-5">
+                  <form onSubmit={handleSubmit} className="space-y-2.5">
                     {error && (
                       <motion.div
                         role="alert"
                         aria-live="assertive"
-                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1, x: [0, -5, 5, -3, 3, 0] }}
-                        transition={{ duration: 0.35 }}
-                        className="p-3.5 rounded-2xl bg-red-950/90 border border-red-500/50 text-xs sm:text-sm text-red-200 flex items-center gap-3 shadow-lg"
+                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1, x: [0, -4, 4, -2, 2, 0] }}
+                        transition={{ duration: 0.3 }}
+                        className="p-2.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2 shadow-md"
                       >
                         <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                        <span className="font-semibold">{error}</span>
+                        <span className="font-semibold text-xs">{error}</span>
                       </motion.div>
                     )}
 
@@ -650,16 +532,18 @@ export default function LoginPage() {
                     <div>
                       <label
                         htmlFor="login-email"
-                        className="block text-[11px] sm:text-xs font-extrabold text-gray-300 uppercase tracking-wider mb-2"
+                        className="block text-[10px] font-extrabold text-gray-300 uppercase tracking-wider mb-1"
                       >
                         {portal.inputLabel}
                       </label>
-                      <div className="relative">
-                        {portal.role === "STUDENT" ? (
-                          <Fingerprint className="w-5 h-5 text-gray-400 absolute left-4.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        ) : (
-                          <Mail className="w-5 h-5 text-gray-400 absolute left-4.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        )}
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center text-gray-400">
+                          {portal.role === "STUDENT" ? (
+                            <Fingerprint size={16} className="text-gray-400 shrink-0" />
+                          ) : (
+                            <Mail size={16} className="text-gray-400 shrink-0" />
+                          )}
+                        </span>
                         <input
                           id="login-email"
                           name="email"
@@ -673,7 +557,7 @@ export default function LoginPage() {
                             if (error) setError("");
                           }}
                           placeholder={portal.placeholder}
-                          className={`w-full pl-12 pr-5 py-3.5 sm:py-4 rounded-full border bg-[#021f18]/90 text-sm sm:text-base text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium ${
+                          className={`w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-full border bg-[#021f18]/90 text-xs sm:text-sm text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium relative z-0 ${
                             error
                               ? "border-rose-500/80 ring-2 ring-rose-500/30"
                               : "border-white/15 focus:border-[#00c988] focus:ring-2 focus:ring-[#00c988]/25 hover:border-white/25"
@@ -684,23 +568,25 @@ export default function LoginPage() {
 
                     {/* Password Field */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-1">
                         <label
                           htmlFor="login-password"
-                          className="block text-[11px] sm:text-xs font-extrabold text-gray-300 uppercase tracking-wider"
+                          className="block text-[10px] font-extrabold text-gray-300 uppercase tracking-wider"
                         >
                           PASSWORD
                         </label>
                         <button
                           type="button"
                           onClick={() => setShowForgotModal(true)}
-                          className="text-xs sm:text-sm text-amber-300/95 hover:text-amber-200 hover:underline cursor-pointer font-bold"
+                          className="text-[10px] sm:text-xs text-amber-300/95 hover:text-amber-200 hover:underline cursor-pointer font-bold"
                         >
                           Forgot Password?
                         </button>
                       </div>
-                      <div className="relative">
-                        <Lock className="w-5 h-5 text-gray-400 absolute left-4.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center text-gray-400">
+                          <Lock size={16} className="text-gray-400 shrink-0" />
+                        </span>
                         <input
                           id="login-password"
                           name="password"
@@ -714,7 +600,7 @@ export default function LoginPage() {
                             if (error) setError("");
                           }}
                           placeholder="••••••••••••"
-                          className={`w-full pl-12 pr-12 py-3.5 sm:py-4 rounded-full border bg-[#021f18]/90 text-sm sm:text-base text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium ${
+                          className={`w-full pl-10 pr-10 py-2 sm:py-2.5 rounded-full border bg-[#021f18]/90 text-xs sm:text-sm text-white placeholder:text-gray-500 focus:outline-none transition-all font-medium relative z-0 ${
                             error
                               ? "border-rose-500/80 ring-2 ring-rose-500/30"
                               : "border-white/15 focus:border-[#00c988] focus:ring-2 focus:ring-[#00c988]/25 hover:border-white/25"
@@ -723,90 +609,80 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1 cursor-pointer"
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-0.5 cursor-pointer z-10 flex items-center justify-center"
                           aria-label={showPassword ? "Hide password" : "Show password"}
                         >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
                     </div>
 
                     {/* Remember Me Checkbox */}
-                    <div className="flex items-center justify-between pt-1">
-                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <div className="flex items-center justify-between pt-0.5">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="rounded border-white/20 bg-[#021f18] text-[#00c988] focus:ring-[#00c988]/30 w-4 h-4 cursor-pointer accent-[#00c988]"
+                          className="rounded border-white/20 bg-[#021f18] text-[#00c988] focus:ring-[#00c988]/30 w-3.5 h-3.5 cursor-pointer accent-[#00c988]"
                         />
-                        <span className="text-xs sm:text-sm text-gray-300 font-medium">Keep me signed in</span>
+                        <span className="text-[11px] text-gray-300 font-medium">Keep me signed in</span>
                       </label>
                     </div>
 
-                    {/* ── Vibrant Glowing Capsule Submit CTA Button (Enlarged) ── */}
+                    {/* ── Glowing Capsule Submit CTA Button ── */}
                     <button
                       type="submit"
                       disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                      className="w-full group relative inline-flex items-center justify-between p-2 rounded-full font-extrabold text-sm sm:text-base text-white shadow-xl transition-all duration-300 disabled:opacity-50 cursor-pointer active:scale-98 overflow-hidden hover:brightness-110 mt-2"
+                      className="w-full group relative inline-flex items-center justify-between p-1.5 rounded-full font-extrabold text-xs sm:text-sm text-white shadow-lg transition-all duration-300 disabled:opacity-50 cursor-pointer active:scale-98 overflow-hidden hover:brightness-110 mt-0.5"
                       style={{
                         background: portal.btnGradient,
-                        boxShadow: `0 10px 28px ${portal.glowColor}, inset 0 1px 2px rgba(255,255,255,0.45)`,
+                        boxShadow: `0 4px 16px ${portal.glowColor}, inset 0 1px 1.5px rgba(255,255,255,0.45)`,
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                       }}
                     >
-                      <span className="pl-5 font-bold">
+                      <span className="pl-3.5 font-bold text-xs sm:text-sm">
                         {lockoutSeconds > 0
                           ? `Security Lockout (${lockoutSeconds}s)`
                           : isSuccess
-                          ? `Authenticated. Launching ${portal.shortLabel}...`
+                          ? `Launching ${portal.shortLabel}...`
                           : isLoading
                           ? "Verifying Credentials..."
                           : `Sign In to ${portal.label}`}
                       </span>
 
                       {/* Right Forward Arrow Disc */}
-                      <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/25 flex items-center justify-center shrink-0 group-hover:translate-x-0.5 transition-transform shadow-md">
+                      <span className="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center shrink-0 group-hover:translate-x-0.5 transition-transform shadow-sm">
                         {isLoading ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : isSuccess ? (
-                          <Check className="w-5 h-5" />
+                          <Check className="w-3.5 h-3.5" />
                         ) : (
-                          <ArrowRight className="w-5 h-5" />
+                          <ArrowRight className="w-3.5 h-3.5" />
                         )}
                       </span>
                     </button>
                   </form>
 
                   {/* ── Security Trust Footer ── */}
-                  <div className="mt-7 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-gray-400 font-medium">
-                    <span className="flex items-center gap-1.5 text-[#00c988] font-bold">
-                      <ShieldCheck className="w-4 h-4 text-[#00c988]" />
-                      256-Bit Encrypted Session
+                  <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-gray-400 font-medium">
+                    <span className="flex items-center gap-1 text-[#00c988] font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#00c988] shrink-0" />
+                      256-Bit Encrypted
                     </span>
-                    <span className="flex items-center gap-1.5 text-gray-400">
-                      <Shield className="w-4 h-4 text-gray-400" />
+                    <span className="flex items-center gap-1 text-gray-400">
+                      <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                       Darse Burhani Security
                     </span>
                   </div>
                 </div>
               </motion.div>
-
-              {/* ── Showroom 3D Glossy Floor Reflection Effect (Under Card) ── */}
-              <div
-                className="w-full h-14 mt-1.5 rounded-[2.25rem] opacity-30 pointer-events-none transform scale-y-[-1] blur-xs overflow-hidden"
-                style={{
-                  background: `linear-gradient(to top, ${portal.accentColor}44, transparent)`,
-                  maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)",
-                  WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)",
-                }}
-              />
             </div>
           </div>
         </div>
 
         {/* Global Page Footer */}
-        <footer className="w-full text-center text-xs text-gray-400 py-3 flex items-center justify-center gap-3 relative z-10">
+        <footer className="w-full text-center text-[10px] text-gray-400 py-1 flex items-center justify-center gap-2 relative z-10 shrink-0">
           <span>&copy; {new Date().getFullYear()} Darse Burhani</span>
           <span>&bull;</span>
           <a href="/privacy" className="hover:text-amber-300 transition-colors">
