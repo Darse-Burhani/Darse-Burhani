@@ -37,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
 
 interface ScanWindow {
   id: string;
@@ -151,6 +152,7 @@ export default function AdminAttendanceSchedulePage() {
 
   // Download export state
   const [exporting, setExporting] = useState(false);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
 
   // Auto-Mark Absent Governance State
   const [autoAbsentPreview, setAutoAbsentPreview] = useState<{
@@ -653,6 +655,13 @@ export default function AdminAttendanceSchedulePage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={() => setManualModalOpen(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-lg shadow-emerald-950/20 border border-emerald-400"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2 text-amber-300" />
+              Record Manual Attendance
+            </Button>
             <Button
               onClick={() => downloadExcel(activeTab)}
               disabled={exporting}
@@ -1729,6 +1738,20 @@ export default function AdminAttendanceSchedulePage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Manual Attendance Modal */}
+      <ManualAttendanceModal
+        open={manualModalOpen}
+        onOpenChange={setManualModalOpen}
+        initialScheduleType={
+          activeTab === "FACULTY"
+            ? "FACULTY_WINDOW"
+            : activeTab === "CLASSES"
+            ? "CLASS_PERIOD"
+            : "WINDOW"
+        }
+        onSuccess={() => loadData()}
+      />
     </div>
   );
 }

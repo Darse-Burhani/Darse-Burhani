@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
   Plus,
@@ -10,7 +11,7 @@ import {
   Shield,
   BookOpen,
   Trash2,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   Heart,
   UserCheck,
@@ -20,6 +21,20 @@ import {
   AlertTriangle,
   Link2,
   KeyRound,
+  Layers,
+  FileText,
+  FileSpreadsheet,
+  Package,
+  CalendarDays,
+  User,
+  Settings,
+  Sparkles,
+  Check,
+  Eye,
+  EyeOff,
+  Building2,
+  Filter,
+  ArrowRight,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,39 +51,88 @@ import {
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 
-const portalTypes = [
-  { value: "HIFZ", label: "Hifz Portal", icon: BookOpen, color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-  { value: "PORTFOLIO", label: "Portfolio Portal", icon: Shield, color: "bg-amber-100 text-amber-700 border-amber-200" },
-  { value: "ALL", label: "Full Access", icon: Users, color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+export interface PageDefinition {
+  id: string;
+  label: string;
+  category: "Academics" | "Hifz" | "Operations" | "General";
+  description: string;
+  icon: React.ElementType;
+  color: string;
+}
+
+const AVAILABLE_PAGES: PageDefinition[] = [
+  { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main dashboard & point counter", icon: Layers, color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  { id: "classes", label: "My Classes", category: "Academics", description: "Student rosters, enrollment & masool management", icon: BookOpen, color: "bg-blue-100 text-blue-800 border-blue-200" },
+  { id: "attendance", label: "Class Attendance", category: "Academics", description: "Mark student period and daily attendance", icon: CheckCircle2, color: "bg-teal-100 text-teal-800 border-teal-200" },
+  { id: "takhteet", label: "Takhteet Planner", category: "Academics", description: "Curriculum planning, portion pacing & syllabus", icon: Layers, color: "bg-amber-100 text-amber-800 border-amber-200" },
+  { id: "mood-insights", label: "Mood Insights", category: "Academics", description: "Student sentiment & behavioral tracking", icon: Heart, color: "bg-purple-100 text-purple-800 border-purple-200" },
+  { id: "hifz", label: "Hifz Reports", category: "Hifz", description: "Quran memorization ajza progress & history", icon: FileText, color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala assessment and oral exam grading", icon: BookOpen, color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
+  { id: "hifz-weekly-slip", label: "Weekly Slips", category: "Hifz", description: "Weekly evaluation slips and sabqi logs", icon: FileSpreadsheet, color: "bg-sky-100 text-sky-800 border-sky-200" },
+  { id: "procurement", label: "Procurement / Makhzn", category: "Operations", description: "Stationery and school supply requests", icon: Package, color: "bg-orange-100 text-orange-800 border-orange-200" },
+  { id: "leave", label: "Leave Requests", category: "Operations", description: "Student & faculty absence requests", icon: UserCheck, color: "bg-rose-100 text-rose-800 border-rose-200" },
+  { id: "calendar", label: "Fatimi Calendar", category: "General", description: "Fatimi calendar events & miqaats schedule", icon: CalendarDays, color: "bg-amber-100 text-amber-800 border-amber-200" },
+  { id: "profile", label: "Teacher Profile", category: "General", description: "Khidmat details, biographical data & ITS", icon: User, color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  { id: "settings", label: "Account Settings", category: "General", description: "Password and notification preferences", icon: Settings, color: "bg-gray-100 text-gray-800 border-gray-200" },
+];
+
+const PRESETS = [
+  {
+    name: "Full Authority",
+    description: "Grant access to all teacher portal pages",
+    pages: AVAILABLE_PAGES.map((p) => p.id),
+    color: "from-emerald-700 to-teal-800",
+  },
+  {
+    name: "Standard Class Teacher",
+    description: "Classes, Attendance, Takhteet, Calendar, Profile",
+    pages: ["dashboard", "classes", "attendance", "takhteet", "calendar", "profile", "settings"],
+    color: "from-blue-700 to-indigo-800",
+  },
+  {
+    name: "Hifz Faculty / Muhaffiz",
+    description: "Hifz Reports, Marhala, Weekly Slips, Attendance",
+    pages: ["dashboard", "attendance", "hifz", "hifz-marhala", "hifz-weekly-slip", "calendar", "profile", "settings"],
+    color: "from-indigo-700 to-purple-800",
+  },
+  {
+    name: "Attendance & Dashboard Only",
+    description: "Restricted to class attendance and profile",
+    pages: ["dashboard", "attendance", "calendar", "profile", "settings"],
+    color: "from-amber-700 to-orange-800",
+  },
 ];
 
 export default function AdminPortalAssignmentsPage() {
+  const searchParams = useSearchParams();
+  const teacherIdParam = searchParams?.get("teacherId");
+
   const [teachers, setTeachers] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+
+  // Multi-select & Batch Page Assignment Modal State
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
-  const [revokingAssignment, setRevokingAssignment] = useState<any>(null);
-  const [revoking, setRevoking] = useState(false);
 
   const fetchData = async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
       const res = await fetch("/api/admin/portal-assignments");
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data) {
         setTeachers(data.data.teachers || []);
-        setAssignments(data.data.assignments || []);
         if (isManual) {
-          toast({ variant: "success", title: "Refreshed", description: "Portal permissions reloaded." });
+          toast({ variant: "success", title: "Refreshed", description: "Teacher page permissions reloaded." });
         }
       } else {
-        toast({ variant: "destructive", title: "Fetch Error", description: data.error || "Failed to load portal assignments." });
+        toast({ variant: "destructive", title: "Fetch Error", description: data.error || "Failed to load page assignments." });
       }
-    } catch (error) {
+    } catch {
       toast({ variant: "destructive", title: "Network Error", description: "Could not connect to server." });
     } finally {
       setLoading(false);
@@ -80,113 +144,152 @@ export default function AdminPortalAssignmentsPage() {
     fetchData();
   }, []);
 
-  const filtered = useMemo(() => {
-    const query = search.toLowerCase().trim();
-    if (!query) return teachers;
-    return teachers.filter(
-      (t) =>
-        t.name?.toLowerCase().includes(query) ||
-        t.email?.toLowerCase().includes(query) ||
-        t.employeeId?.toLowerCase().includes(query)
-    );
-  }, [teachers, search]);
+  // Auto-open modal if teacherId is provided in URL
+  useEffect(() => {
+    if (teacherIdParam && teachers.length > 0) {
+      const target = teachers.find((t) => t.id === teacherIdParam || t.profileId === teacherIdParam);
+      if (target) {
+        openModalForTeachers([target.id], target.assignedPages);
+      }
+    }
+  }, [teacherIdParam, teachers]);
 
-  const handleAssign = async (portalType: string) => {
-    if (!selectedTeacher) {
-      toast({ variant: "warning", title: "Select Teacher", description: "Please select a teacher first." });
+  const filteredTeachers = useMemo(() => {
+    let list = teachers;
+    const query = search.toLowerCase().trim();
+
+    if (query) {
+      list = list.filter(
+        (t) =>
+          t.name?.toLowerCase().includes(query) ||
+          t.email?.toLowerCase().includes(query) ||
+          t.employeeId?.toLowerCase().includes(query) ||
+          t.department?.toLowerCase().includes(query)
+      );
+    }
+
+    if (categoryFilter !== "ALL") {
+      list = list.filter((t) => t.assignedPages?.includes(categoryFilter));
+    }
+
+    return list;
+  }, [teachers, search, categoryFilter]);
+
+  const openModalForTeachers = (teacherIds: string[], currentPages?: string[]) => {
+    setSelectedTeacherIds(teacherIds);
+    if (currentPages && currentPages.length > 0) {
+      setSelectedPages(new Set(currentPages));
+    } else if (teacherIds.length === 1) {
+      const t = teachers.find((tch) => tch.id === teacherIds[0]);
+      setSelectedPages(new Set(t?.assignedPages || ["dashboard", "classes", "attendance", "calendar", "profile"]));
+    } else {
+      setSelectedPages(new Set(["dashboard", "classes", "attendance", "takhteet", "calendar", "profile", "settings"]));
+    }
+    setShowConfigModal(true);
+  };
+
+  const togglePage = (pageId: string) => {
+    setSelectedPages((prev) => {
+      const next = new Set(prev);
+      if (next.has(pageId)) next.delete(pageId);
+      else next.add(pageId);
+      return next;
+    });
+  };
+
+  const applyPreset = (presetPages: string[]) => {
+    setSelectedPages(new Set(presetPages));
+    toast({
+      variant: "default",
+      title: "Preset Applied",
+      description: `Loaded ${presetPages.length} pages for assignment.`,
+    });
+  };
+
+  const handleSaveAssignments = async () => {
+    if (selectedTeacherIds.length === 0) {
+      toast({ variant: "warning", title: "Select Teacher", description: "Please select at least one teacher." });
       return;
     }
+
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/portal-assignments", {
+      const pagesArray = Array.from(selectedPages);
+      const res = await fetch("/api/admin/portal-assignments/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId: selectedTeacher.id, portalType }),
+        body: JSON.stringify({
+          teacherIds: selectedTeacherIds,
+          pages: pagesArray,
+          grantAll: pagesArray.length === AVAILABLE_PAGES.length,
+        }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast({ variant: "success", title: "Permission Granted", description: `Assigned ${portalType} portal to ${selectedTeacher.name}.` });
-        setShowAssignModal(false);
-        setSelectedTeacher(null);
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        toast({
+          variant: "success",
+          title: "Page Permissions Updated",
+          description: `Assigned ${pagesArray.length} pages to ${selectedTeacherIds.length} teacher(s).`,
+        });
+        setShowConfigModal(false);
+        setSelectedTeacherIds([]);
         await fetchData();
       } else {
-        toast({ variant: "destructive", title: "Assignment Failed", description: data.error || "Could not assign portal." });
+        toast({ variant: "destructive", title: "Update Failed", description: json.error || "Could not save permissions." });
       }
-    } catch (err) {
+    } catch {
       toast({ variant: "destructive", title: "Network Error", description: "Failed to connect to server." });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleConfirmRevoke = async () => {
-    if (!revokingAssignment) return;
-    setRevoking(true);
-    try {
-      const res = await fetch(`/api/admin/portal-assignments?id=${revokingAssignment.id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.success) {
-        toast({ variant: "success", title: "Access Revoked", description: "Teacher portal permission removed." });
-        setRevokingAssignment(null);
-        await fetchData();
-      } else {
-        toast({ variant: "destructive", title: "Revocation Failed", description: data.error || "Failed to remove access." });
-      }
-    } catch (err) {
-      toast({ variant: "destructive", title: "Error", description: "Could not remove permission due to network error." });
-    } finally {
-      setRevoking(false);
-    }
-  };
-
-  const getTeacherAssignments = (teacherId: string) => {
-    return assignments.filter((a) => {
-      const teacher = teachers.find((t) => t.id === teacherId);
-      return teacher && a.teacherEmail === teacher.email;
-    });
-  };
-
-  const openAssignModalForTeacher = (teacher?: any) => {
-    setSelectedTeacher(teacher || (teachers.length > 0 ? teachers[0] : null));
-    setShowAssignModal(true);
-  };
+  // Group available pages by category
+  const categories: Array<"Academics" | "Hifz" | "Operations" | "General"> = ["Academics", "Hifz", "Operations", "General"];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* People & Directory Hub Navigation Tabs */}
       <AdminHubTabs
         hubTitle="People & Directory"
-        hubDescription="Manage user accounts, student profiles, parent directory, and portal permissions."
+        hubDescription="Manage user accounts, student profiles, parent directory, and teacher page permissions."
         tabs={[
           { label: "All Accounts", href: "/admin/users", icon: Users },
           { label: "User Passwords Vault", href: "/admin/passwords", icon: KeyRound },
           { label: "Talabat (Students)", href: "/admin/students", icon: GraduationCap },
           { label: "Parents Directory", href: "/admin/parents", icon: Heart },
           { label: "Assign Talabat to Parent", href: "/admin/parents/assign", icon: Link2 },
-          { label: "Portal Roles & Permissions", href: "/admin/portal-assignments", icon: UserCheck },
+          { label: "Teacher Page Permissions", href: "/admin/portal-assignments", icon: UserCheck },
         ]}
       />
 
       {/* Fatimi Header Banner */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl"
+        <div
+          className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl"
           style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 50%, #064e3b 100%)" }}
         >
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-md shrink-0"
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-md shrink-0"
                 style={{ background: "linear-gradient(135deg, #d4af37, #b8972e)" }}
               >
-                <UserCheck className="w-7 h-7 text-white" />
+                <Shield className="w-7 h-7 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">Teacher Portal Permissions</h1>
+                  <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                    Teacher Page & Authority Control
+                  </h1>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/20 text-xs text-white font-semibold">
-                    {assignments.length} Active
+                    {teachers.length} Faculty
                   </span>
                 </div>
-                <p className="text-emerald-100 text-sm mt-1">Assign module-level portal access (Hifz, Portfolio, Full Access) to teachers.</p>
+                <p className="text-emerald-100 text-sm mt-1">
+                  Assign any single or multiple pages to any teacher, show/hide modules, and grant full authority.
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -201,9 +304,9 @@ export default function AdminPortalAssignmentsPage() {
               </Button>
               <Button
                 className="bg-[#d4af37] hover:bg-[#b8972e] text-white font-semibold shadow-lg shadow-black/20"
-                onClick={() => openAssignModalForTeacher()}
+                onClick={() => openModalForTeachers(teachers.map((t) => t.id))}
               >
-                <Plus className="w-4 h-4 mr-1.5" /> Assign Access
+                <Plus className="w-4 h-4 mr-1.5" /> Bulk Assign All Faculty
               </Button>
             </div>
           </div>
@@ -211,264 +314,321 @@ export default function AdminPortalAssignmentsPage() {
         </div>
       </motion.div>
 
-      {/* Portal Type Legend */}
-      <div className="flex flex-wrap gap-3 mb-6 bg-white p-4 rounded-xl border border-[#d4af37]/25 shadow-sm">
-        <span className="text-xs font-bold text-[#6b4c0a] uppercase tracking-wider self-center mr-2">Available Portals:</span>
-        {portalTypes.map((type) => (
-          <div key={type.value} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold ${type.color}`}>
-            <type.icon className="w-4 h-4" />
-            <span>{type.label}</span>
+      {/* Available Pages Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm mb-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+          <span className="text-xs font-bold text-[#065f46] uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-amber-500" /> All Available Modules & Pages ({AVAILABLE_PAGES.length}):
+          </span>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Active in Navigation
           </div>
-        ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {AVAILABLE_PAGES.map((page) => {
+            const Icon = page.icon;
+            return (
+              <div
+                key={page.id}
+                onClick={() => setCategoryFilter(categoryFilter === page.id ? "ALL" : page.id)}
+                className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                  categoryFilter === page.id
+                    ? "bg-emerald-700 text-white border-emerald-800 shadow-sm scale-105"
+                    : page.color + " hover:opacity-90"
+                }`}
+                title={`Filter faculty having ${page.label}`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{page.label}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <label htmlFor="search-teachers" className="sr-only">
-          Search teachers
-        </label>
-        <input
-          type="text"
-          id="search-teachers"
-          name="search-teachers"
-          placeholder="Search by teacher name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none shadow-sm transition-all"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by teacher name, email, ITS or employee ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none shadow-sm transition-all"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <span className="text-xs text-gray-500 font-medium">
+            Showing <strong className="text-gray-800">{filteredTeachers.length}</strong> of {teachers.length} faculty
+          </span>
+          {categoryFilter !== "ALL" && (
+            <Button size="sm" variant="ghost" onClick={() => setCategoryFilter("ALL")} className="h-7 text-xs text-red-600 hover:bg-red-50">
+              Clear Filter
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Teachers Grid */}
+      {/* Faculty Page Permissions Grid */}
       {loading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="animate-pulse bg-white p-6 rounded-xl border border-gray-100">
-              <div className="h-20 bg-gray-200 rounded" />
-            </Card>
-          ))}
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mb-2" />
+          <p className="text-sm text-gray-500 font-medium">Loading teacher page permissions...</p>
+        </div>
+      ) : filteredTeachers.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-3xl border border-gray-200/80 shadow-sm">
+          <Shield className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-base font-bold text-gray-700">No teachers found</p>
+          <p className="text-xs text-gray-500 mt-1">Try refining your search query or reset filters.</p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((teacher, idx) => {
-            const teacherAssignments = getTeacherAssignments(teacher.id);
-            const hasHifz = teacherAssignments.some((a: any) => a.portalType === "HIFZ" && a.isActive);
-            const hasPortfolio = teacherAssignments.some((a: any) => a.portalType === "PORTFOLIO" && a.isActive);
-            const hasAll = teacherAssignments.some((a: any) => a.portalType === "ALL" && a.isActive);
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredTeachers.map((teacher) => {
+            const assignedCount = teacher.assignedPages?.length || 0;
+            const isAll = assignedCount >= AVAILABLE_PAGES.length;
 
             return (
-              <motion.div key={teacher.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.02 }}>
-                <Card className="hover:shadow-md transition-shadow rounded-xl border border-gray-200 bg-white h-full flex flex-col justify-between">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
-                          {getInitials(teacher.name.split(" ")[0] || "T", teacher.name.split(" ")[1] || "")}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-bold text-gray-900 text-sm truncate">{teacher.name}</h3>
-                          <p className="text-xs text-gray-500 truncate">{teacher.email}</p>
-                          {teacher.employeeId && <p className="text-[10px] text-gray-400 mt-0.5">{teacher.employeeId}</p>}
+              <motion.div
+                key={teacher.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-3xl border border-gray-200/80 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between"
+              >
+                {/* Header */}
+                <div className="p-5 border-b border-gray-100 bg-gradient-to-br from-emerald-50/50 via-white to-amber-50/20">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#047857] to-[#064e3b] text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
+                        {getInitials(teacher.name.split(" ")[0], teacher.name.split(" ")[1] || "")}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-display font-bold text-gray-900 text-base truncate">
+                          {teacher.name}
+                        </h3>
+                        <p className="text-xs text-gray-500 truncate">{teacher.email}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                            ID: {teacher.employeeId}
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-medium truncate">
+                            {teacher.department}
+                          </span>
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    <div className="space-y-2 mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[70px]">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Assigned Portals</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {hasAll ? (
-                          <div className="flex items-center justify-between w-full">
-                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-semibold py-1 px-2">
-                              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Full Access
-                            </Badge>
-                            {teacherAssignments.find((a: any) => a.portalType === "ALL") && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => setRevokingAssignment(teacherAssignments.find((a: any) => a.portalType === "ALL"))}
-                                title="Revoke access"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        ) : (
-                          <>
-                            {hasHifz && (
-                              <div className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-800 px-2 py-0.5 rounded text-xs font-medium">
-                                <BookOpen className="w-3 h-3" /> Hifz
-                                <button
-                                  className="text-indigo-400 hover:text-red-600 ml-1"
-                                  onClick={() => setRevokingAssignment(teacherAssignments.find((a: any) => a.portalType === "HIFZ"))}
-                                  title="Remove Hifz"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            )}
-                            {hasPortfolio && (
-                              <div className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded text-xs font-medium">
-                                <Shield className="w-3 h-3" /> Portfolio
-                                <button
-                                  className="text-amber-400 hover:text-red-600 ml-1"
-                                  onClick={() => setRevokingAssignment(teacherAssignments.find((a: any) => a.portalType === "PORTFOLIO"))}
-                                  title="Remove Portfolio"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {!hasHifz && !hasPortfolio && !hasAll && (
-                          <span className="text-xs text-gray-400 italic">No access assigned</span>
-                        )}
-                      </div>
+                {/* Assigned Pages Chips */}
+                <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                        Assigned Pages ({assignedCount}):
+                      </span>
+                      {isAll && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          Full Access
+                        </span>
+                      )}
                     </div>
 
+                    <div className="flex flex-wrap gap-1.5 min-h-[70px]">
+                      {AVAILABLE_PAGES.map((page) => {
+                        const isAssigned = teacher.assignedPages?.includes(page.id);
+                        const Icon = page.icon;
+                        return (
+                          <span
+                            key={page.id}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                              isAssigned
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-bold"
+                                : "bg-gray-100 text-gray-400 border border-gray-200 line-through opacity-50"
+                            }`}
+                          >
+                            <Icon className="w-3 h-3" />
+                            {page.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2">
                     <Button
-                      variant="outline"
                       size="sm"
-                      className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-medium"
-                      onClick={() => openAssignModalForTeacher(teacher)}
+                      onClick={() => openModalForTeachers([teacher.id], teacher.assignedPages)}
+                      className="w-full bg-[#047857] hover:bg-[#065f46] text-white font-bold text-xs h-9 rounded-xl shadow-sm"
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Grant / Modify Access
+                      <Shield className="w-3.5 h-3.5 mr-1.5" /> Configure Authority & Pages
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Assign Modal */}
-      <Modal open={showAssignModal} onOpenChange={setShowAssignModal}>
-        <ModalContent className="max-w-md">
+      {/* ─────────────────────────────────────────────────────────────
+          ASSIGN & CONFIGURE TEACHER PAGES MODAL
+         ───────────────────────────────────────────────────────────── */}
+      <Modal open={showConfigModal} onOpenChange={setShowConfigModal}>
+        <ModalContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <ModalHeader>
-            <ModalTitle className="text-gray-900 font-bold">Assign Teacher Portal Access</ModalTitle>
-          </ModalHeader>
-          <div className="space-y-4 py-3">
-            <div>
-              <label htmlFor="selectedTeacher" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                Teacher *
-              </label>
-              <select
-                id="selectedTeacher"
-                name="selectedTeacher"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none bg-white"
-                value={selectedTeacher?.id || ""}
-                onChange={(e) => {
-                  const teacher = teachers.find((t) => t.id === e.target.value);
-                  setSelectedTeacher(teacher || null);
-                }}
-              >
-                <option value="">Select teacher...</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedTeacher && (
-              <fieldset className="border-0 p-0 m-0">
-                <legend className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">
-                  Choose Portal Permission to Grant
-                </legend>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {portalTypes.map((type) => {
-                    const teacherAssignments = getTeacherAssignments(selectedTeacher.id);
-                    const hasAccess = teacherAssignments.some((a: any) => a.portalType === type.value && a.isActive);
-                    return (
-                      <button
-                        key={type.value}
-                        type="button"
-                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                          hasAccess
-                            ? "border-emerald-500 bg-emerald-50/50 cursor-default"
-                            : "border-gray-200 hover:border-gray-400 bg-white hover:bg-gray-50"
-                        }`}
-                        onClick={() => !hasAccess && handleAssign(type.value)}
-                        disabled={saving || hasAccess}
-                      >
-                        <div className={`p-2 rounded-lg ${type.color} shrink-0`}>
-                          <type.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-gray-900 text-sm">{type.label}</p>
-                          <p className="text-xs text-gray-500">
-                            {type.value === "HIFZ" && "Hifz memorization logs & reviews"}
-                            {type.value === "PORTFOLIO" && "Student portfolio view & scoring"}
-                            {type.value === "ALL" && "Full access to all teaching modules"}
-                          </p>
-                        </div>
-                        {hasAccess ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-semibold">
-                            Active
-                          </Badge>
-                        ) : saving ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                        ) : (
-                          <Plus className="w-4 h-4 text-gray-400" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            )}
-          </div>
-          <ModalFooter>
-            <ModalClose asChild>
-              <Button variant="outline" size="sm">
-                Close
-              </Button>
-            </ModalClose>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Revoke Confirmation Modal */}
-      <Modal open={!!revokingAssignment} onOpenChange={() => setRevokingAssignment(null)}>
-        <ModalContent className="max-w-md">
-          <ModalHeader>
-            <ModalTitle className="flex items-center gap-2 text-red-600 font-bold">
-              <AlertTriangle className="w-5 h-5" />
-              Revoke Portal Access
+            <ModalTitle className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#047857] to-[#064e3b] text-white flex items-center justify-center">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 font-display">Assign Teacher Pages & Permissions</p>
+                <p className="text-xs text-gray-500">
+                  {selectedTeacherIds.length === 1
+                    ? `Configuring pages for ${teachers.find((t) => t.id === selectedTeacherIds[0])?.name || "Teacher"}`
+                    : `Bulk configuring pages for ${selectedTeacherIds.length} teachers`}
+                </p>
+              </div>
             </ModalTitle>
           </ModalHeader>
-          <div className="py-3 text-sm text-gray-600">
-            <p>
-              Are you sure you want to remove <strong className="text-gray-900">{revokingAssignment?.portalType}</strong> portal access from{" "}
-              <strong className="text-gray-900">{revokingAssignment?.teacherName}</strong>?
-            </p>
+
+          <div className="space-y-5 py-3">
+            {/* Presets Row */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-amber-50/40 border border-emerald-100">
+              <span className="text-xs font-bold text-[#065f46] uppercase tracking-wider block mb-2.5 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Quick Role Presets:
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => applyPreset(preset.pages)}
+                    className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-300 text-left transition-all group"
+                  >
+                    <p className="text-xs font-bold text-gray-900 group-hover:text-emerald-800">{preset.name}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{preset.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Categorized Page Selector */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                  Select Modules & Pages to Assign:
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPages(new Set(AVAILABLE_PAGES.map((p) => p.id)))}
+                    className="text-xs text-emerald-700 font-bold hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPages(new Set(["dashboard", "calendar", "profile"]))}
+                    className="text-xs text-gray-500 hover:underline"
+                  >
+                    Minimal
+                  </button>
+                </div>
+              </div>
+
+              {categories.map((cat) => {
+                const catPages = AVAILABLE_PAGES.filter((p) => p.category === cat);
+                return (
+                  <div key={cat} className="p-3.5 rounded-2xl bg-gray-50/80 border border-gray-200/80">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-gray-700 uppercase tracking-wider">{cat}</span>
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        {catPages.filter((p) => selectedPages.has(p.id)).length} / {catPages.length} Enabled
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {catPages.map((page) => {
+                        const isChecked = selectedPages.has(page.id);
+                        const Icon = page.icon;
+                        return (
+                          <div
+                            key={page.id}
+                            onClick={() => togglePage(page.id)}
+                            className={`cursor-pointer p-3 rounded-xl border flex items-center justify-between gap-3 transition-all select-none ${
+                              isChecked
+                                ? "bg-white border-emerald-500 shadow-sm ring-1 ring-emerald-500"
+                                : "bg-white/60 border-gray-200 opacity-60 hover:opacity-100"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                  isChecked ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-400"
+                                }`}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-gray-900 truncate">{page.label}</p>
+                                <p className="text-[10px] text-gray-500 truncate">{page.description}</p>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                                isChecked
+                                  ? "bg-emerald-600 border-emerald-600 text-white"
+                                  : "border-gray-300 bg-white"
+                              }`}
+                            >
+                              {isChecked && <Check className="w-3.5 h-3.5" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+
           <ModalFooter>
-            <ModalClose asChild>
-              <Button variant="outline" size="sm">
-                Cancel
-              </Button>
-            </ModalClose>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleConfirmRevoke}
-              disabled={revoking}
-            >
-              {revoking ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
-              Revoke Access
-            </Button>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-xs text-gray-500 font-medium">
+                <strong className="text-emerald-700">{selectedPages.size}</strong> pages selected
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setShowConfigModal(false)} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveAssignments}
+                  disabled={saving}
+                  className="bg-[#047857] hover:bg-[#065f46] text-white font-bold"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-1.5" /> Save Page Permissions
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </ModalFooter>
         </ModalContent>
       </Modal>

@@ -170,12 +170,6 @@ export default function ExpertTeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [takhteetLoading, setTakhteetLoading] = useState(true);
 
-  // Portfolio state
-  const [portfolioEnabled, setPortfolioEnabled] = useState(false);
-  const [portfolioMode, setPortfolioMode] = useState(false);
-  const [portfolioData, setPortfolioData] = useState<any>(null);
-  const [portfolioLoading, setPortfolioLoading] = useState(false);
-
   // Filters & Selection
   const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
   const [attendanceFilter, setAttendanceFilter] = useState<"ALL" | "PRESENT" | "ABSENT">("ALL");
@@ -209,12 +203,6 @@ export default function ExpertTeacherDashboard() {
         setStudents(json.data.students || []);
         setStats(json.data.stats || null);
         setRecentActivity(json.data.recentActivity || []);
-        setPortfolioEnabled(Boolean(json.data.portfolioEnabled));
-
-        if (json.data.portfolioEnabled) {
-          const saved = localStorage.getItem("teacher_portfolio_mode");
-          if (saved === "true") setPortfolioMode(true);
-        }
       }
     } catch (err) {
       console.error("Failed to load dashboard:", err);
@@ -236,26 +224,6 @@ export default function ExpertTeacherDashboard() {
       })
       .catch(() => setTakhteetLoading(false));
   }, [loadDashboardData]);
-
-  // Handle portfolio switch
-  useEffect(() => {
-    if (portfolioMode && portfolioEnabled && !portfolioData) {
-      setPortfolioLoading(true);
-      fetch("/api/teacher/portfolio")
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success) setPortfolioData(res.data);
-          setPortfolioLoading(false);
-        })
-        .catch(() => setPortfolioLoading(false));
-    }
-  }, [portfolioMode, portfolioEnabled, portfolioData]);
-
-  const togglePortfolioMode = () => {
-    const next = !portfolioMode;
-    setPortfolioMode(next);
-    localStorage.setItem("teacher_portfolio_mode", String(next));
-  };
 
   // Filter and sort students
   const filteredStudents = useMemo(() => {
@@ -505,34 +473,8 @@ export default function ExpertTeacherDashboard() {
               </div>
             </div>
 
-            {/* Action Island: Nested Button-in-Button Architecture */}
+            {/* Action Island: Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {portfolioEnabled && (
-                <button
-                  onClick={togglePortfolioMode}
-                  className={`group relative inline-flex h-11 w-[200px] items-center rounded-full transition-all duration-300 focus:outline-none ring-1 ring-white/20 p-1 shadow-inner ${
-                    portfolioMode
-                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                      : "bg-emerald-950/90 text-emerald-200 hover:bg-emerald-900"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 px-3 text-xs font-bold">
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Dashboard</span>
-                  </span>
-                  <span
-                    className={`absolute right-1 flex h-9 w-9 items-center justify-center rounded-full bg-white text-emerald-900 shadow-md transition-all duration-300 ${
-                      portfolioMode ? "-translate-x-[102px] text-indigo-900" : "translate-x-0"
-                    }`}
-                  >
-                    <BookOpen className="w-4 h-4" />
-                  </span>
-                  <span className="flex items-center gap-1.5 px-3 text-xs font-bold ml-auto">
-                    <span>Portfolio</span>
-                  </span>
-                </button>
-              )}
-
               {can("classes") && (
                 <Link href="/teacher/classes" className="group">
                   <button className="h-11 px-5 rounded-full bg-[#ffe082] hover:bg-[#ffd54f] text-emerald-950 font-black text-xs transition-all duration-200 flex items-center gap-3 shadow-lg hover:shadow-xl active:scale-[0.98]">
@@ -571,29 +513,9 @@ export default function ExpertTeacherDashboard() {
       </motion.div>
 
       {/* ─────────────────────────────────────────────────────────────
-          PORTFOLIO MODE SWITCH
+          2. MACHINED HUD METRICS BENTO (DOUBLE-BEZEL)
          ───────────────────────────────────────────────────────────── */}
-      {portfolioMode ? (
-        portfolioLoading ? (
-          <div className="flex items-center justify-center py-28">
-            <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
-          </div>
-        ) : portfolioData?.classes ? (
-          <PortfolioView data={portfolioData} />
-        ) : (
-          <div className="p-1 rounded-[2rem] bg-gray-100 ring-1 ring-gray-200">
-            <div className="rounded-[calc(2rem-0.25rem)] bg-white p-16 text-center">
-              <Layers className="w-12 h-12 mx-auto mb-3 opacity-40 text-emerald-600" />
-              <p className="text-base font-bold text-gray-700">No portfolio data available for your account</p>
-            </div>
-          </div>
-        )
-      ) : (
-        <>
-          {/* ─────────────────────────────────────────────────────────────
-              2. MACHINED HUD METRICS BENTO (DOUBLE-BEZEL)
-             ───────────────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {/* Card 1: Total Talabat */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -1556,8 +1478,6 @@ export default function ExpertTeacherDashboard() {
               </motion.div>
             )}
           </AnimatePresence>
-        </>
-      )}
     </div>
   );
 }

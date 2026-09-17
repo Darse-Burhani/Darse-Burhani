@@ -38,6 +38,7 @@ import {
 } from "@/lib/api";
 import { DailyStackedLogView } from "@/components/registry/DailyStackedLogView";
 import { DayDetailDrawer } from "@/components/registry/DayDetailDrawer";
+import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
 import { toast } from "@/components/ui/toast";
 import {
   saveDailyArchive,
@@ -203,6 +204,7 @@ export default function AdminAttendanceLogsPage() {
   const lastFetchRef = useRef(0);
 
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -496,6 +498,15 @@ export default function AdminAttendanceLogsPage() {
 
             <button
               type="button"
+              onClick={() => setManualModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md cursor-pointer"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-300" />
+              Record Manual
+            </button>
+
+            <button
+              type="button"
               onClick={handleFinalizeEvent}
               disabled={finalizing}
               className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs shadow-md cursor-pointer disabled:opacity-60"
@@ -703,6 +714,14 @@ export default function AdminAttendanceLogsPage() {
         targetDate={date}
         onClose={() => setActiveStudentId(null)}
         onOverrideSuccess={() => fetchData(true)}
+      />
+
+      <ManualAttendanceModal
+        open={manualModalOpen}
+        onOpenChange={setManualModalOpen}
+        initialScheduleType={audience === "FACULTY" ? "FACULTY_WINDOW" : "WINDOW"}
+        initialDate={date}
+        onSuccess={() => fetchData(true)}
       />
     </div>
   );

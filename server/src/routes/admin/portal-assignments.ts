@@ -4,15 +4,79 @@ import { requireAuth, requireRole } from "../../middleware";
 
 const router = Router();
 
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+// Standard available teacher pages and modules in Darse Burhani
+export const TEACHER_AVAILABLE_PAGES = [
+  { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main dashboard & point counter" },
+  { id: "classes", label: "My Classes", category: "Academics", description: "Class student rosters & management" },
+  { id: "attendance", label: "Attendance", category: "Academics", description: "Class & student attendance marking" },
+  { id: "hifz", label: "Hifz Reports", category: "Hifz", description: "Ajza progress & Quran memorization records" },
+  { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala assessment & testing exams" },
+  { id: "hifz-weekly-slip", label: "Hifz Weekly Slips", category: "Hifz", description: "Weekly evaluation slips and sabqi logs" },
+  { id: "takhteet", label: "Takhteet Planner", category: "Academics", description: "Curriculum pacing and syllabus progress" },
+  { id: "procurement", label: "Procurement / Makhzn", category: "Operations", description: "Stationery and school supply requests" },
+  { id: "leave", label: "Leave Requests", category: "Operations", description: "Student & faculty leave requests" },
+  { id: "mood-insights", label: "Mood Insights", category: "Academics", description: "Student sentiment & behavioral tracking" },
+  { id: "calendar", label: "Fatimi Calendar", category: "General", description: "Fatimi calendar events & schedule" },
+  { id: "profile", label: "Teacher Profile", category: "General", description: "Khidmat details, biographical data & ITS" },
+  { id: "settings", label: "Account Settings", category: "General", description: "Password and notification settings" },
+];
+
+// GET /api/admin/portal-assignments - List all teachers and their assigned pages
+router.get("/", requireAuth, async (req, res) => {
   try {
     const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
+
+    // If teacher calling for their own assignments
+    if (!isAdmin && session.user.role === "TEACHER") {
+      const teacherProfile = await prisma.teacherProfile.findUnique({
+        where: { userId: session.user.id },
+        include: { portalAssignments: true },
+      });
+
+      if (!teacherProfile) {
+        return res.json({ success: true, data: { pages: TEACHER_AVAILABLE_PAGES.map(p => p.id) } });
+      }
+
+      const activeAssignments = teacherProfile.portalAssignments.filter((a) => a.isActive);
+      const isAll = activeAssignments.some((a) => a.portalType === "ALL");
+      
+      let assignedPageIds: string[] = [];
+      if (activeAssignments.length === 0 || isAll) {
+        // If no custom restrictions or ALL assigned, default to full standard access
+        assignedPageIds = TEACHER_AVAILABLE_PAGES.map((p) => p.id);
+      } else {
+        assignedPageIds = activeAssignments.map((a) => {
+          if (a.portalType.startsWith("PAGE:")) return a.portalType.replace("PAGE:", "");
+          if (a.portalType === "HIFZ") return "hifz";
+          return a.portalType.toLowerCase();
+        });
+        // Always ensure Dashboard, Calendar, Profile, Settings are accessible unless explicitly revoked
+        if (!assignedPageIds.includes("dashboard")) assignedPageIds.push("dashboard");
+        if (!assignedPageIds.includes("profile")) assignedPageIds.push("profile");
+        if (!assignedPageIds.includes("calendar")) assignedPageIds.push("calendar");
+        if (!assignedPageIds.includes("settings")) assignedPageIds.push("settings");
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          teacherId: teacherProfile.id,
+          assignedPages: Array.from(new Set(assignedPageIds)),
+          allPages: TEACHER_AVAILABLE_PAGES,
+        },
+      });
+    }
+
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied" });
+    }
 
     const assignments = await prisma.teacherPortalAssignment.findMany({
       include: {
         teacher: {
           include: {
-            user: { select: { firstName: true, lastName: true, email: true } },
+            user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
           },
         },
       },
@@ -21,17 +85,20 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
     const teachers = await prisma.teacherProfile.findMany({
       include: {
-        user: { select: { firstName: true, lastName: true, email: true } },
+        user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, isActive: true } },
         portalAssignments: true,
       },
+      orderBy: { user: { firstName: "asc" } },
     });
 
     return res.json({
       success: true,
       data: {
+        availablePages: TEACHER_AVAILABLE_PAGES,
         assignments: assignments.map((a) => ({
           id: a.id,
           teacherId: a.teacherId,
+          teacherUserId: a.teacher.user.id,
           teacherName: `${a.teacher.user.firstName} ${a.teacher.user.lastName}`,
           teacherEmail: a.teacher.user.email,
           portalType: a.portalType,
@@ -39,16 +106,34 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           isActive: a.isActive,
           createdAt: a.createdAt,
         })),
-        teachers: teachers.map((t) => ({
-          id: t.userId,
-          name: `${t.user.firstName} ${t.user.lastName}`,
-          email: t.user.email,
-          employeeId: t.employeeId,
-          assignments: t.portalAssignments.map((a) => ({
-            portalType: a.portalType,
-            isActive: a.isActive,
-          })),
-        })),
+        teachers: teachers.map((t) => {
+          const raw = t.portalAssignments.filter((a) => a.isActive);
+          const hasAll = raw.some((a) => a.portalType === "ALL");
+          const pageKeys = hasAll
+            ? TEACHER_AVAILABLE_PAGES.map((p) => p.id)
+            : raw.map((a) => {
+                if (a.portalType.startsWith("PAGE:")) return a.portalType.replace("PAGE:", "");
+                if (a.portalType === "HIFZ") return "hifz";
+                return a.portalType.toLowerCase();
+              });
+
+          return {
+            id: t.userId,
+            profileId: t.id,
+            name: `${t.user.firstName} ${t.user.lastName}`,
+            email: t.user.email,
+            employeeId: t.employeeId,
+            department: t.department || t.roleTitle || "Faculty",
+            avatarUrl: t.user.avatarUrl || t.photoUrl,
+            isActive: t.user.isActive,
+            assignedPages: Array.from(new Set(pageKeys.length > 0 ? pageKeys : ["dashboard", "classes", "attendance", "takhteet", "calendar", "profile", "settings"])),
+            assignments: t.portalAssignments.map((a) => ({
+              id: a.id,
+              portalType: a.portalType,
+              isActive: a.isActive,
+            })),
+          };
+        }),
       },
     });
   } catch (error) {
@@ -57,10 +142,10 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
+// POST /api/admin/portal-assignments - Assign single page or portal type to teacher
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { teacherId, portalType } = body;
 
@@ -68,21 +153,23 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing required fields" });
     }
 
-    // Get teacher profile
-    const teacherProfile = await prisma.teacherProfile.findUnique({
-      where: { userId: teacherId },
+    const teacherProfile = await prisma.teacherProfile.findFirst({
+      where: { OR: [{ userId: teacherId }, { id: teacherId }] },
     });
 
     if (!teacherProfile) {
-      return res.status(404).json({ success: false, error: "Teacher not found" });
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    // Create or update assignment
+    const cleanPortalType = portalType.startsWith("PAGE:") || ["HIFZ", "ALL"].includes(portalType)
+      ? portalType
+      : `PAGE:${portalType}`;
+
     const assignment = await prisma.teacherPortalAssignment.upsert({
       where: {
         teacherId_portalType: {
           teacherId: teacherProfile.id,
-          portalType,
+          portalType: cleanPortalType,
         },
       },
       update: {
@@ -91,19 +178,11 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       },
       create: {
         teacherId: teacherProfile.id,
-        portalType,
+        portalType: cleanPortalType,
         assignedById: session.user.id,
         isActive: true,
       },
     });
-
-    // If HIFZ portal is assigned, also enable portfolio
-    if (portalType === "HIFZ") {
-      await prisma.teacherProfile.update({
-        where: { id: teacherProfile.id },
-        data: { portfolioEnabled: true },
-      });
-    }
 
     return res.status(201).json({ success: true, data: assignment });
   } catch (error) {
@@ -112,19 +191,91 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-router.delete("/", requireRole("ADMIN"), async (req, res) => {
+// POST /api/admin/portal-assignments/batch - Batch update assigned pages for one or multiple teachers
+router.post("/batch", requireRole("ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
+    const body = req.body as {
+      teacherIds: string[]; // User IDs or TeacherProfile IDs
+      pages: string[]; // Array of page IDs like ['dashboard', 'classes', 'attendance', 'hifz']
+      grantAll?: boolean;
+    };
 
-    const id = (req.query.id as string);
+    const { teacherIds, pages, grantAll } = body;
 
-    if (!id) {
-      return res.status(400).json({ success: false, error: "Assignment ID required" });
+    if (!teacherIds || !Array.isArray(teacherIds) || teacherIds.length === 0) {
+      return res.status(400).json({ success: false, error: "teacherIds array is required" });
     }
 
-    await prisma.teacherPortalAssignment.delete({ where: { id } });
+    const profiles = await prisma.teacherProfile.findMany({
+      where: { OR: [{ userId: { in: teacherIds } }, { id: { in: teacherIds } }] },
+    });
 
-    return res.json({ success: true });
+    if (profiles.length === 0) {
+      return res.status(404).json({ success: false, error: "No matching teacher profiles found" });
+    }
+
+    const pageKeys = grantAll
+      ? ["ALL", ...TEACHER_AVAILABLE_PAGES.map((p) => `PAGE:${p.id}`)]
+      : (pages || []).map((p) => (p.startsWith("PAGE:") ? p : `PAGE:${p}`));
+
+    for (const profile of profiles) {
+      // 1. Remove previous custom page assignments
+      await prisma.teacherPortalAssignment.deleteMany({
+        where: { teacherId: profile.id },
+      });
+
+      // 2. Insert new page assignments
+      if (pageKeys.length > 0) {
+        await prisma.teacherPortalAssignment.createMany({
+          data: pageKeys.map((pk) => ({
+            teacherId: profile.id,
+            portalType: pk,
+            assignedById: session.user.id,
+            isActive: true,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Updated page permissions for ${profiles.length} teacher(s)`,
+      data: { updatedCount: profiles.length },
+    });
+  } catch (error) {
+    console.error("Batch portal assignments error:", error);
+    return res.status(500).json({ success: false, error: "Failed to update page assignments" });
+  }
+});
+
+// DELETE /api/admin/portal-assignments - Revoke assignment by ID or teacher + page
+router.delete("/", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const id = req.query.id as string;
+    const teacherId = req.query.teacherId as string;
+    const page = req.query.page as string;
+
+    if (id) {
+      await prisma.teacherPortalAssignment.delete({ where: { id } });
+      return res.json({ success: true });
+    }
+
+    if (teacherId && page) {
+      const profile = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ userId: teacherId }, { id: teacherId }] },
+      });
+      if (profile) {
+        const portalType = page.startsWith("PAGE:") ? page : `PAGE:${page}`;
+        await prisma.teacherPortalAssignment.deleteMany({
+          where: { teacherId: profile.id, portalType },
+        });
+      }
+      return res.json({ success: true });
+    }
+
+    return res.status(400).json({ success: false, error: "Assignment ID or teacherId + page required" });
   } catch (error) {
     console.error("Portal assignment delete error:", error);
     return res.status(500).json({ success: false, error: "Failed to delete assignment" });

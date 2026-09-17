@@ -29,6 +29,9 @@ import {
   Library,
   MoreHorizontal,
   Megaphone,
+  Package,
+  Layers,
+  FileSpreadsheet,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -123,44 +126,11 @@ export function NavigationBar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [portfolioEnabled, setPortfolioEnabled] = useState(false);
-  const [portfolioMode, setPortfolioMode] = useState(false);
-  const [hifzAccess, setHifzAccess] = useState(false);
 
   // Close the overflow menu whenever the route changes
   useEffect(() => {
     setMoreMenuOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if (session?.user?.role === "TEACHER") {
-      fetch("/api/teacher/portfolio")
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success && res.data) {
-            setPortfolioEnabled(res.data.enabled);
-            const saved = localStorage.getItem("teacher_portfolio_mode");
-            if (saved === "true" && res.data.enabled) {
-              setPortfolioMode(true);
-            }
-          }
-        })
-        .catch(() => {});
-      
-      // Check HIFZ access
-      fetch("/api/admin/portal-assignments")
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success) {
-            const teacher = res.data.teachers.find((t: any) => t.id === session?.user?.id);
-            if (teacher) {
-              setHifzAccess(teacher.assignments?.some((a: any) => a.portalType === "HIFZ" && a.isActive));
-            }
-          }
-        })
-        .catch(() => {});
-    }
-  }, [session]);
 
   if (!session?.user) return null;
 
@@ -171,25 +141,19 @@ export function NavigationBar() {
   const isStudent = role === "STUDENT";
   const isParent = role === "PARENT";
 
-  const togglePortfolioMode = () => {
-    const next = !portfolioMode;
-    setPortfolioMode(next);
-    localStorage.setItem("teacher_portfolio_mode", String(next));
-    window.location.reload();
-  };
-
-  // Build teacher nav items dynamically based on portfolio status and hifz access
+  // Build teacher nav items dynamically based on Admin assigned pages & module visibility
   const teacherNavItems = isTeacher
     ? [
-        { label: portfolioMode ? "Portfolio" : "Dashboard", href: "/teacher", icon: Activity },
-        ...(!portfolioMode
-          ? [
-              { label: "My Classes", href: "/teacher/classes", icon: BookOpen },
-              { label: "Attendance", href: "/teacher/attendance", icon: Clock },
-            ]
-          : []),
-        { label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
-        ...(hifzAccess ? [{ label: "Hifz Reports", href: "/teacher/hifz", icon: FileText }] : []),
+        { label: "Dashboard", href: "/teacher", icon: Activity },
+        ...(isModuleVisible("classes", "TEACHER") ? [{ label: "My Classes", href: "/teacher/classes", icon: BookOpen }] : []),
+        ...(isModuleVisible("attendance", "TEACHER") ? [{ label: "Attendance", href: "/teacher/attendance", icon: Clock }] : []),
+        ...(isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
+        ...(isModuleVisible("hifz", "TEACHER") ? [{ label: "Hifz Reports", href: "/teacher/hifz", icon: FileText }] : []),
+        ...(isModuleVisible("hifz-marhala", "TEACHER") ? [{ label: "Hifz Marhala", href: "/teacher/hifz-marhala", icon: BookOpen }] : []),
+        ...(isModuleVisible("hifz-weekly-slip", "TEACHER") ? [{ label: "Weekly Slips", href: "/teacher/hifz-weekly-slip", icon: FileSpreadsheet }] : []),
+        ...(isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/teacher/procurement", icon: Package }] : []),
+        ...(isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/teacher/leave", icon: UserCheck }] : []),
+        ...(isModuleVisible("calendar", "TEACHER") ? [{ label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays }] : []),
         { label: "Profile", href: "/teacher/profile", icon: User },
       ]
     : config?.navItems;
@@ -358,23 +322,6 @@ export function NavigationBar() {
                     </div>
                   </>
                 )}
-              </div>
-            )}
-            {/* Portfolio Toggle for Teachers */}
-            {isTeacher && portfolioEnabled && (
-              <div className="ml-2 pl-2 border-l border-gray-200">
-                <button
-                  onClick={togglePortfolioMode}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                    portfolioMode
-                      ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  )}
-                >
-                  <BookOpen className="w-4 h-4" />
-                  {portfolioMode ? "Portfolio On" : "Portfolio Off"}
-                </button>
               </div>
             )}
           </div>
@@ -563,24 +510,6 @@ export function NavigationBar() {
                 </Link>
               );
             })}
-            {/* Portfolio Toggle for Teachers (Mobile) */}
-            {isTeacher && portfolioEnabled && (
-              <button
-                onClick={() => {
-                  togglePortfolioMode();
-                  setMobileMenuOpen(false);
-                }}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all w-full",
-                  portfolioMode
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white"
-                    : "text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                <BookOpen className="w-4 h-4" />
-                {portfolioMode ? "Switch to Dashboard" : "Switch to Portfolio"}
-              </button>
-            )}
           </div>
 
           {/* Mobile profile section */}

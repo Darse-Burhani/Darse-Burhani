@@ -57,6 +57,7 @@ import adminSecurityRoutes from "./routes/admin/security";
 import adminLeaveRoutes from "./routes/admin/leave";
 import adminAttendanceRegistryRoutes from "./routes/admin/attendance-registry";
 import adminAttendanceLogsRoutes from "./routes/admin/attendance-logs";
+import manualAttendanceRoutes from "./routes/manual-attendance";
 import {
   securityHeadersMiddleware,
   sanitizeInputsMiddleware,
@@ -169,6 +170,8 @@ export function createApp() {
 
   // ── Top-level routes ──
   app.use("/api/points", pointsRoutes);
+  app.use("/api/attendance/manual", manualAttendanceRoutes);
+  app.use("/api/admin/attendance/manual", manualAttendanceRoutes);
   app.use("/api/admin/attendance/schedule", adminAttendanceScheduleRoutes);
   app.use("/api/attendance/schedule", adminAttendanceScheduleRoutes);
   app.use("/api/admin/attendance/email-reports", adminAttendanceEmailsRoutes);

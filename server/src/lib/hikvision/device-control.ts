@@ -150,13 +150,13 @@ export async function rebootDevice(c: HikConnection): Promise<{ success: boolean
 }
 
 const SNAPSHOT_CALLS: Array<{ path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string }> = [
-  { path: "/ISAPI/Streaming/channels/1/picture", method: "GET" },
   { path: "/ISAPI/Streaming/channels/101/picture", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/1/picture?videoType=jpeg", method: "GET" },
+  { path: "/ISAPI/Streaming/channels/1/picture", method: "GET" },
+  { path: "/ISAPI/Streaming/channels/102/picture", method: "GET" },
   { path: "/ISAPI/Streaming/channels/101/picture?videoType=jpeg", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/1/picture?snapType=face", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/2/picture", method: "GET" },
+  { path: "/ISAPI/Streaming/channels/1/picture?videoType=jpeg", method: "GET" },
   { path: "/ISAPI/Streaming/channels/201/picture", method: "GET" },
+  { path: "/ISAPI/Streaming/channels/2/picture", method: "GET" },
   { path: "/ISAPI/System/Video/inputs/channels/1/capture", method: "GET" },
   { path: "/ISAPI/System/Video/inputs/channels/1/capture/preview", method: "GET" },
   { path: "/ISAPI/ContentMgmt/Image/channels/1", method: "GET" },

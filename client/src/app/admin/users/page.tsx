@@ -1942,24 +1942,21 @@ function FacultyCard({
           )}
         </div>
 
-        {/* Portfolio Feature Bar */}
-        <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-gray-200/80">
-          <div className="flex items-center gap-2 text-xs">
-            <span className={`w-2.5 h-2.5 rounded-full ${isPortfolio ? "bg-emerald-500 animate-pulse" : "bg-gray-300"}`} />
-            <span className="font-semibold text-gray-700">
-              {isPortfolio ? "Portfolio Active" : "Portfolio Off"}
-            </span>
+        {/* Page & Portal Permissions Bar */}
+        <div className="flex items-center justify-between bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-900 font-semibold">
+            <Shield className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Page Authority</span>
           </div>
-          <Button
-            size="sm"
-            variant={isPortfolio ? "default" : "outline"}
-            onClick={() => onTogglePortfolio(user.id, isPortfolio)}
-            className={`h-6 text-[11px] px-2.5 rounded-lg ${
-              isPortfolio ? "bg-[#047857] hover:bg-[#065f46] text-white" : "text-gray-600 border-gray-200 hover:bg-emerald-50"
-            }`}
-          >
-            {isPortfolio ? "Disable" : "Enable"}
-          </Button>
+          <a href={`/admin/portal-assignments?teacherId=${user.id}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[11px] px-2.5 rounded-lg bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
+            >
+              Assign Pages
+            </Button>
+          </a>
         </div>
       </div>
 

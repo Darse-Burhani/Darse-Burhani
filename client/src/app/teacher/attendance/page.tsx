@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
 import { getInitials } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +106,7 @@ export default function TeacherAttendancePage() {
   const [emailPeriodType, setEmailPeriodType] = useState<"WEEKLY" | "MONTHLY">("WEEKLY");
   const [emailNote, setEmailNote] = useState("");
   const [emailSending, setEmailSending] = useState(false);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
 
   const handleSendClassEmails = async () => {
     if (!classId || roster.length === 0) return;
@@ -362,22 +364,32 @@ export default function TeacherAttendancePage() {
             Select a class and date, then mark each talabat present, late, absent, or early departure.
           </p>
         </div>
-        {roster.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setEmailModalOpen(true)}
-              className="text-amber-800 border-amber-300 hover:bg-amber-50"
-            >
-              <Mail className="w-4 h-4 mr-2 text-amber-600" />
-              Email Reports to Parents
-            </Button>
-            <Button variant="teacher" onClick={save} loading={saving} className="sm:w-auto">
-              <Save className="w-4 h-4 mr-2" />
-              Save Attendance
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <Button
+            variant="outline"
+            onClick={() => setManualModalOpen(true)}
+            className="text-emerald-800 border-emerald-300 hover:bg-emerald-50 font-bold"
+          >
+            <Clock className="w-4 h-4 mr-2 text-emerald-600" />
+            Multi-Schedule Manual Entry
+          </Button>
+          {roster.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setEmailModalOpen(true)}
+                className="text-amber-800 border-amber-300 hover:bg-amber-50"
+              >
+                <Mail className="w-4 h-4 mr-2 text-amber-600" />
+                Email Reports to Parents
+              </Button>
+              <Button variant="teacher" onClick={save} loading={saving} className="sm:w-auto">
+                <Save className="w-4 h-4 mr-2" />
+                Save Attendance
+              </Button>
+            </>
+          )}
+        </div>
       </motion.div>
 
       {/* Pending Justifications */}
@@ -827,6 +839,16 @@ export default function TeacherAttendancePage() {
           </div>
         </div>
       )}
+
+      {/* Multi-Schedule Manual Attendance Modal */}
+      <ManualAttendanceModal
+        open={manualModalOpen}
+        onOpenChange={setManualModalOpen}
+        initialScheduleType="CLASS_PERIOD"
+        initialClassId={classId}
+        initialDate={date}
+        onSuccess={() => loadRoster()}
+      />
     </div>
   );
 }
