@@ -126,17 +126,13 @@ export function createApp() {
   // 4. Input Sanitization (Blocks prototype pollution, null bytes, script tags)
   app.use(sanitizeInputsMiddleware);
 
-  // 5. Static uploads with ETag caching
-  app.use(
-    "/uploads",
-    express.static(uploadsDir, {
-      etag: true,
-      lastModified: true,
-      setHeaders: (res) => {
-        res.setHeader("Cache-Control", "no-cache");
-      },
-    }),
-  );
+  // 5. Static uploads with ETag caching (supports root public/uploads, client/public/uploads, and client/dist/uploads)
+  const clientPublicUploads = path.join(repoRoot, "client", "public", "uploads");
+  const clientDistUploads = path.join(repoRoot, "client", "dist", "uploads");
+
+  app.use("/uploads", express.static(uploadsDir, { etag: true, maxAge: "1d" }));
+  app.use("/uploads", express.static(clientPublicUploads, { etag: true, maxAge: "1d" }));
+  app.use("/uploads", express.static(clientDistUploads, { etag: true, maxAge: "1d" }));
 
   // 6. Health & Load Balancer Readiness Probe (exempt from rate limits)
   app.use("/api/health", healthRoutes);
