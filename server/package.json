@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "vite build",
+    "build": "npx vite build",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "attendance-log": "tsx src/scripts/export-attendance-log.ts",
