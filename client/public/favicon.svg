@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="dbGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#b8860b" />
+    </linearGradient>
+    <radialGradient id="dbEmeraldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#022c22" stop-opacity="1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background Shield -->
+  <rect width="64" height="64" rx="16" fill="url(#dbEmeraldGlow)" stroke="#d4af37" stroke-width="1.5" />
+
+  <!-- Outer Diamond -->
+  <path d="M32 8L56 32L32 56L8 32Z" fill="none" stroke="url(#dbGold)" stroke-width="1.5" opacity="0.6" />
+
+  <!-- 8-Pointed Star (Rub el Hizb) -->
+  <path d="M32 12L37 27L52 32L37 37L32 52L27 37L12 32L27 27Z" fill="none" stroke="url(#dbGold)" stroke-width="1.8" />
+
+  <!-- Central Core Star -->
+  <path d="M32 20L35 29L44 32L35 35L32 44L29 35L20 32L29 29Z" fill="url(#dbGold)" />
+
+  <!-- Core Jewel -->
+  <circle cx="32" cy="32" r="3" fill="#ffffff" opacity="0.9" />
+</svg>

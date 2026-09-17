@@ -1,0 +1,16 @@
+{
+  "name": "hikvision-usb-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local WebSocket bridge between the Darse Burhani web portal and the Hikvision DS-K1F820-F USB fingerprint reader (HCNetSDK). Listens on ws://127.0.0.1:8080",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "koffi": "^2.9.9"
+  }
+}

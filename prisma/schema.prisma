@@ -1,0 +1,1111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EARLY_DEPARTURE
+  MEDICAL
+  ON_LEAVE
+}
+
+enum LeaveType {
+  MEDICAL
+  PERSONAL
+  FAMILY_EMERGENCY
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AttendanceSource {
+  BIOMETRIC
+  MANUAL
+  AUTO_ABSENT
+  MEDICAL_LEAVE
+  LEAVE_APPROVED
+}
+
+enum JustificationStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ActionType {
+  POSITIVE
+  NEGATIVE
+}
+
+
+enum TakhteetStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum HifzMarhala {
+  MARHALA_1
+  MARHALA_2
+  MARHALA_3
+  MARHALA_4
+  MARHALA_5
+}
+
+enum HifzReportSource {
+  TALABAT_SELF
+  FACULTY_ASSIGNED
+  ADMIN
+}
+
+enum HifzReportStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+enum HifzWeeklySlipStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  plainPassword String?
+  firstName     String
+  lastName      String
+  role          UserRole
+  avatarUrl     String?
+  emailVerified DateTime?
+  isActive      Boolean   @default(true)
+  deletedAt     DateTime?
+  deletedById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  teacherProfile TeacherProfile?
+  studentProfile StudentProfile?
+  parentProfile  ParentProfile?
+  accounts       Account[]
+  sessions       Session[]
+  notifications  Notification[]
+  procurementRequests  ProcurementRequest[] @relation("ProcurementRequester")
+  procurementsAssigned ProcurementRequest[] @relation("ProcurementAssignedAdmin")
+  reviewedLeaves       LeaveRequest[]       @relation("LeaveReviewer")
+  reviewedHifzReports  HifzMarhalaReport[]  @relation("HifzReportReviewer")
+  reviewedWeeklySlips  HifzWeeklySlip[]     @relation("WeeklySlipReviewer")
+  hifzAssignments      HifzMarhalaAssignment[] @relation("AdminHifzAssignments")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model TeacherProfile {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  employeeId       String  @unique
+  department       String?
+  subjects         String[]
+  portfolioEnabled Boolean @default(false)
+  biometricHash    String? @unique
+
+  // 18 Profile Specification Fields
+  photoUrl         String?
+  its              String?
+  age              Int?
+  khidmatMauze     String?
+  subCategory      String?
+  roleTitle        String?
+  farigYear        String?
+  farigDarajah     String?
+  aljameaDegree    String?
+  hifzStatus       String?
+  hifzYear         String?
+  batchId          String?
+  mobile           String?
+  tEmail           String?
+  khidmatYear      String?
+  birthDateAd      DateTime?
+  birthDateH       String?
+
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes              Class[]
+  masoolClasses        Class[]                   @relation("ClassMasool")
+  pointLogs            PointLog[]
+  hifzReports          HifzReport[]
+  portalAssignments    TeacherPortalAssignment[]
+  takhteetPlans              TakhteetPlan[]
+  takhteetProgressLogs       TakhteetProgressLog[]
+  attendanceRecords          TeacherAttendanceRecord[]
+  hifzMarhalaAssignments     HifzMarhalaAssignment[] @relation("FacultyHifzAssignments")
+  musaidHifzAssignments      HifzMarhalaAssignment[] @relation("MusaidHifzAssignments")
+  hifzMarhalaReports         HifzMarhalaReport[]     @relation("FacultyHifzReports")
+  weeklySlipsAuthored        HifzWeeklySlip[]        @relation("TeacherWeeklySlips")
+
+  @@index([userId])
+  @@map("teacher_profiles")
+}
+
+enum StudentStatus {
+  HAFIZ
+  SANAH
+}
+
+model StudentProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  studentId     String   @unique
+  grade         String
+  section       String
+  biometricHash String?  @unique
+  currentPoints Int      @default(0)
+  totalPoints   Int      @default(0)
+  streakDays    Int      @default(0)
+  tier          String   @default("BRONZE")
+  walletBalance Int      @default(0)
+
+  // Personal Information
+  motherName       String?
+  fatherName       String?
+  fatherOccupation String?
+  age              Int?
+  status           StudentStatus?
+  bloodGroup       String?
+  dobGregorian     DateTime?
+  dobHijri         String?
+  hafizYear        String?
+  nameAr           String?
+
+  // Parent Contact
+  fatherEmail      String?
+  motherEmail      String?
+  fatherPhone      String?
+  motherPhone      String?
+
+  // Academic Information
+  admissionYear    String?
+  currentYear      String?
+  darsId           String?
+  externalSchooling String?
+
+  // Contact & Location
+  watan            String?
+  residentCity     String?
+  address          String?
+  mobileNumber     String?
+
+  // IDs
+  its              String?
+  trNo             String?
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentLinks        ParentStudentLink[]
+  classEnrollments   ClassEnrollment[]
+  attendanceRecords  AttendanceRecord[]
+  pointLogs          PointLog[]
+  badgeProgress      BadgeProgress[]
+  skillTreePoints    SkillTreePoint?
+  walletTransactions WalletTransaction[]
+  hifzReports        HifzReport[]
+  leaveRequests              LeaveRequest[]
+  attendanceRegistries       AttendanceRegistry[]
+  hifzMarhalaAssignments     HifzMarhalaAssignment[] @relation("StudentHifzAssignments")
+  musaidHifzAssignments      HifzMarhalaAssignment[] @relation("MusaidStudentHifzAssignments")
+  hifzMarhalaReports         HifzMarhalaReport[]     @relation("StudentHifzReports")
+  weeklySlips                HifzWeeklySlip[]        @relation("StudentWeeklySlips")
+
+  @@index([userId])
+  @@index([grade, section])
+  @@map("student_profiles")
+}
+
+model HifzMarhalaAssignment {
+  id            String         @id @default(cuid())
+  studentId     String
+  marhala       HifzMarhala
+  assignedById  String
+  facultyId     String
+  musaidId      String?
+  // Musa'id (المساعد) as a hafiz talib — a fellow student who assists the muhaffiz.
+  // Legacy musaidId (teacher) is kept for history; new assignments use musaidStudentId.
+  musaidStudentId String?
+  academicYear  String
+  isActive      Boolean        @default(true)
+  assignedAt    DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  student       StudentProfile @relation("StudentHifzAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty       TeacherProfile @relation("FacultyHifzAssignments", fields: [facultyId], references: [id], onDelete: Cascade)
+  musaid        TeacherProfile? @relation("MusaidHifzAssignments", fields: [musaidId], references: [id], onDelete: SetNull)
+  musaidStudent StudentProfile? @relation("MusaidStudentHifzAssignments", fields: [musaidStudentId], references: [id], onDelete: SetNull)
+  assignedBy    User           @relation("AdminHifzAssignments", fields: [assignedById], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, academicYear])
+  @@index([facultyId])
+  @@index([musaidId])
+  @@index([musaidStudentId])
+  @@index([academicYear])
+  @@map("hifz_marhala_assignments")
+}
+
+model HifzMarhalaReport {
+  id                String            @id @default(cuid())
+  studentId         String
+  facultyId         String
+  marhala           HifzMarhala
+  academicYear      String
+  source            HifzReportSource  @default(TALABAT_SELF)
+  status            HifzReportStatus  @default(DRAFT)
+
+  its               String?
+  name              String?
+  currentJuz        Int?
+  currentSafah      Int?
+  totalJadeedPages  Int?
+  ajzaMatruka       Int?
+  weakAjza          Int?
+  murajaatMarks     Int?      @default(0)
+  juzhaliMarks      Int?      @default(0)
+  jadeedMarks       Int?      @default(0)
+  totalMarks        Int?      @default(0)
+  overallPerformance Float?   @default(0)
+
+  notes             String?
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  student   StudentProfile     @relation("StudentHifzReports", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty   TeacherProfile     @relation("FacultyHifzReports", fields: [facultyId], references: [id], onDelete: Cascade)
+  reviewer  User?              @relation("HifzReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, academicYear, marhala])
+  @@index([facultyId])
+  @@index([academicYear])
+  @@index([status])
+  @@map("hifz_marhala_reports")
+}
+
+model HifzWeeklySlip {
+  id                 String               @id @default(cuid())
+  studentId          String
+  facultyId          String
+  marhala            HifzMarhala
+  academicYear       String
+  weekNumber         Int
+  weekStartDate      DateTime?
+  weekEndDate        DateTime?
+  status             HifzWeeklySlipStatus @default(DRAFT)
+
+  // Previous Checkpoint (Baseline)
+  prevJuz            Int?
+  prevSafah          Int?
+  prevMurajaatStatus String?
+
+  // Current Week Progress & Evaluation
+  currentJuz         Int?
+  currentSafah       Int?
+  sabaqLines         Int?
+  murajaatSabqi      String?
+  disciplineRating   Int?                 @default(5)
+  murajaatMarks      Int?                 @default(0)
+  juzhaliMarks       Int?                 @default(0)
+  jadeedMarks        Int?                 @default(0)
+  totalMarks         Int?                 @default(0)
+  overallPerformance Float?              @default(0)
+
+  teacherNotes       String?              @db.Text
+  adminNotes         String?              @db.Text
+
+  submittedAt        DateTime?
+  reviewedAt         DateTime?
+  reviewedById       String?
+  publishedAt        DateTime?
+
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  student  StudentProfile @relation("StudentWeeklySlips", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty  TeacherProfile @relation("TeacherWeeklySlips", fields: [facultyId], references: [id], onDelete: Cascade)
+  reviewer User?          @relation("WeeklySlipReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, academicYear, weekNumber])
+  @@index([facultyId])
+  @@index([academicYear, weekNumber])
+  @@index([status])
+  @@map("hifz_weekly_slips")
+}
+
+model ParentProfile {
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  phone          String?
+  secondaryPhone String?
+  occupation     String?
+  address        String?
+  city           String?
+  watan          String?
+  bloodGroup     String?
+  its            String?
+  relationType   String?
+  notes          String?
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentLinks   ParentStudentLink[]
+
+  @@map("parent_profiles")
+}
+
+model ParentStudentLink {
+  id             String @id @default(cuid())
+  parentId       String
+  studentId      String
+  relationship   String?
+
+  parent  ParentProfile  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@map("parent_student_links")
+}
+
+model Class {
+  id           String   @id @default(cuid())
+  name         String
+  grade        String
+  section      String
+  subject      String
+  roomNumber   String?
+  teacherId    String
+  academicYear String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  // Masool (مسؤول) — the teacher in-charge of the class (optional, separate
+  // from the teaching teacher).
+  masoolId String?
+
+  teacher         TeacherProfile    @relation(fields: [teacherId], references: [id])
+  masool          TeacherProfile?  @relation("ClassMasool", fields: [masoolId], references: [id], onDelete: SetNull)
+  enrollments     ClassEnrollment[]
+  attendanceRecords AttendanceRecord[]
+  pointLogs       PointLog[]
+  timetableSlots  TimetableSlot[]
+  takhteetPlans   TakhteetPlan[]
+
+  @@index([teacherId, isActive])
+  @@index([masoolId])
+  @@map("classes")
+}
+
+model ClassEnrollment {
+  id        String @id @default(cuid())
+  classId   String
+  studentId String
+  isActive  Boolean @default(true)
+
+  class   Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId, isActive])
+  @@index([classId, isActive])
+  @@map("class_enrollments")
+}
+
+model AttendanceRecord {
+  id             String           @id @default(cuid())
+  studentId      String
+  classId        String
+  date           DateTime         @default(now())
+  status         AttendanceStatus
+  source         AttendanceSource @default(BIOMETRIC)
+  checkInTime    DateTime?
+  checkOutTime   DateTime?
+  verificationMethod String?
+  biometricMethod String? // "FINGERPRINT" | "FACIAL" — which biometric the scan used
+  biometricHash  String?
+  recordedById   String
+  justification  String?
+  justificationStatus JustificationStatus @default(NONE)
+  justificationSubmittedAt DateTime?
+  justifiedById  String?
+  justifiedAt    DateTime?
+  createdAt      DateTime         @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id])
+  class   Class          @relation(fields: [classId], references: [id])
+
+  @@unique([studentId, classId, date])
+  @@index([classId, date])
+  @@index([studentId])
+  @@index([classId, date, status])
+  @@map("attendance_records")
+}
+
+model TeacherAttendanceRecord {
+  id                 String           @id @default(cuid())
+  teacherId          String
+  date               DateTime         @default(now())
+  status             AttendanceStatus @default(PRESENT)
+  checkInTime        DateTime?
+  checkOutTime       DateTime?
+  verificationMethod String?          @default("BIOMETRIC")
+  biometricMethod    String?          // "FACIAL" | "FINGERPRINT" | "CARD"
+  biometricHash      String?
+  notes              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, date])
+  @@index([teacherId])
+  @@index([date])
+  @@index([status])
+  @@map("teacher_attendance_records")
+}
+
+model PointMatrix {
+  id          String     @id @default(cuid())
+  category    String
+  actionName  String
+  pointValue  Int
+  actionType  ActionType
+  isActive    Boolean    @default(true)
+  color       String     @default("#6366f1")
+  iconName    String     @default("star")
+  createdAt   DateTime   @default(now())
+
+  pointLogs PointLog[]
+
+  @@unique([category, actionName])
+  @@map("point_matrix")
+}
+
+model PointLog {
+  id          String     @id @default(cuid())
+  studentId   String
+  teacherId   String
+  classId     String?
+  matrixId    String?
+  points      Int
+  actionType  ActionType
+  category    String
+  note        String?
+  isUndone    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  student  StudentProfile  @relation(fields: [studentId], references: [id])
+  teacher  TeacherProfile  @relation(fields: [teacherId], references: [id])
+  class    Class?          @relation(fields: [classId], references: [id])
+  matrix   PointMatrix?    @relation(fields: [matrixId], references: [id])
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([createdAt])
+  @@index([teacherId, createdAt])
+  @@index([studentId, createdAt])
+  @@map("point_logs")
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  iconUrl     String?
+  category    String
+  tier        String
+  pointsRequired Int?
+  criteria    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  progress BadgeProgress[]
+
+  @@map("badges")
+}
+
+model BadgeProgress {
+  id        String   @id @default(cuid())
+  studentId String
+  badgeId   String
+  progress  Int      @default(0)
+  isEarned  Boolean  @default(false)
+  earnedAt  DateTime?
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  badge   Badge          @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, badgeId])
+  @@index([studentId, isEarned])
+  @@map("badge_progress")
+}
+
+
+model SkillTreePoint {
+  id               String @id @default(cuid())
+  studentId        String @unique
+  criticalThinking Int    @default(0)
+  collaboration    Int    @default(0)
+  leadership       Int    @default(0)
+  resilience       Int    @default(0)
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("skill_tree_points")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String   @default("ANNOUNCEMENT")
+  link      String?
+  priority  String   @default("NORMAL")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@index([type])
+  @@map("notifications")
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  studentId   String
+  type        String
+  amount      Int
+  description String
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@map("wallet_transactions")
+}
+
+model TimetableSlot {
+  id          String   @id @default(cuid())
+  classId     String?
+  dayOfWeek   Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  period      Int      // 1, 2, 3, ...
+  startTime   String   // "08:00"
+  endTime     String   // "08:45"
+  subject     String
+  roomNumber  String?
+  isBreak     Boolean  @default(false)
+  breakName   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class Class? @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([dayOfWeek])
+  @@map("timetable_slots")
+}
+
+model BiometricScanWindow {
+  id           String   @id // singleton row — use "default"
+  name         String   @default("Tilawat al Dua")
+  startTime    String // "HH:MM" — scanning opens (on-time window starts)
+  endTime      String // "HH:MM" — on-time window closes (PRESENT cutoff)
+  lateEndTime  String? // "HH:MM" — late window closes; scans in (endTime, lateEndTime] are LATE. Null = no late zone.
+  graceMinutes Int      @default(10) // legacy fallback, kept for compatibility
+  enabled      Boolean  @default(true)
+  // Faculty applicability: empty = applies to all active teachers.
+  // Non-empty = only these teacherProfile ids are expected (others skip auto-absent).
+  applicableTeacherIds String[] @default([])
+  // ── Unified-event faculty timer ──
+  // ONE schedule event carries BOTH the Talabat timer (startTime/endTime/
+  // lateEndTime) and the faculty timer below. Null faculty times = this event
+  // has no faculty schedule (faculty scans are not accepted under it).
+  facultyStartTime   String?
+  facultyEndTime     String?
+  facultyLateEndTime String?
+  facultyEnabled     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("biometric_scan_windows")
+}
+
+model AcademicCalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  eventType   String   // "EXAM", "HOLIDAY", "EVENT", "MEETING"
+  color       String   @default("#6366f1")
+  isPublished Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([startDate, endDate])
+  @@map("academic_calendar_events")
+}
+
+model HifzReport {
+  id            String    @id @default(cuid())
+  studentId     String
+  teacherId     String
+  academicYear  String
+  semester      String?   // "1" or "2"
+  totalParts    Int       @default(30)  // Total Quran parts (Ajza)
+  isPublished   Boolean   @default(false)
+  isHidden      Boolean   @default(false) // Hide from report card when publishing
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+  parts   HifzPart[]
+
+  @@unique([studentId, academicYear])
+  @@index([studentId])
+  @@index([teacherId])
+  @@map("hifz_reports")
+}
+
+model HifzPart {
+  id                String   @id @default(cuid())
+  reportId          String
+  partNumber        Int      // 1-30 (Juz number)
+  status            String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED, WEAK, NEEDS_REVIEW
+  progress          Int      @default(0) // 0-100 percentage
+
+  // Detailed tracking
+  isMemorized       Boolean  @default(false)
+  isReviewed        Boolean  @default(false)
+  isWeak            Boolean  @default(false)
+  isAbandoned       Boolean  @default(false)
+  isHidden          Boolean  @default(false) // Hide from student/parent view
+
+  // Review counts
+  reviewCount       Int      @default(0)
+  targetReviews     Int      @default(20)
+
+  // Current part tracking
+  currentPage       Int      @default(0)
+  totalPages        Int      @default(20)
+
+  // Firm/Hifz tracking (haddid)
+  firmProgress      Int      @default(0)
+  firmTarget        Int      @default(10)
+
+  // Sentence tracking
+  sentencesMemorized Int     @default(0)
+  sentencePercentage Float   @default(0)
+
+  // Marks (from Google Sheet)
+  murajaatMarks     Int      @default(0) // Review marks out of 20
+  juzhaliMarks      Int      @default(0) // Memorization marks out of 20
+  jadeedMarks       Int      @default(0) // New marks out of 10
+  totalMarks        Int      @default(0) // Total marks out of 50
+  performancePercent Float   @default(0) // Overall performance percentage
+
+  // Pending tracking
+  pendingAjza       Int      @default(0) // Number of pending parts
+
+  // Notes
+  notes             String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  report HifzReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, partNumber])
+  @@index([reportId])
+  @@map("hifz_parts")
+}
+
+model TeacherPortalAssignment {
+  id            String   @id @default(cuid())
+  teacherId     String
+  portalType    String   // "HIFZ", "PORTFOLIO", "ALL"
+  assignedById  String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, portalType])
+  @@index([teacherId])
+  @@map("teacher_portal_assignments")
+}
+
+// ====== Takhteet Planner (تخطيط) — curriculum planning for teachers ======
+
+model TakhteetPlan {
+  id           String           @id @default(cuid())
+  teacherId    String
+  classId      String
+  subject      String
+  title        String           // portion / unit to cover
+  description  String?
+  academicYear String
+  month        Int?             // 1-12 target month of the year
+  status       TakhteetStatus   @default(PENDING)
+  progress     Int              @default(0) // 0-100 percentage
+  assignedById String
+  completedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  teacher      TeacherProfile         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class        Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  progressLogs TakhteetProgressLog[]
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([academicYear])
+  @@map("takhteet_plans")
+}
+
+model TakhteetProgressLog {
+  id             String         @id @default(cuid())
+  planId         String
+  teacherId      String
+  note           String?
+  progressBefore Int            @default(0)
+  progressAfter  Int            @default(0)
+  status         TakhteetStatus @default(IN_PROGRESS)
+  createdAt      DateTime       @default(now())
+
+  plan     TakhteetPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  teacher  TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("takhteet_progress_logs")
+}
+
+// ====== Library Management System ======
+
+enum BookStatus {
+  AVAILABLE
+  BORROWED
+  RESTOCK_QUEUE
+  DAMAGED
+  LOST
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+  LOST
+}
+
+model LibraryBook {
+  id              String     @id @default(cuid())
+  isbn            String?
+  title           String
+  author          String?
+  publisher       String?
+  category        String     @default("General")
+  barcode         String?    @unique
+  rackNumber      String?
+  shelfNumber     String?
+  locationColor   String?
+  coverImage      String?
+  status          BookStatus @default(AVAILABLE)
+  totalCopies     Int        @default(1)
+  availableCopies Int        @default(1)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  loans BookLoan[]
+
+  @@index([isbn])
+  @@index([barcode])
+  @@index([category])
+  @@index([status])
+  @@index([title])
+  @@map("library_books")
+}
+
+model BookLoan {
+  id          String     @id @default(cuid())
+  bookId      String
+  studentId   String
+  studentName String
+  bookTitle   String
+  bookBarcode String?
+  borrowedAt  DateTime   @default(now())
+  dueAt       DateTime
+  returnedAt  DateTime?
+  status      LoanStatus @default(ACTIVE)
+  renewed     Boolean    @default(false)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  book LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+  @@index([studentId])
+  @@index([status])
+  @@index([dueAt])
+  @@map("book_loans")
+}
+
+// ====== Biometric (Hikvision / fingerprint) ======
+
+model BiometricDevice {
+  id                    String    @id @default(cuid())
+  name                  String
+  type                  String    @default("HIKVISION") // HIKVISION, ...
+  host                  String
+  port                  Int       @default(80)
+  username              String
+  passwordEnc           String?   // AES-256-GCM ciphertext (base64)
+  passwordIv            String?   // AES-256-GCM IV (base64)
+  serialNo              String?
+  model                 String?
+  mac                   String?
+  firmwareVersion       String?
+  status                String    @default("OFFLINE") // OFFLINE, ONLINE, ERROR, DISABLED
+  lastError             String?
+  lastSeenAt            DateTime?
+  lastPolledAt          DateTime?
+  lastEventCursor       DateTime? // last processed event time
+  pollIntervalSeconds   Int       @default(15)
+  enabled               Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([host])
+  @@map("biometric_devices")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+enum ProcurementStatus {
+  PENDING
+  APPROVED
+  ORDERED
+  FULFILLED
+  REJECTED
+  CANCELLED
+}
+
+enum ProcurementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model ProcurementRequest {
+  id               String              @id @default(cuid())
+  requesterId      String
+  title            String
+  category         String              @default("STATIONERY")
+  quantity         Int                 @default(1)
+  unit             String?             @default("pcs")
+  officeLocation   String
+  priority         ProcurementPriority @default(NORMAL)
+  status           ProcurementStatus   @default(PENDING)
+  estimatedCost    Float?
+  actualCost       Float?
+  reason           String?             @db.Text
+  specsOrLink      String?             @db.Text
+  assignedToId     String?
+  reviewerNotes    String?             @db.Text
+  invoiceRef       String?
+  expectedDelivery DateTime?
+  fulfilledAt      DateTime?
+  rejectedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  requester  User  @relation("ProcurementRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("ProcurementAssignedAdmin", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("procurement_requests")
+}
+
+model LeaveRequest {
+  id            String       @id @default(cuid())
+  studentId     String
+  type          LeaveType
+  startDate     DateTime
+  endDate       DateTime
+  reason        String       @db.Text
+  attachmentUrl String?
+  status        LeaveStatus  @default(PENDING)
+  reviewerId    String?
+  reviewerNotes String?      @db.Text
+  reviewedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  student    StudentProfile       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewer   User?                @relation("LeaveReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  registries AttendanceRegistry[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("leave_requests")
+}
+
+model AttendanceRegistry {
+  id           String           @id @default(cuid())
+  studentId    String
+  date         DateTime         // Calendar day (UTC start of day)
+  status       AttendanceStatus
+  source       AttendanceSource @default(BIOMETRIC)
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  remarks      String?
+  leaveId      String?
+  recordedById String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  leave   LeaveRequest?  @relation(fields: [leaveId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, date])
+  @@index([date])
+  @@index([studentId])
+  @@index([status])
+  @@index([source])
+  @@map("attendance_registries")
+}
+
+// ====== Attendance audit trail + day finalize lock ======
+// Every attendance mutation writes one row here (who / when / old → new),
+// so no response is ever silently overwritten. Once a day is finalized
+// (locked), manual writes are rejected unless an ADMIN forces them.
+
+model AttendanceDayLock {
+  date       DateTime @id // UTC start of day
+  locked     Boolean  @default(true)
+  lockedAt   DateTime @default(now())
+  lockedById String?
+  source     String   @default("MANUAL") // MANUAL_FINALIZE | SHEET_SYNC | AUTO
+  note       String?
+
+  @@map("attendance_day_locks")
+}
+
+model AttendanceAuditLog {
+  id         String   @id @default(cuid())
+  date       DateTime // UTC day the change belongs to
+  entityType String   // STUDENT_RECORD | STUDENT_REGISTRY | TEACHER_RECORD | LEAVE | JUSTIFICATION
+  entityId   String?
+  studentId  String?
+  teacherId  String?
+  action     String   // SCAN | CREATE | UPDATE | BULK | OVERRIDE | AUTO_ABSENT | JUSTIFY_SUBMIT | JUSTIFY_REVIEW | LEAVE_REVIEW | FINALIZE | UNLOCK | SHEET_SYNC
+  oldStatus  String?
+  newStatus  String?
+  oldSource  String?
+  newSource  String?
+  actorId    String?
+  actorName  String?
+  actorRole  String?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([date])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@map("attendance_audit_logs")
+}
+

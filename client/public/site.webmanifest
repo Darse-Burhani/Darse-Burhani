@@ -1,0 +1,23 @@
+{
+  "name": "Darse Burhani — Aljamea-tus-Saifiyah",
+  "short_name": "Darse Burhani",
+  "description": "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student engagement platform for Aljamea-tus-Saifiyah.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#022c22",
+  "theme_color": "#022c22",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

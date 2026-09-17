@@ -1,0 +1,24 @@
+# Robots.txt for Darse Burhani - Aljamea-tus-Saifiyah
+User-agent: *
+Allow: /$
+Allow: /login$
+Allow: /privacy$
+Allow: /terms$
+Allow: /fatimi-calendar$
+Allow: /thank-you$
+Allow: /favicon.svg
+Allow: /apple-touch-icon.svg
+Allow: /og-image.svg
+Allow: /site.webmanifest
+
+# Protect authenticated role portal routes, telemetry endpoints, and private uploads
+Disallow: /admin/
+Disallow: /teacher/
+Disallow: /talabat/
+Disallow: /parent/
+Disallow: /faculty/
+Disallow: /api/
+Disallow: /uploads/private/
+
+# XML Sitemap declaration
+Sitemap: https://darseburhani.edu/sitemap.xml

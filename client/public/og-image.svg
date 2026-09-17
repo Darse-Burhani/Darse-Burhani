@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#01140f" />
+      <stop offset="50%" stop-color="#022c22" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#b8860b" />
+    </linearGradient>
+    <radialGradient id="centerAura" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#01140f" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)" />
+  <rect width="1200" height="630" fill="url(#centerAura)" />
+
+  <!-- Border Frame -->
+  <rect x="24" y="24" width="1152" height="582" rx="28" fill="none" stroke="url(#goldGrad)" stroke-width="2" opacity="0.4" />
+
+  <!-- Central Emblem Backdrop -->
+  <g transform="translate(600, 210)">
+    <circle cx="0" cy="0" r="90" fill="#032018" stroke="url(#goldGrad)" stroke-width="3" />
+    <!-- 8-Pointed Star -->
+    <path d="M0 -65 L18 -20 L65 0 L18 20 L0 65 L-18 20 L-65 0 L-18 -20 Z" fill="none" stroke="url(#goldGrad)" stroke-width="3.5" />
+    <path d="M0 -35 L10 -10 L35 0 L10 10 L0 35 L-10 10 L-35 0 L-10 -10 Z" fill="url(#goldGrad)" />
+    <circle cx="0" cy="0" r="7" fill="#ffffff" />
+  </g>
+
+  <!-- Institution Tagline -->
+  <text x="600" y="360" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" fill="#d4af37" letter-spacing="8" text-anchor="middle">
+    ALJAMEA-TUS-SAIFIYAH
+  </text>
+
+  <!-- Main Title -->
+  <text x="600" y="425" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="56" font-weight="900" fill="#ffffff" letter-spacing="-1" text-anchor="middle">
+    Darse Burhani
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="475" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#a7f3d0" text-anchor="middle">
+    Unified Academic, Biometric Attendance &amp; Learner Engagement Platform
+  </text>
+
+  <!-- 4 Portals Badge Dock -->
+  <g transform="translate(600, 535)">
+    <rect x="-360" y="-22" width="720" height="44" rx="22" fill="#000000" fill-opacity="0.45" stroke="#ffffff" stroke-opacity="0.15" stroke-width="1.5" />
+    <text x="-250" y="6" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#fbbf24" text-anchor="middle">ADMIN</text>
+    <circle cx="-170" cy="0" r="3" fill="#ffffff" opacity="0.4" />
+    <text x="-90" y="6" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#34d399" text-anchor="middle">TEACHER</text>
+    <circle cx="-10" cy="0" r="3" fill="#ffffff" opacity="0.4" />
+    <text x="70" y="6" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#c084fc" text-anchor="middle">TALABAT</text>
+    <circle cx="150" cy="0" r="3" fill="#ffffff" opacity="0.4" />
+    <text x="230" y="6" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#fb7185" text-anchor="middle">PARENT</text>
+  </g>
+</svg>
