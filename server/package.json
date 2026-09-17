@@ -22,7 +22,8 @@
     "googleapis": "^173.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "nodemailer": "^7.0.13"
+    "nodemailer": "^7.0.13",
+    "vite": "^6.0.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
