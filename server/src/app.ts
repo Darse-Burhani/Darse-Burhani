@@ -107,12 +107,12 @@ export function createApp() {
   app.use(
     compression({
       level: 6,
-      threshold: 1024, // only compress responses > 1KB
+      threshold: 256, // compress responses > 256B
       filter: (req, res) => {
         if (req.headers["x-no-compression"]) return false;
         return compression.filter(req, res);
       },
-    })
+    }),
   );
 
   // 2. Request Parsers with guarded limits
@@ -126,13 +126,20 @@ export function createApp() {
   // 4. Input Sanitization (Blocks prototype pollution, null bytes, script tags)
   app.use(sanitizeInputsMiddleware);
 
-  // 5. Static uploads with ETag caching (supports root public/uploads, client/public/uploads, and client/dist/uploads)
+  // 5. Static uploads with aggressive browser caching & stale-while-revalidate
   const clientPublicUploads = path.join(repoRoot, "client", "public", "uploads");
   const clientDistUploads = path.join(repoRoot, "client", "dist", "uploads");
+  const uploadStaticOptions = {
+    etag: true,
+    maxAge: "30d",
+    setHeaders: (res: express.Response) => {
+      res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+    },
+  };
 
-  app.use("/uploads", express.static(uploadsDir, { etag: true, maxAge: "1d" }));
-  app.use("/uploads", express.static(clientPublicUploads, { etag: true, maxAge: "1d" }));
-  app.use("/uploads", express.static(clientDistUploads, { etag: true, maxAge: "1d" }));
+  app.use("/uploads", express.static(uploadsDir, uploadStaticOptions));
+  app.use("/uploads", express.static(clientPublicUploads, uploadStaticOptions));
+  app.use("/uploads", express.static(clientDistUploads, uploadStaticOptions));
 
   // 6. Health & Load Balancer Readiness Probe (exempt from rate limits)
   app.use("/api/health", healthRoutes);
@@ -251,11 +258,25 @@ export function createApp() {
   app.use("/api/parent/activity", parentActivityRoutes);
   app.use("/api/parent/profile", parentProfileRoutes);
 
-  // ── Serve the built SPA (production) ──
+  // ── Serve the built SPA (production) with immutable asset caching ──
   const clientDist = path.join(repoRoot, "client", "dist");
-  app.use(express.static(clientDist));
+  app.use(
+    express.static(clientDist, {
+      etag: true,
+      maxAge: "1d",
+      setHeaders: (res, filePath) => {
+        // Hashed JS/CSS in assets/ are immutable for 1 year
+        if (filePath.includes(path.sep + "assets" + path.sep) || filePath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=43200");
+        }
+      },
+    }),
+  );
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/")) return next();
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(clientDist, "index.html"), (err) => {
       if (err) next();
     });
