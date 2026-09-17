@@ -145,15 +145,16 @@ export function NavigationBar() {
   const teacherNavItems = isTeacher
     ? [
         { label: "Dashboard", href: "/teacher", icon: Activity },
-        ...(isModuleVisible("classes", "TEACHER") ? [{ label: "My Classes", href: "/teacher/classes", icon: BookOpen }] : []),
-        ...(isModuleVisible("attendance", "TEACHER") ? [{ label: "Attendance", href: "/teacher/attendance", icon: Clock }] : []),
+        ...(isModuleVisible("classes", "TEACHER") ? [{ label: "Classes", href: "/teacher/classes", icon: BookOpen }] : []),
+        ...(isModuleVisible("quran", "TEACHER") ? [{ label: "Quran (Hifz)", href: "/teacher/hifz", icon: FileText }] : []),
         ...(isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
-        ...(isModuleVisible("hifz", "TEACHER") ? [{ label: "Hifz Reports", href: "/teacher/hifz", icon: FileText }] : []),
-        ...(isModuleVisible("hifz-marhala", "TEACHER") ? [{ label: "Hifz Marhala", href: "/teacher/hifz-marhala", icon: BookOpen }] : []),
-        ...(isModuleVisible("hifz-weekly-slip", "TEACHER") ? [{ label: "Weekly Slips", href: "/teacher/hifz-weekly-slip", icon: FileSpreadsheet }] : []),
-        ...(isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/teacher/procurement", icon: Package }] : []),
-        ...(isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/teacher/leave", icon: UserCheck }] : []),
-        ...(isModuleVisible("calendar", "TEACHER") ? [{ label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays }] : []),
+        ...(isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Attendance Logs", href: "/admin/attendance-logs", icon: FileText }] : []),
+        ...(isModuleVisible("attendance-schedule", "TEACHER") ? [{ label: "Attendance Schedule", href: "/admin/attendance-schedule", icon: Clock }] : []),
+        ...(isModuleVisible("email-reports", "TEACHER") ? [{ label: "Email Reports", href: "/admin/attendance-emails", icon: FileSpreadsheet }] : []),
+        ...(isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/admin/leave", icon: UserCheck }] : []),
+        ...(isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/admin/procurement", icon: Package }] : []),
+        ...(isModuleVisible("makhzan", "TEACHER") ? [{ label: "Makhzan", href: "/admin/library", icon: Package }] : []),
+        ...(isModuleVisible("library", "TEACHER") ? [{ label: "Library", href: "/admin/library", icon: Library }] : []),
         { label: "Profile", href: "/teacher/profile", icon: User },
       ]
     : config?.navItems;
@@ -174,9 +175,13 @@ export function NavigationBar() {
     if (href === "/talabat/attendance") return "attendance";
     if (href === "/talabat/profile") return "profile";
     if (href === "/teacher/classes") return "classes";
-    if (href === "/teacher/attendance") return "attendance";
-    if (href === "/teacher/timetable") return "takhteet";
-    if (href === "/teacher/hifz") return "hifz";
+    if (href === "/admin/attendance-logs" || href === "/teacher/attendance") return "attendance-logs";
+    if (href === "/admin/attendance-schedule") return "attendance-schedule";
+    if (href === "/admin/attendance-emails") return "email-reports";
+    if (href === "/admin/leave" || href === "/teacher/leave") return "leave";
+    if (href === "/admin/procurement" || href === "/teacher/procurement") return "procurement";
+    if (href === "/teacher/takhteet") return "takhteet";
+    if (href === "/teacher/hifz" || href === "/teacher/hifz-reports") return "quran";
     if (href === "/teacher/profile") return "profile";
     return null;
   };

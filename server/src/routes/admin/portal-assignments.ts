@@ -6,19 +6,18 @@ const router = Router();
 
 // Standard available teacher pages and modules in Darse Burhani
 export const TEACHER_AVAILABLE_PAGES = [
-  { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main dashboard & point counter" },
-  { id: "classes", label: "My Classes", category: "Academics", description: "Class student rosters & management" },
-  { id: "attendance", label: "Attendance", category: "Academics", description: "Class & student attendance marking" },
-  { id: "hifz", label: "Hifz Reports", category: "Hifz", description: "Ajza progress & Quran memorization records" },
-  { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala assessment & testing exams" },
-  { id: "hifz-weekly-slip", label: "Hifz Weekly Slips", category: "Hifz", description: "Weekly evaluation slips and sabqi logs" },
-  { id: "takhteet", label: "Takhteet Planner", category: "Academics", description: "Curriculum pacing and syllabus progress" },
-  { id: "procurement", label: "Procurement / Makhzn", category: "Operations", description: "Stationery and school supply requests" },
-  { id: "leave", label: "Leave Requests", category: "Operations", description: "Student & faculty leave requests" },
-  { id: "mood-insights", label: "Mood Insights", category: "Academics", description: "Student sentiment & behavioral tracking" },
-  { id: "calendar", label: "Fatimi Calendar", category: "General", description: "Fatimi calendar events & schedule" },
-  { id: "profile", label: "Teacher Profile", category: "General", description: "Khidmat details, biographical data & ITS" },
-  { id: "settings", label: "Account Settings", category: "General", description: "Password and notification settings" },
+  { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main HUD & point analytics", path: "/teacher", icon: "LayoutDashboard" },
+  { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
+  { id: "attendance-logs", label: "Attendance Logs", category: "Attendance", description: "Live scans, daily registry & student status", path: "/admin/attendance-logs", icon: "FileText" },
+  { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/admin/leave", icon: "CalendarCheck" },
+  { id: "attendance-schedule", label: "Attendance Schedule", category: "Attendance", description: "Scan windows, shifts & period timers", path: "/admin/attendance-schedule", icon: "Clock" },
+  { id: "email-reports", label: "Email Reports", category: "Communications", description: "Automated daily email dispatches", path: "/admin/attendance-emails", icon: "Mail" },
+  { id: "procurement", label: "Procurement", category: "Operations", description: "Stationery & supply requisitions", path: "/admin/procurement", icon: "ShoppingBag" },
+  { id: "quran", label: "Quran (Hifz)", category: "Hifz", description: "Ajza progress, marhala & weekly slips", path: "/teacher/hifz-reports", icon: "Sparkles" },
+  { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
+  { id: "makhzan", label: "Makhzan", category: "Operations", description: "School asset & resource inventory", path: "/admin/library", icon: "Package" },
+  { id: "library", label: "Library", category: "Library", description: "Digital catalog, 3D shelf & loans", path: "/admin/library", icon: "Library" },
+  { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
 ];
 
 // GET /api/admin/portal-assignments - List all teachers and their assigned pages
@@ -48,14 +47,12 @@ router.get("/", requireAuth, async (req, res) => {
       } else {
         assignedPageIds = activeAssignments.map((a) => {
           if (a.portalType.startsWith("PAGE:")) return a.portalType.replace("PAGE:", "");
-          if (a.portalType === "HIFZ") return "hifz";
+          if (a.portalType === "HIFZ") return "quran";
           return a.portalType.toLowerCase();
         });
-        // Always ensure Dashboard, Calendar, Profile, Settings are accessible unless explicitly revoked
+        // Always ensure Dashboard and Profile are accessible unless explicitly revoked
         if (!assignedPageIds.includes("dashboard")) assignedPageIds.push("dashboard");
         if (!assignedPageIds.includes("profile")) assignedPageIds.push("profile");
-        if (!assignedPageIds.includes("calendar")) assignedPageIds.push("calendar");
-        if (!assignedPageIds.includes("settings")) assignedPageIds.push("settings");
       }
 
       return res.json({
@@ -73,6 +70,9 @@ router.get("/", requireAuth, async (req, res) => {
     }
 
     const assignments = await prisma.teacherPortalAssignment.findMany({
+      where: {
+        teacher: { user: { isActive: true, deletedAt: null } },
+      },
       include: {
         teacher: {
           include: {
@@ -84,6 +84,9 @@ router.get("/", requireAuth, async (req, res) => {
     });
 
     const teachers = await prisma.teacherProfile.findMany({
+      where: {
+        user: { isActive: true, deletedAt: null },
+      },
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, isActive: true } },
         portalAssignments: true,
@@ -126,7 +129,7 @@ router.get("/", requireAuth, async (req, res) => {
             department: t.department || t.roleTitle || "Faculty",
             avatarUrl: t.user.avatarUrl || t.photoUrl,
             isActive: t.user.isActive,
-            assignedPages: Array.from(new Set(pageKeys.length > 0 ? pageKeys : ["dashboard", "classes", "attendance", "takhteet", "calendar", "profile", "settings"])),
+            assignedPages: Array.from(new Set(pageKeys.length > 0 ? pageKeys : ["dashboard", "classes", "attendance-logs", "takhteet", "quran", "profile"])),
             assignments: t.portalAssignments.map((a) => ({
               id: a.id,
               portalType: a.portalType,

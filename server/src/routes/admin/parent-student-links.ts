@@ -11,7 +11,7 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
     const [parents, students] = await Promise.all([
       prisma.parentProfile.findMany({
         where: {
-          user: { deletedAt: null },
+          user: { deletedAt: null, isActive: true },
         },
         include: {
           user: {
@@ -20,7 +20,7 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
           studentLinks: {
             where: {
               student: {
-                user: { deletedAt: null },
+                user: { deletedAt: null, isActive: true },
               },
             },
             include: {
@@ -36,7 +36,7 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
       }),
       prisma.studentProfile.findMany({
         where: {
-          user: { deletedAt: null },
+          user: { deletedAt: null, isActive: true },
         },
         include: {
           user: { select: { firstName: true, lastName: true, avatarUrl: true } },

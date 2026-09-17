@@ -37,6 +37,12 @@ const avatarUpload = multer({
 router.get("/", requireRole("ADMIN"), async (_req, res) => {
   try {
     const students = await prisma.studentProfile.findMany({
+      where: {
+        user: {
+          isActive: true,
+          deletedAt: null,
+        },
+      },
       orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, isActive: true, avatarUrl: true } },
