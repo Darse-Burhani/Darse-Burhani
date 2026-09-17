@@ -319,7 +319,7 @@ export default function TalabatProfilePage() {
                   <div className="relative group">
                     <Avatar className="w-24 h-24 sm:w-28 sm:h-28 ring-4 ring-[#d4af37]/30 shadow-md">
                       {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt={user?.firstName || "Student"} className="object-cover" />
+                        <AvatarImage src={avatarUrl} alt={user?.firstName || "Student"} className="object-cover object-[50%_18%]" />
                       ) : null}
                       <AvatarFallback className="bg-gradient-to-br from-[#1e1b4b] to-[#1e3a8a] text-xl font-bold text-white">
                         {getInitials(user?.firstName || "T", user?.lastName || "A")}

@@ -113,7 +113,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
                   style={{ background: "linear-gradient(135deg, #d4af37, #f0d76e, #d4af37)" }}>
                   <Avatar className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-[#043426]">
                     {data.avatarUrl && (
-                      <AvatarImage src={data.avatarUrl} alt={fullName} className="object-cover" />
+                      <AvatarImage src={data.avatarUrl} alt={fullName} className="object-cover object-[50%_18%]" />
                     )}
                     <AvatarFallback
                       className="rounded-3xl bg-gradient-to-br from-[#047857] to-[#043426] text-2xl font-bold"
