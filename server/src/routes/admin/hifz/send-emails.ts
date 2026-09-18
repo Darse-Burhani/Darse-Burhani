@@ -1,7 +1,7 @@
 import { Router } from "express";
 import prisma from "../../../lib/prisma";
 import { sendEmail } from "../../../lib/email";
-import { requireAuth, requireRole } from "../../../middleware";
+import { requireRole } from "../../../middleware";
 
 const router = Router();
 
@@ -30,7 +30,6 @@ function generateEmailHtml(studentName: string, reportData: any) {
     perfColor = "#991b1b";
     perfAccent = "#dc2626";
   }
-
 
 
   const formattedDate = new Date().toLocaleDateString("en-US", {

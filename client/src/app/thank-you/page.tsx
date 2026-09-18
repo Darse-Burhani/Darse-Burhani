@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "react-router-dom";
+
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -15,7 +15,7 @@ import {
   Check,
   FileCheck2,
 } from "lucide-react";
-import { FatimiLogo } from "@/components/FatimiLogo";
+
 import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
 import { SEO } from "@/components/SEO";
 import { trackEvent } from "@/lib/analytics";

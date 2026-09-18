@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag,
   Search,
-  Filter,
   Download,
   MapPin,
   Clock,
@@ -13,20 +11,11 @@ import {
   Truck,
   XCircle,
   AlertTriangle,
-  FileText,
-  DollarSign,
   User,
   Loader2,
-  Trash2,
-  Sparkles,
   Layers,
   ChevronRight,
-  Send,
-  Building2,
-  Calendar,
-  Eye,
   Check,
-  Package,
   RefreshCw,
   X,
 } from "lucide-react";

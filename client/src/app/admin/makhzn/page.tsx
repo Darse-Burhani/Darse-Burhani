@@ -6,54 +6,30 @@ import {
   Barcode,
   Search,
   Plus,
-  Trash2,
-  Edit3,
   CheckCircle2,
-  AlertTriangle,
   RotateCcw,
   BookOpen,
   BookMarked,
-  BookX,
-  Layers,
   Upload,
   Printer,
-  Sparkles,
   ArrowRight,
   User,
-  GraduationCap,
   Users,
-  ShieldCheck,
   RefreshCw,
   X,
-  Filter,
-  SlidersHorizontal,
-  FileSpreadsheet,
   Check,
-  Copy,
-  Info,
-  Tv,
-  Clock,
-  Calendar,
-  ChevronRight,
-  ExternalLink,
-  Library,
   Tag,
-  Hash,
-  MapPin,
-  Building,
   Volume2,
   VolumeX,
   Wifi,
   WifiOff,
-  Database,
   Package,
   PackagePlus,
   PackageCheck,
-  QrCode,
   HardDrive,
   Send,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -64,7 +40,6 @@ import {
   CachedMember,
   MakhzanKit,
   MakhzanKitItem,
-  QueuedTransaction,
 } from "@/lib/offline-makhzan-cache";
 import Link from "next/link";
 
@@ -202,7 +177,6 @@ export default function MakhzanDirectPage() {
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [barcodeModalBook, setBarcodeModalBook] = useState<MakhzanBook | null>(null);
-  const [barcodeModalKit, setBarcodeModalKit] = useState<MakhzanKit | null>(null);
 
   // ── Online / Offline Listener & Queue Tracker ──
   useEffect(() => {

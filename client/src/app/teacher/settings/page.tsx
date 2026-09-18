@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { motion } from "framer-motion";
-import { LogOut, KeyRound, Lock, Eye, EyeOff, Loader2, Sparkles, User, Shield } from "lucide-react";
+import { LogOut, KeyRound, Lock, Eye, EyeOff, Loader2, Sparkles, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

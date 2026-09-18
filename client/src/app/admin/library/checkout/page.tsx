@@ -8,7 +8,6 @@ import {
   BookOpen,
   CheckCircle2,
   XCircle,
-  ArrowLeft,
   Clock,
   AlertTriangle,
   Loader2,
@@ -19,9 +18,7 @@ import {
   History,
   BookMarked,
   Search,
-  ChevronRight,
   BookX,
-  CheckCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,46 +59,6 @@ interface LoanInfo {
   dueAt: string;
 }
 
-// ── Scanned Item Display ──
-function ScannedItem({ type, label, value, onClear }: {
-  type: "student" | "book";
-  label: string;
-  value: string;
-  onClear: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0.9, opacity: 0 }}
-      className={`flex items-center gap-3 p-3 rounded-xl border-2 ${
-        type === "student"
-          ? "bg-emerald-50 border-emerald-300"
-          : "bg-blue-50 border-blue-300"
-      }`}
-    >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-        type === "student" ? "bg-emerald-200" : "bg-blue-200"
-      }`}>
-        {type === "student" ? (
-          <User className="w-5 h-5 text-emerald-700" />
-        ) : (
-          <BookOpen className="w-5 h-5 text-blue-700" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-gray-500">{label}</p>
-        <p className="text-sm font-semibold text-gray-900 truncate">{value}</p>
-      </div>
-      <button
-        onClick={onClear}
-        className="p-1.5 rounded-lg hover:bg-white/80 text-gray-400 hover:text-red-500 transition-colors"
-      >
-        <XCircle className="w-4 h-4" />
-      </button>
-    </motion.div>
-  );
-}
 
 // ── Action Log ──
 function ActionLog({ items }: { items: { type: "checkout" | "return" | "error"; message: string; time: string }[] }) {

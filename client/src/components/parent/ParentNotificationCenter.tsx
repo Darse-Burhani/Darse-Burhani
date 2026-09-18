@@ -5,24 +5,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   X,
-  CheckCircle2,
-  AlertCircle,
   Clock,
   BookOpen,
   Award,
   Volume2,
   VolumeX,
-  Trash2,
   CheckCheck,
   Sparkles,
-  ArrowRight,
   Shield,
   Heart,
-  Calendar,
   Radio,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { toast } from "@/components/ui/toast";
 import { timeAgo } from "@/lib/utils";
 
@@ -47,7 +42,6 @@ interface Props {
 export function ParentNotificationCenter({ childrenList = [], onChildSelect, onRefreshData }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<ParentNotification[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL" | "ATTENDANCE" | "HIFZ" | "POINTS" | "ANNOUNCEMENT">("ALL");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isLiveConnected, setIsLiveConnected] = useState(false);

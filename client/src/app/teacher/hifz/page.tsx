@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   BookOpen,
   Search,
-  Loader2,
   AlertTriangle,
   CheckCircle,
   RefreshCw,

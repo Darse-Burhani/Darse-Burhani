@@ -6,18 +6,13 @@ import {
   Camera,
   Scan,
   CheckCircle2,
-  AlertCircle,
   X,
-  Users,
   Briefcase,
   GraduationCap,
-  Sparkles,
   Loader2,
-  RefreshCw,
   Search,
   Volume2,
   VolumeX,
-  ShieldCheck,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

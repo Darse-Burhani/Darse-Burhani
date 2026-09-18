@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Heart,
   Clock,
@@ -11,27 +11,18 @@ import {
   Shield,
   Activity,
   CheckCircle2,
-  AlertCircle,
   Calendar,
   Sparkles,
-  Loader2,
   BookOpen,
   Users,
   GraduationCap,
-  MapPin,
   Droplet,
   Copy,
   Check,
-  Phone,
   RefreshCw,
-  Eye,
-  ExternalLink,
   Crown,
-  Share2,
   Flame,
   Star,
-  Building2,
-  Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/components/ui/toast";
-import { getInitials, timeAgo, formatPoints, getTierStyle } from "@/lib/utils";
+import { getInitials, timeAgo, formatPoints } from "@/lib/utils";
 import { ParentNotificationCenter } from "@/components/parent/ParentNotificationCenter";
 
 const activityIcons: Record<string, any> = {

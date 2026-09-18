@@ -9,10 +9,8 @@ import {
   Stethoscope,
   RefreshCw,
   Search,
-  Filter,
   Loader2,
   AlertCircle,
-  SlidersHorizontal,
 } from "lucide-react";
 import {
   getAdminLeaves,
@@ -38,8 +36,6 @@ export default function AdminLeavePage() {
   const [selectedType, setSelectedType] = useState<string>("");
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
   const [search, setSearch] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
@@ -57,8 +53,6 @@ export default function AdminLeavePage() {
         type: selectedType || undefined,
         grade: selectedGrade || undefined,
         section: selectedSection || undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
         search: search.trim() || undefined,
       });
 
@@ -72,7 +66,7 @@ export default function AdminLeavePage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedStatus, selectedType, selectedGrade, selectedSection, startDate, endDate, search]);
+  }, [selectedStatus, selectedType, selectedGrade, selectedSection, search]);
 
   useEffect(() => {
     fetchData();

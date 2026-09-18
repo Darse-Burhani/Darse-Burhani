@@ -6,19 +6,16 @@ import {
   Clock,
   XCircle,
   Stethoscope,
-  HeartPulse,
   Fingerprint,
   FileCheck2,
   Bot,
   UserCheck,
   Search,
-  Filter,
   Eye,
-  SlidersHorizontal,
   ChevronRight,
   Flame,
 } from "lucide-react";
-import { RegistryRecordItem, RegistrySummary } from "@/lib/api";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 

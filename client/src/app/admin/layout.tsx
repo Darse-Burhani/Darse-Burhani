@@ -22,7 +22,7 @@ import {
   Barcode,
   KeyRound,
 } from "lucide-react";
-import { PortalShell, PortalNavItem } from "@/components/PortalShell";
+import { PortalShell } from "@/components/PortalShell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
 
 const navItems: PortalNavItem[] = [

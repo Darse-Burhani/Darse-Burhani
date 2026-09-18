@@ -2,54 +2,42 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Users,
-  Plus,
   Search,
   Loader2,
   Shield,
   BookOpen,
-  Trash2,
-  CheckCircle2,
-  XCircle,
   Heart,
   UserCheck,
   GraduationCap,
   RefreshCw,
   X,
-  AlertTriangle,
   Link2,
   KeyRound,
   Layers,
   FileText,
-  FileSpreadsheet,
   Package,
-  CalendarDays,
   User,
   Settings,
   Sparkles,
   Check,
-  Eye,
-  EyeOff,
-  Building2,
   Filter,
-  ArrowRight,
   Clock,
   Mail,
   ShoppingBag,
   Library,
   Activity,
   CalendarCheck,
-  Lock,
   SlidersHorizontal,
   CheckSquare,
   Square,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import {
   Modal,
   ModalContent,

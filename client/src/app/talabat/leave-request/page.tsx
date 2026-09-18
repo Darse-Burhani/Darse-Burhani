@@ -10,9 +10,8 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
-  ShieldAlert,
 } from "lucide-react";
-import { getTalabatLeaves, LeaveRequestItem, StudentLeaveSummary } from "@/lib/api";
+
 import { LeaveFormModal } from "@/components/leave/LeaveFormModal";
 import { LeaveHistoryList } from "@/components/leave/LeaveHistoryList";
 

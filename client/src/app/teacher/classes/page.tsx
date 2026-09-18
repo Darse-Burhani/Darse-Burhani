@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+
 import { motion } from "framer-motion";
-import { BookOpen, Users, MapPin, Calendar } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, MapPin, Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function TeacherClassesPage() {

@@ -4,35 +4,28 @@ import { useState, useEffect, useCallback } from "react";
 import {
   BookOpen,
   Search,
-  Loader2,
   AlertTriangle,
   CheckCircle,
   RefreshCw,
   FileSpreadsheet,
-  Clock,
   TrendingUp,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
   Edit3,
   Eye,
-  Filter,
   Award,
   Target,
   Users,
-  BarChart3,
   GitBranch,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import TeacherHifzMarhalaReportForm from "@/components/teacher/HifzMarhalaReportForm";
 import MarhalaFlowMap from "@/components/hifz/MarhalaFlowMap";
-import { toast } from "@/components/ui/toast";
+
 import { cn } from "@/lib/utils";
 
 const MARHALA_LABELS: Record<string, string> = {

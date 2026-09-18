@@ -3,21 +3,47 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users, Award, Heart, Zap, Check, X, Undo2, AlertTriangle, TrendingUp,
-  Search, Loader2, BookOpen, ClipboardList, CalendarDays, ChevronRight,
-  Clock, Sparkles, CheckCircle2, ArrowRight, ShoppingBag, Filter,
-  Layers, ShieldAlert, CheckSquare, Square, RotateCcw, Plus, Minus,
-  Flame, BookCheck, GraduationCap, Send, ChevronDown, MessageSquare,
-  Sparkle, UserCheck, UserX, Star, ArrowUpRight, ShieldCheck
+  Users,
+  Award,
+  Heart,
+  Zap,
+  Check,
+  X,
+  Undo2,
+  AlertTriangle,
+  Search,
+  Loader2,
+  BookOpen,
+  ClipboardList,
+  ChevronRight,
+  Clock,
+  Sparkles,
+  CheckCircle2,
+  ShoppingBag,
+  Filter,
+  ShieldAlert,
+  CheckSquare,
+  RotateCcw,
+  Plus,
+  Minus,
+  Flame,
+  BookCheck,
+  GraduationCap,
+  Send,
+  Sparkle,
+  UserCheck,
+  UserX,
+  Star,
+  ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, formatPoints, formatSmartTime, getTierStyle } from "@/lib/utils";
+import { getInitials, formatPoints, formatSmartTime } from "@/lib/utils";
 import PortfolioView from "@/components/teacher/PortfolioView";
-import { monthName } from "@/lib/takhteet";
+
 import { usePortalAccess } from "@/context/PortalAccessContext";
 
 interface QuickActionPreset {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Brain, Users, Shield, Heart, Sparkles } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/student/PageHeader";
 
 const skillCategories = [

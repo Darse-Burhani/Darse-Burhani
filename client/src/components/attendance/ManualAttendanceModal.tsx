@@ -1,26 +1,21 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CalendarDays,
   CheckCircle2,
   Clock,
   XCircle,
   AlertTriangle,
-  Users,
   Loader2,
   Save,
-  RotateCcw,
   Search,
   Check,
   X,
   Building2,
   Shield,
-  Layers,
-  Sparkles,
   UserCheck,
-  Calendar,
   Filter,
   BookOpen,
 } from "lucide-react";
@@ -30,10 +25,9 @@ import {
   ModalHeader,
   ModalTitle,
   ModalFooter,
-  ModalClose,
 } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 
@@ -112,7 +106,6 @@ export function ManualAttendanceModal({
 
   // Schedule definitions loaded from server
   const [scheduleData, setScheduleData] = useState<any>(null);
-  const [loadingSchedules, setLoadingSchedules] = useState(true);
 
   // Roster candidate items
   const [roster, setRoster] = useState<any[]>([]);
@@ -123,7 +116,6 @@ export function ManualAttendanceModal({
   // Load schedule metadata
   useEffect(() => {
     if (!open) return;
-    setLoadingSchedules(true);
     fetch("/api/attendance/manual/schedules")
       .then((r) => r.json())
       .then((res) => {
@@ -137,8 +129,7 @@ export function ManualAttendanceModal({
           }
         }
       })
-      .catch(() => {})
-      .finally(() => setLoadingSchedules(false));
+      .catch(() => {});
   }, [open]);
 
   // Load candidate roster whenever schedule type, schedule ID, class ID or date changes

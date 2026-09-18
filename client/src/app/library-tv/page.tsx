@@ -48,7 +48,7 @@ export default function LibraryTvPage() {
   const [data, setData] = useState<TvData | null>(null);
   const [error, setError] = useState(false);
   const [index, setIndex] = useState(0);
-  const [now, setNow] = useState(() => new Date());
+  const [, setNow] = useState(() => new Date());
 
   const load = useCallback(async () => {
     try {

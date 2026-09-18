@@ -23,11 +23,9 @@ import {
   testDevice,
   forceSyncDeviceTime,
   syncDeviceScansNow,
-  syncAllDevicesScansNow,
   pullDeviceScansForRange,
   pullAllDevicesScansForRange,
   fetchMembersFromDevice,
-  fetchAllMembersFromAllDevices,
   toDeviceDto,
   toConnection,
   remoteControlDoor,
@@ -40,14 +38,13 @@ import {
   playVoicePrompt,
   deployUserToDevice,
   deleteUserFromDevice,
-  deployFaceToDevice,
   deployCardToDevice,
   deployAllStudentsToDevice,
   deployAllTeachersToDevice,
 } from "../lib/hikvision";
 import { generateDailyAttendanceExcel, generateRangedAttendanceExcel } from "../lib/attendance-excel";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow } from "../lib/biometric";
-import { getLocalLanIp, configureDevicePush, getHttpHosts } from "../lib/hikvision/push";
+import { getLocalLanIp, configureDevicePush } from "../lib/hikvision/push";
 
 const router = Router();
 
@@ -97,7 +94,6 @@ function eventAudience(w: Record<string, any>): "FACULTY" | "ALL_STUDENTS" | "BO
   if (isLegacyFacultyRow(w as any)) return "FACULTY";
   return hasFacultyTimer(w as any) ? "BOTH" : "ALL_STUDENTS";
 }
-
 
 // GET /api/biometric/status - Gateway / mock status + counts
 router.get("/status", requireRole("ADMIN"), async (_req, res) => {

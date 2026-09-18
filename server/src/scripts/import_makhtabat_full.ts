@@ -6,7 +6,7 @@
  *
  * Run: npx tsx src/scripts/import_makhtabat_full.ts  (from server/ dir)
  */
-import { PrismaClient } from "@prisma/client";
+
 import fs from "fs";
 import path from "path";
 

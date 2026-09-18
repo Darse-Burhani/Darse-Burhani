@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -8,7 +8,6 @@ import {
   LogOut,
   Lock,
   Unlock,
-  CheckCircle2,
   ShieldAlert,
   Loader2,
   Save,
@@ -29,14 +28,14 @@ import {
   LayoutGrid,
   KeyRound,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 import { useState, useEffect } from "react";
-import { usePortalAccess } from "@/context/PortalAccessContext";
+
 
 interface RegionPermission {
   id: string;

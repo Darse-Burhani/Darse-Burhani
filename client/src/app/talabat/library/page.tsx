@@ -7,10 +7,8 @@ import {
   Search,
   X,
   Compass,
-  TrendingUp,
   Layers,
   Library,
-
   ChevronRight,
   CheckCircle2,
   Clock,

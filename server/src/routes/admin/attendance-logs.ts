@@ -9,11 +9,6 @@ import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow } from "../../li
 
 const router = Router();
 
-function toMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
 // Match check-in timestamp to scheduled scan event (unified model: a scan
 // belongs to an event when inside EITHER its Talabat timer or faculty timer)
 function matchScheduledEvent(

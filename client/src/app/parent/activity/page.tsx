@@ -1,26 +1,20 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Activity,
   Award,
   Clock,
   Heart,
   Filter,
-  Users,
-  Calendar,
-  CheckCircle2,
   RefreshCw,
-  Sparkles,
   ArrowLeft,
-  ChevronRight,
-  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { timeAgo } from "@/lib/utils";
 
 const activityIcons: Record<string, any> = {

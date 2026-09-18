@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import {
   Award,
-  BookOpen,
   Calendar,
   Droplets,
   Flame,
@@ -11,10 +10,8 @@ import {
   MapPin,
   Medal,
   Phone,
-  Sparkles,
   Star,
   TrendingUp,
-  Zap,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, getTierColor } from "@/lib/utils";

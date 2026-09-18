@@ -1,33 +1,26 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
-  Shield,
   ShieldCheck,
   ShieldAlert,
   Lock,
-  Unlock,
   Key,
   Users,
   Activity,
   AlertTriangle,
   CheckCircle2,
   XCircle,
-  Clock,
   Laptop,
   Smartphone,
-  Globe,
   Sliders,
   RefreshCw,
   Search,
-  Filter,
   Save,
   LogOut,
   Fingerprint,
   Eye,
   Server,
-  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -130,7 +123,6 @@ export default function AdminSecurityPage() {
   const [rbacModules, setRbacModules] = useState<RbacModule[]>([]);
   const [policies, setPolicies] = useState<SecurityOverviewData["policies"] | null>(null);
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingPolicies, setSavingPolicies] = useState(false);
 
@@ -163,7 +155,6 @@ export default function AdminSecurityPage() {
         variant: "default",
       });
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };

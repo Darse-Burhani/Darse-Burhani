@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   BookOpen,
   Search,
@@ -19,16 +19,9 @@ import {
   EyeOff,
   LayoutGrid,
   List,
-  ChevronDown,
-  ChevronUp,
   Copy,
-  Check,
-  Star,
   X,
   Save,
-  Clock,
-  Award,
-  Sparkles,
   Download,
   Printer,
   Undo2,
@@ -38,7 +31,6 @@ import {
   Trophy,
   CheckSquare,
   Square,
-  ArrowUpDown,
   Filter,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -164,17 +156,12 @@ export default function AdminHifzPage() {
 
   // Selection & Batch
   const [selectedReports, setSelectedReports] = useState<Set<string>>(new Set());
-  const [selectAll, setSelectAll] = useState(false);
 
   // Preview - Now inline, not overlay
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [editingPartId, setEditingPartId] = useState<string | null>(null);
   const [editPartForm, setEditPartForm] = useState<any>({});
   const [togglingPart, setTogglingPart] = useState<string | null>(null);
-
-  // Undo
-  const [lastAction, setLastAction] = useState<{ type: string; data: any } | null>(null);
-  const [showUndoToast, setShowUndoToast] = useState(false);
 
   // Dashboard
   const [showDashboard, setShowDashboard] = useState(false);

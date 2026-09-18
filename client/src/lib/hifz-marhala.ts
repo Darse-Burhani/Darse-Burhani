@@ -2,7 +2,7 @@
  * Shared design tokens & helpers for the Hifz module.
  * One brand voice across admin / teacher / talabat surfaces.
  */
-import { BookOpen, Send, CheckCircle, Globe, AlertTriangle, Clock, FileText } from "lucide-react";
+import { BookOpen, Send, CheckCircle, Globe, AlertTriangle, FileText } from "lucide-react";
 import type { ComponentType } from "react";
 
 export const MARHALA_ORDER = ["MARHALA_1", "MARHALA_2", "MARHALA_3", "MARHALA_4", "MARHALA_5"] as const;

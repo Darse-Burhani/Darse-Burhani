@@ -17,7 +17,7 @@ import {
   Loader2,
   ChevronRight,
 } from "lucide-react";
-import { LeaveRequestItem, cancelTalabatLeave } from "@/lib/api";
+import { cancelTalabatLeave } from "@/lib/api";
 
 interface LeaveHistoryListProps {
   leaves: LeaveRequestItem[];

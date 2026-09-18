@@ -7,7 +7,6 @@ import {
   Shield,
   Lock,
   Eye,
-  FileText,
   UserCheck,
   Database,
   ArrowLeft,

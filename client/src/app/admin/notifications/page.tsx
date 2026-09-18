@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Megaphone,
   Bell,
@@ -13,7 +13,6 @@ import {
   Shield,
   Send,
   Users,
-  CheckCircle2,
   Trash2,
   ExternalLink,
   Copy,
@@ -21,11 +20,10 @@ import {
   Clock,
   Layers,
   Search,
-  Filter,
   Mail,
   BarChart3,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
@@ -177,7 +175,6 @@ const COMMUNICATION_TABS = [
 ];
 
 export default function AdminNotificationStudio() {
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -214,8 +211,6 @@ export default function AdminNotificationStudio() {
       }
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 

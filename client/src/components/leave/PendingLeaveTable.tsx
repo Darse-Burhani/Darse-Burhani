@@ -10,16 +10,11 @@ import {
   Stethoscope,
   User,
   HeartPulse,
-  FileText,
   Paperclip,
   ExternalLink,
-  Search,
-  Filter,
   Loader2,
-  Calendar,
-  MessageSquare,
 } from "lucide-react";
-import { LeaveRequestItem } from "@/lib/api";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 

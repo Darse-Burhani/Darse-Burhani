@@ -7,10 +7,8 @@ import {
   getDeviceInfo,
   getUserInfoList,
   isAttendanceEvent,
-  type HikAcsEvent,
   type HikConnection,
   type HikDeviceInfo,
-  type HikUserInfo,
 } from "./isapi";
 export * from "./isapi";
 export * from "./device-control";
@@ -209,10 +207,6 @@ function shouldProcessScan(deviceKey: string, empNo: string, eventTimeMs: number
     if (oldestKey) recentScans.delete(oldestKey);
   }
   return true;
-}
-
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
 }
 
 function getIstTimeXml() {

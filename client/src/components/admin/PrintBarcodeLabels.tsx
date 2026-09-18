@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Printer, X, Loader2, CheckCircle2, Search } from "lucide-react";
+import { Printer, Loader2, CheckCircle2, Search } from "lucide-react";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -65,39 +65,9 @@ function BarcodeSvg({ value, width = 1.8, height = 0.7 }: { value: string; width
   return <svg ref={svgRef} className="w-full" />;
 }
 
-// ── Single Label ──
-function BookLabel({ book }: { book: LibraryBook }) {
-  const barcode = book.barcode || book.id.slice(0, 8).toUpperCase();
-
-  return (
-    <div className="book-label border border-gray-300 rounded-md p-2 bg-white flex flex-col items-center gap-1 overflow-hidden" style={{ width: "2.625in", minHeight: "1in" }}>
-      {/* Barcode */}
-      <div className="w-full px-0.5">
-        <BarcodeSvg value={barcode} width={1.2} height={0.5} />
-      </div>
-      {/* Barcode Text */}
-      <div className="text-[7px] font-mono font-bold tracking-wider text-gray-800 text-center leading-tight">
-        {barcode}
-      </div>
-      {/* Book Title */}
-      <div className="text-[6.5px] font-medium text-gray-700 text-center leading-tight line-clamp-2 px-0.5">
-        {book.title}
-      </div>
-      {/* Category + Location */}
-      {(book.category || book.rackNumber || book.shelfNumber) && (
-        <div className="text-[5.5px] text-gray-500 text-center leading-tight">
-          {book.category}
-          {book.rackNumber && ` · ${book.rackNumber}`}
-          {book.shelfNumber && `-${book.shelfNumber}`}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Main Print Component ──
 export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintBarcodeLabelsProps) {
-  const printFrameRef = useRef<HTMLDivElement>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(true);

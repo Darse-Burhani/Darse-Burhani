@@ -17,7 +17,6 @@ import {
   Star,
   Heart,
   Shield,
-  Target,
   BarChart3,
   BookOpen,
   Grid3X3,
@@ -38,7 +37,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn, getInitials } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import { usePortalAccess } from "@/context/PortalAccessContext";
 
 // LEGACY top-bar — PortalShell is the canonical navigation system.

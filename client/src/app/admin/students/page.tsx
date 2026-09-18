@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, Shield, CalendarDays, FileText, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound } from "lucide-react";
+import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";

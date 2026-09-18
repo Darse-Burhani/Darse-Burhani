@@ -5,29 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail,
   Send,
-  CalendarDays,
-  CheckCircle2,
   AlertTriangle,
-  Clock,
   XCircle,
   Users,
   Search,
-  Filter,
-  Eye,
-  RefreshCw,
   Loader2,
-  Sparkles,
-  CheckCheck,
-  Smartphone,
-  Monitor,
-  Settings,
-  ShieldCheck,
-  ChevronDown,
-  Info,
   X,
-  FileText,
-  Calendar as CalendarIcon,
-  Fingerprint,
   GraduationCap,
   Briefcase,
   BellRing,
@@ -37,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { getInitials } from "@/lib/utils";
+
 
 interface StudentSummary {
   id: string;
@@ -111,9 +94,6 @@ export default function AdminAttendanceEmailsPage() {
   const [emailFilter, setEmailFilter] = useState<"ALL" | "HAS_EMAIL" | "MISSING_EMAIL">("ALL");
   const [healthFilter, setEmailHealthFilter] = useState<"ALL" | "EXCELLENT" | "ATTENTION" | "CRITICAL">("ALL");
 
-  // Selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
   // Direct Absent Email Modal State
   const [absentModalTarget, setAbsentModalTarget] = useState<{
     type: "STUDENT" | "TEACHER";
@@ -124,16 +104,6 @@ export default function AdminAttendanceEmailsPage() {
   } | null>(null);
   const [absentReasonNote, setAbsentReasonNote] = useState("");
   const [sendingDirectAbsent, setSendingDirectAbsent] = useState(false);
-
-  // Preview Modal
-  const [previewStudentId, setPreviewStudentId] = useState<string | null>(null);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<"DESKTOP" | "MOBILE">("DESKTOP");
-  const [customNote, setCustomNote] = useState("");
-
-  // Dispatch / Sending State
-  const [sending, setSending] = useState(false);
 
   // Fetch summary data
   const fetchSummary = useCallback(async () => {

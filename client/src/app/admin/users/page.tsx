@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Users,
   Plus,
@@ -11,8 +11,6 @@ import {
   Loader2,
   X,
   BookOpen,
-  CheckCircle2,
-  XCircle,
   Pencil,
   Heart,
   UserCheck,
@@ -23,35 +21,25 @@ import {
   Award,
   Crown,
   Building2,
-  Clock,
   ExternalLink,
   LayoutGrid,
   List,
   Copy,
   Check,
   Droplet,
-  Compass,
-  ArrowRight,
   PhoneCall,
-  MessageCircle,
   Trash2,
   KeyRound,
   RefreshCw,
   Eye,
   EyeOff,
   User,
-  Calendar,
-  Briefcase,
-  Home,
-  FileBadge,
-  Layers,
   Info,
   QrCode,
   Printer,
-  Power,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";

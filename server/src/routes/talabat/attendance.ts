@@ -1,7 +1,7 @@
-import { Router } from "express";
+
 import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
-import { requireAuth, requireRole } from "../../middleware";
+import { requireRole } from "../../middleware";
 import { getScanWindow } from "../../lib/biometric";
 
 const router = Router();

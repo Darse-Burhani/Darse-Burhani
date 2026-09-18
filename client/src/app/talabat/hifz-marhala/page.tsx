@@ -3,38 +3,25 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   BookOpen,
-  Search,
-  Loader2,
   AlertTriangle,
   CheckCircle,
   RefreshCw,
-  FileSpreadsheet,
   FileText,
-  Clock,
-  TrendingUp,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
   Edit3,
-  Eye,
-  Filter,
   Award,
   Target,
-  Users,
-  BarChart3,
   Save,
   Calendar,
   Copy,
   Check,
   Sparkles,
-  Loader2 as LoaderIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ProgressRing } from "@/components/teacher/HifzMarhalaReportForm";
 import { toast } from "@/components/ui/toast";

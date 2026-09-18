@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Bell,
   BellRing,
-  Heart,
   BookOpen,
   Megaphone,
   Sparkles,

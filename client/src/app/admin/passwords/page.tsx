@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   KeyRound,
   Search,
@@ -18,25 +18,16 @@ import {
   BookOpen,
   Heart,
   Users,
-  Lock,
-  Unlock,
   Sparkles,
-  ExternalLink,
-  CheckCircle2,
-  AlertTriangle,
   Loader2,
   X,
   Filter,
-  ArrowUpDown,
-  Mail,
-  Smartphone,
   Layers,
-  FileSpreadsheet,
   QrCode,
   Share2,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";

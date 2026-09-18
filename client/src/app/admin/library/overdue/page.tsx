@@ -3,17 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft,
   Printer,
   AlertTriangle,
-  BookX,
-  CalendarDays,
   Clock,
-  User,
   BookOpen,
   Loader2,
   RefreshCw,
-  School,
   CheckCircle2,
   Mail,
   Phone,
@@ -21,12 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
   Bell,
-  History,
   CheckCheck,
   XCircle,
-  X,
   MessageSquare,
-  Smartphone,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

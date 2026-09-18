@@ -4,19 +4,16 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Compass,
-  ArrowLeft,
   Home,
   Shield,
   GraduationCap,
   BookOpen,
   Users,
   Sparkles,
-  Search,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
-import { SEO } from "@/components/SEO";
+
 
 export default function NotFoundPage() {
   return (

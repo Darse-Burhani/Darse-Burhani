@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -8,13 +8,11 @@ import {
   Activity,
   Award,
   TrendingUp,
-  Settings,
   Shield,
   Clock,
   BookOpen,
   BarChart3,
   ChevronRight,
-  Sparkles,
   Zap,
   AlertTriangle,
   Wifi,
@@ -38,7 +36,7 @@ import {
   ShoppingBag,
   X,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +86,6 @@ const tierColors: Record<string, string> = {
 export default function AdminDashboard() {
   const [monitoring, setMonitoring] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  const [pointRules, setPointRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +95,7 @@ export default function AdminDashboard() {
     setError(null);
     setDismissedAlerts(false);
     try {
-      const [monitoringSettled, statsSettled, rulesSettled] = await Promise.allSettled([
+      const [monitoringSettled, statsSettled] = await Promise.allSettled([
         fetch("/api/admin/monitoring").then(async (r) => {
           const json = await r.json().catch(() => null);
           if (!r.ok || !json?.success) {
@@ -113,13 +110,6 @@ export default function AdminDashboard() {
           }
           return json;
         }),
-        fetch("/api/admin/point-rules").then(async (r) => {
-          const json = await r.json().catch(() => null);
-          if (!r.ok || !json?.success) {
-            throw new Error(json?.error || `Rules config returned HTTP ${r.status}`);
-          }
-          return json;
-        }),
       ]);
 
       if (monitoringSettled.status === "fulfilled" && monitoringSettled.value?.success) {
@@ -131,9 +121,6 @@ export default function AdminDashboard() {
 
       if (statsSettled.status === "fulfilled" && statsSettled.value?.success) {
         setStats(statsSettled.value.data);
-      }
-      if (rulesSettled.status === "fulfilled" && rulesSettled.value?.success) {
-        setPointRules(rulesSettled.value.data.slice(0, 4));
       }
     } catch (err: any) {
       console.error("Admin dashboard fetch error:", err);

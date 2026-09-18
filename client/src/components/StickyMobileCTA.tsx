@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, ArrowUp, Calendar, ShieldCheck } from "lucide-react";
+import { LogIn, ShieldCheck } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 
 interface StickyMobileCTAProps {

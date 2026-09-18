@@ -10,7 +10,6 @@ import {
   getHttpHosts,
   sameWebhookPath,
   getLocalLanIp,
-  type HikHttpHost,
 } from "../lib/hikvision/push";
 import { toConnection } from "../lib/hikvision";
 import prisma from "../lib/prisma";

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  CalendarDays,
   Check,
   CheckCircle2,
   Clock,

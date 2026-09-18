@@ -1,10 +1,10 @@
-import { Router } from "express";
+
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import prisma from "../../lib/prisma";
-import { requireAuth, requireRole } from "../../middleware";
+import { requireRole } from "../../middleware";
 
 const router = Router();
 

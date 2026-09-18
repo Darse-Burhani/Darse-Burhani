@@ -3,8 +3,16 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BookOpen, Users, Award, MapPin, Zap, AlertTriangle, TrendingUp,
-  Check, X, Undo2, Search, Loader2,
+  BookOpen,
+  Users,
+  Award,
+  Zap,
+  AlertTriangle,
+  TrendingUp,
+  Check,
+  X,
+  Undo2,
+  Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ShoppingBag,
   Plus,
@@ -12,24 +12,20 @@ import {
   Truck,
   XCircle,
   AlertTriangle,
-  FileText,
-  DollarSign,
   Loader2,
   Trash2,
   ChevronRight,
   Filter,
   Sparkles,
-  Building2,
   Package,
   Layers,
-  HelpCircle,
   RefreshCw,
   X,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 
 const CATEGORIES = [
@@ -691,7 +687,6 @@ export default function TeacherProcurementPage() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none resize-none"
               />
             </div>
-
 
 
             <ModalFooter className="pt-2">

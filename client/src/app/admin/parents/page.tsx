@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Search,
@@ -26,7 +26,6 @@ import {
   MapPin,
   Briefcase,
   Droplet,
-  Shield,
   Plus,
   Home,
   MessageSquare,

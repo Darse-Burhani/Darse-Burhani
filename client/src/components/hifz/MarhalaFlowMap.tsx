@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  GitBranch,
   Users,
   UserCheck,
   Search,
@@ -15,15 +14,11 @@ import {
   Layers,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   RotateCcw,
   Compass,
-  CheckCircle2,
   Award,
-  Eye,
   Info,
   X,
-  Target,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

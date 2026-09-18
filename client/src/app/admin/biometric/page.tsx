@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Fingerprint,
   Camera,
   Server,
-  KeyRound,
   ShieldCheck,
   Link2,
   Download,
@@ -14,32 +13,17 @@ import {
   RefreshCw,
   Search,
   CheckCircle2,
-  AlertTriangle,
   Clock,
   Activity,
-  Zap,
-  Radio,
   Radar,
-  Calendar,
-  Layers,
-  ChevronRight,
   Sparkles,
   Users,
   GraduationCap,
-  Briefcase,
-  Copy,
-  Check,
-  Eye,
   Trash2,
   Pencil,
-  Play,
   Filter,
-  CheckCheck,
   Send,
-  HelpCircle,
   Globe,
-  Sliders,
-  Maximize2,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import IvmsControlStation from "@/components/admin/biometric/IvmsControlStation";
@@ -118,12 +102,10 @@ export default function BiometricAdminPage() {
 
   // State
   const [devices, setDevices] = useState<BiometricDevice[]>([]);
-  const [loadingDevices, setLoadingDevices] = useState(true);
   const [students, setStudents] = useState<BiometricStudent[]>([]);
   const [teachers, setTeachers] = useState<BiometricTeacher[]>([]);
   const [todayLogs, setTodayLogs] = useState<AttendanceLogItem[]>([]);
   const [unmatched, setUnmatched] = useState<UnmatchedItem[]>([]);
-  const [activeScanWindow, setActiveScanWindow] = useState<any>(null);
 
   // Stats
   const [statsMetrics, setStatsMetrics] = useState({

@@ -5,7 +5,6 @@ import {
   Activity,
   BookOpen,
   Clock,
-  CalendarDays,
   FileText,
   User,
   ShoppingBag,

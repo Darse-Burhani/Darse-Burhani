@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Bell,
   BellRing,
-  Heart,
   BookOpen,
   Megaphone,
   Sparkles,
@@ -81,7 +80,6 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [bannerNotification, setBannerNotification] = useState<NotificationItem | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);

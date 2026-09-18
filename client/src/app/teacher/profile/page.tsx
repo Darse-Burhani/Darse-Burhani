@@ -10,25 +10,20 @@ import {
   Save,
   Loader2,
   Lock,
-  Unlock,
-  CheckCircle2,
-  AlertCircle,
   KeyRound,
   Eye,
   EyeOff,
   GraduationCap,
-  Briefcase,
   Phone,
   Mail,
   Calendar,
-  Sparkles,
   Trash2,
   ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 

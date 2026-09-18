@@ -10,20 +10,17 @@ import {
   Filter,
   X,
   ChevronDown,
-  ChevronUp,
   Edit3,
   Trash2,
   BookMarked,
   BookX,
   AlertTriangle,
   RefreshCw,
-  ClipboardList,
   RotateCcw,
   CheckCircle2,
   Layers,
   Library,
   Scan,
-  FileText,
   SlidersHorizontal,
   Loader2,
   Printer,
@@ -31,11 +28,9 @@ import {
   ImageIcon,
   Download,
   CheckSquare,
-  Square,
   Keyboard,
   History,
   Clock,
-  User,
   CalendarDays,
   ArrowRight,
   ShieldCheck,
@@ -43,7 +38,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter, ModalTrigger } from "@/components/ui/modal";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import PrintBarcodeLabels from "@/components/admin/PrintBarcodeLabels";
 import BarcodeDisplay from "@/components/admin/BarcodeDisplay";

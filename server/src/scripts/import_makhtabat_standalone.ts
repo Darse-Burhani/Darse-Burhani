@@ -3,7 +3,7 @@
  * Uses @prisma/client directly to avoid @sentry/node dependency.
  * Run from server/ directory: npx tsx src/scripts/import_makhtabat_standalone.ts
  */
-import { PrismaClient } from "@prisma/client";
+
 import fs from "fs";
 import path from "path";
 

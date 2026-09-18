@@ -1,46 +1,31 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   Camera,
   RefreshCw,
-  Clock,
   Volume2,
   Users,
-  CreditCard,
-  Trash2,
-  Cpu,
   Activity,
-  AlertTriangle,
   CheckCircle2,
-  Maximize2,
   Sparkles,
-  Zap,
   Radio,
   Play,
   Pause,
   ZoomIn,
   ZoomOut,
-  Shield,
   Eye,
-  Wifi,
-  WifiOff,
   Copy,
   Check,
   Lock,
   Unlock,
-  Volume1,
   Filter,
-  Layers,
-  ArrowUpRight,
   ShieldCheck,
-  User,
   GraduationCap,
-  Send,
   Scan,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";

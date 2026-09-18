@@ -22,7 +22,6 @@ import {
   X,
   Building2,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 
