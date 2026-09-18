@@ -373,6 +373,19 @@ export async function syncDeviceScansNow(id: string): Promise<{ success: boolean
   }
 }
 
+export async function pullDeviceScansForRange(
+  id: string,
+  fromDate: Date,
+  toDate: Date = new Date(),
+): Promise<{ success: boolean; scansFetched: number; scansProcessed: number; error?: string }> {
+  try {
+    const res = await pollDevice(id, true, fromDate, toDate);
+    return { success: true, scansFetched: res.scansFetched, scansProcessed: res.scansProcessed };
+  } catch (err: any) {
+    return { success: false, scansFetched: 0, scansProcessed: 0, error: err?.message || String(err) };
+  }
+}
+
 /**
  * Fetch and process scans from ALL configured / enabled biometric terminals to portal
  */
@@ -410,6 +423,64 @@ export async function syncAllDevicesScansNow(): Promise<{
 
   for (const dev of targetDevices) {
     const res = await syncDeviceScansNow(dev.id);
+    totalFetched += res.scansFetched;
+    totalProcessed += res.scansProcessed;
+    results.push({
+      id: dev.id,
+      name: dev.name,
+      host: dev.host,
+      success: res.success,
+      scansFetched: res.scansFetched,
+      scansProcessed: res.scansProcessed,
+      error: res.error,
+    });
+  }
+
+  return {
+    success: true,
+    totalFetched,
+    totalProcessed,
+    devices: results,
+  };
+}
+
+export async function pullAllDevicesScansForRange(
+  fromDate: Date,
+  toDate: Date = new Date(),
+): Promise<{
+  success: boolean;
+  totalFetched: number;
+  totalProcessed: number;
+  devices: Array<{
+    id: string;
+    name: string;
+    host: string;
+    success: boolean;
+    scansFetched: number;
+    scansProcessed: number;
+    error?: string;
+  }>;
+}> {
+  const devices = await prisma.biometricDevice.findMany({
+    where: { enabled: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
+
+  let totalFetched = 0;
+  let totalProcessed = 0;
+  const results: Array<{
+    id: string;
+    name: string;
+    host: string;
+    success: boolean;
+    scansFetched: number;
+    scansProcessed: number;
+    error?: string;
+  }> = [];
+
+  for (const dev of targetDevices) {
+    const res = await pullDeviceScansForRange(dev.id, fromDate, toDate);
     totalFetched += res.scansFetched;
     totalProcessed += res.scansProcessed;
     results.push({
@@ -698,6 +769,7 @@ export async function pollDevice(
   id: string,
   force = false,
   customFrom?: Date,
+  customTo?: Date,
 ): Promise<{ scansFetched: number; scansProcessed: number }> {
   if (inFlight.has(id)) return { scansFetched: 0, scansProcessed: 0 };
   inFlight.add(id);
@@ -714,7 +786,7 @@ export async function pollDevice(
     const driftMs = await syncDeviceClock(conn).catch(() => 0);
     const clockSkewed = Math.abs(driftMs) > 60_000;
 
-    const to = new Date();
+    const to = customTo ?? new Date();
     const startOfToday = getStartOfTodayIST();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 

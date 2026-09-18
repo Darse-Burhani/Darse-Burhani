@@ -24,6 +24,8 @@ import {
   forceSyncDeviceTime,
   syncDeviceScansNow,
   syncAllDevicesScansNow,
+  pullDeviceScansForRange,
+  pullAllDevicesScansForRange,
   fetchMembersFromDevice,
   fetchAllMembersFromAllDevices,
   toDeviceDto,
@@ -45,7 +47,7 @@ import {
 } from "../lib/hikvision";
 import { generateDailyAttendanceExcel, generateRangedAttendanceExcel } from "../lib/attendance-excel";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow } from "../lib/biometric";
-import { getLocalLanIp } from "../lib/hikvision/push";
+import { getLocalLanIp, configureDevicePush, getHttpHosts } from "../lib/hikvision/push";
 
 const router = Router();
 
@@ -1343,14 +1345,115 @@ router.post("/devices/:id/sync-now", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// POST /api/biometric/sync-all-now - Fetch scans from ALL configured / enabled biometric terminals
-router.post("/sync-all-now", requireRole("ADMIN"), async (_req, res) => {
+// POST /api/biometric/devices/:id/pull-range - Pull scans from a terminal for a custom date range
+router.post("/devices/:id/pull-range", requireRole("ADMIN"), async (req, res) => {
   try {
-    const result = await syncAllDevicesScansNow();
+    const { fromDate, toDate } = req.body as { fromDate?: string; toDate?: string };
+    if (!fromDate) {
+      return res.status(400).json({ success: false, error: "fromDate is required (e.g. 2026-09-18)" });
+    }
+    const from = new Date(fromDate);
+    const to = toDate ? new Date(toDate) : new Date();
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return res.status(400).json({ success: false, error: "Invalid date format provided" });
+    }
+
+    const result = await pullDeviceScansForRange(req.params.id, from, to);
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error || "Failed to pull device scans" });
+    }
     return res.json({
       success: true,
-      message: `Fetched ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`,
+      message: `Successfully pulled ${result.scansFetched} scans (${result.scansProcessed} processed into attendance records).`,
       data: result,
+    });
+  } catch (error: any) {
+    const message = error?.message ?? String(error);
+    return res.status(500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/biometric/pull-range - Pull scans from ALL enabled terminals for a custom date range
+router.post("/pull-range", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { fromDate, toDate } = req.body as { fromDate?: string; toDate?: string };
+    if (!fromDate) {
+      return res.status(400).json({ success: false, error: "fromDate is required (e.g. 2026-09-18)" });
+    }
+    const from = new Date(fromDate);
+    const to = toDate ? new Date(toDate) : new Date();
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return res.status(400).json({ success: false, error: "Invalid date format provided" });
+    }
+
+    const result = await pullAllDevicesScansForRange(from, to);
+    return res.json({
+      success: true,
+      message: `Pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`,
+      data: result,
+    });
+  } catch (error: any) {
+    const message = error?.message ?? String(error);
+    return res.status(500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/biometric/devices/:id/configure-push - Register Alarm Server / HTTP Listening push on the terminal
+router.post("/devices/:id/configure-push", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const device = await prisma.biometricDevice.findUnique({ where: { id: req.params.id } });
+    if (!device) return res.status(404).json({ success: false, error: "Device not found" });
+
+    const body = (req.body && typeof req.body === "object") ? req.body : {};
+    let targetUrl: string = typeof body.url === "string" && body.url.trim() ? body.url.trim() : "";
+    if (!targetUrl) {
+      if (process.env.HIKVISION_PUSH_URL) {
+        targetUrl = process.env.HIKVISION_PUSH_URL;
+      } else if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost") && !process.env.NEXT_PUBLIC_APP_URL.includes("127.0.0.1")) {
+        targetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/hikvision/events`;
+      } else {
+        const lanIp = getLocalLanIp(device.host);
+        targetUrl = `http://${lanIp}:4000/api/hikvision/events`;
+      }
+    }
+
+    const format: "XML" | "JSON" = body.format === "JSON" ? "JSON" : "XML";
+    const result = await configureDevicePush(req.params.id, targetUrl, format);
+    return res.json({
+      success: true,
+      message: `HTTP Listening configured to push real-time events to: ${targetUrl}`,
+      data: result,
+    });
+  } catch (error: any) {
+    const message = error?.message ?? String(error);
+    return res.status(500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/biometric/simulate-scan - Manually ingest / simulate punch for diagnostics
+router.post("/simulate-scan", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { identifier, verifyMode, timestamp, deviceId } = req.body as {
+      identifier?: string;
+      verifyMode?: string;
+      timestamp?: string;
+      deviceId?: string;
+    };
+    if (!identifier || !identifier.trim()) {
+      return res.status(400).json({ success: false, error: "Identifier (Student ID / ITS / Employee ID / Card / Hash) is required" });
+    }
+
+    const event = await processBiometricScan(
+      identifier.trim(),
+      timestamp ? new Date(timestamp) : new Date(),
+      deviceId || "admin-simulator",
+      verifyMode || "FACIAL",
+    );
+
+    return res.json({
+      success: true,
+      message: `Simulated scan processed: [${event.type}] ${event.message || ""}`,
+      data: event,
     });
   } catch (error: any) {
     const message = error?.message ?? String(error);
