@@ -292,6 +292,9 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           streakDays: 0,
           scheduledEvent: matchedEvent,
         };
+      });
+    }
+
     const allRecords = [...studentRecords, ...facultyRecords];
 
     // 3. Filter by Event Window if specified
