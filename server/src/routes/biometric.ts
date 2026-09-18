@@ -1476,18 +1476,96 @@ router.post("/devices/:id/fetch-members", requireRole("ADMIN"), async (req, res)
   }
 });
 
-// POST /api/biometric/fetch-all-members - Fetch enrolled users from ALL terminals & sync to portal
-router.post("/fetch-all-members", requireRole("ADMIN"), async (_req, res) => {
+// POST /api/biometric/link-all-by-its - Batch link biometric ID = ITS / StudentID / EmployeeID
+router.post("/link-all-by-its", requireRole("ADMIN"), async (_req, res) => {
   try {
-    const result = await fetchAllMembersFromAllDevices();
+    const [students, teachers] = await Promise.all([
+      prisma.studentProfile.findMany({ select: { id: true, its: true, studentId: true, biometricHash: true } }),
+      prisma.teacherProfile.findMany({ select: { id: true, its: true, employeeId: true, biometricHash: true } }),
+    ]);
+
+    let studentsLinked = 0;
+    let teachersLinked = 0;
+
+    for (const s of students) {
+      const targetHash = s.its?.trim() || s.studentId?.trim();
+      if (targetHash && s.biometricHash !== targetHash) {
+        try {
+          await prisma.studentProfile.update({
+            where: { id: s.id },
+            data: { biometricHash: targetHash },
+          });
+          studentsLinked++;
+        } catch {}
+      }
+    }
+
+    for (const t of teachers) {
+      const targetHash = t.its?.trim() || t.employeeId?.trim();
+      if (targetHash && t.biometricHash !== targetHash) {
+        try {
+          await prisma.teacherProfile.update({
+            where: { id: t.id },
+            data: { biometricHash: targetHash },
+          });
+          teachersLinked++;
+        } catch {}
+      }
+    }
+
     return res.json({
       success: true,
-      message: `Found ${result.totalFound} member(s) across ${result.devices.length} terminal(s). Matched ${result.studentsMatched} student(s) and ${result.teachersMatched} faculty member(s).`,
-      data: result,
+      message: `Linked ${studentsLinked} Talabat and ${teachersLinked} Faculty by ITS / Employee ID.`,
+      data: { studentsLinked, teachersLinked, totalStudents: students.length, totalTeachers: teachers.length },
     });
   } catch (error: any) {
-    const message = error?.message ?? String(error);
-    return res.status(500).json({ success: false, error: message });
+    return res.status(500).json({ success: false, error: error?.message || "Failed to link members" });
+  }
+});
+
+// POST /api/biometric/devices/:id/users/deploy-all - Deploy all students and teachers to terminal
+router.post("/devices/:id/users/deploy-all", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const [stuRes, teaRes] = await Promise.all([
+      deployAllStudentsToDevice(req.params.id),
+      deployAllTeachersToDevice(req.params.id),
+    ]);
+    return res.json({
+      success: true,
+      message: `Deployed ${stuRes.successful} student(s) and ${teaRes.successful} faculty member(s) to device.`,
+      data: { students: stuRes, teachers: teaRes },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error?.message || "Failed to deploy members to terminal" });
+  }
+});
+
+// POST /api/biometric/deploy-all-to-all-devices - Deploy all students & teachers to ALL enabled terminals
+router.post("/deploy-all-to-all-devices", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
+    const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany();
+
+    const results: any[] = [];
+    for (const dev of targetDevices) {
+      try {
+        const [stuRes, teaRes] = await Promise.all([
+          deployAllStudentsToDevice(dev.id),
+          deployAllTeachersToDevice(dev.id),
+        ]);
+        results.push({ deviceId: dev.id, name: dev.name, host: dev.host, success: true, students: stuRes, teachers: teaRes });
+      } catch (err: any) {
+        results.push({ deviceId: dev.id, name: dev.name, host: dev.host, success: false, error: err?.message || String(err) });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Deployed member profiles across ${targetDevices.length} terminal(s).`,
+      data: results,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error?.message || "Failed to deploy members" });
   }
 });
 

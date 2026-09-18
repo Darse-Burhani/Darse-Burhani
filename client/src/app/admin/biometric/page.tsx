@@ -450,6 +450,37 @@ export default function BiometricAdminPage() {
     }
   };
 
+  // Link All Talabat & Faculty by ITS ID
+  const handleLinkAllByIts = async () => {
+    try {
+      const res = await fetch("/api/biometric/link-all-by-its", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Linked Members: ${data.message}`);
+        refreshAllData();
+      } else {
+        toast.error(data.error || "Failed to link members");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Linking error");
+    }
+  };
+
+  // Deploy all members to all devices
+  const handleDeployAllMembers = async () => {
+    try {
+      const res = await fetch("/api/biometric/deploy-all-to-all-devices", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.error(data.error || "Failed to deploy members");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Deployment error");
+    }
+  };
+
   // Link Biometric ID to Student / Teacher
   const handleSaveLink = async () => {
     if (!linkTarget) return;
@@ -543,6 +574,24 @@ export default function BiometricAdminPage() {
 
             {/* Quick Action Buttons */}
             <div className="flex items-center flex-wrap gap-2.5">
+              <Button
+                onClick={handleLinkAllByIts}
+                variant="outline"
+                className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/30 rounded-xl text-xs font-semibold h-9"
+              >
+                <Link2 className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                Auto-Link All ITS Cards
+              </Button>
+
+              <Button
+                onClick={handleDeployAllMembers}
+                variant="outline"
+                className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border-sky-500/30 rounded-xl text-xs font-semibold h-9"
+              >
+                <Users className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
+                Sync Members to Devices
+              </Button>
+
               <Button
                 onClick={() => {
                   setPullDateOption("today");
@@ -1181,8 +1230,27 @@ export default function BiometricAdminPage() {
                 />
               </div>
 
-              <div className="text-xs font-semibold text-gray-500">
-                Enrolled: <span className="text-emerald-700 font-bold">{students.filter((s) => s.enrolled).length}</span> / {students.length} Students
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLinkAllByIts}
+                  className="h-8 text-xs rounded-xl text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                >
+                  <Link2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                  Auto-Link ITS Cards
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleDeployAllMembers}
+                  className="h-8 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Users className="w-3.5 h-3.5 mr-1" />
+                  Push Students to Terminals
+                </Button>
+                <div className="text-xs font-semibold text-gray-500 ml-2">
+                  Enrolled: <span className="text-emerald-700 font-bold">{students.filter((s) => s.enrolled).length}</span> / {students.length} Students
+                </div>
               </div>
             </div>
 
@@ -1258,8 +1326,27 @@ export default function BiometricAdminPage() {
                 />
               </div>
 
-              <div className="text-xs font-semibold text-gray-500">
-                Enrolled: <span className="text-indigo-700 font-bold">{teachers.filter((t) => t.enrolled).length}</span> / {teachers.length} Faculty
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLinkAllByIts}
+                  className="h-8 text-xs rounded-xl text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                >
+                  <Link2 className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  Auto-Link ITS Cards
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleDeployAllMembers}
+                  className="h-8 text-xs rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Users className="w-3.5 h-3.5 mr-1" />
+                  Push Faculty to Terminals
+                </Button>
+                <div className="text-xs font-semibold text-gray-500 ml-2">
+                  Enrolled: <span className="text-indigo-700 font-bold">{teachers.filter((t) => t.enrolled).length}</span> / {teachers.length} Faculty
+                </div>
               </div>
             </div>
 

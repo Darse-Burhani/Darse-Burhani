@@ -37,6 +37,8 @@ import {
   ShieldCheck,
   User,
   GraduationCap,
+  Send,
+  Scan,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,12 +85,12 @@ interface LiveScanEvent {
 type StreamInterval = 1000 | 2500 | 5000 | 0; // 0 = paused
 
 const PRESET_VOICE_PROMPTS = [
-  { id: "pleaseScanFace", label: "Please Scan Face", arabic: "من فضلك امسح وجهك", icon: Eye, color: "from-sky-500 to-blue-600" },
-  { id: "accessGranted", label: "Attendance Marked", arabic: "تم تسجيل الحضور بنجاح", icon: CheckCircle2, color: "from-emerald-500 to-teal-600" },
-  { id: "scanAgain", label: "Scan Again", arabic: "يرجى المسح مرة أخرى", icon: RefreshCw, color: "from-amber-500 to-orange-600" },
-  { id: "maintainQueue", label: "Please Wait in Line", arabic: "يرجى الانتظار في الصف", icon: Users, color: "from-indigo-500 to-violet-600" },
-  { id: "goodMorning", label: "Good Morning", arabic: "صباح الخير", icon: Sparkles, color: "from-amber-400 to-yellow-500" },
-  { id: "goodEvening", label: "Good Afternoon", arabic: "مساء الخير", icon: Sparkles, color: "from-purple-500 to-pink-600" },
+  { id: "pleaseScanFace", label: "Please Scan Face", arabic: "من فضلك امسح وجهك", icon: Eye },
+  { id: "accessGranted", label: "Attendance Marked", arabic: "تم تسجيل الحضور بنجاح", icon: CheckCircle2 },
+  { id: "scanAgain", label: "Scan Again", arabic: "يرجى المسح مرة أخرى", icon: RefreshCw },
+  { id: "maintainQueue", label: "Please Wait in Line", arabic: "يرجى الانتظار في الصف", icon: Users },
+  { id: "goodMorning", label: "Good Morning", arabic: "صباح الخير", icon: Sparkles },
+  { id: "goodEvening", label: "Good Afternoon", arabic: "مساء الخير", icon: Sparkles },
 ];
 
 export default function IvmsControlStation({
@@ -104,11 +106,11 @@ export default function IvmsControlStation({
   // Stream & snapshot
   const [streamInterval, setStreamInterval] = useState<StreamInterval>(2500);
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
-  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [copiedRtsp, setCopiedRtsp] = useState(false);
+  const [deployingMembers, setDeployingMembers] = useState(false);
 
   // Door control & Audio prompt
   const [doorBusy, setDoorBusy] = useState(false);
@@ -117,7 +119,6 @@ export default function IvmsControlStation({
 
   // Telemetry
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
-  const [loadingTelemetry, setLoadingTelemetry] = useState(false);
 
   // Live Scans Ticker
   const [liveScans, setLiveScans] = useState<LiveScanEvent[]>([]);
@@ -130,16 +131,13 @@ export default function IvmsControlStation({
   }, [devices, selectedDeviceId]);
 
   // Snapshot updater
-  const fetchSnapshot = useCallback(async (devId: string) => {
+  const fetchSnapshot = useCallback((devId: string) => {
     if (!devId) return;
-    try {
-      const cacheBuster = Date.now();
-      const url = `/api/biometric/devices/${devId}/snapshot?_t=${cacheBuster}`;
-      setSnapshotUrl(url);
-      setLastUpdated(new Date());
-    } catch {
-      // ignore
-    }
+    const cacheBuster = Date.now();
+    const url = `/api/biometric/devices/${devId}/snapshot?_t=${cacheBuster}`;
+    setSnapshotUrl(url);
+    setImageError(false);
+    setLastUpdated(new Date());
   }, []);
 
   // Polling loop for live snapshot
@@ -155,7 +153,6 @@ export default function IvmsControlStation({
   // Fetch telemetry
   const fetchTelemetry = useCallback(async (devId: string) => {
     if (!devId) return;
-    setLoadingTelemetry(true);
     try {
       const res = await fetch(`/api/biometric/devices/${devId}/system-status`);
       const json = await res.json();
@@ -164,8 +161,6 @@ export default function IvmsControlStation({
       }
     } catch {
       // ignore
-    } finally {
-      setLoadingTelemetry(false);
     }
   }, []);
 
@@ -259,6 +254,27 @@ export default function IvmsControlStation({
     }
   };
 
+  // Deploy all members to active device
+  const handleDeployMembersToDevice = async () => {
+    if (!activeDevice) return;
+    setDeployingMembers(true);
+    try {
+      const res = await fetch(`/api/biometric/devices/${activeDevice.id}/users/deploy-all`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Successfully configured members on ${activeDevice.name}: ${data.message}`);
+      } else {
+        toast.error(data.error || "Member deployment failed");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Member configuration error");
+    } finally {
+      setDeployingMembers(false);
+    }
+  };
+
   // Copy RTSP
   const rtspUrl = activeDevice ? `rtsp://${activeDevice.username}:[PASSWORD]@${activeDevice.host}:554/Streaming/channels/101` : "";
   const handleCopyRtsp = () => {
@@ -272,7 +288,7 @@ export default function IvmsControlStation({
   const filteredLiveScans = useMemo(() => {
     if (liveScanFilter === "ALL") return liveScans;
     return liveScans.filter((s) => s.type === liveScanFilter);
-  }, [liveScans, liveScanFilter]);
+  }, [liveScanFilter, liveScans]);
 
   if (!devices || devices.length === 0) {
     return (
@@ -291,9 +307,9 @@ export default function IvmsControlStation({
   return (
     <div className="space-y-6">
       {/* Top Device Selector & Stream Bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-xs">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider pl-1">Active Camera:</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider pl-1">Camera Feed:</span>
           {devices.map((d) => {
             const isSelected = d.id === selectedDeviceId;
             return (
@@ -302,6 +318,7 @@ export default function IvmsControlStation({
                 onClick={() => {
                   setSelectedDeviceId(d.id);
                   setSnapshotUrl(null);
+                  setImageError(false);
                 }}
                 className={cn(
                   "flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all",
@@ -326,7 +343,7 @@ export default function IvmsControlStation({
         <div className="flex items-center gap-2">
           {/* Refresh rate pill */}
           <div className="flex items-center bg-gray-100 p-1 rounded-xl text-[11px] font-medium text-gray-600">
-            <span className="px-2 text-gray-400">Stream:</span>
+            <span className="px-2 text-gray-400">FPS:</span>
             {[
               { label: "1s", val: 1000 },
               { label: "2.5s", val: 2500 },
@@ -355,7 +372,17 @@ export default function IvmsControlStation({
             className="h-8 px-2.5 text-xs rounded-xl"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1 text-gray-600" />
-            Snapshot
+            Capture
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handleDeployMembersToDevice}
+            disabled={deployingMembers}
+            className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs"
+          >
+            <Users className="w-3.5 h-3.5 mr-1" />
+            {deployingMembers ? "Configuring..." : "Configure Members"}
           </Button>
         </div>
       </div>
@@ -364,26 +391,44 @@ export default function IvmsControlStation({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left 8 Cols: Video Frame & Controls */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-lg group aspect-[16/10] flex items-center justify-center">
-            {/* Live Camera Image */}
-            {snapshotUrl ? (
+          <div className="relative bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 shadow-xl group aspect-[16/10] flex items-center justify-center">
+            {/* Live Camera Image or Futuristic HUD Scanner Overlay */}
+            {snapshotUrl && !imageError ? (
               <img
                 src={snapshotUrl}
                 alt="Terminal Camera Stream"
                 style={{ transform: `scale(${zoomLevel})`, transition: "transform 0.2s ease-out" }}
                 className="w-full h-full object-contain"
-                onLoad={() => setSnapshotLoading(false)}
+                onError={() => setImageError(true)}
               />
             ) : (
-              <div className="text-center p-6 text-slate-500">
-                <Camera className="w-12 h-12 mx-auto mb-2 opacity-40 animate-pulse" />
-                <p className="text-xs">Connecting to Terminal Video Feed...</p>
+              <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950 text-slate-400 p-6 overflow-hidden">
+                {/* Visual grid pattern */}
+                <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px] opacity-15 pointer-events-none" />
+
+                {/* Simulated Target Reticle */}
+                <div className="relative w-40 h-40 border border-sky-500/30 rounded-2xl flex items-center justify-center mb-3">
+                  <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-sky-400" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-sky-400" />
+                  <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-sky-400" />
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-sky-400" />
+                  <Scan className="w-12 h-12 text-sky-400/60 animate-pulse" />
+                </div>
+
+                <div className="text-center z-10">
+                  <div className="text-xs font-mono font-bold text-sky-300">
+                    {activeDevice?.name || "Terminal Camera"} • ISAPI Live Standby
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono mt-1">
+                    {activeDevice?.host} • Resolution: 1080p • Ready for Face Scan
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Top HUD Overlay */}
             <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-              <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-white text-[11px] font-mono pointer-events-auto">
+              <div className="flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 text-white text-[11px] font-mono pointer-events-auto shadow-md">
                 <span
                   className={cn(
                     "w-2 h-2 rounded-full",
@@ -395,7 +440,7 @@ export default function IvmsControlStation({
                 <span className="text-slate-300">{activeDevice?.host}</span>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md p-1 rounded-xl border border-white/10 text-white pointer-events-auto">
+              <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-white/10 text-white pointer-events-auto shadow-md">
                 <button
                   onClick={() => setZoomLevel((z) => Math.max(1, z - 0.25))}
                   disabled={zoomLevel <= 1}
@@ -417,19 +462,19 @@ export default function IvmsControlStation({
             </div>
 
             {/* Bottom HUD Overlay */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] text-slate-400 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/5">
+            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] text-slate-400 bg-slate-950/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/10 shadow-md">
               <div className="flex items-center gap-2 font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                <span>ISAPI Live Snapshot Stream</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-slate-200">ISAPI Camera Feed</span>
                 {lastUpdated && (
                   <span className="text-slate-500">
-                    Updated {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
+                    • Frame {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-sky-300">
-                  {activeDevice?.model || "DS-K1T341CMF"}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono bg-slate-800 px-2.5 py-0.5 rounded-md text-sky-300 border border-sky-500/20">
+                  {activeDevice?.model || "DS-K1T341"}
                 </span>
               </div>
             </div>
@@ -438,11 +483,11 @@ export default function IvmsControlStation({
           {/* Quick Hardware Controls & Telemetry */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* RTSP Stream Link Box */}
-            <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-xs flex items-center justify-between">
+            <div className="p-3.5 bg-white rounded-2xl border border-gray-100 shadow-xs flex items-center justify-between">
               <div className="truncate mr-2">
                 <div className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5">
                   <Radio className="w-3.5 h-3.5 text-sky-500" />
-                  RTSP Video Feed URI (VLC / OBS)
+                  RTSP Video Stream (VLC / OBS)
                 </div>
                 <div className="text-[10px] font-mono text-gray-500 truncate mt-0.5">
                   {rtspUrl}
@@ -460,7 +505,7 @@ export default function IvmsControlStation({
             </div>
 
             {/* Door Control Box */}
-            <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-xs flex items-center justify-between">
+            <div className="p-3.5 bg-white rounded-2xl border border-gray-100 shadow-xs flex items-center justify-between">
               <div>
                 <div className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5 text-emerald-600" />
@@ -487,9 +532,9 @@ export default function IvmsControlStation({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Volume2 className="w-4 h-4 text-indigo-600" />
-                <h4 className="text-xs font-bold text-gray-800">Terminal Voice Prompt Broadcast</h4>
+                <h4 className="text-xs font-bold text-gray-800">Terminal Voice Broadcast</h4>
               </div>
-              <span className="text-[10px] text-gray-400">Plays live message through device speaker</span>
+              <span className="text-[10px] text-gray-400">Plays live audio prompt through device speaker</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
