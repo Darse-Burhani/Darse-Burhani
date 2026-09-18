@@ -10,6 +10,8 @@ import {
   eventRangeForRole,
   hasFacultyTimer,
   isLegacyFacultyRow,
+  getISTDetails,
+  getStartOfDayIST,
 } from "../../lib/biometric";
 
 const router = Router();
@@ -115,9 +117,9 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
       windows = windows.filter((w) => w.id !== legacy.id);
     }
 
-    // Compute live status per timer (two-time rule: [start, end] on-time PRESENT, (end, lateEnd] LATE)
+    // Compute live status per timer in IST (two-time rule: [start, end] on-time PRESENT, (end, lateEnd] LATE)
     const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const { scanMinutes: nowMinutes } = getISTDetails(now);
 
     const phaseOf = (range: { startMin: number; endMin: number; lateMin: number } | null) => {
       if (!range) return null;
@@ -768,9 +770,7 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 // GET /api/admin/attendance/schedule/auto-absent-preview - Preview unscanned students for today
 router.get("/auto-absent-preview", requireRole("ADMIN"), async (req, res) => {
   try {
-    const dateQuery = req.query.date as string;
-    const now = dateQuery ? new Date(dateQuery) : new Date();
-    const dayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const totalStudents = await prisma.studentProfile.count({
@@ -821,9 +821,7 @@ router.post("/auto-mark-absent", requireRole("ADMIN"), async (req, res) => {
 // GET /api/admin/attendance/schedule/faculty-absent-preview - Preview expected vs unscanned faculty for today
 router.get("/faculty-absent-preview", requireRole("ADMIN"), async (req, res) => {
   try {
-    const dateQuery = req.query.date as string;
-    const now = dateQuery ? new Date(dateQuery) : new Date();
-    const dayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const expected = await getExpectedFacultyForDay();

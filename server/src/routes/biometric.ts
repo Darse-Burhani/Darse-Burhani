@@ -14,6 +14,7 @@ import {
   stopMock,
   getUnmatchedFingerprints,
   clearUnmatchedFingerprint,
+  getStartOfDayIST,
 } from "../lib/biometric";
 import { discoverDevices } from "../lib/hikvision/sadp";
 import {
@@ -466,8 +467,8 @@ router.post("/unmatched/clear", requireRole("ADMIN"), (req, res) => {
 // GET /api/biometric/report?date=YYYY-MM-DD - 5-column CSV export of the day's attendance
 router.get("/report", requireRole("ADMIN"), async (req, res) => {
   try {
-    const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-    const start = new Date(`${dateStr}T00:00:00Z`);
+    const dateStr = (req.query.date as string) || undefined;
+    const start = getStartOfDayIST(dateStr);
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
     const audience = ((req.query.audience as string) || "ALL").toUpperCase();
@@ -613,9 +614,9 @@ router.get("/excel-range-report", requireRole("ADMIN"), async (req, res) => {
 // GET /api/biometric/records/today - Combined Talabat & Teacher biometric attendance records with Event Bifurcation
 router.get("/records/today", requireRole("ADMIN"), async (req, res) => {
   try {
-    const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+    const dateStr = (req.query.date as string) || undefined;
     const eventFilter = (req.query.eventId as string) || (req.query.windowId as string) || "ALL";
-    const start = new Date(`${dateStr}T00:00:00Z`);
+    const start = getStartOfDayIST(dateStr);
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
     const [studentRecords, teacherRecords, windows] = await Promise.all([

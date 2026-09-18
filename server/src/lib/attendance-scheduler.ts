@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { sendEmail } from "./email";
+import { getStartOfDayIST } from "./biometric";
 import {
   generateAttendanceReportEmailHtml,
   generateAttendanceReportPlainText,
@@ -280,8 +281,7 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   markedStudents: Array<{ id: string; name: string; grade: string; section: string }>;
 }> {
   console.log("[attendance-scheduler] Starting automated auto-mark absent job...");
-  const now = targetDate || new Date();
-  const dayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayStart = getStartOfDayIST(targetDate || new Date());
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   // 1. Fetch active students with class enrollments and existing attendance records for the target day
@@ -533,8 +533,7 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
   markedTeachers: Array<{ id: string; name: string }>;
 }> {
   console.log("[attendance-scheduler] Starting faculty auto-mark absent job...");
-  const now = targetDate || new Date();
-  const dayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayStart = getStartOfDayIST(targetDate || new Date());
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   const expected = await getExpectedFacultyForDay();

@@ -355,6 +355,12 @@ export function dayStartUTC(date: Date): Date {
   return getISTDetails(date).calendarDayUTC;
 }
 
+export function getStartOfDayIST(dateInput: Date | string = new Date()): Date {
+  const d = typeof dateInput === "string" ? new Date(dateInput.includes("T") ? dateInput : `${dateInput}T00:00:00Z`) : dateInput;
+  const valid = isNaN(d.getTime()) ? new Date() : d;
+  return getISTDetails(valid).calendarDayUTC;
+}
+
 /**
  * Get the daily biometric scan configuration for a specific role.
  *

@@ -5,7 +5,7 @@ import { normalizeDateToUTC } from "../../lib/leave-service";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } from "../../lib/attendance-scheduler";
 import { sheetSyncStatus, syncDailyAttendanceToSheet } from "../../lib/google-attendance-sync";
-import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow } from "../../lib/biometric";
+import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST } from "../../lib/biometric";
 
 const router = Router();
 
@@ -117,8 +117,7 @@ router.get("/events", requireRole("ADMIN"), async (req, res) => {
 // GET /api/admin/attendance-logs — Day-by-day attendance log with schedule event matching
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const rawDate = req.query.date ? new Date(req.query.date as string) : new Date();
-    const dayStart = normalizeDateToUTC(rawDate);
+    const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const { grade, section, status, source, search, eventWindowId, audience = "STUDENT" } = req.query;
@@ -163,14 +162,14 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             take: 1,
           },
           attendanceRegistries: {
-            where: { date: dayStart },
+            where: { date: { gte: dayStart, lt: dayEnd } },
             include: { leave: true },
             take: 1,
           },
           attendanceRecords: {
             where: { date: { gte: dayStart, lt: dayEnd } },
             include: { class: { select: { name: true } } },
-            take: 1,
+            orderBy: [{ checkInTime: "desc" }],
           },
         },
         orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
@@ -178,7 +177,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
       studentRecords = students.map((s) => {
         const registry = s.attendanceRegistries[0];
-        const record = s.attendanceRecords[0];
+        const record = s.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || s.attendanceRecords[0];
 
         let effectiveStatus: string = "NOT_MARKED";
         let effectiveSource: string = "SCAN";
@@ -217,7 +216,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false) : null;
 
         return {
-          id: registry?.id || `virtual-student-${s.id}`,
+          id: registry?.id || record?.id || `virtual-student-${s.id}`,
           memberId: s.id,
           role: "STUDENT",
           name: `${s.user.firstName} ${s.user.lastName}`.trim(),
@@ -259,14 +258,14 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
           attendanceRecords: {
             where: { date: { gte: dayStart, lt: dayEnd } },
-            take: 1,
+            orderBy: [{ checkInTime: "desc" }],
           },
         },
         orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
       });
 
       facultyRecords = teachers.map((t) => {
-        const rec = t.attendanceRecords[0];
+        const rec = t.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || t.attendanceRecords[0];
         const status = rec ? rec.status : "NOT_MARKED";
         const checkInTime = rec?.checkInTime?.toISOString() || null;
         const checkOutTime = rec?.checkOutTime?.toISOString() || null;
@@ -293,9 +292,6 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           streakDays: 0,
           scheduledEvent: matchedEvent,
         };
-      });
-    }
-
     const allRecords = [...studentRecords, ...facultyRecords];
 
     // 3. Filter by Event Window if specified
@@ -391,7 +387,7 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
     const session = req.auth!;
     const { studentId, teacherId, date, status, source, remarks } = req.body;
 
-    const targetDate = normalizeDateToUTC(date ? new Date(date) : new Date());
+    const targetDate = getStartOfDayIST(date ? new Date(date) : new Date());
     const validStatus = Object.values(AttendanceStatus).includes(status);
 
     if (!validStatus) {
@@ -462,8 +458,7 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance-logs/finalize-event — Save all event scans & mark absences in DB storage
 router.post("/finalize-event", requireRole("ADMIN"), async (req, res) => {
   try {
-    const rawDate = req.body.date ? new Date(req.body.date) : new Date();
-    const targetDate = normalizeDateToUTC(rawDate);
+    const targetDate = getStartOfDayIST(req.body.date ? new Date(req.body.date) : new Date());
 
     // Run automated absence & storage sync for both students and faculty
     const studentResult = await runAutoMarkAbsentJob(targetDate);
