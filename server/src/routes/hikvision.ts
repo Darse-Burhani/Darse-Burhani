@@ -63,7 +63,7 @@ function bodyAsObject(body: unknown): Record<string, any> {
 
 // ── Public webhook: device → server (HTTP Event Listening / Alarm Server) ──
 
-router.post("/events", async (req, res) => {
+const handleWebhookEvents = async (req: import("express").Request, res: import("express").Response) => {
   try {
     if (!authorizePush(req)) {
       console.warn(`[hikvision] push rejected from ${req.ip} — invalid secret`);
@@ -95,7 +95,11 @@ router.post("/events", async (req, res) => {
     console.error("[hikvision:push] webhook error:", error);
     return res.status(500).json({ success: false, error: "Failed to process push event" });
   }
-});
+};
+
+router.post("/events", handleWebhookEvents);
+router.post("/", handleWebhookEvents);
+router.post("", handleWebhookEvents);
 
 // ── Webhook status (admin console) ──
 
