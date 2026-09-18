@@ -102,6 +102,8 @@ export default function BiometricAdminPage() {
 
   // State
   const [devices, setDevices] = useState<BiometricDevice[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [activeScanWindow, setActiveScanWindow] = useState<any>(null);
   const [students, setStudents] = useState<BiometricStudent[]>([]);
   const [teachers, setTeachers] = useState<BiometricTeacher[]>([]);
   const [todayLogs, setTodayLogs] = useState<AttendanceLogItem[]>([]);

@@ -6,6 +6,7 @@
 
 import fs from "fs";
 import path from "path";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({
   log: ["error"],
@@ -59,10 +60,10 @@ async function main() {
     select: { barcode: true, title: true, id: true },
   });
   const existingBarcodes = new Set<string>(
-    existingRecords.map((b) => b.barcode).filter(Boolean) as string[]
+    existingRecords.map((b: any) => b.barcode).filter(Boolean) as string[]
   );
   const existingTitles = new Map<string, string>(
-    existingRecords.map((b) => [b.title.toLowerCase().trim(), b.id])
+    existingRecords.map((b: any) => [b.title.toLowerCase().trim(), b.id])
   );
   console.log(`Found ${existingRecords.length} existing books in database.`);
 

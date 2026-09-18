@@ -78,6 +78,7 @@ function playNotificationChime() {
 export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [bannerNotification, setBannerNotification] = useState<NotificationItem | null>(null);

@@ -1,6 +1,7 @@
 "use client";
 
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { usePortalAccess } from "@/context/PortalAccessContext";
 import { motion } from "framer-motion";
 import {
   User,

@@ -9,6 +9,7 @@
 
 import fs from "fs";
 import path from "path";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({ log: ["error"] });
 
@@ -62,17 +63,17 @@ async function main() {
     select: { id: true, barcode: true, title: true },
   });
   const existingBarcodes = new Set<string>(
-    existingRecords.map((b) => b.barcode).filter(Boolean) as string[]
+    existingRecords.map((b: any) => b.barcode).filter(Boolean) as string[]
   );
   // Map normalized title -> id
   const existingTitles = new Map<string, string>(
-    existingRecords.map((b) => [b.title.toLowerCase().trim(), b.id])
+    existingRecords.map((b: any) => [b.title.toLowerCase().trim(), b.id])
   );
   console.log(`Found ${existingRecords.length} existing books in database.`);
 
   // Find DB books already imported from makhtabat to track what's missing
-  const dbTitles = new Set(existingRecords.map((b) => b.title.toLowerCase().trim()));
-  const missingFromDB = books.filter((b) => !dbTitles.has(b.title.toLowerCase().trim()));
+  const dbTitles = new Set(existingRecords.map((b: any) => b.title.toLowerCase().trim()));
+  const missingFromDB = books.filter((b: any) => !dbTitles.has(b.title.toLowerCase().trim()));
   console.log(`Books NOT yet in DB: ${missingFromDB.length}`);
   console.log(`Books already in DB: ${books.length - missingFromDB.length}`);
   console.log();

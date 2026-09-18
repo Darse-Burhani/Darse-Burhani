@@ -17,6 +17,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
+import type { LeaveRequestItem } from "@/lib/api";
 
 interface PendingLeaveTableProps {
   requests: LeaveRequestItem[];

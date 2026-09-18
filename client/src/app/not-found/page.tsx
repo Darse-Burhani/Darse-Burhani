@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
+import { SEO } from "@/components/SEO";
 
 
 export default function NotFoundPage() {

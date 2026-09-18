@@ -113,8 +113,12 @@ function RequireRole({ role, children }: { role: string; children: React.ReactNo
   }
 
   if (!session) return <Navigate to="/login" replace />;
-  // Admin can access any page / any user portal
+  // Admin has universal access across all portals
   if (session.user.role === "ADMIN") return <>{children}</>;
+  // Assigned Teacher has full access and authority to run both admin and teacher portals
+  if (session.user.role === "TEACHER" && (role === "ADMIN" || role === "TEACHER")) {
+    return <>{children}</>;
+  }
   if (session.user.role !== role) {
     const rolePaths: Record<string, string> = {
       ADMIN: "/admin",

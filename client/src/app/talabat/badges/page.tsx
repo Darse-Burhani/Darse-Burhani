@@ -1,13 +1,24 @@
 "use client";
 
 
+import { useState, useEffect } from "react";
 import { Award, CheckCircle, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/student/PageHeader";
 
+interface BadgeItem {
+  id: string;
+  name: string;
+  description: string;
+  tier: string;
+  isEarned: boolean;
+  earnedAt?: string | null;
+  progress?: number;
+}
+
 export default function TalabatBadgesPage() {
-  const [badges, setBadges] = useState<any[]>([]);
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,8 +28,8 @@ export default function TalabatBadgesPage() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const earned = badges.filter((b) => b.isEarned);
-  const locked = badges.filter((b) => !b.isEarned);
+  const earned = badges.filter((b: BadgeItem) => b.isEarned);
+  const locked = badges.filter((b: BadgeItem) => !b.isEarned);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

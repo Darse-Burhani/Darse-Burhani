@@ -1,4 +1,5 @@
 
+import { Router, Request, Response } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { createLeaveRequest, cancelLeaveRequest, getStudentLeaveSummary } from "../../lib/leave-service";

@@ -58,6 +58,7 @@ interface ParentProfileData {
 export default function ParentSettingsPage() {
   const { data: session } = useSession();
   const [profile, setProfile] = useState<ParentProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 
 import { Link } from "react-router-dom";
 import { Lock, ShieldAlert, ArrowLeft } from "lucide-react";

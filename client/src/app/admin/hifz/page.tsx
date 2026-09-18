@@ -129,6 +129,8 @@ export default function AdminHifzPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [lastAction, setLastAction] = useState<string | null>(null);
 
   // Import
   const [importSheetId, setImportSheetId] = useState("");

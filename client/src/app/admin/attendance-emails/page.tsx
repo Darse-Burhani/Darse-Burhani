@@ -132,7 +132,6 @@ export default function AdminAttendanceEmailsPage() {
       const json = await res.json();
       if (json.success) {
         setData(json.data);
-        setSelectedIds(new Set());
       }
     } catch {
       toast({ title: "Failed to load student reports", variant: "destructive" });

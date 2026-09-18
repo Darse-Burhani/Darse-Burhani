@@ -1,4 +1,4 @@
-
+import { Router } from "express";
 import { requireRole } from "../middleware";
 import prisma from "../lib/prisma";
 import { toConnection, toDeviceDto } from "../lib/hikvision";

@@ -30,8 +30,13 @@ export function requireRole(...roles: string[]): RequestHandler {
       res.status(401).json({ success: false, error: "Unauthorized" });
       return;
     }
-    // Admin can access any page / any user role
+    // Admin has universal authority across all endpoints
     if (user.role === "ADMIN") {
+      (req as AuthedRequest).auth = { user };
+      return next();
+    }
+    // Teachers have full authority to execute admin operations and teacher operations
+    if (user.role === "TEACHER" && (roles.includes("ADMIN") || roles.includes("TEACHER"))) {
       (req as AuthedRequest).auth = { user };
       return next();
     }

@@ -14,6 +14,7 @@ import {
 
 import { LeaveFormModal } from "@/components/leave/LeaveFormModal";
 import { LeaveHistoryList } from "@/components/leave/LeaveHistoryList";
+import { getTalabatLeaves, type LeaveRequestItem, type StudentLeaveSummary } from "@/lib/api";
 
 export default function TalabatLeavePage() {
   const [leaves, setLeaves] = useState<LeaveRequestItem[]>([]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { motion } from "framer-motion";
 import {
   Layers,
@@ -700,9 +700,9 @@ export default function AdminShelvesPage() {
           <Suspense fallback={<div className="h-[540px] sm:h-[600px] rounded-2xl bg-gray-100 animate-pulse" />}>
             <LibraryShelf360
               shelves={shelves}
-              onEdit={(shelf) => { setEditingShelf(shelf); setEditModalOpen(true); }}
-              onMove={(shelf) => { setMovingShelf(shelf); setMoveModalOpen(true); }}
-              onClear={(shelf) => setConfirmDelete(shelf)}
+              onEdit={(shelf: any) => { setEditingShelf(shelf); setEditModalOpen(true); }}
+              onMove={(shelf: any) => { setMovingShelf(shelf); setMoveModalOpen(true); }}
+              onClear={(shelf: any) => setConfirmDelete(shelf)}
             />
           </Suspense>
         )

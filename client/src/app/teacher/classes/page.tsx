@@ -1,13 +1,25 @@
 "use client";
 
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Users, MapPin, Calendar } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+interface TeacherClass {
+  id: string;
+  name: string;
+  subject: string;
+  isActive: boolean;
+  studentCount: number;
+  roomNumber?: string | null;
+  academicYear: string;
+  students?: { id: string; firstName: string }[];
+}
+
 export default function TeacherClassesPage() {
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

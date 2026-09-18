@@ -18,6 +18,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
+import type { RegistryRecordItem, RegistrySummary } from "@/lib/api";
 
 interface DailyStackedViewProps {
   records: RegistryRecordItem[];
