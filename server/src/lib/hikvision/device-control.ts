@@ -149,67 +149,77 @@ export async function rebootDevice(c: HikConnection): Promise<{ success: boolean
   return { success: true, message: "Reboot command sent. Device will restart in 10-20 seconds." };
 }
 
-const SNAPSHOT_CALLS: Array<{ path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string }> = [
+// MinMoe DS-K1T341/342 best-effort snapshot endpoints ordered by reliability.
+// The top tier are raced in parallel to stay under Render's 30s proxy limit.
+const SNAPSHOT_TIER1: Array<{ path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string }> = [
   { path: "/ISAPI/Streaming/channels/101/picture", method: "GET" },
+  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "GET" },
+  { path: "/ISAPI/System/Video/inputs/channels/1/capture", method: "GET" },
+];
+
+const SNAPSHOT_TIER2: Array<{ path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string }> = [
   { path: "/ISAPI/Streaming/channels/1/picture", method: "GET" },
   { path: "/ISAPI/Streaming/channels/102/picture", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/101/picture?videoType=jpeg", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/1/picture?videoType=jpeg", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/201/picture", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/2/picture", method: "GET" },
-  { path: "/ISAPI/System/Video/inputs/channels/1/capture", method: "GET" },
-  { path: "/ISAPI/System/Video/inputs/channels/1/capture/preview", method: "GET" },
-  { path: "/ISAPI/ContentMgmt/Image/channels/1", method: "GET" },
-  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "PUT", body: JSON.stringify({ CaptureFaceData: { captureType: "face" } }), ct: "application/json" },
-  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "POST", body: JSON.stringify({ CaptureFaceData: { captureType: "face" } }), ct: "application/json" },
-  { path: "/ISAPI/AccessControl/CaptureFaceData", method: "GET" },
-  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "GET" },
-  { path: "/ISAPI/AccessControl/FaceCapture/Capture", method: "GET" },
   { path: "/ISAPI/AccessControl/SnapCameraPic", method: "GET" },
   { path: "/ISAPI/AccessControl/SnapShot", method: "GET" },
+  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "PUT", body: JSON.stringify({ CaptureFaceData: { captureType: "face" } }), ct: "application/json" },
+  { path: "/ISAPI/Streaming/channels/201/picture", method: "GET" },
 ];
+
+async function trySnapshotEndpoint(
+  base: string,
+  ep: { path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string },
+  c: HikConnection,
+  timeoutMs: number,
+): Promise<{ contentType: string; data: Buffer } | null> {
+  try {
+    const res = await digestFetch(`${base}${ep.path}`, {
+      method: ep.method,
+      headers: ep.ct ? { "Content-Type": ep.ct } : undefined,
+      body: ep.body,
+      username: c.username,
+      password: c.password,
+      timeoutMs,
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    if (buffer.length > 500 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+      return { contentType: "image/jpeg", data: buffer };
+    }
+    const text = buffer.toString("utf8");
+    const match =
+      text.match(/<(?:faceData|picture)>([\s\S]*?)<\/(?:faceData|picture)>/i) ||
+      text.match(/"(?:faceData|picture)"\s*:\s*"([^"]+)"/i);
+    if (match?.[1]) {
+      const decoded = Buffer.from(match[1].replace(/\s+/g, ""), "base64");
+      if (decoded.length > 200) return { contentType: "image/jpeg", data: decoded };
+    }
+    if (buffer.length > 500 && contentType.startsWith("image/")) return { contentType, data: buffer };
+  } catch {}
+  return null;
+}
 
 /**
  * Fetch Device Snapshot / Live Frame
+ * Strategy: race Tier-1 endpoints (3s timeout) in parallel first.
+ * If all fail, try Tier-2 sequentially with 2.5s each.
+ * Total max wall time: ~3s + 12s = 15s — well under Render's 30s proxy limit.
  */
 export async function getDeviceSnapshot(c: HikConnection): Promise<{ contentType: string; data: Buffer }> {
   const base = baseUrl(c);
-  for (const ep of SNAPSHOT_CALLS) {
-    try {
-      const res = await digestFetch(`${base}${ep.path}`, {
-        method: ep.method,
-        headers: ep.ct ? { "Content-Type": ep.ct } : undefined,
-        body: ep.body,
-        username: c.username,
-        password: c.password,
-        timeoutMs: c.timeoutMs ?? 5000,
-      });
 
-      if (res.ok) {
-        const buffer = Buffer.from(await res.arrayBuffer());
-        const contentType = res.headers.get("content-type") || "image/jpeg";
+  // Phase 1: Race top-3 endpoints in parallel (3s timeout each)
+  const tier1Results = await Promise.all(
+    SNAPSHOT_TIER1.map((ep) => trySnapshotEndpoint(base, ep, c, 3000)),
+  );
+  const tier1Winner = tier1Results.find((r) => r !== null);
+  if (tier1Winner) return tier1Winner;
 
-        // 1. Direct JPEG check (Magic bytes FF D8)
-        if (buffer.length > 500 && buffer[0] === 0xff && buffer[1] === 0xd8) {
-          return { contentType: "image/jpeg", data: buffer };
-        }
-
-        // 2. Base64 embedded in XML/JSON
-        const text = buffer.toString("utf8");
-        const match =
-          text.match(/<(?:faceData|picture)>([\s\S]*?)<\/(?:faceData|picture)>/i) ||
-          text.match(/"(?:faceData|picture)"\s*:\s*"([^"]+)"/i);
-
-        if (match?.[1]) {
-          const decoded = Buffer.from(match[1].replace(/\s+/g, ""), "base64");
-          if (decoded.length > 200) return { contentType: "image/jpeg", data: decoded };
-        }
-
-        if (buffer.length > 500 && contentType.startsWith("image/")) {
-          return { contentType, data: buffer };
-        }
-      }
-    } catch {}
+  // Phase 2: Sequential fallback with 2.5s timeout each
+  for (const ep of SNAPSHOT_TIER2) {
+    const result = await trySnapshotEndpoint(base, ep, c, 2500);
+    if (result) return result;
   }
 
   throw new Error("Unable to capture snapshot from terminal camera (endpoint not supported or camera busy)");

@@ -1523,49 +1523,61 @@ router.post("/link-all-by-its", requireRole("ADMIN"), async (_req, res) => {
   }
 });
 
-// POST /api/biometric/devices/:id/users/deploy-all - Deploy all students and teachers to terminal
+// POST /api/biometric/devices/:id/users/deploy-all (early registration - async background)
 router.post("/devices/:id/users/deploy-all", requireRole("ADMIN"), async (req, res) => {
   try {
-    const [stuRes, teaRes] = await Promise.all([
-      deployAllStudentsToDevice(req.params.id),
-      deployAllTeachersToDevice(req.params.id),
-    ]);
-    return res.json({
+    const { target = "ALL" } = req.body as Record<string, any>;
+    const deviceId = req.params.id;
+    const device = await prisma.biometricDevice.findUnique({ where: { id: deviceId } });
+    if (!device) return res.status(404).json({ success: false, error: "Device not found" });
+
+    res.status(202).json({
       success: true,
-      message: `Deployed ${stuRes.successful} student(s) and ${teaRes.successful} faculty member(s) to device.`,
-      data: { students: stuRes, teachers: teaRes },
+      message: `Member deployment started for "${device.name}". Syncing in background — ready in ~1-2 min.`,
+      data: { deviceId, target, status: "QUEUED" },
+    });
+
+    setImmediate(async () => {
+      try {
+        if (target === "ALL" || target === "STUDENTS") await deployAllStudentsToDevice(deviceId).catch(() => {});
+        if (target === "ALL" || target === "TEACHERS") await deployAllTeachersToDevice(deviceId).catch(() => {});
+        console.log(`[biometric] Background deploy-all done for device ${deviceId}`);
+      } catch (err: any) {
+        console.error(`[biometric] Background deploy-all error:`, err?.message);
+      }
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, error: error?.message || "Failed to deploy members to terminal" });
+    return res.status(400).json({ success: false, error: error?.message ?? "Failed to queue deployment" });
   }
 });
 
-// POST /api/biometric/deploy-all-to-all-devices - Deploy all students & teachers to ALL enabled terminals
+// POST /api/biometric/deploy-all-to-all-devices - Background deploy to ALL enabled terminals
 router.post("/deploy-all-to-all-devices", requireRole("ADMIN"), async (_req, res) => {
   try {
     const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
     const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany();
 
-    const results: any[] = [];
-    for (const dev of targetDevices) {
-      try {
-        const [stuRes, teaRes] = await Promise.all([
-          deployAllStudentsToDevice(dev.id),
-          deployAllTeachersToDevice(dev.id),
-        ]);
-        results.push({ deviceId: dev.id, name: dev.name, host: dev.host, success: true, students: stuRes, teachers: teaRes });
-      } catch (err: any) {
-        results.push({ deviceId: dev.id, name: dev.name, host: dev.host, success: false, error: err?.message || String(err) });
-      }
-    }
-
-    return res.json({
+    res.status(202).json({
       success: true,
-      message: `Deployed member profiles across ${targetDevices.length} terminal(s).`,
-      data: results,
+      message: `Queued member deployment to ${targetDevices.length} terminal(s). Syncing in background — ready in ~1-2 min per terminal.`,
+      data: { deviceCount: targetDevices.length, status: "QUEUED" },
+    });
+
+    setImmediate(async () => {
+      for (const dev of targetDevices) {
+        try {
+          await Promise.all([
+            deployAllStudentsToDevice(dev.id).catch(() => {}),
+            deployAllTeachersToDevice(dev.id).catch(() => {}),
+          ]);
+          console.log(`[biometric] Background deploy done for ${dev.name} (${dev.host})`);
+        } catch (err: any) {
+          console.error(`[biometric] Background deploy error for ${dev.name}:`, err?.message);
+        }
+      }
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, error: error?.message || "Failed to deploy members" });
+    return res.status(500).json({ success: false, error: error?.message || "Failed to queue deployment" });
   }
 });
 
@@ -1946,40 +1958,6 @@ router.post("/devices/:id/users/deploy", requireRole("ADMIN"), async (req, res) 
     return res.json({ success: true, data: result });
   } catch (error: any) {
     return res.status(400).json({ success: false, error: error?.message ?? "Failed to deploy user" });
-  }
-});
-
-// POST /api/biometric/devices/:id/users/deploy-all - Batch deploy all students/faculty to terminal
-router.post("/devices/:id/users/deploy-all", requireRole("ADMIN"), async (req, res) => {
-  try {
-    const { target = "ALL" } = req.body as Record<string, any>;
-    const deviceId = req.params.id;
-
-    let studentsResult = { total: 0, successful: 0, failed: 0, errors: [] as any[] };
-    let teachersResult = { total: 0, successful: 0, failed: 0, errors: [] as any[] };
-
-    if (target === "ALL" || target === "STUDENTS") {
-      studentsResult = await deployAllStudentsToDevice(deviceId);
-    }
-    if (target === "ALL" || target === "TEACHERS") {
-      teachersResult = await deployAllTeachersToDevice(deviceId);
-    }
-
-    const totalDeployed = studentsResult.successful + teachersResult.successful;
-    const totalFailed = studentsResult.failed + teachersResult.failed;
-
-    return res.json({
-      success: true,
-      message: `Deployed ${totalDeployed} members to terminal (${totalFailed} failed).`,
-      data: {
-        students: studentsResult,
-        teachers: teachersResult,
-        totalDeployed,
-        totalFailed,
-      },
-    });
-  } catch (error: any) {
-    return res.status(400).json({ success: false, error: error?.message ?? "Failed batch deployment" });
   }
 });
 

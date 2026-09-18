@@ -472,7 +472,7 @@ export default function BiometricAdminPage() {
       const res = await fetch("/api/biometric/deploy-all-to-all-devices", { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        toast.success(data.message);
+        toast.success(data.message || "Member deployment queued — syncing in background.");
       } else {
         toast.error(data.error || "Failed to deploy members");
       }
@@ -1024,7 +1024,7 @@ export default function BiometricAdminPage() {
                   onClick={() => setTestPunchModalOpen(true)}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold h-8"
                 >
-                  <Sparkles className="w-3.5 h-3.5 mr-1" /> Simulate Punch
+                  <Sparkles className="w-3.5 h-3.5 mr-1" /> Test Scan
                 </Button>
               </div>
             </div>
@@ -1047,8 +1047,8 @@ export default function BiometricAdminPage() {
                     <tr>
                       <td colSpan={6} className="text-center py-12 text-gray-400">
                         <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="font-medium text-xs">No attendance punches recorded for today yet.</p>
-                        <p className="text-[10px] text-gray-400 mt-1">Use the Direct Log Puller to pull scans from terminal memory or trigger a test punch.</p>
+                        <p className="font-medium text-xs">No attendance records for today yet.</p>
+                        <p className="text-[10px] text-gray-400 mt-1">Use the Direct Log Puller to extract scans from terminal memory, or click "Test Scan" to verify the pipeline.</p>
                       </td>
                     </tr>
                   ) : (
