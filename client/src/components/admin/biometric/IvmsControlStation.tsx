@@ -71,6 +71,7 @@ interface LiveScanEvent {
   deviceHost?: string;
   status?: string;
   verifyMode?: string;
+  eventName?: string;
   avatarUrl?: string;
 }
 
@@ -163,7 +164,7 @@ export default function IvmsControlStation({
     }
   }, [activeDevice, fetchTelemetry]);
 
-  // Fallback Polling for Real-Time Scans
+  // Real-Time Polling for Device Scans
   const pollRecentEvents = useCallback(async () => {
     try {
       const res = await fetch("/api/biometric/events");
@@ -173,22 +174,37 @@ export default function IvmsControlStation({
           const formatted: LiveScanEvent[] = json.data.map((ev: any) => {
             const student = ev.student;
             const teacher = ev.teacher;
+            const eventName = ev.scanWindow?.name || ev.eventName || null;
+            const avatarUrl = student?.avatarUrl || teacher?.avatarUrl || null;
             return {
               id: ev.id || String(ev.timestamp || Date.now()),
-              name: student ? student.name : teacher ? teacher.name : "Verified Member",
+              name: student ? student.name : teacher ? teacher.name : (ev.message || "Verified Member"),
               type: student ? "STUDENT" : teacher ? "TEACHER" : "UNMATCHED",
               employeeNo: ev.fingerprint || student?.studentId || teacher?.employeeId || "ID",
               timestamp: ev.timestamp || new Date().toISOString(),
               deviceId: ev.deviceId,
               status: ev.classes?.[0]?.status || teacher?.status || (ev.type === "DUPLICATE" ? "DUPLICATE" : "PRESENT"),
               verifyMode: ev.verifyMode || "BIOMETRIC",
+              eventName: eventName || undefined,
+              avatarUrl: avatarUrl || undefined,
             };
           });
           setLiveScans((prev) => {
-            const existingIds = new Set(prev.map((p) => p.id));
-            const newItems = formatted.filter((f) => !existingIds.has(f.id));
-            if (newItems.length === 0) return prev;
-            return [...newItems, ...prev].slice(0, 50);
+            const seen = new Set<string>();
+            const combined: LiveScanEvent[] = [];
+            for (const item of formatted) {
+              if (!seen.has(item.id)) {
+                seen.add(item.id);
+                combined.push(item);
+              }
+            }
+            for (const item of prev) {
+              if (!seen.has(item.id)) {
+                seen.add(item.id);
+                combined.push(item);
+              }
+            }
+            return combined.slice(0, 50);
           });
         }
       }
@@ -199,7 +215,7 @@ export default function IvmsControlStation({
 
   useEffect(() => {
     pollRecentEvents();
-    const interval = setInterval(pollRecentEvents, 3500);
+    const interval = setInterval(pollRecentEvents, 2000);
     return () => clearInterval(interval);
   }, [pollRecentEvents]);
 
@@ -211,20 +227,25 @@ export default function IvmsControlStation({
       es.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
-          if (payload.type === "MATCHED" || payload.type === "DUPLICATE") {
-            const student = payload.student;
-            const teacher = payload.teacher;
-            const item: LiveScanEvent = {
-              id: payload.id || String(Date.now()),
-              name: student ? student.name : teacher ? teacher.name : "Verified Member",
-              type: student ? "STUDENT" : teacher ? "TEACHER" : "UNMATCHED",
-              employeeNo: payload.fingerprint || student?.studentId || teacher?.employeeId || "ID",
-              timestamp: payload.timestamp || new Date().toISOString(),
-              deviceId: payload.deviceId,
-              status: payload.classes?.[0]?.status || teacher?.status || (payload.type === "DUPLICATE" ? "DUPLICATE" : "PRESENT"),
-              verifyMode: payload.verifyMode || "BIOMETRIC",
-            };
-            setLiveScans((prev) => [item, ...prev.slice(0, 49)]);
+          const student = payload.student;
+          const teacher = payload.teacher;
+          const eventName = payload.scanWindow?.name || payload.eventName || null;
+          const avatarUrl = student?.avatarUrl || teacher?.avatarUrl || null;
+          const item: LiveScanEvent = {
+            id: payload.id || String(Date.now()),
+            name: student ? student.name : teacher ? teacher.name : (payload.message || "Verified Member"),
+            type: student ? "STUDENT" : teacher ? "TEACHER" : "UNMATCHED",
+            employeeNo: payload.fingerprint || student?.studentId || teacher?.employeeId || "ID",
+            timestamp: payload.timestamp || new Date().toISOString(),
+            deviceId: payload.deviceId,
+            status: payload.classes?.[0]?.status || teacher?.status || (payload.type === "DUPLICATE" ? "DUPLICATE" : "PRESENT"),
+            verifyMode: payload.verifyMode || "BIOMETRIC",
+            eventName: eventName || undefined,
+            avatarUrl: avatarUrl || undefined,
+          };
+          setLiveScans((prev) => [item, ...prev.filter((p) => p.id !== item.id)].slice(0, 50));
+          if (activeDevice) {
+            fetchSnapshot(activeDevice.id);
           }
         } catch {
           // ignore
@@ -237,7 +258,7 @@ export default function IvmsControlStation({
     return () => {
       es?.close();
     };
-  }, []);
+  }, [activeDevice, fetchSnapshot]);
 
   // Remote door control
   const handleDoorControl = async (command: "open" | "close") => {
@@ -700,9 +721,9 @@ export default function IvmsControlStation({
                       </Badge>
                     </div>
 
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100/80 text-[10px] text-gray-400 font-mono">
-                      <span>{scan.verifyMode || "Face"}</span>
-                      <span>{timeFormatted}</span>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100/80 text-[10px] text-gray-500 font-mono">
+                      <span className="text-emerald-700 font-semibold truncate max-w-[170px]">{scan.eventName || scan.verifyMode || "Face Biometric"}</span>
+                      <span className="text-gray-400 shrink-0">{timeFormatted}</span>
                     </div>
                   </motion.div>
                 );

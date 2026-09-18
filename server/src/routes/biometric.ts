@@ -1701,59 +1701,86 @@ router.get("/devices/:id/snapshot", async (req, res) => {
     res.setHeader("Expires", "0");
     return res.status(200).send(data);
   } catch (error: any) {
-    const statusText = isOnline ? "Cloud Connected • Live Standby" : "Terminal Offline";
-    const statusColor = isOnline ? "#10b981" : "#f43f5e";
+    const recentScans = getEvents(5);
+    const latestScan = recentScans[0];
+    const scanName = latestScan ? (latestScan.student?.name || latestScan.teacher?.name || (latestScan.fingerprint ? `ID: ${latestScan.fingerprint}` : null)) : null;
+    const scanRole = latestScan?.role || (latestScan?.student ? "Talabat" : latestScan?.teacher ? "Faculty" : "Member");
+    const scanStatus = latestScan?.classes?.[0]?.status || latestScan?.teacher?.status || (latestScan?.type === "DUPLICATE" ? "VERIFIED" : "PRESENT");
+    const scanTime = latestScan?.timestamp
+      ? new Date(latestScan.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
+      : null;
+
+    const statusText = isOnline ? "24/7 Cloud Online • Realtime Standby" : "Cloud Standby";
+    const statusColor = isOnline ? "#10b981" : "#f59e0b";
     const timeNow = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+    const dateNow = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+
     const fallbackSvg = Buffer.from(
       `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
         <defs>
           <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#050811"/>
-            <stop offset="50%" stop-color="#0c1322"/>
-            <stop offset="100%" stop-color="#050811"/>
+            <stop offset="0%" stop-color="#020617"/>
+            <stop offset="50%" stop-color="#0b1329"/>
+            <stop offset="100%" stop-color="#020617"/>
           </linearGradient>
           <radialGradient id="radarGlow" cx="50%" cy="40%" r="50%">
-            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/>
-            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
           </radialGradient>
+          <linearGradient id="scanBeam" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#10b981" stop-opacity="0"/>
+            <stop offset="50%" stop-color="#10b981" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+          </linearGradient>
         </defs>
         <rect width="640" height="360" fill="url(#bg)"/>
         <rect width="640" height="360" fill="url(#radarGlow)"/>
 
         <!-- Grid Lines -->
-        <line x1="0" y1="180" x2="640" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,4"/>
-        <line x1="320" y1="0" x2="320" y2="360" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="0" y1="180" x2="640" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="6,6" opacity="0.6"/>
+        <line x1="320" y1="0" x2="320" y2="360" stroke="#1e293b" stroke-width="1" stroke-dasharray="6,6" opacity="0.6"/>
+        
+        <!-- Surveillance Scan Sweep -->
+        <rect x="120" y="40" width="400" height="200" fill="url(#scanBeam)" rx="16"/>
 
         <!-- Reticle Target -->
-        <circle cx="320" cy="130" r="54" fill="none" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
-        <circle cx="320" cy="130" r="44" fill="#0f172a" stroke="${statusColor}" stroke-width="2" stroke-opacity="0.8"/>
+        <circle cx="320" cy="130" r="54" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="4,3"/>
+        <circle cx="320" cy="130" r="44" fill="#0f172a" stroke="${scanName ? "#10b981" : statusColor}" stroke-width="2" stroke-opacity="0.9"/>
         
         <!-- Target Corners -->
-        <path d="M 280 90 L 295 90 M 280 90 L 280 105" stroke="#38bdf8" stroke-width="2" fill="none"/>
-        <path d="M 360 90 L 345 90 M 360 90 L 360 105" stroke="#38bdf8" stroke-width="2" fill="none"/>
-        <path d="M 280 170 L 295 170 M 280 170 L 280 155" stroke="#38bdf8" stroke-width="2" fill="none"/>
-        <path d="M 360 170 L 345 170 M 360 170 L 360 155" stroke="#38bdf8" stroke-width="2" fill="none"/>
+        <path d="M 270 80 L 290 80 M 270 80 L 270 100" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
+        <path d="M 370 80 L 350 80 M 370 80 L 370 100" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
+        <path d="M 270 180 L 290 180 M 270 180 L 270 160" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
+        <path d="M 370 180 L 350 180 M 370 180 L 370 160" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
 
-        <!-- Camera Icon -->
-        <path d="M304 122h32v22h-32z M314 115h12v7h-12z" fill="${statusColor}"/>
-        <circle cx="320" cy="133" r="5" fill="#050811"/>
+        <!-- Camera / Biometric Icon -->
+        <path d="M304 122h32v22h-32z M314 115h12v7h-12z" fill="${scanName ? "#10b981" : statusColor}"/>
+        <circle cx="320" cy="133" r="5" fill="#020617"/>
 
         <!-- Text Elements -->
-        <text x="50%" y="215" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" letter-spacing="0.5">${devName}</text>
-        <text x="50%" y="238" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="12">${devHost} • ${statusText} • ${timeNow} IST</text>
+        <text x="50%" y="210" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" letter-spacing="0.5">${devName}</text>
+        <text x="50%" y="230" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="11.5">${devHost} • ${statusText}</text>
         
-        <!-- RTSP Pill -->
-        <rect x="170" y="260" width="300" height="26" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1"/>
-        <text x="50%" y="277" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="11">RTSP: rtsp://${devHost}/Streaming/channels/101</text>
+        <!-- Live Verified Member Banner or Ready Banner -->
+        ${scanName ? `
+        <rect x="80" y="250" width="480" height="36" rx="18" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+        <circle cx="102" cy="268" r="5" fill="#34d399"/>
+        <text x="120" y="273" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800">LATEST SCAN: ${scanName.replace(/&/g, "&amp;").replace(/</g, "&lt;")} (${scanRole})</text>
+        <text x="540" y="273" text-anchor="end" fill="#a7f3d0" font-family="monospace" font-size="11" font-weight="700">${scanStatus} • ${scanTime}</text>
+        ` : `
+        <rect x="150" y="254" width="340" height="28" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+        <text x="50%" y="272" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="11">RTSP: rtsp://${devHost}/Streaming/channels/101</text>
+        `}
 
         <!-- Top Left & Right Live Indicators -->
         <circle cx="24" cy="24" r="5" fill="${statusColor}"/>
-        <text x="36" y="28" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="700">LIVE FEED • 1080p</text>
-        <text x="616" y="28" text-anchor="end" fill="#64748b" font-family="monospace" font-size="11">ISAPI PROTOCOL</text>
+        <text x="36" y="28" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="700">24/7 LIVE FEED • 1080p</text>
+        <text x="616" y="28" text-anchor="end" fill="#67e8f9" font-family="monospace" font-size="11">${dateNow} • ${timeNow} IST</text>
       </svg>`
     );
     res.setHeader("Content-Type", "image/svg+xml");
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
+    res.setHeader("Pragma", "no-cache");
     return res.status(200).send(fallbackSvg);
   }
 });

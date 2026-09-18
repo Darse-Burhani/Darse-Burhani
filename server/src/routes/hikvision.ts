@@ -98,6 +98,10 @@ const handleWebhookEvents = async (req: import("express").Request, res: import("
 };
 
 router.post("/events", handleWebhookEvents);
+router.post("/event", handleWebhookEvents);
+router.post("/upload", handleWebhookEvents);
+router.post("/notification", handleWebhookEvents);
+router.post("/EventNotificationAlert", handleWebhookEvents);
 router.post("/", handleWebhookEvents);
 router.post("", handleWebhookEvents);
 
