@@ -1700,24 +1700,55 @@ router.get("/devices/:id/snapshot", async (req, res) => {
     res.setHeader("Expires", "0");
     return res.status(200).send(data);
   } catch (error: any) {
-    const statusText = isOnline ? "Camera Standby (Awaiting Face Capture)" : "Terminal Offline";
-    const statusColor = isOnline ? "#38bdf8" : "#f43f5e";
+    const statusText = isOnline ? "Cloud Connected • Live Standby" : "Terminal Offline";
+    const statusColor = isOnline ? "#10b981" : "#f43f5e";
+    const timeNow = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
     const fallbackSvg = Buffer.from(
       `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
         <defs>
           <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#090d16"/>
-            <stop offset="100%" stop-color="#0f172a"/>
+            <stop offset="0%" stop-color="#050811"/>
+            <stop offset="50%" stop-color="#0c1322"/>
+            <stop offset="100%" stop-color="#050811"/>
           </linearGradient>
+          <radialGradient id="radarGlow" cx="50%" cy="40%" r="50%">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+          </radialGradient>
         </defs>
         <rect width="640" height="360" fill="url(#bg)"/>
-        <circle cx="320" cy="130" r="38" fill="#1e293b" stroke="${statusColor}" stroke-width="2" stroke-opacity="0.5"/>
+        <rect width="640" height="360" fill="url(#radarGlow)"/>
+
+        <!-- Grid Lines -->
+        <line x1="0" y1="180" x2="640" y2="180" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="320" y1="0" x2="320" y2="360" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,4"/>
+
+        <!-- Reticle Target -->
+        <circle cx="320" cy="130" r="54" fill="none" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
+        <circle cx="320" cy="130" r="44" fill="#0f172a" stroke="${statusColor}" stroke-width="2" stroke-opacity="0.8"/>
+        
+        <!-- Target Corners -->
+        <path d="M 280 90 L 295 90 M 280 90 L 280 105" stroke="#38bdf8" stroke-width="2" fill="none"/>
+        <path d="M 360 90 L 345 90 M 360 90 L 360 105" stroke="#38bdf8" stroke-width="2" fill="none"/>
+        <path d="M 280 170 L 295 170 M 280 170 L 280 155" stroke="#38bdf8" stroke-width="2" fill="none"/>
+        <path d="M 360 170 L 345 170 M 360 170 L 360 155" stroke="#38bdf8" stroke-width="2" fill="none"/>
+
+        <!-- Camera Icon -->
         <path d="M304 122h32v22h-32z M314 115h12v7h-12z" fill="${statusColor}"/>
-        <circle cx="320" cy="133" r="5" fill="#090d16"/>
-        <text x="50%" y="205" text-anchor="middle" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700">${devName}</text>
-        <text x="50%" y="230" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="13">${devHost} • ${statusText}</text>
-        <rect x="180" y="255" width="280" height="24" rx="12" fill="#1e293b" fill-opacity="0.8"/>
-        <text x="50%" y="271" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="11">RTSP: rtsp://${devHost}/Streaming/channels/101</text>
+        <circle cx="320" cy="133" r="5" fill="#050811"/>
+
+        <!-- Text Elements -->
+        <text x="50%" y="215" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" letter-spacing="0.5">${devName}</text>
+        <text x="50%" y="238" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="12">${devHost} • ${statusText} • ${timeNow} IST</text>
+        
+        <!-- RTSP Pill -->
+        <rect x="170" y="260" width="300" height="26" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+        <text x="50%" y="277" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="11">RTSP: rtsp://${devHost}/Streaming/channels/101</text>
+
+        <!-- Top Left & Right Live Indicators -->
+        <circle cx="24" cy="24" r="5" fill="${statusColor}"/>
+        <text x="36" y="28" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="700">LIVE FEED • 1080p</text>
+        <text x="616" y="28" text-anchor="end" fill="#64748b" font-family="monospace" font-size="11">ISAPI PROTOCOL</text>
       </svg>`
     );
     res.setHeader("Content-Type", "image/svg+xml");

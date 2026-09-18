@@ -24,6 +24,12 @@ import {
   ShieldCheck,
   GraduationCap,
   Scan,
+  Settings,
+  HelpCircle,
+  ExternalLink,
+  Wifi,
+  Globe,
+  AlertTriangle,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +71,7 @@ interface LiveScanEvent {
   deviceHost?: string;
   status?: string;
   verifyMode?: string;
+  avatarUrl?: string;
 }
 
 type StreamInterval = 1000 | 2500 | 5000 | 0; // 0 = paused
@@ -96,6 +103,7 @@ export default function IvmsControlStation({
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [copiedRtsp, setCopiedRtsp] = useState(false);
   const [deployingMembers, setDeployingMembers] = useState(false);
+  const [terminalGuideOpen, setTerminalGuideOpen] = useState(false);
 
   // Door control & Audio prompt
   const [doorBusy, setDoorBusy] = useState(false);
@@ -154,6 +162,46 @@ export default function IvmsControlStation({
       fetchTelemetry(activeDevice.id);
     }
   }, [activeDevice, fetchTelemetry]);
+
+  // Fallback Polling for Real-Time Scans
+  const pollRecentEvents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/biometric/events");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const formatted: LiveScanEvent[] = json.data.map((ev: any) => {
+            const student = ev.student;
+            const teacher = ev.teacher;
+            return {
+              id: ev.id || String(ev.timestamp || Date.now()),
+              name: student ? student.name : teacher ? teacher.name : "Verified Member",
+              type: student ? "STUDENT" : teacher ? "TEACHER" : "UNMATCHED",
+              employeeNo: ev.fingerprint || student?.studentId || teacher?.employeeId || "ID",
+              timestamp: ev.timestamp || new Date().toISOString(),
+              deviceId: ev.deviceId,
+              status: ev.classes?.[0]?.status || teacher?.status || (ev.type === "DUPLICATE" ? "DUPLICATE" : "PRESENT"),
+              verifyMode: ev.verifyMode || "BIOMETRIC",
+            };
+          });
+          setLiveScans((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newItems = formatted.filter((f) => !existingIds.has(f.id));
+            if (newItems.length === 0) return prev;
+            return [...newItems, ...prev].slice(0, 50);
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    pollRecentEvents();
+    const interval = setInterval(pollRecentEvents, 3500);
+    return () => clearInterval(interval);
+  }, [pollRecentEvents]);
 
   // SSE for live scans
   useEffect(() => {
@@ -353,11 +401,21 @@ export default function IvmsControlStation({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setTerminalGuideOpen(true)}
+            className="h-8 px-2.5 text-xs rounded-xl border-sky-200 text-sky-700 bg-sky-50/50 hover:bg-sky-100"
+          >
+            <Settings className="w-3.5 h-3.5 mr-1 text-sky-600" />
+            Device Settings Guide
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => activeDevice && fetchSnapshot(activeDevice.id)}
             className="h-8 px-2.5 text-xs rounded-xl"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1 text-gray-600" />
-            Capture
+            Capture Frame
           </Button>
 
           <Button
@@ -653,6 +711,143 @@ export default function IvmsControlStation({
           </div>
         </div>
       </div>
+
+      {/* Terminal Settings Guide Modal */}
+      {terminalGuideOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-100 p-6 space-y-6"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-2 rounded-xl bg-sky-100 text-sky-700">
+                    <Settings className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 font-display">
+                      Hikvision MinMoe Terminal Configuration
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Step-by-step instructions to enable real-time Face/Biometric scans on {activeDevice?.name || "Terminal"} ({activeDevice?.host})
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setTerminalGuideOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-gray-700">
+              {/* Step 1 */}
+              <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 space-y-2">
+                <div className="font-bold text-sky-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
+                  Open Terminal Web Portal
+                </div>
+                <p className="text-gray-600">
+                  Open a web browser on your local network and visit:
+                </p>
+                <div className="flex items-center gap-2 font-mono font-bold bg-white p-2 rounded-xl border border-sky-200 text-sky-800">
+                  <span>http://{activeDevice?.host || "192.168.0.4"}</span>
+                  <a
+                    href={`http://${activeDevice?.host || "192.168.0.4"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-auto text-xs text-sky-600 hover:underline flex items-center gap-1"
+                  >
+                    Open Terminal Webpage <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Default Login: Username: <b>admin</b> | Password: <b>DARSEBURHANI5253</b>
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-2">
+                <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">2</span>
+                  Configure Realtime HTTP Listening / Webhook Push
+                </div>
+                <p className="text-gray-600">
+                  In Hikvision Web Interface, navigate to: <b>Configuration → Network → Advanced Settings → HTTP Listening</b> (or <b>Alarm Host / Webhook</b>):
+                </p>
+                <div className="grid grid-cols-2 gap-2 font-mono text-[11px] bg-white p-3 rounded-xl border border-emerald-200">
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Destination IP / Host:</span>
+                    <span className="font-bold text-gray-800">{window.location.hostname}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Port:</span>
+                    <span className="font-bold text-gray-800">{window.location.protocol === "https:" ? "443" : "80"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">URL Path:</span>
+                    <span className="font-bold text-emerald-700">/api/hikvision/events</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Data Format:</span>
+                    <span className="font-bold text-gray-800">JSON or XML</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-100 space-y-2">
+                <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-bold">3</span>
+                  Enable Face Picture Upload
+                </div>
+                <p className="text-gray-600">
+                  Navigate to <b>Configuration → Access Control → Parameters</b>:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-gray-600">
+                  <li>Enable <b>Upload Verification Event</b></li>
+                  <li>Enable <b>Upload Face Picture with Verification</b></li>
+                  <li>Enable <b>Real-time Event Upload</b></li>
+                </ul>
+              </div>
+
+              {/* Step 4 */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px] font-bold">4</span>
+                  Ensure Gateway & DNS are Set (for Cloud Connection)
+                </div>
+                <p className="text-gray-600">
+                  In <b>Configuration → Network → Basic Settings → TCP/IP</b>:
+                </p>
+                <div className="grid grid-cols-2 gap-2 font-mono text-[11px] bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Default Gateway:</span>
+                    <span className="font-bold text-gray-800">192.168.0.1</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Preferred DNS:</span>
+                    <span className="font-bold text-gray-800">8.8.8.8 (Google)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button
+                onClick={() => setTerminalGuideOpen(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold px-6"
+              >
+                Done
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
