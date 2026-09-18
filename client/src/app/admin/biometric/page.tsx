@@ -503,9 +503,16 @@ export default function BiometricAdminPage() {
     <div className="min-h-screen bg-slate-50/50 pb-20">
       {/* Top Hub Navigation */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <AdminHubTabs />
-        </div>
+          <AdminHubTabs
+            hubTitle="Biometric Attendance & Terminal Studio"
+            hubDescription="Live camera snapshot monitoring, ISAPI hardware log extraction, time sync, and student/faculty biometric registry."
+            tabs={[
+              { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
+              { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+              { label: "Daily Attendance Logs", href: "/admin/attendance-logs", icon: Activity },
+              { label: "Email Reports", href: "/admin/attendance-emails", icon: Send },
+            ]}
+          />
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">

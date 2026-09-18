@@ -119,21 +119,31 @@ interface ToastState {
   toasts: ToastData[];
 }
 
-function toast(data: ToastData) {
+function toast(data: ToastData | string) {
+  const payload: ToastData = typeof data === "string" ? { title: data } : data;
   const id = `toast-${++toastCount}`;
-  const newToast = { ...data, id };
+  const newToast = { ...payload, id };
   listeners.forEach((listener) =>
     listener({ toasts: [newToast] }),
   );
-  if (data.duration !== Infinity) {
+  if (payload.duration !== Infinity) {
     setTimeout(() => {
       listeners.forEach((listener) =>
         listener({ toasts: [] }),
       );
-    }, data.duration ?? 4000);
+    }, payload.duration ?? 4000);
   }
   return id;
 }
+
+toast.success = (title: string, description?: string) =>
+  toast({ title, description, variant: "success" });
+
+toast.error = (title: string, description?: string) =>
+  toast({ title, description, variant: "destructive" });
+
+toast.warning = (title: string, description?: string) =>
+  toast({ title, description, variant: "warning" });
 
 function useToast() {
   const [state, setState] = React.useState<ToastState>({ toasts: [] });
