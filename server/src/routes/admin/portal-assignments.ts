@@ -8,17 +8,31 @@ const router = Router();
 export const TEACHER_AVAILABLE_PAGES = [
   { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main HUD & point analytics", path: "/teacher", icon: "LayoutDashboard" },
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
+  { id: "quran", label: "Quran (Hifz)", category: "Hifz", description: "Ajza progress, marhala & weekly slips", path: "/teacher/hifz", icon: "Sparkles" },
+  { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala progress & exams", path: "/admin/hifz-marhala", icon: "GraduationCap" },
+  { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
   { id: "attendance-logs", label: "Attendance Logs", category: "Attendance", description: "Live scans, daily registry & student status", path: "/admin/attendance-logs", icon: "FileText" },
-  { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/admin/leave", icon: "CalendarCheck" },
   { id: "attendance-schedule", label: "Attendance Schedule", category: "Attendance", description: "Scan windows, shifts & period timers", path: "/admin/attendance-schedule", icon: "Clock" },
   { id: "email-reports", label: "Email Reports", category: "Communications", description: "Automated daily email dispatches", path: "/admin/attendance-emails", icon: "Mail" },
+  { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/admin/leave", icon: "CalendarCheck" },
   { id: "procurement", label: "Procurement", category: "Operations", description: "Stationery & supply requisitions", path: "/admin/procurement", icon: "ShoppingBag" },
-  { id: "quran", label: "Quran (Hifz)", category: "Hifz", description: "Ajza progress, marhala & weekly slips", path: "/teacher/hifz-reports", icon: "Sparkles" },
-  { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
-  { id: "makhzan", label: "Makhzan", category: "Operations", description: "School asset & resource inventory", path: "/admin/library", icon: "Package" },
+  { id: "biometric", label: "Biometric Scanners", category: "Operations", description: "Device status & management", path: "/admin/biometric", icon: "Fingerprint" },
+  { id: "makhzan", label: "Makhzan (Warehouse)", category: "Operations", description: "School asset & resource inventory", path: "/admin/makhzn", icon: "Package" },
   { id: "library", label: "Library", category: "Library", description: "Digital catalog, 3D shelf & loans", path: "/admin/library", icon: "Library" },
+  { id: "students", label: "Talabat (Students)", category: "Community", description: "Student directory & details", path: "/admin/students", icon: "GraduationCap" },
+  { id: "parents", label: "Parents Directory", category: "Community", description: "Parent contacts & directory", path: "/admin/parents", icon: "Heart" },
+  { id: "users", label: "Staff & Users", category: "Community", description: "Staff directory & accounts", path: "/admin/users", icon: "Users" },
+  { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/admin/timetable", icon: "CalendarDays" },
+  { id: "tracking", label: "Individual Tracking", category: "Operations", description: "Student tracking & metrics", path: "/admin/tracking", icon: "BarChart3" },
+  { id: "notifications", label: "Broadcast Studio", category: "Systems", description: "Send announcements & notifications", path: "/admin/notifications", icon: "Megaphone" },
+  { id: "point-matrix", label: "Point Matrix", category: "Systems", description: "Star point rules & matrix", path: "/admin/point-matrix", icon: "Award" },
+  { id: "security", label: "Security & Audit", category: "Systems", description: "Audit logs & security", path: "/admin/security", icon: "ShieldCheck" },
+  { id: "passwords", label: "User Passwords", category: "Community", description: "Password resets & credentials", path: "/admin/passwords", icon: "KeyRound" },
+  { id: "portal-assignments", label: "Portal Assignments", category: "Community", description: "Assign portal pages to teachers", path: "/admin/portal-assignments", icon: "UserCheck" },
   { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
 ];
+
+const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "classes", "takhteet", "quran", "profile"];
 
 // GET /api/admin/portal-assignments - List all teachers and their assigned pages
 router.get("/", requireAuth, async (req, res) => {
@@ -34,25 +48,34 @@ router.get("/", requireAuth, async (req, res) => {
       });
 
       if (!teacherProfile) {
-        return res.json({ success: true, data: { pages: TEACHER_AVAILABLE_PAGES.map(p => p.id) } });
+        return res.json({
+          success: true,
+          data: {
+            assignedPages: DEFAULT_BASE_TEACHER_PAGES,
+            allPages: TEACHER_AVAILABLE_PAGES,
+          },
+        });
       }
 
       const activeAssignments = teacherProfile.portalAssignments.filter((a) => a.isActive);
       const isAll = activeAssignments.some((a) => a.portalType === "ALL");
       
       let assignedPageIds: string[] = [];
-      if (activeAssignments.length === 0 || isAll) {
-        // If no custom restrictions or ALL assigned, default to full standard access
+      if (isAll) {
+        // Teacher has full admin authority
         assignedPageIds = TEACHER_AVAILABLE_PAGES.map((p) => p.id);
-      } else {
+      } else if (activeAssignments.length > 0) {
         assignedPageIds = activeAssignments.map((a) => {
           if (a.portalType.startsWith("PAGE:")) return a.portalType.replace("PAGE:", "");
           if (a.portalType === "HIFZ") return "quran";
           return a.portalType.toLowerCase();
         });
-        // Always ensure Dashboard and Profile are accessible unless explicitly revoked
+        // Always ensure Dashboard and Profile are accessible for teacher
         if (!assignedPageIds.includes("dashboard")) assignedPageIds.push("dashboard");
         if (!assignedPageIds.includes("profile")) assignedPageIds.push("profile");
+      } else {
+        // Strict default: Only standard teacher base pages (classes, takhteet, quran, profile, dashboard)
+        assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
       }
 
       return res.json({

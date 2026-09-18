@@ -34,13 +34,15 @@ const rawNavItems = [
 ];
 
 export default function TeacherLayout() {
-  const { isModuleVisible } = usePortalAccess();
+  const { isModuleVisible, isPageAssigned } = usePortalAccess();
 
   const filteredNavItems = useMemo(() => {
-    return rawNavItems.filter((item) => isModuleVisible(item.key, "TEACHER"));
-  }, [isModuleVisible]);
+    return rawNavItems.filter(
+      (item) => isModuleVisible(item.key, "TEACHER") && isPageAssigned(item.key)
+    );
+  }, [isModuleVisible, isPageAssigned]);
 
-  const showProfile = isModuleVisible("profile", "TEACHER");
+  const showProfile = isModuleVisible("profile", "TEACHER") && isPageAssigned("profile");
 
   return (
     <PortalShell

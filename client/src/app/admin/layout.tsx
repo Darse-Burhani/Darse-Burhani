@@ -176,9 +176,18 @@ const navItems: PortalNavItem[] = [
   },
 ];
 
+import { useMemo } from "react";
+import { usePortalAccess } from "@/context/PortalAccessContext";
+
 export default function AdminLayout() {
   const { data: session } = useSession();
+  const { isPageAssigned } = usePortalAccess();
   const isTeacher = session?.user?.role === "TEACHER";
+
+  const displayNavItems = useMemo(() => {
+    if (!isTeacher) return navItems;
+    return navItems.filter((item) => isPageAssigned(item.href));
+  }, [isTeacher, isPageAssigned]);
 
   return (
     <>
@@ -188,7 +197,7 @@ export default function AdminLayout() {
         portalName={isTeacher ? "Darse Burhani Management" : "Admin Portal"}
         subtitle={isTeacher ? "Teacher & Admin Operations" : "Admin Command"}
         roleLabel={isTeacher ? "Teacher (Admin Access)" : "Admin"}
-        navItems={navItems}
+        navItems={displayNavItems}
         searchPlaceholder="Type ⌘K to search or jump..."
       />
     </>

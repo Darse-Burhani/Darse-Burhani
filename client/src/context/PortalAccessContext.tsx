@@ -36,30 +36,51 @@ const defaultModules: PortalModulesConfig = {
   },
 };
 
+const DEFAULT_TEACHER_BASE_PAGES = ["dashboard", "classes", "takhteet", "quran", "profile"];
+
 interface PortalAccessContextType {
   modules: PortalModulesConfig;
+  assignedPages: string[];
   loading: boolean;
   refreshModules: () => Promise<void>;
   isModuleVisible: (moduleKey: string, role?: string) => boolean;
+  isPageAssigned: (pageIdOrPath: string) => boolean;
 }
 
 const PortalAccessContext = createContext<PortalAccessContextType>({
   modules: defaultModules,
+  assignedPages: DEFAULT_TEACHER_BASE_PAGES,
   loading: false,
   refreshModules: async () => {},
   isModuleVisible: () => true,
+  isPageAssigned: () => true,
 });
+
+export function normalizePageKey(keyOrPath: string): string {
+  if (!keyOrPath) return "";
+  let clean = keyOrPath.trim().toLowerCase();
+  clean = clean.replace(/^\/+(admin|teacher|talabat|faculty|parent)\/+/, "");
+  clean = clean.replace(/^\/+|\/+$/g, "");
+  if (!clean || clean === "admin" || clean === "teacher") return "dashboard";
+  if (clean === "hifz" || clean === "hifz-reports" || clean === "hifz-weekly-slip") return "quran";
+  if (clean === "attendance-emails") return "email-reports";
+  if (clean === "makhzn") return "makhzan";
+  if (clean.startsWith("library")) return "library";
+  if (clean.startsWith("parents")) return "parents";
+  return clean;
+}
 
 export function PortalAccessProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [modules, setModules] = useState<PortalModulesConfig>(defaultModules);
+  const [assignedPages, setAssignedPages] = useState<string[]>(DEFAULT_TEACHER_BASE_PAGES);
   const [loading, setLoading] = useState(true);
 
   const fetchModules = useCallback(async () => {
     try {
+      // 1. Fetch portal module visibility
       let res = await fetch("/api/portal-permissions/modules");
       if (!res.ok) {
-        // Fallback for role-specific routes or un-restarted servers
         if (session?.user?.role === "ADMIN") {
           res = await fetch("/api/admin/profile-permissions");
         } else if (session?.user?.role === "TEACHER") {
@@ -78,12 +99,12 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
               teacher: { ...defaultModules.teacher, ...(json.data.modules.teacher || json.data.modules || {}) },
             });
           } else if (session?.user?.role === "TEACHER" && json.data.modules) {
-            setModules(prev => ({
+            setModules((prev) => ({
               ...prev,
               teacher: { ...defaultModules.teacher, ...json.data.modules },
             }));
           } else if (session?.user?.role === "STUDENT" && json.data.modules) {
-            setModules(prev => ({
+            setModules((prev) => ({
               ...prev,
               talabat: { ...defaultModules.talabat, ...json.data.modules },
             }));
@@ -93,6 +114,21 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
               teacher: { ...defaultModules.teacher, ...(json.data.teacher || {}) },
             });
           }
+        }
+      }
+
+      // 2. Fetch specific teacher page assignments if Teacher role
+      if (session?.user?.role === "TEACHER") {
+        try {
+          const assignRes = await fetch("/api/admin/portal-assignments");
+          if (assignRes.ok) {
+            const assignJson = await assignRes.json();
+            if (assignJson.success && Array.isArray(assignJson.data?.assignedPages)) {
+              setAssignedPages(assignJson.data.assignedPages);
+            }
+          }
+        } catch {
+          // Keep base defaults on failure
         }
       }
     } catch {
@@ -115,21 +151,51 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       const role = (targetRole || session?.user?.role || "").toUpperCase();
       const bucket =
         role === "TEACHER" ? modules.teacher : role === "STUDENT" ? modules.talabat : null;
-      // Admins / unknown roles see everything; unknown module keys default to visible
-      // so newly-added pages never vanish by accident.
       if (!bucket) return true;
       return bucket[moduleKey] !== false;
     },
     [modules, session]
   );
 
+  const isPageAssigned = useCallback(
+    (pageIdOrPath: string) => {
+      const role = session?.user?.role?.toUpperCase();
+      if (role === "ADMIN") return true;
+      if (role !== "TEACHER") return false;
+
+      // If teacher has ALL assigned
+      if (assignedPages.includes("ALL") || assignedPages.includes("*")) {
+        return true;
+      }
+
+      const key = normalizePageKey(pageIdOrPath);
+      // Base teacher pages are always available
+      if (key === "dashboard" || key === "profile") return true;
+
+      // Check if normalized key or raw id is in teacher's assigned pages
+      if (assignedPages.includes(key)) return true;
+      if (assignedPages.includes(pageIdOrPath)) return true;
+
+      // Sub-route synonyms (e.g. hifz <-> quran)
+      if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("hifz-marhala"))) return true;
+      if (key === "hifz-marhala" && (assignedPages.includes("quran") || assignedPages.includes("hifz"))) return true;
+      if (key === "attendance-logs" && assignedPages.includes("attendance")) return true;
+      if (key === "makhzan" && assignedPages.includes("library")) return true;
+
+      return false;
+    },
+    [session, assignedPages]
+  );
+
   return (
     <PortalAccessContext.Provider
       value={{
         modules,
+        assignedPages,
         loading,
         refreshModules: fetchModules,
         isModuleVisible,
+        isPageAssigned,
       }}
     >
       {children}
