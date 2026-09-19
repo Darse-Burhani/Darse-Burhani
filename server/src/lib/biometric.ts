@@ -1119,7 +1119,7 @@ export async function processBiometricScan(
   }
 
   // Persist daily attendance log in storage
-  const dayUTC = new Date(Date.UTC(when.getUTCFullYear(), when.getUTCMonth(), when.getUTCDate()));
+  const dayUTC = calendarDayUTC;
   await prisma.attendanceRegistry.upsert({
     where: { studentId_date: { studentId: student.id, date: dayUTC } },
     create: {

@@ -2,7 +2,7 @@ import os from "node:os";
 import prisma from "../prisma";
 import { processBiometricScan, type BiometricEvent } from "../biometric";
 import { authFailureHint, digestFetch } from "./digest";
-import { isAttendanceEvent, type HikConnection, type HikAcsEvent } from "./isapi";
+import { isAttendanceEvent, BIOMETRIC_PASS_MINORS, BIOMETRIC_VERIFY_MODES, type HikConnection, type HikAcsEvent } from "./isapi";
 import { toConnection } from ".";
 
 /**
@@ -163,6 +163,8 @@ export function normalizeHikEvent(raw: Record<string, any>): HikPushEvent {
     "studentId",
     "its",
     "ITS",
+    "fingerprint",
+    "Fingerprint",
   ]);
 
   const cardNo = findDeep(ev, ["cardNo", "CardNo", "card", "Card"]);
@@ -234,10 +236,16 @@ export function jsonToPushEvents(obj: Record<string, any>): HikPushEvent[] {
   const events = unwrapJsonPayload(obj);
   const normalized: HikPushEvent[] = [];
   for (const ev of events) {
-    if (!ev || typeof ev !== "object") continue;
-    // The legacy `{ fingerprint, timestamp }` gateway format is processed by
-    // the webhook route directly — never treat it as a device event.
-    if (typeof ev.fingerprint === "string" && !ev.AccessControllerEvent && !ev.AcsEvent) continue;
+    // The legacy `{ fingerprint, timestamp }` gateway format is normalized into a HikPushEvent.
+    if (typeof ev.fingerprint === "string" && !ev.AccessControllerEvent && !ev.AcsEvent) {
+      normalized.push({
+        employeeNoString: ev.fingerprint.trim(),
+        time: ev.timestamp ? String(ev.timestamp) : undefined,
+        deviceId: ev.deviceId ? String(ev.deviceId) : undefined,
+        currentVerifyMode: ev.verifyMode ? String(ev.verifyMode) : "FACIAL",
+      });
+      continue;
+    }
     normalized.push(normalizeHikEvent(ev));
   }
   return normalized;
@@ -322,9 +330,13 @@ export function parseHikPushPayload(body: unknown, contentType?: string): { even
 
   // Already-parsed object (global express.json/urlencoded ran first).
   if (body !== null && typeof body === "object" && !Buffer.isBuffer(body)) {
-    const obj = body as Record<string, any>;
     if (typeof obj.fingerprint === "string" && !obj.AccessControllerEvent && !obj.AcsEvent) {
-      events = [];
+      events = [{
+        employeeNoString: obj.fingerprint.trim(),
+        time: obj.timestamp ? String(obj.timestamp) : undefined,
+        deviceId: obj.deviceId ? String(obj.deviceId) : undefined,
+        currentVerifyMode: obj.verifyMode ? String(obj.verifyMode) : "FACIAL",
+      }];
     } else if (obj.method || obj.url) {
       acknowledged = Boolean(obj.url);
       const dynamic = obj.dynamic || obj.xml || obj.data || obj.message;
@@ -413,7 +425,7 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
   const report: PushProcessingReport = { received: events.length, processed: 0, ignored: 0, results: [] };
 
   for (const ev of events) {
-    const employee = String(ev.employeeNoString ?? "").trim();
+    let employee = String(ev.employeeNoString ?? "").trim();
     const eventType = String(ev.eventType ?? "").trim();
 
     // 1. Terminal Heartbeat (periodic keepalive packet sent every ~30s by MinMoe)
@@ -429,16 +441,56 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       continue;
     }
 
-    // 2. Reject RFID card-only passes if policy requires Face / Fingerprint
+    // 2. Classify verification method: Face / Fingerprint vs pure RFID card
     const modeStr = String(ev.currentVerifyMode ?? "").toLowerCase();
     const minorNum = Number(ev.minor);
+    const eventTypeStr = String(ev.eventType ?? "").toLowerCase();
+
+    const isFaceScan =
+      modeStr.includes("face") ||
+      modeStr.includes("facial") ||
+      modeStr === "15" ||
+      modeStr === "6" ||
+      modeStr === "12" ||
+      minorNum === 75 || // 0x4B: Face verification passed
+      minorNum === 76 || // 0x4C: Face + Card passed
+      minorNum === 77 || // 0x4D: Face + Password passed
+      minorNum === 11 || // Face pass
+      minorNum === 12 || // Face + Password pass
+      minorNum === 13 || // Face + Fingerprint pass
+      eventTypeStr.includes("face") ||
+      eventTypeStr.includes("facial");
+
+    const isFingerprintScan =
+      modeStr.includes("finger") ||
+      modeStr.includes("fp") ||
+      modeStr === "3" ||
+      modeStr === "4" ||
+      modeStr === "5" ||
+      modeStr === "16" ||
+      minorNum === 7 ||
+      minorNum === 8 ||
+      minorNum === 9 ||
+      minorNum === 10 ||
+      minorNum === 78 ||
+      eventTypeStr.includes("finger") ||
+      eventTypeStr.includes("fp");
+
+    const isBioScan =
+      isFaceScan ||
+      isFingerprintScan ||
+      (minorNum ? BIOMETRIC_PASS_MINORS.has(minorNum) : false) ||
+      (/^\d+$/.test(modeStr) ? BIOMETRIC_VERIFY_MODES.has(Number(modeStr)) : false);
+
+    // Reject pure RFID card-only passes if strictly not a facial or fingerprint scan
     if (
-      modeStr === "1" ||
-      modeStr === "2" ||
-      minorNum === 5 ||
-      minorNum === 6 ||
-      minorNum === 20 ||
-      (modeStr.includes("card") && !modeStr.includes("face") && !modeStr.includes("finger"))
+      !isBioScan &&
+      (modeStr === "1" ||
+        modeStr === "2" ||
+        minorNum === 5 ||
+        minorNum === 6 ||
+        minorNum === 20 ||
+        (modeStr.includes("card") && !modeStr.includes("face") && !modeStr.includes("finger")))
     ) {
       report.ignored++;
       report.results.push({
@@ -449,6 +501,11 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
         message: "RFID card scanning ignored. Attendance is recorded via Face scan or Fingerprint.",
       });
       continue;
+    }
+
+    // Resolve employee reference: if employeeNoString was not passed but cardNo was passed during a Face/Biometric scan, use cardNo
+    if (!employee && ev.cardNo && isBioScan) {
+      employee = String(ev.cardNo).trim();
     }
 
     if (!employee) {
@@ -468,10 +525,10 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       continue;
     }
 
-    // De-duplicate against events that arrived in the last hour.
+    // De-duplicate against events that arrived in the last hour, scoped by device
     const serial = String(ev.serialNo ?? "").trim();
     if (serial) {
-      const key = `push:${serial}`;
+      const key = `push:${ev.deviceId ? ev.deviceId + ":" : ""}${serial}`;
       if (!rememberPushSerial(key)) {
         report.ignored++;
         report.results.push({ employeeNoString: employee, time: ev.time ?? null, attendance: false, outcome: "SYSTEM", message: "Duplicate event (serial already seen)" });
@@ -482,11 +539,12 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
     // Record attendance for this employee/student scan
     try {
       const deviceRef = String(ev.deviceId ?? "").trim();
+      const verifyMethod = isFaceScan ? "FACIAL" : isFingerprintScan ? "FINGERPRINT" : (ev.currentVerifyMode || "FACIAL");
       const result: BiometricEvent = await processBiometricScan(
         employee,
         ev.time ? new Date(ev.time) : new Date(),
         deviceRef ? `hikvision:push:${deviceRef}` : source,
-        ev.currentVerifyMode || "FACIAL",
+        verifyMethod,
       );
       report.processed++;
       report.results.push({

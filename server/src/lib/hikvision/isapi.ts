@@ -287,11 +287,11 @@ function parseAcsResponse(json: any): AcsEventsResult {
 // 77 (0x4D): Face + Password authentication passed (face verified)
 // 78 (0x4E): Face + Fingerprint authentication passed
 // Note: Pure card passes (5, 6, 20, 38) are strictly excluded.
-const BIOMETRIC_PASS_MINORS = new Set<number>([7, 8, 9, 10, 11, 12, 13, 75, 76, 77, 78]);
+export const BIOMETRIC_PASS_MINORS = new Set<number>([7, 8, 9, 10, 11, 12, 13, 75, 76, 77, 78]);
 
 // Verify modes: 4 (FP), 5 (FP+PWD), 6 (Face), 12 (Face+FP), 15 (Face+Card), 16 (FP+Card)
 // Mode 1 (Card) and Mode 2 (Card+PWD) are strictly excluded.
-const BIOMETRIC_VERIFY_MODES = new Set<number>([4, 5, 6, 12, 15, 16]);
+export const BIOMETRIC_VERIFY_MODES = new Set<number>([4, 5, 6, 12, 15, 16]);
 
 /**
  * Decide whether an access-control event represents a successful verification we should record as attendance.
