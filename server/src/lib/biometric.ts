@@ -978,6 +978,23 @@ export async function processBiometricScan(
       cache.invalidateTag("dashboard");
       cache.invalidateTag("stats");
 
+      // ── Dispatch notification to faculty member ──
+      try {
+        if (teacher.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: teacher.userId,
+              title: `⚡ Faculty Check-In: ${teacherInfo.name}`,
+              message: `${teacherInfo.name} checked in (${teacherStatus}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`,
+              type: "ATTENDANCE" as any,
+              link: "/faculty/attendance",
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.warn("[biometric] faculty notification dispatch notice:", notifErr);
+      }
+
       return pushEvent({
         type: "MATCHED",
         fingerprint,
@@ -1160,6 +1177,37 @@ export async function processBiometricScan(
   cache.invalidateTag("attendanceRegistry");
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
+
+  // ── Dispatch notifications to student and linked parents ──
+  try {
+    const parentLinks = await prisma.parentStudentLink.findMany({
+      where: { studentId: student.id },
+      select: { parent: { select: { userId: true } } },
+    });
+
+    const recipientUserIds = new Set<string>();
+    if (student.userId) recipientUserIds.add(student.userId);
+    for (const pl of parentLinks) {
+      if (pl.parent?.userId) recipientUserIds.add(pl.parent.userId);
+    }
+
+    const notifTitle = `⚡ Attendance Scanned: ${studentInfo.name}`;
+    const notifMsg = `${studentInfo.name} has checked in (${status}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`;
+
+    if (recipientUserIds.size > 0) {
+      await prisma.notification.createMany({
+        data: Array.from(recipientUserIds).map((userId) => ({
+          userId,
+          title: notifTitle,
+          message: notifMsg,
+          type: "ATTENDANCE" as any,
+          link: "/parent/attendance",
+        })),
+      });
+    }
+  } catch (notifErr) {
+    console.warn("[biometric] scan notification dispatch notice:", notifErr);
+  }
 
   return pushEvent({
     type: "MATCHED",

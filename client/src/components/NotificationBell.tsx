@@ -13,6 +13,7 @@ import {
   Award,
   AlertTriangle,
   ShoppingBag,
+  Zap,
   X,
   ExternalLink,
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface NotificationItem {
 }
 
 const typeIconMap: Record<string, React.ElementType> = {
+  ATTENDANCE: Zap,
   LIBRARY: BookOpen,
   ANNOUNCEMENT: Megaphone,
   WELCOME: Sparkles,
@@ -42,6 +44,7 @@ function getTypeIcon(type: string) {
 }
 
 const typeColorMap: Record<string, string> = {
+  ATTENDANCE: "text-emerald-600 bg-emerald-50 border-emerald-200",
   LIBRARY: "text-indigo-500 bg-indigo-50",
   ANNOUNCEMENT: "text-amber-600 bg-amber-50",
   WELCOME: "text-emerald-500 bg-emerald-50",
