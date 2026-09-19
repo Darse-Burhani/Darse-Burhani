@@ -908,8 +908,8 @@ router.get("/records/history", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// GET /api/biometric/events/stream - Server-Sent Events live feed across portals
-router.get("/events/stream", (req, res) => {
+// GET /api/biometric/events/stream & /api/biometric/sse - Server-Sent Events live feed across portals
+const handleSseStream = (req: import("express").Request, res: import("express").Response) => {
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache, no-transform",
@@ -920,13 +920,17 @@ router.get("/events/stream", (req, res) => {
 
   const send = (payload: string) => res.write(payload);
   const unsubscribe = subscribeSse(send);
-  const heartbeat = setInterval(() => res.write(": ping\n\n"), 25_000);
+  const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
 
   req.on("close", () => {
     clearInterval(heartbeat);
     unsubscribe();
   });
-});
+};
+
+router.get("/events/stream", handleSseStream);
+router.get("/stream", handleSseStream);
+router.get("/sse", handleSseStream);
 
 // GET /api/biometric/network-info - Network LAN IPs and webhook URL for device linking
 router.get("/network-info", requireRole("ADMIN"), (_req, res) => {
