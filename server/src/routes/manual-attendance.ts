@@ -420,6 +420,7 @@ router.post("/", requireAuth, async (req, res) => {
             date: targetDate,
             status: item.status,
             source: AttendanceSource.MANUAL,
+            verificationMethod: "MANUAL",
             checkInTime: checkIn,
             checkOutTime: checkOut,
             justification: note,
@@ -428,6 +429,7 @@ router.post("/", requireAuth, async (req, res) => {
           update: {
             status: item.status,
             source: AttendanceSource.MANUAL,
+            verificationMethod: "MANUAL",
             checkInTime: checkIn,
             checkOutTime: checkOut,
             justification: note,

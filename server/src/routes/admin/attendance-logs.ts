@@ -180,18 +180,36 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         const record = s.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || s.attendanceRecords[0];
 
         let effectiveStatus: string = "NOT_MARKED";
-        let effectiveSource: string = "SCAN";
+        let effectiveSource: string = "MANUAL";
         let checkInTime: string | null = null;
         let checkOutTime: string | null = null;
         let remarks: string | null = null;
         let leaveDetails: any = null;
 
+        // Check if a biometric scan exists on record or registry
+        const hasBiometricScan = Boolean(
+          (record && (record.verificationMethod === "BIOMETRIC" || record.biometricHash)) ||
+          (registry && registry.source === "BIOMETRIC")
+        );
+
         if (registry) {
           effectiveStatus = registry.status;
-          effectiveSource = registry.source === "BIOMETRIC" ? "SCAN" : registry.source;
           checkInTime = registry.checkInTime?.toISOString() || null;
           checkOutTime = registry.checkOutTime?.toISOString() || null;
           remarks = registry.remarks;
+
+          if (hasBiometricScan) {
+            effectiveSource = "SCAN";
+          } else if ((registry.source as string) === "AUTO_SYSTEM") {
+            effectiveSource = "AUTO_ABSENT";
+          } else if (registry.status === "MEDICAL") {
+            effectiveSource = "MEDICAL_LEAVE";
+          } else if (registry.status === "ON_LEAVE" || registry.leave) {
+            effectiveSource = "LEAVE_APPROVED";
+          } else {
+            effectiveSource = "MANUAL";
+          }
+
           if (registry.leave) {
             leaveDetails = {
               id: registry.leave.id,
@@ -204,13 +222,21 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           }
         } else if (record) {
           effectiveStatus = record.status;
-          effectiveSource = record.source === "BIOMETRIC" || !record.source ? "SCAN" : record.source;
-          if (record.verificationMethod === "AUTO_SYSTEM") {
-            effectiveSource = "AUTO_ABSENT";
-          }
           checkInTime = record.checkInTime?.toISOString() || null;
           checkOutTime = record.checkOutTime?.toISOString() || null;
           remarks = record.justification;
+
+          if (hasBiometricScan) {
+            effectiveSource = "SCAN";
+          } else if (record.verificationMethod === "AUTO_SYSTEM") {
+            effectiveSource = "AUTO_ABSENT";
+          } else if (record.status === "MEDICAL") {
+            effectiveSource = "MEDICAL_LEAVE";
+          } else if (record.status === "ON_LEAVE") {
+            effectiveSource = "LEAVE_APPROVED";
+          } else {
+            effectiveSource = "MANUAL";
+          }
         }
 
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false) : null;
@@ -270,7 +296,20 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         const checkInTime = rec?.checkInTime?.toISOString() || null;
         const checkOutTime = rec?.checkOutTime?.toISOString() || null;
         const remarks = rec?.notes || null;
-        const source = rec?.verificationMethod === "AUTO_SYSTEM" ? "AUTO_ABSENT" : "SCAN";
+        let source = "MANUAL";
+        if (rec) {
+          if (rec.verificationMethod === "BIOMETRIC" || rec.biometricHash) {
+            source = "SCAN";
+          } else if (rec.verificationMethod === "AUTO_SYSTEM") {
+            source = "AUTO_ABSENT";
+          } else if (rec.status === "MEDICAL") {
+            source = "MEDICAL_LEAVE";
+          } else if (rec.status === "ON_LEAVE") {
+            source = "LEAVE_APPROVED";
+          } else {
+            source = "MANUAL";
+          }
+        }
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true) : null;
 
         return {

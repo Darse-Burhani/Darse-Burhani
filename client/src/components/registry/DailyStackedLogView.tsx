@@ -49,14 +49,14 @@ type TabType = "ALL" | "PRESENT" | "LATE" | "MEDICAL" | "ON_LEAVE" | "ABSENT" | 
 
 const sourceBadgeConfig: Record<
   string,
-  { label: string; icon: React.ElementType; color: string }
+  { label: string; icon: React.ElementType; color: string; badgeBg: string }
 > = {
-  SCAN: { label: "Live Scan", icon: Zap, color: "text-emerald-700" },
-  BIOMETRIC: { label: "Live Scan", icon: Zap, color: "text-emerald-700" },
-  MANUAL: { label: "Manual", icon: UserCheck, color: "text-blue-700" },
-  AUTO_ABSENT: { label: "Auto Absent", icon: Bot, color: "text-rose-700" },
-  MEDICAL_LEAVE: { label: "Medical", icon: Stethoscope, color: "text-rose-700" },
-  LEAVE_APPROVED: { label: "Leave", icon: FileCheck2, color: "text-amber-700" },
+  SCAN: { label: "Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  BIOMETRIC: { label: "Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  MANUAL: { label: "Manual", icon: UserCheck, color: "text-blue-700", badgeBg: "bg-blue-50 text-blue-800 border-blue-200" },
+  AUTO_ABSENT: { label: "Auto Absent", icon: Bot, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200" },
+  MEDICAL_LEAVE: { label: "Medical", icon: Stethoscope, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200" },
+  LEAVE_APPROVED: { label: "Leave", icon: FileCheck2, color: "text-amber-700", badgeBg: "bg-amber-50 text-amber-800 border-amber-200" },
 };
 
 // Animated number with live pulse
@@ -469,7 +469,7 @@ export function DailyStackedLogView({
                         )}
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-gray-500 font-semibold">Method / Source</span>
-                          <span className={`font-black flex items-center gap-1 ${cfg.color}`}>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[10px] border ${cfg.badgeBg || "bg-gray-100 text-gray-800 border-gray-200"}`}>
                             <SourceIcon className="w-3 h-3" />
                             {cfg.label}
                           </span>
