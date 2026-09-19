@@ -26,6 +26,7 @@ import {
   Fingerprint,
   Mail,
   UserX,
+  UserCheck,
   Stethoscope,
   HeartPulse,
   GraduationCap,
@@ -1363,49 +1364,7 @@ export default function AdminAttendanceSchedulePage() {
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
-</div>
-
-                {/* Faculty Applicability Roster (shown when the event has a faculty timer) */}
-                {windowForm.facultyTimerEnabled && (
-                  <div className="bg-indigo-50/50 border border-indigo-200 rounded-xl p-4">
-                    <label className="text-xs font-bold text-gray-700 block mb-2 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                      Faculty Applicability Roster
-                    </label>
-                    <p className="text-[11px] text-indigo-700 mb-3">
-                      Select which teachers this attendance window applies to.
-                      <strong>Empty = all active teachers.</strong> Teachers outside this roster are never auto-marked absent.
-                    </p>
-                    <div className="max-h-48 overflow-y-auto space-y-1.5">
-                      {facultyList.map((t) => (
-                        <label key={t.id} className="flex items-center gap-2 cursor-pointer hover:bg-indigo-50 rounded-lg px-2 py-1.5 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={windowForm.applicableTeacherIds.includes(t.id)}
-                            onChange={(e) =>
-                              setWindowForm({
-                                ...windowForm,
-                                applicableTeacherIds: e.target.checked
-                                  ? [...windowForm.applicableTeacherIds, t.id]
-                                  : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
-                              })
-                            }
-                            className="rounded border-indigo-400 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span className="text-xs font-medium text-gray-900">{t.name}</span>
-                          <span className="text-[10px] text-gray-500 font-mono">{t.employeeId}</span>
-                          {t.department && <span className="text-[10px] text-indigo-600">{t.department}</span>}
-                        </label>
-                      ))}
-                    </div>
-                    {windowForm.applicableTeacherIds.length === 0 && facultyList.length > 0 && (
-                      <p className="text-[11px] text-amber-700 mt-2 flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        No teachers selected — window applies to ALL active faculty ({facultyList.length}).
-                      </p>
-                    )}
-                  </div>
-                )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1426,9 +1385,9 @@ export default function AdminAttendanceSchedulePage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-gray-200"
+              className="w-full max-w-xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gray-50/50">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-emerald-600" />
                   {editingWindow ? "Edit Attendance Schedule" : "Add Attendance Window"}
@@ -1436,215 +1395,275 @@ export default function AdminAttendanceSchedulePage() {
                 <button
                   type="button"
                   onClick={() => setWindowModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={saveWindow} className="space-y-4">
-                <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/70 text-[11px] text-emerald-900 font-medium leading-relaxed">
-                  One schedule event carries <strong>both timers side-by-side</strong> — Talabat and Faculty scan against the same event, each with its own on-time / late window, synced into attendance automatically.
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">
-                    Attendance Session Name:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Tilawat al Dua, Subah Assembly, Dhuhr Attendance"
-                    value={windowForm.name}
-                    onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
-                    className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-emerald-800 block mb-1">Talabat On-Time From (24h):</label>
-                    <input
-                      type="time"
-                      required
-                      value={windowForm.startTime}
-                      onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-emerald-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
+              <form onSubmit={saveWindow} className="flex flex-col flex-1 overflow-hidden">
+                <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
+                  <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/70 text-[11px] text-emerald-900 font-medium leading-relaxed">
+                    One schedule event carries <strong>both timers side-by-side</strong> — Talabat and Faculty scan against the same event, each with its own on-time / late window, synced into attendance automatically.
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-emerald-800 block mb-1">Talabat On-Time To (24h):</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      Attendance Session Name:
+                    </label>
                     <input
-                      type="time"
+                      type="text"
                       required
-                      value={windowForm.endTime}
-                      onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-emerald-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Talabat Late Till (24h, optional):</label>
-                    <input
-                      type="time"
-                      value={windowForm.lateEndTime || ""}
-                      onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="e.g. 09:00"
-                    />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Scans after On-Time To until Late Till are marked <strong>LATE</strong>. Leave empty = same as On-Time To (no late zone).
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Legacy Grace Period (Minutes):</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="180"
-                      required
-                      value={windowForm.graceMinutes}
-                      onChange={(e) =>
-                        setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
-                      }
+                      placeholder="e.g. Tilawat al Dua, Subah Assembly, Dhuhr Attendance"
+                      value={windowForm.name}
+                      onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
                       className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Kept for backward compatibility. Two-time rule takes precedence.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Class Eligibility Roster for Talabat */}
-                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
-                  <label className="text-xs font-bold text-emerald-900 block flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-emerald-700" />
-                    Talabat Class Attendance Eligibility
-                  </label>
-                  <p className="text-[11px] text-emerald-800 leading-snug">
-                    Select which classes are expected to scan for this scheduled event.
-                    <strong> Empty = all classes/students.</strong> Students in other classes are NOT marked absent.
-                  </p>
-                  <div className="max-h-36 overflow-y-auto space-y-1 bg-white p-2 rounded-lg border border-emerald-100">
-                    {classes.map((c) => (
-                      <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded px-2 py-1 text-xs text-gray-800">
-                        <input
-                          type="checkbox"
-                          checked={windowForm.applicableClassIds.includes(c.id)}
-                          onChange={(e) =>
-                            setWindowForm({
-                              ...windowForm,
-                              applicableClassIds: e.target.checked
-                                ? [...windowForm.applicableClassIds, c.id]
-                                : windowForm.applicableClassIds.filter((id) => id !== c.id),
-                            })
-                          }
-                          className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span className="font-semibold">{c.name}</span>
-                        <span className="text-[10px] text-gray-500">Grade {c.grade}-{c.section}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {windowForm.applicableClassIds.length === 0 && (
-                    <p className="text-[10px] text-emerald-700 font-medium">
-                      ✓ Applies to ALL classes and enrolled students.
-                    </p>
-                  )}
-                </div>
-
-                {/* ── Faculty timer on the SAME event ── */}
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <label htmlFor="facultyTimerEnabled" className="text-xs font-black text-indigo-900 cursor-pointer flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-indigo-700" />
-                      Faculty timer (same event)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setWindowForm({ ...windowForm, facultyTimerEnabled: !windowForm.facultyTimerEnabled })}
-                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${windowForm.facultyTimerEnabled ? "bg-indigo-600" : "bg-gray-300"}`}
-                      title="Toggle faculty timer for this event"
-                    >
-                      <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${windowForm.facultyTimerEnabled ? "translate-x-4" : "translate-x-0"}`} />
-                    </button>
                   </div>
 
-                  {windowForm.facultyTimerEnabled ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty On-Time From (24h):</label>
-                          <input
-                            type="time"
-                            required
-                            value={windowForm.facultyStartTime}
-                            onChange={(e) => setWindowForm({ ...windowForm, facultyStartTime: e.target.value })}
-                            className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty On-Time To (24h):</label>
-                          <input
-                            type="time"
-                            required
-                            value={windowForm.facultyEndTime}
-                            onChange={(e) => setWindowForm({ ...windowForm, facultyEndTime: e.target.value })}
-                            className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty Late Till (24h, optional):</label>
-                          <input
-                            type="time"
-                            value={windowForm.facultyLateEndTime || ""}
-                            onChange={(e) => setWindowForm({ ...windowForm, facultyLateEndTime: e.target.value })}
-                            className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                          />
-                        </div>
-                        <div className="flex items-end pb-1">
-                          <label className="flex items-center gap-2 text-xs font-bold text-indigo-900 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={windowForm.facultyEnabled}
-                              onChange={(e) => setWindowForm({ ...windowForm, facultyEnabled: e.target.checked })}
-                              className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            Faculty check-in active
-                          </label>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-indigo-700/80">
-                        Faculty scans in this window mark faculty attendance (PRESENT / LATE) without touching Talabat rules.
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-emerald-800 block mb-1">Talabat On-Time From (24h):</label>
+                      <input
+                        type="time"
+                        required
+                        value={windowForm.startTime}
+                        onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border border-emerald-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-emerald-800 block mb-1">Talabat On-Time To (24h):</label>
+                      <input
+                        type="time"
+                        required
+                        value={windowForm.endTime}
+                        onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border border-emerald-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Talabat Late Till (24h, optional):</label>
+                      <input
+                        type="time"
+                        value={windowForm.lateEndTime || ""}
+                        onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="e.g. 09:00"
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Scans after On-Time To until Late Till are marked <strong>LATE</strong>.
                       </p>
-                    </>
-                  ) : (
-                    <p className="text-[11px] text-gray-500">
-                      No faculty schedule on this event — faculty scans will not be accepted under it.
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Legacy Grace Period (Minutes):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="180"
+                        required
+                        value={windowForm.graceMinutes}
+                        onChange={(e) =>
+                          setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
+                        }
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Two-time rule takes precedence.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Class Eligibility Roster for Talabat */}
+                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                        <GraduationCap className="w-4 h-4 text-emerald-700" />
+                        Talabat Class Attendance Scope
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setWindowForm({ ...windowForm, applicableClassIds: [] })}
+                          className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                        >
+                          Select All (Default)
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-snug">
+                      Choose which classes must attend this event.
+                      <strong> Empty = all classes.</strong> Students in other classes are <strong>never</strong> marked absent.
                     </p>
-                  )}
+                    <div className="max-h-36 overflow-y-auto space-y-1 bg-white p-2 rounded-lg border border-emerald-100">
+                      {classes.map((c) => (
+                        <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded px-2 py-1 text-xs text-gray-800">
+                          <input
+                            type="checkbox"
+                            checked={windowForm.applicableClassIds.includes(c.id)}
+                            onChange={(e) =>
+                              setWindowForm({
+                                ...windowForm,
+                                applicableClassIds: e.target.checked
+                                  ? [...windowForm.applicableClassIds, c.id]
+                                  : windowForm.applicableClassIds.filter((id) => id !== c.id),
+                              })
+                            }
+                            className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span className="font-semibold">{c.name}</span>
+                          <span className="text-[10px] text-gray-500">Grade {c.grade}-{c.section}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {windowForm.applicableClassIds.length === 0 && (
+                      <p className="text-[10px] text-emerald-700 font-medium">
+                        ✓ Applies to ALL classes and enrolled students.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ── Faculty timer on the SAME event ── */}
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <label htmlFor="facultyTimerEnabled" className="text-xs font-black text-indigo-900 cursor-pointer flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-indigo-700" />
+                        Faculty timer & Attendance Scope
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setWindowForm({ ...windowForm, facultyTimerEnabled: !windowForm.facultyTimerEnabled })}
+                        className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${windowForm.facultyTimerEnabled ? "bg-indigo-600" : "bg-gray-300"}`}
+                        title="Toggle faculty timer for this event"
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${windowForm.facultyTimerEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                      </button>
+                    </div>
+
+                    {windowForm.facultyTimerEnabled ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty On-Time From (24h):</label>
+                            <input
+                              type="time"
+                              required
+                              value={windowForm.facultyStartTime}
+                              onChange={(e) => setWindowForm({ ...windowForm, facultyStartTime: e.target.value })}
+                              className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty On-Time To (24h):</label>
+                            <input
+                              type="time"
+                              required
+                              value={windowForm.facultyEndTime}
+                              onChange={(e) => setWindowForm({ ...windowForm, facultyEndTime: e.target.value })}
+                              className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty Late Till (24h, optional):</label>
+                            <input
+                              type="time"
+                              value={windowForm.facultyLateEndTime || ""}
+                              onChange={(e) => setWindowForm({ ...windowForm, facultyLateEndTime: e.target.value })}
+                              className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                          <div className="flex items-end pb-1">
+                            <label className="flex items-center gap-2 text-xs font-bold text-indigo-900 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={windowForm.facultyEnabled}
+                                onChange={(e) => setWindowForm({ ...windowForm, facultyEnabled: e.target.checked })}
+                                className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              Faculty check-in active
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Faculty Applicability Selection List */}
+                        <div className="bg-white border border-indigo-200 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                              <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                              Select Faculty Expected for this Session:
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
+                                className="text-[10px] font-bold text-indigo-700 hover:underline"
+                              >
+                                All Faculty ({facultyList.length})
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-indigo-800 leading-snug">
+                            Selected teachers are expected to scan and monitored for auto-absent.
+                            <strong> Unselected teachers are never auto-marked absent.</strong>
+                          </p>
+                          <div className="max-h-40 overflow-y-auto space-y-1 border border-indigo-100 rounded-lg p-2 bg-indigo-50/30">
+                            {facultyList.map((t) => (
+                              <label key={t.id} className="flex items-center gap-2 cursor-pointer hover:bg-white rounded px-2 py-1 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={windowForm.applicableTeacherIds.includes(t.id)}
+                                  onChange={(e) =>
+                                    setWindowForm({
+                                      ...windowForm,
+                                      applicableTeacherIds: e.target.checked
+                                        ? [...windowForm.applicableTeacherIds, t.id]
+                                        : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
+                                    })
+                                  }
+                                  className="rounded border-indigo-400 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs font-medium text-gray-900">{t.name}</span>
+                                <span className="text-[10px] text-gray-500 font-mono">({t.employeeId})</span>
+                                {t.department && <span className="text-[10px] text-indigo-600 font-medium ml-auto">{t.department}</span>}
+                              </label>
+                            ))}
+                          </div>
+                          {windowForm.applicableTeacherIds.length === 0 && facultyList.length > 0 && (
+                            <p className="text-[10px] text-indigo-700 font-medium flex items-center gap-1">
+                              ✓ Window applies to ALL active teachers ({facultyList.length}).
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-gray-500">
+                        No faculty schedule on this event — faculty scans will not be accepted under it.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="enabled"
+                      checked={windowForm.enabled}
+                      onChange={(e) => setWindowForm({ ...windowForm, enabled: e.target.checked })}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="enabled" className="text-xs font-bold text-gray-700 cursor-pointer">
+                      Enable this attendance schedule window immediately
+                    </label>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    type="checkbox"
-                    id="enabled"
-                    checked={windowForm.enabled}
-                    onChange={(e) => setWindowForm({ ...windowForm, enabled: e.target.checked })}
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <label htmlFor="enabled" className="text-xs font-bold text-gray-700 cursor-pointer">
-                    Enable this attendance schedule window immediately
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
                   <Button variant="outline" size="sm" type="button" onClick={() => setWindowModalOpen(false)}>
                     Cancel
                   </Button>
@@ -1672,9 +1691,9 @@ export default function AdminAttendanceSchedulePage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-gray-200"
+              className="w-full max-w-md max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gray-50/50">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-emerald-600" />
                   {editingSlot ? "Edit Class Period" : "Add Class Attendance Period"}
@@ -1682,104 +1701,106 @@ export default function AdminAttendanceSchedulePage() {
                 <button
                   type="button"
                   onClick={() => setClassModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={saveSlot} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Class Assigned:</label>
-                  <select
-                    value={slotForm.classId}
-                    onChange={(e) => setSlotForm({ ...slotForm, classId: e.target.value })}
-                    className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} · Grade {c.grade}-{c.section} ({c.teacherName})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={saveSlot} className="flex flex-col flex-1 overflow-hidden">
+                <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Day of Week:</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Class Assigned:</label>
                     <select
-                      value={slotForm.dayOfWeek}
-                      onChange={(e) => setSlotForm({ ...slotForm, dayOfWeek: Number(e.target.value) })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
+                      value={slotForm.classId}
+                      onChange={(e) => setSlotForm({ ...slotForm, classId: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                      {DAYS_OF_WEEK.map((d, i) => (
-                        <option key={d} value={i}>
-                          {d}
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} · Grade {c.grade}-{c.section} ({c.teacherName})
                         </option>
                       ))}
                     </select>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Day of Week:</label>
+                      <select
+                        value={slotForm.dayOfWeek}
+                        onChange={(e) => setSlotForm({ ...slotForm, dayOfWeek: Number(e.target.value) })}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
+                      >
+                        {DAYS_OF_WEEK.map((d, i) => (
+                          <option key={d} value={i}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Period Number:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={slotForm.period}
+                        onChange={(e) => setSlotForm({ ...slotForm, period: Number(e.target.value) })}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Period Number:</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Subject / Attendance Label:</label>
                     <input
-                      type="number"
-                      min="1"
-                      max="12"
-                      value={slotForm.period}
-                      onChange={(e) => setSlotForm({ ...slotForm, period: Number(e.target.value) })}
+                      type="text"
+                      placeholder="e.g. Al-Quran, Fiqh, Adab, Mathematics"
+                      value={slotForm.subject}
+                      onChange={(e) => setSlotForm({ ...slotForm, subject: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Start Time (24h):</label>
+                      <input
+                        type="time"
+                        required
+                        value={slotForm.startTime}
+                        onChange={(e) => setSlotForm({ ...slotForm, startTime: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">End Time (24h):</label>
+                      <input
+                        type="time"
+                        required
+                        value={slotForm.endTime}
+                        onChange={(e) => setSlotForm({ ...slotForm, endTime: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Room Number:</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Room 204, Iwan Hall"
+                      value={slotForm.roomNumber}
+                      onChange={(e) => setSlotForm({ ...slotForm, roomNumber: e.target.value })}
                       className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Subject / Attendance Label:</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Al-Quran, Fiqh, Adab, Mathematics"
-                    value={slotForm.subject}
-                    onChange={(e) => setSlotForm({ ...slotForm, subject: e.target.value })}
-                    className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Start Time (24h):</label>
-                    <input
-                      type="time"
-                      required
-                      value={slotForm.startTime}
-                      onChange={(e) => setSlotForm({ ...slotForm, startTime: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">End Time (24h):</label>
-                    <input
-                      type="time"
-                      required
-                      value={slotForm.endTime}
-                      onChange={(e) => setSlotForm({ ...slotForm, endTime: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Room Number:</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Room 204, Iwan Hall"
-                    value={slotForm.roomNumber}
-                    onChange={(e) => setSlotForm({ ...slotForm, roomNumber: e.target.value })}
-                    className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
                   <Button variant="outline" size="sm" type="button" onClick={() => setClassModalOpen(false)}>
                     Cancel
                   </Button>
@@ -1790,7 +1811,7 @@ export default function AdminAttendanceSchedulePage() {
                     className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
                   >
                     {savingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                    Save Period
+                    {editingSlot ? "Update Period" : "Save Period"}
                   </Button>
                 </div>
               </form>

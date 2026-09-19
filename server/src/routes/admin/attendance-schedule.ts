@@ -343,9 +343,11 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
 router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, startTime, endTime, lateEndTime, graceMinutes, enabled, applicableTeacherIds,
-      facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled } =
-      req.body as Record<string, any>;
+    const {
+      name, startTime, endTime, lateEndTime, graceMinutes, enabled,
+      applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
+      facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled
+    } = req.body as Record<string, any>;
 
     const existing = await prisma.biometricScanWindow.findUnique({ where: { id } });
     if (!existing) {
