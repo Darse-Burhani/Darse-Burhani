@@ -985,7 +985,7 @@ export async function processBiometricScan(
             data: {
               userId: teacher.userId,
               title: `⚡ Faculty Check-In: ${teacherInfo.name}`,
-              message: `${teacherInfo.name} checked in (${teacherStatus}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`,
+              body: `${teacherInfo.name} checked in (${teacherStatus}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`,
               type: "ATTENDANCE" as any,
               link: "/faculty/attendance",
             },
@@ -1199,7 +1199,7 @@ export async function processBiometricScan(
         data: Array.from(recipientUserIds).map((userId) => ({
           userId,
           title: notifTitle,
-          message: notifMsg,
+          body: notifMsg,
           type: "ATTENDANCE" as any,
           link: "/parent/attendance",
         })),
