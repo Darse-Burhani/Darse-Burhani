@@ -33,6 +33,7 @@ import {
   SlidersHorizontal,
   CheckSquare,
   Square,
+  Stethoscope,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
@@ -59,6 +60,24 @@ export interface PageDefinition {
 }
 
 export const AVAILABLE_PAGES: PageDefinition[] = [
+  {
+    id: "manual-attendance",
+    label: "Manual Attendance",
+    category: "Attendance",
+    description: "Mark manual attendance for classes, biometric scan windows & daily registry",
+    icon: CheckSquare,
+    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
+  },
+  {
+    id: "medical-duty",
+    label: "Medical & Health Duty",
+    category: "Operations",
+    description: "Mark Talabat & Faculty on Medical Leave / Exemption for events or full day",
+    icon: Stethoscope,
+    badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
+    cardColor: "hover:border-blue-400 hover:bg-blue-50/40",
+  },
   {
     id: "attendance-logs",
     label: "Attendance Logs",
@@ -171,21 +190,33 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
 
 const PRESETS = [
   {
-    name: "Full Authority (All 12 Modules)",
-    description: "Grants unconditional access to all 12 modules",
+    name: "Full Authority (All Modules)",
+    description: "Grants unconditional access to all portal modules",
     pages: AVAILABLE_PAGES.map((p) => p.id),
     color: "from-emerald-700 to-teal-800",
   },
   {
     name: "Standard Academic Faculty",
-    description: "Dashboard, Classes, Quran, Takhteet, Attendance Logs, Profile",
-    pages: ["dashboard", "classes", "quran", "takhteet", "attendance-logs", "profile"],
+    description: "Dashboard, Classes, Quran, Takhteet, Manual Attendance, Profile",
+    pages: ["dashboard", "classes", "quran", "takhteet", "manual-attendance", "profile"],
     color: "from-blue-700 to-indigo-800",
   },
   {
+    name: "Health & Medical In-Charge",
+    description: "Dashboard, Medical & Health Duty, Manual Attendance, Attendance Logs, Profile",
+    pages: ["dashboard", "medical-duty", "manual-attendance", "attendance-logs", "leave", "profile"],
+    color: "from-blue-800 to-cyan-900",
+  },
+  {
+    name: "Attendance Officer",
+    description: "Dashboard, Manual Attendance, Attendance Logs, Attendance Schedule, Email Reports, Leave, Profile",
+    pages: ["dashboard", "manual-attendance", "attendance-logs", "attendance-schedule", "email-reports", "leave", "profile"],
+    color: "from-emerald-800 to-green-900",
+  },
+  {
     name: "Hifz Department (Muhaffiz)",
-    description: "Dashboard, Quran, Attendance Logs, Leave, Profile",
-    pages: ["dashboard", "quran", "attendance-logs", "leave", "profile"],
+    description: "Dashboard, Quran, Manual Attendance, Leave, Profile",
+    pages: ["dashboard", "quran", "manual-attendance", "leave", "profile"],
     color: "from-cyan-700 to-teal-800",
   },
   {
@@ -193,12 +224,6 @@ const PRESETS = [
     description: "Dashboard, Procurement, Makhzan, Library, Leave, Profile",
     pages: ["dashboard", "procurement", "makhzan", "library", "leave", "profile"],
     color: "from-orange-700 to-amber-800",
-  },
-  {
-    name: "Attendance Officer",
-    description: "Dashboard, Attendance Logs, Attendance Schedule, Email Reports, Leave, Profile",
-    pages: ["dashboard", "attendance-logs", "attendance-schedule", "email-reports", "leave", "profile"],
-    color: "from-emerald-800 to-green-900",
   },
 ];
 
