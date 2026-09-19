@@ -116,8 +116,8 @@ function RequireRole({ role, children }: { role: string; children: React.ReactNo
   if (!session) return <Navigate to="/login" replace />;
   // Admin has universal access across all portals
   if (session.user.role === "ADMIN") return <>{children}</>;
-  // Assigned Teacher has full access and authority to run both admin and teacher portals
-  if (session.user.role === "TEACHER" && (role === "ADMIN" || role === "TEACHER")) {
+  // Assigned Teacher has full access and authority to run admin, teacher and preview portals
+  if (session.user.role === "TEACHER" && (role === "ADMIN" || role === "TEACHER" || role === "STUDENT")) {
     return <>{children}</>;
   }
   if (session.user.role !== role) {
@@ -310,7 +310,26 @@ export default function App() {
           <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><ModuleLockGuard moduleKey="hifz" role="TEACHER" title="Hifz Marhala"><TeacherHifzMarhala /></ModuleLockGuard></RequireAdminPageAccess>} />
           <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><ModuleLockGuard moduleKey="hifz" role="TEACHER" title="Hifz Weekly Slips"><TeacherHifzWeeklySlip /></ModuleLockGuard></RequireAdminPageAccess>} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><ModuleLockGuard moduleKey="takhteet" role="TEACHER" title="Takhteet"><TeacherTakhteet /></ModuleLockGuard></RequireAdminPageAccess>} />
+          <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
+          <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
+          <Route path="parents" element={<RequireAdminPageAccess pageKey="parents"><AdminParents /></RequireAdminPageAccess>} />
+          <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents"><AdminParentsAssign /></RequireAdminPageAccess>} />
+          <Route path="attendance-logs" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminAttendanceLogs /></RequireAdminPageAccess>} />
+          <Route path="attendance-schedule" element={<RequireAdminPageAccess pageKey="attendance-schedule"><AdminAttendanceSchedule /></RequireAdminPageAccess>} />
+          <Route path="attendance-emails" element={<RequireAdminPageAccess pageKey="email-reports"><AdminAttendanceEmails /></RequireAdminPageAccess>} />
+          <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
+          <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
+          <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
+          <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
+          <Route path="tracking" element={<RequireAdminPageAccess pageKey="tracking"><AdminTracking /></RequireAdminPageAccess>} />
+          <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><TeacherProcurement /></RequireAdminPageAccess>} />
+          <Route path="library" element={<RequireAdminPageAccess pageKey="library"><AdminLibrary /></RequireAdminPageAccess>} />
+          <Route path="makhzn" element={<RequireAdminPageAccess pageKey="makhzan"><AdminMakhzan /></RequireAdminPageAccess>} />
+          <Route path="makhzan" element={<Navigate to="/teacher/makhzn" replace />} />
+          <Route path="schedule" element={<Navigate to="/teacher/attendance-schedule" replace />} />
+          <Route path="attendance-log" element={<Navigate to="/teacher/attendance-logs" replace />} />
+          <Route path="attendance-registry" element={<Navigate to="/teacher/attendance-logs" replace />} />
           <Route path="profile" element={<ModuleLockGuard moduleKey="profile" role="TEACHER" title="My Profile"><TeacherProfile /></ModuleLockGuard>} />
           <Route path="settings" element={<TeacherSettings />} />
         </Route>

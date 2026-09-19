@@ -21,7 +21,11 @@ import {
   Sheet,
   ExternalLink,
   CalendarClock,
+  Fingerprint,
+  Mail,
+  FileText,
 } from "lucide-react";
+import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
   getAttendanceLogs,
   getAttendanceLogEvents,
@@ -426,6 +430,18 @@ export default function AdminAttendanceLogsPage() {
 
   return (
     <div className="p-3 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
+      {/* ── Attendance Hub Navigation Tabs ── */}
+      <AdminHubTabs
+        hubTitle="Attendance & Biometrics"
+        hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
+        tabs={[
+          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: FileText },
+          { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
+          { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
+        ]}
+      />
+
       {/* ── Premium Header with Live Controls ── */}
       <div className="relative overflow-hidden rounded-[20px] border border-emerald-100 bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 p-5 sm:p-6 shadow-lg">
         {/* subtle grid */}
@@ -724,7 +740,8 @@ export default function AdminAttendanceLogsPage() {
       <ManualAttendanceModal
         open={manualModalOpen}
         onOpenChange={setManualModalOpen}
-        initialScheduleType={audience === "FACULTY" ? "FACULTY_WINDOW" : "WINDOW"}
+        initialScheduleId={selectedEventId !== "ALL" ? selectedEventId : undefined}
+        initialTargetType={audience === "FACULTY" ? "TEACHER" : "STUDENT"}
         initialDate={date}
         onSuccess={() => fetchData(true)}
       />

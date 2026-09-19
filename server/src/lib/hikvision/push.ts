@@ -218,7 +218,7 @@ export function unwrapJsonPayload(obj: Record<string, any>): Record<string, any>
   // 4. InfoList wrapper (JSON export of AccessControl events pushed by some firmware).
   if (obj.InfoList && typeof obj.InfoList === "object") {
     const list = Array.isArray(obj.InfoList.AcsEvent) ? obj.InfoList.AcsEvent : [obj.InfoList.AcsEvent].filter(Boolean);
-    if (list.length) return list.map((e) => ({ ...obj, ...e }));
+    if (list.length) return list.map((e: any) => ({ ...obj, ...e }));
   }
 
   // 5. An explicit list of events.

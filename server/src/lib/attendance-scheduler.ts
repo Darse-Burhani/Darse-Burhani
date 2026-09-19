@@ -278,6 +278,8 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   markedCount: number;
   alreadyLoggedCount: number;
   totalStudents: number;
+  medicalCount?: number;
+  exemptCount?: number;
   markedStudents: Array<{ id: string; name: string; grade: string; section: string }>;
 }> {
   console.log("[attendance-scheduler] Starting automated auto-mark absent job...");

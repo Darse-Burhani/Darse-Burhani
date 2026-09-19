@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  CalendarDays,
   CheckCircle2,
   Clock,
   XCircle,
@@ -22,9 +21,11 @@ import {
   Send,
   Stethoscope,
   ShieldCheck,
+  Fingerprint,
+  Radio,
+  GraduationCap,
+  ChevronDown,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
@@ -45,51 +46,60 @@ const STATUSES: {
     key: "PRESENT",
     label: "Present",
     icon: CheckCircle2,
-    idle: "text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300",
-    active: "bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/30",
+    idle: "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300",
+    active: "bg-emerald-500 text-white border-emerald-500 ring-2 ring-emerald-300 ring-offset-1",
     dot: "bg-emerald-400",
   },
   {
     key: "LATE",
     label: "Late",
     icon: Clock,
-    idle: "text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-300",
-    active: "bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/30",
+    idle: "bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300",
+    active: "bg-amber-500 text-white border-amber-500 ring-2 ring-amber-300 ring-offset-1",
     dot: "bg-amber-400",
   },
   {
     key: "ABSENT",
     label: "Absent",
     icon: XCircle,
-    idle: "text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300",
-    active: "bg-red-500 text-white border-red-500 shadow-sm shadow-red-500/30",
+    idle: "bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300",
+    active: "bg-red-500 text-white border-red-500 ring-2 ring-red-300 ring-offset-1",
     dot: "bg-red-400",
   },
   {
     key: "MEDICAL",
     label: "Medical",
     icon: Stethoscope,
-    idle: "text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300",
-    active: "bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/30",
+    idle: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300",
+    active: "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 ring-offset-1",
     dot: "bg-blue-400",
   },
   {
     key: "EXCUSED",
     label: "Excused",
     icon: ShieldCheck,
-    idle: "text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300",
-    active: "bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/30",
+    idle: "bg-white text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300",
+    active: "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-300 ring-offset-1",
     dot: "bg-purple-400",
   },
   {
     key: "EARLY_DEPARTURE",
     label: "Early Dep.",
     icon: AlertTriangle,
-    idle: "text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300",
-    active: "bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-500/30",
+    idle: "bg-white text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300",
+    active: "bg-orange-500 text-white border-orange-500 ring-2 ring-orange-300 ring-offset-1",
     dot: "bg-orange-400",
   },
 ];
+
+const STATUS_DOT: Record<AttendanceStatus, string> = {
+  PRESENT: "bg-emerald-400",
+  LATE: "bg-amber-400",
+  ABSENT: "bg-red-400",
+  MEDICAL: "bg-blue-400",
+  EXCUSED: "bg-purple-400",
+  EARLY_DEPARTURE: "bg-orange-400",
+};
 
 interface RosterStudent {
   profileId: string;
@@ -370,335 +380,394 @@ export default function TeacherAttendancePage() {
   };
 
   const markedCount = roster.filter((s) => s.status !== "ABSENT").length;
+  const presentPct = roster.length > 0 ? Math.round((summary.PRESENT / roster.length) * 100) : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-gray-900">
-            Mark Attendance
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Select a class and date, then mark each talabat present, late, absent, or early departure.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          <Button
-            variant="outline"
-            onClick={() => setManualModalOpen(true)}
-            className="text-emerald-800 border-emerald-300 hover:bg-emerald-50 font-bold"
-          >
-            <Clock className="w-4 h-4 mr-2 text-emerald-600" />
-            Multi-Schedule Manual Entry
-          </Button>
-          {roster.length > 0 && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setEmailModalOpen(true)}
-                className="text-amber-800 border-amber-300 hover:bg-amber-50"
-              >
-                <Mail className="w-4 h-4 mr-2 text-amber-600" />
-                Email Reports to Parents
-              </Button>
-              <Button variant="teacher" onClick={save} loading={saving} className="sm:w-auto">
-                <Save className="w-4 h-4 mr-2" />
-                Save Attendance
-              </Button>
-            </>
-          )}
-        </div>
-      </motion.div>
+    <div className="min-h-screen bg-[#f4f6f8]">
+      {/* ── Hero Header ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900">
+        {/* subtle dot grid */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+            backgroundSize: "20px 20px",
+          }}
+        />
+        {/* glow orbs */}
+        <div className="pointer-events-none absolute -top-20 -right-20 w-80 h-80 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 w-60 h-40 rounded-full bg-amber-400/10 blur-3xl" />
 
-      {/* Pending Justifications */}
-      {!loadingJustifications && justifications.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="mb-6"
-        >
-          <Card className="fatimi-card border-amber-200 bg-amber-50/40">
-            <div className="fatimi-card-header" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <ClipboardList className="w-4 h-5 text-amber-600" />
-                Absence Justifications
-                <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">
-                  {justifications.length} pending
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="divide-y divide-amber-100">
-                {justifications.map((j) => (
-                  <div key={j.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-gray-900">{j.studentName}</p>
-                        <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-700">
-                          {j.status === "ABSENT" ? "Absent" : "Early Dep."}
-                        </Badge>
-                        <span className="text-xs text-gray-500">
-                          {j.className} ·{" "}
-                          {new Date(j.date).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        “{j.justification}”
-                      </p>
-                      <p className="text-[10px] text-gray-500 mt-1">
-                        Submitted {j.justificationSubmittedAt ? new Date(j.justificationSubmittedAt).toLocaleString() : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() => handleJustification(j.id, "REJECTED")}
-                        disabled={handlingId === j.id}
-                      >
-                        {handlingId === j.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <X className="w-3.5 h-3.5" />
-                        )}
-                        Decline
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => handleJustification(j.id, "APPROVED")}
-                        disabled={handlingId === j.id}
-                      >
-                        {handlingId === j.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                        Approve
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Controls */}
-      <Card className="mb-6">
-        <CardContent className="p-5 grid sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="classId" className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
-              Class
-            </label>
-            {loadingClasses ? (
-              <div className="h-10 rounded-xl bg-gray-100 animate-pulse" />
-            ) : (
-              <select
-                id="classId"
-                name="classId"
-                value={classId}
-                onChange={(e) => setClassId(e.target.value)}
-                className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400"
-              >
-                {classes.length === 0 && <option value="">No classes assigned</option>}
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.subject} · Grade {c.grade}
-                    {c.section ? `-${c.section}` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div>
-            <label htmlFor="date" className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
-              Date
-            </label>
-            <input
-              type="date"
-              id="date"
-              name="date"
-              value={date}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
-              className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="roster-search" className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
-              Search
-            </label>
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                id="roster-search"
-                name="roster-search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name or ITS number…"
-                className="w-full h-10 rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {!classId || !selectedClass ? (
-        <Card>
-          <CardContent className="p-12 text-center text-gray-500">
-            {loadingClasses ? (
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-amber-600" />
-            ) : (
-              <>
-                <ClipboardCheck className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-                <p className="text-sm">No classes assigned. Ask an admin to create a class.</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      ) : roster.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center text-gray-500">
-            {loadingRoster ? (
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-amber-600" />
-            ) : (
-              <>
-                <Users className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-                <p className="text-sm">No talabat enrolled in this class yet.</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* Summary + quick actions */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="grid sm:grid-cols-4 gap-4 mb-6"
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col lg:flex-row lg:items-end justify-between gap-6"
           >
-            {STATUSES.map((cfg) => (
-              <Card key={cfg.key} className="fatimi-card">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">{cfg.label}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-0.5">{summary[cfg.key]}</p>
-                  </div>
-                  <div className={`w-3 h-3 rounded-full ${cfg.dot}`} />
-                </CardContent>
-              </Card>
-            ))}
+            {/* Title block */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.14em] bg-emerald-600 text-emerald-100 border border-emerald-500">
+                  <Radio className="w-2.5 h-2.5 animate-pulse" />
+                  Live Class Roster
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Mark Attendance
+              </h1>
+              <p className="text-emerald-200 text-sm max-w-md opacity-80">
+                Select class and date · mark each talabat · records sync across all portals instantly.
+              </p>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setManualModalOpen(true)}
+                className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/30 text-white text-sm font-bold transition-all duration-300 active:scale-[0.97]"
+              >
+                <Fingerprint className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform duration-300" />
+                Manual Entry
+              </button>
+              {roster.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEmailModalOpen(true)}
+                    className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 border border-amber-400 text-white text-sm font-bold transition-all duration-300 active:scale-[0.97]"
+                  >
+                    <Mail className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                    Email Parents
+                  </button>
+                  <button
+                    type="button"
+                    onClick={save}
+                    disabled={saving}
+                    className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-sm font-black transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] disabled:opacity-60 shadow-lg shadow-amber-400/30"
+                  >
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                    )}
+                    Save Attendance
+                  </button>
+                </>
+              )}
+            </div>
           </motion.div>
 
-          <Card className="fatimi-card mb-6">
-            <div className="fatimi-card-header" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <CalendarDays className="w-4 h-5 text-amber-600" />
-                {selectedClass.name} · {date}
-              </CardTitle>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAll("PRESENT")}
-                  disabled={saving}
+          {/* ── Summary Stat Strip ── */}
+          {roster.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-6 grid grid-cols-3 sm:grid-cols-6 gap-2"
+            >
+              {STATUSES.map((cfg) => (
+                <div
+                  key={cfg.key}
+                  className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border border-white/20 bg-white/10"
                 >
-                  <UserCheck className="w-4 h-4 mr-1.5" /> All Present
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAll("ABSENT")}
-                  disabled={saving}
-                >
-                  <XCircle className="w-4 h-4 mr-1.5" /> All Absent
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={resetAll}
-                  disabled={saving}
-                >
-                  <RotateCcw className="w-4 h-4 mr-1.5" /> Reset
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingRoster ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+                  <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                  <p className="text-xl font-black text-white leading-none">{summary[cfg.key]}</p>
+                  <p className="text-[10px] text-emerald-100 font-bold uppercase tracking-wider">{cfg.label}</p>
                 </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {filteredRoster.map((s, i) => (
+              ))}
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+        {/* ── Pending Justifications ── */}
+        <AnimatePresence>
+          {!loadingJustifications && justifications.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="rounded-2xl bg-amber-50 border border-amber-200 overflow-hidden">
+                <div className="px-5 py-3 flex items-center gap-2 bg-amber-100/60 border-b border-amber-200">
+                  <ClipboardList className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-bold text-amber-900">Absence Justifications</h3>
+                  <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 text-[10px] font-black">
+                    {justifications.length} pending
+                  </span>
+                </div>
+                <div className="divide-y divide-amber-100">
+                  {justifications.map((j) => (
+                    <div key={j.id} className="px-5 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900">{j.studentName}</p>
+                          <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">
+                            {j.status === "ABSENT" ? "Absent" : "Early Dep."}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {j.className} ·{" "}
+                            {new Date(j.date).toLocaleDateString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">"{j.justification}"</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleJustification(j.id, "REJECTED")}
+                          disabled={handlingId === j.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          {handlingId === j.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                          Decline
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleJustification(j.id, "APPROVED")}
+                          disabled={handlingId === j.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                        >
+                          {handlingId === j.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          Approve
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Controls Card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05, duration: 0.4 }}
+        >
+          <div className="rounded-2xl bg-white border border-gray-200/80 shadow-sm p-5">
+            <div className="grid sm:grid-cols-3 gap-4">
+              {/* Class selector */}
+              <div>
+                <label htmlFor="classId" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-1.5">
+                  Class
+                </label>
+                {loadingClasses ? (
+                  <div className="h-10 rounded-xl bg-gray-100 animate-pulse" />
+                ) : (
+                  <div className="relative">
+                    <select
+                      id="classId"
+                      name="classId"
+                      value={classId}
+                      onChange={(e) => setClassId(e.target.value)}
+                      className="w-full h-10 appearance-none rounded-xl border border-gray-200 bg-gray-50 pl-3 pr-8 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors"
+                    >
+                      {classes.length === 0 && <option value="">No classes assigned</option>}
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} · {c.subject} · Gr {c.grade}{c.section ? `-${c.section}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-3 pointer-events-none" />
+                  </div>
+                )}
+              </div>
+
+              {/* Date picker */}
+              <div>
+                <label htmlFor="date" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-1.5">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  id="date"
+                  name="date"
+                  value={date}
+                  onChange={(e) => e.target.value && setDate(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              {/* Search */}
+              <div>
+                <label htmlFor="roster-search" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-1.5">
+                  Search
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    id="roster-search"
+                    name="roster-search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Name or ITS number…"
+                    className="w-full h-10 rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ── Roster ── */}
+        {!classId || !selectedClass ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-2xl bg-white border border-gray-200 p-16 text-center"
+          >
+            {loadingClasses ? (
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600" />
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto mb-4">
+                  <ClipboardCheck className="w-7 h-7 text-emerald-500" />
+                </div>
+                <p className="text-sm font-semibold text-gray-600">No classes assigned. Ask an admin to create a class.</p>
+              </>
+            )}
+          </motion.div>
+        ) : roster.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-2xl bg-white border border-gray-200 p-16 text-center"
+          >
+            {loadingRoster ? (
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600" />
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-7 h-7 text-gray-400" />
+                </div>
+                <p className="text-sm font-semibold text-gray-500">No talabat enrolled in this class yet.</p>
+              </>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+          >
+            <div className="rounded-2xl bg-white border border-gray-200/80 shadow-sm overflow-hidden">
+              {/* Roster Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-100 bg-gray-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4 text-emerald-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{selectedClass.name}</p>
+                    <p className="text-[11px] text-gray-500">{date} · {filteredRoster.length} talabat</p>
+                  </div>
+                  {loadingRoster && <Loader2 className="w-4 h-4 animate-spin text-emerald-600 ml-1" />}
+                </div>
+
+                {/* Bulk actions */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Bulk:</span>
+                  <button
+                    type="button"
+                    onClick={() => setAll("PRESENT")}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-50"
+                  >
+                    <UserCheck className="w-3 h-3" /> All Present
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAll("ABSENT")}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle className="w-3 h-3" /> All Absent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetAll}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-gray-600 bg-white hover:bg-gray-50 border border-gray-200 transition-colors disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Roster Rows */}
+              <div className="divide-y divide-gray-100/80">
+                {loadingRoster ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="w-7 h-7 animate-spin text-emerald-600" />
+                  </div>
+                ) : (
+                  filteredRoster.map((s, i) => (
                     <motion.div
                       key={s.profileId}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.02 }}
-                      className="py-3 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.015, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      className="px-5 py-3 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 hover:bg-gray-50/60 transition-colors duration-150"
                     >
+                      {/* Avatar + Info */}
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <button
                           type="button"
                           onClick={() => cycleStatus(s.profileId)}
                           title="Click to cycle status"
-                          className="relative shrink-0"
+                          className="relative shrink-0 focus:outline-none"
                         >
                           {s.avatarUrl ? (
                             <img
                               src={s.avatarUrl}
                               alt={s.name}
-                              className="w-11 h-11 rounded-xl object-cover border-2 border-amber-200"
+                              className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm"
                             />
                           ) : (
-                            <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-semibold border-2 border-amber-200">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-xs font-black text-white border-2 border-white shadow-sm">
                               {getInitials(s.firstName, s.lastName)}
                             </div>
                           )}
                           <span
-                            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${STATUSES.find((c) => c.key === s.status)?.dot}`}
+                            className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${STATUS_DOT[s.status]}`}
                           />
                         </button>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {s.studentNumber}
-                            {s.grade ? ` · Grade ${s.grade}${s.section ? `-${s.section}` : ""}` : ""}
-                          </p>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-bold text-gray-900 truncate">{s.name}</p>
+                            {s.grade && (
+                              <span className="shrink-0 px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-700 border border-emerald-100">
+                                Gr {s.grade}{s.section ? `-${s.section}` : ""}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-400 font-mono mt-0.5">{s.studentNumber}</p>
                           {s.justificationStatus === "PENDING" && (
-                            <p className="text-[10px] text-amber-600 font-medium mt-0.5">
-                              ⏳ Justification pending
-                            </p>
+                            <span className="inline-block text-[10px] text-amber-600 font-bold mt-0.5">⏳ Justification pending</span>
                           )}
                           {s.justificationStatus === "APPROVED" && (
-                            <p className="text-[10px] text-emerald-700 font-medium mt-0.5">
-                              ✓ Absence justified
-                            </p>
+                            <span className="inline-block text-[10px] text-emerald-700 font-bold mt-0.5">✓ Absence justified</span>
                           )}
                           {s.justificationStatus === "REJECTED" && (
-                            <p className="text-[10px] text-red-600 font-medium mt-0.5">
-                              ✕ Justification rejected
-                            </p>
+                            <span className="inline-block text-[10px] text-red-600 font-bold mt-0.5">✕ Justification rejected</span>
                           )}
                         </div>
                       </div>
 
+                      {/* Status Buttons */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {STATUSES.map((cfg) => {
                           const Icon = cfg.icon;
@@ -709,8 +778,8 @@ export default function TeacherAttendancePage() {
                               type="button"
                               onClick={() => setStatus(s.profileId, cfg.key)}
                               className={cn(
-                                "inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all",
-                                active ? cfg.active : cn("bg-white/80", cfg.idle),
+                                "inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition-all duration-200 active:scale-[0.96]",
+                                active ? cfg.active : cfg.idle,
                               )}
                             >
                               <Icon className="w-3.5 h-3.5" />
@@ -718,8 +787,10 @@ export default function TeacherAttendancePage() {
                             </button>
                           );
                         })}
+
+                        {/* Check-in time */}
                         <div className="flex items-center gap-1.5 ml-1">
-                          <Clock className="w-3.5 h-3.5 text-gray-500" />
+                          <Clock className="w-3.5 h-3.5 text-gray-400" />
                           <label htmlFor={`check-in-${s.profileId}`} className="sr-only">Check-in time</label>
                           <input
                             type="time"
@@ -728,146 +799,156 @@ export default function TeacherAttendancePage() {
                             value={s.checkInTime}
                             disabled={s.status === "ABSENT" || saving}
                             onChange={(e) => setCheckIn(s.profileId, e.target.value)}
-                            className="h-9 w-28 rounded-xl border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400/50 disabled:opacity-40"
+                            className="h-8 w-28 rounded-xl border border-gray-200 bg-gray-50 px-2 text-[11px] font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 disabled:opacity-40 transition-colors"
                           />
                         </div>
                       </div>
                     </motion.div>
-                  ))}
-                  {filteredRoster.length === 0 && (
-                    <div className="py-12 text-center text-gray-500">
-                      <p className="text-sm">No talabat match “{query}”.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ))
+                )}
+                {filteredRoster.length === 0 && !loadingRoster && (
+                  <div className="py-12 text-center text-gray-400">
+                    <p className="text-sm font-semibold">No talabat match "{query}".</p>
+                  </div>
+                )}
+              </div>
 
-          {/* Sticky save bar */}
+              {/* ── Sticky Save Bar ── */}
+              <div className="sticky bottom-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+                <div className="flex items-center gap-4">
+                  {/* Progress bar */}
+                  <div className="hidden sm:flex flex-col gap-1 min-w-[140px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Attendance</span>
+                      <span className="text-[10px] font-black text-emerald-700">{presentPct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500"
+                        style={{ width: `${presentPct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 font-medium">
+                    <span className="font-black text-emerald-700">{summary.PRESENT + summary.LATE}</span> of{" "}
+                    <span className="font-bold">{roster.length}</span> present
+                    <span className="text-gray-400 ml-2 text-xs">({markedCount}/{roster.length} marked)</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-black transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] disabled:opacity-60 shadow-md shadow-emerald-700/20"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Attendance
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* ── Email Report Modal ── */}
+      <AnimatePresence>
+        {emailModalOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="sticky bottom-4"
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           >
-            <Card className="shadow-xl">
-              <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="text-sm text-gray-600">
-                  <Badge variant="success" className="mr-2 text-[10px]">Present</Badge>
-                  {summary.PRESENT + summary.LATE} of {roster.length} present
-                  <span className="text-gray-500 ml-2 hidden sm:inline">
-                    ({markedCount}/{roster.length} marked)
-                  </span>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-200/80 overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-white">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Mail className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900">Email Attendance Reports to Parents</h3>
                 </div>
-                <Button variant="teacher" onClick={save} loading={saving} className="w-full sm:w-auto">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Attendance
-                </Button>
-              </CardContent>
-            </Card>
+                <button
+                  type="button"
+                  onClick={() => setEmailModalOpen(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Send personalized attendance reports for all{" "}
+                  <strong className="text-gray-900">{roster.length} talabat</strong> in{" "}
+                  <strong className="text-gray-900">{selectedClass?.name || "this class"}</strong> to their parents.
+                </p>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-2">Report Period</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["WEEKLY", "MONTHLY"] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setEmailPeriodType(type)}
+                        className={cn(
+                          "py-2.5 px-3 rounded-xl border text-xs font-bold transition-all",
+                          emailPeriodType === type
+                            ? "border-amber-500 bg-amber-50 text-amber-900 shadow-sm"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+                        )}
+                      >
+                        {type === "WEEKLY" ? "📅 Weekly (Past 7 Days)" : "📊 Monthly (Current Month)"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-2">Teacher's Note (Optional)</label>
+                  <textarea
+                    rows={3}
+                    value={emailNote}
+                    onChange={(e) => setEmailNote(e.target.value)}
+                    placeholder="e.g. Jazakallah for ensuring punctual attendance."
+                    className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400 resize-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                <button
+                  type="button"
+                  onClick={() => setEmailModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendClassEmails}
+                  disabled={emailSending}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-black transition-all disabled:opacity-60"
+                >
+                  {emailSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Send to {roster.length} Parents
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
-        </>
-      )}
+        )}
+      </AnimatePresence>
 
-      {/* ── Class Email Dispatch Modal ── */}
-      {emailModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Mail className="w-5 h-5 text-amber-600" />
-                Email Attendance Reports to Parents
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEmailModalOpen(false)}
-                className="text-gray-500 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-600 mb-4">
-              Send personalized attendance reports for all{" "}
-              <strong>{roster.length} talabat</strong> in{" "}
-              <strong>{selectedClass?.name || "this class"}</strong> directly to their parents.
-            </p>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1.5 uppercase tracking-wide">
-                  Report Frequency / Period:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEmailPeriodType("WEEKLY")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                      emailPeriodType === "WEEKLY"
-                        ? "border-amber-500 bg-amber-50 text-amber-900"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    📅 Weekly Report (Past 7 Days)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEmailPeriodType("MONTHLY")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                      emailPeriodType === "MONTHLY"
-                        ? "border-amber-500 bg-amber-50 text-amber-900"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    📊 Monthly Report (Current Month)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1.5 uppercase tracking-wide">
-                  Teacher's Note / Remark (Optional):
-                </label>
-                <textarea
-                  rows={3}
-                  value={emailNote}
-                  onChange={(e) => setEmailNote(e.target.value)}
-                  placeholder="e.g. Jazakallah for ensuring punctual attendance. Please review this week's attendance summary."
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEmailModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="teacher"
-                size="sm"
-                disabled={emailSending}
-                onClick={handleSendClassEmails}
-                className="font-bold"
-              >
-                {emailSending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : (
-                  <Send className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                Send Reports to {roster.length} Talabat
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Multi-Schedule Manual Attendance Modal */}
+      {/* ── Schedule-Driven Manual Attendance Modal ── */}
       <ManualAttendanceModal
         open={manualModalOpen}
         onOpenChange={setManualModalOpen}
-        initialScheduleType="CLASS_PERIOD"
-        initialClassId={classId}
         initialDate={date}
         onSuccess={() => loadRoster()}
       />

@@ -39,6 +39,8 @@ import {
   Printer,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +50,7 @@ import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 
 export default function AdminUsersPage() {
+  const pathname = usePathname();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -1789,6 +1792,7 @@ function FacultyCard({
   onCopy,
   copiedText,
 }: any) {
+  const pathname = usePathname();
   const tp = user.teacherProfile || {};
   const isPortfolio = Boolean(tp.portfolioEnabled);
   const pwd = user.plainPassword || "Burhani@2026";
@@ -1936,7 +1940,7 @@ function FacultyCard({
             <Shield className="w-3.5 h-3.5 text-emerald-700" />
             <span>Page Authority</span>
           </div>
-          <a href={`/admin/portal-assignments?teacherId=${user.id}`}>
+          <Link href={pathname.startsWith("/teacher") ? `/teacher/portal-assignments?teacherId=${user.id}` : `/admin/portal-assignments?teacherId=${user.id}`}>
             <Button
               size="sm"
               variant="outline"
@@ -1944,7 +1948,7 @@ function FacultyCard({
             >
               Assign Pages
             </Button>
-          </a>
+          </Link>
         </div>
       </div>
 

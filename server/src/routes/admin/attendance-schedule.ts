@@ -280,16 +280,17 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Faculty timer requires both On-time From and On-time To" });
     }
     if (fs && fe) {
+      const fl = facultyLateEndTime && String(facultyLateEndTime).trim() ? String(facultyLateEndTime).trim() : fe;
       if (!HH_MM.test(fs) || !HH_MM.test(fe)) {
         return res.status(400).json({ success: false, error: "Faculty times must be in HH:MM format (24hr)" });
       }
       if (toMinutes(fe) <= toMinutes(fs)) {
         return res.status(400).json({ success: false, error: "Faculty On-time To must be after On-time From" });
       }
-      if (!HH_MM.test(flRaw) || toMinutes(flRaw) < toMinutes(fe)) {
+      if (!HH_MM.test(fl) || toMinutes(fl) < toMinutes(fe)) {
         return res.status(400).json({ success: false, error: "Faculty Late-till must be at or after On-time To" });
       }
-      facultyTimer = { start: fs, end: fe, late: flRaw };
+      facultyTimer = { start: fs, end: fe, late: fl };
     }
 
     const applicableTeachers = Array.isArray(applicableTeacherIds)

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Fingerprint,
+  Mail,
   Radio,
   Server,
   ShieldCheck,
@@ -551,6 +552,18 @@ export default function BiometricAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* ── Attendance Hub Navigation Tabs ── */}
+      <AdminHubTabs
+        hubTitle="Attendance & Biometrics"
+        hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
+        tabs={[
+          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: Layers },
+          { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
+          { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
+        ]}
+      />
+
       {/* TOP HEADER & ADMIN HUB NAVIGATION */}
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">

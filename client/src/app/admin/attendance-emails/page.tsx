@@ -14,8 +14,11 @@ import {
   GraduationCap,
   Briefcase,
   BellRing,
+  Layers,
+  Clock,
+  Fingerprint,
 } from "lucide-react";
-
+import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -241,7 +244,17 @@ export default function AdminAttendanceEmailsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-
+      {/* ── Attendance Hub Navigation Tabs ── */}
+      <AdminHubTabs
+        hubTitle="Attendance & Biometrics"
+        hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
+        tabs={[
+          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: Layers },
+          { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
+          { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
+        ]}
+      />
 
       {/* Header Banner */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

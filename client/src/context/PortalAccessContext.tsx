@@ -120,7 +120,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       // 2. Fetch specific teacher page assignments if Teacher role
       if (session?.user?.role === "TEACHER") {
         try {
-          const assignRes = await fetch("/api/admin/portal-assignments");
+          const assignRes = await fetch("/api/admin/portal-assignments?self=true");
           if (assignRes.ok) {
             const assignJson = await assignRes.json();
             if (assignJson.success && Array.isArray(assignJson.data?.assignedPages)) {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { usePortalAccess } from "@/context/PortalAccessContext";
 
 export interface HubTabItem {
   label: string;
@@ -24,13 +25,55 @@ interface AdminHubTabsProps {
 export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: AdminHubTabsProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isPageAssigned } = usePortalAccess();
 
-  let activeIndex = tabs.findIndex((t) => t.href === pathname || `${t.href}/` === pathname);
+  const isTeacherContext = pathname.startsWith("/teacher");
+
+  const resolveHref = useMemo(() => {
+    return (href: string) => {
+      if (isTeacherContext && href.startsWith("/admin/")) {
+        return href.replace(/^\/admin\//, "/teacher/");
+      }
+      return href;
+    };
+  }, [isTeacherContext]);
+
+  const getPageKeyFromHref = (href: string) => {
+    const clean = href.replace(/^\/(admin|teacher)\//, "").split("/")[0].split("?")[0];
+    if (clean === "attendance-emails") return "email-reports";
+    if (clean === "makhzn") return "makhzan";
+    if (clean === "hifz") return "quran";
+    return clean;
+  };
+
+  const resolvedTabs = useMemo(() => {
+    const mapped = tabs.map((t) => ({
+      ...t,
+      targetHref: resolveHref(t.href),
+    }));
+
+    if (!isTeacherContext) return mapped;
+
+    return mapped.filter((t) => {
+      const pageKey = getPageKeyFromHref(t.href);
+      return (
+        isPageAssigned(pageKey) ||
+        t.targetHref === pathname ||
+        pathname.startsWith(t.targetHref) ||
+        t.href === pathname ||
+        pathname.startsWith(t.href)
+      );
+    });
+  }, [tabs, resolveHref, isTeacherContext, isPageAssigned, pathname]);
+
+  let activeIndex = resolvedTabs.findIndex(
+    (t) => t.targetHref === pathname || `${t.targetHref}/` === pathname || t.href === pathname || `${t.href}/` === pathname
+  );
   if (activeIndex === -1) {
     let maxLen = 0;
-    tabs.forEach((t, idx) => {
-      if (pathname.startsWith(t.href) && t.href.length > maxLen) {
-        maxLen = t.href.length;
+    resolvedTabs.forEach((t, idx) => {
+      if ((pathname.startsWith(t.targetHref) && t.targetHref.length > maxLen) || (pathname.startsWith(t.href) && t.href.length > maxLen)) {
+        maxLen = Math.max(t.targetHref.length, t.href.length);
         activeIndex = idx;
       }
     });
@@ -48,25 +91,25 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
       // [ and ] to cycle tabs
       if (e.key === "[" && activeIndex > 0) {
         e.preventDefault();
-        router.push(tabs[activeIndex - 1].href);
-      } else if (e.key === "]" && activeIndex >= 0 && activeIndex < tabs.length - 1) {
+        router.push(resolvedTabs[activeIndex - 1].targetHref);
+      } else if (e.key === "]" && activeIndex >= 0 && activeIndex < resolvedTabs.length - 1) {
         e.preventDefault();
-        router.push(tabs[activeIndex + 1].href);
+        router.push(resolvedTabs[activeIndex + 1].targetHref);
       }
 
       // Alt+1, Alt+2, etc. to jump to specific sub-tab
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
         const num = parseInt(e.key, 10);
-        if (num >= 1 && num <= tabs.length) {
+        if (num >= 1 && num <= resolvedTabs.length) {
           e.preventDefault();
-          router.push(tabs[num - 1].href);
+          router.push(resolvedTabs[num - 1].targetHref);
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeIndex, tabs, router]);
+  }, [activeIndex, resolvedTabs, router]);
 
   return (
     <div className={cn("mb-6", className)}>
@@ -94,18 +137,20 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
 
       {/* Sub-tab Pill Navigation */}
       <div className="flex items-center gap-2 overflow-x-auto pt-3 pb-1 no-scrollbar">
-        {tabs.map((tab, idx) => {
+        {resolvedTabs.map((tab, idx) => {
           const isActive =
+            tab.targetHref === pathname ||
+            `${tab.targetHref}/` === pathname ||
             tab.href === pathname ||
             `${tab.href}/` === pathname ||
-            (idx === 0 && activeIndex === -1 && pathname.startsWith(tab.href));
+            (idx === 0 && activeIndex === -1 && (pathname.startsWith(tab.targetHref) || pathname.startsWith(tab.href)));
 
           const Icon = tab.icon;
 
           return (
             <Link
-              key={tab.href}
-              href={tab.href}
+              key={tab.targetHref}
+              href={tab.targetHref}
               className={cn(
                 "group relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border shadow-2xs",
                 isActive

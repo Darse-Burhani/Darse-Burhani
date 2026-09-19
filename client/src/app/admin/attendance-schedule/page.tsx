@@ -20,6 +20,7 @@ import {
   Check,
   X,
   FileSpreadsheet,
+  FileText,
   CalendarDays,
   Timer,
   ShieldCheck,
@@ -40,7 +41,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
 
 interface ScanWindow {
   id: string;
@@ -162,7 +162,6 @@ export default function AdminAttendanceSchedulePage() {
 
   // Download export state
   const [exporting, setExporting] = useState(false);
-  const [manualModalOpen, setManualModalOpen] = useState(false);
 
   // Auto-Mark Absent Governance State
   const [autoAbsentPreview, setAutoAbsentPreview] = useState<{
@@ -704,8 +703,9 @@ export default function AdminAttendanceSchedulePage() {
         hubTitle="Attendance & Biometrics"
         hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
         tabs={[
-          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
+          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
           { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
@@ -739,13 +739,6 @@ export default function AdminAttendanceSchedulePage() {
             >
               <Stethoscope className="w-4 h-4 text-emerald-200" />
               Health &amp; Medical Duty
-            </Button>
-            <Button
-              onClick={() => setManualModalOpen(true)}
-              className="bg-gradient-to-r from-[#d4af37] to-[#b38f26] hover:from-[#e5c158] hover:to-[#c49f32] text-gray-900 font-extrabold text-xs h-10 px-4 rounded-xl shadow-lg border border-[#fef08a]/40 transition-all flex items-center gap-2"
-            >
-              <Users className="w-4 h-4 text-gray-900" />
-              Manual Attendance Sheet
             </Button>
             <Button
               onClick={() => downloadExcel(activeTab)}
@@ -1081,33 +1074,6 @@ export default function AdminAttendanceSchedulePage() {
               );
             })}
           </div>
-
-          {/* Quick Roster Export Card */}
-          <Card className="fatimi-card bg-gradient-to-br from-emerald-50/50 via-white to-amber-50/30 border-emerald-200">
-            <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800">
-                  <FileSpreadsheet className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-gray-900">Download Today's Live Attendance Sheet</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Exports all talabat check-ins recorded across the schedule today in Excel with profile pic, grade, scheduled event &amp; status.
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                onClick={() => downloadExcel("ROSTER")}
-                disabled={exporting}
-                variant="outline"
-                className="text-emerald-800 border-emerald-300 hover:bg-emerald-50 text-xs font-bold"
-              >
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download Report (.csv)
-              </Button>
-            </CardContent>
-          </Card>
         </motion.div>
       )}
 
@@ -1925,20 +1891,6 @@ export default function AdminAttendanceSchedulePage() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Manual Attendance Modal */}
-      <ManualAttendanceModal
-        open={manualModalOpen}
-        onOpenChange={setManualModalOpen}
-        initialScheduleType={
-          activeTab === "FACULTY"
-            ? "FACULTY_WINDOW"
-            : activeTab === "CLASSES"
-            ? "CLASS_PERIOD"
-            : "WINDOW"
-        }
-        onSuccess={() => loadData()}
-      />
     </div>
   );
 }
