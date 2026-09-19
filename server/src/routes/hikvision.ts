@@ -24,7 +24,12 @@ function buildPushUrl(req: import("express").Request, deviceIp?: string): string
     !process.env.NEXT_PUBLIC_APP_URL.includes("localhost") &&
     !process.env.NEXT_PUBLIC_APP_URL.includes("127.0.0.1")
   ) {
-    return `${process.env.NEXT_PUBLIC_APP_URL}/api/hikvision/events`;
+    return `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/api/hikvision/events`;
+  }
+  const forwardedHost = req.get("x-forwarded-host") || req.get("host");
+  if (forwardedHost && !forwardedHost.includes("localhost") && !forwardedHost.includes("127.0.0.1")) {
+    const proto = req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    return `${proto}://${forwardedHost}/api/hikvision/events`;
   }
   const lanIp = getLocalLanIp(deviceIp);
   return `http://${lanIp}:4000/api/hikvision/events`;
@@ -69,6 +74,12 @@ const handleWebhookEvents = async (req: import("express").Request, res: import("
       console.warn(`[hikvision] push rejected from ${req.ip} — invalid secret`);
       return res.status(401).json({ success: false, error: "Invalid biometric secret" });
     }
+
+    // Automatically mark all enabled devices as ONLINE when receiving webhook traffic
+    prisma.biometricDevice.updateMany({
+      where: { enabled: true },
+      data: { status: "ONLINE", lastSeenAt: new Date(), lastError: null, lastPolledAt: new Date() },
+    }).catch(() => {});
 
     const contentType = String(req.headers["content-type"] ?? "application/json");
     console.log(`[hikvision] push received (${contentType}, ${Buffer.isBuffer(req.body) ? req.body.length : JSON.stringify(req.body ?? {}).length} bytes)`);

@@ -145,6 +145,12 @@ toast.error = (title: string, description?: string) =>
 toast.warning = (title: string, description?: string) =>
   toast({ title, description, variant: "warning" });
 
+toast.info = (title: string, description?: string) =>
+  toast({ title, description, variant: "default" });
+
+toast.loading = (title: string, description?: string | { id?: string }) =>
+  toast({ title, description: typeof description === "string" ? description : undefined, variant: "default", duration: 3000 });
+
 function useToast() {
   const [state, setState] = React.useState<ToastState>({ toasts: [] });
 

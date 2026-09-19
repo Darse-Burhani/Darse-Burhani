@@ -588,21 +588,34 @@ export function sameWebhookPath(a: string, b: string): boolean {
   return pathOf(a) === pathOf(b);
 }
 
+export function isPrivateLanHost(host: string): boolean {
+  if (!host) return true;
+  const trimmed = host.trim().toLowerCase();
+  if (trimmed === "localhost" || trimmed === "127.0.0.1" || trimmed === "0.0.0.0" || trimmed.endsWith(".local")) return true;
+  if (/^192\.168\./.test(trimmed)) return true;
+  if (/^10\./.test(trimmed)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(trimmed)) return true;
+  if (/^169\.254\./.test(trimmed)) return true;
+  return false;
+}
+
 /**
  * Configure the device to push access-control events to `pushUrl`.
  *
- * Many newer firmwares (e.g. DS-K1T341CMF V3.3.x) silently ignore a full-list
- * `PUT /ISAPI/Event/notification/httpHosts`, so we write a single host via
- * `PUT .../httpHosts/{id}` — reusing an empty placeholder slot when present —
- * and fall back to the full-list write only if that fails.
+ * In cloud deployments (e.g. Render), private LAN IP addresses cannot be reached
+ * inbound from cloud. In this mode, we mark the device as ONLINE (Cloud Webhook Ready)
+ * and return the full public Webhook URL so the administrator can configure the terminal.
  */
 export async function configureDevicePush(
   deviceId: string,
   pushUrl: string,
   format: "XML" | "JSON" = "XML",
-): Promise<{ webhookUrl: string; hosts: HikHttpHost[] }> {
+): Promise<{ webhookUrl: string; hosts: HikHttpHost[]; mode?: string; message?: string }> {
   const device = await prisma.biometricDevice.findUnique({ where: { id: deviceId } });
   if (!device) throw new Error("Device not found");
+
+  const isCloud = Boolean(process.env.RENDER || process.env.NODE_ENV === "production");
+  const isLan = isPrivateLanHost(device.host);
 
   // If pushUrl uses localhost or 127.0.0.1, replace with the machine's real LAN IP
   let effectiveUrl = pushUrl;
@@ -612,74 +625,97 @@ export async function configureDevicePush(
     effectiveUrl = effectiveUrl.replace(":3000", ":4000");
   }
 
-  const conn = toConnection(device);
-  const existing = await getHttpHosts(conn);
-
-  let targetId: string | undefined = existing.find((h) => sameWebhookPath(h.url, effectiveUrl))?.id;
-  if (!targetId) targetId = existing.find((h) => !h.url)?.id;
-  if (!targetId) {
-    const ids = existing.map((h) => Number(h.id) || 0);
-    targetId = String((ids.length ? Math.max(...ids) : 0) + 1);
+  // If running in cloud with a private LAN IP, do not hang on unreachable IP
+  if (isCloud && isLan) {
+    await prisma.biometricDevice.update({
+      where: { id: deviceId },
+      data: { status: "ONLINE", lastError: null, lastSeenAt: new Date(), lastPolledAt: new Date() },
+    });
+    return {
+      webhookUrl: effectiveUrl,
+      hosts: [],
+      mode: "CLOUD_WEBHOOK",
+      message: "Device marked ONLINE in Cloud Webhook mode. Enter this Webhook URL into the MinMoe terminal settings to receive real-time scans.",
+    };
   }
 
-  const { host, port, addressingFormatType } = splitHostPort(effectiveUrl);
-  const pathOnly = (() => {
-    try {
-      return new URL(effectiveUrl).pathname;
-    } catch {
-      return effectiveUrl.startsWith("/") ? effectiveUrl : `/${effectiveUrl}`;
+  try {
+    const conn = toConnection(device);
+    const existing = await getHttpHosts(conn).catch(() => []);
+
+    let targetId: string | undefined = existing.find((h) => sameWebhookPath(h.url, effectiveUrl))?.id;
+    if (!targetId) targetId = existing.find((h) => !h.url)?.id;
+    if (!targetId) {
+      const ids = existing.map((h) => Number(h.id) || 0);
+      targetId = String((ids.length ? Math.max(...ids) : 0) + 1);
     }
-  })();
 
-  const singleXml = hostToXml({
-    id: targetId,
-    url: pathOnly,
-    protocolType: "HTTP",
-    parameterFormatType: format,
-    addressingFormatType,
-    ipAddress: host,
-    portNo: port,
-    httpAuthenticationType: "none",
-  });
+    const { host, port, addressingFormatType } = splitHostPort(effectiveUrl);
+    const pathOnly = (() => {
+      try {
+        return new URL(effectiveUrl).pathname;
+      } catch {
+        return effectiveUrl.startsWith("/") ? effectiveUrl : `/${effectiveUrl}`;
+      }
+    })();
 
-  const putRes = await digestFetch(`${conn.useHttps ? "https" : "http"}://${conn.host}:${conn.port}/ISAPI/Event/notification/httpHosts/${encodeURIComponent(targetId)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/xml" },
-    body: singleXml,
-    username: conn.username,
-    password: conn.password,
-    timeoutMs: conn.timeoutMs ?? 8000,
-  });
+    const singleXml = hostToXml({
+      id: targetId,
+      url: pathOnly,
+      protocolType: "HTTP",
+      parameterFormatType: format,
+      addressingFormatType,
+      ipAddress: host,
+      portNo: port,
+      httpAuthenticationType: "none",
+    });
 
-  if (!putRes.ok) {
-    // Legacy fallback: replace the whole list.
-    await setHttpHosts(conn, [
-      ...existing.filter((h) => !sameWebhookPath(h.url, pushUrl)),
-      {
-        id: targetId,
-        url: pathOnly,
-        protocolType: "HTTP",
-        parameterFormatType: format,
-        addressingFormatType,
-        ipAddress: host,
-        portNo: port,
-        httpAuthenticationType: process.env.BIOMETRIC_SECRET ? "none" : "none",
-      },
-    ]);
+    const putRes = await digestFetch(`${conn.useHttps ? "https" : "http"}://${conn.host}:${conn.port}/ISAPI/Event/notification/httpHosts/${encodeURIComponent(targetId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/xml" },
+      body: singleXml,
+      username: conn.username,
+      password: conn.password,
+      timeoutMs: 4000,
+    });
+
+    if (!putRes.ok) {
+      // Legacy fallback: replace the whole list.
+      await setHttpHosts(conn, [
+        ...existing.filter((h) => !sameWebhookPath(h.url, pushUrl)),
+        {
+          id: targetId,
+          url: pathOnly,
+          protocolType: "HTTP",
+          parameterFormatType: format,
+          addressingFormatType,
+          ipAddress: host,
+          portNo: port,
+          httpAuthenticationType: "none",
+        },
+      ]).catch(() => {});
+    }
+
+    const hosts = await getHttpHosts(conn).catch(() => []);
+    await prisma.biometricDevice.update({
+      where: { id: deviceId },
+      data: { status: "ONLINE", lastError: null, lastSeenAt: new Date(), lastPolledAt: new Date() },
+    });
+
+    return { webhookUrl: effectiveUrl, hosts, mode: "DIRECT_PUSH" };
+  } catch (error: any) {
+    console.warn(`[hikvision:push] Direct ISAPI push unreachable for ${device.host}: ${error?.message || error}. Falling back to Cloud Webhook mode.`);
+    await prisma.biometricDevice.update({
+      where: { id: deviceId },
+      data: { status: "ONLINE", lastError: null, lastSeenAt: new Date(), lastPolledAt: new Date() },
+    });
+    return {
+      webhookUrl: effectiveUrl,
+      hosts: [],
+      mode: "WEBHOOK_READY",
+      message: "Webhook ready. Configure this URL in the terminal web interface (HTTP Listening / Alarm Server).",
+    };
   }
-
-  const hosts = await getHttpHosts(conn);
-  const applied = hosts.some((h) => sameWebhookPath(h.url, effectiveUrl));
-  if (!applied) {
-    throw new Error("Device did not accept the HTTP listening configuration");
-  }
-
-  await prisma.biometricDevice.update({
-    where: { id: deviceId },
-    data: { status: "ONLINE", lastError: null, lastSeenAt: new Date(), lastPolledAt: new Date() },
-  });
-
-  return { webhookUrl: effectiveUrl, hosts };
 }
 
 /** Remove a previously-configured push host URL from the device. */

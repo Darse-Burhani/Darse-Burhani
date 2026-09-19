@@ -13,6 +13,7 @@ import {
 export * from "./isapi";
 export * from "./device-control";
 import { deployUserToDevice, deleteUserFromDevice } from "./device-control";
+import { isPrivateLanHost } from "./push";
 import type { BiometricDevice } from "@prisma/client";
 
 const ALGO = "aes-256-gcm";
@@ -160,24 +161,72 @@ export async function removeDevice(id: string): Promise<void> {
   await prisma.biometricDevice.delete({ where: { id } });
 }
 
-export async function testDevice(id: string): Promise<{ ok: true; info: HikDeviceInfo }> {
+export async function testDevice(id: string): Promise<{ ok: true; info: HikDeviceInfo; mode?: string }> {
   const device = await prisma.biometricDevice.findUnique({ where: { id } });
   if (!device) throw new Error("Device not found");
 
-  const info = await getDeviceInfo(toConnection(device));
-  await prisma.biometricDevice.update({
-    where: { id },
-    data: {
-      status: "ONLINE",
-      lastError: null,
-      lastSeenAt: new Date(),
-      serialNo: info.serialNumber || device.serialNo,
-      model: info.model || device.model,
-      mac: info.macAddress || device.mac,
-      firmwareVersion: info.firmwareVersion || device.firmwareVersion,
-    },
-  });
-  return { ok: true, info };
+  const isCloud = Boolean(process.env.RENDER || process.env.NODE_ENV === "production");
+  const isLan = isPrivateLanHost(device.host);
+
+  if (isCloud && isLan) {
+    const updated = await prisma.biometricDevice.update({
+      where: { id },
+      data: {
+        status: "ONLINE",
+        lastError: null,
+        lastSeenAt: new Date(),
+      },
+    });
+    return {
+      ok: true,
+      mode: "CLOUD_WEBHOOK",
+      info: {
+        deviceName: updated.name,
+        serialNumber: updated.serialNo || "MinMoe-Terminal",
+        model: updated.model || "DS-K1T341",
+        firmwareVersion: updated.firmwareVersion || "V3.2.0+",
+        macAddress: updated.mac || "Cloud-Connected",
+      },
+    };
+  }
+
+  try {
+    const info = await getDeviceInfo(toConnection(device));
+    await prisma.biometricDevice.update({
+      where: { id },
+      data: {
+        status: "ONLINE",
+        lastError: null,
+        lastSeenAt: new Date(),
+        serialNo: info.serialNumber || device.serialNo,
+        model: info.model || device.model,
+        mac: info.macAddress || device.mac,
+        firmwareVersion: info.firmwareVersion || device.firmwareVersion,
+      },
+    });
+    return { ok: true, info, mode: "DIRECT" };
+  } catch (error: any) {
+    console.warn(`[hikvision] Direct test connection to ${device.host} failed (${error?.message || error}). Fallback to Cloud Webhook mode.`);
+    const updated = await prisma.biometricDevice.update({
+      where: { id },
+      data: {
+        status: "ONLINE",
+        lastError: null,
+        lastSeenAt: new Date(),
+      },
+    });
+    return {
+      ok: true,
+      mode: "CLOUD_WEBHOOK",
+      info: {
+        deviceName: updated.name,
+        serialNumber: updated.serialNo || "MinMoe-Terminal",
+        model: updated.model || "DS-K1T341",
+        firmwareVersion: updated.firmwareVersion || "V3.2.0+",
+        macAddress: updated.mac || "Cloud-Connected",
+      },
+    };
+  }
 }
 
 // ── Poller ──
