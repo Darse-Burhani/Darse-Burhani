@@ -5,7 +5,7 @@ import { normalizeDateToUTC } from "../../lib/leave-service";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } from "../../lib/attendance-scheduler";
 import { sheetSyncStatus, syncDailyAttendanceToSheet } from "../../lib/google-attendance-sync";
-import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST } from "../../lib/biometric";
+import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent } from "../../lib/biometric";
 
 const router = Router();
 
@@ -399,7 +399,14 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
 
     const mappedSource = source === "SCAN" ? AttendanceSource.BIOMETRIC : (source || AttendanceSource.MANUAL);
 
+    const actorName = `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.email;
+    const note = remarks?.trim() || `Status override to ${status} by Admin (${actorName})`;
+
     if (studentId) {
+      const existingReg = await prisma.attendanceRegistry.findUnique({
+        where: { studentId_date: { studentId, date: targetDate } },
+      });
+
       const updated = await prisma.attendanceRegistry.upsert({
         where: {
           studentId_date: {
@@ -412,21 +419,81 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
           date: targetDate,
           status: status as AttendanceStatus,
           source: mappedSource,
-          remarks: remarks || `Manual entry by Admin (${session.user.firstName})`,
+          remarks: note,
           recordedById: session.user.id,
         },
         update: {
           status: status as AttendanceStatus,
           source: mappedSource,
-          remarks: remarks || `Manual entry by Admin (${session.user.firstName})`,
+          remarks: note,
           recordedById: session.user.id,
         },
+      });
+
+      // Also dual-sync to student's class attendance records
+      const enrollments = await prisma.classEnrollment.findMany({
+        where: { studentId, isActive: true },
+        select: { classId: true },
+      });
+
+      for (const e of enrollments) {
+        await prisma.attendanceRecord.upsert({
+          where: { studentId_classId_date: { studentId, classId: e.classId, date: targetDate } },
+          create: {
+            studentId,
+            classId: e.classId,
+            date: targetDate,
+            status: status as AttendanceStatus,
+            source: mappedSource,
+            justification: note,
+            recordedById: session.user.id,
+          },
+          update: {
+            status: status as AttendanceStatus,
+            source: mappedSource,
+            justification: note,
+            recordedById: session.user.id,
+          },
+        }).catch(() => {});
+      }
+
+      // Create Audit Log
+      await prisma.attendanceAuditLog.create({
+        data: {
+          date: targetDate,
+          entityType: "STUDENT_REGISTRY",
+          entityId: studentId,
+          studentId,
+          action: "OVERRIDE",
+          oldStatus: existingReg?.status || null,
+          newStatus: status,
+          oldSource: existingReg?.source || null,
+          newSource: String(mappedSource),
+          actorId: session.user.id,
+          actorName,
+          actorRole: session.user.role,
+          reason: note,
+        },
+      }).catch(() => {});
+
+      // Broadcast live event to all connected portals
+      broadcastAttendanceEvent({
+        type: "ATTENDANCE_OVERRIDE",
+        role: "STUDENT",
+        studentId,
+        status,
+        date: targetDate.toISOString(),
+        actorName,
       });
 
       return res.json({ success: true, data: updated });
     }
 
     if (teacherId) {
+      const existingTeacher = await prisma.teacherAttendanceRecord.findUnique({
+        where: { teacherId_date: { teacherId, date: targetDate } },
+      });
+
       const updatedTeacher = await prisma.teacherAttendanceRecord.upsert({
         where: {
           teacherId_date: {
@@ -439,13 +506,42 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
           date: targetDate,
           status: status as AttendanceStatus,
           verificationMethod: "MANUAL",
-          notes: remarks || `Manual entry by Admin (${session.user.firstName})`,
+          notes: note,
         },
         update: {
           status: status as AttendanceStatus,
           verificationMethod: "MANUAL",
-          notes: remarks || `Manual entry by Admin (${session.user.firstName})`,
+          notes: note,
         },
+      });
+
+      // Create Audit Log
+      await prisma.attendanceAuditLog.create({
+        data: {
+          date: targetDate,
+          entityType: "TEACHER_RECORD",
+          entityId: teacherId,
+          teacherId,
+          action: "OVERRIDE",
+          oldStatus: existingTeacher?.status || null,
+          newStatus: status,
+          oldSource: existingTeacher?.verificationMethod || null,
+          newSource: "MANUAL",
+          actorId: session.user.id,
+          actorName,
+          actorRole: session.user.role,
+          reason: note,
+        },
+      }).catch(() => {});
+
+      // Broadcast live event to all connected portals
+      broadcastAttendanceEvent({
+        type: "ATTENDANCE_OVERRIDE",
+        role: "TEACHER",
+        teacherId,
+        status,
+        date: targetDate.toISOString(),
+        actorName,
       });
 
       return res.json({ success: true, data: updatedTeacher });

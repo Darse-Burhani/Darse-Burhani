@@ -388,7 +388,7 @@ export function DailyStackedLogView({
             <div className="text-[11px] text-gray-400 mt-1">Live stream is active; new scans appear instantly when they arrive.</div>
           </motion.div>
         ) : (
-          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
             {filteredRecords.map((r) => {
               const cfg = sourceBadgeConfig[r.source] || sourceBadgeConfig.SCAN;
               const SourceIcon = cfg.icon;
@@ -397,109 +397,124 @@ export function DailyStackedLogView({
                 <motion.div
                   key={r.id || r.memberId}
                   layout
-                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.2 }}
-                  className={`p-4 rounded-[16px] bg-white border shadow-sm hover:shadow-md transition-all flex flex-col justify-between group ${isFaculty ? "border-indigo-100 hover:border-indigo-300" : "border-gray-100 hover:border-emerald-300"}`}
+                  transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                  className={`group relative rounded-2xl p-1.5 transition-all duration-300 ${
+                    isFaculty
+                      ? "bg-gradient-to-b from-indigo-100/70 via-indigo-50/40 to-slate-100 hover:shadow-lg hover:shadow-indigo-500/10"
+                      : "bg-gradient-to-b from-emerald-100/70 via-emerald-50/40 to-slate-100 hover:shadow-lg hover:shadow-emerald-500/10"
+                  }`}
                 >
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2.5">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Avatar className="w-10 h-10 rounded-xl border border-gray-100 shrink-0">
-                          <AvatarImage src={r.avatarUrl || undefined} />
-                          <AvatarFallback className={`text-xs font-black ${isFaculty ? "bg-indigo-100 text-indigo-800" : "bg-emerald-100 text-emerald-800"}`}>
-                            {getInitials(r.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="font-black text-xs text-gray-900 truncate flex items-center gap-1.5">
-                            <span>{r.name}</span>
-                            {isFaculty && <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">Staff</span>}
-                          </div>
-                          <div className="text-[11px] text-gray-500 truncate">
-                            {r.its || "—"} • {r.designationOrClass}
+                  <div className="rounded-[calc(1rem-0.125rem)] bg-white p-3.5 shadow-xs border border-white/80 flex flex-col justify-between h-full">
+                    <div>
+                      <div className="flex items-start justify-between gap-2.5 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="w-10 h-10 rounded-xl border border-gray-100 shrink-0 shadow-xs">
+                            <AvatarImage src={r.avatarUrl || undefined} />
+                            <AvatarFallback className={`text-xs font-black ${isFaculty ? "bg-indigo-100 text-indigo-900" : "bg-emerald-100 text-emerald-900"}`}>
+                              {getInitials(r.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-xs text-gray-950 truncate flex items-center gap-1.5">
+                              <span className="truncate">{r.name}</span>
+                              {isFaculty && (
+                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  Staff
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-gray-500 font-medium truncate mt-0.5">
+                              {r.its ? <span className="font-mono font-bold text-gray-700">{r.its}</span> : "—"} • {r.designationOrClass}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 ${
-                          r.status === "PRESENT"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : r.status === "LATE"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : r.status === "MEDICAL"
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : r.status === "ON_LEAVE"
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : r.status === "NOT_MARKED"
-                            ? "bg-slate-50 text-slate-700 border-slate-200"
-                            : "bg-red-50 text-red-700 border-red-200"
-                        }`}
-                      >
-                        {r.status === "PRESENT" && <CheckCircle2 className="w-3 h-3" />}
-                        {r.status === "LATE" && <Clock className="w-3 h-3" />}
-                        {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
-                        {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
-                        {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
-                        {r.status === "NOT_MARKED" && <Timer className="w-3 h-3" />}
-                        <span>{r.status.replace(/_/g, " ")}</span>
-                      </span>
-                    </div>
 
-                    <div className="p-2.5 rounded-xl bg-gray-50/80 border border-gray-100 text-xs space-y-1.5">
-                      {r.scheduledEvent && (
-                        <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-gray-200/60">
-                          <span className="text-gray-500 font-semibold">Event</span>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-black text-[10px] border ${isFaculty ? "bg-indigo-50 text-indigo-900 border-indigo-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
-                            <Sparkles className={`w-2.5 h-2.5 ${isFaculty ? "text-indigo-600" : "text-emerald-600"}`} />
-                            {r.scheduledEvent.name}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-gray-500 font-semibold">Source</span>
-                        <span className={`font-black flex items-center gap-1 ${cfg.color}`}>
-                          <SourceIcon className="w-3 h-3" />
-                          {cfg.label}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 tracking-wide ${
+                            r.status === "PRESENT"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : r.status === "LATE"
+                              ? "bg-amber-50 text-amber-800 border-amber-200"
+                              : r.status === "MEDICAL"
+                              ? "bg-rose-50 text-rose-800 border-rose-200"
+                              : r.status === "ON_LEAVE"
+                              ? "bg-purple-50 text-purple-800 border-purple-200"
+                              : r.status === "NOT_MARKED"
+                              ? "bg-slate-100 text-slate-700 border-slate-200"
+                              : "bg-red-50 text-red-800 border-red-200"
+                          }`}
+                        >
+                          {r.status === "PRESENT" && <CheckCircle2 className="w-3 h-3" />}
+                          {r.status === "LATE" && <Clock className="w-3 h-3" />}
+                          {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
+                          {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
+                          {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
+                          {r.status === "NOT_MARKED" && <Timer className="w-3 h-3" />}
+                          <span>{r.status.replace(/_/g, " ")}</span>
                         </span>
                       </div>
-                      {r.checkInTime ? (
+
+                      <div className="p-2.5 rounded-xl bg-gray-50/90 border border-gray-100 text-xs space-y-1.5">
+                        {r.scheduledEvent && (
+                          <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-gray-200/60">
+                            <span className="text-gray-500 font-semibold">Event Window</span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-black text-[10px] border ${isFaculty ? "bg-indigo-50 text-indigo-900 border-indigo-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
+                              <Sparkles className={`w-2.5 h-2.5 ${isFaculty ? "text-indigo-600" : "text-emerald-600"}`} />
+                              {r.scheduledEvent.name}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-semibold">Check-in</span>
-                          <span className="font-bold text-gray-900 tabular-nums">
-                            {new Date(r.checkInTime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} IST
+                          <span className="text-gray-500 font-semibold">Method / Source</span>
+                          <span className={`font-black flex items-center gap-1 ${cfg.color}`}>
+                            <SourceIcon className="w-3 h-3" />
+                            {cfg.label}
                           </span>
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-semibold">Check-in</span>
-                          <span className="font-bold text-gray-400">— not yet</span>
-                        </div>
-                      )}
-                      {r.remarks && <div className="text-[11px] text-gray-600 italic line-clamp-1">“{r.remarks}”</div>}
+                        {r.checkInTime ? (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500 font-semibold">Scan Timestamp</span>
+                            <span className="font-mono font-bold text-gray-900 tabular-nums">
+                              {new Date(r.checkInTime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} IST
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500 font-semibold">Scan Timestamp</span>
+                            <span className="font-medium text-gray-400">— not scanned</span>
+                          </div>
+                        )}
+                        {r.remarks && (
+                          <div className="text-[11px] text-gray-700 italic bg-white/80 p-1.5 rounded-lg border border-gray-200/60 line-clamp-2">
+                            “{r.remarks}”
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
-                    {r.role === "STUDENT" ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700">
-                        <Flame className="w-3.5 h-3.5 text-amber-500" /> {r.streakDays || 0}d streak
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700">
-                        <Briefcase className="w-3.5 h-3.5" /> Staff
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onMemberClick(r.memberId || (r as any).studentId, r.role || "STUDENT")}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-colors cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Audit
-                      <ChevronRight className="w-3 h-3 text-gray-400" />
-                    </button>
+                    <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
+                      {r.role === "STUDENT" ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700">
+                          <Flame className="w-3.5 h-3.5 text-amber-500" /> {r.streakDays || 0}d streak
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700">
+                          <Briefcase className="w-3.5 h-3.5" /> Staff
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onMemberClick(r.memberId || (r as any).studentId, r.role || "STUDENT")}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black text-gray-700 hover:text-emerald-800 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-all cursor-pointer group-hover:border-gray-200"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Audit Log
+                        <ChevronRight className="w-3 h-3 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               );

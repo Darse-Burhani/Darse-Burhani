@@ -330,6 +330,7 @@ export function parseHikPushPayload(body: unknown, contentType?: string): { even
 
   // Already-parsed object (global express.json/urlencoded ran first).
   if (body !== null && typeof body === "object" && !Buffer.isBuffer(body)) {
+    const obj = body as Record<string, any>;
     if (typeof obj.fingerprint === "string" && !obj.AccessControllerEvent && !obj.AcsEvent) {
       events = [{
         employeeNoString: obj.fingerprint.trim(),
@@ -625,16 +626,19 @@ export async function getHttpHosts(conn: HikConnection): Promise<HikHttpHost[]> 
   return parseHttpHostsXml(xml);
 }
 
-function hostToXml(host: HikHttpHost | HikHostRaw): string {
-  const ip = host.addressingFormatType === "hostname" ? "" : host.ipAddress ?? "";
+function hostToXml(host: HikHttpHost | HikHostRaw | any): string {
+  const isHostName = host.addressingFormatType === "hostname";
+  const nameOrIp = host.hostName || host.ipAddress || "";
   return [
     "<HttpHostNotification>",
     `<id>${escapeXml(host.id ?? "")}</id>`,
     `<url>${escapeXml(host.url ?? "")}</url>`,
     `<protocolType>${escapeXml(host.protocolType ?? "HTTP")}</protocolType>`,
     `<parameterFormatType>${escapeXml(host.parameterFormatType ?? "XML")}</parameterFormatType>`,
-    `<addressingFormatType>${escapeXml(host.addressingFormatType ?? "ipaddress")}</addressingFormatType>`,
-    host.addressingFormatType !== "hostname" ? `<ipAddress>${escapeXml(ip)}</ipAddress>` : "",
+    `<addressingFormatType>${escapeXml(host.addressingFormatType ?? (isHostName ? "hostname" : "ipaddress"))}</addressingFormatType>`,
+    isHostName
+      ? `<hostName>${escapeXml(nameOrIp)}</hostName>`
+      : `<ipAddress>${escapeXml(nameOrIp)}</ipAddress>`,
     `<portNo>${escapeXml(host.portNo ?? "")}</portNo>`,
     `<httpAuthenticationType>${escapeXml(host.httpAuthenticationType ?? "none")}</httpAuthenticationType>`,
     "<SubscribeEventList>",
@@ -765,6 +769,8 @@ export async function configureDevicePush(
       targetId = String((ids.length ? Math.max(...ids) : 0) + 1);
     }
 
+    const isHttps = effectiveUrl.startsWith("https://");
+    const protoType = isHttps ? "HTTPS" : "HTTP";
     const { host, port, addressingFormatType } = splitHostPort(effectiveUrl);
     const pathOnly = (() => {
       try {
@@ -777,10 +783,11 @@ export async function configureDevicePush(
     const singleXml = hostToXml({
       id: targetId,
       url: pathOnly,
-      protocolType: "HTTP",
+      protocolType: protoType,
       parameterFormatType: format,
       addressingFormatType,
       ipAddress: host,
+      hostName: host,
       portNo: port,
       httpAuthenticationType: "none",
     });
@@ -801,10 +808,11 @@ export async function configureDevicePush(
         {
           id: targetId,
           url: pathOnly,
-          protocolType: "HTTP",
+          protocolType: protoType,
           parameterFormatType: format,
           addressingFormatType,
           ipAddress: host,
+          hostName: host,
           portNo: port,
           httpAuthenticationType: "none",
         },

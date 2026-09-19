@@ -128,6 +128,7 @@ export function ManualAttendanceModal({
   const [selectedGrade, setSelectedGrade] = useState("ALL");
   const [selectedSection, setSelectedSection] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   // Roster candidate items
   const [roster, setRoster] = useState<any[]>([]);
@@ -201,10 +202,26 @@ export function ManualAttendanceModal({
     }
   }, [open, selectedScheduleId, targetType, selectedGrade, selectedSection, date, fetchRoster]);
 
+  const statusCounts = useMemo(() => {
+    let present = 0, late = 0, absent = 0, medical = 0, onLeave = 0;
+    for (const r of roster) {
+      if (r.currentStatus === "PRESENT") present++;
+      else if (r.currentStatus === "LATE") late++;
+      else if (r.currentStatus === "ABSENT") absent++;
+      else if (r.currentStatus === "MEDICAL") medical++;
+      else if (r.currentStatus === "ON_LEAVE") onLeave++;
+    }
+    return { present, late, absent, medical, onLeave, total: roster.length };
+  }, [roster]);
+
   const filteredRoster = useMemo(() => {
+    let list = roster;
+    if (statusFilter !== "ALL") {
+      list = list.filter((r) => r.currentStatus === statusFilter);
+    }
     const q = search.toLowerCase().trim();
-    if (!q) return roster;
-    return roster.filter(
+    if (!q) return list;
+    return list.filter(
       (r) =>
         r.name?.toLowerCase().includes(q) ||
         r.email?.toLowerCase().includes(q) ||
@@ -212,7 +229,7 @@ export function ManualAttendanceModal({
         r.its?.toLowerCase().includes(q) ||
         r.department?.toLowerCase().includes(q)
     );
-  }, [roster, search]);
+  }, [roster, statusFilter, search]);
 
   const updateItemStatus = (id: string, status: AttendanceStatus) => {
     setRoster((prev) =>
@@ -444,11 +461,42 @@ export function ManualAttendanceModal({
             </div>
           </div>
 
+          {/* ── Status Breakdown Filter Pills ── */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { id: "ALL", label: "All Candidates", count: statusCounts.total, color: "text-gray-700 bg-gray-100 hover:bg-gray-200 border-gray-200" },
+              { id: "PRESENT", label: "Present", count: statusCounts.present, color: "text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200" },
+              { id: "LATE", label: "Late", count: statusCounts.late, color: "text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200" },
+              { id: "ABSENT", label: "Absent", count: statusCounts.absent, color: "text-red-800 bg-red-50 hover:bg-red-100 border-red-200" },
+              { id: "MEDICAL", label: "Medical", count: statusCounts.medical, color: "text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-200" },
+              { id: "ON_LEAVE", label: "On Leave", count: statusCounts.onLeave, color: "text-purple-800 bg-purple-50 hover:bg-purple-100 border-purple-200" },
+            ].map((p) => {
+              const isActive = statusFilter === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setStatusFilter(p.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border whitespace-nowrap ${
+                    isActive
+                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                      : p.color
+                  }`}
+                >
+                  <span>{p.label}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${isActive ? "bg-white text-slate-950" : "bg-white/80"}`}>
+                    {p.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* ── Bulk Actions Header ── */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-700">
-                Roster: <strong className="text-emerald-700">{filteredRoster.length}</strong> candidate(s)
+                Showing: <strong className="text-emerald-700">{filteredRoster.length}</strong> of {roster.length} candidate(s)
               </span>
               {loadingRoster && <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
             </div>
@@ -495,63 +543,88 @@ export function ManualAttendanceModal({
               filteredRoster.map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/70 transition-colors duration-150"
+                  className="p-3 sm:p-3.5 flex flex-col gap-2 hover:bg-gray-50/70 transition-colors duration-150"
                 >
-                  {/* Student / Teacher Info */}
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-xs shrink-0 shadow-sm"
-                      style={{ background: "linear-gradient(135deg, #059669 0%, #065f46 100%)" }}
-                    >
-                      {getInitials(item.name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-xs font-extrabold text-gray-900 truncate">{item.name}</p>
-                        {item.its && (
-                          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-mono font-bold text-gray-600 border border-gray-200">
-                            ITS {item.its}
-                          </span>
-                        )}
-                        {item.grade && (
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-800 border border-emerald-100">
-                            Gr {item.grade}-{item.section || "A"}
-                          </span>
-                        )}
-                        {item.department && (
-                          <span className="px-1.5 py-0.5 rounded bg-purple-50 text-[10px] font-bold text-purple-800 border border-purple-100">
-                            {item.department}
-                          </span>
-                        )}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    {/* Student / Teacher Info */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-xs shrink-0 shadow-sm"
+                        style={{ background: "linear-gradient(135deg, #059669 0%, #065f46 100%)" }}
+                      >
+                        {getInitials(item.name)}
                       </div>
-                      <p className="text-[11px] text-gray-400 font-mono truncate mt-0.5">
-                        ID: {item.identifier || item.id.slice(0, 8)} · Prev: <span className="font-bold text-gray-600">{item.status}</span> ({item.source || "MANUAL"})
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs font-extrabold text-gray-900 truncate">{item.name}</p>
+                          {item.its && (
+                            <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-mono font-bold text-gray-600 border border-gray-200">
+                              ITS {item.its}
+                            </span>
+                          )}
+                          {item.grade && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-800 border border-emerald-100">
+                              Gr {item.grade}-{item.section || "A"}
+                            </span>
+                          )}
+                          {item.department && (
+                            <span className="px-1.5 py-0.5 rounded bg-purple-50 text-[10px] font-bold text-purple-800 border border-purple-100">
+                              {item.department}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-400 font-mono truncate mt-0.5">
+                          ID: {item.identifier || item.id.slice(0, 8)} · Prev: <span className="font-bold text-gray-600">{item.status}</span> ({item.source || "MANUAL"})
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status Button Selection Grid */}
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
+                      {statuses.map((st) => {
+                        const cfg = STATUS_CONFIG[st];
+                        const isSelected = item.currentStatus === st;
+                        const Icon = cfg.icon;
+                        return (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => updateItemStatus(item.id, st)}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1 border active:scale-[0.96] ${
+                              isSelected
+                                ? cfg.activeClass
+                                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                            }`}
+                          >
+                            <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : ""}`} />
+                            <span>{cfg.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Status Button Selection Grid */}
-                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
-                    {statuses.map((st) => {
-                      const cfg = STATUS_CONFIG[st];
-                      const isSelected = item.currentStatus === st;
-                      const Icon = cfg.icon;
-                      return (
-                        <button
-                          key={st}
-                          type="button"
-                          onClick={() => updateItemStatus(item.id, st)}
-                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1 border active:scale-[0.96] ${
-                            isSelected
-                              ? cfg.activeClass
-                              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                          }`}
-                        >
-                          <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : ""}`} />
-                          <span>{cfg.label}</span>
-                        </button>
-                      );
-                    })}
+                  {/* Optional Remarks & Time row */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-gray-100 text-xs">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Time:</span>
+                    <input
+                      type="time"
+                      value={item.currentTime || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRoster((prev) =>
+                          prev.map((r) => (r.id === item.id ? { ...r, currentTime: val } : r))
+                        );
+                      }}
+                      className="h-7 px-2 rounded-lg border border-gray-200 bg-white text-xs font-mono font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Optional remarks / reason (e.g. late transport, clinic visit)..."
+                      value={item.customRemarks || ""}
+                      onChange={(e) => updateItemRemarks(item.id, e.target.value)}
+                      className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
                   </div>
                 </div>
               ))

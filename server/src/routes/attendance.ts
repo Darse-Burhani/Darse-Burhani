@@ -2,6 +2,8 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { cache } from "../lib/cache";
 import { requireAuth, requireRole } from "../middleware";
+import { AttendanceSource, AttendanceStatus } from "@prisma/client";
+import { broadcastAttendanceEvent } from "../lib/biometric";
 import adminAttendanceScheduleRoutes from "./admin/attendance-schedule";
 
 const router = Router();
@@ -152,12 +154,14 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
             classId,
             date: day,
             status: r.status,
+            source: AttendanceSource.MANUAL,
             checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
             checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
             recordedById: session.user.id,
           },
           update: {
             status: r.status,
+            source: AttendanceSource.MANUAL,
             checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
             checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
             recordedById: session.user.id,
@@ -165,6 +169,41 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
         }),
       ),
     );
+
+    // Also sync AttendanceRegistry for each student so daily stats reflect class attendance
+    for (const r of records) {
+      if (!r.studentId) continue;
+      await prisma.attendanceRegistry.upsert({
+        where: { studentId_date: { studentId: r.studentId, date: day } },
+        create: {
+          studentId: r.studentId,
+          date: day,
+          status: r.status,
+          source: AttendanceSource.MANUAL,
+          checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
+          checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
+          remarks: `Class attendance marked by Teacher`,
+          recordedById: session.user.id,
+        },
+        update: {
+          status: r.status,
+          source: AttendanceSource.MANUAL,
+          checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
+          checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
+          remarks: `Class attendance marked by Teacher`,
+          recordedById: session.user.id,
+        },
+      }).catch(() => {});
+    }
+
+    // Broadcast SSE live event
+    broadcastAttendanceEvent({
+      type: "CLASS_ATTENDANCE_SAVED",
+      classId,
+      count: saved.length,
+      date: day.toISOString(),
+      actorName: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim(),
+    });
 
     return res.json({
       success: true,

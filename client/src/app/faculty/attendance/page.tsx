@@ -255,35 +255,45 @@ export default function FacultyAttendancePage() {
 
   const presentCount = summary.PRESENT + summary.LATE;
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-gray-900">
-            Manual Attendance
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Select a class and date to mark the roster, or edit a previously saved day.
-          </p>
+    return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* ── High-End Header Banner ── */}
+      <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 border border-emerald-500/20 shadow-xl">
+        <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-black tracking-widest uppercase mb-3">
+              <ClipboardList className="w-3.5 h-3.5 text-emerald-300" />
+              Faculty Attendance Portal
+            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
+              Classroom Attendance
+            </h1>
+            <p className="text-emerald-100/80 text-sm mt-1.5 max-w-2xl font-medium leading-relaxed">
+              Mark live roster attendance for your assigned classes. Changes sync immediately to administrative dashboards and parental reports.
+            </p>
+          </div>
+
+          {roster.length > 0 && (
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/20 transition-all duration-300 active:scale-[0.98] disabled:opacity-60 cursor-pointer shrink-0"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Class Attendance ({roster.length})
+            </button>
+          )}
         </div>
-        {roster.length > 0 && (
-          <Button variant="teacher" onClick={save} loading={saving} className="sm:w-auto">
-            <Save className="w-4 h-4 mr-2" />
-            Save Attendance
-          </Button>
-        )}
-      </motion.div>
+      </div>
 
       {/* Controls */}
-      <Card className="mb-6">
-        <CardContent className="p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="p-1.5 rounded-2xl bg-gradient-to-b from-gray-200/60 to-gray-100/30 border border-gray-200 shadow-xs">
+        <div className="p-5 rounded-[calc(1rem-0.125rem)] bg-white grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="classId" className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
-              Class
+            <label htmlFor="classId" className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-1.5 block">
+              Active Class
             </label>
             {loadingClasses ? (
               <div className="h-10 rounded-xl bg-gray-100 animate-pulse" />
@@ -293,7 +303,7 @@ export default function FacultyAttendancePage() {
                 name="classId"
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
-                className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400"
+                className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               >
                 {classes.length === 0 && <option value="">No classes assigned</option>}
                 {classes.map((c) => (
@@ -306,8 +316,8 @@ export default function FacultyAttendancePage() {
             )}
           </div>
           <div>
-            <label htmlFor="date" className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
-              Date
+            <label htmlFor="date" className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-1.5 block">
+              Session Date
             </label>
             <input
               type="date"
@@ -315,155 +325,166 @@ export default function FacultyAttendancePage() {
               name="date"
               value={date}
               onChange={(e) => e.target.value && setDate(e.target.value)}
-              className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400"
+              className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-extrabold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>
           <div className="lg:col-span-1">
-            <label htmlFor="roster-search" className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">
-              Search
+            <label htmlFor="roster-search" className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] mb-1.5 block">
+              Search Talabat
             </label>
             <div className="relative">
-              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 id="roster-search"
                 name="roster-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name or ITS number…"
-                className="w-full h-10 rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400"
+                placeholder="Type student name or ITS number…"
+                className="w-full h-10 rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder:text-gray-400"
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {!classId || !selectedClass ? (
-        <Card>
-          <CardContent className="p-12 text-center text-gray-500">
-            {loadingClasses ? (
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-emerald-500" />
-            ) : (
-              <>
-                <Users className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                <p className="text-sm">No classes assigned. Ask an admin to create a class.</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <div className="p-12 text-center rounded-3xl bg-white border border-gray-200 text-gray-500 shadow-xs">
+          {loadingClasses ? (
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-emerald-600" />
+          ) : (
+            <>
+              <Users className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+              <p className="text-sm font-bold text-gray-700">No classes assigned to your faculty profile.</p>
+            </>
+          )}
+        </div>
       ) : roster.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center text-gray-500">
-            {loadingRoster ? (
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-emerald-500" />
-            ) : (
-              <>
-                <Users className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                <p className="text-sm">No talabat enrolled in this class yet.</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <div className="p-12 text-center rounded-3xl bg-white border border-gray-200 text-gray-500 shadow-xs">
+          {loadingRoster ? (
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-emerald-600" />
+          ) : (
+            <>
+              <Users className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+              <p className="text-sm font-bold text-gray-700">No talabat enrolled in this class yet.</p>
+            </>
+          )}
+        </div>
       ) : (
         <>
-          {/* Summary */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid sm:grid-cols-4 gap-4 mb-6"
-          >
+          {/* Summary Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {STATUSES.map((cfg) => (
-              <Card key={cfg.key} className="fatimi-card">
-                <CardContent className="p-4 flex items-center justify-between">
+              <div key={cfg.key} className="p-1.5 rounded-2xl bg-gradient-to-b from-gray-200/50 to-gray-100/20 border border-gray-200 shadow-xs">
+                <div className="p-4 rounded-[calc(1rem-0.125rem)] bg-white flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">{cfg.label}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-0.5">{summary[cfg.key]}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">{cfg.label}</p>
+                    <p className="text-2xl font-black text-gray-950 mt-1">{summary[cfg.key]}</p>
                   </div>
-                  <div className={`w-3 h-3 rounded-full ${cfg.dot}`} />
-                </CardContent>
-              </Card>
-            ))}
-          </motion.div>
-
-          <Card className="fatimi-card mb-6">
-            <div className="fatimi-card-header" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-5 text-emerald-500" />
-                {selectedClass.name} · {date}
-                <Badge variant="secondary" className="ml-1 text-[10px]">
-                  {selectedClass.academicYear}
-                </Badge>
-              </CardTitle>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setAll("PRESENT")} disabled={saving}>
-                  <UserCheck className="w-4 h-4 mr-1.5" /> All Present
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setAll("ABSENT")} disabled={saving}>
-                  <XCircle className="w-4 h-4 mr-1.5" /> All Absent
-                </Button>
-                <Button variant="ghost" size="sm" onClick={resetAll} disabled={saving}>
-                  <RotateCcw className="w-4 h-4 mr-1.5" /> Reset
-                </Button>
+                  <div className={`w-3.5 h-3.5 rounded-full ${cfg.dot}`} />
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
+            ))}
+          </div>
+
+          <div className="p-1.5 rounded-3xl bg-gradient-to-b from-gray-200/70 to-gray-100/30 border border-gray-200 shadow-sm">
+            <div className="rounded-[calc(1.5rem-0.125rem)] bg-white p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black text-gray-950">{selectedClass.name} · {date}</h2>
+                    <p className="text-[11px] text-gray-500 font-medium">Academic Year: {selectedClass.academicYear}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setAll("PRESENT")}
+                    disabled={saving}
+                    className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 mr-1" /> All Present
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAll("ABSENT")}
+                    disabled={saving}
+                    className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+                  >
+                    <XCircle className="w-3.5 h-3.5 mr-1" /> All Absent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetAll}
+                    disabled={saving}
+                    className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-100 border border-gray-200 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset
+                  </button>
+                </div>
+              </div>
+
               {loadingRoster ? (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {filteredRoster.map((s, i) => (
-                    <motion.div
+                  {filteredRoster.map((s) => (
+                    <div
                       key={s.profileId}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.02 }}
-                      className="py-3 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4"
+                      className="py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-gray-50/70 p-2 rounded-xl transition-colors"
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
                         {s.avatarUrl ? (
                           <img
                             src={s.avatarUrl}
                             alt={s.name}
-                            className="w-11 h-11 rounded-xl object-cover border-2 border-emerald-200"
+                            className="w-10 h-10 rounded-xl object-cover border border-emerald-200 shadow-xs"
                           />
                         ) : (
-                          <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-semibold border-2 border-emerald-200">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-900 flex items-center justify-center text-xs font-black border border-emerald-200 shadow-xs">
                             {getInitials(s.name.split(" ")[0] || "", s.name.split(" ")[1] || "")}
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {s.studentNumber}
+                          <p className="text-xs font-black text-gray-950 truncate">{s.name}</p>
+                          <p className="text-[11px] text-gray-500 font-mono">
+                            ITS: {s.studentNumber || "—"}
                             {s.grade ? ` · Grade ${s.grade}${s.section ? `-${s.section}` : ""}` : ""}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {STATUSES.map((cfg) => {
-                          const Icon = cfg.icon;
-                          const active = s.status === cfg.key;
-                          return (
-                            <button
-                              key={cfg.key}
-                              type="button"
-                              onClick={() => setStatus(s.profileId, cfg.key)}
-                              className={cn(
-                                "inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all",
-                                active ? cfg.active : cn("bg-white/80", cfg.idle),
-                              )}
-                            >
-                              <Icon className="w-3.5 h-3.5" />
-                              {cfg.label}
-                            </button>
-                          );
-                        })}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {STATUSES.map((cfg) => {
+                            const Icon = cfg.icon;
+                            const active = s.status === cfg.key;
+                            return (
+                              <button
+                                key={cfg.key}
+                                type="button"
+                                onClick={() => setStatus(s.profileId, cfg.key)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1.5 border active:scale-[0.96] cursor-pointer ${
+                                  active
+                                    ? cfg.active
+                                    : cfg.idle
+                                }`}
+                              >
+                                <Icon className="w-3.5 h-3.5" />
+                                <span>{cfg.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
                         <div className="flex items-center gap-1.5 ml-1">
-                          <Clock className="w-3.5 h-3.5 text-gray-500" />
+                          <Clock className="w-3.5 h-3.5 text-gray-400" />
                           <label htmlFor={`check-in-${s.profileId}`} className="sr-only">Check-in time</label>
                           <input
                             type="time"
@@ -472,45 +493,44 @@ export default function FacultyAttendancePage() {
                             value={s.checkInTime}
                             disabled={s.status === "ABSENT" || saving}
                             onChange={(e) => setCheckIn(s.profileId, e.target.value)}
-                            className="h-9 w-28 rounded-xl border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-40"
+                            className="h-8 w-24 rounded-lg border border-gray-200 bg-white px-2 text-xs font-mono font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-40"
                           />
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                   {filteredRoster.length === 0 && (
                     <div className="py-12 text-center text-gray-500">
-                      <p className="text-sm">No talabat match “{query}”.</p>
+                      <p className="text-sm font-bold">No talabat match “{query}”.</p>
                     </div>
                   )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Sticky save bar */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="sticky bottom-4"
-          >
-            <Card className="shadow-xl">
-              <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="text-sm text-gray-600">
-                  <Check className="w-4 h-4 inline text-emerald-500 mr-1" />
-                  {presentCount} of {roster.length} present
-                  <span className="text-gray-500 ml-2 hidden sm:inline">
-                    {summary.ABSENT} absent · {summary.EARLY_DEPARTURE} early departure
+          <div className="sticky bottom-4 z-20">
+            <div className="p-1.5 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-2xl">
+              <div className="p-3.5 rounded-[calc(1rem-0.125rem)] bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-white">
+                <div className="text-xs font-medium text-slate-300">
+                  <span className="font-extrabold text-emerald-400 mr-2">{presentCount} of {roster.length} present</span>
+                  <span className="text-slate-400 hidden sm:inline">
+                    • {summary.ABSENT} absent • {summary.EARLY_DEPARTURE} early departure
                   </span>
                 </div>
-                <Button variant="teacher" onClick={save} loading={saving} className="w-full sm:w-auto">
-                  <Save className="w-4 h-4 mr-2" />
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   Save Attendance
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
+                </button>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </div>

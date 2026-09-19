@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
+import { broadcastAttendanceEvent } from "../lib/biometric";
 
 const router = Router();
 
@@ -347,6 +348,16 @@ router.post("/", requireAuth, async (req, res) => {
         updatedCount++;
       }
 
+      // Broadcast live event so open dashboards and logs refresh immediately
+      broadcastAttendanceEvent({
+        type: "MANUAL_ATTENDANCE_SAVED",
+        role: "TEACHER",
+        windowName,
+        count: updatedCount,
+        date: targetDate.toISOString(),
+        actorName,
+      });
+
       return res.json({
         success: true,
         message: `Successfully marked manual attendance for ${updatedCount} faculty member(s).`,
@@ -446,6 +457,16 @@ router.post("/", requireAuth, async (req, res) => {
 
       updatedCount++;
     }
+
+    // Broadcast live event so open dashboards and logs refresh immediately
+    broadcastAttendanceEvent({
+      type: "MANUAL_ATTENDANCE_SAVED",
+      role: "STUDENT",
+      windowName,
+      count: updatedCount,
+      date: targetDate.toISOString(),
+      actorName,
+    });
 
     return res.json({
       success: true,

@@ -274,6 +274,25 @@ function pushEvent(
   return full;
 }
 
+/**
+ * Broadcast an arbitrary attendance update or system notification to all connected SSE clients.
+ */
+export function broadcastAttendanceEvent(data: Record<string, any>): void {
+  const payload = `data: ${JSON.stringify({
+    ...data,
+    id: data.id || makeId(),
+    timestamp: data.timestamp || new Date().toISOString(),
+  })}\n\n`;
+
+  for (const send of sseClients) {
+    try {
+      send(payload);
+    } catch {
+      // Ignore disconnected clients
+    }
+  }
+}
+
 function toMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
