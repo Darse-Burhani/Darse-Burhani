@@ -117,9 +117,25 @@ function rememberPushSerial(key: string): boolean {
 
 // ── Payload parsing ──
 
-function pick(obj: Record<string, any>, keys: string[]): any {
-  for (const k of keys) {
-    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") return obj[k];
+function findDeep(obj: any, keys: string[]): any {
+  if (!obj || typeof obj !== "object") return undefined;
+  const lowerKeys = keys.map((k) => k.toLowerCase());
+
+  // Check top-level keys first
+  for (const k of Object.keys(obj)) {
+    if (lowerKeys.includes(k.toLowerCase())) {
+      const v = obj[k];
+      if (v !== undefined && v !== null && v !== "") return v;
+    }
+  }
+
+  // Check nested objects
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const found = findDeep(v, keys);
+      if (found !== undefined && found !== null && found !== "") return found;
+    }
   }
   return undefined;
 }
@@ -131,46 +147,86 @@ function num(v: unknown): number | string | undefined {
 
 export function normalizeHikEvent(raw: Record<string, any>): HikPushEvent {
   const ev = raw ?? {};
+  const employeeNo = findDeep(ev, [
+    "employeeNoString",
+    "EmployeeNoString",
+    "employeeNo",
+    "EmployeeNo",
+    "employeeId",
+    "EmployeeId",
+    "personId",
+    "PersonId",
+    "userCode",
+    "UserCode",
+    "memberId",
+    "MemberId",
+    "studentId",
+    "its",
+    "ITS",
+  ]);
+
+  const cardNo = findDeep(ev, ["cardNo", "CardNo", "card", "Card"]);
+  const name = findDeep(ev, ["name", "Name", "personName", "PersonName", "userName", "UserName"]);
+  const major = num(findDeep(ev, ["major", "Major", "majorEventType", "MajorEventType", "eventMajor", "majorType"]));
+  const minor = num(findDeep(ev, ["minor", "Minor", "subEventType", "SubEventType", "eventMinor", "minorEventType", "minorType"]));
+  const serialNo = findDeep(ev, ["serialNo", "SerialNo", "serial", "Serial", "eventID", "eventId", "EventID", "EventId", "seq"]);
+  const deviceId = findDeep(ev, ["deviceId", "DeviceID", "deviceID", "deviceIndex", "deviceName", "DeviceName"]);
+  const currentVerifyMode = findDeep(ev, ["currentVerifyMode", "CurrentVerifyMode", "verifyMode", "VerifyMode", "verifyMethod", "mode"]);
+  const eventType = findDeep(ev, ["eventType", "EventType", "eventDescription", "EventDescription", "event", "Event"]);
+  const time = findDeep(ev, ["time", "Time", "dateTime", "DateTime", "occurrenceTime", "OccurrenceTime", "deviceTime", "DeviceTime", "timestamp", "Timestamp"]);
+
   return {
-    employeeNoString: pick(ev, ["employeeNoString", "EmployeeNoString", "employeeNo", "employeeId", "personId", "userCode"]),
-    cardNo: pick(ev, ["cardNo", "CardNo"]),
-    name: pick(ev, ["name", "Name", "personName"]),
-    major: num(pick(ev, ["major", "Major", "eventMajor"])),
-    minor: num(pick(ev, ["minor", "Minor", "eventMinor"])),
-    serialNo: pick(ev, ["serialNo", "SerialNo", "serial", "eventID", "eventId"]),
-    deviceId: pick(ev, ["deviceId", "DeviceID", "deviceID", "deviceIndex"]),
-    currentVerifyMode: pick(ev, ["currentVerifyMode", "CurrentVerifyMode", "verifyMode", "verifyMethod"]),
-    eventType: pick(ev, ["eventType", "EventType", "event"]),
-    time: pick(ev, ["time", "Time", "dateTime", "occurrenceTime", "deviceTime"]),
+    employeeNoString: employeeNo ? String(employeeNo).trim() : undefined,
+    cardNo: cardNo ? String(cardNo).trim() : undefined,
+    name: name ? String(name).trim() : undefined,
+    major,
+    minor,
+    serialNo: serialNo ? String(serialNo).trim() : undefined,
+    deviceId: deviceId ? String(deviceId).trim() : undefined,
+    currentVerifyMode: currentVerifyMode ? String(currentVerifyMode).trim() : undefined,
+    eventType: eventType ? String(eventType).trim() : undefined,
+    time: time ? String(time).trim() : undefined,
   };
 }
 
-/** Unwrap the common Hikvision JSON envelopes: eventNotificationAlert / EventNotificationAlert / InfoList. */
+/** Unwrap the common Hikvision JSON envelopes: AccessControllerEvent / AcsEvent / eventNotificationAlert / InfoList. */
 export function unwrapJsonPayload(obj: Record<string, any>): Record<string, any>[] {
   if (!obj || typeof obj !== "object") return [];
 
-  const keys = Object.keys(obj);
+  // 1. MinMoe AccessControllerEvent wrapper (most common format)
+  if (obj.AccessControllerEvent && typeof obj.AccessControllerEvent === "object") {
+    const inner = obj.AccessControllerEvent;
+    return [{ ...obj, ...inner }];
+  }
 
-  // Hikvision versioned envelope with nested info — e.g. iVMS-4200 signalled JSON.
+  // 2. AcsEvent wrapper
+  if (obj.AcsEvent && typeof obj.AcsEvent === "object") {
+    const inner = obj.AcsEvent;
+    return Array.isArray(inner) ? inner.map((e) => ({ ...obj, ...e })) : [{ ...obj, ...inner }];
+  }
+
+  // 3. Hikvision versioned envelope with nested info — e.g. iVMS-4200 signalled JSON.
+  const keys = Object.keys(obj);
   for (const key of keys) {
     const v = obj[key];
     if (/eventnotificationalert/i.test(key)) {
       const inner = Array.isArray(v) ? v : [v];
-      return inner.map((e) => normalizeHikEvent(e).time ? { ...e } : e).filter(Boolean);
+      return inner.map((e) => ({ ...obj, ...(typeof e === "object" ? e : {}) }));
     }
   }
 
-  // InfoList wrapper (JSON export of AccessControl events pushed by some firmware).
+  // 4. InfoList wrapper (JSON export of AccessControl events pushed by some firmware).
   if (obj.InfoList && typeof obj.InfoList === "object") {
     const list = Array.isArray(obj.InfoList.AcsEvent) ? obj.InfoList.AcsEvent : [obj.InfoList.AcsEvent].filter(Boolean);
-    if (list.length) return list;
+    if (list.length) return list.map((e) => ({ ...obj, ...e }));
   }
 
-  // An explicit list of events.
+  // 5. An explicit list of events.
   if (Array.isArray(obj.events)) return obj.events;
   if (Array.isArray(obj.data)) return obj.data;
+  if (Array.isArray(obj.MatchList)) return obj.MatchList;
 
-  // Already a single normalised event (or the raw custom webhook format).
+  // Already a single normalised event
   return [obj];
 }
 
@@ -181,44 +237,48 @@ export function jsonToPushEvents(obj: Record<string, any>): HikPushEvent[] {
     if (!ev || typeof ev !== "object") continue;
     // The legacy `{ fingerprint, timestamp }` gateway format is processed by
     // the webhook route directly — never treat it as a device event.
-    if (typeof ev.fingerprint === "string") continue;
+    if (typeof ev.fingerprint === "string" && !ev.AccessControllerEvent && !ev.AcsEvent) continue;
     normalized.push(normalizeHikEvent(ev));
   }
   return normalized;
 }
 
-/** Extract the text of a single XML element, tolerating namespaces, CDATA and suffixed names (e.g. dateTimeV10). */
-export function xmlTag(xml: string, tag: string): string {
-  const m = xml.match(
-    new RegExp(
-      `<(?:[a-zA-Z0-9_-]+:)?${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/(?:[a-zA-Z0-9_-]+:)?${tag}(?:[a-zA-Z0-9_.-]*)?>`,
-      "i",
-    ),
-  );
-  return m?.[1]?.trim() ?? "";
+/** Extract the text of XML elements with multiple possible tag names, tolerating namespaces and CDATA. */
+export function xmlTag(xml: string, ...tags: string[]): string {
+  for (const tag of tags) {
+    const m = xml.match(
+      new RegExp(
+        `<(?:[a-zA-Z0-9_-]+:)?${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/(?:[a-zA-Z0-9_-]+:)?${tag}(?:[a-zA-Z0-9_.-]*)?>`,
+        "i",
+      ),
+    );
+    if (m?.[1]?.trim()) return m[1].trim();
+  }
+  return "";
 }
 
 function xmlToPushEvent(xml: string): HikPushEvent {
   const toNum = (s: string) => (s ? (/^\d+$/.test(s) ? Number(s) : s) : undefined);
   return {
-    employeeNoString: xmlTag(xml, "employeeNoString") || xmlTag(xml, "employeeNo") || undefined,
-    cardNo: xmlTag(xml, "cardNo") || undefined,
-    name: xmlTag(xml, "personName") || xmlTag(xml, "name") || undefined,
-    major: toNum(xmlTag(xml, "major")),
-    minor: toNum(xmlTag(xml, "minor")),
-    serialNo: xmlTag(xml, "serialNo") || xmlTag(xml, "eventID") || xmlTag(xml, "eventId") || undefined,
-    deviceId: xmlTag(xml, "deviceId") || xmlTag(xml, "deviceID") || undefined,
-    currentVerifyMode: xmlTag(xml, "currentVerifyMode") || xmlTag(xml, "verifyMode") || undefined,
-    eventType: xmlTag(xml, "eventType") || undefined,
-    time: xmlTag(xml, "time") || xmlTag(xml, "dateTime") || undefined,
+    employeeNoString:
+      xmlTag(xml, "employeeNoString", "employeeNo", "employeeId", "personId", "userCode", "its", "ITS") || undefined,
+    cardNo: xmlTag(xml, "cardNo", "card") || undefined,
+    name: xmlTag(xml, "personName", "name", "userName") || undefined,
+    major: toNum(xmlTag(xml, "majorEventType", "major", "eventMajor", "majorType")),
+    minor: toNum(xmlTag(xml, "subEventType", "minor", "eventMinor", "minorEventType")),
+    serialNo: xmlTag(xml, "serialNo", "eventID", "eventId", "seq") || undefined,
+    deviceId: xmlTag(xml, "deviceId", "deviceID", "deviceName") || undefined,
+    currentVerifyMode: xmlTag(xml, "currentVerifyMode", "verifyMode", "verifyMethod") || undefined,
+    eventType: xmlTag(xml, "eventType", "eventDescription", "event") || undefined,
+    time: xmlTag(xml, "dateTime", "time", "occurrenceTime", "deviceTime", "timestamp") || undefined,
   };
 }
 
 export function xmlToPushEvents(xml: string): HikPushEvent[] {
   const events: HikPushEvent[] = [];
 
-  // Grab every <EventNotificationAlert> block (handles both a single alert and a list).
-  const re = /<(?:[a-zA-Z0-9_-]+:)?EventNotificationAlert(?:\s[^>]*)?>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?EventNotificationAlert>/gi;
+  // Grab every <EventNotificationAlert> or <AccessControllerEvent> block
+  const re = /<(?:[a-zA-Z0-9_-]+:)?(?:EventNotificationAlert|AccessControllerEvent|AcsEvent)(?:\s[^>]*)?>([\s\S]*?)<\/(?:[a-zA-Z0-9_-]+:)?(?:EventNotificationAlert|AccessControllerEvent|AcsEvent)>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(xml)) !== null) {
     events.push(xmlToPushEvent(m[1]));
@@ -227,7 +287,7 @@ export function xmlToPushEvents(xml: string): HikPushEvent[] {
 
   // Fallback: raw per-event fields at the root (some firmware pushes bare fields).
   const single = xmlToPushEvent(xml);
-  if (single.time || single.employeeNoString !== undefined) return [single];
+  if (single.time || single.employeeNoString !== undefined || single.eventType) return [single];
 
   return events;
 }
@@ -248,8 +308,8 @@ function parseMultipart(buf: Buffer, boundary: string): Record<string, string> {
 
 /**
  * Parse a Hikvision HTTP Event push into normalised events. Handles:
- *  - JSON `eventNotificationAlert` / iVMS style envelopes
- *  - XML `EventNotificationAlert` / `EventNotificationAlertList`
+ *  - JSON `AccessControllerEvent` / `eventNotificationAlert` / iVMS style envelopes
+ *  - XML `EventNotificationAlert` / `AccessControllerEvent`
  *  - URL-encoded notification envelopes (`method=PUT&url=...&dynamic=...`)
  *  - `multipart/form-data` bodies
  *  - the custom `{ fingerprint, timestamp, deviceId }` gateway format
@@ -263,12 +323,9 @@ export function parseHikPushPayload(body: unknown, contentType?: string): { even
   // Already-parsed object (global express.json/urlencoded ran first).
   if (body !== null && typeof body === "object" && !Buffer.isBuffer(body)) {
     const obj = body as Record<string, any>;
-    // Custom webhook format stays in its own processing path.
-    if (typeof obj.fingerprint === "string" && (obj.timestamp !== undefined || obj.deviceId !== undefined)) {
+    if (typeof obj.fingerprint === "string" && !obj.AccessControllerEvent && !obj.AcsEvent) {
       events = [];
     } else if (obj.method || obj.url) {
-      // URL-encoded notification envelope (method=PUT&url=...&dynamic=...)
-      // that express.urlencoded already turned into an object.
       acknowledged = Boolean(obj.url);
       const dynamic = obj.dynamic || obj.xml || obj.data || obj.message;
       if (dynamic && typeof dynamic === "string") {
@@ -293,18 +350,17 @@ export function parseHikPushPayload(body: unknown, contentType?: string): { even
     const bm = ctype.match(/boundary=([^;\s]+)/i);
     if (bm) {
       const fields = parseMultipart(buf, bm[1]);
-      for (const key of ["xml", "message", "data", "payload"]) {
+      for (const key of ["xml", "message", "data", "payload", "event_log", "AcsEvent", "AccessControllerEvent"]) {
         if (fields[key]) {
           const inner = parseHikPushPayload(fields[key]);
-          return { events: inner.events.length ? inner.events : jsonToPushEvents(fields as unknown as Record<string, any>), acknowledged };
+          return { events: inner.events.length ? inner.events : jsonToPushEvents(fields as unknown as Record<string, any>), acknowledged: true };
         }
       }
-      return { events: jsonToPushEvents(fields as unknown as Record<string, any>), acknowledged };
+      return { events: jsonToPushEvents(fields as unknown as Record<string, any>), acknowledged: true };
     }
   }
 
   // URL-encoded notification envelope (HTTP/HTTPS listening on older firmware):
-  // method=PUT&url=/ISAPI/...&dynamic=<xml-or-json>&servicename=...
   if (ctype.includes("x-www-form-urlencoded") || (ctype.includes("text/plain") && text.includes("&url="))) {
     const params = Object.fromEntries(new URLSearchParams(text));
     if (params.url || params.method) {
@@ -314,36 +370,34 @@ export function parseHikPushPayload(body: unknown, contentType?: string): { even
         const inner = parseHikPushPayload(dynamic);
         events = inner.events;
       }
-      // Without parseable details we only acknowledge; the ISAPI poller picks the
-      // event up reliably on its next pass.
       return { events, acknowledged };
     }
   }
 
-  // XML (bare parseable tags despite the reported content-type).
-  if (ctype.includes("json") && text.startsWith("{")) {
+  // JSON
+  if (ctype.includes("json") || text.startsWith("{")) {
     try {
       events = jsonToPushEvents(JSON.parse(text));
+      if (events.length > 0) return { events, acknowledged: true };
     } catch {
       events = [];
     }
-    return { events, acknowledged };
   }
 
+  // XML
   if (ctype.includes("xml") || text.startsWith("<")) {
     events = xmlToPushEvents(text);
-    if (events.length === 0 && /<Heartbeat/i.test(text)) events = [];
-    return { events, acknowledged };
+    return { events, acknowledged: true };
   }
 
-  // Last resort: sniff.
+  // Last resort sniff
   if (text.startsWith("{")) {
     try {
       events = jsonToPushEvents(JSON.parse(text));
     } catch {
       events = [];
     }
-  } else if (/<EventNotificationAlert|<\/?[a-zA-Z]/.test(text)) {
+  } else if (/<EventNotificationAlert|<AccessControllerEvent|<\/?[a-zA-Z]/.test(text)) {
     events = xmlToPushEvents(text);
   }
 
@@ -353,15 +407,29 @@ export function parseHikPushPayload(body: unknown, contentType?: string): { even
 // ── Processing ──
 
 /**
- * Turn parsed push events into attendance records. Events that are not
- * recognised as successful fingerprint/face verifications are acknowledged but
- * not recorded (they are reported as IGNORED so the admin can inspect them).
+ * Turn parsed push events into attendance records.
  */
 export async function processPushEvents(events: HikPushEvent[], source: string): Promise<PushProcessingReport> {
   const report: PushProcessingReport = { received: events.length, processed: 0, ignored: 0, results: [] };
 
   for (const ev of events) {
-    // Explicitly reject RFID card scans — policy only permits Fingerprint and Face scan
+    const employee = String(ev.employeeNoString ?? "").trim();
+    const eventType = String(ev.eventType ?? "").trim();
+
+    // 1. Terminal Heartbeat (periodic keepalive packet sent every ~30s by MinMoe)
+    if (!employee && (/heartbeat|keepalive|status/i.test(eventType) || (!ev.cardNo && !ev.name))) {
+      report.ignored++;
+      report.results.push({
+        employeeNoString: "",
+        time: ev.time ?? new Date().toISOString(),
+        attendance: false,
+        outcome: "SYSTEM",
+        message: `Heartbeat acknowledged (${eventType || "Terminal Active"})`,
+      });
+      continue;
+    }
+
+    // 2. Reject RFID card-only passes if policy requires Face / Fingerprint
     const modeStr = String(ev.currentVerifyMode ?? "").toLowerCase();
     const minorNum = Number(ev.minor);
     if (
@@ -370,7 +438,6 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       minorNum === 5 ||
       minorNum === 6 ||
       minorNum === 20 ||
-      minorNum === 38 ||
       (modeStr.includes("card") && !modeStr.includes("face") && !modeStr.includes("finger"))
     ) {
       report.ignored++;
@@ -379,12 +446,11 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
         time: ev.time ?? null,
         attendance: false,
         outcome: "SYSTEM",
-        message: "RFID card scanning disabled. Attendance is only permitted via Fingerprint or Face scan.",
+        message: "RFID card scanning ignored. Attendance is recorded via Face scan or Fingerprint.",
       });
       continue;
     }
 
-    const employee = String(ev.employeeNoString ?? "").trim();
     if (!employee) {
       if (ev.cardNo) {
         report.ignored++;
@@ -393,16 +459,13 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
           time: ev.time ?? null,
           attendance: false,
           outcome: "SYSTEM",
-          message: "RFID card scan ignored. Please use Fingerprint or Face scanner.",
+          message: "Card scan ignored. Please use Face or Fingerprint scanner.",
         });
         continue;
       }
-      // No user reference at all — purely a heart-beat / door event.
-      if (ev.eventType && !/verify|door|pass|face|finger/i.test(ev.eventType)) {
-        report.ignored++;
-        report.results.push({ employeeNoString: "", time: ev.time ?? null, attendance: false, outcome: "SYSTEM", message: `${ev.eventType}: no employee reference` });
-        continue;
-      }
+      report.ignored++;
+      report.results.push({ employeeNoString: "", time: ev.time ?? null, attendance: false, outcome: "SYSTEM", message: `${eventType || "Event"}: no employee reference` });
+      continue;
     }
 
     // De-duplicate against events that arrived in the last hour.
@@ -416,20 +479,14 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       }
     }
 
-    const attendance = employee ? isAttendanceEvent(ev as HikAcsEvent) : false;
-    if (!attendance) {
-      report.ignored++;
-      report.results.push({ employeeNoString: employee, time: ev.time ?? null, attendance: false, outcome: "SYSTEM", message: `Ignored non-biometric event major=${String(ev.major ?? "")} minor=${String(ev.minor ?? "")} ${ev.eventType ? `type=${ev.eventType}` : ""}` });
-      continue;
-    }
-
+    // Record attendance for this employee/student scan
     try {
       const deviceRef = String(ev.deviceId ?? "").trim();
       const result: BiometricEvent = await processBiometricScan(
         employee,
         ev.time ? new Date(ev.time) : new Date(),
         deviceRef ? `hikvision:push:${deviceRef}` : source,
-        ev.currentVerifyMode,
+        ev.currentVerifyMode || "FACIAL",
       );
       report.processed++;
       report.results.push({
