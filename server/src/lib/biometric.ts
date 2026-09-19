@@ -107,6 +107,12 @@ export interface ScanWindowConfig {
   allowEarlyCheckIn?: boolean;
   /** Faculty applicability roster (teacherProfile ids). Empty = applies to everyone. */
   applicableTeacherIds: string[];
+  /** Faculty exemption roster (teacherProfile ids). */
+  exemptTeacherIds: string[];
+  /** Student/Class applicability roster (class ids). Empty = applies to all classes. */
+  applicableClassIds: string[];
+  /** Student exemption roster (studentProfile ids). */
+  exemptStudentIds: string[];
   /** Which role timer this config was built from. */
   role: "STUDENT" | "TEACHER";
   /** Source schedule event (one unified event carries both timers). */
@@ -128,6 +134,9 @@ export interface ScanWindowRowLike {
   graceMinutes?: number;
   enabled: boolean;
   applicableTeacherIds?: string[];
+  exemptTeacherIds?: string[];
+  applicableClassIds?: string[];
+  exemptStudentIds?: string[];
   facultyStartTime?: string | null;
   facultyEndTime?: string | null;
   facultyLateEndTime?: string | null;
@@ -445,6 +454,9 @@ export function toWindowConfig(w: ScanWindowRowLike, role: "STUDENT" | "TEACHER"
     enabled: range.enabled,
     allowEarlyCheckIn: false,
     applicableTeacherIds: w.applicableTeacherIds ?? [],
+    exemptTeacherIds: w.exemptTeacherIds ?? [],
+    applicableClassIds: w.applicableClassIds ?? [],
+    exemptStudentIds: w.exemptStudentIds ?? [],
     role,
     eventId: w.id,
     eventName: w.name,

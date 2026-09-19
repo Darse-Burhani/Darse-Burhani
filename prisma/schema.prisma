@@ -210,6 +210,7 @@ model TeacherProfile {
   musaidHifzAssignments      HifzMarhalaAssignment[] @relation("MusaidHifzAssignments")
   hifzMarhalaReports         HifzMarhalaReport[]     @relation("FacultyHifzReports")
   weeklySlipsAuthored        HifzWeeklySlip[]        @relation("TeacherWeeklySlips")
+  medicalExemptions          MedicalExemption[]
 
   @@index([userId])
   @@map("teacher_profiles")
@@ -282,6 +283,7 @@ model StudentProfile {
   musaidHifzAssignments      HifzMarhalaAssignment[] @relation("MusaidStudentHifzAssignments")
   hifzMarhalaReports         HifzMarhalaReport[]     @relation("StudentHifzReports")
   weeklySlips                HifzWeeklySlip[]        @relation("StudentWeeklySlips")
+  medicalExemptions          MedicalExemption[]
 
   @@index([userId])
   @@index([grade, section])
@@ -693,6 +695,11 @@ model BiometricScanWindow {
   // Faculty applicability: empty = applies to all active teachers.
   // Non-empty = only these teacherProfile ids are expected (others skip auto-absent).
   applicableTeacherIds String[] @default([])
+  exemptTeacherIds     String[] @default([])
+  // Student applicability: empty = applies to all students/classes.
+  // Non-empty = only these class ids are expected.
+  applicableClassIds   String[] @default([])
+  exemptStudentIds     String[] @default([])
   // ── Unified-event faculty timer ──
   // ONE schedule event carries BOTH the Talabat timer (startTime/endTime/
   // lateEndTime) and the faculty timer below. Null faculty times = this event
@@ -1108,4 +1115,30 @@ model AttendanceAuditLog {
   @@index([action])
   @@map("attendance_audit_logs")
 }
+
+model MedicalExemption {
+  id             String    @id @default(cuid())
+  personType     String    // "STUDENT" | "TEACHER"
+  studentId      String?
+  teacherId      String?
+  date           DateTime  // UTC start of day
+  eventId        String?   // null = full day, or specific scan window / period id
+  eventName      String?   // e.g. "Tilawat al Dua", "Period 1", "Full Day"
+  reason         String    // Symptoms, clinic note, bed rest, etc.
+  assignedById   String    // userId of the teacher/admin who marked it
+  assignedByName String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([personType, date])
+  @@map("medical_exemptions")
+}
+
 

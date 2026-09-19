@@ -58,6 +58,7 @@ import adminLeaveRoutes from "./routes/admin/leave";
 import adminAttendanceRegistryRoutes from "./routes/admin/attendance-registry";
 import adminAttendanceLogsRoutes from "./routes/admin/attendance-logs";
 import manualAttendanceRoutes from "./routes/manual-attendance";
+import medicalRoutes from "./routes/medical";
 import {
   securityHeadersMiddleware,
   sanitizeInputsMiddleware,
@@ -181,6 +182,8 @@ export function createApp() {
   app.use("/api/upload", uploadRoutes);
   app.use("/api/fatimi-calendar", fatimiCalendarRoutes);
   app.use("/api/biometric", biometricRoutes);
+  app.use("/api/medical", medicalRoutes);
+  app.use("/api/attendance/medical", medicalRoutes);
 
   // Hikvision HTTP Event Listening & Webhook Gateway
   app.use("/api/hikvision", hikvisionRoutes);

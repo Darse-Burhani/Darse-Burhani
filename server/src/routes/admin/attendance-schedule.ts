@@ -187,6 +187,19 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
           }));
         }
 
+        let applicableClasses: Array<{ id: string; name: string; grade: string; section: string }> | undefined;
+        const appClassIds: string[] = ((w as any).applicableClassIds ?? []) as string[];
+        if (appClassIds.length > 0) {
+          const classes = await prisma.class.findMany({
+            where: { id: { in: appClassIds } },
+            select: { id: true, name: true, grade: true, section: true },
+          });
+          applicableClasses = classes;
+        }
+
+        const exemptStudentIds: string[] = ((w as any).exemptStudentIds ?? []) as string[];
+        const exemptTeacherIds: string[] = ((w as any).exemptTeacherIds ?? []) as string[];
+
         const startMin = toMinutes(w.startTime);
         const endMin = toMinutes(w.endTime);
         const lateEndMin = Math.max(endMin, toMinutes((w as any).lateEndTime ?? w.endTime));
@@ -200,7 +213,11 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
           facultyEnabled: ww.facultyEnabled ?? true,
           hasFacultyTimer: unifiedFaculty || legacyFaculty,
           applicableTeacherIds: applicableIds,
+          exemptTeacherIds,
+          applicableClassIds: appClassIds,
+          exemptStudentIds,
           ...(applicableTeachers ? { applicableTeachers } : {}),
+          ...(applicableClasses ? { applicableClasses } : {}),
           audience,
           status,
           phase,
@@ -228,7 +245,8 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance/schedule/windows - Create new schedule event (ONE event, BOTH Talabat + faculty timers)
 router.post("/windows", requireRole("ADMIN"), async (req, res) => {
   try {
-    const { name, startTime, endTime, lateEndTime, graceMinutes = 10, enabled = true, applicableTeacherIds,
+    const { name, startTime, endTime, lateEndTime, graceMinutes = 10, enabled = true,
+      applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
       facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled = true } =
       req.body as Record<string, any>;
 
@@ -253,19 +271,17 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Late-till must be at or after On-time To" });
     }
 
-    // Faculty timer is optional per event; when supplied it must be a valid
-    // two-time range of its own.
     let facultyTimer: { start: string; end: string; late: string } | null = null;
-    if (
-      (facultyStartTime && String(facultyStartTime).trim()) ||
-      (facultyEndTime && String(facultyEndTime).trim()) ||
-      (facultyLateEndTime && String(facultyLateEndTime).trim())
-    ) {
-      const fs = String(facultyStartTime || "").trim();
-      const fe = String(facultyEndTime || "").trim();
-      const flRaw = facultyLateEndTime && String(facultyLateEndTime).trim() ? String(facultyLateEndTime).trim() : fe;
+    const fs = facultyStartTime && String(facultyStartTime).trim() ? String(facultyStartTime).trim() : null;
+    const fe = facultyEndTime && String(facultyEndTime).trim() ? String(facultyEndTime).trim() : null;
+    const flRaw = facultyLateEndTime && String(facultyLateEndTime).trim() ? String(facultyLateEndTime).trim() : fe;
+
+    if ((fs && !fe) || (!fs && fe)) {
+      return res.status(400).json({ success: false, error: "Faculty timer requires both On-time From and On-time To" });
+    }
+    if (fs && fe) {
       if (!HH_MM.test(fs) || !HH_MM.test(fe)) {
-        return res.status(400).json({ success: false, error: "Faculty start/end must be in HH:MM format (24hr)" });
+        return res.status(400).json({ success: false, error: "Faculty times must be in HH:MM format (24hr)" });
       }
       if (toMinutes(fe) <= toMinutes(fs)) {
         return res.status(400).json({ success: false, error: "Faculty On-time To must be after On-time From" });
@@ -276,8 +292,17 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
       facultyTimer = { start: fs, end: fe, late: flRaw };
     }
 
-    const applicable = Array.isArray(applicableTeacherIds)
+    const applicableTeachers = Array.isArray(applicableTeacherIds)
       ? applicableTeacherIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
+      : [];
+    const exemptTeachers = Array.isArray(exemptTeacherIds)
+      ? exemptTeacherIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
+      : [];
+    const applicableClasses = Array.isArray(applicableClassIds)
+      ? applicableClassIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
+      : [];
+    const exemptStudents = Array.isArray(exemptStudentIds)
+      ? exemptStudentIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
       : [];
 
     const grace = Math.min(180, Math.max(0, Math.round(Number(graceMinutes) || 0)));
@@ -292,7 +317,10 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
         lateEndTime: lateEnd,
         graceMinutes: grace,
         enabled: Boolean(enabled),
-        applicableTeacherIds: applicable,
+        applicableTeacherIds: applicableTeachers,
+        exemptTeacherIds: exemptTeachers,
+        applicableClassIds: applicableClasses,
+        exemptStudentIds: exemptStudents,
         ...(facultyTimer
           ? {
               facultyStartTime: facultyTimer.start,
@@ -419,16 +447,36 @@ router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
       if (!Array.isArray(applicableTeacherIds)) {
         return res.status(400).json({ success: false, error: "applicableTeacherIds must be an array of teacher ids" });
       }
-      const ids = applicableTeacherIds
+      updateData.applicableTeacherIds = applicableTeacherIds
         .filter((v) => typeof v === "string" && (v as string).trim())
         .map((v) => String(v).trim());
-      if (ids.length > 0) {
-        const found = await prisma.teacherProfile.count({ where: { id: { in: ids } } });
-        if (found !== ids.length) {
-          return res.status(400).json({ success: false, error: "One or more selected teachers were not found" });
-        }
+    }
+
+    if (exemptTeacherIds !== undefined) {
+      if (!Array.isArray(exemptTeacherIds)) {
+        return res.status(400).json({ success: false, error: "exemptTeacherIds must be an array of teacher ids" });
       }
-      updateData.applicableTeacherIds = ids;
+      updateData.exemptTeacherIds = exemptTeacherIds
+        .filter((v) => typeof v === "string" && (v as string).trim())
+        .map((v) => String(v).trim());
+    }
+
+    if (applicableClassIds !== undefined) {
+      if (!Array.isArray(applicableClassIds)) {
+        return res.status(400).json({ success: false, error: "applicableClassIds must be an array of class ids" });
+      }
+      updateData.applicableClassIds = applicableClassIds
+        .filter((v) => typeof v === "string" && (v as string).trim())
+        .map((v) => String(v).trim());
+    }
+
+    if (exemptStudentIds !== undefined) {
+      if (!Array.isArray(exemptStudentIds)) {
+        return res.status(400).json({ success: false, error: "exemptStudentIds must be an array of student ids" });
+      }
+      updateData.exemptStudentIds = exemptStudentIds
+        .filter((v) => typeof v === "string" && (v as string).trim())
+        .map((v) => String(v).trim());
     }
 
     const updated = await prisma.biometricScanWindow.update({
@@ -784,14 +832,26 @@ router.get("/auto-absent-preview", requireRole("ADMIN"), async (req, res) => {
       select: { studentId: true, status: true },
     });
 
+    // Count active medical exemptions
+    const medicalExemptions = await prisma.medicalExemption.findMany({
+      where: {
+        personType: "STUDENT",
+        date: dayStart,
+        isActive: true,
+      },
+      select: { studentId: true },
+    });
+
     const loggedStudentIds = new Set(presentOrLogged.map((r) => r.studentId));
-    const unscannedCount = Math.max(0, totalStudents - loggedStudentIds.size);
+    const medicalStudentIds = new Set(medicalExemptions.map((m) => m.studentId).filter(Boolean));
+    const unscannedCount = Math.max(0, totalStudents - loggedStudentIds.size - medicalStudentIds.size);
 
     return res.json({
       success: true,
       data: {
         totalStudents,
         loggedCount: loggedStudentIds.size,
+        medicalCount: medicalStudentIds.size,
         unscannedCount,
         targetDate: dayStart.toISOString().slice(0, 10),
       },

@@ -26,6 +26,9 @@ import {
   Fingerprint,
   Mail,
   UserX,
+  Stethoscope,
+  HeartPulse,
+  GraduationCap,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +51,10 @@ interface ScanWindow {
   onTimeMinutes?: number;
   audience?: "ALL_STUDENTS" | "FACULTY" | "BOTH" | string;
   applicableTeacherIds?: string[];
+  exemptTeacherIds?: string[];
+  applicableClassIds?: string[];
+  exemptStudentIds?: string[];
+  applicableClasses?: Array<{ id: string; name: string; grade: string; section: string }>;
   applicableTeachers?: Array<{ id: string; name: string }>;
   // Unified-event faculty timer (same event, side-by-side with Talabat timer)
   facultyStartTime?: string | null;
@@ -115,6 +122,9 @@ export default function AdminAttendanceSchedulePage() {
     enabled: true,
     audience: "ALL_STUDENTS" as "ALL_STUDENTS" | "FACULTY",
     applicableTeacherIds: [] as string[],
+    exemptTeacherIds: [] as string[],
+    applicableClassIds: [] as string[],
+    exemptStudentIds: [] as string[],
     // Faculty timer lives on the SAME event (side-by-side with Talabat timer)
     facultyTimerEnabled: true,
     facultyStartTime: "07:30",
@@ -349,6 +359,9 @@ export default function AdminAttendanceSchedulePage() {
         enabled: w.enabled,
         audience: (isLegacyFaculty ? "FACULTY" : "ALL_STUDENTS"),
         applicableTeacherIds: w.applicableTeacherIds || [],
+        exemptTeacherIds: w.exemptTeacherIds || [],
+        applicableClassIds: w.applicableClassIds || [],
+        exemptStudentIds: w.exemptStudentIds || [],
         facultyTimerEnabled: hasFac,
         // Legacy faculty rows carry their schedule in the main columns — adopt them as the faculty timer.
         facultyStartTime: w.facultyStartTime || (isLegacyFaculty ? w.startTime : "07:30"),
@@ -362,12 +375,15 @@ export default function AdminAttendanceSchedulePage() {
       setWindowForm({
         name: aud === "FACULTY" ? "Faculty Reporting & Briefing" : "",
         startTime: aud === "FACULTY" ? "07:30" : "07:00",
-        endTime: aud === "FACULTY" ? "08:45" : "08:15",
+        endTime: aud === "FACULTY" ? "08:15" : "08:15",
         lateEndTime: aud === "FACULTY" ? "09:00" : "08:15",
         graceMinutes: aud === "FACULTY" ? 15 : 10,
         enabled: true,
         audience: aud,
         applicableTeacherIds: [],
+        exemptTeacherIds: [],
+        applicableClassIds: [],
+        exemptStudentIds: [],
         facultyTimerEnabled: true,
         facultyStartTime: "07:30",
         facultyEndTime: "08:45",
@@ -651,11 +667,18 @@ export default function AdminAttendanceSchedulePage() {
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              onClick={() => setManualModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-lg shadow-emerald-950/20 border border-emerald-400"
+              onClick={() => (window.location.href = "/teacher/medical-duty")}
+              className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-lg border border-emerald-400/30 transition-all flex items-center gap-2"
             >
-              <CheckCircle2 className="w-4 h-4 mr-2 text-amber-300" />
-              Record Manual Attendance
+              <Stethoscope className="w-4 h-4 text-emerald-200" />
+              Health &amp; Medical Duty
+            </Button>
+            <Button
+              onClick={() => setManualModalOpen(true)}
+              className="bg-gradient-to-r from-[#d4af37] to-[#b38f26] hover:from-[#e5c158] hover:to-[#c49f32] text-gray-900 font-extrabold text-xs h-10 px-4 rounded-xl shadow-lg border border-[#fef08a]/40 transition-all flex items-center gap-2"
+            >
+              <Users className="w-4 h-4 text-gray-900" />
+              Manual Attendance Sheet
             </Button>
             <Button
               onClick={() => downloadExcel(activeTab)}
@@ -1490,6 +1513,44 @@ export default function AdminAttendanceSchedulePage() {
                       Kept for backward compatibility. Two-time rule takes precedence.
                     </p>
                   </div>
+                </div>
+
+                {/* Class Eligibility Roster for Talabat */}
+                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
+                  <label className="text-xs font-bold text-emerald-900 block flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-emerald-700" />
+                    Talabat Class Attendance Eligibility
+                  </label>
+                  <p className="text-[11px] text-emerald-800 leading-snug">
+                    Select which classes are expected to scan for this scheduled event.
+                    <strong> Empty = all classes/students.</strong> Students in other classes are NOT marked absent.
+                  </p>
+                  <div className="max-h-36 overflow-y-auto space-y-1 bg-white p-2 rounded-lg border border-emerald-100">
+                    {classes.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded px-2 py-1 text-xs text-gray-800">
+                        <input
+                          type="checkbox"
+                          checked={windowForm.applicableClassIds.includes(c.id)}
+                          onChange={(e) =>
+                            setWindowForm({
+                              ...windowForm,
+                              applicableClassIds: e.target.checked
+                                ? [...windowForm.applicableClassIds, c.id]
+                                : windowForm.applicableClassIds.filter((id) => id !== c.id),
+                            })
+                          }
+                          className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-semibold">{c.name}</span>
+                        <span className="text-[10px] text-gray-500">Grade {c.grade}-{c.section}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {windowForm.applicableClassIds.length === 0 && (
+                    <p className="text-[10px] text-emerald-700 font-medium">
+                      ✓ Applies to ALL classes and enrolled students.
+                    </p>
+                  )}
                 </div>
 
                 {/* ── Faculty timer on the SAME event ── */}

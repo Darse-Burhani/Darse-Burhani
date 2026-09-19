@@ -14,6 +14,7 @@ import {
   Library,
   Mail,
   CalendarCheck,
+  Stethoscope,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -21,6 +22,7 @@ import { usePortalAccess } from "@/context/PortalAccessContext";
 const rawNavItems = [
   { key: "dashboard", label: "Dashboard", href: "/teacher", icon: Activity, category: "Overview" },
   { key: "classes", label: "Classes", href: "/teacher/classes", icon: BookOpen, category: "Academics" },
+  { key: "medical-duty", label: "Medical Duty", href: "/teacher/medical-duty", icon: Stethoscope, category: "Operations" },
   { key: "quran", label: "Quran (Hifz)", href: "/teacher/hifz", icon: Sparkles, category: "Academics" },
   { key: "takhteet", label: "Takhteet", href: "/teacher/takhteet", icon: Layers, category: "Academics" },
   { key: "attendance-logs", label: "Attendance Logs", href: "/admin/attendance-logs", icon: FileText, category: "Attendance" },

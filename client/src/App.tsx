@@ -79,6 +79,7 @@ const TeacherHifzMarhala = lazy(() => import("@/app/teacher/hifz-marhala/page"))
 const TeacherHifzWeeklySlip = lazy(() => import("@/app/teacher/hifz-weekly-slip/page"));
 const TeacherTakhteet = lazy(() => import("@/app/teacher/takhteet/page"));
 const TeacherProfile = lazy(() => import("@/app/teacher/profile/page"));
+const TeacherMedicalDuty = lazy(() => import("@/app/teacher/medical-duty/page"));
 const TeacherProcurement = lazy(() => import("@/app/teacher/procurement/page"));
 const TeacherSettings = lazy(() => import("@/app/teacher/settings/page"));
 
@@ -301,6 +302,7 @@ export default function App() {
         >
           <Route index element={<TeacherDashboard />} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><ModuleLockGuard moduleKey="classes" role="TEACHER" title="My Classes"><TeacherClasses /></ModuleLockGuard></RequireAdminPageAccess>} />
+          <Route path="medical-duty" element={<RequireAdminPageAccess pageKey="medical-duty"><TeacherMedicalDuty /></RequireAdminPageAccess>} />
           <Route path="attendance" element={<RequireAdminPageAccess pageKey="attendance-logs"><ModuleLockGuard moduleKey="attendance" role="TEACHER" title="Attendance"><TeacherAttendance /></ModuleLockGuard></RequireAdminPageAccess>} />
           <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><ModuleLockGuard moduleKey="leave" role="TEACHER" title="Leave Requests"><TeacherLeave /></ModuleLockGuard></RequireAdminPageAccess>} />
           <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><ModuleLockGuard moduleKey="hifz" role="TEACHER" title="Hifz Reports"><TeacherHifz /></ModuleLockGuard></RequireAdminPageAccess>} />
