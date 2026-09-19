@@ -102,8 +102,23 @@ router.post("/event", handleWebhookEvents);
 router.post("/upload", handleWebhookEvents);
 router.post("/notification", handleWebhookEvents);
 router.post("/EventNotificationAlert", handleWebhookEvents);
+router.post("/EventNotification", handleWebhookEvents);
+router.post("/alertStream", handleWebhookEvents);
+router.post("/AcsEvent", handleWebhookEvents);
 router.post("/", handleWebhookEvents);
 router.post("", handleWebhookEvents);
+
+// Also accept PUT method used by some Hikvision firmware HTTP listening modes
+router.put("/events", handleWebhookEvents);
+router.put("/event", handleWebhookEvents);
+router.put("/upload", handleWebhookEvents);
+router.put("/notification", handleWebhookEvents);
+router.put("/EventNotificationAlert", handleWebhookEvents);
+router.put("/EventNotification", handleWebhookEvents);
+router.put("/alertStream", handleWebhookEvents);
+router.put("/AcsEvent", handleWebhookEvents);
+router.put("/", handleWebhookEvents);
+router.put("", handleWebhookEvents);
 
 // ── Webhook status (admin console) ──
 

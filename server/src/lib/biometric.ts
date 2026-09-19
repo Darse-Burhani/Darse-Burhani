@@ -222,7 +222,7 @@ function pushEvent(
   }
   // Mirror every scan outcome to the local daily log file
   // (server/logs/attendance/YYYY-MM-DD.jsonl) so no scan is ever only
-  // in memory — even UNKNOWN / TOO_EARLY / duplicate scans are auditable.
+  // in memory — even UNKNOWN / duplicate scans are auditable.
   try {
     const teacher = (full as BiometricEvent).teacher;
     const student = (full as BiometricEvent).student;
@@ -251,14 +251,15 @@ function pushEvent(
   } catch {
     // Local logging must never break scan processing.
   }
-  if (!silent) {
-    const payload = `data: ${JSON.stringify(full)}\n\n`;
-    for (const send of sseClients) {
-      try {
-        send(payload);
-      } catch {
-        // A slow/disconnected client must not break the loop.
-      }
+
+  // Always broadcast live events to all connected SSE clients (even duplicate re-scans)
+  // so live ticker and dashboards update instantaneously.
+  const payload = `data: ${JSON.stringify(full)}\n\n`;
+  for (const send of sseClients) {
+    try {
+      send(payload);
+    } catch {
+      // A slow/disconnected client must not break the loop.
     }
   }
   return full;
@@ -592,23 +593,27 @@ export async function resolveStudent(ref: string): Promise<ResolvedStudent | nul
   const raw = String(ref || "").trim();
   if (!raw) return null;
 
+  const strippedNum = raw.replace(/^0+/, "");
+  const candidates = Array.from(new Set([raw, strippedNum])).filter(Boolean);
+
   // 1. Direct match by biometricHash
-  const byHash = await prisma.studentProfile.findUnique({
-    where: { biometricHash: raw },
+  const byHash = await prisma.studentProfile.findFirst({
+    where: { biometricHash: { in: candidates } },
     select: STUDENT_SELECT,
   });
   if (byHash) return byHash;
 
-  // 2. Direct match across all standard IDs
+  // 2. Direct match across all standard IDs (studentId, its, darsId, trNo, id, userId, mobileNumber)
   const byId = await prisma.studentProfile.findFirst({
     where: {
       OR: [
-        { id: raw },
-        { userId: raw },
-        { studentId: raw },
-        { its: raw },
-        { darsId: raw },
-        { trNo: raw },
+        { id: { in: candidates } },
+        { userId: { in: candidates } },
+        { studentId: { in: candidates } },
+        { its: { in: candidates } },
+        { darsId: { in: candidates } },
+        { trNo: { in: candidates } },
+        { mobileNumber: { in: candidates } },
       ],
     },
     select: STUDENT_SELECT,
@@ -629,37 +634,21 @@ export async function resolveStudent(ref: string): Promise<ResolvedStudent | nul
   });
   if (byUser) return byUser;
 
-  // 4. Numeric normalization: strip leading zeroes (Hikvision employeeNoString is often "0000000030382757")
-  const strippedNum = raw.replace(/^0+/, "");
-  if (strippedNum && strippedNum !== raw) {
-    const byNum = await prisma.studentProfile.findFirst({
-      where: {
-        OR: [
-          { studentId: strippedNum },
-          { studentId: `STU-${strippedNum}` },
-          { its: strippedNum },
-          { darsId: strippedNum },
-          { trNo: strippedNum },
-          { biometricHash: strippedNum },
-        ],
-      },
-      select: STUDENT_SELECT,
-    });
-    if (byNum) return byNum;
-  }
-
-  // 5. Prefix-stripped normalization (e.g. "STU-30382757", "ITS-30382757", "FP-...")
-  const prefixMatch = raw.match(/^(?:STU|ITS|FP|CARD|ID)[-_:.]?(.*)$/i);
+  // 4. Prefix-stripped normalization (e.g. "STU-30382757", "ITS-30382757", "FP-...")
+  const prefixMatch = raw.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT)[-_:.]?(.*)$/i);
   if (prefixMatch && prefixMatch[1]) {
     const inner = prefixMatch[1].trim();
+    const innerStripped = inner.replace(/^0+/, "");
+    const innerCandidates = Array.from(new Set([inner, innerStripped])).filter(Boolean);
     const byPrefix = await prisma.studentProfile.findFirst({
       where: {
         OR: [
-          { studentId: inner },
-          { its: inner },
-          { darsId: inner },
-          { trNo: inner },
-          { id: inner },
+          { studentId: { in: innerCandidates } },
+          { its: { in: innerCandidates } },
+          { darsId: { in: innerCandidates } },
+          { trNo: { in: innerCandidates } },
+          { biometricHash: { in: innerCandidates } },
+          { id: { in: innerCandidates } },
         ],
       },
       select: STUDENT_SELECT,
@@ -667,12 +656,16 @@ export async function resolveStudent(ref: string): Promise<ResolvedStudent | nul
     if (byPrefix) return byPrefix;
   }
 
-  // 6. Case-insensitive studentId check
+  // 5. Case-insensitive studentId / its check
   return prisma.studentProfile.findFirst({
     where: {
       OR: [
         { studentId: { equals: raw, mode: "insensitive" } },
         { its: { equals: raw, mode: "insensitive" } },
+        ...(strippedNum ? [
+          { studentId: { equals: strippedNum, mode: "insensitive" as const } },
+          { its: { equals: strippedNum, mode: "insensitive" as const } },
+        ] : []),
       ],
     },
     select: STUDENT_SELECT,
@@ -680,7 +673,7 @@ export async function resolveStudent(ref: string): Promise<ResolvedStudent | nul
 }
 
 /**
- * Resolve Teacher for biometric passes
+ * Resolve Teacher / Faculty for biometric passes
  */
 export async function resolveTeacher(ref: string): Promise<ResolvedTeacher | null> {
   const raw = String(ref || "").trim();
@@ -695,22 +688,25 @@ export async function resolveTeacher(ref: string): Promise<ResolvedTeacher | nul
     user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
   } as const;
 
+  const strippedNum = raw.replace(/^0+/, "");
+  const candidates = Array.from(new Set([raw, strippedNum])).filter(Boolean);
+
   // 1. Direct match by biometricHash
-  const byHash = await prisma.teacherProfile.findUnique({
-    where: { biometricHash: raw },
+  const byHash = await prisma.teacherProfile.findFirst({
+    where: { biometricHash: { in: candidates } },
     select: teacherSelect,
   });
   if (byHash) return byHash as any;
 
-  // 2. Direct match by standard IDs
+  // 2. Direct match by standard IDs (employeeId, its, id, userId, mobile)
   const byId = await prisma.teacherProfile.findFirst({
     where: {
       OR: [
-        { id: raw },
-        { userId: raw },
-        { employeeId: { equals: raw, mode: "insensitive" } },
-        { its: { equals: raw, mode: "insensitive" } },
-        { biometricHash: raw },
+        { id: { in: candidates } },
+        { userId: { in: candidates } },
+        { employeeId: { in: candidates } },
+        { its: { in: candidates } },
+        { mobile: { in: candidates } },
         { user: { email: { equals: raw, mode: "insensitive" } } },
       ],
     },
@@ -718,33 +714,19 @@ export async function resolveTeacher(ref: string): Promise<ResolvedTeacher | nul
   });
   if (byId) return byId as any;
 
-  // 3. Numeric normalization: strip leading zeroes (e.g. "000050463544" -> "50463544")
-  const strippedNum = raw.replace(/^0+/, "");
-  if (strippedNum && strippedNum !== raw) {
-    const byNum = await prisma.teacherProfile.findFirst({
-      where: {
-        OR: [
-          { employeeId: strippedNum },
-          { its: strippedNum },
-          { biometricHash: strippedNum },
-        ],
-      },
-      select: teacherSelect,
-    });
-    if (byNum) return byNum as any;
-  }
-
-  // 4. Prefix-stripped normalization (e.g. "EMP-50463544", "FAC-50463544", "TEA-50463544", "ITS-50463544")
-  const prefixMatch = raw.match(/^(?:EMP|TEA|FAC|STAFF|ITS|FP|CARD|ID)[-_:.]?(.*)$/i);
+  // 3. Prefix-stripped normalization (e.g. "EMP-50463544", "FAC-50463544", "TEA-50463544", "ITS-50463544")
+  const prefixMatch = raw.match(/^(?:EMP|TEA|FAC|STAFF|TEACHER|FACULTY|ITS|FP|CARD|ID)[-_:.]?(.*)$/i);
   if (prefixMatch && prefixMatch[1]) {
     const inner = prefixMatch[1].trim();
+    const innerStripped = inner.replace(/^0+/, "");
+    const innerCandidates = Array.from(new Set([inner, innerStripped])).filter(Boolean);
     const byPrefix = await prisma.teacherProfile.findFirst({
       where: {
         OR: [
-          { employeeId: inner },
-          { its: inner },
-          { biometricHash: inner },
-          { id: inner },
+          { employeeId: { in: innerCandidates } },
+          { its: { in: innerCandidates } },
+          { biometricHash: { in: innerCandidates } },
+          { id: { in: innerCandidates } },
         ],
       },
       select: teacherSelect,
@@ -752,7 +734,20 @@ export async function resolveTeacher(ref: string): Promise<ResolvedTeacher | nul
     if (byPrefix) return byPrefix as any;
   }
 
-  return null;
+  // 4. Case-insensitive employeeId / its check
+  return prisma.teacherProfile.findFirst({
+    where: {
+      OR: [
+        { employeeId: { equals: raw, mode: "insensitive" } },
+        { its: { equals: raw, mode: "insensitive" } },
+        ...(strippedNum ? [
+          { employeeId: { equals: strippedNum, mode: "insensitive" as const } },
+          { its: { equals: strippedNum, mode: "insensitive" as const } },
+        ] : []),
+      ],
+    },
+    select: teacherSelect,
+  }) as any;
 }
 
 /**
@@ -774,21 +769,18 @@ async function ensureStudentEnrollment(student: ResolvedStudent) {
   });
 
   if (!targetClass) {
-    // Find any class matching the grade
     targetClass = await prisma.class.findFirst({
       where: { grade: student.grade, isActive: true },
     });
   }
 
   if (!targetClass) {
-    // Find any active class in the entire school
     targetClass = await prisma.class.findFirst({
       where: { isActive: true },
     });
   }
 
   if (targetClass) {
-    // Auto enroll student
     try {
       const newEnrollment = await prisma.classEnrollment.upsert({
         where: { classId_studentId: { classId: targetClass.id, studentId: student.id } },
@@ -841,24 +833,18 @@ export async function processBiometricScan(
       const facultyWindow = await getScanWindow("TEACHER", when);
       const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when);
 
-      if (!facultyWindowStatus.isOpen) {
-        return pushEvent({
-          type: facultyWindowStatus.isUpcoming ? "TOO_EARLY" : "SYSTEM",
-          fingerprint,
-          deviceId: deviceId ?? null,
-          role: "TEACHER",
-          teacher: teacherInfo,
-          message: `Faculty scan not recorded: ${facultyWindowStatus.message} (${teacherInfo.name})`,
-          verifyMode: method,
-          scanWindow: windowPayload(facultyWindow),
-        }, when, false);
-      }
-
-      // Two-time rule: [startTime, endTime] => PRESENT (on-time),
-      // (endTime, lateEndTime] => LATE. isRoleWindowOpen already guarantees we are inside.
+      // Determine attendance status (PRESENT / LATE)
       let teacherStatus: "PRESENT" | "LATE" = "PRESENT";
       if (facultyWindow && facultyWindow.enabled) {
-        teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
+        if (facultyWindowStatus.isOpen) {
+          teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
+        } else if (facultyWindowStatus.isUpcoming) {
+          // Early check-in before faculty window opens
+          teacherStatus = "PRESENT";
+        } else {
+          // Window has passed / late arrival
+          teacherStatus = "LATE";
+        }
       } else {
         const morningBoundary = 8 * 60 + 30; // 8:30 AM IST fallback
         teacherStatus = scanMinutes <= morningBoundary ? "PRESENT" : "LATE";
@@ -980,25 +966,18 @@ export async function processBiometricScan(
     }, when, true);
   }
 
-  if (!studentWindowStatus.isOpen) {
-    return pushEvent({
-      type: studentWindowStatus.isUpcoming ? "TOO_EARLY" : "SYSTEM",
-      fingerprint,
-      deviceId: deviceId ?? null,
-      role: "STUDENT",
-      student: studentInfo,
-      message: `Talabat scan not recorded: ${studentWindowStatus.message} (${studentInfo.name})`,
-      verifyMode: method,
-      scanWindow: windowPayload(studentWindow),
-    }, when, false);
-  }
-
-  // Two-time rule: [startTime, endTime] => PRESENT (on-time),
-  // (endTime, lateEndTime] => LATE. isRoleWindowOpen already guarantees we are inside.
+  // Determine status (PRESENT / LATE)
   let status: "PRESENT" | "LATE" = "PRESENT";
-
   if (studentWindow && studentWindow.enabled) {
-    status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
+    if (studentWindowStatus.isOpen) {
+      status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
+    } else if (studentWindowStatus.isUpcoming) {
+      // Early bird check-in before Talabat window opens
+      status = "PRESENT";
+    } else {
+      // Scanned after late window / late arrival
+      status = "LATE";
+    }
   } else {
     // Default morning threshold: 08:00 AM IST
     const morningBoundary = 8 * 60; // 8:00 AM IST

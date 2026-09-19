@@ -33,9 +33,20 @@ const server = app.listen(port, host, async () => {
     console.log("[biometric] mock device simulator enabled");
   }
 
-  startDevicePolling()
-    .then(() => console.log("[hikvision] device poller started"))
-    .catch((error) => console.error("[hikvision] failed to start device poller:", error));
+  const isCloud = Boolean(
+    process.env.RENDER ||
+    process.env.VERCEL ||
+    process.env.DISABLE_DEVICE_POLLING === "true" ||
+    (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
+  );
+
+  if (!isCloud) {
+    startDevicePolling()
+      .then(() => console.log("[hikvision] device poller started"))
+      .catch((error) => console.error("[hikvision] failed to start device poller:", error));
+  } else {
+    console.log("[hikvision] Cloud deployment detected (Render/Production): Full-time LAN polling disabled. Event-driven webhook push listening active on /api/hikvision/events.");
+  }
 
   startAttendanceScheduler();
 });

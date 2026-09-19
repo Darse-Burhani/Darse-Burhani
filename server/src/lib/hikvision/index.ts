@@ -906,9 +906,27 @@ export async function pollDevice(
   }
 }
 
-function scheduleDevice(id: string, pollIntervalSeconds: number): void {
+function isCloudEnvironment(): boolean {
+  return Boolean(
+    process.env.RENDER ||
+    process.env.VERCEL ||
+    process.env.DISABLE_DEVICE_POLLING === "true" ||
+    (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
+  );
+}
+
+function isPrivateLanIp(host?: string): boolean {
+  if (!host) return false;
+  return /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|127\.)/.test(host.trim());
+}
+
+function scheduleDevice(id: string, pollIntervalSeconds: number, host?: string): void {
   stopDevicePolling(id);
-  const ms = Math.max(2000, (pollIntervalSeconds || 3) * 1000);
+  // On cloud deployments (Render/Production), never schedule continuous polling against private LAN IPs
+  if (isCloudEnvironment() && (!host || isPrivateLanIp(host))) {
+    return;
+  }
+  const ms = Math.max(2000, (pollIntervalSeconds || 15) * 1000);
   const timer = setInterval(() => {
     pollDevice(id).catch(() => {});
   }, ms);
@@ -1005,11 +1023,16 @@ export async function ensureBiometricDevicesConfigured(): Promise<void> {
 export async function startDevicePolling(id?: string): Promise<void> {
   await ensureBiometricDevicesConfigured();
 
+  if (isCloudEnvironment()) {
+    console.log("[hikvision] Cloud environment: active LAN polling supervisor bypassed. Webhook push endpoint is ready.");
+    return;
+  }
+
   const devices = id
     ? await prisma.biometricDevice.findMany({ where: { id, enabled: true } })
     : await prisma.biometricDevice.findMany({ where: { enabled: true } });
   for (const device of devices) {
-    scheduleDevice(device.id, device.pollIntervalSeconds);
+    scheduleDevice(device.id, device.pollIntervalSeconds, device.host);
   }
 
   if (!supervisorTimer) {
@@ -1024,7 +1047,7 @@ export async function startDevicePolling(id?: string): Promise<void> {
         }
         for (const dev of activeDevices) {
           if (!timers.has(dev.id)) {
-            scheduleDevice(dev.id, dev.pollIntervalSeconds);
+            scheduleDevice(dev.id, dev.pollIntervalSeconds, dev.host);
           }
         }
       } catch {
