@@ -101,6 +101,17 @@ export function PortalShell({
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string>("ALL");
   const { theme: activeFatimiTheme } = useFatimiTheme();
 
+  const handleOpenSearch = () => {
+    setMobileMenuOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById("portal-mobile-search-input");
+      el?.focus();
+    }, 150);
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })
+    );
+  };
+
   useEffect(() => {
     setMobileMenuOpen(false);
     setMobileSearchQuery("");
@@ -325,7 +336,7 @@ export function PortalShell({
           />
 
           <aside
-            className="absolute inset-y-0 left-0 w-full max-w-[320px] sm:max-w-sm shadow-2xl animate-slide-in-left flex flex-col h-full overflow-hidden"
+            className="absolute inset-y-0 left-0 w-full max-w-[320px] sm:max-w-sm shadow-2xl animate-slide-in-left flex flex-col h-full overflow-hidden rounded-r-[2rem] border-r border-white/10"
             style={{ background: theme.sidebar }}
           >
             {/* Top gold accent hairline */}
@@ -361,11 +372,12 @@ export function PortalShell({
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/50" />
                 <input
+                  id="portal-mobile-search-input"
                   type="text"
                   value={mobileSearchQuery}
                   onChange={(e) => setMobileSearchQuery(e.target.value)}
                   placeholder="Filter pages & modules..."
-                  className="w-full bg-white/10 text-white placeholder-white/50 text-xs rounded-xl pl-9 pr-8 py-2.5 border border-white/15 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
+                  className="w-full bg-white/10 text-white placeholder-white/50 text-xs rounded-2xl pl-9 pr-8 py-2.5 border border-white/15 focus:outline-none focus:ring-2 focus:ring-amber-400/80 transition-all"
                 />
                 {mobileSearchQuery && (
                   <button
@@ -436,7 +448,7 @@ export function PortalShell({
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
+                          "group flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
                           active
                             ? "bg-white/20 text-white shadow-sm ring-1 ring-white/20"
                             : "text-white/85 hover:bg-white/10 hover:text-white"
@@ -444,7 +456,7 @@ export function PortalShell({
                       >
                         <div
                           className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200",
+                            "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200",
                             active ? "bg-white/15" : "bg-white/5 group-hover:scale-105"
                           )}
                         >
@@ -494,7 +506,7 @@ export function PortalShell({
                   <Link
                     href={settingsHref}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white/80 bg-white/10 hover:bg-white/15 transition-all active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold text-white/80 bg-white/10 hover:bg-white/15 transition-all active:scale-95"
                   >
                     <Settings className="w-3.5 h-3.5" />
                     <span>Settings</span>
@@ -502,7 +514,7 @@ export function PortalShell({
 
                   <button
                     onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-300 bg-red-500/15 hover:bg-red-500/25 transition-all active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold text-red-300 bg-red-500/15 hover:bg-red-500/25 transition-all active:scale-95"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Sign out</span>
@@ -666,15 +678,11 @@ export function PortalShell({
             </div>
 
             {/* Right: Quick search, notifications, profile */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })
-                  );
-                }}
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 active:scale-95 transition-all"
+                onClick={handleOpenSearch}
+                className="w-9 h-9 rounded-2xl flex items-center justify-center text-gray-700 hover:text-gray-950 bg-gray-100/80 hover:bg-gray-200/80 active:scale-90 transition-all cursor-pointer"
                 aria-label="Quick search"
               >
                 <Search className="w-4 h-4 text-emerald-800" />
@@ -686,7 +694,7 @@ export function PortalShell({
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="p-1 rounded-xl active:scale-95 transition-transform"
+                  className="p-1 rounded-2xl active:scale-90 transition-transform cursor-pointer"
                   aria-label="Open profile menu"
                 >
                   <Avatar className="w-8 h-8 ring-2 ring-emerald-600/30 shadow-xs">
@@ -700,7 +708,7 @@ export function PortalShell({
                 {profileMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
-                    <div className={cn("absolute right-0 mt-2 w-56 bg-white rounded-xl border shadow-xl z-50 py-1.5 animate-fade-in overflow-hidden", theme.border)}>
+                    <div className={cn("absolute right-0 mt-2 w-56 bg-white rounded-3xl border shadow-2xl z-50 py-2 animate-fade-in overflow-hidden", theme.border)}>
                       <div className="h-[2px] w-full" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
                       <div className={cn("px-4 py-3 border-b", theme.border)}>
                         <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
@@ -775,13 +783,13 @@ export function PortalShell({
           className="lg:hidden fixed bottom-3 inset-x-3 max-w-sm sm:max-w-md mx-auto z-40 select-none"
           aria-label="Mobile Navigation"
         >
-          <div className="p-1 rounded-2xl sm:rounded-full bg-emerald-950/30 backdrop-blur-2xl ring-1 ring-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-            <div className="bg-slate-900/95 dark:bg-emerald-950/95 rounded-xl sm:rounded-full px-2 py-1.5 flex items-center justify-around gap-1 text-white">
+          <div className="p-1 rounded-[2rem] sm:rounded-full bg-emerald-950/30 backdrop-blur-2xl ring-1 ring-white/25 shadow-[0_16px_45px_rgba(0,0,0,0.38)]">
+            <div className="bg-slate-900/95 dark:bg-emerald-950/95 rounded-[1.75rem] sm:rounded-full px-2 py-1.5 flex items-center justify-around gap-1 text-white">
               {/* 1. Home */}
               <Link
                 href={rootPath}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-lg sm:rounded-full transition-all duration-200 active:scale-90",
+                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90",
                   isActive(rootPath)
                     ? "bg-white/15 text-white font-bold"
                     : "text-white/70 hover:text-white hover:bg-white/5"
@@ -801,7 +809,7 @@ export function PortalShell({
                 <Link
                   href={hubItem.href}
                   className={cn(
-                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-lg sm:rounded-full transition-all duration-200 active:scale-90",
+                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90",
                     isActive(hubItem.href)
                       ? "bg-white/15 text-white font-bold"
                       : "text-white/70 hover:text-white hover:bg-white/5"
@@ -822,12 +830,8 @@ export function PortalShell({
               {/* 3. Quick Search Trigger */}
               <button
                 type="button"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })
-                  );
-                }}
-                className="flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-lg sm:rounded-full text-white/70 hover:text-white hover:bg-white/5 transition-all duration-200 active:scale-90"
+                onClick={handleOpenSearch}
+                className="flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full text-white/70 hover:text-white hover:bg-white/5 transition-all duration-200 active:scale-90 cursor-pointer"
                 aria-label="Quick Search"
               >
                 <Search className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300" />
@@ -838,7 +842,7 @@ export function PortalShell({
               <Link
                 href="/notifications"
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-lg sm:rounded-full transition-all duration-200 active:scale-90",
+                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90",
                   pathname.startsWith("/notifications")
                     ? "bg-white/15 text-white font-bold"
                     : "text-white/70 hover:text-white hover:bg-white/5"
@@ -858,7 +862,7 @@ export function PortalShell({
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-lg sm:rounded-full transition-all duration-200 active:scale-90",
+                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90 cursor-pointer",
                   mobileMenuOpen
                     ? "bg-white/20 text-white font-bold ring-1 ring-white/30"
                     : "text-white/80 hover:text-white hover:bg-white/5"

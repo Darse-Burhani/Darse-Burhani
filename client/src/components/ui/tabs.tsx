@@ -46,7 +46,7 @@ export const TabsList = ({
   return (
     <div
       className={cn(
-        "inline-flex items-center justify-center rounded-xl bg-slate-100/90 p-1 text-slate-600 border border-slate-200/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]",
+        "inline-flex items-center justify-center rounded-2xl bg-slate-100/90 p-1 text-slate-600 border border-slate-200/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]",
         className
       )}
     >
@@ -72,7 +72,7 @@ export const TabsTrigger = ({
       type="button"
       onClick={() => ctx?.setActiveTab(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-semibold tracking-tight ring-offset-white transition-all duration-200 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs sm:text-sm font-semibold tracking-tight ring-offset-white transition-all duration-200 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer",
         isActive
           ? "bg-white text-emerald-950 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-slate-200/80 font-bold"
           : "text-slate-600 hover:text-slate-900 hover:bg-white/60 active:scale-[0.98]",

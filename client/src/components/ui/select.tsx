@@ -61,7 +61,7 @@ export const SelectTrigger = React.forwardRef<
       type="button"
       onClick={() => ctx?.setOpen(!ctx.open)}
       className={cn(
-        "flex h-10 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50 text-left",
+        "flex h-10 w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50 text-left",
         className
       )}
       {...props}
@@ -106,7 +106,7 @@ export const SelectContent = ({
       <div className="fixed inset-0 z-40" onClick={() => ctx.setOpen(false)} />
       <div
         className={cn(
-          "absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white p-1 text-gray-800 shadow-xl animate-in fade-in-80",
+          "absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-gray-200/90 bg-white p-1 text-gray-800 shadow-[0_16px_36px_rgba(0,0,0,0.18)] animate-in fade-in-80",
           className
         )}
       >
@@ -136,7 +136,7 @@ export const SelectItem = ({
     <div
       onClick={() => ctx?.onValueChange?.(value)}
       className={cn(
-        "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 px-3 text-sm outline-none transition-colors hover:bg-amber-50 hover:text-amber-900",
+        "relative flex w-full cursor-pointer select-none items-center rounded-xl py-2 px-3 text-sm outline-none transition-colors hover:bg-amber-50 hover:text-amber-900",
         isSelected && "bg-amber-100 font-semibold text-amber-900",
         className
       )}

@@ -35,7 +35,7 @@ const ModalContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] sm:w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl max-h-[88vh] overflow-y-auto animate-fade-in data-[state=open]:animate-slide-up",
+        "fixed left-[50%] top-[50%] z-50 w-[calc(100%-1.5rem)] sm:w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-3xl sm:rounded-[2rem] border border-gray-200/90 bg-white p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.22)] max-h-[88vh] overflow-y-auto animate-fade-in data-[state=open]:animate-slide-up",
         className,
       )}
       {...props}
