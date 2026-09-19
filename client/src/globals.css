@@ -731,3 +731,29 @@
   animation: subtle-shimmer 3s infinite;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   MOBILE APP DYNAMICS & TOUCH ERGONOMICS
+   ───────────────────────────────────────────────────────────── */
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .touch-pan-momentum {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+
+  .tap-transparent {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+
