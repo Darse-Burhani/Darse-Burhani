@@ -322,7 +322,6 @@ export default function AdminAttendanceSchedulePage() {
               const message = data.message || "";
               setLatestScan({ name, role, status, time, message });
               // Refresh counts without full loading flicker
-              fetchAutoAbsentPreview();
               fetchFacultyAbsentPreview();
             }
           } catch {
@@ -344,7 +343,7 @@ export default function AdminAttendanceSchedulePage() {
       es?.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
-  }, [fetchAutoAbsentPreview, fetchFacultyAbsentPreview]);
+  }, [fetchFacultyAbsentPreview]);
 
   useEffect(() => {
     loadData();
