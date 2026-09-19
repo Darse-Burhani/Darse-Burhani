@@ -163,15 +163,6 @@ export default function AdminAttendanceSchedulePage() {
   // Download export state
   const [exporting, setExporting] = useState(false);
 
-  // Auto-Mark Absent Governance State
-  const [autoAbsentPreview, setAutoAbsentPreview] = useState<{
-    totalStudents: number;
-    loggedCount: number;
-    unscannedCount: number;
-    targetDate: string;
-  } | null>(null);
-  const [markingAbsent, setMarkingAbsent] = useState(false);
-
   // Faculty applicability roster + faculty auto-absent governance
   const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);
   const [facultyAbsentPreview, setFacultyAbsentPreview] = useState<{
@@ -185,57 +176,6 @@ export default function AdminAttendanceSchedulePage() {
     unscannedTeachers: Array<{ id: string; name: string }>;
   } | null>(null);
   const [markingFacultyAbsent, setMarkingFacultyAbsent] = useState(false);
-
-  // Fetch Auto-Mark Absent Preview
-  const fetchAutoAbsentPreview = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/attendance/schedule/auto-absent-preview");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          setAutoAbsentPreview(json.data);
-        }
-      }
-    } catch {
-      // silent fallback
-    }
-  }, []);
-
-  // Trigger On-Demand Auto-Mark Absent Job
-  const handleTriggerAutoMarkAbsent = async () => {
-    if (!autoAbsentPreview) return;
-    if (
-      !confirm(
-        `Are you sure you want to mark ${autoAbsentPreview.unscannedCount} unscanned talabat as ABSENT for today? This will create attendance records, notify learners, and reset attendance streaks.`,
-      )
-    ) {
-      return;
-    }
-
-    setMarkingAbsent(true);
-    try {
-      const res = await fetch("/api/admin/attendance/schedule/auto-mark-absent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: "Auto-Mark Absent Executed",
-          description: `Successfully marked ${json.data.markedCount} talabat as absent.`,
-          variant: "success",
-        });
-        fetchAutoAbsentPreview();
-        loadData();
-      } else {
-        toast({ title: json.error || "Failed to execute auto-mark absent", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Network error executing auto-mark absent", variant: "destructive" });
-    } finally {
-      setMarkingAbsent(false);
-    }
-  };
 
   // Fetch All Students Windows
   const fetchWindows = useCallback(async () => {
@@ -341,9 +281,9 @@ export default function AdminAttendanceSchedulePage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchWindows(), fetchClassSchedule(), fetchAutoAbsentPreview(), fetchFacultyList(), fetchFacultyAbsentPreview()]);
+    await Promise.all([fetchWindows(), fetchClassSchedule(), fetchFacultyList(), fetchFacultyAbsentPreview()]);
     setLoading(false);
-  }, [fetchWindows, fetchClassSchedule, fetchAutoAbsentPreview, fetchFacultyList, fetchFacultyAbsentPreview]);
+  }, [fetchWindows, fetchClassSchedule, fetchFacultyList, fetchFacultyAbsentPreview]);
 
   // Real-Time Biometric Scan Event Stream
   const [realTimeConnected, setRealTimeConnected] = useState(false);
@@ -887,59 +827,6 @@ export default function AdminAttendanceSchedulePage() {
       {/* ── TAB 1: ALL STUDENTS GENERAL ATTENDANCE SCHEDULE ── */}
       {activeTab === "ALL_STUDENTS" && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          {/* ── Auto-Mark Absent Governance Banner ── */}
-          {autoAbsentPreview && (
-            <div className="mb-6 rounded-2xl border border-amber-200/90 bg-gradient-to-r from-amber-50 via-yellow-50/70 to-emerald-50/30 p-5 shadow-md relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-500 to-emerald-600" />
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-sm mt-0.5">
-                    <UserX className="w-5 h-5 text-amber-700" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-gray-900">
-                        Automated Absence Evaluation (End-of-Window Auto-Mark)
-                      </h3>
-                      <Badge variant="outline" className="text-[10px] font-bold bg-amber-100/80 text-amber-800 border-amber-300">
-                        Daily Governance
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-0.5 max-w-2xl leading-relaxed">
-                      Active learners without biometric scans or teacher marks by the end of the scan window can be
-                      automatically marked as <strong>ABSENT</strong> with instant in-app alerts and streak resets.
-                    </p>
-                    <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-700 font-medium">
-                      <span>Total Enrolled: <strong>{autoAbsentPreview.totalStudents}</strong></span>
-                      <span>Present Today: <strong className="text-emerald-700">{autoAbsentPreview.loggedCount}</strong></span>
-                      <span>Unscanned: <strong className="text-amber-700">{autoAbsentPreview.unscannedCount}</strong></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
-                  <Button
-                    onClick={handleTriggerAutoMarkAbsent}
-                    disabled={markingAbsent || autoAbsentPreview.unscannedCount === 0}
-                    className="bg-gradient-to-r from-[#022c22] to-[#047857] hover:from-[#033b2e] hover:to-[#059669] text-white font-bold text-xs shadow-md rounded-xl h-9"
-                  >
-                    {markingAbsent ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                        Executing...
-                      </>
-                    ) : (
-                      <>
-                        <UserX className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
-                        Auto-Mark {autoAbsentPreview.unscannedCount} Unscanned as Absent
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             {studentWindows.map((w) => {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
