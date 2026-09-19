@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { requireRole } from "../middleware";
 import { processBiometricScan } from "../lib/biometric";
 import {
@@ -136,10 +136,12 @@ const webhookPaths = [
   "",
 ];
 
-// Handle Inbound Event Pushes (POST & PUT)
+const rawBodyParser = express.raw({ type: () => true, limit: "15mb" });
+
+// Handle Inbound Event Pushes (POST & PUT) and Health Probes (GET, HEAD, OPTIONS)
 for (const p of webhookPaths) {
-  router.post(p, handleWebhookEvents);
-  router.put(p, handleWebhookEvents);
+  router.post(p, rawBodyParser, handleWebhookEvents);
+  router.put(p, rawBodyParser, handleWebhookEvents);
   router.get(p, handleWebhookProbe);
   router.head(p, handleWebhookProbe);
   router.options(p, (_req, res) => {

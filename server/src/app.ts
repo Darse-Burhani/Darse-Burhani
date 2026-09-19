@@ -182,9 +182,9 @@ export function createApp() {
   app.use("/api/fatimi-calendar", fatimiCalendarRoutes);
   app.use("/api/biometric", biometricRoutes);
 
-  // Hikvision HTTP Event Listening — raw body parser
-  app.use("/api/hikvision", express.raw({ type: () => true, limit: "15mb" }));
+  // Hikvision HTTP Event Listening & Webhook Gateway
   app.use("/api/hikvision", hikvisionRoutes);
+  app.use("/api/events", hikvisionRoutes);
 
   // Fingerprint enrollment relayed from the local USB-reader bridge.
   app.use("/api/members", membersRoutes);
