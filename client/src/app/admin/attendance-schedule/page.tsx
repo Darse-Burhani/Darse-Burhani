@@ -173,6 +173,7 @@ export default function AdminAttendanceSchedulePage() {
   const [facultyAbsentPreview, setFacultyAbsentPreview] = useState<{
     totalExpected: number;
     loggedCount: number;
+    medicalCount?: number;
     unscannedCount: number;
     outOfRosterCount: number;
     rosterScoped: boolean;
@@ -1185,6 +1186,9 @@ export default function AdminAttendanceSchedulePage() {
                     <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-700 font-medium">
                       <span>Roster: <strong>{facultyAbsentPreview.totalExpected}</strong></span>
                       <span>Present: <strong className="text-emerald-700">{facultyAbsentPreview.loggedCount}</strong></span>
+                      {(facultyAbsentPreview.medicalCount ?? 0) > 0 && (
+                        <span>Medical: <strong className="text-blue-700">{facultyAbsentPreview.medicalCount}</strong></span>
+                      )}
                       <span>Unscanned: <strong className="text-amber-700">{facultyAbsentPreview.unscannedCount}</strong></span>
                       {facultyAbsentPreview.rosterScoped && (
                         <span className="text-indigo-700">Out of roster: <strong>{facultyAbsentPreview.outOfRosterCount}</strong> (skipped)</span>
