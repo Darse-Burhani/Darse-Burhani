@@ -108,28 +108,45 @@ const handleWebhookEvents = async (req: import("express").Request, res: import("
   }
 };
 
-router.post("/events", handleWebhookEvents);
-router.post("/event", handleWebhookEvents);
-router.post("/upload", handleWebhookEvents);
-router.post("/notification", handleWebhookEvents);
-router.post("/EventNotificationAlert", handleWebhookEvents);
-router.post("/EventNotification", handleWebhookEvents);
-router.post("/alertStream", handleWebhookEvents);
-router.post("/AcsEvent", handleWebhookEvents);
-router.post("/", handleWebhookEvents);
-router.post("", handleWebhookEvents);
+// ── HTTP Event Listening & Probe Handlers (POST / PUT / GET / HEAD / OPTIONS) ──
 
-// Also accept PUT method used by some Hikvision firmware HTTP listening modes
-router.put("/events", handleWebhookEvents);
-router.put("/event", handleWebhookEvents);
-router.put("/upload", handleWebhookEvents);
-router.put("/notification", handleWebhookEvents);
-router.put("/EventNotificationAlert", handleWebhookEvents);
-router.put("/EventNotification", handleWebhookEvents);
-router.put("/alertStream", handleWebhookEvents);
-router.put("/AcsEvent", handleWebhookEvents);
-router.put("/", handleWebhookEvents);
-router.put("", handleWebhookEvents);
+const handleWebhookProbe = (req: import("express").Request, res: import("express").Response) => {
+  return res.status(200).json({
+    success: true,
+    status: "ONLINE",
+    service: "Hikvision MinMoe Cloud Webhook Gateway",
+    endpoint: "/api/hikvision/events",
+    message: "Hikvision Webhook Gateway is active and ready to receive real-time attendance push events.",
+    acceptedMethods: ["POST", "PUT", "GET", "HEAD", "OPTIONS"],
+    acceptedFormats: ["JSON", "XML", "multipart/form-data", "application/x-www-form-urlencoded"],
+    stats: getPushStats(),
+  });
+};
+
+const webhookPaths = [
+  "/events",
+  "/event",
+  "/upload",
+  "/notification",
+  "/EventNotificationAlert",
+  "/EventNotification",
+  "/alertStream",
+  "/AcsEvent",
+  "/",
+  "",
+];
+
+// Handle Inbound Event Pushes (POST & PUT)
+for (const p of webhookPaths) {
+  router.post(p, handleWebhookEvents);
+  router.put(p, handleWebhookEvents);
+  router.get(p, handleWebhookProbe);
+  router.head(p, handleWebhookProbe);
+  router.options(p, (_req, res) => {
+    res.setHeader("Allow", "GET, POST, PUT, HEAD, OPTIONS");
+    res.status(200).end();
+  });
+}
 
 // ── Webhook status (admin console) ──
 
