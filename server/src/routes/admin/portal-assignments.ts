@@ -29,11 +29,12 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "security", label: "Security & Audit", category: "Systems", description: "Audit logs & security", path: "/admin/security", icon: "ShieldCheck" },
   { id: "passwords", label: "User Passwords", category: "Community", description: "Password resets & credentials", path: "/admin/passwords", icon: "KeyRound" },
   { id: "portal-assignments", label: "Portal Assignments", category: "Community", description: "Assign portal pages to teachers", path: "/admin/portal-assignments", icon: "UserCheck" },
+  { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
   { id: "medical-duty", label: "Medical & Health Duty", category: "Operations", description: "Mark Talabat & Faculty on Medical Leave / Exemption", path: "/teacher/medical-duty", icon: "Stethoscope" },
   { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
 ];
 
-const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "classes", "medical-duty", "takhteet", "quran", "profile"];
+const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "classes", "manual-attendance", "medical-duty", "takhteet", "quran", "profile"];
 
 // GET /api/admin/portal-assignments - List all teachers and their assigned pages
 router.get("/", requireAuth, async (req, res) => {

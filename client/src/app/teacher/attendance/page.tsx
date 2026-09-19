@@ -20,6 +20,8 @@ import {
   Search,
   Mail,
   Send,
+  Stethoscope,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +31,7 @@ import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceM
 import { getInitials } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE";
+type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "EXCUSED";
 
 const STATUSES: {
   key: AttendanceStatus;
@@ -62,6 +64,22 @@ const STATUSES: {
     idle: "text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300",
     active: "bg-red-500 text-white border-red-500 shadow-sm shadow-red-500/30",
     dot: "bg-red-400",
+  },
+  {
+    key: "MEDICAL",
+    label: "Medical",
+    icon: Stethoscope,
+    idle: "text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300",
+    active: "bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/30",
+    dot: "bg-blue-400",
+  },
+  {
+    key: "EXCUSED",
+    label: "Excused",
+    icon: ShieldCheck,
+    idle: "text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300",
+    active: "bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/30",
+    dot: "bg-purple-400",
   },
   {
     key: "EARLY_DEPARTURE",
@@ -307,10 +325,14 @@ export default function TeacherAttendancePage() {
       PRESENT: 0,
       LATE: 0,
       ABSENT: 0,
+      MEDICAL: 0,
+      EXCUSED: 0,
       EARLY_DEPARTURE: 0,
     };
     roster.forEach((s) => {
-      counts[s.status] += 1;
+      if (counts[s.status] !== undefined) {
+        counts[s.status] += 1;
+      }
     });
     return counts;
   }, [roster]);
