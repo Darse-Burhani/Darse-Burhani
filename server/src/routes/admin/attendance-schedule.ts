@@ -889,8 +889,19 @@ router.get("/faculty-absent-preview", requireRole("ADMIN"), async (req, res) => 
       where: { date: { gte: dayStart, lt: dayEnd } },
       select: { teacherId: true },
     });
+
+    const medicalExemptions = await prisma.medicalExemption.findMany({
+      where: {
+        personType: "TEACHER",
+        date: dayStart,
+        isActive: true,
+      },
+      select: { teacherId: true },
+    });
+
     const loggedIds = new Set(logged.map((r) => r.teacherId));
-    const unscanned = expected.filter((t) => !loggedIds.has(t.id));
+    const medicalTeacherIds = new Set(medicalExemptions.map((m) => m.teacherId).filter(Boolean));
+    const unscanned = expected.filter((t) => !loggedIds.has(t.id) && !medicalTeacherIds.has(t.id));
     const allActive = await prisma.teacherProfile.count({ where: { user: { isActive: true } } });
 
     return res.json({
@@ -898,6 +909,7 @@ router.get("/faculty-absent-preview", requireRole("ADMIN"), async (req, res) => 
       data: {
         totalExpected: expected.length,
         loggedCount: expected.filter((t) => loggedIds.has(t.id)).length,
+        medicalCount: expected.filter((t) => medicalTeacherIds.has(t.id)).length,
         unscannedCount: unscanned.length,
         outOfRosterCount: Math.max(0, allActive - expected.length),
         rosterScoped: expected.length !== allActive,

@@ -862,6 +862,51 @@ export async function processBiometricScan(
         teacherStatus = scanMinutes <= morningBoundary ? "PRESENT" : "LATE";
       }
 
+      // Check if faculty member is on active Medical Exemption today
+      const activeMedical = await prisma.medicalExemption.findFirst({
+        where: {
+          teacherId: teacher.id,
+          date,
+          isActive: true,
+        },
+      });
+
+      if (activeMedical) {
+        await prisma.teacherAttendanceRecord.upsert({
+          where: { teacherId_date: { teacherId: teacher.id, date } },
+          create: {
+            teacherId: teacher.id,
+            date,
+            status: "MEDICAL",
+            checkInTime: when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? null : method,
+            biometricHash: fingerprint,
+            notes: `Medical Exemption: ${activeMedical.eventName || "Medical Duty"} (${activeMedical.reason})`,
+          },
+          update: {
+            checkInTime: when,
+          },
+        });
+
+        cache.invalidateTag("teacherAttendanceRecord");
+        cache.invalidateTag("dashboard");
+
+        return pushEvent({
+          type: "MATCHED",
+          fingerprint,
+          deviceId: deviceId ?? null,
+          role: "TEACHER",
+          teacher: {
+            ...teacherInfo,
+            status: "MEDICAL" as any,
+          },
+          message: `Faculty Verified (Medical Leave active): ${teacherInfo.name}`,
+          verifyMode: method,
+          scanWindow: windowPayload(facultyWindow),
+        }, when, false);
+      }
+
       // Check if attendance already recorded for this faculty member today
       const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
         where: { teacherId_date: { teacherId: teacher.id, date } },

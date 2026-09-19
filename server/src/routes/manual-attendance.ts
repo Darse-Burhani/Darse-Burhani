@@ -94,8 +94,14 @@ router.get("/roster", requireAuth, async (req, res) => {
 
       if (scheduleId) {
         const window = await prisma.biometricScanWindow.findUnique({ where: { id: scheduleId } });
-        if (window && window.applicableTeacherIds && window.applicableTeacherIds.length > 0) {
-          teacherWhere.id = { in: window.applicableTeacherIds };
+        if (window) {
+          if (window.applicableTeacherIds && window.applicableTeacherIds.length > 0) {
+            teacherWhere.id = { in: window.applicableTeacherIds };
+          }
+          const exempt = (window as any).exemptTeacherIds || [];
+          if (exempt.length > 0) {
+            teacherWhere.id = { ...(teacherWhere.id || {}), notIn: exempt };
+          }
         }
       }
 
