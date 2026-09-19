@@ -30,6 +30,10 @@ import {
   Stethoscope,
   HeartPulse,
   GraduationCap,
+  Radio,
+  Activity,
+  Wifi,
+  Zap,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -341,6 +345,67 @@ export default function AdminAttendanceSchedulePage() {
     await Promise.all([fetchWindows(), fetchClassSchedule(), fetchAutoAbsentPreview(), fetchFacultyList(), fetchFacultyAbsentPreview()]);
     setLoading(false);
   }, [fetchWindows, fetchClassSchedule, fetchAutoAbsentPreview, fetchFacultyList, fetchFacultyAbsentPreview]);
+
+  // Real-Time Biometric Scan Event Stream
+  const [realTimeConnected, setRealTimeConnected] = useState(false);
+  const [latestScan, setLatestScan] = useState<{
+    name: string;
+    role: string;
+    status: string;
+    time: string;
+    message?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let es: EventSource | null = null;
+    let reconnectTimeout: any = null;
+
+    function connectSSE() {
+      try {
+        es = new EventSource("/api/biometric/events/stream");
+        es.onopen = () => {
+          setRealTimeConnected(true);
+        };
+        es.onmessage = (e) => {
+          try {
+            if (!e.data || e.data.startsWith(":")) return;
+            const data = JSON.parse(e.data);
+            if (
+              data.type === "SCAN_LOGGED" ||
+              data.type === "WEBHOOK_SCAN" ||
+              data.type === "MOCK_SCAN" ||
+              data.type === "SCAN_EVENT"
+            ) {
+              const name = data.studentName || data.teacherName || data.personName || data.name || "Member";
+              const role = data.role || (data.teacherName ? "Faculty" : "Talabat");
+              const status = data.attendanceStatus || data.status || "PRESENT";
+              const time = new Date().toLocaleTimeString();
+              const message = data.message || "";
+              setLatestScan({ name, role, status, time, message });
+              // Refresh counts without full loading flicker
+              fetchAutoAbsentPreview();
+              fetchFacultyAbsentPreview();
+            }
+          } catch {
+            // Ignore malformed messages
+          }
+        };
+        es.onerror = () => {
+          setRealTimeConnected(false);
+          es?.close();
+          reconnectTimeout = setTimeout(connectSSE, 5000);
+        };
+      } catch {
+        setRealTimeConnected(false);
+      }
+    }
+
+    connectSSE();
+    return () => {
+      es?.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    };
+  }, [fetchAutoAbsentPreview, fetchFacultyAbsentPreview]);
 
   useEffect(() => {
     loadData();
@@ -703,6 +768,47 @@ export default function AdminAttendanceSchedulePage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* ── Real-Time Gateway Feed Pulse & Live Scan Ticker ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 mb-6 rounded-2xl bg-white border border-gray-200/90 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-center">
+            <span className={`w-3 h-3 rounded-full ${realTimeConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
+            {realTimeConnected && (
+              <span className="absolute w-5 h-5 rounded-full bg-emerald-400/40 animate-ping" />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Radio className={`w-4 h-4 ${realTimeConnected ? "text-emerald-600 animate-pulse" : "text-amber-500"}`} />
+            <span className="text-xs font-bold text-gray-800">
+              {realTimeConnected ? "Live Biometric Gateway Connected" : "Connecting to Live Event Stream..."}
+            </span>
+            <Badge variant="outline" className={`text-[10px] font-bold ${realTimeConnected ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+              {realTimeConnected ? "SSE Active" : "Polling"}
+            </Badge>
+          </div>
+        </div>
+
+        {latestScan ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-xs font-medium text-emerald-950">
+            <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span>Latest Scan:</span>
+            <strong className="font-bold">{latestScan.name}</strong>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white font-bold border border-emerald-200 text-emerald-800">
+              {latestScan.role}
+            </span>
+            <Badge variant="outline" className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border-emerald-300">
+              {latestScan.status}
+            </Badge>
+            <span className="text-[10px] text-gray-500">{latestScan.time}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+            <Activity className="w-3.5 h-3.5 text-gray-400" />
+            <span>Awaiting device punches...</span>
+          </div>
+        )}
       </div>
 
       {/* ── Main Tab Switcher Toggle ── */}
