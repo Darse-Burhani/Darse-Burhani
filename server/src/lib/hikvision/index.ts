@@ -873,7 +873,7 @@ export async function pollDevice(
     scansFetched = scans.length;
 
     for (const ev of scans) {
-      const empNo = String(ev.employeeNoString ?? ev.cardNo ?? "").trim();
+      const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
       if (!empNo) continue;
 
       let time = parseEventTime(ev.time) ?? new Date();

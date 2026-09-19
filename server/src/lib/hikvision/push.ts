@@ -62,6 +62,7 @@ export interface HikHttpHost {
   parameterFormatType: string;
   addressingFormatType: string;
   ipAddress: string;
+  hostName?: string;
   portNo: string;
   httpAuthenticationType: string;
 }
@@ -588,6 +589,7 @@ interface HikHostRaw {
   parameterFormatType?: string;
   addressingFormatType?: string;
   ipAddress?: string;
+  hostName?: string;
   portNo?: string;
   httpAuthenticationType?: string;
 }

@@ -72,15 +72,28 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** ISAPI window format: yyyy-MM-ddTHH:mm:ss with optional timezone offset. */
+/** ISAPI window format: yyyy-MM-ddTHH:mm:ss in Indian Standard Time (+05:30) */
 function isaTime(d: Date, withTz = true): string {
-  const base = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  if (!withTz) return base;
-  const tz = -d.getTimezoneOffset();
-  const sign = tz >= 0 ? "+" : "-";
-  const absTz = Math.abs(tz);
-  const tzStr = `${sign}${pad(Math.floor(absTz / 60))}:${pad(absTz % 60)}`;
-  return `${base}${tzStr}`;
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "00";
+  const year = get("year");
+  const month = get("month");
+  const day = get("day");
+  let hour = get("hour");
+  if (hour === "24") hour = "00";
+  const minute = get("minute");
+  const second = get("second");
+  const base = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+  return withTz ? `${base}+05:30` : base;
 }
 
 /**
@@ -298,7 +311,7 @@ export const BIOMETRIC_VERIFY_MODES = new Set<number>([4, 5, 6, 12, 15, 16]);
  * STRICT POLICY: Only Fingerprint and Face scan are accepted. RFID Card-only passes are rejected.
  */
 export function isAttendanceEvent(ev: HikAcsEvent): boolean {
-  const id = String(ev.employeeNoString ?? ev.cardNo ?? "").trim();
+  const id = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
   if (!id) return false;
 
   const major = Number(ev.major);
@@ -329,7 +342,7 @@ export function isAttendanceEvent(ev: HikAcsEvent): boolean {
   }
 
   // 3. Attendance upload event (major=5) with valid employee identifier
-  if (major === 5 && (ev.employeeNoString || minor === 38 || minor === 39 || minor === 75)) {
+  if (major === 5 && (ev.employeeNoString || ev.name || minor === 38 || minor === 39 || minor === 75 || minor === 76)) {
     return true;
   }
 
@@ -338,7 +351,7 @@ export function isAttendanceEvent(ev: HikAcsEvent): boolean {
     return true;
   }
 
-  return Boolean(ev.employeeNoString && minor !== 1);
+  return Boolean((ev.employeeNoString || ev.name) && minor !== 1);
 }
 
 export interface HikUserInfo {
