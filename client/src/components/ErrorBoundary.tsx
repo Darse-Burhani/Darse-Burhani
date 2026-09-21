@@ -35,13 +35,21 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode; 
         this.state.error?.message?.includes("error loading dynamically imported module");
 
       return this.props.fallback || (
-        <div className="min-h-[40vh] flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-sm text-red-600 font-medium">
-            {isChunkError ? "A new update was deployed to the application." : "Something went wrong loading this section."}
+        <div className="min-h-[40vh] flex flex-col items-center justify-center p-8 text-center bg-rose-50/40 border border-rose-200/80 rounded-3xl m-4">
+          <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center mb-3 shadow-sm border border-rose-300">
+            <span className="text-xl font-bold font-heading">!</span>
+          </div>
+          <h3 className="text-base sm:text-lg text-slate-900 font-bold font-heading tracking-tight">
+            {isChunkError ? "Application Module Updated" : "An Unexpected Exception Occurred"}
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 font-info mt-1.5 max-w-md leading-relaxed">
+            {isChunkError ? "A new update was deployed. Please refresh your browser to load the latest release." : "The interface encountered a runtime issue in this module."}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {isChunkError ? "Please refresh your page to load the updated module." : this.state.error?.message}
-          </p>
+          {this.state.error?.message && !isChunkError && (
+            <pre className="mt-3 p-3 rounded-xl bg-white border border-rose-200 text-[11px] text-rose-900 font-error max-w-lg overflow-x-auto text-left shadow-2xs">
+              {this.state.error.message}
+            </pre>
+          )}
           <button
             onClick={() => {
               if (isChunkError) {
@@ -50,9 +58,9 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode; 
                 this.setState({ hasError: false });
               }
             }}
-            className="mt-3 px-4 py-2 text-sm bg-emerald-800 text-white rounded-xl font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
+            className="mt-4 px-5 py-2.5 text-xs bg-gradient-to-br from-emerald-950 to-teal-900 text-white rounded-2xl font-bold font-heading shadow-md hover:brightness-110 active:scale-95 transition-all"
           >
-            {isChunkError ? "Refresh Page" : "Retry"}
+            {isChunkError ? "Refresh Page" : "Retry Section"}
           </button>
         </div>
       );

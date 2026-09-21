@@ -24,17 +24,17 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-xl border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-in data-[swipe=end]:animate-fade-out",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-2xl border p-5 pr-8 shadow-xl backdrop-blur-md transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-in data-[swipe=end]:animate-fade-out",
   {
     variants: {
       variant: {
-        default: "border bg-white text-gray-900",
+        default: "border-slate-200/90 bg-white/95 text-slate-900 shadow-slate-900/5",
         destructive:
-          "destructive group border-red-200 bg-red-50 text-red-900",
+          "destructive group border-rose-300 bg-rose-50/95 text-rose-950 shadow-rose-900/10 font-error",
         success:
-          "border-green-200 bg-green-50 text-green-900",
+          "border-emerald-200/90 bg-emerald-50/95 text-emerald-950 shadow-emerald-900/5",
         warning:
-          "border-yellow-200 bg-yellow-50 text-yellow-900",
+          "border-amber-200/90 bg-amber-50/95 text-amber-950 shadow-amber-900/5",
       },
     },
     defaultVariants: {
@@ -63,12 +63,12 @@ const Toast = React.forwardRef<
       {onUndo && (
         <button
           onClick={onUndo}
-          className="text-sm font-medium text-darse-burhani-600 hover:text-darse-burhani-800 underline underline-offset-2 transition-colors"
+          className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 transition-colors font-info"
         >
           Undo
         </button>
       )}
-      <ToastPrimitives.Close className="absolute right-2 top-2 rounded-md p-1 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-darse-burhani-500">
+      <ToastPrimitives.Close className="absolute right-2.5 top-2.5 rounded-xl p-1 text-slate-400 hover:text-slate-700 hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500">
         <X className="h-4 w-4" />
       </ToastPrimitives.Close>
     </ToastPrimitives.Root>
@@ -82,7 +82,7 @@ const ToastTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Title
     ref={ref}
-    className={cn("text-sm font-semibold", className)}
+    className={cn("text-sm font-bold font-heading tracking-tight", className)}
     {...props}
   />
 ));
@@ -94,7 +94,7 @@ const ToastDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Description
     ref={ref}
-    className={cn("text-sm opacity-90", className)}
+    className={cn("text-xs font-normal font-info opacity-90 leading-relaxed mt-0.5", className)}
     {...props}
   />
 ));

@@ -62,10 +62,16 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 239 84% 67%;
     --radius: 1.25rem;
-    --font-inter: "Inter", "Al-Kanz", system-ui, -apple-system, sans-serif;
-    --font-display: "Plus Jakarta Sans", "Al-Kanz", system-ui, -apple-system, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, monospace;
-    --font-arabic: "Al-Kanz", Arial, sans-serif;
+
+    /* ── Distinct 2026 Typography Tiers ── */
+    --font-heading: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', system-ui, -apple-system, sans-serif;
+    --font-display: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', system-ui, -apple-system, sans-serif;
+    --font-info: 'Inter', 'DM Sans', 'Al-Kanz', system-ui, -apple-system, sans-serif;
+    --font-body: 'Inter', 'DM Sans', 'Al-Kanz', system-ui, -apple-system, sans-serif;
+    --font-error: 'JetBrains Mono', 'Space Grotesk', ui-monospace, monospace;
+    --font-alert: 'JetBrains Mono', 'Space Grotesk', ui-monospace, monospace;
+    --font-mono: 'JetBrains Mono', 'Space Grotesk', ui-monospace, monospace;
+    --font-arabic: 'Al-Kanz', Arial, sans-serif;
   }
 }
 
@@ -86,11 +92,11 @@
 
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
-    font-family: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-body);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "salt", "calt", "kern";
     font-optical-sizing: auto;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 15.5px;
+    line-height: 1.62;
     overflow-x: hidden;
     width: 100%;
     max-width: 100vw;
@@ -98,33 +104,75 @@
   }
 
   ::selection {
-    @apply bg-darse-burhani-200/70 text-darse-burhani-900;
+    @apply bg-emerald-200/70 text-emerald-950;
   }
 
   /* Placeholder text must meet 4.5:1 on white inputs app-wide */
   input::placeholder,
   textarea::placeholder {
-    color: #6b7280;
-    opacity: 1;
+    color: #64748b;
+    font-family: var(--font-info);
+    opacity: 0.9;
   }
 
-  /* Focus ring — emerald to match brand (was indigo darse-burhani-500) */
+  /* Focus ring — emerald to match brand */
   *:focus-visible {
-    @apply outline-none ring-2 ring-emerald-600 ring-offset-2 ring-offset-white transition-all duration-200;
+    @apply outline-none ring-2 ring-emerald-600/80 ring-offset-2 ring-offset-white transition-all duration-200;
   }
 
-  /* Typography refinements */
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display;
-    letter-spacing: -0.02em;
+  /* ── Tier 1: Headings & Display Typography ── */
+  h1, h2, h3, h4, h5, h6,
+  .font-heading,
+  .font-display {
+    font-family: var(--font-heading);
+    letter-spacing: -0.025em;
+    font-weight: 800;
   }
 
   h1 {
-    letter-spacing: -0.03em;
+    letter-spacing: -0.035em;
+    font-weight: 850;
+  }
+
+  h2 {
+    letter-spacing: -0.028em;
+  }
+
+  /* ── Tier 2: Information & Body Typography ── */
+  p,
+  span,
+  label,
+  input,
+  select,
+  textarea,
+  .font-info,
+  .font-body {
+    font-family: var(--font-info);
   }
 
   p {
     @apply leading-relaxed;
+  }
+
+  /* ── Tier 3: Error & Alert & Technical Typography ── */
+  .font-error,
+  .font-alert,
+  .text-destructive,
+  .text-rose-600,
+  .text-red-600,
+  .alert-destructive,
+  .error-badge,
+  .error-message {
+    font-family: var(--font-error);
+    letter-spacing: -0.015em;
+  }
+
+  code,
+  kbd,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum" 1, "zero" 1;
   }
 }
 

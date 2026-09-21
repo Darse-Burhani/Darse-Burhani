@@ -84,11 +84,14 @@
 .fatimi-header-banner h1,
 .fatimi-header-banner h2,
 .fatimi-header-banner h3 {
+  font-family: var(--font-heading) !important;
   color: #ffffff !important;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  font-weight: 800;
 }
 
 .fatimi-header-banner p {
+  font-family: var(--font-info) !important;
   color: rgba(255, 255, 255, 0.92) !important;
 }
 
