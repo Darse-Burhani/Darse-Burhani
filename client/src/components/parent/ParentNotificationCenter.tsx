@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 
 import { toast } from "@/components/ui/toast";
 import { timeAgo } from "@/lib/utils";
+import { sendDesktopNotification } from "@/lib/notification-sound";
 
 export interface ParentNotification {
   id: string;
@@ -125,8 +126,15 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
               ? `${matchedChild.firstName} ${matchedChild.lastName}`
               : studentName;
 
-            // Trigger real-time visual and audio notification
-            playChime();
+            // Trigger real-time visual and audio notification (In-app + OS Desktop Push outside browser)
+            sendDesktopNotification({
+              title: `🎓 Campus Arrival: ${displayChildName}`,
+              body: `${displayChildName} has scanned in at ${ev.gate || "Main Entrance MinMoe"} (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}).`,
+              link: "/parent/attendance",
+              soundType: "arrival",
+              tag: `arrival-${studentId}-${Date.now()}`,
+              silent: !soundEnabled,
+            });
 
             const newNotif: ParentNotification = {
               id: `live-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,

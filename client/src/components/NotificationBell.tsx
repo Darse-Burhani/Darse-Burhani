@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
+import { sendDesktopNotification, soundEngine } from "@/lib/notification-sound";
 
 interface NotificationItem {
   id: string;
@@ -55,27 +56,6 @@ const typeColorMap: Record<string, string> = {
 
 function getTypeColor(type: string) {
   return typeColorMap[type] ?? "text-gray-500 bg-gray-100";
-}
-
-function playNotificationChime() {
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08); // A5
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.35);
-  } catch {
-    // AudioContext blocked or unsupported
-  }
 }
 
 export function NotificationBell() {
@@ -127,39 +107,24 @@ export function NotificationBell() {
             const latest = brandNew[0];
             brandNew.forEach((n) => knownIdsRef.current.add(n.id));
 
-            // 1. Play chime
-            playNotificationChime();
-
-            // 2. Show in-app floating notification bar
+            // 1. Show in-app floating notification bar
             setBannerNotification(latest);
 
-            // 3. Show native OS / Browser Desktop Notification (System Notification Bar)
-            if (
-              typeof window !== "undefined" &&
-              "Notification" in window &&
-              Notification.permission === "granted"
-            ) {
-              try {
-                const osNotif = new Notification(latest.title, {
-                  body: latest.body,
-                  icon: "/favicon.ico",
-                  tag: latest.id,
-                });
-                osNotif.onclick = () => {
-                  window.focus();
-                  if (latest.link) router.push(latest.link);
-                };
-              } catch (e) {
-                console.warn("[Notification] OS notification failed:", e);
-              }
-            }
+            // 2. Play smooth harmonic chime and dispatch OS/Desktop System Notification
+            sendDesktopNotification({
+              title: latest.title,
+              body: latest.body,
+              link: latest.link || undefined,
+              soundType: latest.type === "ALERT" ? "alert" : "arrival",
+              tag: latest.id,
+            });
           }
         }
       }
     } catch {
       // silent
     }
-  }, [router]);
+  }, []);
 
   // Poll notifications every 5 seconds for rapid updates
   useEffect(() => {
