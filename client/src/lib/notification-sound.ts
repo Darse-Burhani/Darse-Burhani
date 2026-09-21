@@ -118,6 +118,10 @@ class SoundEngine {
 
 export const soundEngine = new SoundEngine();
 
+export function playSmoothChime(type: "chime" | "arrival" | "alert" | "subtle" = "chime"): void {
+  soundEngine.playSmoothChime(type);
+}
+
 export interface SystemNotificationOptions {
   title: string;
   body: string;

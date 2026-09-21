@@ -19,6 +19,12 @@ import {
   Fingerprint,
   Mail,
   FileText,
+  Layers,
+  Save,
+  Briefcase,
+  Sheet,
+  CalendarClock,
+  FileSpreadsheet,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {

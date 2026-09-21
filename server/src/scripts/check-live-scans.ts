@@ -1,6 +1,6 @@
 import "../env";
 import prisma from "../lib/prisma";
-import { toConnection, getDeviceInfo, getAcsEvents, getDeviceTime, pollDevice } from "../lib/hikvision";
+import { toConnection, getDeviceInfo, getAcsEvents, pollDevice } from "../lib/hikvision";
 
 async function main() {
   console.log("=== CHECKING HIKVISION TERMINALS & LIVE SCANS ===");
@@ -14,9 +14,6 @@ async function main() {
     try {
       const info = await getDeviceInfo(conn);
       console.log(`📡 Model: ${info.model} | Serial: ${info.serialNumber} | FW: ${info.firmwareVersion}`);
-      
-      const time = await getDeviceTime(conn);
-      console.log(`🕒 Device Clock (Local):`, time);
       console.log(`🕒 Server Clock (Local):`, new Date().toISOString(), "IST:", new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }));
 
       // Fetch ACS events for today and last 24h
@@ -46,26 +43,24 @@ async function main() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   
-  const recentAttendances = await prisma.attendance.findMany({
+  const recentAttendances = await prisma.attendanceRecord.findMany({
     where: { date: { gte: todayStart } },
-    include: { student: { select: { studentId: true, fullName: true } } },
     take: 10,
     orderBy: { createdAt: "desc" },
   });
   console.log(`Total student attendances today: ${recentAttendances.length}`);
   for (const a of recentAttendances) {
-    console.log(`  - Student: ${a.student?.fullName} (${a.student?.studentId}) | Status: ${a.status} | Time: ${a.checkInTime} | Created: ${a.createdAt.toISOString()}`);
+    console.log(`  - Student ID: ${a.studentId} | Status: ${a.status} | Time: ${a.checkInTime} | Created: ${a.createdAt.toISOString()}`);
   }
 
-  const recentTeacherAttendances = await prisma.teacherAttendance.findMany({
+  const recentTeacherAttendances = await prisma.teacherAttendanceRecord.findMany({
     where: { date: { gte: todayStart } },
-    include: { teacher: { select: { employeeId: true, fullName: true } } },
     take: 10,
     orderBy: { createdAt: "desc" },
   });
   console.log(`Total teacher attendances today: ${recentTeacherAttendances.length}`);
   for (const t of recentTeacherAttendances) {
-    console.log(`  - Teacher: ${t.teacher?.fullName} (${t.teacher?.employeeId}) | Status: ${t.status} | Time: ${t.checkInTime} | Created: ${t.createdAt.toISOString()}`);
+    console.log(`  - Teacher ID: ${t.teacherId} | Status: ${t.status} | Time: ${t.checkInTime} | Created: ${t.createdAt.toISOString()}`);
   }
 }
 

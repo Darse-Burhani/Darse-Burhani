@@ -11,6 +11,7 @@ import {
   BookOpen,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Sparkles,
   Loader2,
   RefreshCw,
@@ -26,12 +27,27 @@ import {
   Radio,
   Activity,
   Zap,
+  Volume2,
+  Bell,
+  GraduationCap,
+  UserCheck,
+  UserX,
+  Download,
+  CalendarDays,
+  Calendar,
+  Play,
+  CheckCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import {
+  playSmoothChime,
+  requestDesktopNotificationPermission,
+  sendDesktopNotification,
+} from "@/lib/notification-sound";
 
 interface ScanWindow {
   id: string;
@@ -101,6 +117,120 @@ interface ClassItem {
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/**
+ * Visual Color-Coded Schedule Timeline Bar
+ */
+function ScheduleTimelineBar({
+  startTime,
+  endTime,
+  lateEndTime,
+  accent = "emerald",
+}: {
+  startTime: string;
+  endTime: string;
+  lateEndTime?: string | null;
+  accent?: "emerald" | "indigo";
+}) {
+  const parseMin = (t: string) => {
+    if (!t) return 0;
+    const [h, m] = t.split(":").map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  const sMin = parseMin(startTime);
+  const eMin = parseMin(endTime);
+  const lMin = lateEndTime ? parseMin(lateEndTime) : eMin;
+
+  const onTimeDur = Math.max(0, eMin - sMin);
+  const lateDur = Math.max(0, lMin - eMin);
+  const totalSpan = Math.max(1, onTimeDur + lateDur);
+
+  const onTimePct = Math.round((onTimeDur / totalSpan) * 100);
+  const latePct = Math.round((lateDur / totalSpan) * 100);
+
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const isCurrentlyActive = nowMin >= sMin && nowMin <= lMin;
+
+  return (
+    <div className="space-y-1.5 pt-1">
+      <div className="flex items-center justify-between text-[10px] font-semibold text-gray-500">
+        <span className="flex items-center gap-1 font-mono text-gray-700">
+          <span className={`w-1.5 h-1.5 rounded-full ${accent === "indigo" ? "bg-indigo-600" : "bg-emerald-600"}`} />
+          {startTime}
+        </span>
+        <span className="flex items-center gap-1 font-mono text-amber-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          {endTime} (On-Time)
+        </span>
+        {lateEndTime && lateEndTime !== endTime && (
+          <span className="flex items-center gap-1 font-mono text-rose-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            {lateEndTime} (Cutoff)
+          </span>
+        )}
+      </div>
+
+      {/* Segmented Timeline Bar */}
+      <div className="relative h-2.5 w-full rounded-full bg-gray-100 overflow-hidden flex shadow-inner border border-gray-200/60">
+        <div
+          style={{ width: `${lateDur > 0 ? onTimePct : 100}%` }}
+          className={`h-full ${
+            accent === "indigo"
+              ? "bg-gradient-to-r from-indigo-500 to-indigo-600"
+              : "bg-gradient-to-r from-emerald-500 to-teal-500"
+          } transition-all duration-500`}
+          title={`On-Time: ${onTimeDur} min`}
+        />
+        {lateDur > 0 && (
+          <div
+            style={{ width: `${latePct}%` }}
+            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
+            title={`Late Allowed: ${lateDur} min`}
+          />
+        )}
+      </div>
+
+      <div className="flex items-center justify-between text-[9px] text-gray-400 font-medium">
+        <span>{onTimeDur}m On-Time Window</span>
+        {lateDur > 0 && <span className="text-amber-700 font-bold">{lateDur}m Late Grace</span>}
+        {isCurrentlyActive && (
+          <span className="text-emerald-700 font-black animate-pulse flex items-center gap-0.5">
+            ● Active Now
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Shimmer Loading Skeleton
+ */
+function WindowSkeleton() {
+  return (
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm space-y-4 animate-pulse"
+        >
+          <div className="flex items-center justify-between">
+            <div className="h-5 w-36 bg-gray-200 rounded-lg" />
+            <div className="h-4 w-12 bg-gray-200 rounded-full" />
+          </div>
+          <div className="h-16 bg-gray-100 rounded-xl" />
+          <div className="h-4 w-full bg-gray-100 rounded-full" />
+          <div className="flex justify-between">
+            <div className="h-4 w-20 bg-gray-200 rounded" />
+            <div className="h-4 w-24 bg-gray-200 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminAttendanceSchedulePage() {
   const [activeTab, setActiveTab] = useState<"ALL_STUDENTS" | "FACULTY" | "CLASSES">("ALL_STUDENTS");
   const [loading, setLoading] = useState(true);
@@ -121,7 +251,6 @@ export default function AdminAttendanceSchedulePage() {
     exemptTeacherIds: [] as string[],
     applicableClassIds: [] as string[],
     exemptStudentIds: [] as string[],
-    // Faculty timer lives on the SAME event (side-by-side with Talabat timer)
     facultyTimerEnabled: true,
     facultyStartTime: "07:30",
     facultyEndTime: "08:45",
@@ -154,6 +283,10 @@ export default function AdminAttendanceSchedulePage() {
   // Download export state
   const [exporting, setExporting] = useState(false);
 
+  // Sound audition test state
+  const [isPlayingSound, setIsPlayingSound] = useState(false);
+  const [desktopNotifState, setDesktopNotifState] = useState<NotificationPermission>("default");
+
   // Faculty applicability roster + faculty auto-absent governance
   const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);
   const [facultyAbsentPreview, setFacultyAbsentPreview] = useState<{
@@ -168,7 +301,14 @@ export default function AdminAttendanceSchedulePage() {
   } | null>(null);
   const [markingFacultyAbsent, setMarkingFacultyAbsent] = useState(false);
 
-  // Fetch All Students Windows (Direct canonical route)
+  // Check notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setDesktopNotifState(Notification.permission);
+    }
+  }, []);
+
+  // Fetch All Students Windows
   const fetchWindows = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/attendance/schedule/windows");
@@ -183,7 +323,7 @@ export default function AdminAttendanceSchedulePage() {
     }
   }, []);
 
-  // Fetch Class Timetable Slots (Direct canonical route)
+  // Fetch Class Timetable Slots
   const fetchClassSchedule = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/attendance/schedule/classes");
@@ -199,7 +339,7 @@ export default function AdminAttendanceSchedulePage() {
     }
   }, []);
 
-  // Fetch faculty directory (for applicability roster selector)
+  // Fetch faculty directory
   const fetchFacultyList = useCallback(async () => {
     try {
       const res = await fetch("/api/biometric/teachers");
@@ -333,6 +473,10 @@ export default function AdminAttendanceSchedulePage() {
               });
               const message = data.message || "";
               setLatestScan({ name, role, status, time, message });
+
+              // Harmonic Bell Audio chime on live scan punch
+              playSmoothChime(status === "LATE" ? "alert" : "arrival");
+
               // Refresh counts without full loading flicker
               fetchFacultyAbsentPreview();
             }
@@ -361,7 +505,7 @@ export default function AdminAttendanceSchedulePage() {
     loadData();
   }, [loadData]);
 
-  // Open modal to create/edit window (ONE event carries BOTH timers)
+  // Open modal to create/edit window
   const openWindowModal = (w?: ScanWindow, defaultAudience?: "ALL_STUDENTS" | "FACULTY") => {
     if (w) {
       setEditingWindow(w);
@@ -374,13 +518,12 @@ export default function AdminAttendanceSchedulePage() {
         lateEndTime: w.lateEndTime ?? w.endTime,
         graceMinutes: w.graceMinutes,
         enabled: w.enabled,
-        audience: (isLegacyFaculty ? "FACULTY" : "ALL_STUDENTS"),
+        audience: isLegacyFaculty ? "FACULTY" : "ALL_STUDENTS",
         applicableTeacherIds: w.applicableTeacherIds || [],
         exemptTeacherIds: w.exemptTeacherIds || [],
         applicableClassIds: w.applicableClassIds || [],
         exemptStudentIds: w.exemptStudentIds || [],
         facultyTimerEnabled: hasFac,
-        // Legacy faculty rows carry their schedule in the main columns — adopt them as the faculty timer.
         facultyStartTime: w.facultyStartTime || (isLegacyFaculty ? w.startTime : "07:30"),
         facultyEndTime: w.facultyEndTime || (isLegacyFaculty ? w.endTime : "08:45"),
         facultyLateEndTime: w.facultyLateEndTime || w.facultyEndTime || (isLegacyFaculty ? (w.lateEndTime ?? w.endTime) : "09:00"),
@@ -432,7 +575,6 @@ export default function AdminAttendanceSchedulePage() {
         body: JSON.stringify({
           ...windowForm,
           role: windowForm.audience === "FACULTY" ? "TEACHER" : "STUDENT",
-          // ONE event, BOTH timers: send the faculty timer alongside the Talabat timer.
           ...(windowForm.facultyTimerEnabled
             ? {
                 facultyStartTime: windowForm.facultyStartTime,
@@ -448,7 +590,7 @@ export default function AdminAttendanceSchedulePage() {
       if (json.success) {
         toast({
           title: editingWindow ? "Schedule Updated" : "Schedule Created",
-          description: `Attendance window "${windowForm.name}" is now active.`,
+          description: `Attendance window "${windowForm.name}" is now live.`,
           variant: "success",
         });
         setWindowModalOpen(false);
@@ -457,69 +599,83 @@ export default function AdminAttendanceSchedulePage() {
         toast({ title: json.error || "Failed to save schedule window", variant: "destructive" });
       }
     } catch {
-      toast({ title: "Network error while saving schedule", variant: "destructive" });
+      toast({ title: "Failed to save schedule window", variant: "destructive" });
     } finally {
       setSavingWindow(false);
     }
   };
 
-  // Toggle active status for window (faculty cards toggle only the faculty timer)
-  const toggleWindowActive = async (w: ScanWindow, facultyOnly?: boolean) => {
+  // Toggle active/inactive state
+  const toggleWindowActive = async (w: ScanWindow, toggleFacultyTimerOnly = false) => {
     try {
+      if (toggleFacultyTimerOnly && (w.hasFacultyTimer || w.facultyStartTime)) {
+        const nextFac = !(w.facultyEnabled ?? true);
+        const res = await fetch(`/api/admin/attendance/schedule/windows/${w.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...w, facultyEnabled: nextFac }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          toast({
+            title: nextFac ? "Faculty Timer Enabled" : "Faculty Timer Paused",
+            description: `Faculty check-in for "${w.name}" is now ${nextFac ? "active" : "paused"}.`,
+            variant: "success",
+          });
+          fetchWindows();
+        }
+        return;
+      }
+
+      const nextState = !w.enabled;
       const res = await fetch(`/api/admin/attendance/schedule/windows/${w.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          facultyOnly && (w.hasFacultyTimer || w.facultyStartTime)
-            ? { facultyEnabled: !(w.facultyEnabled ?? true) }
-            : { enabled: !w.enabled },
-        ),
+        body: JSON.stringify({ ...w, enabled: nextState }),
       });
       const json = await res.json();
       if (json.success) {
         toast({
-          title: !w.enabled ? "Schedule Window Enabled" : "Schedule Window Disabled",
-          description: `${w.name} is now ${!w.enabled ? "active" : "inactive"}.`,
+          title: nextState ? "Schedule Window Enabled" : "Schedule Window Disabled",
+          description: `Attendance window "${w.name}" is now ${nextState ? "active" : "inactive"}.`,
           variant: "success",
         });
         fetchWindows();
       }
     } catch {
-      toast({ title: "Failed to toggle status", variant: "destructive" });
+      toast({ title: "Failed to update window state", variant: "destructive" });
     }
   };
 
   // Delete window
   const deleteWindow = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this attendance schedule window?")) return;
+    if (!confirm("Are you sure you want to delete this attendance scan window?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/attendance/schedule/windows/${id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/admin/attendance/schedule/windows/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         toast({ title: "Schedule Window Deleted", variant: "success" });
         fetchWindows();
       } else {
-        toast({ title: json.error || "Failed to delete", variant: "destructive" });
+        toast({ title: json.error || "Failed to delete window", variant: "destructive" });
       }
     } catch {
-      toast({ title: "Failed to delete window", variant: "destructive" });
+      toast({ title: "Failed to delete schedule window", variant: "destructive" });
     } finally {
       setDeletingId(null);
     }
   };
 
-  // Open modal for Class slot
+  // Open class timetable modal
   const openSlotModal = (slot?: TimetableSlot) => {
     if (slot) {
       setEditingSlot(slot);
       setSlotForm({
-        classId: slot.classId || "",
+        classId: slot.classId || (classes[0]?.id ?? ""),
         dayOfWeek: slot.dayOfWeek,
         period: slot.period,
-        subject: slot.subject || "",
+        subject: slot.subject,
         startTime: slot.startTime,
         endTime: slot.endTime,
         roomNumber: slot.roomNumber || "",
@@ -529,9 +685,9 @@ export default function AdminAttendanceSchedulePage() {
     } else {
       setEditingSlot(null);
       setSlotForm({
-        classId: classes[0]?.id || "",
+        classId: classes[0]?.id ?? "",
         dayOfWeek: selectedDay,
-        period: 1,
+        period: (filteredSlots.length || 0) + 1,
         subject: "",
         startTime: "08:00",
         endTime: "08:45",
@@ -599,10 +755,10 @@ export default function AdminAttendanceSchedulePage() {
       const todayStr = new Date().toISOString().slice(0, 10);
       const exportType = type === "FACULTY" ? "FACULTY" : type === "CLASSES" ? "CLASSES" : "ROSTER";
       const url = `/api/admin/attendance/schedule/export?type=${exportType}&date=${todayStr}`;
-      
+
       const res = await fetch(url);
       if (!res.ok) throw new Error("Export failed");
-      
+
       const blob = await res.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -630,6 +786,38 @@ export default function AdminAttendanceSchedulePage() {
     }
   };
 
+  // Test notification sound
+  const handleTestSound = () => {
+    setIsPlayingSound(true);
+    playSmoothChime("arrival");
+    sendDesktopNotification({
+      title: "Darse Burhani • Audio Test",
+      body: "Harmonic bell chime notification verified at 0ms latency.",
+      soundType: "arrival",
+    });
+    setTimeout(() => setIsPlayingSound(false), 800);
+  };
+
+  // Enable desktop notifications
+  const handleEnableDesktopNotifs = async () => {
+    const perm = await requestDesktopNotificationPermission();
+    setDesktopNotifState(perm);
+    if (perm === "granted") {
+      toast({
+        title: "Desktop Alerts Enabled",
+        description: "You will receive background attendance alerts outside the browser.",
+        variant: "success",
+      });
+      playSmoothChime("arrival");
+    } else {
+      toast({
+        title: "Permission Required",
+        description: "Please allow notifications in browser site settings.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Filtered slots for selected day and class
   const filteredSlots = useMemo(() => {
     return slots
@@ -637,8 +825,6 @@ export default function AdminAttendanceSchedulePage() {
       .filter((s) => (classFilter === "ALL" ? true : s.classId === classFilter));
   }, [slots, selectedDay, classFilter]);
 
-  // Every schedule event carries the Talabat timer; events with a faculty
-  // timer additionally appear under the Faculty tab.
   const studentWindows = useMemo(() => {
     return windows;
   }, [windows]);
@@ -648,7 +834,7 @@ export default function AdminAttendanceSchedulePage() {
   }, [windows]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* ── Attendance Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Attendance & Biometrics"
@@ -661,8 +847,8 @@ export default function AdminAttendanceSchedulePage() {
         ]}
       />
 
-      {/* ── Page Header Banner ── */}
-      <div className="relative rounded-3xl p-6 sm:p-8 mb-8 overflow-hidden bg-gradient-to-r from-[#093b2a] via-[#0d503a] to-[#062b1e] border border-[#d4af37]/40 shadow-xl">
+      {/* ── Page Header Banner with Audio Audition & Actions ── */}
+      <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-r from-[#093b2a] via-[#0d503a] to-[#062b1e] border border-[#d4af37]/40 shadow-xl">
         <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-[#d4af37]/10 blur-3xl pointer-events-none" />
         <div className="absolute top-0 right-0 p-6 opacity-15 pointer-events-none">
           <Clock className="w-32 h-32 text-white" />
@@ -682,31 +868,58 @@ export default function AdminAttendanceSchedulePage() {
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Action Buttons & Sound Audition */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Smooth Sound Audition Pill */}
+            <Button
+              onClick={handleTestSound}
+              disabled={isPlayingSound}
+              variant="outline"
+              className="bg-white/10 hover:bg-white/20 text-white border-white/25 text-xs font-bold h-10 px-3.5 rounded-xl backdrop-blur-sm transition-all flex items-center gap-2"
+              title="Audition smooth 0ms harmonic bell notification sound"
+            >
+              <Volume2 className={`w-4 h-4 ${isPlayingSound ? "text-[#fde047] scale-125" : "text-emerald-300"} transition-transform`} />
+              <span>{isPlayingSound ? "Playing Bell..." : "Test Audio Bell"}</span>
+            </Button>
+
+            {/* Desktop Notification Activator */}
+            {desktopNotifState !== "granted" && (
+              <Button
+                onClick={handleEnableDesktopNotifs}
+                variant="outline"
+                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/40 text-xs font-bold h-10 px-3.5 rounded-xl backdrop-blur-sm transition-all flex items-center gap-2"
+                title="Enable OS Desktop Notifications outside the browser"
+              >
+                <Bell className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span>Enable OS Alerts</span>
+              </Button>
+            )}
+
             <Button
               onClick={() => (window.location.href = "/teacher/medical-duty")}
               className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-lg border border-emerald-400/30 transition-all flex items-center gap-2"
             >
               <Stethoscope className="w-4 h-4 text-emerald-200" />
-              Health &amp; Medical Duty
+              Health Duty
             </Button>
+
             <Button
               onClick={() => downloadExcel(activeTab)}
               disabled={exporting}
-              className="bg-[#d4af37] hover:bg-[#c59e2a] text-[#1c1204] font-black text-xs shadow-lg shadow-[#d4af37]/20 border border-[#fff2b2]"
+              className="bg-[#d4af37] hover:bg-[#c59e2a] text-[#1c1204] font-black text-xs shadow-lg shadow-[#d4af37]/20 border border-[#fff2b2] h-10 px-4 rounded-xl"
             >
               {exporting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
               ) : (
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                <FileSpreadsheet className="w-4 h-4 mr-1.5" />
               )}
-              Download as Excel Sheet
+              Download Sheet
             </Button>
+
             <Button
               onClick={loadData}
               variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm h-10 w-10 p-0 rounded-xl"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
@@ -714,8 +927,8 @@ export default function AdminAttendanceSchedulePage() {
         </div>
       </div>
 
-      {/* ── Real-Time Gateway Feed Pulse & Live Scan Ticker ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 mb-6 rounded-2xl bg-white border border-gray-200/90 shadow-sm">
+      {/* ── Real-Time Gateway Feed Pulse & Pop-In Live Scan Ticker ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="relative flex items-center justify-center">
             <span className={`w-3 h-3 rounded-full ${realTimeConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
@@ -726,7 +939,7 @@ export default function AdminAttendanceSchedulePage() {
           <div className="flex items-center gap-2">
             <Radio className={`w-4 h-4 ${realTimeConnected ? "text-emerald-600 animate-pulse" : "text-amber-500"}`} />
             <span className="text-xs font-bold text-gray-800">
-              {realTimeConnected ? "Live Biometric Gateway Connected" : "Connecting to Live Event Stream..."}
+              {realTimeConnected ? "Live Biometric Gateway Connected (24/7)" : "Connecting to Live Event Stream..."}
             </span>
             <Badge variant="outline" className={`text-[10px] font-bold ${realTimeConnected ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
               {realTimeConnected ? "SSE Active" : "Polling"}
@@ -734,30 +947,50 @@ export default function AdminAttendanceSchedulePage() {
           </div>
         </div>
 
-        {latestScan ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-xs font-medium text-emerald-950">
-            <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>Latest Scan:</span>
-            <strong className="font-bold">{latestScan.name}</strong>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white font-bold border border-emerald-200 text-emerald-800">
-              {latestScan.role}
-            </span>
-            <Badge variant="outline" className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border-emerald-300">
-              {latestScan.status}
-            </Badge>
-            <span className="text-[10px] text-gray-500">{latestScan.time}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-            <Activity className="w-3.5 h-3.5 text-gray-400" />
-            <span>Awaiting device punches...</span>
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          {latestScan ? (
+            <motion.div
+              key={`${latestScan.name}-${latestScan.time}`}
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-950 shadow-sm"
+            >
+              <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
+                {latestScan.name.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-500 text-[11px]">Latest Scan:</span>
+                <strong className="font-bold text-gray-900">{latestScan.name}</strong>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white font-bold border border-emerald-200 text-emerald-800">
+                {latestScan.role}
+              </span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-bold ${
+                  latestScan.status === "LATE"
+                    ? "bg-amber-100 text-amber-800 border-amber-300"
+                    : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                }`}
+              >
+                {latestScan.status}
+              </Badge>
+              <span className="text-[10px] text-gray-400 font-mono">{latestScan.time}</span>
+            </motion.div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <Activity className="w-3.5 h-3.5 text-gray-400" />
+              <span>Awaiting device punches...</span>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Main Tab Switcher Toggle ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center p-1.5 bg-gray-100 rounded-2xl border border-gray-200 w-fit flex-wrap gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200 w-fit flex-wrap gap-1">
           <button
             type="button"
             onClick={() => setActiveTab("ALL_STUDENTS")}
@@ -811,7 +1044,7 @@ export default function AdminAttendanceSchedulePage() {
         {activeTab === "ALL_STUDENTS" ? (
           <Button
             onClick={() => openWindowModal(undefined, "ALL_STUDENTS")}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md rounded-xl h-10 px-4"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             Add Talabat Window
@@ -819,7 +1052,7 @@ export default function AdminAttendanceSchedulePage() {
         ) : activeTab === "FACULTY" ? (
           <Button
             onClick={() => openWindowModal(undefined, "FACULTY")}
-            className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs shadow-md"
+            className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs shadow-md rounded-xl h-10 px-4"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             Add Faculty Role Timer
@@ -827,7 +1060,7 @@ export default function AdminAttendanceSchedulePage() {
         ) : (
           <Button
             onClick={() => openSlotModal()}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md rounded-xl h-10 px-4"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             Add Class Period Slot
@@ -836,15 +1069,17 @@ export default function AdminAttendanceSchedulePage() {
       </div>
 
       {/* ── TAB 1: ALL STUDENTS GENERAL ATTENDANCE SCHEDULE ── */}
-      {activeTab === "ALL_STUDENTS" && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      {loading ? (
+        <WindowSkeleton />
+      ) : activeTab === "ALL_STUDENTS" ? (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             {studentWindows.map((w) => {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
               return (
                 <Card
                   key={w.id}
-                  className={`fatimi-card overflow-hidden transition-all duration-300 ${
+                  className={`fatimi-card overflow-hidden transition-all duration-300 rounded-2xl ${
                     w.enabled
                       ? isLive
                         ? "ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/10"
@@ -873,7 +1108,7 @@ export default function AdminAttendanceSchedulePage() {
                         <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
                       </div>
                       <p className="text-xs text-gray-500 font-medium">
-                        Audience: {w.audience === "BOTH" || w.hasFacultyTimer ? "Talabat + Faculty (unified event)" : "All Talabat (Learners)"}
+                        Audience: {w.audience === "BOTH" || w.hasFacultyTimer ? "Talabat + Faculty (Unified Event)" : "All Talabat (Learners)"}
                       </p>
                     </div>
 
@@ -898,9 +1133,9 @@ export default function AdminAttendanceSchedulePage() {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-0 space-y-4">
+                  <CardContent className="pt-0 space-y-3.5">
                     {/* Time Display */}
-                    <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 flex items-center justify-between">
+                    <div className="p-3.5 bg-gray-50/90 rounded-xl border border-gray-200/80 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Clock className="w-4 h-4 text-emerald-700" />
                         <div>
@@ -930,8 +1165,16 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
                     </div>
 
+                    {/* Interactive Visual Timeline Progress Bar */}
+                    <ScheduleTimelineBar
+                      startTime={w.startTime}
+                      endTime={w.endTime}
+                      lateEndTime={w.lateEndTime}
+                      accent="emerald"
+                    />
+
                     {/* Grace Period & Live Status */}
-                    <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
                         <Timer className="w-3.5 h-3.5 text-amber-600" />
                         <span>
@@ -973,11 +1216,11 @@ export default function AdminAttendanceSchedulePage() {
             })}
           </div>
         </motion.div>
-      )}
+      ) : null}
 
       {/* ── TAB 2: FACULTY ROLE TIMER ATTENDANCE SCHEDULE ── */}
-      {activeTab === "FACULTY" && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      {!loading && activeTab === "FACULTY" && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-purple-50/60 to-white p-5 shadow-sm">
             <div className="flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0 border border-indigo-200 shadow-sm mt-0.5">
@@ -1009,7 +1252,7 @@ export default function AdminAttendanceSchedulePage() {
               return (
                 <Card
                   key={w.id}
-                  className={`fatimi-card overflow-hidden transition-all duration-300 border-indigo-200/80 ${
+                  className={`fatimi-card overflow-hidden transition-all duration-300 border-indigo-200/80 rounded-2xl ${
                     w.enabled
                       ? isLive
                         ? "ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/10"
@@ -1039,7 +1282,7 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
                       <p className="text-xs text-indigo-700 font-medium">
                         Audience: Faculty &amp; Staff
-                        <span className="text-gray-500"> · same event as Talabat {w.startTime} &rarr; {w.endTime}</span>
+                        <span className="text-gray-500"> · Same event as Talabat ({w.startTime} &rarr; {w.endTime})</span>
                       </p>
                     </div>
 
@@ -1064,8 +1307,8 @@ export default function AdminAttendanceSchedulePage() {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-0 space-y-4">
-                    {/* Faculty Time Display (same event, faculty timer) */}
+                  <CardContent className="pt-0 space-y-3.5">
+                    {/* Faculty Time Display */}
                     <div className="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Clock className="w-4 h-4 text-indigo-700" />
@@ -1088,8 +1331,16 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
                     </div>
 
+                    {/* Interactive Visual Timeline for Faculty */}
+                    <ScheduleTimelineBar
+                      startTime={facStart}
+                      endTime={facEnd}
+                      lateEndTime={facLate}
+                      accent="indigo"
+                    />
+
                     {/* Grace Period & Live Status */}
-                    <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-indigo-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
                         <Timer className="w-3.5 h-3.5 text-indigo-600" />
                         <span>
@@ -1154,7 +1405,7 @@ export default function AdminAttendanceSchedulePage() {
                       Teachers in the applicability roster who have not scanned by the end of the faculty window can be
                       automatically marked as <strong>ABSENT</strong>. Teachers outside the roster are <strong>never</strong> affected.
                     </p>
-                    <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-700 font-medium">
+                    <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-700 font-medium flex-wrap">
                       <span>Roster: <strong>{facultyAbsentPreview.totalExpected}</strong></span>
                       <span>Present: <strong className="text-emerald-700">{facultyAbsentPreview.loggedCount}</strong></span>
                       {(facultyAbsentPreview.medicalCount ?? 0) > 0 && (
@@ -1192,7 +1443,7 @@ export default function AdminAttendanceSchedulePage() {
           )}
 
           {/* Faculty Export Card */}
-          <Card className="fatimi-card bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 border-indigo-200">
+          <Card className="fatimi-card bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 border-indigo-200 rounded-2xl">
             <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-11 h-11 rounded-xl bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-800">
@@ -1210,7 +1461,7 @@ export default function AdminAttendanceSchedulePage() {
                 onClick={() => downloadExcel("FACULTY")}
                 disabled={exporting}
                 variant="outline"
-                className="text-indigo-800 border-indigo-300 hover:bg-indigo-50 text-xs font-bold"
+                className="text-indigo-800 border-indigo-300 hover:bg-indigo-50 text-xs font-bold rounded-xl"
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" />
                 Export Faculty (.csv)
@@ -1220,9 +1471,9 @@ export default function AdminAttendanceSchedulePage() {
         </motion.div>
       )}
 
-      {/* ── TAB 2: CLASSES TIMETABLE ATTENDANCE SCHEDULE ── */}
-      {activeTab === "CLASSES" && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      {/* ── TAB 3: CLASSES TIMETABLE ATTENDANCE SCHEDULE ── */}
+      {!loading && activeTab === "CLASSES" && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           {/* Day of week filter bar */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-5">
             {DAYS_OF_WEEK.map((d, i) => (
@@ -1232,7 +1483,7 @@ export default function AdminAttendanceSchedulePage() {
                 onClick={() => setSelectedDay(i)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                   selectedDay === i
-                    ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
+                    ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20 font-extrabold"
                     : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
                 }`}
               >
@@ -1247,7 +1498,7 @@ export default function AdminAttendanceSchedulePage() {
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="h-9 px-3 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800"
+              className="h-9 px-3 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-800 shadow-xs"
             >
               <option value="ALL">All Classes ({classes.length})</option>
               {classes.map((c) => (
@@ -1259,7 +1510,7 @@ export default function AdminAttendanceSchedulePage() {
           </div>
 
           {/* Slots Table */}
-          <Card className="fatimi-card overflow-hidden">
+          <Card className="fatimi-card overflow-hidden rounded-2xl">
             <div className="fatimi-card-header" />
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -1271,7 +1522,7 @@ export default function AdminAttendanceSchedulePage() {
                 disabled={exporting}
                 variant="outline"
                 size="sm"
-                className="text-xs"
+                className="text-xs rounded-xl"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
                 Export Class Schedule
@@ -1281,9 +1532,9 @@ export default function AdminAttendanceSchedulePage() {
             <CardContent className="p-0">
               {filteredSlots.length === 0 ? (
                 <div className="py-16 text-center text-gray-400">
-                  <Calendar className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+                  <Calendar className="w-10 h-10 mx-auto text-gray-300 mb-2" />
                   <p className="text-sm font-medium">No class attendance periods scheduled for {DAYS_OF_WEEK[selectedDay]}.</p>
-                  <Button size="sm" onClick={() => openSlotModal()} className="mt-3 text-xs bg-emerald-700">
+                  <Button size="sm" onClick={() => openSlotModal()} className="mt-3 text-xs bg-emerald-700 rounded-xl">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add Period
                   </Button>
                 </div>
@@ -1347,7 +1598,7 @@ export default function AdminAttendanceSchedulePage() {
         </motion.div>
       )}
 
-      {/* ── MODAL: Create / Edit All Students Window ── */}
+      {/* ── MODAL: Create / Edit Attendance Window ── */}
       <AnimatePresence>
         {windowModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -1357,7 +1608,7 @@ export default function AdminAttendanceSchedulePage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gray-50/50">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gray-50/60">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-emerald-600" />
                   {editingWindow ? "Edit Attendance Schedule" : "Add Attendance Window"}
@@ -1373,7 +1624,7 @@ export default function AdminAttendanceSchedulePage() {
 
               <form onSubmit={saveWindow} className="flex flex-col flex-1 overflow-hidden">
                 <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
-                  <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/70 text-[11px] text-emerald-900 font-medium leading-relaxed">
+                  <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200/70 text-[11px] text-emerald-900 font-medium leading-relaxed">
                     One schedule event carries <strong>both timers side-by-side</strong> — Talabat and Faculty scan against the same event, each with its own on-time / late window, synced into attendance automatically.
                   </div>
 
@@ -1387,7 +1638,17 @@ export default function AdminAttendanceSchedulePage() {
                       placeholder="e.g. Tilawat al Dua, Subah Assembly, Dhuhr Attendance"
                       value={windowForm.name}
                       onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  {/* Dynamic Timeline Preview inside Modal */}
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Live Timing Preview</span>
+                    <ScheduleTimelineBar
+                      startTime={windowForm.startTime}
+                      endTime={windowForm.endTime}
+                      lateEndTime={windowForm.lateEndTime}
                     />
                   </div>
 
@@ -1425,13 +1686,13 @@ export default function AdminAttendanceSchedulePage() {
                         className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         placeholder="e.g. 09:00"
                       />
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Scans after On-Time To until Late Till are marked <strong>LATE</strong>.
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        Scans between On-Time To &amp; Late Till are marked <strong>LATE</strong>. Scans before start are blocked.
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-gray-700 block mb-1">Legacy Grace Period (Minutes):</label>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Grace Period (Minutes):</label>
                       <input
                         type="number"
                         min="0"
@@ -1443,9 +1704,6 @@ export default function AdminAttendanceSchedulePage() {
                         }
                         className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Two-time rule takes precedence.
-                      </p>
                     </div>
                   </div>
 
@@ -1503,7 +1761,7 @@ export default function AdminAttendanceSchedulePage() {
                     <div className="flex items-center justify-between gap-2">
                       <label htmlFor="facultyTimerEnabled" className="text-xs font-black text-indigo-900 cursor-pointer flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-indigo-700" />
-                        Faculty timer & Attendance Scope
+                        Faculty Timer &amp; Attendance Scope
                       </label>
                       <button
                         type="button"
@@ -1641,7 +1899,7 @@ export default function AdminAttendanceSchedulePage() {
                     size="sm"
                     type="submit"
                     disabled={savingWindow}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl"
                   >
                     {savingWindow ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
                     {editingWindow ? "Update Schedule" : "Save Schedule"}
@@ -1778,7 +2036,7 @@ export default function AdminAttendanceSchedulePage() {
                     size="sm"
                     type="submit"
                     disabled={savingSlot}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl"
                   >
                     {savingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
                     {editingSlot ? "Update Period" : "Save Period"}

@@ -14,6 +14,11 @@ import {
   GraduationCap,
   Clock,
   Fingerprint,
+  Layers,
+  Briefcase,
+  BellRing,
+  CheckCircle2,
+  FileText,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
