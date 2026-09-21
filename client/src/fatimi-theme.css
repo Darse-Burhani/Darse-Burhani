@@ -320,5 +320,95 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   2026 MODERN ICON BADGES & BUTTON MICRO-ANIMATIONS
+   ───────────────────────────────────────────────────────────── */
+.icon-badge-2026 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
 
+.icon-badge-2026:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 16px -2px rgba(0, 0, 0, 0.12);
+}
 
+.icon-badge-gold {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #b45309;
+}
+
+.icon-badge-emerald {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #065f46;
+}
+
+.icon-badge-indigo {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #3730a3;
+}
+
+.icon-badge-rose {
+  background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #9f1239;
+}
+
+/* Tactile 2026 Interactive Button Classes */
+.btn-interactive {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.btn-interactive:active {
+  transform: scale(0.965) translateY(1px);
+}
+
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
+  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.btn-shimmer:hover::before {
+  transform: translateX(200%);
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}

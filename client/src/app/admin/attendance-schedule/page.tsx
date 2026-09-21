@@ -848,22 +848,22 @@ export default function AdminAttendanceSchedulePage() {
       />
 
       {/* ── Page Header Banner with Audio Audition & Actions ── */}
-      <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-r from-[#093b2a] via-[#0d503a] to-[#062b1e] border border-[#d4af37]/40 shadow-xl">
-        <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-[#d4af37]/10 blur-3xl pointer-events-none" />
-        <div className="absolute top-0 right-0 p-6 opacity-15 pointer-events-none">
-          <Clock className="w-32 h-32 text-white" />
+      <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-br from-[#042f24] via-[#094d37] to-[#021f18] border border-[#d4af37]/40 shadow-[0_12px_36px_rgba(2,44,34,0.35)]">
+        <div className="absolute -right-12 -bottom-12 w-80 h-80 rounded-full bg-[#d4af37]/15 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <Clock className="w-40 h-40 text-white stroke-[1.2]" />
         </div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#fff2b2] text-xs font-black tracking-widest uppercase mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-[#fde047]" />
-              Attendance Governance
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#fff2b2] text-xs font-black tracking-wider uppercase mb-3 shadow-inner">
+              <Sparkles className="w-3.5 h-3.5 text-[#fde047] animate-pulse" />
+              <span>Attendance Automation Engine</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white font-display tracking-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-display tracking-tight">
               Attendance Schedule &amp; Timing
             </h1>
-            <p className="text-emerald-100/80 text-sm mt-1.5 max-w-2xl font-medium leading-relaxed">
+            <p className="text-emerald-100/90 text-sm mt-1.5 max-w-2xl font-medium leading-relaxed">
               Configure attendance sessions, scan windows, start/end times, and grace periods for Talabat, Faculty, and Classes.
             </p>
           </div>
@@ -874,11 +874,13 @@ export default function AdminAttendanceSchedulePage() {
             <Button
               onClick={handleTestSound}
               disabled={isPlayingSound}
-              variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/25 text-xs font-bold h-10 px-3.5 rounded-xl backdrop-blur-sm transition-all flex items-center gap-2"
+              variant="glass"
+              className="text-xs font-bold h-10 px-4 rounded-xl transition-all flex items-center gap-2"
               title="Audition smooth 0ms harmonic bell notification sound"
             >
-              <Volume2 className={`w-4 h-4 ${isPlayingSound ? "text-[#fde047] scale-125" : "text-emerald-300"} transition-transform`} />
+              <span className={`p-1 rounded-lg bg-emerald-500/20 text-emerald-300 transition-transform duration-300 ${isPlayingSound ? "scale-125 text-[#fde047]" : "group-hover:scale-110"}`}>
+                <Volume2 className="w-4 h-4" />
+              </span>
               <span>{isPlayingSound ? "Playing Bell..." : "Test Audio Bell"}</span>
             </Button>
 
@@ -887,61 +889,68 @@ export default function AdminAttendanceSchedulePage() {
               <Button
                 onClick={handleEnableDesktopNotifs}
                 variant="outline"
-                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/40 text-xs font-bold h-10 px-3.5 rounded-xl backdrop-blur-sm transition-all flex items-center gap-2"
+                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/50 text-xs font-bold h-10 px-3.5 rounded-xl backdrop-blur-md transition-all flex items-center gap-2"
                 title="Enable OS Desktop Notifications outside the browser"
               >
-                <Bell className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span className="p-1 rounded-lg bg-amber-400/20 text-amber-300">
+                  <Bell className="w-4 h-4 animate-bounce" />
+                </span>
                 <span>Enable OS Alerts</span>
               </Button>
             )}
 
             <Button
               onClick={() => (window.location.href = "/teacher/medical-duty")}
-              className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-lg border border-emerald-400/30 transition-all flex items-center gap-2"
+              variant="default"
+              className="text-xs font-bold h-10 px-4 rounded-xl flex items-center gap-2"
             >
-              <Stethoscope className="w-4 h-4 text-emerald-200" />
-              Health Duty
+              <span className="p-1 rounded-lg bg-emerald-700/60 text-emerald-200">
+                <Stethoscope className="w-3.5 h-3.5" />
+              </span>
+              <span>Health Duty</span>
             </Button>
 
             <Button
               onClick={() => downloadExcel(activeTab)}
               disabled={exporting}
-              className="bg-[#d4af37] hover:bg-[#c59e2a] text-[#1c1204] font-black text-xs shadow-lg shadow-[#d4af37]/20 border border-[#fff2b2] h-10 px-4 rounded-xl"
+              variant="fatimi-gold"
+              className="text-xs font-black h-10 px-4 rounded-xl shadow-lg"
             >
               {exporting ? (
                 <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
               ) : (
                 <FileSpreadsheet className="w-4 h-4 mr-1.5" />
               )}
-              Download Sheet
+              <span>Download Sheet</span>
             </Button>
 
             <Button
               onClick={loadData}
-              variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm h-10 w-10 p-0 rounded-xl"
+              variant="glass"
+              className="h-10 w-10 p-0 rounded-xl"
+              title="Refresh attendance schedule and status"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 transition-transform ${loading ? "animate-spin" : "group-hover:rotate-180 duration-500"}`} />
             </Button>
           </div>
         </div>
       </div>
 
       {/* ── Real-Time Gateway Feed Pulse & Pop-In Live Scan Ticker ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-gray-200/90 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center">
-            <span className={`w-3 h-3 rounded-full ${realTimeConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200">
+            <span className={`w-2.5 h-2.5 rounded-full ${realTimeConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
             {realTimeConnected && (
               <span className="absolute w-5 h-5 rounded-full bg-emerald-400/40 animate-ping" />
             )}
           </div>
           <div className="flex items-center gap-2">
             <Radio className={`w-4 h-4 ${realTimeConnected ? "text-emerald-600 animate-pulse" : "text-amber-500"}`} />
-            <span className="text-xs font-bold text-gray-800">
+            <span className="text-xs font-bold text-gray-900">
               {realTimeConnected ? "Live Biometric Gateway Connected (24/7)" : "Connecting to Live Event Stream..."}
             </span>
-            <Badge variant="outline" className={`text-[10px] font-bold ${realTimeConnected ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
+            <Badge variant="outline" className={`text-[10px] font-extrabold ${realTimeConnected ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
               {realTimeConnected ? "SSE Active" : "Polling"}
             </Badge>
           </div>
@@ -957,7 +966,7 @@ export default function AdminAttendanceSchedulePage() {
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
               className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-950 shadow-sm"
             >
-              <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
+              <div className="w-6 h-6 rounded-full bg-emerald-700 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
                 {latestScan.name.slice(0, 1).toUpperCase()}
               </div>
               <div className="flex items-center gap-1.5">
@@ -980,8 +989,8 @@ export default function AdminAttendanceSchedulePage() {
               <span className="text-[10px] text-gray-400 font-mono">{latestScan.time}</span>
             </motion.div>
           ) : (
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-              <Activity className="w-3.5 h-3.5 text-gray-400" />
+            <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+              <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
               <span>Awaiting device punches...</span>
             </div>
           )}
@@ -990,19 +999,21 @@ export default function AdminAttendanceSchedulePage() {
 
       {/* ── Main Tab Switcher Toggle ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200 w-fit flex-wrap gap-1">
+        <div className="flex items-center p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/90 w-fit flex-wrap gap-1.5 shadow-inner">
           <button
             type="button"
             onClick={() => setActiveTab("ALL_STUDENTS")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
               activeTab === "ALL_STUDENTS"
-                ? "bg-white text-emerald-900 shadow-sm border border-gray-200 font-extrabold"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-white text-emerald-950 shadow-md border border-gray-200 font-black ring-1 ring-emerald-500/20"
+                : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
             }`}
           >
-            <Users className="w-4 h-4 text-emerald-700" />
-            Talabat Windows
-            <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px]">
+            <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "ALL_STUDENTS" ? "bg-emerald-100 text-emerald-800" : "bg-gray-200/70 text-gray-600"}`}>
+              <Users className="w-3.5 h-3.5" />
+            </span>
+            <span>Talabat Windows</span>
+            <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold">
               {studentWindows.length}
             </Badge>
           </button>
@@ -1010,15 +1021,17 @@ export default function AdminAttendanceSchedulePage() {
           <button
             type="button"
             onClick={() => setActiveTab("FACULTY")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
               activeTab === "FACULTY"
-                ? "bg-white text-indigo-900 shadow-sm border border-gray-200 font-extrabold"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-white text-indigo-950 shadow-md border border-gray-200 font-black ring-1 ring-indigo-500/20"
+                : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-indigo-600" />
-            Faculty Role Timer
-            <Badge variant="outline" className="ml-1 bg-indigo-50 text-indigo-800 border-indigo-200 text-[10px]">
+            <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "FACULTY" ? "bg-indigo-100 text-indigo-800" : "bg-gray-200/70 text-gray-600"}`}>
+              <ShieldCheck className="w-3.5 h-3.5" />
+            </span>
+            <span>Faculty Role Timer</span>
+            <Badge variant="outline" className="ml-1 bg-indigo-50 text-indigo-800 border-indigo-200 text-[10px] font-extrabold">
               {facultyWindows.length}
             </Badge>
           </button>
@@ -1026,15 +1039,17 @@ export default function AdminAttendanceSchedulePage() {
           <button
             type="button"
             onClick={() => setActiveTab("CLASSES")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
               activeTab === "CLASSES"
-                ? "bg-white text-emerald-900 shadow-sm border border-gray-200 font-extrabold"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-white text-emerald-950 shadow-md border border-gray-200 font-black ring-1 ring-emerald-500/20"
+                : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
             }`}
           >
-            <BookOpen className="w-4 h-4 text-emerald-700" />
-            Class Timetable
-            <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px]">
+            <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "CLASSES" ? "bg-emerald-100 text-emerald-800" : "bg-gray-200/70 text-gray-600"}`}>
+              <BookOpen className="w-3.5 h-3.5" />
+            </span>
+            <span>Class Timetable</span>
+            <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold">
               {slots.length}
             </Badge>
           </button>
@@ -1044,26 +1059,29 @@ export default function AdminAttendanceSchedulePage() {
         {activeTab === "ALL_STUDENTS" ? (
           <Button
             onClick={() => openWindowModal(undefined, "ALL_STUDENTS")}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md rounded-xl h-10 px-4"
+            variant="default"
+            className="text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Talabat Window
+            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
+            <span>Add Talabat Window</span>
           </Button>
         ) : activeTab === "FACULTY" ? (
           <Button
             onClick={() => openWindowModal(undefined, "FACULTY")}
-            className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs shadow-md rounded-xl h-10 px-4"
+            variant="fatimi-lapis"
+            className="text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Faculty Role Timer
+            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
+            <span>Add Faculty Role Timer</span>
           </Button>
         ) : (
           <Button
             onClick={() => openSlotModal()}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md rounded-xl h-10 px-4"
+            variant="default"
+            className="text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Class Period Slot
+            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
+            <span>Add Class Period Slot</span>
           </Button>
         )}
       </div>
@@ -1079,44 +1097,51 @@ export default function AdminAttendanceSchedulePage() {
               return (
                 <Card
                   key={w.id}
-                  className={`fatimi-card overflow-hidden transition-all duration-300 rounded-2xl ${
+                  className={`group relative overflow-hidden transition-all duration-300 rounded-3xl border bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 ${
                     w.enabled
                       ? isLive
-                        ? "ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/10"
-                        : "hover:shadow-md"
-                      : "opacity-60 bg-gray-50/80"
+                        ? "border-emerald-500/80 ring-2 ring-emerald-500/20 shadow-emerald-500/10"
+                        : "border-gray-200/90 hover:border-emerald-500/40"
+                      : "opacity-60 bg-gray-50/80 border-gray-200"
                   }`}
                 >
                   <div
-                    className={`h-1.5 w-full ${
+                    className={`h-2 w-full ${
                       !w.enabled
                         ? "bg-gray-300"
                         : isLive
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-400"
-                        : "bg-gradient-to-r from-[#d4af37] to-amber-400"
+                        ? "bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400"
+                        : "bg-gradient-to-r from-[#d4af37] via-amber-400 to-yellow-500"
                     }`}
                   />
-                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {isLive && (
-                          <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                          </span>
-                        )}
-                        <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
+                        isLive ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                      }`}>
+                        <Users className="w-5 h-5 stroke-[1.8]" />
                       </div>
-                      <p className="text-xs text-gray-500 font-medium">
-                        Audience: {w.audience === "BOTH" || w.hasFacultyTimer ? "Talabat + Faculty (Unified Event)" : "All Talabat (Learners)"}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          {isLive && (
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span>
+                          )}
+                          <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
+                        </div>
+                        <p className="text-xs text-gray-500 font-medium">
+                          {w.audience === "BOTH" || w.hasFacultyTimer ? "Talabat + Faculty (Unified Event)" : "All Talabat (Learners)"}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
                       <button
                         type="button"
                         onClick={() => openWindowModal(w, "ALL_STUDENTS")}
-                        className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all active:scale-90"
                         title="Edit Schedule"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -1125,7 +1150,7 @@ export default function AdminAttendanceSchedulePage() {
                         type="button"
                         onClick={() => deleteWindow(w.id)}
                         disabled={deletingId === w.id || studentWindows.length <= 1}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
                         title="Delete Schedule"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1135,11 +1160,13 @@ export default function AdminAttendanceSchedulePage() {
 
                   <CardContent className="pt-0 space-y-3.5">
                     {/* Time Display */}
-                    <div className="p-3.5 bg-gray-50/90 rounded-xl border border-gray-200/80 flex items-center justify-between">
+                    <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <Clock className="w-4 h-4 text-emerald-700" />
+                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-emerald-800 shadow-2xs border border-slate-200/60">
+                          <Clock className="w-4 h-4" />
+                        </div>
                         <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Talabat On-Time</p>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Talabat On-Time</p>
                           <p className="text-sm font-black text-gray-900 font-mono">
                             {w.startTime} &rarr; {w.endTime}
                           </p>
@@ -1160,8 +1187,10 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
 
                       <div className="text-right">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</p>
-                        <p className="text-xs font-bold text-gray-700">{w.durationMinutes} mins</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Duration</p>
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-gray-800 font-mono">
+                          {w.durationMinutes}m
+                        </span>
                       </div>
                     </div>
 
@@ -1176,35 +1205,37 @@ export default function AdminAttendanceSchedulePage() {
                     {/* Grace Period & Live Status */}
                     <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
-                        <Timer className="w-3.5 h-3.5 text-amber-600" />
+                        <Timer className="w-4 h-4 text-amber-600" />
                         <span>
                           Grace: <strong>{w.graceMinutes} min</strong>
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-2xs ${
                             !w.enabled
                               ? "bg-gray-100 text-gray-600 border-gray-300"
                               : isLive
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                              : "bg-amber-50 text-amber-800 border-amber-300"
+                              ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                              : "bg-amber-50 text-amber-900 border-amber-300"
                           }`}
                         >
-                          {!w.enabled ? "Disabled" : isLive ? "🟢 Check-In Live" : "⚪ Closed"}
+                          <span className={`w-1.5 h-1.5 rounded-full ${!w.enabled ? "bg-gray-400" : isLive ? "bg-emerald-600 animate-pulse" : "bg-amber-500"}`} />
+                          {!w.enabled ? "Disabled" : isLive ? "Active Live" : "Closed"}
                         </span>
 
                         <button
                           type="button"
                           onClick={() => toggleWindowActive(w)}
-                          className={`w-8 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
-                            w.enabled ? "bg-emerald-600" : "bg-gray-300"
+                          aria-label="Toggle window active state"
+                          className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ease-out select-none active:scale-95 ${
+                            w.enabled ? "bg-emerald-600 shadow-sm" : "bg-gray-300"
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                              w.enabled ? "translate-x-3" : "translate-x-0"
+                            className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ease-out ${
+                              w.enabled ? "translate-x-4" : "translate-x-0"
                             }`}
                           />
                         </button>
@@ -1221,18 +1252,18 @@ export default function AdminAttendanceSchedulePage() {
       {/* ── TAB 2: FACULTY ROLE TIMER ATTENDANCE SCHEDULE ── */}
       {!loading && activeTab === "FACULTY" && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-purple-50/60 to-white p-5 shadow-sm">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0 border border-indigo-200 shadow-sm mt-0.5">
-                <ShieldCheck className="w-5 h-5 text-indigo-700" />
+          <div className="mb-6 rounded-3xl border border-indigo-200/90 bg-gradient-to-br from-indigo-50/90 via-purple-50/50 to-white p-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0 border border-indigo-200 shadow-sm">
+                <ShieldCheck className="w-6 h-6 text-indigo-700 stroke-[1.8]" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-900">
+                  <h3 className="text-base font-bold text-gray-900">
                     Faculty Role Timer &amp; Dedicated Scan Windows
                   </h3>
-                  <Badge className="bg-indigo-600 text-white text-[10px] font-bold">
-                    Independent Timing
+                  <Badge className="bg-indigo-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
+                    2026 Independent Timing
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed">
@@ -1252,45 +1283,51 @@ export default function AdminAttendanceSchedulePage() {
               return (
                 <Card
                   key={w.id}
-                  className={`fatimi-card overflow-hidden transition-all duration-300 border-indigo-200/80 rounded-2xl ${
+                  className={`group relative overflow-hidden transition-all duration-300 border rounded-3xl bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 ${
                     w.enabled
                       ? isLive
-                        ? "ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/10"
-                        : "hover:shadow-md"
-                      : "opacity-60 bg-gray-50/80"
+                        ? "border-indigo-500/80 ring-2 ring-indigo-500/20 shadow-indigo-500/10"
+                        : "border-indigo-200/80 hover:border-indigo-400"
+                      : "opacity-60 bg-gray-50/80 border-gray-200"
                   }`}
                 >
                   <div
-                    className={`h-1.5 w-full ${
+                    className={`h-2 w-full ${
                       !w.enabled
                         ? "bg-gray-300"
                         : isLive
-                        ? "bg-gradient-to-r from-indigo-500 to-purple-500"
+                        ? "bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-400"
                         : "bg-gradient-to-r from-indigo-400 to-blue-400"
                     }`}
                   />
-                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {isLive && (
-                          <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
-                          </span>
-                        )}
-                        <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
+                        isLive ? "bg-indigo-100 text-indigo-800 border border-indigo-300" : "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                      }`}>
+                        <ShieldCheck className="w-5 h-5 stroke-[1.8]" />
                       </div>
-                      <p className="text-xs text-indigo-700 font-medium">
-                        Audience: Faculty &amp; Staff
-                        <span className="text-gray-500"> · Same event as Talabat ({w.startTime} &rarr; {w.endTime})</span>
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          {isLive && (
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+                            </span>
+                          )}
+                          <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
+                        </div>
+                        <p className="text-xs text-indigo-700 font-medium">
+                          Audience: Faculty &amp; Staff
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
                       <button
                         type="button"
                         onClick={() => openWindowModal(w, "FACULTY")}
-                        className="p-1.5 text-gray-400 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all active:scale-90"
                         title="Edit Schedule"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -1299,7 +1336,7 @@ export default function AdminAttendanceSchedulePage() {
                         type="button"
                         onClick={() => deleteWindow(w.id)}
                         disabled={deletingId === w.id}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
                         title="Delete Schedule"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1309,11 +1346,13 @@ export default function AdminAttendanceSchedulePage() {
 
                   <CardContent className="pt-0 space-y-3.5">
                     {/* Faculty Time Display */}
-                    <div className="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between">
+                    <div className="p-3.5 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <Clock className="w-4 h-4 text-indigo-700" />
+                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-indigo-800 shadow-2xs border border-indigo-200/60">
+                          <Clock className="w-4 h-4" />
+                        </div>
                         <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Faculty On-Time</p>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Faculty On-Time</p>
                           <p className="text-sm font-black text-indigo-950 font-mono">
                             {facStart} &rarr; {facEnd}
                           </p>
@@ -1326,8 +1365,10 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
 
                       <div className="text-right">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</p>
-                        <p className="text-xs font-bold text-indigo-900">{w.durationMinutes} mins</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Duration</p>
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-indigo-200 text-xs font-bold text-indigo-900 font-mono">
+                          {w.durationMinutes}m
+                        </span>
                       </div>
                     </div>
 
@@ -1342,15 +1383,15 @@ export default function AdminAttendanceSchedulePage() {
                     {/* Grace Period & Live Status */}
                     <div className="flex items-center justify-between text-xs pt-1 border-t border-indigo-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
-                        <Timer className="w-3.5 h-3.5 text-indigo-600" />
+                        <Timer className="w-4 h-4 text-indigo-600" />
                         <span>
                           Grace: <strong>{w.graceMinutes} min</strong>
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-2xs ${
                             !w.enabled || (w.facultyEnabled === false && (w.hasFacultyTimer || w.facultyStartTime))
                               ? "bg-gray-100 text-gray-600 border-gray-300"
                               : isLive
@@ -1358,20 +1399,21 @@ export default function AdminAttendanceSchedulePage() {
                               : "bg-amber-50 text-amber-800 border-amber-300"
                           }`}
                         >
-                          {!w.enabled || (w.facultyEnabled === false && (w.hasFacultyTimer || w.facultyStartTime)) ? "Disabled" : isLive ? "🟢 Faculty Live" : "⚪ Closed"}
+                          <span className={`w-1.5 h-1.5 rounded-full ${!w.enabled ? "bg-gray-400" : isLive ? "bg-indigo-600 animate-pulse" : "bg-amber-500"}`} />
+                          {!w.enabled || (w.facultyEnabled === false && (w.hasFacultyTimer || w.facultyStartTime)) ? "Disabled" : isLive ? "Active Live" : "Closed"}
                         </span>
 
                         <button
                           type="button"
                           onClick={() => toggleWindowActive(w, true)}
                           title="Toggle faculty timer only (Talabat timer unaffected)"
-                          className={`w-8 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
-                            (w.facultyEnabled ?? true) && w.enabled ? "bg-indigo-600" : "bg-gray-300"
+                          className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ease-out select-none active:scale-95 ${
+                            (w.facultyEnabled ?? true) && w.enabled ? "bg-indigo-600 shadow-sm" : "bg-gray-300"
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                              (w.facultyEnabled ?? true) && w.enabled ? "translate-x-3" : "translate-x-0"
+                            className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ease-out ${
+                              (w.facultyEnabled ?? true) && w.enabled ? "translate-x-4" : "translate-x-0"
                             }`}
                           />
                         </button>
@@ -1385,35 +1427,35 @@ export default function AdminAttendanceSchedulePage() {
 
           {/* Faculty Auto-Mark Absent Governance */}
           {facultyAbsentPreview && (
-            <div className="mb-6 rounded-2xl border border-amber-200/90 bg-gradient-to-r from-amber-50 via-yellow-50/70 to-indigo-50/30 p-5 shadow-md relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-500 to-indigo-600" />
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-sm mt-0.5">
-                    <UserX className="w-5 h-5 text-amber-700" />
+            <div className="mb-6 rounded-3xl border border-amber-300/80 bg-gradient-to-r from-amber-50 via-yellow-50/80 to-indigo-50/40 p-6 shadow-md relative overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-amber-500 via-amber-600 to-indigo-600" />
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-300 shadow-sm mt-0.5">
+                    <UserX className="w-6 h-6 text-amber-700 stroke-[1.8]" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-gray-900">
+                      <h3 className="text-base font-bold text-gray-900">
                         Faculty Auto-Mark Absent Governance (Roster-Scoped)
                       </h3>
-                      <Badge variant="outline" className="text-[10px] font-bold bg-amber-100/80 text-amber-800 border-amber-300">
-                        Roster Only
+                      <Badge variant="outline" className="text-[10px] font-extrabold bg-amber-100/90 text-amber-900 border-amber-400">
+                        24/7 Automated Roster
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-600 mt-0.5 max-w-2xl leading-relaxed">
+                    <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed">
                       Teachers in the applicability roster who have not scanned by the end of the faculty window can be
                       automatically marked as <strong>ABSENT</strong>. Teachers outside the roster are <strong>never</strong> affected.
                     </p>
-                    <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-700 font-medium flex-wrap">
-                      <span>Roster: <strong>{facultyAbsentPreview.totalExpected}</strong></span>
-                      <span>Present: <strong className="text-emerald-700">{facultyAbsentPreview.loggedCount}</strong></span>
+                    <div className="flex items-center gap-3 mt-3 text-xs text-gray-700 font-semibold flex-wrap">
+                      <span className="px-2.5 py-1 rounded-xl bg-white border border-gray-200">Roster: <strong>{facultyAbsentPreview.totalExpected}</strong></span>
+                      <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200">Present: <strong>{facultyAbsentPreview.loggedCount}</strong></span>
                       {(facultyAbsentPreview.medicalCount ?? 0) > 0 && (
-                        <span>Medical: <strong className="text-blue-700">{facultyAbsentPreview.medicalCount}</strong></span>
+                        <span className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-800 border border-blue-200">Medical: <strong>{facultyAbsentPreview.medicalCount}</strong></span>
                       )}
-                      <span>Unscanned: <strong className="text-amber-700">{facultyAbsentPreview.unscannedCount}</strong></span>
+                      <span className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200">Unscanned: <strong>{facultyAbsentPreview.unscannedCount}</strong></span>
                       {facultyAbsentPreview.rosterScoped && (
-                        <span className="text-indigo-700">Out of roster: <strong>{facultyAbsentPreview.outOfRosterCount}</strong> (skipped)</span>
+                        <span className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-800 border border-indigo-200">Out of roster: <strong>{facultyAbsentPreview.outOfRosterCount}</strong> (skipped)</span>
                       )}
                     </div>
                   </div>
@@ -1423,17 +1465,18 @@ export default function AdminAttendanceSchedulePage() {
                   <Button
                     onClick={handleTriggerFacultyAutoMarkAbsent}
                     disabled={markingFacultyAbsent || facultyAbsentPreview.unscannedCount === 0}
-                    className="bg-gradient-to-r from-[#022c22] to-[#047857] hover:from-[#033b2e] hover:to-[#059669] text-white font-bold text-xs shadow-md rounded-xl h-9"
+                    variant="fatimi-gold"
+                    className="text-xs font-bold rounded-xl h-10 px-4"
                   >
                     {markingFacultyAbsent ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                        Executing...
+                        <span>Executing...</span>
                       </>
                     ) : (
                       <>
-                        <UserX className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
-                        Auto-Mark {facultyAbsentPreview.unscannedCount} Unscanned Faculty as Absent
+                        <UserX className="w-4 h-4 mr-1.5 text-[#1c1204]" />
+                        <span>Auto-Mark {facultyAbsentPreview.unscannedCount} Unscanned Faculty</span>
                       </>
                     )}
                   </Button>
@@ -1443,11 +1486,11 @@ export default function AdminAttendanceSchedulePage() {
           )}
 
           {/* Faculty Export Card */}
-          <Card className="fatimi-card bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 border-indigo-200 rounded-2xl">
-            <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-800">
-                  <FileSpreadsheet className="w-5 h-5" />
+          <Card className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50/60 via-white to-purple-50/40 shadow-sm overflow-hidden">
+            <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-800 shadow-2xs">
+                  <FileSpreadsheet className="w-6 h-6 stroke-[1.8]" />
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-900">Download Faculty Attendance Report</h4>
@@ -1461,10 +1504,10 @@ export default function AdminAttendanceSchedulePage() {
                 onClick={() => downloadExcel("FACULTY")}
                 disabled={exporting}
                 variant="outline"
-                className="text-indigo-800 border-indigo-300 hover:bg-indigo-50 text-xs font-bold rounded-xl"
+                className="text-indigo-800 border-indigo-300 hover:bg-indigo-50 text-xs font-bold rounded-xl h-10 px-4"
               >
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Export Faculty (.csv)
+                <Download className="w-4 h-4 mr-1.5" />
+                <span>Export Faculty (.csv)</span>
               </Button>
             </CardContent>
           </Card>
@@ -1475,16 +1518,16 @@ export default function AdminAttendanceSchedulePage() {
       {!loading && activeTab === "CLASSES" && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           {/* Day of week filter bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-5">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-5 no-scrollbar">
             {DAYS_OF_WEEK.map((d, i) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setSelectedDay(i)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 select-none active:scale-95 whitespace-nowrap ${
                   selectedDay === i
-                    ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20 font-extrabold"
-                    : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                    ? "bg-gradient-to-r from-emerald-900 to-teal-900 text-white shadow-md border border-emerald-700 font-extrabold ring-1 ring-amber-400/30"
+                    : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200/90 hover:border-emerald-400"
                 }`}
               >
                 {d}
@@ -1494,7 +1537,7 @@ export default function AdminAttendanceSchedulePage() {
 
           {/* Class filter */}
           <div className="flex items-center gap-3 mb-6">
-            <label className="text-xs font-bold text-gray-600">Filter by Class:</label>
+            <label className="text-xs font-bold text-gray-700">Filter by Class:</label>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
@@ -1510,78 +1553,88 @@ export default function AdminAttendanceSchedulePage() {
           </div>
 
           {/* Slots Table */}
-          <Card className="fatimi-card overflow-hidden rounded-2xl">
+          <Card className="fatimi-card overflow-hidden rounded-3xl border border-gray-200/90 shadow-md">
             <div className="fatimi-card-header" />
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-emerald-600" />
-                {DAYS_OF_WEEK[selectedDay]} Attendance Periods Schedule
+            <CardHeader className="flex flex-row items-center justify-between pb-4 bg-gray-50/50">
+              <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-200 shadow-2xs">
+                  <CalendarDays className="w-4 h-4" />
+                </div>
+                <span>{DAYS_OF_WEEK[selectedDay]} Attendance Periods Schedule</span>
               </CardTitle>
               <Button
                 onClick={() => downloadExcel("CLASSES")}
                 disabled={exporting}
                 variant="outline"
                 size="sm"
-                className="text-xs rounded-xl"
+                className="text-xs rounded-xl font-bold h-9 px-3.5"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />
-                Export Class Schedule
+                <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-700" />
+                <span>Export Schedule</span>
               </Button>
             </CardHeader>
 
             <CardContent className="p-0">
               {filteredSlots.length === 0 ? (
                 <div className="py-16 text-center text-gray-400">
-                  <Calendar className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                  <p className="text-sm font-medium">No class attendance periods scheduled for {DAYS_OF_WEEK[selectedDay]}.</p>
-                  <Button size="sm" onClick={() => openSlotModal()} className="mt-3 text-xs bg-emerald-700 rounded-xl">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Period
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mb-3 border border-gray-200 shadow-inner">
+                    <Calendar className="w-7 h-7" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-600">No class attendance periods scheduled for {DAYS_OF_WEEK[selectedDay]}.</p>
+                  <Button size="sm" onClick={() => openSlotModal()} variant="default" className="mt-4 text-xs rounded-xl font-bold">
+                    <Plus className="w-4 h-4 mr-1.5" /> Add Period Slot
                   </Button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-600 text-[11px] font-bold uppercase tracking-wider">
-                        <th className="py-3 px-4">Period</th>
-                        <th className="py-3 px-4">Time</th>
-                        <th className="py-3 px-4">Subject / Attendance Name</th>
-                        <th className="py-3 px-4">Class</th>
-                        <th className="py-3 px-4">Teacher</th>
-                        <th className="py-3 px-4">Room</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                      <tr className="bg-slate-100/70 border-b border-gray-200/90 text-gray-700 text-[11px] font-black uppercase tracking-wider">
+                        <th className="py-3.5 px-5">Period</th>
+                        <th className="py-3.5 px-5">Time</th>
+                        <th className="py-3.5 px-5">Subject / Attendance Name</th>
+                        <th className="py-3.5 px-5">Class</th>
+                        <th className="py-3.5 px-5">Teacher</th>
+                        <th className="py-3.5 px-5">Room</th>
+                        <th className="py-3.5 px-5 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 bg-white">
                       {filteredSlots.map((s) => (
-                        <tr key={s.id} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-3 px-4 font-bold text-emerald-800">
-                            {s.isBreak ? "Break" : `P${s.period}`}
+                        <tr key={s.id} className="hover:bg-emerald-50/30 transition-colors group">
+                          <td className="py-3.5 px-5">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-black font-mono shadow-2xs ${
+                              s.isBreak ? "bg-amber-100 text-amber-900 border border-amber-300" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
+                            }`}>
+                              {s.isBreak ? "Break" : `P${s.period}`}
+                            </span>
                           </td>
-                          <td className="py-3 px-4 font-mono text-xs font-semibold text-gray-700">
+                          <td className="py-3.5 px-5 font-mono text-xs font-bold text-gray-800">
                             {s.startTime} – {s.endTime}
                           </td>
-                          <td className="py-3 px-4 font-bold text-gray-900">
+                          <td className="py-3.5 px-5 font-bold text-gray-900">
                             {s.isBreak ? (s.breakName || "Break") : (s.subject || "Attendance")}
                           </td>
-                          <td className="py-3 px-4 text-xs font-medium text-gray-700">
+                          <td className="py-3.5 px-5 text-xs font-semibold text-gray-700">
                             {s.className} {s.grade ? `(Grade ${s.grade}-${s.section})` : ""}
                           </td>
-                          <td className="py-3 px-4 text-xs text-gray-600">{s.teacherName || "—"}</td>
-                          <td className="py-3 px-4 text-xs text-gray-500">{s.roomNumber || "—"}</td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="py-3.5 px-5 text-xs font-medium text-gray-600">{s.teacherName || "—"}</td>
+                          <td className="py-3.5 px-5 text-xs font-mono text-gray-500">{s.roomNumber || "—"}</td>
+                          <td className="py-3.5 px-5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => openSlotModal(s)}
-                                className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all active:scale-90"
+                                title="Edit Period"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => deleteSlot(s.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-90"
+                                title="Delete Period"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1601,22 +1654,25 @@ export default function AdminAttendanceSchedulePage() {
       {/* ── MODAL: Create / Edit Attendance Window ── */}
       <AnimatePresence>
         {windowModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="w-full max-w-xl max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gray-50/60">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-emerald-600" />
-                  {editingWindow ? "Edit Attendance Schedule" : "Add Attendance Window"}
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gradient-to-r from-emerald-50/50 via-white to-gray-50">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-300 shadow-2xs">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <span>{editingWindow ? "Edit Attendance Schedule" : "Add Attendance Window"}</span>
                 </h3>
                 <button
                   type="button"
                   onClick={() => setWindowModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors active:scale-90"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1624,12 +1680,12 @@ export default function AdminAttendanceSchedulePage() {
 
               <form onSubmit={saveWindow} className="flex flex-col flex-1 overflow-hidden">
                 <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
-                  <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200/70 text-[11px] text-emerald-900 font-medium leading-relaxed">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 text-[11px] text-emerald-950 font-medium leading-relaxed shadow-2xs">
                     One schedule event carries <strong>both timers side-by-side</strong> — Talabat and Faculty scan against the same event, each with its own on-time / late window, synced into attendance automatically.
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                    <label className="text-xs font-bold text-gray-700 block mb-1.5">
                       Attendance Session Name:
                     </label>
                     <input
@@ -1638,13 +1694,13 @@ export default function AdminAttendanceSchedulePage() {
                       placeholder="e.g. Tilawat al Dua, Subah Assembly, Dhuhr Attendance"
                       value={windowForm.name}
                       onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
-                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
                     />
                   </div>
 
                   {/* Dynamic Timeline Preview inside Modal */}
-                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Live Timing Preview</span>
+                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-1">
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Live Timing Preview</span>
                     <ScheduleTimelineBar
                       startTime={windowForm.startTime}
                       endTime={windowForm.endTime}
@@ -1654,24 +1710,24 @@ export default function AdminAttendanceSchedulePage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-emerald-800 block mb-1">Talabat On-Time From (24h):</label>
+                      <label className="text-xs font-bold text-emerald-900 block mb-1">Talabat On-Time From (24h):</label>
                       <input
                         type="time"
                         required
                         value={windowForm.startTime}
                         onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-emerald-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full h-10 px-3 rounded-xl border border-emerald-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/20"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-emerald-800 block mb-1">Talabat On-Time To (24h):</label>
+                      <label className="text-xs font-bold text-emerald-900 block mb-1">Talabat On-Time To (24h):</label>
                       <input
                         type="time"
                         required
                         value={windowForm.endTime}
                         onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-emerald-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full h-10 px-3 rounded-xl border border-emerald-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/20"
                       />
                     </div>
                   </div>
@@ -1686,7 +1742,7 @@ export default function AdminAttendanceSchedulePage() {
                         className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         placeholder="e.g. 09:00"
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">
+                      <p className="text-[10px] text-gray-500 mt-1 font-medium">
                         Scans between On-Time To &amp; Late Till are marked <strong>LATE</strong>. Scans before start are blocked.
                       </p>
                     </div>
@@ -1708,29 +1764,29 @@ export default function AdminAttendanceSchedulePage() {
                   </div>
 
                   {/* Class Eligibility Roster for Talabat */}
-                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
+                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                         <GraduationCap className="w-4 h-4 text-emerald-700" />
-                        Talabat Class Attendance Scope
+                        <span>Talabat Class Attendance Scope</span>
                       </label>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setWindowForm({ ...windowForm, applicableClassIds: [] })}
-                          className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                          className="text-[11px] font-bold text-emerald-700 hover:underline active:scale-95"
                         >
                           Select All (Default)
                         </button>
                       </div>
                     </div>
-                    <p className="text-[11px] text-emerald-800 leading-snug">
+                    <p className="text-[11px] text-emerald-900 leading-snug">
                       Choose which classes must attend this event.
                       <strong> Empty = all classes.</strong> Students in other classes are <strong>never</strong> marked absent.
                     </p>
-                    <div className="max-h-36 overflow-y-auto space-y-1 bg-white p-2 rounded-lg border border-emerald-100">
+                    <div className="max-h-36 overflow-y-auto space-y-1 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-inner">
                       {classes.map((c) => (
-                        <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded px-2 py-1 text-xs text-gray-800">
+                        <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded-lg px-2 py-1 text-xs text-gray-800">
                           <input
                             type="checkbox"
                             checked={windowForm.applicableClassIds.includes(c.id)}
@@ -1750,26 +1806,26 @@ export default function AdminAttendanceSchedulePage() {
                       ))}
                     </div>
                     {windowForm.applicableClassIds.length === 0 && (
-                      <p className="text-[10px] text-emerald-700 font-medium">
+                      <p className="text-[10px] text-emerald-800 font-bold">
                         ✓ Applies to ALL classes and enrolled students.
                       </p>
                     )}
                   </div>
 
                   {/* ── Faculty timer on the SAME event ── */}
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-3">
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <label htmlFor="facultyTimerEnabled" className="text-xs font-black text-indigo-900 cursor-pointer flex items-center gap-1.5">
+                      <label htmlFor="facultyTimerEnabled" className="text-xs font-black text-indigo-950 cursor-pointer flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-indigo-700" />
-                        Faculty Timer &amp; Attendance Scope
+                        <span>Faculty Timer &amp; Attendance Scope</span>
                       </label>
                       <button
                         type="button"
                         onClick={() => setWindowForm({ ...windowForm, facultyTimerEnabled: !windowForm.facultyTimerEnabled })}
-                        className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${windowForm.facultyTimerEnabled ? "bg-indigo-600" : "bg-gray-300"}`}
+                        className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ease-out active:scale-95 ${windowForm.facultyTimerEnabled ? "bg-indigo-600 shadow-sm" : "bg-gray-300"}`}
                         title="Toggle faculty timer for this event"
                       >
-                        <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${windowForm.facultyTimerEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ease-out ${windowForm.facultyTimerEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </button>
                     </div>
 
@@ -1777,29 +1833,29 @@ export default function AdminAttendanceSchedulePage() {
                       <>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty On-Time From (24h):</label>
+                            <label className="text-xs font-bold text-indigo-900 block mb-1">Faculty On-Time From (24h):</label>
                             <input
                               type="time"
                               required
                               value={windowForm.facultyStartTime}
                               onChange={(e) => setWindowForm({ ...windowForm, facultyStartTime: e.target.value })}
-                              className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                              className="w-full h-10 px-3 rounded-xl border border-indigo-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                             />
                           </div>
                           <div>
-                            <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty On-Time To (24h):</label>
+                            <label className="text-xs font-bold text-indigo-900 block mb-1">Faculty On-Time To (24h):</label>
                             <input
                               type="time"
                               required
                               value={windowForm.facultyEndTime}
                               onChange={(e) => setWindowForm({ ...windowForm, facultyEndTime: e.target.value })}
-                              className="w-full h-10 px-3 rounded-xl border border-indigo-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                              className="w-full h-10 px-3 rounded-xl border border-indigo-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                             />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-xs font-bold text-indigo-800 block mb-1">Faculty Late Till (24h, optional):</label>
+                            <label className="text-xs font-bold text-indigo-900 block mb-1">Faculty Late Till (24h, optional):</label>
                             <input
                               type="time"
                               value={windowForm.facultyLateEndTime || ""}
@@ -1821,23 +1877,23 @@ export default function AdminAttendanceSchedulePage() {
                         </div>
 
                         {/* Faculty Applicability Selection List */}
-                        <div className="bg-white border border-indigo-200 rounded-xl p-3 space-y-2">
+                        <div className="bg-white border border-indigo-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
                           <div className="flex items-center justify-between">
                             <label className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
                               <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                              Select Faculty Expected for this Session:
+                              <span>Select Faculty Expected for this Session:</span>
                             </label>
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
-                                className="text-[10px] font-bold text-indigo-700 hover:underline"
+                                className="text-[10px] font-bold text-indigo-700 hover:underline active:scale-95"
                               >
                                 All Faculty ({facultyList.length})
                               </button>
                             </div>
                           </div>
-                          <p className="text-[11px] text-indigo-800 leading-snug">
+                          <p className="text-[11px] text-indigo-800 leading-snug font-medium">
                             Selected teachers are expected to scan and monitored for auto-absent.
                             <strong> Unselected teachers are never auto-marked absent.</strong>
                           </p>
@@ -1864,7 +1920,7 @@ export default function AdminAttendanceSchedulePage() {
                             ))}
                           </div>
                           {windowForm.applicableTeacherIds.length === 0 && facultyList.length > 0 && (
-                            <p className="text-[10px] text-indigo-700 font-medium flex items-center gap-1">
+                            <p className="text-[10px] text-indigo-700 font-bold flex items-center gap-1">
                               ✓ Window applies to ALL active teachers ({facultyList.length}).
                             </p>
                           )}
@@ -1891,18 +1947,19 @@ export default function AdminAttendanceSchedulePage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
-                  <Button variant="outline" size="sm" type="button" onClick={() => setWindowModalOpen(false)}>
+                <div className="flex items-center justify-end gap-2.5 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
+                  <Button variant="outline" size="sm" type="button" onClick={() => setWindowModalOpen(false)} className="rounded-xl font-bold text-xs h-10 px-4">
                     Cancel
                   </Button>
                   <Button
                     size="sm"
                     type="submit"
                     disabled={savingWindow}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl"
+                    variant="default"
+                    className="font-bold rounded-xl text-xs h-10 px-5 shadow-md"
                   >
                     {savingWindow ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                    {editingWindow ? "Update Schedule" : "Save Schedule"}
+                    <span>{editingWindow ? "Update Schedule" : "Save Schedule"}</span>
                   </Button>
                 </div>
               </form>
@@ -1914,22 +1971,25 @@ export default function AdminAttendanceSchedulePage() {
       {/* ── MODAL: Create / Edit Class Slot ── */}
       <AnimatePresence>
         {classModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="w-full max-w-md max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gray-50/50">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-600" />
-                  {editingSlot ? "Edit Class Period" : "Add Class Attendance Period"}
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gradient-to-r from-emerald-50/50 via-white to-gray-50">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-300 shadow-2xs">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <span>{editingSlot ? "Edit Class Period" : "Add Class Attendance Period"}</span>
                 </h3>
                 <button
                   type="button"
                   onClick={() => setClassModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors active:scale-90"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1938,11 +1998,11 @@ export default function AdminAttendanceSchedulePage() {
               <form onSubmit={saveSlot} className="flex flex-col flex-1 overflow-hidden">
                 <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Class Assigned:</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1.5">Class Assigned:</label>
                     <select
                       value={slotForm.classId}
                       onChange={(e) => setSlotForm({ ...slotForm, classId: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full h-11 px-3.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
                     >
                       {classes.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -1958,7 +2018,7 @@ export default function AdminAttendanceSchedulePage() {
                       <select
                         value={slotForm.dayOfWeek}
                         onChange={(e) => setSlotForm({ ...slotForm, dayOfWeek: Number(e.target.value) })}
-                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
                         {DAYS_OF_WEEK.map((d, i) => (
                           <option key={d} value={i}>
@@ -1976,7 +2036,7 @@ export default function AdminAttendanceSchedulePage() {
                         max="12"
                         value={slotForm.period}
                         onChange={(e) => setSlotForm({ ...slotForm, period: Number(e.target.value) })}
-                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                   </div>
@@ -1988,7 +2048,7 @@ export default function AdminAttendanceSchedulePage() {
                       placeholder="e.g. Al-Quran, Fiqh, Adab, Mathematics"
                       value={slotForm.subject}
                       onChange={(e) => setSlotForm({ ...slotForm, subject: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
                     />
                   </div>
 
@@ -2000,7 +2060,7 @@ export default function AdminAttendanceSchedulePage() {
                         required
                         value={slotForm.startTime}
                         onChange={(e) => setSlotForm({ ...slotForm, startTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900"
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
 
@@ -2011,7 +2071,7 @@ export default function AdminAttendanceSchedulePage() {
                         required
                         value={slotForm.endTime}
                         onChange={(e) => setSlotForm({ ...slotForm, endTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900"
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                   </div>
@@ -2023,23 +2083,24 @@ export default function AdminAttendanceSchedulePage() {
                       placeholder="e.g. Room 204, Iwan Hall"
                       value={slotForm.roomNumber}
                       onChange={(e) => setSlotForm({ ...slotForm, roomNumber: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900"
+                      className="w-full h-10 px-3.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
-                  <Button variant="outline" size="sm" type="button" onClick={() => setClassModalOpen(false)}>
+                <div className="flex items-center justify-end gap-2.5 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
+                  <Button variant="outline" size="sm" type="button" onClick={() => setClassModalOpen(false)} className="rounded-xl font-bold text-xs h-10 px-4">
                     Cancel
                   </Button>
                   <Button
                     size="sm"
                     type="submit"
                     disabled={savingSlot}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl"
+                    variant="default"
+                    className="font-bold rounded-xl text-xs h-10 px-5 shadow-md"
                   >
                     {savingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                    {editingSlot ? "Update Period" : "Save Period"}
+                    <span>{editingSlot ? "Update Period" : "Save Period"}</span>
                   </Button>
                 </div>
               </form>
