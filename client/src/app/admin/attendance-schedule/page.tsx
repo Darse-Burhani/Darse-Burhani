@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
-  Calendar,
-  Download,
   Plus,
   Trash2,
   Edit2,
@@ -16,24 +14,17 @@ import {
   Sparkles,
   Loader2,
   RefreshCw,
-  Filter,
   Check,
   X,
   FileSpreadsheet,
   FileText,
-  CalendarDays,
   Timer,
   ShieldCheck,
   Fingerprint,
   Mail,
-  UserX,
-  UserCheck,
   Stethoscope,
-  HeartPulse,
-  GraduationCap,
   Radio,
   Activity,
-  Wifi,
   Zap,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
@@ -313,12 +304,37 @@ export default function AdminAttendanceSchedulePage() {
               data.type === "SCAN_LOGGED" ||
               data.type === "WEBHOOK_SCAN" ||
               data.type === "MOCK_SCAN" ||
-              data.type === "SCAN_EVENT"
+              data.type === "SCAN_EVENT" ||
+              data.type === "MATCHED" ||
+              data.type === "DUPLICATE" ||
+              data.type === "UNKNOWN" ||
+              data.type === "TOO_EARLY" ||
+              data.student ||
+              data.teacher
             ) {
-              const name = data.studentName || data.teacherName || data.personName || data.name || "Member";
-              const role = data.role || (data.teacherName ? "Faculty" : "Talabat");
-              const status = data.attendanceStatus || data.status || "PRESENT";
-              const time = new Date().toLocaleTimeString();
+              const name =
+                data.student?.name ||
+                data.teacher?.name ||
+                data.studentName ||
+                data.teacherName ||
+                data.personName ||
+                data.name ||
+                "Member";
+              const role =
+                data.role ||
+                (data.teacher || data.teacherName ? "Faculty" : "Talabat");
+              const status =
+                data.attendanceStatus ||
+                data.status ||
+                data.student?.status ||
+                data.teacher?.status ||
+                "PRESENT";
+              const time = new Date().toLocaleTimeString("en-IN", {
+                timeZone: "Asia/Kolkata",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              });
               const message = data.message || "";
               setLatestScan({ name, role, status, time, message });
               // Refresh counts without full loading flicker
