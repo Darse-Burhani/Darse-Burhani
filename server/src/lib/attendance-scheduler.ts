@@ -1,6 +1,6 @@
 import prisma from "./prisma";
 import { sendEmail } from "./email";
-import { getStartOfDayIST } from "./biometric";
+import { getStartOfDayIST, getISTDetails, broadcastAttendanceEvent } from "./biometric";
 import {
   generateAttendanceReportEmailHtml,
   generateAttendanceReportPlainText,
@@ -15,20 +15,22 @@ interface SchedulerConfig {
   monthlyDayOfMonth: number; // e.g. 1st of the month
   monthlyHourUtc: number;
   autoMarkAbsentEnabled: boolean;
-  autoMarkAbsentHourUtc: number; // e.g. 14:00 UTC (19:30 IST)
+  autoMarkAbsentHourUtc: number; // fallback evening run
+  autoDailyEmailEnabled: boolean;
   sheetSyncEnabled: boolean;
   sheetSyncHourUtc: number; // push to Google Sheet after absents are final
 }
 
 const config: SchedulerConfig = {
-  autoWeeklyEnabled: process.env.AUTO_WEEKLY_ATTENDANCE_EMAILS === "true",
+  autoWeeklyEnabled: process.env.AUTO_WEEKLY_ATTENDANCE_EMAILS !== "false", // enabled by default
   weeklyDayOfWeek: parseInt(process.env.WEEKLY_ATTENDANCE_DAY || "0", 10), // Sunday
-  weeklyHourUtc: parseInt(process.env.WEEKLY_ATTENDANCE_HOUR || "4", 10), // 4am UTC (approx 9:30am IST)
-  autoMonthlyEnabled: process.env.AUTO_MONTHLY_ATTENDANCE_EMAILS === "true",
+  weeklyHourUtc: parseInt(process.env.WEEKLY_ATTENDANCE_HOUR || "4", 10), // 4am UTC (9:30am IST)
+  autoMonthlyEnabled: process.env.AUTO_MONTHLY_ATTENDANCE_EMAILS !== "false", // enabled by default
   monthlyDayOfMonth: 1,
   monthlyHourUtc: 4,
   autoMarkAbsentEnabled: process.env.AUTO_MARK_ABSENT_ENABLED !== "false", // enabled by default
   autoMarkAbsentHourUtc: parseInt(process.env.AUTO_MARK_ABSENT_HOUR || "14", 10), // 14:00 UTC / 19:30 IST
+  autoDailyEmailEnabled: process.env.AUTO_DAILY_ATTENDANCE_EMAILS !== "false", // enabled by default
   sheetSyncEnabled: process.env.GOOGLE_SHEET_DAILY_SYNC !== "false", // enabled by default when configured
   sheetSyncHourUtc: parseInt(process.env.GOOGLE_SHEET_SYNC_HOUR || "15", 10), // 15:00 UTC / 20:30 IST
 };
@@ -37,9 +39,21 @@ let lastWeeklyRunDate: string | null = null;
 let lastMonthlyRunDate: string | null = null;
 let lastAutoAbsentRunDate: string | null = null;
 let lastSheetSyncRunDate: string | null = null;
+let lastDailyEmailRunDate: string | null = null;
+
+// Track which windows have already finalized attendance today (Key: "YYYY-MM-DD:windowId:role")
+const finalizedWindowsToday = new Set<string>();
 
 export function getSchedulerConfig() {
-  return { ...config, lastWeeklyRunDate, lastMonthlyRunDate, lastAutoAbsentRunDate, lastSheetSyncRunDate };
+  return {
+    ...config,
+    lastWeeklyRunDate,
+    lastMonthlyRunDate,
+    lastAutoAbsentRunDate,
+    lastSheetSyncRunDate,
+    lastDailyEmailRunDate,
+    activeWatchdog: true,
+  };
 }
 
 export function updateSchedulerConfig(newCfg: Partial<SchedulerConfig>) {
@@ -47,10 +61,122 @@ export function updateSchedulerConfig(newCfg: Partial<SchedulerConfig>) {
   return getSchedulerConfig();
 }
 
-/** Called by the manual sync endpoint so the evening job doesn't duplicate. */
+/** Called by manual sync or automated triggers */
 export function markSheetSyncRan(dateStr = new Date().toISOString().slice(0, 10)) {
   lastSheetSyncRunDate = dateStr;
   return lastSheetSyncRunDate;
+}
+
+/**
+ * Executes automated daily attendance email notifications to parents of absent/late/present students.
+ */
+export async function runDailyAttendanceEmailDigestJob(targetDate?: Date): Promise<{ sent: number; failed: number }> {
+  if (!config.autoDailyEmailEnabled) return { sent: 0, failed: 0 };
+
+  const dayStart = getStartOfDayIST(targetDate || new Date());
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const dateStr = dayStart.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  console.log(`[attendance-automation] Starting automated daily attendance parent email dispatch for ${dateStr}...`);
+
+  const students = await prisma.studentProfile.findMany({
+    where: { user: { isActive: true } },
+    include: {
+      user: true,
+      parentLinks: {
+        include: { parent: { include: { user: true } } },
+      },
+      attendanceRecords: {
+        where: { date: { gte: dayStart, lt: dayEnd } },
+        take: 1,
+      },
+    },
+  });
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const s of students) {
+    const parentEmails = new Set<string>();
+    if (s.fatherEmail?.includes("@")) parentEmails.add(s.fatherEmail.trim().toLowerCase());
+    if (s.motherEmail?.includes("@")) parentEmails.add(s.motherEmail.trim().toLowerCase());
+    for (const link of s.parentLinks) {
+      if (link.parent?.user?.email?.includes("@")) parentEmails.add(link.parent.user.email.trim().toLowerCase());
+    }
+
+    if (parentEmails.size === 0) continue;
+
+    const record = s.attendanceRecords[0];
+    const status = record?.status || "ABSENT";
+    const checkInIST = record?.checkInTime
+      ? getISTDetails(new Date(record.checkInTime)).timeFormatted12
+      : "—";
+
+    const studentName = `${s.user.firstName} ${s.user.lastName}`.trim();
+    const statusColor = status === "PRESENT" ? "#047857" : status === "LATE" ? "#b45309" : "#b91c1c";
+    const statusEmoji = status === "PRESENT" ? "✅" : status === "LATE" ? "⚠️" : "❌";
+
+    const subject = `${statusEmoji} Daily Attendance Notice: ${studentName} (${status}) – ${dateStr}`;
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #093b2a 0%, #0d503a 100%); padding: 24px; text-align: center;">
+          <h2 style="color: #d4af37; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px;">DARSE BURHANI</h2>
+          <p style="color: #ecfdf5; margin: 4px 0 0 0; font-size: 13px;">Daily Attendance Notification</p>
+        </div>
+        <div style="padding: 24px;">
+          <p style="font-size: 14px; color: #334155; margin-top: 0;">Respected Parents of <strong>${studentName}</strong>,</p>
+          <div style="background: #f8fafc; border-radius: 12px; padding: 18px; border: 1px solid #e2e8f0; margin: 16px 0;">
+            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Student:</td>
+                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${studentName} (ITS: ${s.its || s.studentId})</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Grade / Section:</td>
+                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Grade ${s.grade}-${s.section}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Date:</td>
+                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${dateStr}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Attendance Status:</td>
+                <td style="padding: 6px 0;">
+                  <span style="display: inline-block; padding: 3px 10px; border-radius: 20px; font-weight: 800; font-size: 12px; color: #ffffff; background-color: ${statusColor};">
+                    ${status}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Check-In Time:</td>
+                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${checkInIST}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 0;">
+            This is an automated attendance notice generated by the Darse Burhani Biometric Gateway. For questions or absence justifications, please log in to the Parent Portal.
+          </p>
+        </div>
+      </div>
+    `;
+
+    const text = `Darse Burhani Attendance Notice\nStudent: ${studentName}\nDate: ${dateStr}\nStatus: ${status}\nCheck-in Time: ${checkInIST}`;
+
+    for (const email of parentEmails) {
+      const isSent = await sendEmail({ to: email, subject, html, text });
+      if (isSent) sent++;
+      else failed++;
+    }
+  }
+
+  lastDailyEmailRunDate = new Date().toISOString();
+  console.log(`[attendance-automation] Daily parent email dispatch complete. Sent: ${sent}, Failed: ${failed}`);
+  return { sent, failed };
 }
 
 /**
@@ -167,7 +293,6 @@ export async function runWeeklyAttendanceReportJob(): Promise<{ sent: number; fa
 export async function runMonthlyAttendanceReportJob(): Promise<{ sent: number; failed: number }> {
   console.log("[attendance-scheduler] Starting automated monthly attendance report dispatch...");
   const now = new Date();
-  // Target previous month
   const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));
   const start = new Date(Date.UTC(prevMonthDate.getUTCFullYear(), prevMonthDate.getUTCMonth(), 1, 0, 0, 0));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
@@ -286,7 +411,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   const dayStart = getStartOfDayIST(targetDate || new Date());
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-  // 1. Fetch active students with class enrollments and existing attendance records for the target day
   const students = await prisma.studentProfile.findMany({
     where: { user: { isActive: true } },
     include: {
@@ -304,7 +428,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
     },
   });
 
-  // Default class fallback if a student is not assigned to an active class
   let fallbackClass = await prisma.class.findFirst({
     where: { isActive: true },
   });
@@ -338,12 +461,10 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   let medicalCount = 0;
   let exemptCount = 0;
 
-  // Fetch active scan windows for student applicability rules
   const activeStudentWindows = await prisma.biometricScanWindow.findMany({
     where: { enabled: true },
   });
 
-  // Aggregate applicable class ids and exempt student ids across active windows
   const windowClassFilterActive = activeStudentWindows.some(
     (w) => ((w as any).applicableClassIds ?? []).length > 0,
   );
@@ -363,7 +484,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       continue;
     }
 
-    // Check if student is explicitly exempt from biometric scan by admin
     if (globalExemptStudentIds.has(s.id)) {
       exemptCount++;
       continue;
@@ -371,13 +491,11 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
 
     const assignedClass = s.classEnrollments[0]?.class || fallbackClass;
 
-    // If active schedule events restrict attendance to specific classes, skip students in other classes
     if (windowClassFilterActive && assignedClass?.id && !allowedClassIds.has(assignedClass.id)) {
       exemptCount++;
       continue;
     }
 
-    // 1. Check for Active Medical Exemption (Assigned by Medical Duty Teacher / Admin)
     const activeMedicalExemption = await prisma.medicalExemption.findFirst({
       where: {
         studentId: s.id,
@@ -386,7 +504,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       },
     });
 
-    // 2. Check if student has an approved LeaveRequest for today
     const hasApprovedLeave = await prisma.leaveRequest.findFirst({
       where: {
         studentId: s.id,
@@ -427,7 +544,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
         },
       });
 
-      // Ensure AttendanceRecord exists for the assigned class as MEDICAL
       await prisma.attendanceRecord.upsert({
         where: {
           studentId_classId_date: {
@@ -455,7 +571,7 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
 
       medicalCount++;
       alreadyLoggedCount++;
-      continue; // Never mark absent!
+      continue;
     }
 
     // Create ABSENT attendance record
@@ -481,7 +597,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       },
     });
 
-    // Reset streak on absence
     if (s.streakDays > 0) {
       await prisma.studentProfile.update({
         where: { id: s.id },
@@ -489,7 +604,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       });
     }
 
-    // Send in-app notification to student
     await prisma.notification.create({
       data: {
         userId: s.userId,
@@ -520,13 +634,6 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   };
 }
 
-let intervalTimer: NodeJS.Timeout | null = null;
-
-/**
- * Faculty expected roster for a target day: teachers the faculty timer of the
- * unified schedule event applies to. Empty applicableTeacherIds = all active
- * teachers. Falls back to legacy standalone faculty rows (pre-unification).
- */
 export async function getExpectedFacultyForDay(): Promise<
   Array<{ id: string; name: string; department: string | null; userId: string }>
 > {
@@ -574,9 +681,7 @@ export async function getExpectedFacultyForDay(): Promise<
 }
 
 /**
- * Automatically marks expected faculty (per the window applicability roster)
- * who have NOT scanned today as ABSENT. Teachers outside the roster or with
- * medical exemptions are handled cleanly.
+ * Automatically marks expected faculty who have NOT scanned today as ABSENT.
  */
 export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
   markedCount: number;
@@ -597,7 +702,6 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
   });
   const loggedIds = new Set(existing.map((r) => r.teacherId));
 
-  // Teachers outside the applicability roster are never touched.
   const allActiveCount = await prisma.teacherProfile.count({ where: { user: { isActive: true } } });
   const skippedCount = Math.max(0, allActiveCount - expected.length);
 
@@ -611,7 +715,6 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
       continue;
     }
 
-    // Check if faculty member is on active Medical Exemption for today
     const activeMedicalExemption = await prisma.medicalExemption.findFirst({
       where: {
         teacherId: t.id,
@@ -638,7 +741,7 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
       });
       medicalCount++;
       alreadyLoggedCount++;
-      continue; // Never mark absent!
+      continue;
     }
 
     await prisma.teacherAttendanceRecord.upsert({
@@ -679,15 +782,175 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
 }
 
 /**
- * Initializes background worker that checks periodic trigger conditions every 30 minutes.
+ * Automatically syncs completed class timetable period attendance from gate logs.
+ */
+async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
+  try {
+    const dayOfWeek = nowIST.getDay(); // 0=Sunday
+    const { hours, minutes } = getISTDetails(nowIST);
+    const nowMin = hours * 60 + minutes;
+
+    const completedSlots = await prisma.timetableSlot.findMany({
+      where: {
+        dayOfWeek,
+        isBreak: false,
+        classId: { not: null },
+      },
+      include: { class: true },
+    });
+
+    const dayStart = getStartOfDayIST(nowIST);
+
+    for (const slot of completedSlots) {
+      if (!slot.classId) continue;
+      const [eh, em] = slot.endTime.split(":").map(Number);
+      const slotEndMin = (eh || 0) * 60 + (em || 0);
+
+      // Only process periods that have concluded
+      if (nowMin >= slotEndMin) {
+        const enrollments = await prisma.classEnrollment.findMany({
+          where: { classId: slot.classId, isActive: true },
+        });
+
+        for (const en of enrollments) {
+          // Check if an attendance record exists for today
+          const existing = await prisma.attendanceRecord.findUnique({
+            where: {
+              studentId_classId_date: {
+                studentId: en.studentId,
+                classId: slot.classId,
+                date: dayStart,
+              },
+            },
+          });
+
+          // If no record exists yet, propagate daily gate check-in status
+          if (!existing) {
+            const gateLog = await prisma.attendanceRegistry.findUnique({
+              where: {
+                studentId_date: {
+                  studentId: en.studentId,
+                  date: dayStart,
+                },
+              },
+            });
+
+            const initialStatus = gateLog?.status || "ABSENT";
+
+            await prisma.attendanceRecord.create({
+              data: {
+                studentId: en.studentId,
+                classId: slot.classId,
+                date: dayStart,
+                status: initialStatus as any,
+                verificationMethod: "AUTO_TIMETABLE_SYNC",
+                recordedById: "system-timetable-sync",
+              },
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Non-critical timetable background sync notice
+  }
+}
+
+/**
+ * Real-Time Automation Watchdog:
+ * Evaluates active scan windows every 60s and immediately executes auto-mark
+ * absent, parent alerts, and cloud sheet sync as soon as a window's cutoff passes!
+ */
+async function checkAndAutoFinalizeScanWindows(): Promise<void> {
+  try {
+    const now = new Date();
+    const { scanMinutes, calendarDayUTC } = getISTDetails(now);
+    const todayStr = calendarDayUTC.toISOString().slice(0, 10);
+
+    const windows = await prisma.biometricScanWindow.findMany({
+      where: { enabled: true },
+    });
+
+    for (const w of windows) {
+      const [sh, sm] = w.startTime.split(":").map(Number);
+      const [eh, em] = w.endTime.split(":").map(Number);
+      const [lh, lm] = (w.lateEndTime || w.endTime).split(":").map(Number);
+      const cutoffMin = (lh || eh || 0) * 60 + (lm || em || 0);
+
+      const studentKey = `${todayStr}:${w.id}:STUDENT`;
+      if (scanMinutes >= cutoffMin && !finalizedWindowsToday.has(studentKey)) {
+        finalizedWindowsToday.add(studentKey);
+        console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Talabat window "${w.name}" (Cutoff ${w.lateEndTime || w.endTime} IST passed)...`);
+
+        await runAutoMarkAbsentJob(now);
+
+        broadcastAttendanceEvent({
+          type: "ATTENDANCE_AUTO_FINALIZED",
+          windowId: w.id,
+          windowName: w.name,
+          role: "STUDENT",
+          message: `Talabat Attendance window "${w.name}" closed. Unscanned learners automatically finalized as ABSENT.`,
+        });
+
+        // Trigger Google Sheet sync & Parent Daily Email
+        if (config.sheetSyncEnabled) {
+          try {
+            const { runDailySheetSyncJob } = await import("./google-attendance-sync");
+            await runDailySheetSyncJob(now);
+          } catch {}
+        }
+        await runDailyAttendanceEmailDigestJob(now);
+      }
+
+      // Check faculty timer on the same window
+      if (w.facultyStartTime && w.facultyEndTime && (w.facultyEnabled ?? true)) {
+        const [flh, flm] = (w.facultyLateEndTime || w.facultyEndTime).split(":").map(Number);
+        const facCutoffMin = (flh || 0) * 60 + (flm || 0);
+        const facultyKey = `${todayStr}:${w.id}:TEACHER`;
+
+        if (scanMinutes >= facCutoffMin && !finalizedWindowsToday.has(facultyKey)) {
+          finalizedWindowsToday.add(facultyKey);
+          console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Faculty timer on "${w.name}" (Cutoff ${w.facultyLateEndTime || w.facultyEndTime} IST passed)...`);
+
+          await runAutoMarkFacultyAbsentJob(now);
+
+          broadcastAttendanceEvent({
+            type: "ATTENDANCE_AUTO_FINALIZED",
+            windowId: w.id,
+            windowName: w.name,
+            role: "TEACHER",
+            message: `Faculty Attendance window for "${w.name}" closed. Unscanned faculty automatically finalized as ABSENT.`,
+          });
+
+          if (config.sheetSyncEnabled) {
+            try {
+              const { runDailySheetSyncJob } = await import("./google-attendance-sync");
+              await runDailySheetSyncJob(now);
+            } catch {}
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[attendance-automation] Window watchdog check error:", err);
+  }
+}
+
+let watchdogTimer: NodeJS.Timeout | null = null;
+
+/**
+ * Initializes the 24/7 Full Automation Service (runs continuous 60s event loops).
  */
 export function startAttendanceScheduler() {
-  if (intervalTimer) return;
+  if (watchdogTimer) return;
 
-  console.log("[attendance-scheduler] Service initialized");
+  console.log("[attendance-automation] ⚡ 24/7 Full Automation Engine initialized (Real-time window watchdog, auto-absent, timetable sync, and parent digest active)");
 
-  // Check every 30 minutes
-  intervalTimer = setInterval(async () => {
+  // 1. Run initial check immediately
+  checkAndAutoFinalizeScanWindows().catch(() => {});
+
+  // 2. High-frequency 60-second watchdog loop
+  watchdogTimer = setInterval(async () => {
     try {
       const now = new Date();
       const currentDayOfWeek = now.getUTCDay();
@@ -695,7 +958,13 @@ export function startAttendanceScheduler() {
       const currentHour = now.getUTCHours();
       const todayDateStr = now.toISOString().slice(0, 10);
 
-      // Check daily auto-mark absent
+      // A. Real-time window cutoff check & instant auto-mark absent
+      await checkAndAutoFinalizeScanWindows();
+
+      // B. Real-time timetable period attendance sync
+      await syncClassPeriodAttendance(now);
+
+      // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC)
       if (
         config.autoMarkAbsentEnabled &&
         currentHour >= config.autoMarkAbsentHourUtc &&
@@ -704,27 +973,15 @@ export function startAttendanceScheduler() {
         lastAutoAbsentRunDate = todayDateStr;
         await runAutoMarkAbsentJob();
         await runAutoMarkFacultyAbsentJob();
-        // Push the finalized day to the online Google Sheet log
-        if (config.sheetSyncEnabled && currentHour >= config.sheetSyncHourUtc) {
+        if (config.sheetSyncEnabled) {
           lastSheetSyncRunDate = todayDateStr;
           const { runDailySheetSyncJob } = await import("./google-attendance-sync");
           await runDailySheetSyncJob();
         }
+        await runDailyAttendanceEmailDigestJob();
       }
 
-      // Late-evening sheet push (runs even if absents were finalized earlier,
-      // e.g. server restarted between the two hours)
-      if (
-        config.sheetSyncEnabled &&
-        currentHour >= config.sheetSyncHourUtc &&
-        lastSheetSyncRunDate?.slice(0, 10) !== todayDateStr
-      ) {
-        lastSheetSyncRunDate = todayDateStr;
-        const { runDailySheetSyncJob } = await import("./google-attendance-sync");
-        await runDailySheetSyncJob();
-      }
-
-      // Check weekly
+      // D. Automated Weekly Digest (Sunday 09:30 AM IST / 04:00 UTC)
       if (
         config.autoWeeklyEnabled &&
         currentDayOfWeek === config.weeklyDayOfWeek &&
@@ -734,7 +991,7 @@ export function startAttendanceScheduler() {
         await runWeeklyAttendanceReportJob();
       }
 
-      // Check monthly
+      // E. Automated Monthly Digest (1st of month 09:30 AM IST / 04:00 UTC)
       if (
         config.autoMonthlyEnabled &&
         currentDayOfMonth === config.monthlyDayOfMonth &&
@@ -744,7 +1001,7 @@ export function startAttendanceScheduler() {
         await runMonthlyAttendanceReportJob();
       }
     } catch (err) {
-      console.error("[attendance-scheduler] Background check error:", err);
+      console.error("[attendance-automation] Watchdog tick error:", err);
     }
-  }, 30 * 60 * 1000);
+  }, 60 * 1000); // 60 seconds
 }
