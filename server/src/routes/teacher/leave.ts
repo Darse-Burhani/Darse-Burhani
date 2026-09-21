@@ -2,10 +2,105 @@
 import { Router, Request, Response } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
-import { approveLeaveRequest, rejectLeaveRequest } from "../../lib/leave-service";
+import { approveLeaveRequest, rejectLeaveRequest, createDirectApprovedLeave } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 
 const router = Router();
+
+// GET /api/teacher/leave/roster — Roster of students in teacher's assigned classes
+router.get("/roster", requireRole("TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    }
+
+    const teacherClasses = await prisma.class.findMany({
+      where: {
+        OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
+        isActive: true,
+      },
+      select: { id: true, name: true, grade: true, section: true },
+    });
+
+    const classIds = teacherClasses.map((c) => c.id);
+
+    const students = await prisma.studentProfile.findMany({
+      where: {
+        user: { isActive: true },
+        classEnrollments: { some: { classId: { in: classIds }, isActive: true } },
+      },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+        classEnrollments: {
+          where: { isActive: true },
+          include: { class: { select: { id: true, name: true, grade: true, section: true } } },
+          take: 1,
+        },
+      },
+      orderBy: [{ grade: "asc" }, { section: "asc" }, { studentId: "asc" }],
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        students: students.map((s) => ({
+          id: s.id,
+          name: `${s.user.firstName} ${s.user.lastName}`.trim(),
+          studentId: s.studentId,
+          its: s.its || s.studentId,
+          grade: s.grade,
+          section: s.section,
+          className: s.classEnrollments[0]?.class?.name || `Grade ${s.grade}-${s.section}`,
+          avatarUrl: s.user.avatarUrl,
+        })),
+        classes: teacherClasses,
+      },
+    });
+  } catch (err) {
+    console.error("[teacher-leave] Roster error:", err);
+    return res.status(500).json({ success: false, error: "Failed to fetch student roster" });
+  }
+});
+
+// POST /api/teacher/leave/manual — Record approved manual leave for a student
+router.post("/manual", requireRole("TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { studentId, type = "PERSONAL", startDate, endDate, reason, notes } = req.body;
+
+    if (!studentId || !startDate || !endDate || !reason?.trim()) {
+      return res.status(400).json({ success: false, error: "Student, dates, and reason are required" });
+    }
+
+    const leave = await createDirectApprovedLeave({
+      studentId,
+      type: (type as LeaveType) || LeaveType.PERSONAL,
+      startDate,
+      endDate,
+      reason,
+      reviewerId: session.user.id,
+      reviewerNotes: notes || `Direct manual entry authorized by Teacher (${session.user.firstName} ${session.user.lastName})`,
+    });
+
+    return res.json({
+      success: true,
+      message: "Student leave recorded and approved successfully",
+      data: leave,
+    });
+  } catch (err: any) {
+    console.error("[teacher-leave] Manual leave error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message || "Failed to record manual leave",
+    });
+  }
+});
 
 // GET /api/teacher/leave — List leave requests for students enrolled in teacher's classes
 router.get("/", requireRole("TEACHER"), async (req, res) => {

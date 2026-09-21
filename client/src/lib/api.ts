@@ -385,9 +385,14 @@ export async function finalizeEventScans(date?: string): Promise<any> {
 export interface SheetSyncStatusData {
   configured: boolean;
   spreadsheetId: string | null;
+  maskedSpreadsheetId?: string | null;
+  serviceAccountEmail?: string | null;
+  fullServiceAccountEmail?: string | null;
   enabled: boolean;
   syncHourUtc: number;
   url: string | null;
+  lastSyncedAt?: string | null;
+  lastSyncedDate?: string | null;
 }
 
 export interface SheetSyncResult {
@@ -410,7 +415,49 @@ export interface SheetSyncResult {
 }
 
 export async function getSheetSyncStatus(): Promise<SheetSyncStatusData> {
-  return request<SheetSyncStatusData>("/api/admin/attendance-logs/sync-sheet/status");
+  const res = await request<{ success: boolean; data: SheetSyncStatusData }>("/api/admin/attendance-logs/sync-sheet/status");
+  return res.data;
+}
+
+export async function testSheetConnection(config: {
+  spreadsheetId?: string;
+  serviceAccountJson?: string;
+  serviceAccountEmail?: string;
+  serviceAccountPrivateKey?: string;
+}): Promise<{
+  title: string;
+  sheetNames: string[];
+  url: string;
+  serviceAccountEmail: string;
+}> {
+  const res = await request<{
+    success: boolean;
+    message: string;
+    data: {
+      title: string;
+      sheetNames: string[];
+      url: string;
+      serviceAccountEmail: string;
+    };
+  }>("/api/admin/attendance-logs/sync-sheet/test", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+  return res.data;
+}
+
+export async function saveSheetConfig(config: {
+  spreadsheetId?: string;
+  serviceAccountJson?: string;
+  serviceAccountEmail?: string;
+  serviceAccountPrivateKey?: string;
+  enabled?: boolean;
+  syncHourUtc?: number;
+}): Promise<{ message: string; data: SheetSyncStatusData }> {
+  return request<{ message: string; data: SheetSyncStatusData }>("/api/admin/attendance-logs/sync-sheet/config", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
 }
 
 export async function syncAttendanceSheet(date?: string): Promise<{ message: string; data: SheetSyncResult }> {

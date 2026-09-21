@@ -397,3 +397,256 @@ export async function getStudentLeaveSummary(studentId: string) {
     leaves,
   };
 }
+
+export interface CreateManualLeaveInput {
+  studentId: string;
+  type: LeaveType;
+  startDate: Date | string;
+  endDate: Date | string;
+  reason: string;
+  reviewerId: string;
+  reviewerNotes?: string;
+  attachmentUrl?: string | null;
+}
+
+/**
+ * Creates and immediately approves a manual leave for a student.
+ */
+export async function createDirectApprovedLeave(input: CreateManualLeaveInput) {
+  const student = await prisma.studentProfile.findUnique({
+    where: { id: input.studentId },
+    include: {
+      user: true,
+      classEnrollments: {
+        where: { isActive: true },
+        include: { class: true },
+      },
+    },
+  });
+
+  if (!student) {
+    throw new Error("Student profile not found");
+  }
+
+  const start = normalizeDateToUTC(input.startDate);
+  const end = normalizeDateToUTC(input.endDate);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    throw new Error("Invalid start or end date");
+  }
+
+  if (end < start) {
+    throw new Error("End date cannot be earlier than start date");
+  }
+
+  // Create the approved leave record
+  const leave = await prisma.leaveRequest.create({
+    data: {
+      studentId: student.id,
+      type: input.type,
+      startDate: start,
+      endDate: end,
+      reason: input.reason.trim(),
+      attachmentUrl: input.attachmentUrl || null,
+      status: LeaveStatus.APPROVED,
+      reviewerId: input.reviewerId,
+      reviewerNotes: input.reviewerNotes?.trim() || "Direct manual entry authorized by Administrator",
+      reviewedAt: new Date(),
+    },
+    include: {
+      student: {
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+        },
+      },
+    },
+  });
+
+  const dates = getDateRangeArray(start, end);
+  const registryStatus: AttendanceStatus =
+    input.type === LeaveType.MEDICAL ? AttendanceStatus.MEDICAL : AttendanceStatus.ON_LEAVE;
+  const registrySource: AttendanceSource =
+    input.type === LeaveType.MEDICAL ? AttendanceSource.MEDICAL_LEAVE : AttendanceSource.LEAVE_APPROVED;
+
+  for (const date of dates) {
+    await prisma.attendanceRegistry.upsert({
+      where: {
+        studentId_date: {
+          studentId: student.id,
+          date,
+        },
+      },
+      create: {
+        studentId: student.id,
+        date,
+        status: registryStatus,
+        source: registrySource,
+        remarks: `Manual ${input.type} Leave (${input.reason.slice(0, 80)})`,
+        leaveId: leave.id,
+        recordedById: input.reviewerId,
+      },
+      update: {
+        status: registryStatus,
+        source: registrySource,
+        remarks: `Manual ${input.type} Leave (${input.reason.slice(0, 80)})`,
+        leaveId: leave.id,
+        recordedById: input.reviewerId,
+      },
+    });
+
+    const classes = student.classEnrollments.map((e) => e.class);
+    for (const c of classes) {
+      await prisma.attendanceRecord.upsert({
+        where: {
+          studentId_classId_date: {
+            studentId: student.id,
+            classId: c.id,
+            date,
+          },
+        },
+        create: {
+          studentId: student.id,
+          classId: c.id,
+          date,
+          status: registryStatus,
+          source: registrySource,
+          verificationMethod: "MANUAL_LEAVE_ENTRY",
+          recordedById: input.reviewerId,
+          justification: `Approved ${input.type} Leave: ${input.reason}`,
+          justificationStatus: "APPROVED",
+        },
+        update: {
+          status: registryStatus,
+          source: registrySource,
+          verificationMethod: "MANUAL_LEAVE_ENTRY",
+          recordedById: input.reviewerId,
+          justification: `Approved ${input.type} Leave: ${input.reason}`,
+          justificationStatus: "APPROVED",
+        },
+      });
+    }
+  }
+
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: student.userId,
+        title: "Leave Recorded & Approved",
+        body: `Your leave for ${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })} has been authorized.`,
+        type: "ALERT",
+        link: "/talabat/leave-request",
+        priority: "HIGH",
+      },
+    });
+  } catch (e) {
+    console.error("[leave-service] Notification error:", e);
+  }
+
+  cache.invalidateTag("attendanceRecord");
+  cache.invalidateTag("dashboard");
+  cache.invalidateTag("stats");
+
+  return leave;
+}
+
+export interface CreateManualFacultyLeaveInput {
+  teacherId: string;
+  type?: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  reason: string;
+  assignedById: string;
+  assignedByName?: string;
+}
+
+/**
+ * Creates an approved manual leave / exemption for a faculty member.
+ */
+export async function createDirectFacultyLeave(input: CreateManualFacultyLeaveInput) {
+  const teacher = await prisma.teacherProfile.findUnique({
+    where: { id: input.teacherId },
+    include: { user: true },
+  });
+
+  if (!teacher) {
+    throw new Error("Teacher profile not found");
+  }
+
+  const start = normalizeDateToUTC(input.startDate);
+  const end = normalizeDateToUTC(input.endDate);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    throw new Error("Invalid start or end date");
+  }
+
+  if (end < start) {
+    throw new Error("End date cannot be earlier than start date");
+  }
+
+  const dates = getDateRangeArray(start, end);
+  const isMedical = input.type === "MEDICAL";
+  const teacherStatus = isMedical ? "MEDICAL" : "ON_LEAVE";
+  const eventLabel = isMedical ? "Medical Leave" : "Authorized Faculty Leave";
+
+  for (const date of dates) {
+    // 1. Create or update medical exemption record
+    await prisma.medicalExemption.create({
+      data: {
+        personType: "TEACHER",
+        teacherId: teacher.id,
+        date,
+        eventName: eventLabel,
+        reason: input.reason.trim(),
+        assignedById: input.assignedById,
+        assignedByName: input.assignedByName || "Administrator",
+        isActive: true,
+      },
+    });
+
+    // 2. Set Teacher Attendance Record for that date
+    await prisma.teacherAttendanceRecord.upsert({
+      where: {
+        teacherId_date: {
+          teacherId: teacher.id,
+          date,
+        },
+      },
+      create: {
+        teacherId: teacher.id,
+        date,
+        status: teacherStatus as any,
+        verificationMethod: "MANUAL",
+        notes: `[${eventLabel}] ${input.reason.trim()}`,
+      },
+      update: {
+        status: teacherStatus as any,
+        verificationMethod: "MANUAL",
+        notes: `[${eventLabel}] ${input.reason.trim()}`,
+      },
+    });
+  }
+
+  try {
+    if (teacher.userId) {
+      await prisma.notification.create({
+        data: {
+          userId: teacher.userId,
+          title: "Faculty Leave Authorized",
+          body: `Your leave for ${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })} has been recorded in the attendance system.`,
+          type: "ALERT",
+          link: "/faculty/attendance",
+          priority: "HIGH",
+        },
+      });
+    }
+  } catch (e) {
+    console.error("[leave-service] Teacher notification error:", e);
+  }
+
+  cache.invalidateTag("teacherAttendanceRecord");
+  cache.invalidateTag("dashboard");
+  cache.invalidateTag("stats");
+
+  return { success: true, teacherId: teacher.id, datesCount: dates.length };
+}
+

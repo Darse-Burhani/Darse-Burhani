@@ -11,6 +11,7 @@ import {
   Filter,
   Loader2,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import {
   getTeacherLeaves,
@@ -20,8 +21,10 @@ import {
   TeacherLeaveStats,
 } from "@/lib/api";
 import { PendingLeaveTable } from "@/components/leave/PendingLeaveTable";
+import { ManualLeaveModal } from "@/components/leave/ManualLeaveModal";
 
 export default function TeacherLeavePage() {
+  const [manualModalOpen, setManualModalOpen] = useState(false);
   const [requests, setRequests] = useState<LeaveRequestItem[]>([]);
   const [stats, setStats] = useState<TeacherLeaveStats>({
     pending: 0,
@@ -84,15 +87,26 @@ export default function TeacherLeavePage() {
           <p className="text-xs text-gray-500 mt-0.5">Review and manage medical and absence requests for your classes</p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => fetchData(true)}
-          disabled={refreshing}
-          className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 self-start sm:self-auto transition-colors"
-          title="Refresh requests"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setManualModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Record Student Leave</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
+            title="Refresh requests"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* ── Metric Summary Stack ── */}
@@ -217,6 +231,14 @@ export default function TeacherLeavePage() {
           loading={loading}
         />
       )}
+
+      {/* ── Manual Leave Entry Modal ── */}
+      <ManualLeaveModal
+        isOpen={manualModalOpen}
+        onClose={() => setManualModalOpen(false)}
+        onSuccess={() => fetchData(true)}
+        isAdmin={false}
+      />
     </div>
   );
 }

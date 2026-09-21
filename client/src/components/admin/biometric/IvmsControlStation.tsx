@@ -62,6 +62,8 @@ interface LiveScanEvent {
   verifyMode?: string;
   eventName?: string;
   avatarUrl?: string;
+  leaveReason?: string;
+  leaveType?: string;
 }
 
 const PRESET_VOICE_PROMPTS = [
@@ -164,6 +166,12 @@ export default function IvmsControlStation({
             const teacher = ev.teacher;
             const eventName = ev.scanWindow?.name || ev.eventName || null;
             const avatarUrl = student?.avatarUrl || teacher?.avatarUrl || null;
+            const resolvedStatus =
+              student?.status ||
+              teacher?.status ||
+              ev.classes?.[0]?.status ||
+              (ev.type === "DUPLICATE" ? "DUPLICATE" : ev.type === "ON_LEAVE" ? "ON_LEAVE" : "PRESENT");
+
             return {
               id: ev.id || String(ev.timestamp || Date.now()),
               name: student ? student.name : teacher ? teacher.name : ev.message || "Verified Member",
@@ -171,10 +179,12 @@ export default function IvmsControlStation({
               employeeNo: ev.fingerprint || student?.studentId || teacher?.employeeId || "ID",
               timestamp: ev.timestamp || new Date().toISOString(),
               deviceId: ev.deviceId,
-              status: ev.classes?.[0]?.status || teacher?.status || (ev.type === "DUPLICATE" ? "DUPLICATE" : "PRESENT"),
+              status: resolvedStatus,
               verifyMode: ev.verifyMode || "BIOMETRIC",
               eventName: eventName || undefined,
               avatarUrl: avatarUrl || undefined,
+              leaveReason: student?.leaveReason || teacher?.notes,
+              leaveType: student?.leaveType,
             };
           });
 
@@ -220,6 +230,12 @@ export default function IvmsControlStation({
           const teacher = payload.teacher;
           const eventName = payload.scanWindow?.name || payload.eventName || null;
           const avatarUrl = student?.avatarUrl || teacher?.avatarUrl || null;
+          const resolvedStatus =
+            student?.status ||
+            teacher?.status ||
+            payload.classes?.[0]?.status ||
+            (payload.type === "DUPLICATE" ? "DUPLICATE" : payload.type === "ON_LEAVE" ? "ON_LEAVE" : "PRESENT");
+
           const item: LiveScanEvent = {
             id: payload.id || String(Date.now()),
             name: student ? student.name : teacher ? teacher.name : payload.message || "Verified Member",
@@ -227,10 +243,12 @@ export default function IvmsControlStation({
             employeeNo: payload.fingerprint || student?.studentId || teacher?.employeeId || "ID",
             timestamp: payload.timestamp || new Date().toISOString(),
             deviceId: payload.deviceId,
-            status: payload.classes?.[0]?.status || teacher?.status || (payload.type === "DUPLICATE" ? "DUPLICATE" : "PRESENT"),
+            status: resolvedStatus,
             verifyMode: payload.verifyMode || "BIOMETRIC",
             eventName: eventName || undefined,
             avatarUrl: avatarUrl || undefined,
+            leaveReason: student?.leaveReason || teacher?.notes,
+            leaveType: student?.leaveType,
           };
 
           setLiveScans((prev) => [item, ...prev.filter((p) => p.id !== item.id)].slice(0, 50));
@@ -456,6 +474,8 @@ export default function IvmsControlStation({
                 {filteredLiveScans.map((scan) => {
                   const isStudent = scan.type === "STUDENT";
                   const isTeacher = scan.type === "TEACHER";
+                  const isMedical = scan.status === "MEDICAL";
+                  const isOnLeave = scan.status === "ON_LEAVE" || scan.status === "EXCUSED" || isMedical;
                   const isLate = scan.status === "LATE";
                   const isDuplicate = scan.status === "DUPLICATE";
 
@@ -473,7 +493,9 @@ export default function IvmsControlStation({
                           <div
                             className={cn(
                               "w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-bold shrink-0 shadow-xs",
-                              isStudent
+                              isOnLeave
+                                ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                : isStudent
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
                                 : isTeacher
                                 ? "bg-purple-50 text-purple-700 border border-purple-100"
@@ -505,7 +527,9 @@ export default function IvmsControlStation({
                                 variant="outline"
                                 className={cn(
                                   "text-[10px] px-2 py-0.5 rounded-md font-semibold",
-                                  isStudent
+                                  isOnLeave
+                                    ? "bg-teal-50 text-teal-800 border-teal-200 font-bold"
+                                    : isStudent
                                     ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                                     : isTeacher
                                     ? "bg-purple-50 text-purple-800 border-purple-200"
@@ -531,6 +555,12 @@ export default function IvmsControlStation({
                                 {scan.verifyMode || "Face"}
                               </span>
                             </div>
+
+                            {scan.leaveReason && (
+                              <div className="text-[11px] text-teal-700 font-medium truncate mt-0.5">
+                                <span className="font-bold">Leave Reason:</span> {scan.leaveReason}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -539,14 +569,26 @@ export default function IvmsControlStation({
                           <Badge
                             className={cn(
                               "text-xs px-2.5 py-0.5 rounded-lg font-bold border-0",
-                              isDuplicate
+                              isMedical
+                                ? "bg-rose-100 text-rose-800"
+                                : isOnLeave
+                                ? "bg-teal-100 text-teal-800"
+                                : isDuplicate
                                 ? "bg-blue-100 text-blue-800"
                                 : isLate
                                 ? "bg-amber-100 text-amber-800"
                                 : "bg-emerald-100 text-emerald-800"
                             )}
                           >
-                            {isDuplicate ? "VERIFIED" : isLate ? "LATE" : "PRESENT"}
+                            {isMedical
+                              ? "MEDICAL LEAVE"
+                              : isOnLeave
+                              ? "ON LEAVE"
+                              : isDuplicate
+                              ? "VERIFIED"
+                              : isLate
+                              ? "LATE"
+                              : "PRESENT"}
                           </Badge>
                           <div className="text-[11px] font-mono text-gray-500 font-medium">
                             {new Date(scan.timestamp).toLocaleTimeString("en-IN", {

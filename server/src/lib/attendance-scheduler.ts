@@ -22,15 +22,15 @@ interface SchedulerConfig {
 }
 
 const config: SchedulerConfig = {
-  autoWeeklyEnabled: process.env.AUTO_WEEKLY_ATTENDANCE_EMAILS !== "false", // enabled by default
+  autoWeeklyEnabled: process.env.AUTO_WEEKLY_ATTENDANCE_EMAILS === "true", // paused by default
   weeklyDayOfWeek: parseInt(process.env.WEEKLY_ATTENDANCE_DAY || "0", 10), // Sunday
   weeklyHourUtc: parseInt(process.env.WEEKLY_ATTENDANCE_HOUR || "4", 10), // 4am UTC (9:30am IST)
-  autoMonthlyEnabled: process.env.AUTO_MONTHLY_ATTENDANCE_EMAILS !== "false", // enabled by default
+  autoMonthlyEnabled: process.env.AUTO_MONTHLY_ATTENDANCE_EMAILS === "true", // paused by default
   monthlyDayOfMonth: 1,
   monthlyHourUtc: 4,
   autoMarkAbsentEnabled: process.env.AUTO_MARK_ABSENT_ENABLED !== "false", // enabled by default
   autoMarkAbsentHourUtc: parseInt(process.env.AUTO_MARK_ABSENT_HOUR || "14", 10), // 14:00 UTC / 19:30 IST
-  autoDailyEmailEnabled: process.env.AUTO_DAILY_ATTENDANCE_EMAILS !== "false", // enabled by default
+  autoDailyEmailEnabled: process.env.AUTO_DAILY_ATTENDANCE_EMAILS === "true", // paused by default
   sheetSyncEnabled: process.env.GOOGLE_SHEET_DAILY_SYNC !== "false", // enabled by default when configured
   sheetSyncHourUtc: parseInt(process.env.GOOGLE_SHEET_SYNC_HOUR || "15", 10), // 15:00 UTC / 20:30 IST
 };
@@ -183,6 +183,10 @@ export async function runDailyAttendanceEmailDigestJob(targetDate?: Date): Promi
  * Executes weekly attendance report dispatch for all active students.
  */
 export async function runWeeklyAttendanceReportJob(): Promise<{ sent: number; failed: number }> {
+  if (!config.autoWeeklyEnabled) {
+    console.log("[attendance-scheduler] Weekly attendance parent emails are currently paused/disabled.");
+    return { sent: 0, failed: 0 };
+  }
   console.log("[attendance-scheduler] Starting automated weekly attendance report dispatch...");
   const now = new Date();
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
@@ -291,6 +295,10 @@ export async function runWeeklyAttendanceReportJob(): Promise<{ sent: number; fa
  * Executes monthly attendance report dispatch for all active students.
  */
 export async function runMonthlyAttendanceReportJob(): Promise<{ sent: number; failed: number }> {
+  if (!config.autoMonthlyEnabled) {
+    console.log("[attendance-scheduler] Monthly attendance parent emails are currently paused/disabled.");
+    return { sent: 0, failed: 0 };
+  }
   console.log("[attendance-scheduler] Starting automated monthly attendance report dispatch...");
   const now = new Date();
   const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));

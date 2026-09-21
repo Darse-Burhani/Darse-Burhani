@@ -22,6 +22,8 @@ import {
   Activity,
   Timer,
   AlertTriangle,
+  Table as TableIcon,
+  LayoutGrid,
 } from "lucide-react";
 import { AttendanceLogRecordItem, AttendanceLogsSummary } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -146,6 +148,7 @@ export function DailyStackedLogView({
 }: DailyStackedLogViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [prevSummary, setPrevSummary] = useState<AttendanceLogsSummary | null>(null);
   const [changedKeys, setChangedKeys] = useState<Set<string>>(new Set());
 
@@ -343,37 +346,69 @@ export function DailyStackedLogView({
             </span>
           )}
         </div>
-        {audience !== "FACULTY" && availableGrades.length > 0 && (
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedGrade}
-              onChange={(e) => onGradeChange(e.target.value)}
-              className="px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+        <div className="flex items-center gap-2 flex-wrap">
+          {audience !== "FACULTY" && availableGrades.length > 0 && (
+            <>
+              <select
+                value={selectedGrade}
+                onChange={(e) => onGradeChange(e.target.value)}
+                className="px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="">All Grades</option>
+                {availableGrades.map((g) => (
+                  <option key={g} value={g}>
+                    Grade {g}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedSection}
+                onChange={(e) => onSectionChange(e.target.value)}
+                className="px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="">All Sections</option>
+                {availableSections.map((s) => (
+                  <option key={s} value={s}>
+                    Section {s}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {/* View Mode Switcher: Table vs Grid */}
+          <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-white text-emerald-950 font-black shadow-xs"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+              title="Switch to Professional Spreadsheet Table View"
             >
-              <option value="">All Grades</option>
-              {availableGrades.map((g) => (
-                <option key={g} value={g}>
-                  Grade {g}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedSection}
-              onChange={(e) => onSectionChange(e.target.value)}
-              className="px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+              <TableIcon className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Table</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-white text-emerald-950 font-black shadow-xs"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+              title="Switch to Bento Card Grid View"
             >
-              <option value="">All Sections</option>
-              {availableSections.map((s) => (
-                <option key={s} value={s}>
-                  Section {s}
-                </option>
-              ))}
-            </select>
+              <LayoutGrid className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Cards</span>
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Cards */}
+      {/* Main View Area */}
       <AnimatePresence mode="popLayout">
         {filteredRecords.length === 0 ? (
           <motion.div
@@ -387,7 +422,168 @@ export function DailyStackedLogView({
             <div className="text-xs font-bold text-gray-700">No matching records — try another filter</div>
             <div className="text-[11px] text-gray-400 mt-1">Live stream is active; new scans appear instantly when they arrive.</div>
           </motion.div>
+        ) : viewMode === "table" ? (
+          /* ── Professional Spreadsheet Table View ── */
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-gray-700">
+                <thead className="bg-slate-900 text-white font-bold text-[11px] tracking-wide uppercase border-b border-slate-800">
+                  <tr>
+                    <th scope="col" className="px-3.5 py-3 text-center w-12">Photo</th>
+                    <th scope="col" className="px-4 py-3">Member Name & Role</th>
+                    <th scope="col" className="px-3 py-3 font-mono">ITS / ID</th>
+                    <th scope="col" className="px-3 py-3">Class / Dept</th>
+                    <th scope="col" className="px-3 py-3">Check-in Time</th>
+                    <th scope="col" className="px-3 py-3">Event / Window</th>
+                    <th scope="col" className="px-3 py-3 text-center">Status</th>
+                    <th scope="col" className="px-3 py-3 text-center">Verification</th>
+                    <th scope="col" className="px-4 py-3">Notes / Reason</th>
+                    <th scope="col" className="px-3 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-medium">
+                  {filteredRecords.map((r, i) => {
+                    const cfg = sourceBadgeConfig[r.source] || sourceBadgeConfig.SCAN;
+                    const SourceIcon = cfg.icon;
+                    const isFaculty = r.role === "FACULTY";
+
+                    return (
+                      <tr
+                        key={r.id || r.memberId || i}
+                        className={`transition-colors hover:bg-slate-50/80 ${
+                          isFaculty ? "bg-indigo-50/15" : ""
+                        }`}
+                      >
+                        {/* Profile Photo */}
+                        <td className="px-3.5 py-2.5 text-center">
+                          <Avatar className="w-9 h-9 mx-auto rounded-xl border border-gray-200 shrink-0 shadow-xs">
+                            <AvatarImage src={r.avatarUrl || undefined} />
+                            <AvatarFallback
+                              className={`text-[10px] font-black ${
+                                isFaculty ? "bg-indigo-100 text-indigo-900" : "bg-emerald-100 text-emerald-900"
+                              }`}
+                            >
+                              {getInitials(r.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </td>
+
+                        {/* Name & Role */}
+                        <td className="px-4 py-2.5 font-bold text-gray-950">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate">{r.name}</span>
+                            {isFaculty ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                                Staff
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                Talabat
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* ITS / ID */}
+                        <td className="px-3 py-2.5 font-mono font-bold text-gray-700">
+                          {r.its || "—"}
+                        </td>
+
+                        {/* Class / Department */}
+                        <td className="px-3 py-2.5 text-gray-600 font-semibold">
+                          {r.designationOrClass || "—"}
+                        </td>
+
+                        {/* Check-in Time */}
+                        <td className="px-3 py-2.5 font-mono text-gray-900 tabular-nums">
+                          {r.checkInTime ? (
+                            <span className="font-bold text-emerald-700">
+                              {new Date(r.checkInTime).toLocaleTimeString("en-IN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                hour12: true,
+                                timeZone: "Asia/Kolkata",
+                              })} IST
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 font-normal">— not scanned</span>
+                          )}
+                        </td>
+
+                        {/* Event Window */}
+                        <td className="px-3 py-2.5 text-gray-700">
+                          {r.scheduledEvent?.name || "Morning Arrival"}
+                        </td>
+
+                        {/* Status Chip */}
+                        <td className="px-3 py-2.5 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wide ${
+                              r.status === "PRESENT"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                : r.status === "LATE"
+                                ? "bg-amber-50 text-amber-800 border-amber-300"
+                                : r.status === "MEDICAL"
+                                ? "bg-rose-50 text-rose-800 border-rose-300"
+                                : r.status === "ON_LEAVE"
+                                ? "bg-purple-50 text-purple-800 border-purple-300"
+                                : r.status === "NOT_MARKED"
+                                ? "bg-slate-100 text-slate-700 border-slate-300"
+                                : "bg-red-50 text-red-800 border-red-300"
+                            }`}
+                          >
+                            {r.status === "PRESENT" && <CheckCircle2 className="w-3 h-3" />}
+                            {r.status === "LATE" && <Clock className="w-3 h-3" />}
+                            {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
+                            {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
+                            {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
+                            {r.status}
+                          </span>
+                        </td>
+
+                        {/* Source / Method */}
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] border ${cfg.badgeBg || "bg-gray-100 text-gray-800 border-gray-200"}`}>
+                            <SourceIcon className="w-3 h-3" />
+                            {cfg.label}
+                          </span>
+                        </td>
+
+                        {/* Notes / Leave Reason */}
+                        <td className="px-4 py-2.5 text-gray-600 max-w-[220px] truncate">
+                          {r.remarks ? (
+                            <span className="italic text-gray-800 font-medium">“{r.remarks}”</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+
+                        {/* Action */}
+                        <td className="px-3 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => onMemberClick(r.memberId || (r as any).studentId, r.role || "STUDENT")}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-gray-700 hover:text-emerald-800 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 transition-all cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Audit</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
         ) : (
+          /* ── Bento Card Grid View ── */
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
             {filteredRecords.map((r) => {
               const cfg = sourceBadgeConfig[r.source] || sourceBadgeConfig.SCAN;
@@ -457,7 +653,7 @@ export function DailyStackedLogView({
                         </span>
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-gray-50/90 border border-gray-100 text-xs space-y-1.5">
+                      <div className="space-y-1.5 pt-1 border-t border-gray-100">
                         {r.scheduledEvent && (
                           <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-gray-200/60">
                             <span className="text-gray-500 font-semibold">Event Window</span>
@@ -467,6 +663,10 @@ export function DailyStackedLogView({
                             </span>
                           </div>
                         )}
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-500 font-semibold">Scheduled Window</span>
+                          <span className="font-bold text-gray-800">{r.scheduledEvent?.name || "Morning Arrival"}</span>
+                        </div>
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-gray-500 font-semibold">Method / Source</span>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[10px] border ${cfg.badgeBg || "bg-gray-100 text-gray-800 border-gray-200"}`}>

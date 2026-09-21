@@ -16,6 +16,7 @@ import membersRoutes from "./routes/members";
 import publicLibraryTvRoutes from "./routes/public/library-tv";
 import procurementRoutes from "./routes/procurement";
 import healthRoutes from "./lib/health";
+import devAccessRoutes from "./routes/dev-access";
 
 // ── Admin routes ──
 import adminClassesRoutes from "./routes/admin/classes";
@@ -170,6 +171,7 @@ export function createApp() {
   app.use("/api/upload", uploadLimiter);
 
   // ── Top-level routes ──
+  app.use("/api/dev-access", devAccessRoutes);
   app.use("/api/points", pointsRoutes);
   app.use("/api/attendance/manual", manualAttendanceRoutes);
   app.use("/api/admin/attendance/manual", manualAttendanceRoutes);

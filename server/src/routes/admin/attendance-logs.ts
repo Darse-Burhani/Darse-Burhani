@@ -4,7 +4,12 @@ import { requireRole } from "../../middleware";
 import { normalizeDateToUTC } from "../../lib/leave-service";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } from "../../lib/attendance-scheduler";
-import { sheetSyncStatus, syncDailyAttendanceToSheet } from "../../lib/google-attendance-sync";
+import {
+  sheetSyncStatus,
+  syncDailyAttendanceToSheet,
+  testSheetConnection,
+  saveSheetConfiguration,
+} from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent } from "../../lib/biometric";
 
 const router = Router();
@@ -623,6 +628,42 @@ router.get("/sync-sheet/status", requireRole("ADMIN"), async (_req, res) => {
   } catch (error) {
     console.error("[attendance-logs] sync-sheet status error:", error);
     return res.status(500).json({ success: false, error: "Failed to read sheet sync status" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-sheet/test — Test Google Sheet connection & permissions
+router.post("/sync-sheet/test", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey } = req.body || {};
+    const result = await testSheetConnection({
+      spreadsheetId,
+      serviceAccountJson,
+      serviceAccountEmail,
+      serviceAccountPrivateKey,
+    });
+    return res.json({ success: true, message: `Connected to "${result.title}" successfully`, data: result });
+  } catch (error) {
+    console.error("[attendance-logs] sync-sheet test error:", error);
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to connect to Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-sheet/config — Save/Update Google Sheet sync configuration
+router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, enabled, syncHourUtc } = req.body || {};
+    await saveSheetConfiguration({
+      spreadsheetId,
+      serviceAccountJson,
+      serviceAccountEmail,
+      serviceAccountPrivateKey,
+      enabled,
+      syncHourUtc,
+    });
+    return res.json({ success: true, message: "Google Sheet sync configuration saved successfully", data: sheetSyncStatus() });
+  } catch (error) {
+    console.error("[attendance-logs] sync-sheet config error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to save configuration" });
   }
 });
 

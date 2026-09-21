@@ -41,6 +41,7 @@ import {
 import { DailyStackedLogView } from "@/components/registry/DailyStackedLogView";
 import { DayDetailDrawer } from "@/components/registry/DayDetailDrawer";
 import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
+import { GoogleSheetSyncCard } from "@/components/admin/attendance/GoogleSheetSyncCard";
 import { toast } from "@/components/ui/toast";
 import {
   saveDailyArchive,
@@ -562,6 +563,9 @@ export default function AdminAttendanceLogsPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Daily Google Sheet Online Sync Station ── */}
+      <GoogleSheetSyncCard onSyncComplete={() => fetchData(true)} />
 
       {/* ── Audience + Event Filter Bar — Live counts ── */}
       <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm space-y-3">

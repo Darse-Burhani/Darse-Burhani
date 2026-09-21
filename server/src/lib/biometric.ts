@@ -11,7 +11,7 @@ export interface BiometricClassMatch {
   period: number;
   startTime: string;
   endTime: string;
-  status: "PRESENT" | "LATE";
+  status: "PRESENT" | "LATE" | "ON_LEAVE" | "MEDICAL" | string;
   attendanceId: string;
 }
 
@@ -31,6 +31,9 @@ export interface BiometricEvent {
     section: string;
     avatarUrl?: string | null;
     its?: string | null;
+    status?: string;
+    leaveReason?: string;
+    leaveType?: string;
   };
   teacher?: {
     id: string;
@@ -38,10 +41,12 @@ export interface BiometricEvent {
     employeeId: string;
     name: string;
     department: string | null;
-    status?: "PRESENT" | "LATE";
+    status?: "PRESENT" | "LATE" | "ON_LEAVE" | "MEDICAL" | string;
     attendanceId?: string;
     avatarUrl?: string | null;
     its?: string | null;
+    leaveReason?: string;
+    leaveType?: string;
   };
   classes?: BiometricClassMatch[];
   message?: string;
@@ -1077,6 +1082,9 @@ export async function processBiometricScan(
   const studentWindow = await getScanWindow("STUDENT", when);
   const studentWindowStatus = await isRoleWindowOpen("STUDENT", when);
 
+  // Ensure active class enrollment exists
+  const activeClasses = await ensureStudentEnrollment(student);
+
   // Check if student is on approved leave today
   const leave = await prisma.leaveRequest.findFirst({
     where: {
@@ -1088,20 +1096,33 @@ export async function processBiometricScan(
   });
 
   if (leave) {
+    const leaveStatus = leave.type === "MEDICAL" ? "MEDICAL" : "ON_LEAVE";
     return pushEvent({
-      type: "SYSTEM",
+      type: "MATCHED",
       fingerprint,
       deviceId: deviceId ?? null,
       role: "STUDENT",
-      student: studentInfo,
-      message: `Student on approved leave (${leave.type}) – scan acknowledged, status preserved as on-leave.`,
+      student: {
+        ...studentInfo,
+        status: leaveStatus as any,
+        leaveReason: leave.reason,
+        leaveType: leave.type,
+      },
+      classes: activeClasses.map((c) => ({
+        classId: c.classId,
+        className: c.class.name,
+        subject: c.class.subject,
+        period: 1,
+        startTime: studentWindow?.startTime || "07:30",
+        endTime: studentWindow?.endTime || "08:15",
+        status: leaveStatus,
+        attendanceId: `leave_${leave.id}`,
+      })),
+      message: `Learner Verified (On Approved ${leave.type} Leave): ${studentInfo.name}`,
       verifyMode: method,
       scanWindow: windowPayload(studentWindow),
-    }, when, true);
+    }, when, false);
   }
-
-  // Ensure active class enrollment exists
-  const activeClasses = await ensureStudentEnrollment(student);
 
   // Determine status (PRESENT / LATE) with strict schedule enforcement
   let status: "PRESENT" | "LATE" = "PRESENT";

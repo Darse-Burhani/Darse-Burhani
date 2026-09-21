@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import PageSkeleton from "@/components/PageSkeleton";
 import { ModuleLockGuard, usePortalAccess } from "@/context/PortalAccessContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DevLockGuard } from "@/components/DevLockGuard";
 
 // ── Public Pages ──
 const LoginPage = lazy(() => import("@/app/login/page"));
@@ -195,8 +196,9 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <Suspense fallback={<SuspenseFallback />}>
-        <Routes>
+      <DevLockGuard>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/thank-you" element={<ThankYouPage />} />
@@ -367,6 +369,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <CookieConsentBanner />
-    </ErrorBoundary>
+    </DevLockGuard>
+  </ErrorBoundary>
   );
 }

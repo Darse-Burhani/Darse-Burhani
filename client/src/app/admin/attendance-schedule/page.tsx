@@ -48,6 +48,7 @@ import {
   requestDesktopNotificationPermission,
   sendDesktopNotification,
 } from "@/lib/notification-sound";
+import { GoogleSheetSyncCard } from "@/components/admin/attendance/GoogleSheetSyncCard";
 
 interface ScanWindow {
   id: string;
@@ -935,6 +936,9 @@ export default function AdminAttendanceSchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Daily Google Sheet Online Sync Station ── */}
+      <GoogleSheetSyncCard />
 
       {/* ── Real-Time Gateway Feed Pulse & Pop-In Live Scan Ticker ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-gray-200/90 shadow-sm">
