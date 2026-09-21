@@ -12,9 +12,6 @@ import {
   Loader2,
   X,
   GraduationCap,
-  Briefcase,
-  BellRing,
-  Layers,
   Clock,
   Fingerprint,
 } from "lucide-react";
