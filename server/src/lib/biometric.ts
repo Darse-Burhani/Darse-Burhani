@@ -864,14 +864,55 @@ export async function processBiometricScan(
       const facultyWindow = await getScanWindow("TEACHER", when);
       const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when);
 
-      // Determine attendance status (PRESENT / LATE)
+      // Determine attendance status (PRESENT / LATE) with strict schedule enforcement
       let teacherStatus: "PRESENT" | "LATE" = "PRESENT";
       if (facultyWindow && facultyWindow.enabled) {
+        if (facultyWindowStatus.isUpcoming) {
+          // Strict Schedule Enforcement: Block early attendance marking
+          return pushEvent({
+            type: "TOO_EARLY",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            teacher: teacherInfo,
+            message: `Too early to scan. Faculty window opens at ${facultyWindow.startTime} IST. Attendance not recorded.`,
+            verifyMode: method,
+            scanWindow: windowPayload(facultyWindow),
+          }, when, false);
+        }
+
+        // Strict Exemption: Excluded from schedule session
+        if (facultyWindow.exemptTeacherIds && facultyWindow.exemptTeacherIds.includes(teacher.id)) {
+          return pushEvent({
+            type: "SYSTEM",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            teacher: teacherInfo,
+            message: `Faculty ${teacherInfo.name} is exempt from "${facultyWindow.eventName}". Scan acknowledged.`,
+            verifyMode: method,
+            scanWindow: windowPayload(facultyWindow),
+          }, when, true);
+        }
+
+        // Strict Roster Applicability: If roster is specified, only assigned faculty are processed
+        if (facultyWindow.applicableTeacherIds && facultyWindow.applicableTeacherIds.length > 0) {
+          if (!facultyWindow.applicableTeacherIds.includes(teacher.id)) {
+            return pushEvent({
+              type: "SYSTEM",
+              fingerprint,
+              deviceId: deviceId ?? null,
+              role: "TEACHER",
+              teacher: teacherInfo,
+              message: `Faculty ${teacherInfo.name} is not in the applicability roster for "${facultyWindow.eventName}".`,
+              verifyMode: method,
+              scanWindow: windowPayload(facultyWindow),
+            }, when, true);
+          }
+        }
+
         if (facultyWindowStatus.isOpen) {
           teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
-        } else if (facultyWindowStatus.isUpcoming) {
-          // Early check-in before faculty window opens
-          teacherStatus = "PRESENT";
         } else {
           // Window has passed / late arrival
           teacherStatus = "LATE";
@@ -1059,14 +1100,61 @@ export async function processBiometricScan(
     }, when, true);
   }
 
-  // Determine status (PRESENT / LATE)
+  // Ensure active class enrollment exists
+  const activeClasses = await ensureStudentEnrollment(student);
+
+  // Determine status (PRESENT / LATE) with strict schedule enforcement
   let status: "PRESENT" | "LATE" = "PRESENT";
   if (studentWindow && studentWindow.enabled) {
+    if (studentWindowStatus.isUpcoming) {
+      // Strict Schedule Enforcement: Block early attendance marking
+      return pushEvent({
+        type: "TOO_EARLY",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Too early to scan. "${studentWindow.eventName}" opens at ${studentWindow.startTime} IST. Attendance not recorded.`,
+        verifyMode: method,
+        scanWindow: windowPayload(studentWindow),
+      }, when, false);
+    }
+
+    // Strict Exemption: Excluded from schedule session
+    if (studentWindow.exemptStudentIds && studentWindow.exemptStudentIds.includes(student.id)) {
+      return pushEvent({
+        type: "SYSTEM",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Student ${studentInfo.name} is exempt from "${studentWindow.eventName}". Scan acknowledged.`,
+        verifyMode: method,
+        scanWindow: windowPayload(studentWindow),
+      }, when, true);
+    }
+
+    // Strict Class Applicability: If specific classes are assigned, verify student's enrollment
+    if (studentWindow.applicableClassIds && studentWindow.applicableClassIds.length > 0) {
+      const isEnrolledInApplicable = activeClasses.some((c) =>
+        studentWindow.applicableClassIds!.includes(c.classId),
+      );
+      if (!isEnrolledInApplicable) {
+        return pushEvent({
+          type: "SYSTEM",
+          fingerprint,
+          deviceId: deviceId ?? null,
+          role: "STUDENT",
+          student: studentInfo,
+          message: `Student ${studentInfo.name} is not enrolled in classes assigned to "${studentWindow.eventName}".`,
+          verifyMode: method,
+          scanWindow: windowPayload(studentWindow),
+        }, when, true);
+      }
+    }
+
     if (studentWindowStatus.isOpen) {
       status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
-    } else if (studentWindowStatus.isUpcoming) {
-      // Early bird check-in before Talabat window opens
-      status = "PRESENT";
     } else {
       // Scanned after late window / late arrival
       status = "LATE";
@@ -1076,9 +1164,6 @@ export async function processBiometricScan(
     const morningBoundary = 8 * 60; // 8:00 AM IST
     status = scanMinutes <= morningBoundary ? "PRESENT" : "LATE";
   }
-
-  // Ensure active class enrollment exists
-  const activeClasses = await ensureStudentEnrollment(student);
 
   // Check if attendance is already recorded for this talabat today
   const existingRecords = await prisma.attendanceRecord.findMany({

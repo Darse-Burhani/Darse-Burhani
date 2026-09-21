@@ -35,17 +35,12 @@ export function requireRole(...roles: string[]): RequestHandler {
       (req as AuthedRequest).auth = { user };
       return next();
     }
-    // Teachers have full authority to execute admin operations and teacher operations
-    if (user.role === "TEACHER" && (roles.includes("ADMIN") || roles.includes("TEACHER"))) {
+    // Strict role check: user's role must be explicitly listed in permitted roles
+    if (roles.includes(user.role)) {
       (req as AuthedRequest).auth = { user };
       return next();
     }
-    if (!roles.includes(user.role)) {
-      res.status(401).json({ success: false, error: "Unauthorized" });
-      return;
-    }
-    (req as AuthedRequest).auth = { user };
-    next();
+    res.status(403).json({ success: false, error: "Forbidden: Insufficient permissions for this feature" });
   };
 }
 
