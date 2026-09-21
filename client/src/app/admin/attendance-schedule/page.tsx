@@ -168,16 +168,13 @@ export default function AdminAttendanceSchedulePage() {
   } | null>(null);
   const [markingFacultyAbsent, setMarkingFacultyAbsent] = useState(false);
 
-  // Fetch All Students Windows
+  // Fetch All Students Windows (Direct canonical route)
   const fetchWindows = useCallback(async () => {
     try {
-      let res = await fetch("/api/admin/attendance/schedule/windows");
-      if (!res.ok) {
-        res = await fetch("/api/attendance/schedule/windows");
-      }
+      const res = await fetch("/api/admin/attendance/schedule/windows");
       if (res.ok) {
         const json = await res.json();
-        if (json.success) {
+        if (json.success && Array.isArray(json.data)) {
           setWindows(json.data);
         }
       }
@@ -186,21 +183,15 @@ export default function AdminAttendanceSchedulePage() {
     }
   }, []);
 
-  // Fetch Class Timetable Slots
+  // Fetch Class Timetable Slots (Direct canonical route)
   const fetchClassSchedule = useCallback(async () => {
     try {
-      let res = await fetch("/api/admin/attendance/schedule/classes");
-      if (!res.ok) {
-        res = await fetch("/api/attendance/schedule/classes");
-      }
-      if (!res.ok) {
-        res = await fetch("/api/admin/timetable");
-      }
+      const res = await fetch("/api/admin/attendance/schedule/classes");
       if (res.ok) {
         const json = await res.json();
-        if (json.success) {
-          setSlots(json.data.slots);
-          setClasses(json.data.classes);
+        if (json.success && json.data) {
+          setSlots(json.data.slots || []);
+          setClasses(json.data.classes || []);
         }
       }
     } catch {
@@ -214,7 +205,7 @@ export default function AdminAttendanceSchedulePage() {
       const res = await fetch("/api/biometric/teachers");
       if (res.ok) {
         const json = await res.json();
-        if (json.success) setFacultyList(json.data);
+        if (json.success && Array.isArray(json.data)) setFacultyList(json.data);
       }
     } catch {
       // silent fallback
@@ -259,7 +250,7 @@ export default function AdminAttendanceSchedulePage() {
           variant: "success",
         });
         fetchFacultyAbsentPreview();
-        loadData();
+        fetchWindows();
       } else {
         toast({ title: json.error || "Failed to execute faculty auto-mark absent", variant: "destructive" });
       }
@@ -270,10 +261,15 @@ export default function AdminAttendanceSchedulePage() {
     }
   };
 
+  // Ultra-Fast Progressive Loader: Primary data unlocks UI immediately
   const loadData = useCallback(async () => {
-    setLoading(true);
-    await Promise.all([fetchWindows(), fetchClassSchedule(), fetchFacultyList(), fetchFacultyAbsentPreview()]);
-    setLoading(false);
+    try {
+      await Promise.allSettled([fetchWindows(), fetchClassSchedule()]);
+    } finally {
+      setLoading(false);
+    }
+    // Background load secondary rosters without blocking visual paint
+    Promise.allSettled([fetchFacultyList(), fetchFacultyAbsentPreview()]);
   }, [fetchWindows, fetchClassSchedule, fetchFacultyList, fetchFacultyAbsentPreview]);
 
   // Real-Time Biometric Scan Event Stream
