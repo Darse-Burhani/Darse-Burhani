@@ -169,3 +169,81 @@ class MemoryCache {
 
 /** Singleton cache instance */
 export const cache = new MemoryCache();
+
+/**
+ * Express Middleware for high-speed API response caching with conditional GET (ETag / 304).
+ * Dramatically cuts down database load by serving cached responses in < 1-2ms.
+ */
+export function apiCacheMiddleware(options: {
+  ttlMs?: number;
+  tags?: string[];
+  keyGenerator?: (req: any) => string;
+} = {}) {
+  const { ttlMs = 30_000, tags = [], keyGenerator } = options;
+
+  return (req: any, res: any, next: any) => {
+    // Only cache GET requests
+    if (req.method !== "GET") {
+      return next();
+    }
+
+    // Skip caching if request has no-cache or bypass headers
+    if (req.headers["x-skip-cache"] === "1" || req.headers["cache-control"] === "no-cache") {
+      return next();
+    }
+
+    const userId = req.user?.id || req.session?.user?.id || "public";
+    const cacheKey = keyGenerator
+      ? keyGenerator(req)
+      : `api:${req.baseUrl || ""}${req.path}:${JSON.stringify(req.query)}:${userId}`;
+
+    const cached = cache.get<{ body: any; etag: string; timestamp: number }>(cacheKey);
+
+    if (cached) {
+      // Check conditional If-None-Match
+      const ifNoneMatch = req.headers["if-none-match"];
+      if (ifNoneMatch && ifNoneMatch === cached.etag) {
+        res.setHeader("X-Cache", "HIT-304");
+        return res.status(304).end();
+      }
+
+      res.setHeader("X-Cache", "HIT");
+      res.setHeader("ETag", cached.etag);
+      res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
+      return res.json(cached.body);
+    }
+
+    // Intercept res.json to store in memory cache
+    const originalJson = res.json.bind(res);
+    res.json = (body: any) => {
+      // Only cache successful 200 responses
+      if (res.statusCode >= 200 && res.statusCode < 300 && body !== undefined) {
+        try {
+          const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
+          // Fast simple hash for ETag
+          let hash = 0;
+          for (let i = 0; i < bodyStr.length; i++) {
+            hash = (hash << 5) - hash + bodyStr.charCodeAt(i);
+            hash |= 0;
+          }
+          const etag = `W/"${Math.abs(hash).toString(36)}-${bodyStr.length.toString(36)}"`;
+
+          cache.set(
+            cacheKey,
+            { body, etag, timestamp: Date.now() },
+            { ttl: ttlMs, tags }
+          );
+
+          res.setHeader("X-Cache", "MISS");
+          res.setHeader("ETag", etag);
+          res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
+        } catch {
+          // Fallback gracefully on serialization error
+        }
+      }
+      return originalJson(body);
+    };
+
+    next();
+  };
+}

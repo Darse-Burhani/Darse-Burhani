@@ -18,6 +18,7 @@ const NotFoundPage = lazy(() => import("@/app/not-found/page"));
 const ThankYouPage = lazy(() => import("@/app/thank-you/page"));
 
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { CommandPalette } from "@/components/CommandPalette";
 import { useAutoRouteSEO } from "@/components/SEO";
 
 
@@ -369,6 +370,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <CookieConsentBanner />
+      <CommandPalette />
     </DevLockGuard>
   </ErrorBoundary>
   );

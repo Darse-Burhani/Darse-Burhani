@@ -252,7 +252,7 @@ export default function LoginPage() {
           {/* Brand Emblem */}
           <div className="flex items-center gap-3 mb-2">
             <div
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40"
               style={{
                 background: "linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #b45309 100%)",
                 boxShadow: "0 6px 16px -2px rgba(245, 158, 11, 0.45)",
@@ -278,7 +278,7 @@ export default function LoginPage() {
               <h1 className="font-display font-extrabold text-xl sm:text-2xl text-white tracking-tight leading-none">
                 Darse Burhani
               </h1>
-              <span className="text-[11px] text-emerald-400/90 font-medium tracking-wide mt-1">
+              <span className="text-xs text-emerald-300/90 font-medium tracking-normal mt-0.5">
                 Aljamea-tus-Saifiyah
               </span>
             </div>
@@ -295,8 +295,8 @@ export default function LoginPage() {
                     key={p.role}
                     type="button"
                     onClick={() => handlePortalChange(p.role)}
-                    className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer touch-manipulation select-none ${
-                      isActive ? "text-white shadow-sm" : "text-gray-400 hover:text-gray-200"
+                    className={`relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer touch-manipulation select-none ${
+                      isActive ? "text-white shadow-sm" : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
                     }`}
                     style={
                       isActive
@@ -308,7 +308,7 @@ export default function LoginPage() {
                     }
                   >
                     <PIcon size={15} className="shrink-0" />
-                    <span className="text-[11px] sm:text-xs tracking-tight truncate font-semibold">
+                    <span className="text-xs tracking-tight truncate">
                       {p.shortLabel}
                     </span>
                   </button>
@@ -321,47 +321,36 @@ export default function LoginPage() {
         {/* ── MAIN AUTH CARD ── */}
         <div className="w-full max-w-md mx-auto my-auto py-1 shrink-0">
           <div
-            className="w-full rounded-3xl p-[1.5px] transition-colors duration-300"
+            className="w-full rounded-2xl p-[1.5px] transition-colors duration-300"
             style={{
               background: `linear-gradient(145deg, ${portal.accentColor} 0%, rgba(255,255,255,0.15) 50%, ${portal.accentColor} 100%)`,
               boxShadow: `0 10px 25px -5px ${portal.glowColor}`,
             }}
           >
-            <div className="w-full bg-[#031d17] rounded-[calc(1.5rem-1.5px)] p-4 sm:p-6 text-white border border-white/5">
+            <div className="w-full bg-[#031d17] rounded-2xl p-5 sm:p-6 text-white border border-white/5">
               
-              {/* Card Header */}
-              <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-white/10">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${portal.iconBg}`}>
-                    <PortalIcon size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${portal.badgeBg}`}>
-                        {portal.badgeLabel}
-                      </span>
-                    </div>
-                    <h2 className="font-extrabold text-base text-white mt-0.5 tracking-tight">
-                      Sign In to Console
-                    </h2>
-                  </div>
+              {/* Card Header — Clean single-context hierarchy */}
+              <div className="flex items-center gap-3 pb-3 mb-4 border-b border-white/10">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${portal.iconBg}`}>
+                  <PortalIcon size={20} />
                 </div>
-
-                <span
-                  className="text-xs font-bold tracking-wide uppercase px-2 py-1 rounded-lg bg-white/5 border border-white/10"
-                  style={{ color: portal.accentColor }}
-                >
-                  {portal.shortLabel}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-bold text-base sm:text-lg text-white tracking-tight truncate">
+                    {portal.label}
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    {portal.description}
+                  </p>
+                </div>
               </div>
 
               {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-3.5">
+              <form onSubmit={handleSubmit} className="w-full space-y-4">
                 {error && (
                   <div
                     role="alert"
                     aria-live="assertive"
-                    className="p-2.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2 shadow-sm"
+                    className="p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2 shadow-sm"
                   >
                     <AlertTriangle size={16} className="text-red-400 shrink-0" />
                     <span className="font-semibold text-xs leading-tight">{error}</span>
@@ -369,17 +358,16 @@ export default function LoginPage() {
                 )}
 
                 {/* Email / Student Identifier Field */}
-                <div>
+                <div className="w-full flex flex-col gap-1.5">
                   <label
                     htmlFor="login-email"
-                    className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1.5"
+                    className="text-xs font-semibold text-gray-300 tracking-wide"
                   >
                     {portal.inputLabel}
                   </label>
                   
-                  {/* Clean Dedicated Icon Box Input Container */}
+                  {/* Clean Icon Box Input Container */}
                   <div className="w-full flex items-center rounded-xl bg-[#021610] border border-white/15 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all overflow-hidden">
-                    {/* Dedicated Icon Prefix Compartment */}
                     <div className="w-11 h-11 flex items-center justify-center bg-white/5 border-r border-white/10 text-emerald-400 shrink-0">
                       {portal.role === "STUDENT" ? (
                         <Fingerprint size={18} className="text-amber-400" />
@@ -388,7 +376,6 @@ export default function LoginPage() {
                       )}
                     </div>
                     
-                    {/* Actual Input */}
                     <input
                       id="login-email"
                       name="email"
@@ -406,37 +393,35 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder={portal.placeholder}
-                      className="w-full h-11 px-3 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-[15px] sm:text-sm font-medium touch-manipulation"
+                      className="w-full h-11 px-3 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-sm font-medium touch-manipulation"
                     />
                   </div>
                 </div>
 
                 {/* Password Field */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                <div className="w-full flex flex-col gap-1.5">
+                  <div className="flex items-baseline justify-between">
                     <label
                       htmlFor="login-password"
-                      className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider"
+                      className="text-xs font-semibold text-gray-300 tracking-wide"
                     >
                       Password
                     </label>
                     <button
                       type="button"
                       onClick={() => setShowForgotModal(true)}
-                      className="text-[11px] text-amber-300 hover:text-amber-200 hover:underline cursor-pointer font-bold touch-manipulation"
+                      className="text-xs font-medium text-amber-300 hover:text-amber-200 hover:underline cursor-pointer py-0.5 px-1 rounded transition-colors touch-manipulation focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-300"
                     >
-                      Forgot?
+                      Forgot password?
                     </button>
                   </div>
 
-                  {/* Clean Dedicated Icon Box Input Container */}
-                  <div className="w-full flex items-center rounded-xl bg-[#021610] border border-white/15 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all overflow-hidden">
-                    {/* Dedicated Icon Prefix Compartment */}
+                  {/* Clean Dedicated Icon Box Input Container with Integrated Password Eye Toggle */}
+                  <div className="relative w-full flex items-center rounded-xl bg-[#021610] border border-white/15 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all overflow-hidden">
                     <div className="w-11 h-11 flex items-center justify-center bg-white/5 border-r border-white/10 text-emerald-400 shrink-0">
                       <Lock size={18} className="text-emerald-400" />
                     </div>
 
-                    {/* Password Input */}
                     <input
                       id="login-password"
                       name="password"
@@ -453,29 +438,29 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder="••••••••••••"
-                      className="w-full h-11 px-3 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-[15px] sm:text-sm font-medium touch-manipulation"
+                      className="w-full h-11 pl-3 pr-11 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-sm font-medium touch-manipulation"
                     />
 
-                    {/* Dedicated Password Eye Toggle Button Compartment */}
+                    {/* Integrated Password Eye Toggle inside Input */}
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0 border-l border-white/5 hover:bg-white/5 touch-manipulation"
+                      className="absolute right-1.5 w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer touch-manipulation focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
                 {/* Keep Me Signed In Checkbox */}
-                <div className="flex items-center justify-between pt-0.5">
+                <div className="w-full flex items-center justify-between pt-0.5">
                   <label className="flex items-center gap-2 cursor-pointer select-none touch-manipulation">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded border-white/20 bg-[#021610] text-[#00c988] focus:ring-[#00c988]/30 w-4 h-4 cursor-pointer accent-[#00c988]"
+                      className="w-4 h-4 rounded-md border-white/20 bg-[#021610] text-[#00c988] focus:ring-[#00c988]/30 cursor-pointer accent-[#00c988]"
                     />
                     <span className="text-xs text-gray-300 font-medium">Keep me signed in</span>
                   </label>
@@ -485,7 +470,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                  className="w-full h-12 rounded-xl font-bold text-sm text-white flex items-center justify-between px-4 shadow-lg transition-all duration-200 disabled:opacity-50 cursor-pointer active:scale-98 overflow-hidden hover:brightness-110 mt-1 touch-manipulation"
+                  className="w-full h-11 rounded-xl font-bold text-sm text-white flex items-center justify-between px-4 shadow-lg transition-all duration-200 disabled:opacity-50 cursor-pointer active:scale-[0.99] overflow-hidden hover:brightness-110 mt-1 touch-manipulation"
                   style={{
                     background: portal.btnGradient,
                     boxShadow: `0 4px 14px ${portal.glowColor}`,
@@ -514,12 +499,12 @@ export default function LoginPage() {
               </form>
 
               {/* Trust & Security Footer */}
-              <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-gray-400 font-medium">
-                <span className="flex items-center gap-1 text-[#00c988] font-semibold">
+              <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-gray-400 font-medium">
+                <span className="flex items-center gap-1.5 text-[#00c988] font-semibold">
                   <ShieldCheck size={14} className="text-[#00c988] shrink-0" />
                   256-Bit Encrypted
                 </span>
-                <span className="flex items-center gap-1 text-gray-400">
+                <span className="flex items-center gap-1.5 text-gray-400">
                   <Shield size={14} className="text-gray-400 shrink-0" />
                   Darse Burhani
                 </span>
@@ -529,7 +514,7 @@ export default function LoginPage() {
         </div>
 
         {/* ── GLOBAL FOOTER ── */}
-        <footer className="w-full max-w-md mx-auto text-center text-[11px] text-gray-400 py-2 flex items-center justify-center gap-2.5 shrink-0">
+        <footer className="w-full max-w-md mx-auto text-center text-xs text-gray-400 py-2 flex items-center justify-center gap-2.5 shrink-0">
           <span>&copy; {new Date().getFullYear()} Darse Burhani</span>
           <span>&bull;</span>
           <a href="/privacy" className="hover:text-amber-300 transition-colors">
@@ -582,7 +567,7 @@ export default function LoginPage() {
                     <span>admin@darseburhani.edu</span>
                   </div>
                 </div>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   Talabat students may also reach out directly to their respective Class Murabbi.
                 </p>
               </div>
@@ -591,7 +576,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(false)}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 font-bold text-xs sm:text-sm text-white shadow-md hover:brightness-110 cursor-pointer transition-all"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 font-bold text-xs sm:text-sm text-white shadow-md hover:brightness-110 cursor-pointer transition-all"
                 >
                   Close
                 </button>

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { apiCacheMiddleware } from "../../lib/cache";
 
 const router = Router();
 
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: ["timetableslot", "class"] }), async (req, res) => {
   try {
     const session = req.auth!;
 

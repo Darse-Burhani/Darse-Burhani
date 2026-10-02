@@ -221,11 +221,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* ── 1. Executive Hero Banner (Doppelrand) ── */}
+      {/* ── 1. Executive Hero Banner ── */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="p-1 sm:p-2 rounded-[2.5rem] bg-emerald-950/15 ring-1 ring-emerald-900/25 shadow-2xl">
+        <div className="p-1.5 rounded-2xl bg-emerald-950/15 ring-1 ring-emerald-900/25 shadow-xl">
           <div
-            className="relative overflow-hidden rounded-[calc(2.5rem-0.375rem)] p-6 sm:p-8 text-white"
+            className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white"
             style={{ background: "linear-gradient(135deg, #022c22 0%, #047857 55%, #065f46 100%)" }}
           >
             {/* Top glowing hairline */}
@@ -234,14 +234,14 @@ export default function AdminDashboard() {
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
                 <div
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl shrink-0 border border-amber-300/40"
+                  className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40"
                   style={{ background: "linear-gradient(135deg, #d4af37, #b8972e)" }}
                 >
-                  <Shield className="w-8 h-8 text-white fill-white/20" />
+                  <Shield className="w-7 h-7 text-white fill-white/20" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 bg-black/25 px-2.5 py-0.5 rounded-full border border-amber-300/30">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-amber-300 bg-black/25 px-2.5 py-0.5 rounded-md border border-amber-300/30">
                       Command Center
                     </span>
                     <span className="text-xs text-emerald-200">
@@ -262,12 +262,12 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={handleOpenCommandPalette}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold border border-white/20 transition-all shadow-sm cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-bold transition-all shadow-md cursor-pointer active:scale-98"
                   title="Search or jump anywhere (⌘K / Ctrl+K)"
                 >
-                  <Zap className="w-4 h-4 text-amber-300" />
+                  <Zap className="w-4 h-4 text-emerald-950" />
                   <span>Command Menu</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-black/30 text-[10px] font-mono font-bold text-amber-200 border border-white/20">
+                  <kbd className="px-1.5 py-0.5 rounded bg-emerald-950/20 text-xs font-mono font-bold text-emerald-950 border border-emerald-950/20">
                     ⌘K
                   </kbd>
                 </button>
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-white/20 text-white hover:bg-white/10 rounded-2xl text-xs font-semibold h-10 px-4"
+                    className="border-white/25 bg-white/10 text-white hover:bg-white/20 rounded-xl text-xs font-semibold h-10 px-4 transition-colors"
                   >
                     <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
                     Portal Locks
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                   size="sm"
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  className="border-white/20 text-white hover:bg-white/10 rounded-2xl text-xs font-semibold h-10 px-4"
+                  className="border-white/25 bg-white/10 text-white hover:bg-white/20 rounded-xl text-xs font-semibold h-10 px-4 transition-colors"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
                   Sync
@@ -308,9 +308,9 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8 }}
         >
-          <div className="p-1 rounded-[2rem] bg-amber-950/5 ring-1 ring-amber-900/15">
+          <div className="p-1 rounded-2xl bg-amber-950/5 ring-1 ring-amber-900/15">
             <div
-              className={`relative overflow-hidden rounded-[calc(2rem-0.25rem)] border p-4 sm:p-5 shadow-lg ${
+              className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 shadow-lg ${
                 error
                   ? "border-red-200/90 bg-gradient-to-r from-red-50 via-rose-50/70 to-amber-50/40"
                   : "border-amber-200/90 bg-gradient-to-r from-amber-50 via-yellow-50/70 to-orange-50/40"
@@ -327,7 +327,7 @@ export default function AdminDashboard() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5">
                   <div
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 border shadow-sm ${
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border shadow-sm ${
                       error
                         ? "bg-red-100 text-red-600 border-red-200/70"
                         : "bg-amber-100 text-amber-700 border-amber-200/70"
@@ -348,7 +348,7 @@ export default function AdminDashboard() {
                       </h3>
                       <Badge
                         variant="outline"
-                        className={`text-[10px] font-semibold ${
+                        className={`text-xs font-semibold ${
                           error
                             ? "bg-red-100/80 text-red-700 border-red-300"
                             : "bg-amber-100/80 text-amber-800 border-amber-300"
@@ -373,7 +373,7 @@ export default function AdminDashboard() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border-amber-300 text-xs font-semibold shadow-sm"
+                        className="h-9 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border-amber-300 text-xs font-semibold shadow-sm"
                       >
                         Inspect Terminals
                       </Button>
@@ -384,7 +384,7 @@ export default function AdminDashboard() {
                     size="sm"
                     onClick={handleRefresh}
                     disabled={refreshing}
-                    className={`h-8 rounded-xl bg-white text-xs font-semibold shadow-sm ${
+                    className={`h-9 rounded-xl bg-white text-xs font-semibold shadow-sm ${
                       error
                         ? "hover:bg-red-50 text-red-700 border-red-200"
                         : "hover:bg-amber-50 text-amber-800 border-amber-200"
@@ -415,54 +415,14 @@ export default function AdminDashboard() {
         </motion.div>
       )}
 
-      {/* ── Full-Page Recovery State ── */}
-      {!o && !loading && error && (
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-1 sm:p-1.5 rounded-[2.5rem] bg-red-950/5 ring-1 ring-red-900/10 max-w-xl mx-auto"
-        >
-          <div className="rounded-[calc(2.5rem-0.375rem)] bg-white p-8 sm:p-10 text-center space-y-5 border border-red-200 shadow-xl">
-            <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mx-auto text-red-600 shadow-inner">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-gray-900 font-display">
-                Unable to Load Executive Telemetry
-              </h2>
-              <p className="text-sm text-gray-600 max-w-md mx-auto">
-                {error}
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <Button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="bg-[#022c22] hover:bg-[#047857] text-white rounded-2xl shadow-md text-xs font-semibold h-10 px-5"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-                Retry Synchronization
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-                className="rounded-2xl border-gray-300 text-xs font-semibold h-10 px-5"
-              >
-                Reload Page
-              </Button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── 2. Real-Time Telemetry & Systems Strip (Doppelrand) ── */}
+      {/* ── 2. Real-Time Telemetry & Systems Strip ── */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-        <div className="p-1 sm:p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-          <div className="rounded-[calc(2rem-0.375rem)] p-4 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/50 border border-emerald-200/50">
+        <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+          <div className="rounded-2xl p-4 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/50 border border-emerald-200/50">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
                   style={{ background: "linear-gradient(135deg, #022c22, #047857)" }}
                 >
                   <Activity className="w-5 h-5 text-amber-300" />
@@ -471,43 +431,31 @@ export default function AdminDashboard() {
                   <h2 className="font-display font-bold text-gray-900 text-sm sm:text-base">
                     Operational Heartbeat &amp; Device Infrastructure
                   </h2>
-                  <p className="text-xs text-gray-500">Live synchronization with campus terminals and databases</p>
+                  <p className="text-xs text-gray-500">Live telemetry across campus terminals and data stores</p>
                 </div>
               </div>
 
-              {/* Status Chips */}
+              {/* Status Chips — Clean Non-Button Affordance */}
               <div className="flex items-center gap-2 flex-wrap">
-                <Link
-                  href="/admin/biometric"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200 hover:bg-emerald-200 transition-colors shadow-2xs"
-                >
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   Biometrics Active
-                </Link>
+                </span>
 
-                <Link
-                  href="/admin/attendance-schedule"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-amber-100/90 text-amber-800 border border-amber-200 hover:bg-amber-200 transition-colors shadow-2xs"
-                >
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                   <Clock className="w-3.5 h-3.5 text-amber-700" />
                   Scan Windows Set
-                </Link>
+                </span>
 
-                <Link
-                  href="/admin/security"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200 hover:bg-emerald-200 transition-colors shadow-2xs"
-                >
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
                   RBAC &amp; Audit Safe
-                </Link>
+                </span>
 
-                <Link
-                  href="/admin/settings"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#fef3c7] text-[#92400e] border border-amber-200 hover:bg-amber-200 transition-colors shadow-2xs"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#b45309]" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" />
                   Locks Guarded
-                </Link>
+                </span>
               </div>
             </div>
           </div>
@@ -530,16 +478,16 @@ export default function AdminDashboard() {
         >
           {statCards.map((stat) => (
             <Link key={stat.title} href={stat.href} className="block group">
-              <div className="p-1 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/10 h-full transition-all duration-300 group-hover:ring-amber-400/50 group-hover:shadow-md">
-                <div className="bg-white rounded-[calc(2rem-0.25rem)] p-5 h-full flex flex-col justify-between">
+              <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/10 h-full transition-all duration-300 group-hover:ring-amber-400/50 group-hover:shadow-md">
+                <div className="bg-white rounded-2xl p-5 h-full flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3.5">
-                      <div className={`p-2.5 rounded-2xl shrink-0 ${stat.iconBg}`}>
+                      <div className={`p-2.5 rounded-xl shrink-0 ${stat.iconBg}`}>
                         <stat.icon className="w-4 h-4" />
                       </div>
                       <Badge
                         variant="secondary"
-                        className="text-[10px] font-bold shrink-0 px-2 py-0.5 bg-emerald-50 text-[#047857] border-emerald-200/60 group-hover:bg-[#047857] group-hover:text-white transition-colors"
+                        className="text-xs font-semibold shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-200 group-hover:bg-emerald-700 group-hover:text-white transition-colors"
                       >
                         {stat.change}
                       </Badge>
@@ -547,7 +495,7 @@ export default function AdminDashboard() {
                     <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{stat.title}</p>
                     <p className="text-2xl font-black text-gray-900 mt-1 num-tabular font-display tracking-tight">{stat.value}</p>
                   </div>
-                  <div className="flex items-center justify-between mt-3.5 pt-2.5 border-t border-gray-100 text-[11px] font-semibold text-gray-400 group-hover:text-[#047857] transition-colors">
+                  <div className="flex items-center justify-between mt-3.5 pt-2.5 border-t border-gray-100 text-xs font-semibold text-gray-500 group-hover:text-emerald-700 transition-colors">
                     <span>{stat.subtitle}</span>
                     <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
@@ -567,102 +515,102 @@ export default function AdminDashboard() {
           />
           <div>
             <h2 className="font-display text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-[#047857]" />
+              <Layers className="w-5 h-5 text-emerald-700" />
               Administrative Command Centers
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              Instant one-click access across all 18 core portals, curricula, and system controls
+              Direct access across core operations, curricula, community, and system governance
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* ── HUB 1: Operations & Attendance ── */}
-          <div className="p-1 sm:p-1.5 rounded-[2.25rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-            <div className="bg-white rounded-[calc(2.25rem-0.375rem)] p-5 flex flex-col justify-between h-full">
+          <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm h-full flex flex-col">
+            <div className="bg-white rounded-2xl p-5 flex flex-col justify-between h-full">
               <div>
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-sm"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
                     style={{ background: "linear-gradient(135deg, #022c22, #047857)" }}
                   >
                     <Fingerprint className="w-5 h-5 text-amber-300" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-gray-900 text-sm">Attendance &amp; Operations</h3>
-                    <p className="text-[11px] text-gray-500 font-medium">Biometrics &amp; scanning</p>
+                    <p className="text-xs text-gray-500 font-medium">Biometrics &amp; scanning</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Link href="/admin/biometric" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-emerald-50 text-[#047857] group-hover:bg-[#047857] group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/biometric" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
                       <Fingerprint className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-[#047857] truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700">
                         Biometric Live Console
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Device terminals &amp; live logs</p>
+                      <p className="text-xs text-gray-500">Device terminals &amp; live logs</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#047857] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/attendance-schedule" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/attendance-schedule" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
                       <Clock className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700">
                         Attendance Schedule
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Scan windows &amp; grace limits</p>
+                      <p className="text-xs text-gray-500">Scan windows &amp; grace limits</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/attendance-emails" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/attendance-emails" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
                       <Mail className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-blue-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700">
                         Email Dispatcher
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Weekly &amp; monthly parent reports</p>
+                      <p className="text-xs text-gray-500">Weekly &amp; monthly parent reports</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/tracking" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-purple-50 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/tracking" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
                       <BarChart3 className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-purple-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700">
                         Individual Tracking
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Student attendance telemetry</p>
+                      <p className="text-xs text-gray-500">Student attendance telemetry</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-purple-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/procurement" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-teal-50 text-teal-700 group-hover:bg-teal-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/procurement" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
                       <ShoppingBag className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-teal-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700">
                         Procurement &amp; Supplies
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Faculty requisitions &amp; fulfillment</p>
+                      <p className="text-xs text-gray-500">Faculty requisitions &amp; orders</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-teal-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+              <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                 <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   Terminals Online
@@ -675,78 +623,78 @@ export default function AdminDashboard() {
           </div>
 
           {/* ── HUB 2: Academics & Takhteet ── */}
-          <div className="p-1 sm:p-1.5 rounded-[2.25rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-            <div className="bg-white rounded-[calc(2.25rem-0.375rem)] p-5 flex flex-col justify-between h-full">
+          <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm h-full flex flex-col">
+            <div className="bg-white rounded-2xl p-5 flex flex-col justify-between h-full">
               <div>
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-sm"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
                     style={{ background: "linear-gradient(135deg, #b45309, #d97706)" }}
                   >
                     <BookOpen className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-gray-900 text-sm">Academics &amp; Takhteet</h3>
-                    <p className="text-[11px] text-gray-500 font-medium">Syllabus &amp; programs</p>
+                    <p className="text-xs text-gray-500 font-medium">Syllabus &amp; programs</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Link href="/admin/classes" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-emerald-50 text-[#047857] group-hover:bg-[#047857] group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/classes" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
                       <BookOpen className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-[#047857] truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700">
                         Classes
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Darajah &amp; section enrollment</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#047857] group-hover:translate-x-0.5 transition-transform shrink-0" />
-                  </Link>
-
-                  <Link href="/admin/timetable" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
-                      <CalendarDays className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700 truncate">
-                        Timetable Matrix
-                      </p>
-                      <p className="text-[10px] text-gray-400 truncate">Weekly schedules &amp; periods</p>
+                      <p className="text-xs text-gray-500">Darajah &amp; section enrollment</p>
                     </div>
                     <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/hifz" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/timetable" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
+                      <CalendarDays className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700">
+                        Timetable Matrix
+                      </p>
+                      <p className="text-xs text-gray-500">Weekly schedules &amp; periods</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                  </Link>
+
+                  <Link href="/admin/hifz" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
                       <FileText className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700">
                         Quran &amp; Hifz Program
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Murajaat, jadeed &amp; sanad</p>
+                      <p className="text-xs text-gray-500">Murajaat, jadeed &amp; sanad</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/takhteet" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/takhteet" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
                       <ClipboardList className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-indigo-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700">
                         Takhteet Curriculum
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Portion targets &amp; syllabus pace</p>
+                      <p className="text-xs text-gray-500">Portion targets &amp; syllabus pace</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+              <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                 <span className="text-amber-800 font-bold">Curriculum Syllabus</span>
                 <Link href="/admin/classes" className="text-amber-700 hover:underline font-bold">
                   Manage &rarr;
@@ -756,78 +704,78 @@ export default function AdminDashboard() {
           </div>
 
           {/* ── HUB 3: Talabat & Community ── */}
-          <div className="p-1 sm:p-1.5 rounded-[2.25rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-            <div className="bg-white rounded-[calc(2.25rem-0.375rem)] p-5 flex flex-col justify-between h-full">
+          <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm h-full flex flex-col">
+            <div className="bg-white rounded-2xl p-5 flex flex-col justify-between h-full">
               <div>
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-sm"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
                     style={{ background: "linear-gradient(135deg, #1e1b4b, #312e81)" }}
                   >
                     <GraduationCap className="w-5 h-5 text-amber-300" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-gray-900 text-sm">Community &amp; People</h3>
-                    <p className="text-[11px] text-gray-500 font-medium">Talabat, faculty &amp; parents</p>
+                    <p className="text-xs text-gray-500 font-medium">Talabat, faculty &amp; parents</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Link href="/admin/students" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-violet-50 text-violet-700 group-hover:bg-violet-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/students" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-indigo-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
                       <GraduationCap className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-violet-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-indigo-700">
                         Talabat Directory
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Student profiles &amp; ITS info</p>
+                      <p className="text-xs text-gray-500">Student profiles &amp; ITS info</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-violet-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/parents" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-rose-50 text-rose-700 group-hover:bg-rose-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/parents" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-indigo-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
                       <Heart className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-rose-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-indigo-700">
                         Parents Directory
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Guardians &amp; student links</p>
+                      <p className="text-xs text-gray-500">Guardians &amp; student links</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-rose-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/users" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-emerald-50 text-[#047857] group-hover:bg-[#047857] group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/users" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-indigo-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
                       <Users className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-[#047857] truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-indigo-700">
                         Staff &amp; Users
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">System logins &amp; credentials</p>
+                      <p className="text-xs text-gray-500">System logins &amp; credentials</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#047857] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/portal-assignments" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-cyan-50 text-cyan-700 group-hover:bg-cyan-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/portal-assignments" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-indigo-50/60 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
                       <UserCheck className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-cyan-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-indigo-700">
                         Portal Assignments
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Teacher roles &amp; permissions</p>
+                      <p className="text-xs text-gray-500">Teacher roles &amp; permissions</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-cyan-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+              <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                 <span className="text-indigo-800 font-bold">User Management</span>
                 <Link href="/admin/users" className="text-indigo-700 hover:underline font-bold">
                   Directory &rarr;
@@ -837,80 +785,80 @@ export default function AdminDashboard() {
           </div>
 
           {/* ── HUB 4: Systems & Governance ── */}
-          <div className="p-1 sm:p-1.5 rounded-[2.25rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-            <div className="bg-white rounded-[calc(2.25rem-0.375rem)] p-5 flex flex-col justify-between h-full">
+          <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm h-full flex flex-col">
+            <div className="bg-white rounded-2xl p-5 flex flex-col justify-between h-full">
               <div>
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-sm"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
                     style={{ background: "linear-gradient(135deg, #064e3b, #047857)" }}
                   >
                     <ShieldCheck className="w-5 h-5 text-amber-300" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-gray-900 text-sm">Systems &amp; Security</h3>
-                    <p className="text-[11px] text-gray-500 font-medium">Library, points &amp; governance</p>
+                    <p className="text-xs text-gray-500 font-medium">Library, points &amp; governance</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Link href="/admin/library" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/library" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors shrink-0">
                       <Layers className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-slate-800">
                         Darse Burhani Library
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Catalog, circulation &amp; shelves</p>
+                      <p className="text-xs text-gray-500">Catalog, circulation &amp; shelves</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/point-matrix" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-yellow-50 text-[#b8860b] group-hover:bg-[#b8860b] group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/point-matrix" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors shrink-0">
                       <Award className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-[#b8860b] truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-slate-800">
                         Conduct &amp; Merit Matrix
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Merit points, badges &amp; tiers</p>
+                      <p className="text-xs text-gray-500">Merit points, badges &amp; tiers</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#b8860b] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/notifications" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-rose-50 text-rose-700 group-hover:bg-rose-600 group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/notifications" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors shrink-0">
                       <Megaphone className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-rose-700 truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-slate-800">
                         Broadcast Studio
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Push notices &amp; announcements</p>
+                      <p className="text-xs text-gray-500">Push notices &amp; announcements</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-rose-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/security" className="hub-tool-item group">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-emerald-50 text-[#047857] group-hover:bg-[#047857] group-hover:text-white transition-colors shrink-0">
+                  <Link href="/admin/security" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors shrink-0">
                       <ShieldCheck className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-[#047857] truncate">
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-slate-800">
                         Security &amp; Audit Logs
                       </p>
-                      <p className="text-[10px] text-gray-400 truncate">Audit trails &amp; auth sessions</p>
+                      <p className="text-xs text-gray-500">Audit trails &amp; auth sessions</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#047857] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
-                <span className="text-emerald-800 font-bold">Governance</span>
-                <Link href="/admin/settings" className="text-emerald-700 hover:underline font-bold">
+              <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                <span className="text-slate-800 font-bold">Governance</span>
+                <Link href="/admin/settings" className="text-slate-700 hover:underline font-bold">
                   Portal Locks &rarr;
                 </Link>
               </div>
@@ -1012,8 +960,8 @@ export default function AdminDashboard() {
           {loading ? (
             <SectionSkeleton />
           ) : (
-            <div className="p-1 sm:p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-              <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
+            <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+              <div className="bg-white rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-xl bg-red-50 text-red-600 border border-red-200/60">
@@ -1035,7 +983,7 @@ export default function AdminDashboard() {
                       <Link
                         key={s.id}
                         href="/admin/tracking"
-                        className="flex items-center gap-3 p-3 rounded-2xl bg-red-50/60 border border-red-100 hover:border-red-300 transition-colors block"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-red-50/60 border border-red-100 hover:border-red-300 transition-colors block"
                       >
                         <Avatar className="w-8 h-8 shrink-0">
                           <AvatarFallback className="bg-red-100 text-red-700 text-xs font-bold">
@@ -1044,12 +992,12 @@ export default function AdminDashboard() {
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-gray-900 truncate">{s.name}</p>
-                          <p className="text-[11px] text-gray-500 font-medium">
+                          <p className="text-xs text-gray-500 font-medium">
                             Grade {s.grade}
                             {s.section} &bull; {new Date(s.date).toLocaleDateString()}
                           </p>
                         </div>
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-200/80 text-red-800">
+                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-200/80 text-red-800">
                           Attention
                         </span>
                       </Link>
@@ -1061,10 +1009,10 @@ export default function AdminDashboard() {
                       className="w-11 h-11 rounded-full flex items-center justify-center mx-auto mb-2.5"
                       style={{ background: "linear-gradient(135deg, #ecfdf5, #d1fae5)" }}
                     >
-                      <ShieldCheck className="w-5 h-5 text-[#047857]" />
+                      <ShieldCheck className="w-5 h-5 text-emerald-700" />
                     </div>
                     <p className="text-xs font-bold text-gray-800">All Clear</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5">No students flagged for academic or attendance risk this week</p>
+                    <p className="text-xs text-gray-500 mt-0.5">No students flagged for academic or attendance risk this week</p>
                   </div>
                 )}
               </div>
@@ -1075,8 +1023,8 @@ export default function AdminDashboard() {
           {loading ? (
             <SectionSkeleton />
           ) : (
-            <div className="p-1 sm:p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-              <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
+            <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+              <div className="bg-white rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-xl bg-pink-50 text-pink-600 border border-pink-200/60">
@@ -1094,15 +1042,15 @@ export default function AdminDashboard() {
 
                 {o ? (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/70 border border-emerald-100">
                       <div className="flex items-center gap-2">
-                        <UserCheck className="w-4 h-4 text-[#047857]" />
+                        <UserCheck className="w-4 h-4 text-emerald-700" />
                         <span className="text-xs text-gray-700 font-semibold">Linked to Parent</span>
                       </div>
-                      <span className="text-xs font-bold text-[#047857] num-tabular">{o.linkedStudents}</span>
+                      <span className="text-xs font-bold text-emerald-700 num-tabular">{o.linkedStudents}</span>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-50/70 border border-amber-100">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50/70 border border-amber-100">
                       <div className="flex items-center gap-2">
                         <Unlink className="w-4 h-4 text-amber-600" />
                         <span className="text-xs text-gray-700 font-semibold">Unlinked Talabat</span>
@@ -1115,7 +1063,7 @@ export default function AdminDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full border-amber-300 text-amber-800 hover:bg-amber-50 rounded-2xl text-xs font-bold h-9"
+                          className="w-full border-amber-300 text-amber-800 hover:bg-amber-50 rounded-xl text-xs font-bold h-9"
                         >
                           <Link2 className="w-3.5 h-3.5 mr-1.5" /> Link Remaining Families
                         </Button>
@@ -1139,11 +1087,11 @@ export default function AdminDashboard() {
           {loading ? (
             <SectionSkeleton />
           ) : (
-            <div className="p-1 sm:p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-              <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
+            <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+              <div className="bg-white rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-emerald-50 text-[#047857] border border-emerald-200/60">
+                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                       <BarChart3 className="w-4 h-4" />
                     </div>
                     <div>
@@ -1155,13 +1103,13 @@ export default function AdminDashboard() {
                   </div>
                   <Link
                     href="/admin/point-matrix"
-                    className="text-xs text-[#047857] hover:underline font-bold flex items-center gap-1"
+                    className="text-xs text-emerald-700 hover:underline font-bold flex items-center gap-1"
                   >
                     Rules Matrix <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
 
-                <Suspense fallback={<div className="h-[250px] bg-gray-100 animate-pulse rounded-2xl" />}>
+                <Suspense fallback={<div className="h-[250px] bg-gray-100 animate-pulse rounded-xl" />}>
                   <ChartSection chartData={chartData} />
                 </Suspense>
               </div>
@@ -1172,11 +1120,11 @@ export default function AdminDashboard() {
           {loading ? (
             <SectionSkeleton />
           ) : (
-            <div className="p-1 sm:p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-              <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
+            <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+              <div className="bg-white rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-amber-50 text-[#b8860b] border border-amber-200/60">
+                    <div className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60">
                       <Award className="w-4 h-4" />
                     </div>
                     <div>
@@ -1188,7 +1136,7 @@ export default function AdminDashboard() {
                   </div>
                   <Link
                     href="/admin/point-matrix"
-                    className="text-xs text-[#b8860b] hover:underline font-bold flex items-center gap-1"
+                    className="text-xs text-amber-700 hover:underline font-bold flex items-center gap-1"
                   >
                     Points Matrix <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
@@ -1199,14 +1147,14 @@ export default function AdminDashboard() {
                     {monitoring.topPerformers.map((s: any, i: number) => (
                       <div
                         key={s.id}
-                        className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100 hover:border-amber-300 transition-colors"
+                        className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50/80 border border-gray-100 hover:border-amber-300 transition-colors"
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-xs"
                           style={{
                             background:
                               i === 0
-                                ? "linear-gradient(135deg, #d4af37, #b8860b)"
+                                ? "linear-gradient(135deg, #d4af37, #b8972e)"
                                 : i === 1
                                 ? "linear-gradient(135deg, #94a3b8, #64748b)"
                                 : "linear-gradient(135deg, #047857, #064e3b)",
@@ -1216,14 +1164,14 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-gray-900 truncate">Talabat {i + 1}</p>
-                          <p className="text-[11px] text-gray-500 font-medium">
+                          <p className="text-xs text-gray-500 font-medium">
                             Grade {s.grade}
                             {s.section}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-xs font-bold text-[#b8860b] num-tabular">{s.points} pts</p>
-                          <Badge className={`text-[9px] font-bold border ${tierColors[s.tier] || "bg-gray-100 text-gray-600"}`}>
+                          <p className="text-xs font-bold text-amber-700 num-tabular">{s.points} pts</p>
+                          <Badge className={`text-xs font-semibold border ${tierColors[s.tier] || "bg-gray-100 text-gray-600"}`}>
                             {s.tier}
                           </Badge>
                         </div>
@@ -1238,11 +1186,11 @@ export default function AdminDashboard() {
           )}
 
           {/* Section: Recent Activity & System Logs */}
-          <div className="p-1 sm:p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-            <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
+          <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+            <div className="bg-white rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-emerald-50 text-[#047857] border border-emerald-200/60">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                     <Activity className="w-4 h-4" />
                   </div>
                   <div>
@@ -1254,7 +1202,7 @@ export default function AdminDashboard() {
                 </div>
                 <Link
                   href="/admin/security"
-                  className="text-xs text-[#047857] hover:underline font-bold flex items-center gap-1"
+                  className="text-xs text-emerald-700 hover:underline font-bold flex items-center gap-1"
                 >
                   Audit Center <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
@@ -1277,7 +1225,7 @@ export default function AdminDashboard() {
                   {stats.recentActivity.map((item: any, i: number) => (
                     <div
                       key={i}
-                      className="flex items-start gap-3 p-3 rounded-2xl hover:bg-emerald-50/40 transition-colors border border-transparent hover:border-emerald-100"
+                      className="flex items-start gap-3 p-3 rounded-xl hover:bg-emerald-50/40 transition-colors border border-transparent hover:border-emerald-100"
                     >
                       <Avatar className="w-8 h-8 shrink-0 ring-1 ring-gray-200">
                         <AvatarFallback className="bg-emerald-100 text-emerald-800 text-xs font-bold">
@@ -1288,7 +1236,7 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-900">
                           <span className="font-bold">{item.user}</span> {item.action}
                         </p>
-                        <p className="text-[11px] text-gray-500 mt-0.5 font-medium">{item.detail}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 font-medium">{item.detail}</p>
                       </div>
                     </div>
                   ))}

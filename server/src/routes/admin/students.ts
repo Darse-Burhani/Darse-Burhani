@@ -5,6 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "node:url";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { apiCacheMiddleware } from "../../lib/cache";
 
 const router = Router();
 
@@ -33,8 +34,8 @@ const avatarUpload = multer({
   },
 });
 
-// GET /api/admin/students - List all students with full profile info
-router.get("/", requireRole("ADMIN"), async (_req, res) => {
+// GET /api/admin/students - List all students with full profile info (high-speed cache)
+router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: ["studentprofile", "user"] }), async (_req, res) => {
   try {
     const students = await prisma.studentProfile.findMany({
       where: {

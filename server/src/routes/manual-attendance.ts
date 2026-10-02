@@ -476,7 +476,7 @@ router.post("/", requireAuth, async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Successfully marked manual attendance for ${updatedCount} ${targetType === "TEACHER" ? "faculty member(s)" : "student(s)"} in ${windowName}.`,
+      message: `Successfully marked manual attendance for ${updatedCount} student(s) in ${windowName}.`,
       data: { updatedCount },
     });
   } catch (error) {

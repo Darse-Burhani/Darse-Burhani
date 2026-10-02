@@ -2,12 +2,13 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { completelyDeleteUser } from "../../lib/user-deletion";
+import { apiCacheMiddleware } from "../../lib/cache";
 import bcrypt from "bcryptjs";
 const { hash } = bcrypt;
 
 const router = Router();
 
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: ["user"] }), async (req, res) => {
   try {
     const session = req.auth!;
 

@@ -1,10 +1,10 @@
-"use client";
-
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { usePortalAccess } from "@/context/PortalAccessContext";
+import { prefetchRouteChunk } from "@/lib/prefetch";
+import { Zap, Command, Search } from "lucide-react";
 
 export interface HubTabItem {
   label: string;
@@ -79,6 +79,10 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
     });
   }
 
+  const triggerCommandPalette = () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, metaKey: true }));
+  };
+
   // Enable keyboard shortcuts (Alt+1, Alt+2, etc. or [ and ] to switch tabs)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -123,15 +127,33 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
           )}
         </div>
 
-        {/* Quick Keyboard Hint */}
-        <div className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500">
-          <span>Switch tabs:</span>
-          <kbd className="px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-600 shadow-2xs">
-            [
-          </kbd>
-          <kbd className="px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-600 shadow-2xs">
-            ]
-          </kbd>
+        {/* Quick Keyboard & Fast DB HUD */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={triggerCommandPalette}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all active:scale-95 border border-slate-700 cursor-pointer"
+            title="Open Quick Commander (Ctrl+K or ⌘K)"
+          >
+            <Search className="w-3.5 h-3.5 text-amber-400" />
+            <span>Quick Commander</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-[10px] text-amber-300 font-mono">⌘K</kbd>
+          </button>
+
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <Zap className="w-3 h-3 text-emerald-600" />
+            <span>Fast DB Load Active</span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-1 text-[11px] text-gray-500">
+            <span>Cycle:</span>
+            <kbd className="px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-600">
+              [
+            </kbd>
+            <kbd className="px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-600">
+              ]
+            </kbd>
+          </div>
         </div>
       </div>
 
@@ -148,8 +170,11 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
           const Icon = tab.icon;
 
           return (
-            <Link
+            <div
               key={tab.targetHref}
+              onMouseEnter={() => prefetchRouteChunk(tab.targetHref)}
+            >
+            <Link
               href={tab.targetHref}
               className={cn(
                 "group relative flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
@@ -198,6 +223,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
                 ⌥{idx + 1}
               </kbd>
             </Link>
+            </div>
           );
         })}
       </div>

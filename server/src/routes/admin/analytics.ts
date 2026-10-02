@@ -1,12 +1,12 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
-import { cache } from "../../lib/cache";
+import { cache, apiCacheMiddleware } from "../../lib/cache";
 import { requireRole } from "../../middleware";
 
 const router = Router();
 
 // GET /api/admin/analytics - Aggregated trends for the admin analytics dashboard
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: ["attendancerecord", "pointlog", "class"] }), async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt((req.query.days as string) || "30", 10), 7), 90);
 

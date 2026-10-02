@@ -287,6 +287,8 @@ model StudentProfile {
 
   @@index([userId])
   @@index([grade, section])
+  @@index([currentPoints])
+  @@index([its])
   @@map("student_profiles")
 }
 
@@ -514,6 +516,8 @@ model AttendanceRecord {
   @@index([classId, date])
   @@index([studentId])
   @@index([classId, date, status])
+  @@index([date])
+  @@index([date, status])
   @@map("attendance_records")
 }
 

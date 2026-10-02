@@ -257,7 +257,7 @@ export function PortalShell({
           </div>
           {!sidebarCollapsed && (
             <div className="overflow-hidden">
-              <h1 className="font-bold text-white text-lg leading-tight tracking-tight">Darse Burhani</h1>
+              <span className="font-bold text-white text-lg leading-tight tracking-tight block">Darse Burhani</span>
               <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.7)" }}>{subtitle}</p>
             </div>
           )}
@@ -379,7 +379,7 @@ export function PortalShell({
                   <FatimiLogo size={24} variant="gold" />
                 </div>
                 <div>
-                  <h1 className="font-bold text-white text-base leading-tight">Darse Burhani</h1>
+                  <span className="font-bold text-white text-base leading-tight block">Darse Burhani</span>
                   <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: "rgba(212,175,55,0.85)" }}>
                     {subtitle}
                   </p>
