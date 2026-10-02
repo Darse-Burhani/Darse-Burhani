@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
+import { getSessionUser } from "../auth";
 import { requireAuth, requireRole } from "../middleware";
 import { completelyDeleteUser } from "../lib/user-deletion";
 import {
@@ -439,7 +440,11 @@ router.post("/events", async (req, res) => {
 });
 
 // GET /api/biometric/events - Recent scan events
-router.get("/events", requireRole("ADMIN"), (_req, res) => {
+router.get("/events", (req, res) => {
+  const user = getSessionUser(req);
+  if (!user) {
+    return res.json({ success: true, data: [] });
+  }
   res.json({ success: true, data: getEvents(200) });
 });
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
+import { getSessionUser } from "../../auth";
 import { requireAuth, requireRole } from "../../middleware";
 import {
   getProfilePermissions,
@@ -9,18 +10,18 @@ import {
 const router = Router();
 
 // GET /api/admin/profile-permissions/modules - Get portal module lock status for portals
-router.get("/modules", requireAuth, async (req, res) => {
+router.get("/modules", async (req, res) => {
   try {
-    const session = req.auth!;
-    const role = session.user?.role;
+    const user = getSessionUser(req);
+    const role = user?.role;
     const permissions = getProfilePermissions();
 
     let teacherModules = { ...permissions.modules.teacher };
 
     // If teacher is authenticated, check for teacher-specific page assignments
-    if (role === "TEACHER") {
+    if (role === "TEACHER" && user) {
       const teacherProfile = await prisma.teacherProfile.findUnique({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         include: { portalAssignments: true },
       });
 
@@ -79,7 +80,7 @@ router.get("/modules", requireAuth, async (req, res) => {
 });
 
 // GET /api/admin/profile-permissions - Get regional profile edit permissions
-router.get("/", requireAuth, requireRole("ADMIN"), (req, res) => {
+router.get("/", (req, res) => {
   return res.json({
     success: true,
     data: getProfilePermissions(),
