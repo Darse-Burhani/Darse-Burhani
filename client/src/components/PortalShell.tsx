@@ -513,7 +513,12 @@ export function PortalShell({
               <div className="shrink-0 p-3.5 border-t border-white/10 relative z-10 bg-black/25 backdrop-blur-sm">
                 <div className="flex items-center gap-3 mb-2.5">
                   <Avatar className="w-9 h-9 border-2" style={{ borderColor: GOLD }}>
-                    {session.user.avatarUrl && <AvatarImage src={session.user.avatarUrl} />}
+                    {session.user.avatarUrl && (
+                      <AvatarImage
+                        src={session.user.avatarUrl}
+                        alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User avatar"}
+                      />
+                    )}
                     <AvatarFallback className="text-white text-xs font-semibold" style={avatarFallbackGradient}>
                       {getInitials(session.user.firstName, session.user.lastName)}
                     </AvatarFallback>
@@ -615,7 +620,12 @@ export function PortalShell({
                   className={cn("flex items-center gap-3 p-1.5 rounded-xl transition-colors", theme.hoverBg)}
                 >
                   <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
-                    {session?.user?.avatarUrl && <AvatarImage src={session.user.avatarUrl} />}
+                    {session?.user?.avatarUrl && (
+                      <AvatarImage
+                        src={session.user.avatarUrl}
+                        alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User profile"}
+                      />
+                    )}
                     <AvatarFallback className="text-white text-sm" style={avatarFallbackGradient}>
                       {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
                     </AvatarFallback>
@@ -741,7 +751,12 @@ export function PortalShell({
                   aria-label="Open profile menu"
                 >
                   <Avatar className="w-8 h-8 ring-2 ring-amber-400/50 shadow-xs">
-                    {session?.user?.avatarUrl && <AvatarImage src={session.user.avatarUrl} />}
+                    {session?.user?.avatarUrl && (
+                      <AvatarImage
+                        src={session.user.avatarUrl}
+                        alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User profile"}
+                      />
+                    )}
                     <AvatarFallback className="text-white text-xs font-semibold" style={avatarFallbackGradient}>
                       {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
                     </AvatarFallback>

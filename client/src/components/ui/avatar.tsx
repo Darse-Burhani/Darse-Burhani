@@ -22,11 +22,12 @@ Avatar.displayName = AvatarPrimitive.Root.displayName;
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
+>(({ className, alt = "User avatar", ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
     loading="lazy"
     decoding="async"
+    alt={alt}
     className={cn(
       "aspect-square h-full w-full object-cover object-[50%_18%] transition-opacity duration-200",
       className,

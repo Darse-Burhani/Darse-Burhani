@@ -554,12 +554,12 @@ export default function ExpertTeacherDashboard() {
                   <Users className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.16em]">Total Enrolled</p>
+                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Total Enrolled</p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <span className="text-2xl sm:text-3xl font-black text-gray-900 num-tabular tracking-tight">
                       {loading ? "..." : students.length}
                     </span>
-                    <span className="text-xs text-gray-500 font-bold">Talabat</span>
+                    <span className="text-xs text-gray-600 font-bold">Talabat</span>
                   </div>
                   <p className="text-[10.5px] text-emerald-700 font-bold truncate mt-0.5">
                     Across {classes.length} active classes
@@ -580,12 +580,12 @@ export default function ExpertTeacherDashboard() {
                   <UserCheck className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.16em]">Today&apos;s Presence</p>
+                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Today&apos;s Presence</p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <span className="text-2xl sm:text-3xl font-black text-emerald-800 num-tabular tracking-tight">
                       {loading ? "..." : stats?.presentToday || 0}
                     </span>
-                    <span className="text-xs text-gray-500 font-bold">
+                    <span className="text-xs text-gray-600 font-bold">
                       / {stats?.totalStudents || students.length || 0}
                     </span>
                   </div>
@@ -611,14 +611,14 @@ export default function ExpertTeacherDashboard() {
                   <Zap className="w-6 h-6 fill-amber-500 text-amber-500" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.16em]">Merit Points Today</p>
+                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Merit Points Today</p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <span className="text-2xl sm:text-3xl font-black text-amber-800 num-tabular tracking-tight">
                       +{loading ? "..." : stats?.pointsToday || 0}
                     </span>
                     <span className="text-xs text-amber-700 font-bold">pts</span>
                   </div>
-                  <p className="text-[10.5px] text-gray-500 font-semibold truncate mt-0.5">
+                  <p className="text-[10.5px] text-gray-600 font-semibold truncate mt-0.5">
                     {stats?.awardsCountToday || 0} actions recorded
                   </p>
                 </div>
@@ -640,14 +640,14 @@ export default function ExpertTeacherDashboard() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.16em]">Takhteet Portions</p>
+                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Takhteet Portions</p>
                         <ArrowUpRight className="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition-colors" />
                       </div>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="text-2xl sm:text-3xl font-black text-purple-900 num-tabular tracking-tight">
                           {takhteet.length}
                         </span>
-                        <span className="text-xs text-gray-500 font-bold">Portions</span>
+                        <span className="text-xs text-gray-600 font-bold">Portions</span>
                       </div>
                       <p className="text-[10.5px] text-purple-700 font-bold truncate mt-0.5">
                         {takhteet.filter((p) => p.status === "COMPLETED").length} completed
@@ -668,12 +668,12 @@ export default function ExpertTeacherDashboard() {
                     <Award className="w-6 h-6" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.16em]">Assigned Classes</p>
+                    <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Assigned Classes</p>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
                       <span className="text-2xl sm:text-3xl font-black text-blue-900 num-tabular tracking-tight">
                         {classes.length}
                       </span>
-                      <span className="text-xs text-gray-500 font-bold">Sections</span>
+                      <span className="text-xs text-gray-600 font-bold">Sections</span>
                     </div>
                     <p className="text-[10.5px] text-blue-700 font-bold truncate mt-0.5">
                       Active teaching sessions
@@ -691,7 +691,7 @@ export default function ExpertTeacherDashboard() {
             <div className="rounded-[calc(2rem-0.375rem)] bg-white p-4 sm:p-6 space-y-4">
               {/* Class Tabs Pill Bar */}
               <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none border-b border-gray-100">
-                <span className="text-xs font-black text-gray-500 uppercase tracking-[0.12em] shrink-0 mr-1 flex items-center gap-1.5">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-[0.12em] shrink-0 mr-1 flex items-center gap-1.5">
                   <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
                   Classes:
                 </span>
@@ -749,6 +749,7 @@ export default function ExpertTeacherDashboard() {
                     <input
                       type="text"
                       placeholder="Search by name, ITS, grade..."
+                      aria-label="Search students by name, ITS, grade"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-8 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/70 text-xs font-semibold focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
@@ -756,6 +757,7 @@ export default function ExpertTeacherDashboard() {
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery("")}
+                        aria-label="Clear search query"
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -764,11 +766,11 @@ export default function ExpertTeacherDashboard() {
                   </div>
 
                   {/* Attendance Presence Filter Pill */}
-                  <div className="flex items-center rounded-2xl bg-gray-100 p-1 text-xs font-bold">
+                  <div className="flex items-center rounded-2xl bg-gray-100 p-1 text-xs font-bold" role="group" aria-label="Filter by attendance status">
                     <button
                       onClick={() => setAttendanceFilter("ALL")}
                       className={`px-3 py-1.5 rounded-xl transition-all ${
-                        attendanceFilter === "ALL" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+                        attendanceFilter === "ALL" ? "bg-white text-gray-900 shadow-xs" : "text-gray-700 hover:text-gray-900"
                       }`}
                     >
                       All
@@ -800,6 +802,7 @@ export default function ExpertTeacherDashboard() {
                   {/* Tier Filter */}
                   <select
                     value={tierFilter}
+                    aria-label="Filter by star tier"
                     onChange={(e) => setTierFilter(e.target.value)}
                     className="px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/70 text-xs font-bold text-gray-700 focus:border-emerald-500 outline-none"
                   >
@@ -814,6 +817,7 @@ export default function ExpertTeacherDashboard() {
                   {/* Sort Order */}
                   <select
                     value={sortBy}
+                    aria-label="Sort students by"
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/70 text-xs font-bold text-gray-700 focus:border-emerald-500 outline-none"
                   >
@@ -1397,7 +1401,7 @@ export default function ExpertTeacherDashboard() {
                       })}
                     </div>
                   ) : (
-                    <p className="text-center py-6 text-xs text-gray-400 font-medium">
+                    <p className="text-center py-6 text-xs text-gray-600 font-medium">
                       No points awarded yet today
                     </p>
                   )}
