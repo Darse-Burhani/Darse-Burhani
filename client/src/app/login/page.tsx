@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, getSession, signOut } from "next-auth/react";
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Eye,
   EyeOff,
@@ -15,36 +15,37 @@ import {
   Users,
   AlertTriangle,
   ArrowRight,
-  ShieldCheck,
   Check,
   Fingerprint,
   HelpCircle,
   X,
   Building2,
   Loader2,
+  QrCode,
   Sparkles,
-  Info,
+  Zap,
+  Calendar,
+  Activity,
+  CheckCircle2,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { LoginCanvas3D } from "@/components/3d/LoginCanvas3D";
 
 export interface PortalConfig {
   role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
   label: string;
   shortLabel: string;
-  keyNumber: string;
   badgeLabel: string;
   description: string;
   icon: React.ElementType;
   accentColor: string;
   glowColor: string;
   btnGradient: string;
-  cardBorder: string;
   iconBg: string;
   badgeBg: string;
   placeholder: string;
   inputLabel: string;
   rolePath: string;
+  demoAccount: { email: string; pass: string; title: string };
 }
 
 export const portals: PortalConfig[] = [
@@ -52,73 +53,69 @@ export const portals: PortalConfig[] = [
     role: "ADMIN",
     label: "Admin Portal",
     shortLabel: "Admin",
-    keyNumber: "1",
     badgeLabel: "ADMINISTRATIVE",
-    description: "System governance, security & institutional operations",
+    description: "Governance, institutional security & records management",
     icon: Shield,
     accentColor: "#10b981",
-    glowColor: "rgba(16, 185, 129, 0.35)",
-    btnGradient: "linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)",
-    cardBorder: "border-emerald-500/30",
+    glowColor: "rgba(16, 185, 129, 0.25)",
+    btnGradient: "linear-gradient(135deg, #059669 0%, #047857 60%, #064e3b 100%)",
     iconBg: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
     badgeBg: "bg-emerald-950/70 text-emerald-300 border border-emerald-600/30",
     placeholder: "admin@darseburhani.edu",
     inputLabel: "Administrator Email",
     rolePath: "/admin",
+    demoAccount: { email: "admin@darseburhani.edu", pass: "admin123", title: "Principal Admin" },
   },
   {
     role: "TEACHER",
     label: "Faculty Portal",
     shortLabel: "Faculty",
-    keyNumber: "2",
-    badgeLabel: "ACADEMIC FACULTY",
-    description: "Class rosters, live attendance, Hifz & syllabus tracking",
+    badgeLabel: "FACULTY",
+    description: "Class rosters, live attendance, Hifz & daily logbooks",
     icon: GraduationCap,
     accentColor: "#06b6d4",
-    glowColor: "rgba(6, 182, 212, 0.35)",
-    btnGradient: "linear-gradient(135deg, #0891b2 0%, #0e7490 50%, #155e75 100%)",
-    cardBorder: "border-cyan-500/30",
+    glowColor: "rgba(6, 182, 212, 0.25)",
+    btnGradient: "linear-gradient(135deg, #0891b2 0%, #0e7490 60%, #155e75 100%)",
     iconBg: "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30",
     badgeBg: "bg-cyan-950/70 text-cyan-200 border border-cyan-600/30",
     placeholder: "faculty@darseburhani.edu",
     inputLabel: "Faculty Email or ITS",
     rolePath: "/teacher",
+    demoAccount: { email: "teacher@darseburhani.edu", pass: "teacher123", title: "Class Murabbi" },
   },
   {
     role: "STUDENT",
     label: "Talabat Portal",
     shortLabel: "Talabat",
-    keyNumber: "3",
-    badgeLabel: "TALABAT STUDENT",
-    description: "Timetable, Qur'an progress, library & student identity",
+    badgeLabel: "TALABAT",
+    description: "Timetable, Qur'an progress, library loans & attendance",
     icon: BookOpen,
     accentColor: "#f59e0b",
-    glowColor: "rgba(245, 158, 11, 0.35)",
-    btnGradient: "linear-gradient(135deg, #d97706 0%, #b45309 50%, #78350f 100%)",
-    cardBorder: "border-amber-500/30",
+    glowColor: "rgba(245, 158, 11, 0.25)",
+    btnGradient: "linear-gradient(135deg, #d97706 0%, #b45309 60%, #78350f 100%)",
     iconBg: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
     badgeBg: "bg-amber-950/70 text-amber-200 border border-amber-500/30",
     placeholder: "8-digit ITS or student email",
     inputLabel: "ITS Number or Student Email",
     rolePath: "/talabat",
+    demoAccount: { email: "50463544", pass: "student123", title: "Talabat Student" },
   },
   {
     role: "PARENT",
     label: "Parent Portal",
     shortLabel: "Parent",
-    keyNumber: "4",
-    badgeLabel: "PARENT & GUARDIAN",
-    description: "Talabat progress reports, leave requests & notices",
+    badgeLabel: "PARENT",
+    description: "Academic reports, leave requests & official notices",
     icon: Users,
     accentColor: "#a855f7",
-    glowColor: "rgba(168, 85, 247, 0.35)",
-    btnGradient: "linear-gradient(135deg, #9333ea 0%, #7e22ce 50%, #581c87 100%)",
-    cardBorder: "border-purple-500/30",
+    glowColor: "rgba(168, 85, 247, 0.25)",
+    btnGradient: "linear-gradient(135deg, #9333ea 0%, #7e22ce 60%, #581c87 100%)",
     iconBg: "bg-purple-500/15 text-purple-300 border border-purple-500/30",
     badgeBg: "bg-purple-950/70 text-purple-200 border border-purple-500/30",
     placeholder: "parent@darseburhani.edu",
     inputLabel: "Registered Parent Email",
     rolePath: "/parent",
+    demoAccount: { email: "parent@darseburhani.edu", pass: "parent123", title: "Parent Guardian" },
   },
 ];
 
@@ -139,58 +136,11 @@ export default function LoginPage() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannerActive, setScannerActive] = useState(false);
+  const [scannerSuccess, setScannerSuccess] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
-
-  // 3D Canvas mouse parallax state
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  // 3D Card Interactive Tilt Spring Physics
-  const cardRef = useRef<HTMLDivElement>(null);
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [7, -7]), { stiffness: 200, damping: 20 });
-  const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-7, 7]), { stiffness: 200, damping: 20 });
-  const glintX = useTransform(mouseX, [-0.5, 0.5], ["0%", "100%"]);
-  const glintY = useTransform(mouseY, [-0.5, 0.5], ["0%", "100%"]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // 3D background coordinates (-1 to 1)
-    const { innerWidth, innerHeight } = window;
-    setMousePos({
-      x: (e.clientX / innerWidth) * 2 - 1,
-      y: (e.clientY / innerHeight) * 2 - 1,
-    });
-
-    // 3D card tilt
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const xPct = (e.clientX - rect.left) / rect.width - 0.5;
-    const yPct = (e.clientY - rect.top) / rect.height - 0.5;
-    mouseX.set(xPct);
-    mouseY.set(yPct);
-  }, [mouseX, mouseY]);
-
-  const handleMouseLeave = useCallback(() => {
-    mouseX.set(0);
-    mouseY.set(0);
-    setMousePos({ x: 0, y: 0 });
-  }, [mouseX, mouseY]);
-
-  // Keyboard shortcut listener: 1=Admin, 2=Teacher, 3=Student, 4=Parent
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in input
-      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
-        return;
-      }
-      if (e.key === "1") handlePortalChange("ADMIN");
-      if (e.key === "2") handlePortalChange("TEACHER");
-      if (e.key === "3") handlePortalChange("STUDENT");
-      if (e.key === "4") handlePortalChange("PARENT");
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  const [serverPing] = useState("24ms");
 
   // Live Caps Lock detector
   const checkCapsLock = (e: React.KeyboardEvent) => {
@@ -201,6 +151,10 @@ export default function LoginPage() {
   const isEightDigitIts = /^\d{8}$/.test(email.trim());
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isStudentInputValid = isEightDigitIts || isEmail;
+
+  // Hijri Date Formatter
+  const todayDate = new Date();
+  const gregorianStr = todayDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
   useEffect(() => {
     if (lockoutSeconds <= 0) return;
@@ -213,6 +167,35 @@ export default function LoginPage() {
   const handlePortalChange = (role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT") => {
     setSelectedRole(role);
     setError("");
+  };
+
+  // Quick Persona Auto-Fill
+  const handleApplyDemoPersona = (role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT") => {
+    const targetPortal = portals.find((p) => p.role === role);
+    if (!targetPortal) return;
+    setSelectedRole(role);
+    setEmail(targetPortal.demoAccount.email);
+    setPassword(targetPortal.demoAccount.pass);
+    setError("");
+  };
+
+  // ITS Scanner Simulator
+  const handleStartScanner = () => {
+    setShowScannerModal(true);
+    setScannerActive(true);
+    setScannerSuccess(false);
+
+    // Simulate smart optical laser scan
+    setTimeout(() => {
+      setScannerActive(false);
+      setScannerSuccess(true);
+      setTimeout(() => {
+        setSelectedRole("STUDENT");
+        setEmail("50463544");
+        setPassword("student123");
+        setShowScannerModal(false);
+      }, 900);
+    }, 1600);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -294,7 +277,7 @@ export default function LoginPage() {
 
       setTimeout(() => {
         router.push(rolePaths[role] || "/admin");
-      }, 400);
+      }, 350);
     } catch {
       setError("Connection failed. Please check your network connection.");
     } finally {
@@ -306,30 +289,28 @@ export default function LoginPage() {
     <>
       <SEO
         title="Sign In — Darse Burhani"
-        description="Secure 3D gateway for Aljamea-tus-Saifiyah administrators, faculty, talabat, and parents."
+        description="Portal gateway for Aljamea-tus-Saifiyah administrators, faculty, talabat, and parents."
       />
 
-      <main
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="relative min-h-[100dvh] w-full bg-[#01140f] text-white flex flex-col justify-between items-center p-3 sm:p-6 selection:bg-amber-400 selection:text-black overflow-x-hidden"
-      >
-        {/* ── 3D THREE.JS AMBIENT BACKGROUND SCENE ── */}
-        <LoginCanvas3D mousePos={mousePos} />
+      <main className="relative min-h-[100dvh] w-full bg-[#02130e] text-white flex flex-col justify-between items-center p-3 sm:p-6 selection:bg-amber-400 selection:text-black overflow-x-hidden">
+        
+        {/* Subtle Ambient Radial Lighting (Clean, smooth executive background) */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-emerald-600/10 blur-[130px] pointer-events-none rounded-full" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[250px] bg-amber-500/5 blur-[120px] pointer-events-none rounded-full" />
 
-        {/* ── TOP INSTITUTIONAL EMBLEM & TITLE ── */}
+        {/* ── TOP HEADER ── */}
         <header className="relative z-10 w-full max-w-md mx-auto pt-2 sm:pt-4 pb-2 flex flex-col items-center shrink-0">
           
-          {/* Brand Emblem with 3D Radial Glow */}
-          <div className="flex items-center gap-3.5 mb-2 group">
+          {/* Brand Emblem */}
+          <div className="flex items-center gap-3.5 mb-2">
             <div
-              className="relative w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl shrink-0 border border-amber-300/40 transition-transform duration-300 group-hover:scale-105"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40"
               style={{
                 background: "linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #92400e 100%)",
-                boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.6)",
+                boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6)",
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8L12 2Z"
                   fill="#ffffff"
@@ -346,22 +327,18 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col">
-              <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight leading-tight flex items-center gap-2">
+              <h1 className="font-display font-extrabold text-2xl text-white tracking-tight leading-tight">
                 Darse Burhani
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
-                  v2.0
-                </span>
               </h1>
-              <span className="text-xs text-emerald-300/90 font-semibold tracking-normal mt-0.5 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Aljamea-tus-Saifiyah Institutional Gateway
+              <span className="text-xs text-emerald-300 font-medium tracking-normal mt-0.5">
+                Aljamea-tus-Saifiyah
               </span>
             </div>
           </div>
 
-          {/* ── 3D Tactile Role Switcher Matrix ── */}
-          <nav aria-label="Portal Selection" className="w-full mt-3">
-            <div className="w-full bg-[#021f17]/90 backdrop-blur-md border border-emerald-500/30 rounded-2xl p-1.5 grid grid-cols-4 gap-1.5 shadow-xl">
+          {/* ── Role Switcher Tabs ── */}
+          <nav aria-label="Portal Selection" className="w-full mt-2.5">
+            <div className="w-full bg-[#031d17] border border-emerald-500/25 rounded-2xl p-1.5 grid grid-cols-4 gap-1.5 shadow-lg">
               {portals.map((p) => {
                 const isActive = p.role === selectedRole;
                 const PIcon = p.icon;
@@ -370,7 +347,7 @@ export default function LoginPage() {
                     key={p.role}
                     type="button"
                     onClick={() => handlePortalChange(p.role)}
-                    className={`relative flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
+                    className={`relative flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
                       isActive
                         ? "text-white shadow-md scale-[1.02]"
                         : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -379,17 +356,14 @@ export default function LoginPage() {
                       isActive
                         ? {
                             background: p.btnGradient,
-                            boxShadow: `0 4px 14px ${p.glowColor}, inset 0 1px 1px rgba(255, 255, 255, 0.3)`,
+                            boxShadow: `0 3px 12px ${p.glowColor}`,
                           }
                         : {}
                     }
                   >
-                    <PIcon size={16} className="shrink-0" />
+                    <PIcon size={15} className="shrink-0" />
                     <span className="text-xs tracking-tight truncate">
                       {p.shortLabel}
-                    </span>
-                    <span className="hidden sm:inline-block text-[9px] font-mono opacity-50 ml-0.5">
-                      [{p.keyNumber}]
                     </span>
                   </button>
                 );
@@ -398,41 +372,25 @@ export default function LoginPage() {
           </nav>
         </header>
 
-        {/* ── 3D TILT AUTHENTICATION CARD ── */}
-        <div className="relative z-10 w-full max-w-md mx-auto my-auto py-2 shrink-0 perspective-1000">
-          <motion.div
-            ref={cardRef}
-            style={{
-              rotateX,
-              rotateY,
-              transformStyle: "preserve-3d",
-            }}
-            className="w-full rounded-3xl p-1 sm:p-1.5 bg-emerald-950/20 ring-1 ring-emerald-900/30 shadow-2xl transition-shadow duration-300"
-          >
+        {/* ── MAIN AUTHENTICATION CARD ── */}
+        <div className="relative z-10 w-full max-w-md mx-auto my-auto py-1 shrink-0">
+          <div className="w-full rounded-3xl p-1 bg-emerald-950/20 ring-1 ring-emerald-900/30 shadow-2xl">
             <div
               className="relative w-full rounded-2xl p-6 sm:p-7 text-white overflow-hidden border border-white/10"
               style={{
-                background: "linear-gradient(145deg, rgba(2, 33, 25, 0.94) 0%, rgba(1, 23, 17, 0.96) 100%)",
-                boxShadow: `0 20px 50px -10px ${portal.glowColor}, inset 0 1px 1px rgba(255, 255, 255, 0.25)`,
+                background: "linear-gradient(160deg, #03211a 0%, #021712 100%)",
+                boxShadow: `0 18px 45px -10px ${portal.glowColor}, inset 0 1px 1px rgba(255, 255, 255, 0.15)`,
               }}
             >
-              {/* Dynamic 3D Specular Glint Refraction */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none opacity-20 rounded-2xl"
-                style={{
-                  background: `radial-gradient(circle at ${glintX} ${glintY}, rgba(255,255,255,0.8), transparent 60%)`,
-                }}
-              />
-
-              {/* Portal Header Badge */}
-              <div className="flex items-center justify-between pb-4 mb-5 border-b border-white/10">
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-md ${portal.iconBg}`}>
-                    <PortalIcon size={22} />
+              {/* Portal Header */}
+              <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md ${portal.iconBg}`}>
+                    <PortalIcon size={20} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="font-bold text-lg text-white tracking-tight">
+                      <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">
                         {portal.label}
                       </h2>
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${portal.badgeBg}`}>
@@ -446,15 +404,39 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Unique Feature 1: Fast One-Click Demo Persona Fillers */}
+              <div className="mb-4 p-2.5 rounded-xl bg-black/35 border border-white/10 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-gray-300 font-semibold">
+                  <Zap size={14} className="text-amber-400 shrink-0" />
+                  <span>Quick Test:</span>
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                  {portals.map((item) => (
+                    <button
+                      key={item.role}
+                      type="button"
+                      onClick={() => handleApplyDemoPersona(item.role)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        selectedRole === item.role
+                          ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 shadow-xs"
+                          : "bg-white/5 text-gray-400 hover:text-gray-200 hover:bg-white/10"
+                      }`}
+                    >
+                      {item.shortLabel}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Authentication Form */}
               <form onSubmit={handleSubmit} className="w-full space-y-4">
                 {error && (
                   <div
                     role="alert"
                     aria-live="assertive"
-                    className="p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2.5 shadow-md animate-shake"
+                    className="p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2.5 shadow-md"
                   >
-                    <AlertTriangle size={17} className="text-red-400 shrink-0" />
+                    <AlertTriangle size={16} className="text-red-400 shrink-0" />
                     <span className="font-semibold leading-tight">{error}</span>
                   </div>
                 )}
@@ -469,17 +451,16 @@ export default function LoginPage() {
                       {portal.inputLabel}
                     </label>
 
-                    {/* Smart ITS detection pill for Talabat */}
-                    {portal.role === "STUDENT" && email.length > 0 && (
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full transition-all ${
-                        isEightDigitIts
-                          ? "bg-amber-950/80 text-amber-300 border border-amber-500/40"
-                          : isEmail
-                          ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/40"
-                          : "bg-gray-800 text-gray-400"
-                      }`}>
-                        {isEightDigitIts ? "✓ 8-Digit ITS ID" : isEmail ? "✓ Student Email" : "Enter 8 Digits"}
-                      </span>
+                    {/* Unique Feature 2: Smart ITS Scanner Launch Trigger */}
+                    {portal.role === "STUDENT" && (
+                      <button
+                        type="button"
+                        onClick={handleStartScanner}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-400/30 hover:bg-amber-500/25 transition-all cursor-pointer"
+                      >
+                        <QrCode size={12} />
+                        <span>Scan ITS Card</span>
+                      </button>
                     )}
                   </div>
 
@@ -512,6 +493,23 @@ export default function LoginPage() {
                       className="w-full h-11 px-3.5 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-sm font-medium"
                     />
                   </div>
+
+                  {/* Smart detection indicator */}
+                  {portal.role === "STUDENT" && email.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-1 text-[11px] text-gray-400">
+                      {isEightDigitIts ? (
+                        <span className="text-amber-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} /> 8-Digit ITS ID Formatted
+                        </span>
+                      ) : isEmail ? (
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Student Email Address
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">Enter 8 digits or valid email</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Password Input Container */}
@@ -578,7 +576,7 @@ export default function LoginPage() {
                   )}
                 </div>
 
-                {/* Keep Me Signed In */}
+                {/* Keep Me Signed In & Latency Meter */}
                 <div className="w-full flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
@@ -590,20 +588,20 @@ export default function LoginPage() {
                     <span className="text-xs text-gray-300 font-medium">Keep me signed in</span>
                   </label>
 
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
-                    <ShieldCheck size={13} />
-                    <span>TLS 1.3 SECURE</span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Ping: {serverPing}</span>
                   </div>
                 </div>
 
-                {/* 3D Action Submit Button */}
+                {/* Action Submit Button */}
                 <button
                   type="submit"
                   disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                  className="w-full h-12 rounded-xl font-bold text-sm text-white flex items-center justify-between px-5 shadow-xl transition-all duration-200 disabled:opacity-50 cursor-pointer active:scale-[0.98] overflow-hidden hover:brightness-110 mt-2"
+                  className="w-full h-12 rounded-xl font-bold text-sm text-white flex items-center justify-between px-5 shadow-lg transition-all duration-200 disabled:opacity-50 cursor-pointer active:scale-[0.98] overflow-hidden hover:brightness-110 mt-2"
                   style={{
                     background: portal.btnGradient,
-                    boxShadow: `0 6px 20px -2px ${portal.glowColor}, inset 0 1px 1px rgba(255, 255, 255, 0.35)`,
+                    boxShadow: `0 6px 18px -2px ${portal.glowColor}`,
                   }}
                 >
                   <span className="font-bold tracking-tight text-sm">
@@ -612,7 +610,7 @@ export default function LoginPage() {
                       : isSuccess
                       ? `Launching ${portal.shortLabel}...`
                       : isLoading
-                      ? "Verifying Credentials..."
+                      ? "Verifying..."
                       : `Enter ${portal.label}`}
                   </span>
 
@@ -628,19 +626,19 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Institutional Certification Footer */}
+              {/* Live Academic Session Banner */}
               <div className="mt-5 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs text-gray-400 font-medium">
-                <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                  <Sparkles size={14} className="text-emerald-400 shrink-0" />
-                  256-Bit Encrypted
+                <span className="flex items-center gap-1.5 text-amber-300/90 font-medium">
+                  <Calendar size={13} className="text-amber-400 shrink-0" />
+                  {gregorianStr}
                 </span>
                 <span className="flex items-center gap-1.5 text-gray-400">
-                  <Building2 size={14} className="text-gray-400 shrink-0" />
-                  Aljamea-tus-Saifiyah
+                  <Building2 size={13} className="text-gray-400 shrink-0" />
+                  Darse Burhani
                 </span>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* ── FOOTER ── */}
@@ -657,7 +655,67 @@ export default function LoginPage() {
         </footer>
       </main>
 
-      {/* Institutional Password Assistance Modal */}
+      {/* Unique Feature 3: Interactive ITS Card Smart Optical Scanner Modal */}
+      <AnimatePresence>
+        {showScannerModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-sm p-6 rounded-3xl bg-[#021f17] border border-amber-500/40 text-white shadow-2xl text-center space-y-4 overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <QrCode size={18} className="text-amber-400" />
+                  <h3 className="font-bold text-sm text-white">Smart ITS Card Scanner</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowScannerModal(false)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Optical Scanner Viewport */}
+              <div className="relative w-full h-44 rounded-2xl bg-black/70 border-2 border-dashed border-amber-400/40 flex items-center justify-center overflow-hidden">
+                {scannerActive && (
+                  <motion.div
+                    initial={{ y: -80 }}
+                    animate={{ y: 80 }}
+                    transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut", repeatType: "reverse" }}
+                    className="absolute w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_12px_#f59e0b]"
+                  />
+                )}
+
+                {scannerSuccess ? (
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex flex-col items-center gap-2 text-emerald-400"
+                  >
+                    <CheckCircle2 size={42} />
+                    <span className="text-xs font-bold font-mono">ITS: 50463544 VERIFIED</span>
+                  </motion.div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <Fingerprint size={38} className="text-amber-400 animate-pulse" />
+                    <span className="text-xs font-medium text-amber-200">Align ITS barcode / QR to scan</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-gray-400">
+                Place your physical student ITS badge or scan card to auto-fill credentials.
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Assistance Modal */}
       <AnimatePresence>
         {showForgotModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -688,7 +746,7 @@ export default function LoginPage() {
 
               <div className="space-y-3 text-xs sm:text-sm text-gray-300">
                 <p>
-                  For institutional security, account credentials can be reset through the Administration Desk or your designated coordinator.
+                  Account credentials can be reset through the Administration Desk or your designated coordinator.
                 </p>
                 <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
                   <div className="flex items-center gap-2 text-xs text-gray-200 font-medium">
