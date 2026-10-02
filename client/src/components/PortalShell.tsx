@@ -19,6 +19,12 @@ import {
   Settings,
   Sparkles,
   X,
+  Zap,
+  Radio,
+  FileSpreadsheet,
+  Layers,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -97,11 +103,31 @@ export function PortalShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [quickCommandOpen, setQuickCommandOpen] = useState(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string>("ALL");
+  const [istTime, setIstTime] = useState<string>("");
   const { theme: activeFatimiTheme } = useFatimiTheme();
 
+  // Keep live IST time in sync for mobile header
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      setIstTime(timeString);
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleOpenSearch = () => {
+    setQuickCommandOpen(false);
     setMobileMenuOpen(true);
     setTimeout(() => {
       const el = document.getElementById("portal-mobile-search-input");
@@ -114,6 +140,7 @@ export function PortalShell({
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setQuickCommandOpen(false);
     setMobileSearchQuery("");
   }, [pathname]);
 
@@ -650,39 +677,55 @@ export function PortalShell({
           </div>
 
           {/* ── Mobile Premium App Header (below lg) ── */}
-          <div className="h-14 lg:hidden flex items-center justify-between px-3 sm:px-4">
-            {/* Left: Fatimi crest + Active page indicator */}
+          <div className="h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-emerald-950/10 shadow-xs">
+            {/* Left: Fatimi crest + Active page indicator + Live Clock */}
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ring-1 ring-black/5 active:scale-95 transition-transform"
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-md ring-1 ring-amber-400/40 active:scale-95 transition-transform"
                 style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
                 aria-label="Open navigation drawer"
               >
-                <FatimiLogo size={20} variant="gold" />
+                <FatimiLogo size={22} variant="gold" />
               </button>
 
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.2 rounded-md bg-amber-400/20 text-amber-900 border border-amber-400/30 truncate">
+                  <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-900 border border-amber-400/30 truncate">
                     {roleLabel}
                   </span>
-                  <span className="text-[10px] text-gray-500 font-medium truncate">
-                    {activeItem?.category || subtitle}
-                  </span>
+                  {istTime && (
+                    <span className="text-[10px] text-emerald-800 font-mono font-semibold flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/60">
+                      <Clock className="w-2.5 h-2.5 text-emerald-600" />
+                      {istTime}
+                    </span>
+                  )}
                 </div>
-                <h2 className="font-display font-bold text-gray-900 text-sm leading-tight truncate">
+                <h2 className="font-display font-bold text-gray-900 text-sm leading-tight truncate mt-0.5">
                   {sectionTitle}
                 </h2>
               </div>
             </div>
 
-            {/* Right: Quick search, notifications, profile */}
+            {/* Right: Quick Biometric status, search, notifications, profile */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Live Biometric Pulse Indicator */}
+              <button
+                onClick={() => setQuickCommandOpen(!quickCommandOpen)}
+                className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 active:scale-95 transition-all text-[10px] font-bold"
+                title="Hikvision Terminals Online"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                </span>
+                <span className="hidden xs:inline">Live</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleOpenSearch}
-                className="w-9 h-9 rounded-2xl flex items-center justify-center text-gray-700 hover:text-gray-950 bg-gray-100/80 hover:bg-gray-200/80 active:scale-90 transition-all cursor-pointer"
+                className="w-9 h-9 rounded-2xl flex items-center justify-center text-gray-700 hover:text-gray-950 bg-gray-100/90 hover:bg-gray-200/90 active:scale-90 transition-all cursor-pointer"
                 aria-label="Quick search"
               >
                 <Search className="w-4 h-4 text-emerald-800" />
@@ -694,10 +737,10 @@ export function PortalShell({
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="p-1 rounded-2xl active:scale-90 transition-transform cursor-pointer"
+                  className="p-0.5 rounded-2xl active:scale-90 transition-transform cursor-pointer"
                   aria-label="Open profile menu"
                 >
-                  <Avatar className="w-8 h-8 ring-2 ring-emerald-600/30 shadow-xs">
+                  <Avatar className="w-8 h-8 ring-2 ring-amber-400/50 shadow-xs">
                     {session?.user?.avatarUrl && <AvatarImage src={session.user.avatarUrl} />}
                     <AvatarFallback className="text-white text-xs font-semibold" style={avatarFallbackGradient}>
                       {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
@@ -754,7 +797,7 @@ export function PortalShell({
         </header>
 
         {/* Page Content */}
-        <main className="relative flex-1 pb-28 lg:pb-8">
+        <main className="relative flex-1 pb-32 lg:pb-8">
           <div className="min-h-[calc(100vh-4rem)]">
             {/* Ambient glows + geometric pattern */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -778,18 +821,115 @@ export function PortalShell({
           </div>
         </main>
 
-        {/* ── Apple-tier Floating Mobile Navigation Island (Glass Dock) ── */}
+        {/* ── Innovative Radial Quick-Command Deck (Pop-over Above Dock) ── */}
+        {quickCommandOpen && (
+          <>
+            <div
+              className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
+              onClick={() => setQuickCommandOpen(false)}
+            />
+            <div className="lg:hidden fixed bottom-24 inset-x-4 max-w-sm mx-auto z-50 animate-spring-up">
+              <div className="p-4 rounded-3xl bg-slate-950/95 border border-amber-400/40 shadow-[0_20px_60px_rgba(0,0,0,0.7)] text-white backdrop-blur-2xl">
+                {/* Header with Live Status Banner */}
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-amber-400/20 text-amber-300">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-white tracking-wide uppercase">Fatimi Command HUD</h3>
+                      <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                        <Radio className="w-3 h-3 animate-pulse" />
+                        2 Hikvision Terminals Live
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center active:scale-95"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Quick Action Matrix Grid */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <Link
+                    href={role === "ADMIN" ? "/admin/attendance" : role === "TEACHER" ? "/teacher/attendance" : "/talabat/attendance"}
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-500/20 text-emerald-300 mb-1.5 group-hover:scale-110 transition-transform">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-white leading-tight">Live Attendance</span>
+                    <span className="text-[9px] text-white/60 mt-0.5">Realtime Roster</span>
+                  </Link>
+
+                  <Link
+                    href={role === "ADMIN" ? "/admin/attendance-logs" : role === "TEACHER" ? "/teacher/hifz" : "/talabat/hifz"}
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/20 text-amber-300 mb-1.5 group-hover:scale-110 transition-transform">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-white leading-tight">Google Sheets</span>
+                    <span className="text-[9px] text-white/60 mt-0.5">Online Sync</span>
+                  </Link>
+
+                  <Link
+                    href={role === "ADMIN" ? "/admin/biometric" : role === "TEACHER" ? "/teacher/leaves" : "/talabat/leave"}
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-cyan-500/20 text-cyan-300 mb-1.5 group-hover:scale-110 transition-transform">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-white leading-tight">
+                      {role === "ADMIN" ? "Biometric Cloud" : "Leave System"}
+                    </span>
+                    <span className="text-[9px] text-white/60 mt-0.5">Hardware & Logs</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenSearch}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/20 text-purple-300 mb-1.5 group-hover:scale-110 transition-transform">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold text-white leading-tight">Quick Search</span>
+                    <span className="text-[9px] text-white/60 mt-0.5">⌘K Jump Anywhere</span>
+                  </button>
+                </div>
+
+                {/* Footer Hardware Info Banner */}
+                <div className="px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-between text-[10px]">
+                  <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    Hikvision Push: Active
+                  </span>
+                  <span className="text-white/60 font-mono">Slot #1 HTTPS</span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Revolutionary Apple-tier Floating Dynamic Island Dock ── */}
         <nav
           className="lg:hidden fixed bottom-3 inset-x-3 max-w-sm sm:max-w-md mx-auto z-40 select-none"
           aria-label="Mobile Navigation"
         >
-          <div className="p-1 rounded-[2rem] sm:rounded-full bg-emerald-950/30 backdrop-blur-2xl ring-1 ring-white/25 shadow-[0_16px_45px_rgba(0,0,0,0.38)]">
-            <div className="bg-slate-900/95 dark:bg-emerald-950/95 rounded-[1.75rem] sm:rounded-full px-2 py-1.5 flex items-center justify-around gap-1 text-white">
+          <div className="p-1 rounded-[2.25rem] bg-emerald-950/40 backdrop-blur-2xl ring-1 ring-amber-400/30 shadow-[0_16px_50px_rgba(0,0,0,0.45)]">
+            <div className="bg-slate-950/95 dark:bg-emerald-950/95 rounded-[2rem] px-2 py-1.5 flex items-center justify-between gap-1 text-white">
               {/* 1. Home */}
               <Link
                 href={rootPath}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90",
+                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
                   isActive(rootPath)
                     ? "bg-white/15 text-white font-bold"
                     : "text-white/70 hover:text-white hover:bg-white/5"
@@ -809,7 +949,7 @@ export function PortalShell({
                 <Link
                   href={hubItem.href}
                   className={cn(
-                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90",
+                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
                     isActive(hubItem.href)
                       ? "bg-white/15 text-white font-bold"
                       : "text-white/70 hover:text-white hover:bg-white/5"
@@ -827,42 +967,39 @@ export function PortalShell({
                 </Link>
               )}
 
-              {/* 3. Quick Search Trigger */}
+              {/* 3. Center Glowing Fatimi Command Orb (New & Unique!) */}
+              <button
+                type="button"
+                onClick={() => setQuickCommandOpen(!quickCommandOpen)}
+                className={cn(
+                  "relative -top-4 w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-[0_8px_25px_rgba(212,175,55,0.4)] ring-2 ring-amber-400/80 active:scale-90 transition-all cursor-pointer",
+                  quickCommandOpen ? "rotate-45" : ""
+                )}
+                style={{ background: `linear-gradient(135deg, ${GOLD}, #b8860b)` }}
+                aria-label="Toggle Quick Command Deck"
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-950/20 text-white">
+                  {quickCommandOpen ? <X className="w-5 h-5 text-white" /> : <FatimiLogo size={22} variant="gold" />}
+                </div>
+              </button>
+
+              {/* 4. Quick Search Trigger */}
               <button
                 type="button"
                 onClick={handleOpenSearch}
-                className="flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full text-white/70 hover:text-white hover:bg-white/5 transition-all duration-200 active:scale-90 cursor-pointer"
+                className="flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl text-white/70 hover:text-white hover:bg-white/5 transition-all duration-200 active:scale-90 cursor-pointer"
                 aria-label="Quick Search"
               >
                 <Search className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300" />
                 <span className="text-[10px] tracking-tight mt-0.5 font-medium">Search</span>
               </button>
 
-              {/* 4. Notifications / Alerts */}
-              <Link
-                href="/notifications"
-                className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90",
-                  pathname.startsWith("/notifications")
-                    ? "bg-white/15 text-white font-bold"
-                    : "text-white/70 hover:text-white hover:bg-white/5"
-                )}
-              >
-                <div className="relative">
-                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" style={pathname.startsWith("/notifications") ? { color: GOLD } : undefined} />
-                  {pathname.startsWith("/notifications") && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_6px_#d4af37]" />
-                  )}
-                </div>
-                <span className="text-[10px] tracking-tight mt-0.5 font-medium">Alerts</span>
-              </Link>
-
               {/* 5. Modules Drawer Trigger */}
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl sm:rounded-full transition-all duration-200 active:scale-90 cursor-pointer",
+                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90 cursor-pointer",
                   mobileMenuOpen
                     ? "bg-white/20 text-white font-bold ring-1 ring-white/30"
                     : "text-white/80 hover:text-white hover:bg-white/5"

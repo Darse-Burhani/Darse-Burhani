@@ -381,26 +381,6 @@ function dayStartUTC(d: Date): Date {
 export interface DailySheetData {
   dateKey: string;
   formattedDate: string;
-  header: string[];
-  rows: string[][];
-  summaryRow: (string | number)[];
-  stats: {
-    studentPresent: number;
-    studentLate: number;
-    studentAbsent: number;
-    studentTotal: number;
-    studentRate: number;
-    teacherPresent: number;
-    teacherLate: number;
-    teacherAbsent: number;
-    teacherTotal: number;
-    teacherRate: number;
-  };
-}
-
-export interface DailySheetData {
-  dateKey: string;
-  formattedDate: string;
   allValues: string[][];
   talabatCount: number;
   facultyCount: number;
@@ -426,14 +406,48 @@ export interface DailySheetData {
   };
 }
 
+function resolvePublicImageUrl(photoUrl?: string | null): string | null {
+  if (!photoUrl) return null;
+  const trimmed = photoUrl.trim();
+  if (!trimmed) return null;
+
+  const publicBase = (
+    process.env.CLOUDFLARE_TUNNEL_URL ||
+    process.env.PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    ""
+  ).trim().replace(/\/+$/, "");
+
+  // If already a full URL (http/https)
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.includes("localhost") || trimmed.includes("127.0.0.1")) {
+      if (publicBase && !publicBase.includes("localhost") && !publicBase.includes("127.0.0.1")) {
+        const pathPart = trimmed.replace(/^https?:\/\/[^\/]+/, "");
+        return `${publicBase}${pathPart.startsWith("/") ? "" : "/"}${pathPart}`;
+      }
+      return null;
+    }
+    return trimmed;
+  }
+
+  // If relative path (e.g., /uploads/talabat/...)
+  if (publicBase && !publicBase.includes("localhost") && !publicBase.includes("127.0.0.1")) {
+    const formattedPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return `${publicBase}${formattedPath}`;
+  }
+
+  return null;
+}
+
 function getPhotoFormula(name: string, photoUrl?: string | null, isFaculty?: boolean): string {
-  const cleanUrl = (photoUrl || "").trim();
   const bg = isFaculty ? "1E1B4B" : "042F24";
   const fg = isFaculty ? "FDE047" : "D4AF37";
   const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${fg}&bold=true&size=128`;
   
-  if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-    return `=IFERROR(IMAGE("${cleanUrl}"), IMAGE("${fallbackUrl}"))`;
+  const publicUrl = resolvePublicImageUrl(photoUrl);
+  if (publicUrl) {
+    return `=IFERROR(IMAGE("${publicUrl}"), IMAGE("${fallbackUrl}"))`;
   }
   return `=IMAGE("${fallbackUrl}")`;
 }
@@ -717,14 +731,15 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
 async function ensureTab(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string, title: string): Promise<number | undefined> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" });
   const existing = (meta.data.sheets || []).find((s) => s.properties?.title === title);
-  if (existing?.properties?.sheetId !== undefined) {
+  if (typeof existing?.properties?.sheetId === "number") {
     return existing.properties.sheetId;
   }
   const addRes = await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: { requests: [{ addSheet: { properties: { title } } }] },
   });
-  return addRes.data.replies?.[0]?.addSheet?.properties?.sheetId ?? undefined;
+  const newId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId;
+  return typeof newId === "number" ? newId : undefined;
 }
 
 function sheetTitle(dateKey: string): string {

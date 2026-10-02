@@ -1,5 +1,11 @@
 import { createHash, createDecipheriv } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const prisma = new PrismaClient();
 const ALGO = 'aes-256-gcm';
@@ -37,7 +43,7 @@ function md5(str) {
   return createHash('md5').update(str).digest('hex');
 }
 
-async function digestFetch(url, { method = 'GET', username, password, body, headers = {}, timeoutMs = 8000 }) {
+async function digestFetch(url, { method = 'GET', username, password, body, headers = {}, timeoutMs = 20000 }) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   const initial = await fetch(url, { method, headers, body, signal: controller.signal });
@@ -277,19 +283,23 @@ async function main() {
 
   const devices = await prisma.biometricDevice.findMany();
   for (const dev of devices) {
-    console.log(`\nFetching scans from ${dev.name} (${dev.host})...`);
-    const events = await fetchAllTodayEvents(dev);
-    const attendanceEvents = events.filter(isAttendanceEvent);
-    console.log(`Found ${events.length} total events, ${attendanceEvents.length} attendance face scans.`);
+    try {
+      console.log(`\nFetching scans from ${dev.name} (${dev.host})...`);
+      const events = await fetchAllTodayEvents(dev);
+      const attendanceEvents = events.filter(isAttendanceEvent);
+      console.log(`Found ${events.length} total events, ${attendanceEvents.length} attendance face scans.`);
 
-    let processed = 0;
-    for (const ev of attendanceEvents) {
-      const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
-      const scanDate = parseEventTime(ev.time);
-      const ok = await processScan(empNo, scanDate, dev.host, ev.currentVerifyMode);
-      if (ok) processed++;
+      let processed = 0;
+      for (const ev of attendanceEvents) {
+        const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
+        const scanDate = parseEventTime(ev.time);
+        const ok = await processScan(empNo, scanDate, dev.host, ev.currentVerifyMode);
+        if (ok) processed++;
+      }
+      console.log(`Processed ${processed} valid scans from ${dev.name}.`);
+    } catch (err) {
+      console.warn(`  ⚠️ Could not fetch logs from ${dev.name} (${dev.host}):`, err.message || err);
     }
-    console.log(`Processed ${processed} valid scans from ${dev.name}.`);
   }
 }
 

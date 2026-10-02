@@ -19,13 +19,17 @@ const router = Router();
 /** The externally-reachable webhook URL the device should push events to. */
 function buildPushUrl(req: import("express").Request, deviceIp?: string): string {
   if (process.env.HIKVISION_PUSH_URL) return process.env.HIKVISION_PUSH_URL;
-  if (
-    process.env.NEXT_PUBLIC_APP_URL &&
-    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost") &&
-    !process.env.NEXT_PUBLIC_APP_URL.includes("127.0.0.1")
-  ) {
-    return `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/api/hikvision/events`;
+  const publicBase = (
+    process.env.CLOUDFLARE_TUNNEL_URL ||
+    process.env.PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    ""
+  ).trim().replace(/\/+$/, "");
+
+  if (publicBase && !publicBase.includes("localhost") && !publicBase.includes("127.0.0.1")) {
+    return `${publicBase}/api/hikvision/events`;
   }
+
   const forwardedHost = req.get("x-forwarded-host") || req.get("host");
   if (forwardedHost && !forwardedHost.includes("localhost") && !forwardedHost.includes("127.0.0.1")) {
     const proto = req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
