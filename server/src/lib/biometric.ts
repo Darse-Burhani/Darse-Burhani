@@ -1,6 +1,7 @@
 import prisma from "./prisma";
 import { cache } from "./cache";
 import { appendLocalScanLog } from "./attendance-local-log";
+import { queueAutoSheetSync } from "./google-attendance-sync";
 
 export type ScanOutcome = "MATCHED" | "UNKNOWN" | "NO_CLASS" | "DUPLICATE" | "TOO_EARLY";
 
@@ -1024,6 +1025,9 @@ export async function processBiometricScan(
       cache.invalidateTag("dashboard");
       cache.invalidateTag("stats");
 
+      // Auto-sync daily attendance log to Google Sheet
+      queueAutoSheetSync(when);
+
       // ── Dispatch notification to faculty member ──
       try {
         if (teacher.userId) {
@@ -1283,6 +1287,9 @@ export async function processBiometricScan(
   cache.invalidateTag("attendanceRegistry");
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
+
+  // Auto-sync daily attendance log to Google Sheet
+  queueAutoSheetSync(when);
 
   // ── Dispatch notifications to student and linked parents ──
   try {

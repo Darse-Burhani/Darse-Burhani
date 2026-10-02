@@ -391,7 +391,7 @@ export interface DailySheetData {
   facultySectionRowIndex: number;
   facultyHeaderRowIndex: number;
   facultyStartRowIndex: number;
-  kpiSectionRowIndex: number;
+  footerRowIndex: number;
   stats: {
     studentPresent: number;
     studentLate: number;
@@ -450,6 +450,39 @@ function getPhotoFormula(name: string, photoUrl?: string | null, isFaculty?: boo
     return `=IFERROR(IMAGE("${publicUrl}"), IMAGE("${fallbackUrl}"))`;
   }
   return `=IMAGE("${fallbackUrl}")`;
+}
+
+// ── Automatic Background Sync Queue ───────────────────────────────────────
+
+let autoSyncTimeout: NodeJS.Timeout | null = null;
+let pendingDate: Date | null = null;
+
+/**
+ * Debounced auto-sync to Google Sheet triggered immediately upon biometric scans or manual edits.
+ * Debounced by 5 seconds to batch rapid bursts of scans into a single efficient sheet update.
+ */
+export function queueAutoSheetSync(targetDate?: Date): void {
+  if (process.env.GOOGLE_SHEET_DAILY_SYNC === "false") return;
+  if (!isSheetSyncConfigured()) return;
+
+  pendingDate = targetDate || new Date();
+
+  if (autoSyncTimeout) {
+    clearTimeout(autoSyncTimeout);
+  }
+
+  autoSyncTimeout = setTimeout(async () => {
+    try {
+      const d = pendingDate || new Date();
+      console.log(`[google-sheet-sync] auto-syncing scans for ${d.toISOString().slice(0, 10)} to Google Sheet...`);
+      await syncDailyAttendanceToSheet(d);
+      markSheetSyncRan(d.toISOString().slice(0, 10));
+    } catch (err) {
+      console.warn("[google-sheet-sync] auto-sync notification failed:", (err as Error)?.message);
+    } finally {
+      autoSyncTimeout = null;
+    }
+  }, 5000);
 }
 
 export async function buildDailySheetData(targetDate?: Date): Promise<DailySheetData> {
@@ -639,48 +672,68 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
   const tTotal = teachers.length;
   const sRate = sTotal > 0 ? Math.round(((sP + sL) / sTotal) * 100) : 0;
   const tRate = tTotal > 0 ? Math.round(((tP + tL) / tTotal) * 100) : 0;
+  const overallTotal = sTotal + tTotal;
+  const overallPresent = sP + sL + tP + tL;
+  const overallRate = overallTotal > 0 ? Math.round((overallPresent / overallTotal) * 100) : 0;
   const syncedAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST";
 
-  // Build the complete combined bifurcated worksheet matrix
+  // Build the complete combined bifurcated worksheet matrix with top KPI Executive Summary
   const allValues: string[][] = [];
 
-  // 1. Talabat Section Header
-  const talabatSectionRowIndex = allValues.length;
-  allValues.push([`🎓 TALABAT (STUDENTS) ATTENDANCE ROSTER — ${formattedDate}`, "", "", "", "", "", "", "", "", "", ""]);
+  // ── ROW 1: Executive Title Header ──
+  allValues.push([`DARSE BURHANI — DAILY ATTENDANCE & BIOMETRIC REPORT`, "", "", "", "", "", "", "", "", "", ""]);
   
-  // 2. Talabat Table Header
+  // ── ROW 2: Metadata / Timestamp Subtitle ──
+  allValues.push([`Date: ${formattedDate}  |  Last Synced: ${syncedAt}  |  Auto-Synced via Biometric Cloud Gateway`, "", "", "", "", "", "", "", "", "", ""]);
+  
+  // ── ROW 3: Executive Metric Dashboard Header ──
+  allValues.push([
+    "TALABAT (STUDENTS) SUMMARY", "", "",
+    "FACULTY (STAFF) SUMMARY", "", "", "",
+    "OVERALL INSTITUTION COMPLIANCE", "", "", ""
+  ]);
+
+  // ── ROW 4: Executive Metric Dashboard Values ──
+  allValues.push([
+    `Enrolled: ${sTotal}  |  Present: ${sP}  |  Late: ${sL}  |  Leave: ${sLeave}  |  Absent: ${sA}  |  Turnout: ${sRate}%`, "", "",
+    `Enrolled: ${tTotal}  |  Present: ${tP}  |  Late: ${tL}  |  Leave: ${tLeave}  |  Absent: ${tA}  |  Turnout: ${tRate}%`, "", "", "",
+    `Total Roster: ${overallTotal}  |  Attended: ${overallPresent}  |  Rate: ${overallRate}%  |  Status: ${overallRate >= 80 ? "EXCELLENT" : "ATTENTION"}`, "", "", ""
+  ]);
+
+  // ── ROW 5: Divider Spacer ──
+  allValues.push(["", "", "", "", "", "", "", "", "", "", ""]);
+
+  // ── ROW 6: Talabat Section Header ──
+  const talabatSectionRowIndex = allValues.length;
+  allValues.push([`🎓 TALABAT (STUDENTS) ATTENDANCE ROSTER — ${sTotal} Students (${sP + sL} Present · ${sRate}% Turnout)`, "", "", "", "", "", "", "", "", "", ""]);
+  
+  // ── ROW 7: Talabat Table Header ──
   const talabatHeaderRowIndex = allValues.length;
   allValues.push(TALABAT_HEADER);
   
-  // 3. Talabat Data Rows
+  // ── Talabat Data Rows ──
   const talabatStartRowIndex = allValues.length;
   allValues.push(...talabatDataRows);
 
-  // 4. Spacer
+  // ── Spacer ──
   allValues.push(["", "", "", "", "", "", "", "", "", "", ""]);
 
-  // 5. Faculty Section Header
+  // ── Faculty Section Header ──
   const facultySectionRowIndex = allValues.length;
-  allValues.push([`👨‍🏫 FACULTY (TEACHERS & STAFF) ATTENDANCE ROSTER — ${formattedDate}`, "", "", "", "", "", "", "", "", "", ""]);
+  allValues.push([`👨‍🏫 FACULTY (TEACHERS & STAFF) ATTENDANCE ROSTER — ${tTotal} Members (${tP + tL} Present · ${tRate}% Turnout)`, "", "", "", "", "", "", "", "", "", ""]);
   
-  // 6. Faculty Table Header
+  // ── Faculty Table Header ──
   const facultyHeaderRowIndex = allValues.length;
   allValues.push(FACULTY_HEADER);
   
-  // 7. Faculty Data Rows
+  // ── Faculty Data Rows ──
   const facultyStartRowIndex = allValues.length;
   allValues.push(...facultyDataRows);
 
-  // 8. Spacer
+  // ── Spacer & Footer ──
   allValues.push(["", "", "", "", "", "", "", "", "", "", ""]);
-
-  // 9. Daily KPI Summary Section
-  const kpiSectionRowIndex = allValues.length;
-  allValues.push([`📊 DAILY ATTENDANCE SUMMARY & METRICS — ${formattedDate}`, "", "", "", "", "", "", "", "", "", ""]);
-  allValues.push(["Audience", "Total Roster", "Present (On-Time)", "Late Arrival", "Approved Leave", "Absent", "Attendance Rate %", "Compliance Status", "Synced Timestamp", "", ""]);
-  allValues.push(["Talabat (Students)", String(sTotal), String(sP), String(sL), String(sLeave), String(sA), `${sRate}%`, sRate >= 80 ? "EXCELLENT" : "ATTENTION NEEDED", syncedAt, "", ""]);
-  allValues.push(["Faculty (Staff)", String(tTotal), String(tP), String(tL), String(tLeave), String(tA), `${tRate}%`, tRate >= 80 ? "EXCELLENT" : "ATTENTION NEEDED", syncedAt, "", ""]);
-  allValues.push(["Combined Total", String(sTotal + tTotal), String(sP + tP), String(sL + tL), String(sLeave + tLeave), String(sA + tA), `${Math.round(((sP + sL + tP + tL) / (sTotal + tTotal || 1)) * 100)}%`, "OFFICIAL ARCHIVE", syncedAt, "", ""]);
+  const footerRowIndex = allValues.length;
+  allValues.push([`DARSE BURHANI OFFICIAL ATTENDANCE ARCHIVE — CONFIDENTIAL & PRIVILEGED • GENERATED ${syncedAt}`, "", "", "", "", "", "", "", "", "", ""]);
 
   return {
     dateKey,
@@ -694,7 +747,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     facultySectionRowIndex,
     facultyHeaderRowIndex,
     facultyStartRowIndex,
-    kpiSectionRowIndex,
+    footerRowIndex,
     summaryRow: [
       dateKey,
       sP,
@@ -709,6 +762,8 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       tA,
       tTotal,
       `${tRate}%`,
+      `${overallRate}%`,
+      overallRate >= 80 ? "EXCELLENT" : "ATTENTION",
       syncedAt,
     ],
     stats: {
@@ -782,9 +837,26 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
   if (colA.length === 0) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${SUMMARY_TAB}'!A1:N1`,
+      range: `'${SUMMARY_TAB}'!A1:P1`,
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [SUMMARY_HEADER] },
+      requestBody: { values: [[
+        "Date",
+        "Talabat Present",
+        "Talabat Late",
+        "Talabat Leave",
+        "Talabat Absent",
+        "Talabat Total",
+        "Talabat %",
+        "Faculty Present",
+        "Faculty Late",
+        "Faculty Leave",
+        "Faculty Absent",
+        "Faculty Total",
+        "Faculty %",
+        "Overall %",
+        "Compliance",
+        "Last Synced (IST)",
+      ]] },
     });
   }
   const rowIdx = colA.length === 0 ? 2 : (() => {
@@ -793,26 +865,26 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
   })();
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `'${SUMMARY_TAB}'!A${rowIdx}:N${rowIdx}`,
+    range: `'${SUMMARY_TAB}'!A${rowIdx}:P${rowIdx}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [data.summaryRow] },
   });
 
-  // 3. Apply Rich Professional Google Sheets Formatting
+  // 3. Apply High-End Fatimi Emerald & Gold Formatting
   if (daySheetId !== undefined) {
     try {
       const requests: Array<Record<string, unknown>> = [];
 
-      // A. Freeze Top 2 Rows
+      // A. Freeze Top 7 Rows (Title + Metric Cards + Table Header remain fixed when scrolling!)
       requests.push({
         updateSheetProperties: {
-          properties: { sheetId: daySheetId, gridProperties: { frozenRowCount: 2 } },
+          properties: { sheetId: daySheetId, gridProperties: { frozenRowCount: 7 } },
           fields: "gridProperties.frozenRowCount",
         },
       });
 
-      // B. Custom Column Widths (A: Photo 60px, B: Name 190px, C: Role 90px, D: ITS 105px, E: Class/Dept 140px, F: Date 95px, G: Time 120px, H: Event 130px, I: Status 115px, J: Source 115px, K: Reason 230px)
-      const colWidths = [60, 190, 90, 105, 140, 95, 120, 130, 115, 115, 230];
+      // B. Custom Column Widths (A: Photo 65px, B: Name 200px, C: Role 85px, D: ITS 110px, E: Class 135px, F: Date 95px, G: Time 125px, H: Event 135px, I: Status 115px, J: Source 120px, K: Reason 240px)
+      const colWidths = [65, 200, 85, 110, 135, 95, 125, 135, 115, 120, 240];
       colWidths.forEach((pixelSize, idx) => {
         requests.push({
           updateDimensionProperties: {
@@ -823,7 +895,7 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
         });
       });
 
-      // C. Set Data Row Heights to 46px so photos are crisp and prominent
+      // C. Set Data Row Heights to 46px so photos & text are crisp and prominent
       const talabatEnd = data.talabatStartRowIndex + data.talabatCount;
       if (data.talabatCount > 0) {
         requests.push({
@@ -846,28 +918,115 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
         });
       }
 
-      // D. Format Talabat Section Header (Dark Emerald background, Fatimi Gold text, Bold 11pt, Middle)
+      // D. Merge Title & Header Cells
+      requests.push(
+        // Row 1: Title Banner A1:K1
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } },
+        // Row 2: Subtitle A2:K2
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } },
+        // Row 3: Cards Headers
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 3 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 7 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 7, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } },
+        // Row 4: Cards Values
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 3 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 3, endColumnIndex: 7 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 7, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } },
+        // Talabat Section Header
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: data.talabatSectionRowIndex, endRowIndex: data.talabatSectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } },
+        // Faculty Section Header
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: data.facultySectionRowIndex, endRowIndex: data.facultySectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } },
+        // Footer Row
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: data.footerRowIndex, endRowIndex: data.footerRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 }, mergeType: "MERGE_ALL" } }
+      );
+
+      // E. Style Row 1 (Title: Dark Emerald #042F24, Gold #FDE047, Bold 12pt)
+      requests.push({
+        repeatCell: {
+          range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 11 },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: { red: 0.015, green: 0.184, blue: 0.141 },
+              textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 12 },
+              horizontalAlignment: "CENTER",
+              verticalAlignment: "MIDDLE",
+            },
+          },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        },
+      });
+
+      // F. Style Row 2 (Subtitle: Slate 900 #0F172A, Slate 300 text, 9.5pt)
+      requests.push({
+        repeatCell: {
+          range: { sheetId: daySheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 11 },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 },
+              textFormat: { foregroundColor: { red: 0.8, green: 0.85, blue: 0.9 }, fontSize: 9 },
+              horizontalAlignment: "CENTER",
+              verticalAlignment: "MIDDLE",
+            },
+          },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        },
+      });
+
+      // G. Style Row 3 (Cards Headers)
+      requests.push({
+        repeatCell: {
+          range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 11 },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: { red: 0.12, green: 0.16, blue: 0.23 },
+              textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 9.5 },
+              horizontalAlignment: "CENTER",
+              verticalAlignment: "MIDDLE",
+            },
+          },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        },
+      });
+
+      // H. Style Row 4 (Cards Values)
+      requests.push({
+        repeatCell: {
+          range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 11 },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: { red: 0.95, green: 0.97, blue: 0.98 },
+              textFormat: { foregroundColor: { red: 0.05, green: 0.1, blue: 0.2 }, bold: true, fontSize: 9.5 },
+              horizontalAlignment: "CENTER",
+              verticalAlignment: "MIDDLE",
+            },
+          },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        },
+      });
+
+      // I. Style Talabat Section Header
       requests.push({
         repeatCell: {
           range: { sheetId: daySheetId, startRowIndex: data.talabatSectionRowIndex, endRowIndex: data.talabatSectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 },
           cell: {
             userEnteredFormat: {
-              backgroundColor: { red: 0.015, green: 0.184, blue: 0.141 }, // #042F24
-              textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 11 }, // #FDE047
+              backgroundColor: { red: 0.024, green: 0.306, blue: 0.231 }, // #064E3B
+              textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 11 },
+              horizontalAlignment: "LEFT",
               verticalAlignment: "MIDDLE",
             },
           },
-          fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment)",
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
         },
       });
 
-      // E. Format Talabat Table Header (Slate Dark, White text, Bold 10pt)
+      // J. Style Talabat Table Header
       requests.push({
         repeatCell: {
           range: { sheetId: daySheetId, startRowIndex: data.talabatHeaderRowIndex, endRowIndex: data.talabatHeaderRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 },
           cell: {
             userEnteredFormat: {
-              backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 }, // #0F172A
+              backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 },
               textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10 },
               verticalAlignment: "MIDDLE",
               horizontalAlignment: "CENTER",
@@ -877,7 +1036,7 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
         },
       });
 
-      // F. Format Faculty Section Header (Royal Indigo, Gold text, Bold 11pt)
+      // K. Style Faculty Section Header
       requests.push({
         repeatCell: {
           range: { sheetId: daySheetId, startRowIndex: data.facultySectionRowIndex, endRowIndex: data.facultySectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 },
@@ -885,14 +1044,15 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
             userEnteredFormat: {
               backgroundColor: { red: 0.118, green: 0.106, blue: 0.294 }, // #1E1B4B
               textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 11 },
+              horizontalAlignment: "LEFT",
               verticalAlignment: "MIDDLE",
             },
           },
-          fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment)",
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
         },
       });
 
-      // G. Format Faculty Table Header (Royal Slate, White text, Bold 10pt)
+      // L. Style Faculty Table Header
       requests.push({
         repeatCell: {
           range: { sheetId: daySheetId, startRowIndex: data.facultyHeaderRowIndex, endRowIndex: data.facultyHeaderRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 },
@@ -908,22 +1068,23 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
         },
       });
 
-      // H. Format KPI Summary Section Header
+      // M. Style Footer Row
       requests.push({
         repeatCell: {
-          range: { sheetId: daySheetId, startRowIndex: data.kpiSectionRowIndex, endRowIndex: data.kpiSectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 },
+          range: { sheetId: daySheetId, startRowIndex: data.footerRowIndex, endRowIndex: data.footerRowIndex + 1, startColumnIndex: 0, endColumnIndex: 11 },
           cell: {
             userEnteredFormat: {
-              backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 },
-              textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 11 },
+              backgroundColor: { red: 0.94, green: 0.96, blue: 0.98 },
+              textFormat: { foregroundColor: { red: 0.4, green: 0.45, blue: 0.55 }, italic: true, fontSize: 8.5 },
+              horizontalAlignment: "CENTER",
               verticalAlignment: "MIDDLE",
             },
           },
-          fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment)",
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
         },
       });
 
-      // I. Middle Vertical Align for all Data Cells
+      // N. Vertical Middle Alignment for all cells in sheet
       requests.push({
         repeatCell: {
           range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: data.allValues.length, startColumnIndex: 0, endColumnIndex: 11 },
@@ -934,6 +1095,28 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
           },
           fields: "userEnteredFormat.verticalAlignment",
         },
+      });
+
+      // O. Center Alignment for ID, Class, Time, Window, Status, Verification columns
+      [0, 2, 3, 4, 5, 6, 7, 8, 9].forEach((colIdx) => {
+        if (data.talabatCount > 0) {
+          requests.push({
+            repeatCell: {
+              range: { sheetId: daySheetId, startRowIndex: data.talabatStartRowIndex, endRowIndex: talabatEnd, startColumnIndex: colIdx, endColumnIndex: colIdx + 1 },
+              cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } },
+              fields: "userEnteredFormat.horizontalAlignment",
+            },
+          });
+        }
+        if (data.facultyCount > 0) {
+          requests.push({
+            repeatCell: {
+              range: { sheetId: daySheetId, startRowIndex: data.facultyStartRowIndex, endRowIndex: facultyEnd, startColumnIndex: colIdx, endColumnIndex: colIdx + 1 },
+              cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } },
+              fields: "userEnteredFormat.horizontalAlignment",
+            },
+          });
+        }
       });
 
       await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } as never });

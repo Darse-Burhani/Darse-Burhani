@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { broadcastAttendanceEvent } from "../lib/biometric";
+import { queueAutoSheetSync } from "../lib/google-attendance-sync";
 
 const router = Router();
 
@@ -463,16 +464,19 @@ router.post("/", requireAuth, async (req, res) => {
     // Broadcast live event so open dashboards and logs refresh immediately
     broadcastAttendanceEvent({
       type: "MANUAL_ATTENDANCE_SAVED",
-      role: "STUDENT",
+      role: targetType,
       windowName,
       count: updatedCount,
       date: targetDate.toISOString(),
       actorName,
     });
 
+    // Auto-sync manual attendance entries to Google Sheet
+    queueAutoSheetSync(targetDate);
+
     return res.json({
       success: true,
-      message: `Successfully marked manual attendance for ${updatedCount} student(s) in ${windowName}.`,
+      message: `Successfully marked manual attendance for ${updatedCount} ${targetType === "TEACHER" ? "faculty member(s)" : "student(s)"} in ${windowName}.`,
       data: { updatedCount },
     });
   } catch (error) {

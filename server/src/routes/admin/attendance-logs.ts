@@ -9,6 +9,7 @@ import {
   syncDailyAttendanceToSheet,
   testSheetConnection,
   saveSheetConfiguration,
+  queueAutoSheetSync,
 } from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent } from "../../lib/biometric";
 
@@ -530,6 +531,9 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
         actorName,
       });
 
+      // Auto-sync to Google Sheet
+      queueAutoSheetSync(targetDate);
+
       return res.json({ success: true, data: updated });
     }
 
@@ -587,6 +591,9 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
         date: targetDate.toISOString(),
         actorName,
       });
+
+      // Auto-sync to Google Sheet
+      queueAutoSheetSync(targetDate);
 
       return res.json({ success: true, data: updatedTeacher });
     }
