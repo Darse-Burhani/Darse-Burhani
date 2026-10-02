@@ -17,6 +17,7 @@ import {
   X,
   ExternalLink,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { cn, timeAgo } from "@/lib/utils";
 import { sendDesktopNotification, soundEngine } from "@/lib/notification-sound";
 
@@ -60,6 +61,7 @@ function getTypeColor(type: string) {
 
 export function NotificationBell() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -86,6 +88,7 @@ export function NotificationBell() {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
+    if (status !== "authenticated" || !session?.user) return;
     try {
       const res = await fetch("/api/notifications");
       if (!res.ok) return;
@@ -124,14 +127,19 @@ export function NotificationBell() {
     } catch {
       // silent
     }
-  }, []);
+  }, [status, session]);
 
-  // Poll notifications every 5 seconds for rapid updates
+  // Poll notifications every 10 seconds for rapid updates (only when authenticated)
   useEffect(() => {
+    if (status !== "authenticated" || !session?.user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 5000);
+    const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [status, session, fetchNotifications]);
 
   // Auto-dismiss top banner notification after 9 seconds
   useEffect(() => {

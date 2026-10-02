@@ -25,6 +25,8 @@ router.get("/modules", async (req, res) => {
         include: { portalAssignments: true },
       });
 
+      const globalTeacher = permissions.modules.teacher || {};
+
       if (teacherProfile && teacherProfile.portalAssignments.length > 0) {
         const active = teacherProfile.portalAssignments.filter((a) => a.isActive);
         const hasAll = active.some((a) => a.portalType === "ALL");
@@ -36,27 +38,52 @@ router.get("/modules", async (req, res) => {
             )
           );
 
-          // Build dynamic module availability based on assigned pages
+          // Build dynamic module availability based on assigned pages AND global admin module locks
           teacherModules = {
-            dashboard: true,
-            classes: assignedPages.has("classes"),
-            "attendance-logs": assignedPages.has("attendance-logs") || assignedPages.has("attendance"),
-            attendance: assignedPages.has("attendance-logs") || assignedPages.has("attendance"),
-            leave: assignedPages.has("leave"),
-            "attendance-schedule": assignedPages.has("attendance-schedule"),
-            "email-reports": assignedPages.has("email-reports"),
-            procurement: assignedPages.has("procurement"),
-            quran: assignedPages.has("quran") || assignedPages.has("hifz"),
-            hifz: assignedPages.has("quran") || assignedPages.has("hifz"),
-            takhteet: assignedPages.has("takhteet"),
-            makhzan: assignedPages.has("makhzan"),
-            library: assignedPages.has("library"),
-            profile: assignedPages.has("profile") || true,
+            dashboard: globalTeacher.dashboard !== false,
+            classes: globalTeacher.classes !== false && assignedPages.has("classes"),
+            "attendance-logs": globalTeacher.attendance !== false && (assignedPages.has("attendance-logs") || assignedPages.has("attendance")),
+            attendance: globalTeacher.attendance !== false && (assignedPages.has("attendance-logs") || assignedPages.has("attendance")),
+            "manual-attendance": globalTeacher.attendance !== false && (assignedPages.has("manual-attendance") || assignedPages.has("attendance")),
+            "attendance-schedule": globalTeacher.attendance !== false && (assignedPages.has("attendance-schedule") || assignedPages.has("attendance")),
+            leave: globalTeacher.leave !== false && assignedPages.has("leave"),
+            "email-reports": globalTeacher["email-reports"] !== false && assignedPages.has("email-reports"),
+            procurement: globalTeacher.procurement !== false && assignedPages.has("procurement"),
+            quran: globalTeacher.hifz !== false && (assignedPages.has("quran") || assignedPages.has("hifz")),
+            hifz: globalTeacher.hifz !== false && (assignedPages.has("quran") || assignedPages.has("hifz")),
+            takhteet: globalTeacher.takhteet !== false && assignedPages.has("takhteet"),
+            makhzan: globalTeacher.makhzan !== false && (assignedPages.has("makhzan") || assignedPages.has("library")),
+            library: globalTeacher.library !== false && assignedPages.has("library"),
+            "medical-duty": globalTeacher["medical-duty"] !== false && assignedPages.has("medical-duty"),
+            profile: globalTeacher.profile !== false,
             settings: true,
-            faculty: true,
-            calendar: true,
+            faculty: globalTeacher.faculty !== false,
+            calendar: globalTeacher.calendar !== false,
           };
         }
+      } else {
+        // Teacher has no custom assignments: only base pages (dashboard, profile) are available
+        teacherModules = {
+          dashboard: globalTeacher.dashboard !== false,
+          classes: false,
+          "attendance-logs": false,
+          attendance: false,
+          "manual-attendance": false,
+          "attendance-schedule": false,
+          leave: false,
+          "email-reports": false,
+          procurement: false,
+          quran: false,
+          hifz: false,
+          takhteet: false,
+          makhzan: false,
+          library: false,
+          "medical-duty": false,
+          profile: globalTeacher.profile !== false,
+          settings: true,
+          faculty: globalTeacher.faculty !== false,
+          calendar: globalTeacher.calendar !== false,
+        };
       }
     }
 

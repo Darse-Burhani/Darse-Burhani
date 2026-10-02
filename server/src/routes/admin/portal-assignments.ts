@@ -34,7 +34,9 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
 ];
 
-const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "classes", "manual-attendance", "medical-duty", "takhteet", "quran", "profile"];
+// When a teacher has no explicit portal assignments, only give them the safe minimum.
+// All other pages (classes, hifz, manual-attendance, medical-duty, etc.) must be explicitly assigned.
+const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "profile"];
 
 // GET /api/admin/portal-assignments - List all teachers and their assigned pages
 router.get("/", requireAuth, async (req, res) => {

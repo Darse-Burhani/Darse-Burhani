@@ -36,7 +36,8 @@ const defaultModules: PortalModulesConfig = {
   },
 };
 
-const DEFAULT_TEACHER_BASE_PAGES = ["dashboard", "classes", "takhteet", "quran", "profile"];
+// Minimal safe defaults while permissions load — prevents nav flash for non-assigned pages.
+const DEFAULT_TEACHER_BASE_PAGES = ["dashboard", "profile"];
 
 interface PortalAccessContextType {
   modules: PortalModulesConfig;
@@ -70,9 +71,30 @@ export function normalizePageKey(keyOrPath: string): string {
   return clean;
 }
 
+/**
+ * Maps a nav item key to the equivalent key used in the module config (admin settings).
+ * Nav items sometimes use different keys than the module lock system.
+ *
+ * Admin settings module keys: dashboard, classes, takhteet, attendance, faculty, calendar, hifz, profile
+ * Nav keys that differ:
+ *   "quran" / "hifz-marhala" / "hifz-weekly-slip"  → module key "hifz"
+ *   "manual-attendance" / "attendance-logs" / "attendance-schedule" → module key "attendance"
+ */
+function navKeyToModuleConfigKey(navKey: string): string {
+  if (navKey === "quran" || navKey === "hifz-marhala" || navKey === "hifz-weekly-slip") return "hifz";
+  if (
+    navKey === "manual-attendance" ||
+    navKey === "attendance-logs" ||
+    navKey === "attendance-schedule"
+  )
+    return "attendance";
+  return navKey;
+}
+
 export function PortalAccessProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [modules, setModules] = useState<PortalModulesConfig>(defaultModules);
+  // Start with minimal safe defaults — full page list only after API responds.
   const [assignedPages, setAssignedPages] = useState<string[]>(DEFAULT_TEACHER_BASE_PAGES);
   const [loading, setLoading] = useState(true);
 
@@ -152,7 +174,15 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       const bucket =
         role === "TEACHER" ? modules.teacher : role === "STUDENT" ? modules.talabat : null;
       if (!bucket) return true;
-      return bucket[moduleKey] !== false;
+
+      // Check direct key first
+      if (bucket[moduleKey] === false) return false;
+
+      // Check aliased module config key (nav keys can differ from admin module config keys)
+      const configKey = navKeyToModuleConfigKey(moduleKey);
+      if (configKey !== moduleKey && bucket[configKey] === false) return false;
+
+      return true;
     },
     [modules, session]
   );
@@ -163,28 +193,37 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       if (role === "ADMIN") return true;
       if (role !== "TEACHER") return false;
 
-      // If teacher has ALL assigned
+      // While permissions are still loading, only allow dashboard and profile (no nav flash)
+      if (loading) {
+        const key = normalizePageKey(pageIdOrPath);
+        return key === "dashboard" || key === "profile";
+      }
+
+      // If teacher has ALL pages assigned
       if (assignedPages.includes("ALL") || assignedPages.includes("*")) {
         return true;
       }
 
       const key = normalizePageKey(pageIdOrPath);
-      // Base teacher pages are always available
+      // Dashboard and profile are always accessible
       if (key === "dashboard" || key === "profile") return true;
 
       // Check if normalized key or raw id is in teacher's assigned pages
       if (assignedPages.includes(key)) return true;
       if (assignedPages.includes(pageIdOrPath)) return true;
 
-      // Sub-route synonyms (e.g. hifz <-> quran)
-      if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("hifz-marhala"))) return true;
-      if (key === "hifz-marhala" && (assignedPages.includes("quran") || assignedPages.includes("hifz"))) return true;
-      if (key === "attendance-logs" && assignedPages.includes("attendance")) return true;
-      if (key === "makhzan" && assignedPages.includes("library")) return true;
+      // Sub-route synonyms
+      if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("hifz-marhala") || assignedPages.includes("quran"))) return true;
+      if (key === "hifz-marhala" && (assignedPages.includes("quran") || assignedPages.includes("hifz") || assignedPages.includes("hifz-marhala"))) return true;
+      if (key === "attendance-logs" && (assignedPages.includes("attendance") || assignedPages.includes("attendance-logs"))) return true;
+      if (key === "attendance-schedule" && (assignedPages.includes("attendance") || assignedPages.includes("attendance-schedule"))) return true;
+      if (key === "manual-attendance" && (assignedPages.includes("attendance") || assignedPages.includes("manual-attendance"))) return true;
+      if (key === "medical-duty" && assignedPages.includes("medical-duty")) return true;
+      if (key === "makhzan" && (assignedPages.includes("library") || assignedPages.includes("makhzan"))) return true;
 
       return false;
     },
-    [session, assignedPages]
+    [session, assignedPages, loading]
   );
 
   return (

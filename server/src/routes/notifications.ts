@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware";
 
 const router = Router();
 
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const session = req.auth;
     if (!session?.user?.id) {
