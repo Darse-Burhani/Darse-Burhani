@@ -129,7 +129,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
                 <div key={d.label} className="min-w-0">
                   <div className="flex items-center gap-1.5 mb-1">
                     <d.icon className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                    <span className="text-[11px] font-semibold text-emerald-100/75 truncate">{d.label}</span>
+                    <span className="text-[11px] font-semibold text-emerald-100 truncate">{d.label}</span>
                   </div>
                   <p className="text-sm font-semibold text-white truncate" title={String(d.value)}>
                     {String(d.value)}
