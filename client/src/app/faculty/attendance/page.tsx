@@ -165,21 +165,46 @@ export default function FacultyAttendancePage() {
     loadRoster();
   }, [loadRoster]);
 
-  // Live biometric scan ingestion: roster updates instantly when talabat scan on hardware
+  // Live biometric scan ingestion: roster updates instantly when talabat or faculty scan on hardware/cloud
   useEffect(() => {
     let es: EventSource | null = null;
-    try {
-      es = new EventSource("/api/biometric/events/stream");
-      es.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data);
-          if (ev.type === "MATCHED" || ev.type === "DUPLICATE") {
-            loadRoster();
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      try {
+        es = new EventSource("/api/biometric/events/stream");
+        es.onmessage = (e) => {
+          try {
+            const ev = JSON.parse(e.data);
+            if (ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)) {
+              loadRoster();
+            }
+          } catch {}
+        };
+        es.onerror = () => {
+          try { es?.close(); } catch {}
+          if (!retryTimer) {
+            retryTimer = setTimeout(() => {
+              retryTimer = null;
+              connect();
+            }, 3000);
           }
-        } catch {}
-      };
-    } catch {}
+        };
+      } catch {}
+    };
+
+    connect();
+
+    // Background safety poll every 15s to guarantee fresh attendance on cloud networks
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadRoster();
+      }
+    }, 15000);
+
     return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      clearInterval(pollInterval);
       es?.close();
     };
   }, [loadRoster]);

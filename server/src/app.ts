@@ -113,6 +113,16 @@ export function createApp() {
       threshold: 256, // compress responses > 256B
       filter: (req, res) => {
         if (req.headers["x-no-compression"]) return false;
+        const accept = req.headers.accept || "";
+        if (accept.includes("text/event-stream")) return false;
+        if (
+          req.path.includes("/events/stream") ||
+          req.path.includes("/stream") ||
+          req.path.includes("/sse") ||
+          req.path.includes("/events")
+        ) {
+          return false;
+        }
         return compression.filter(req, res);
       },
     }),

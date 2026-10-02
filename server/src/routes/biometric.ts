@@ -916,16 +916,45 @@ router.get("/records/history", requireRole("ADMIN"), async (req, res) => {
 // GET /api/biometric/events/stream & /api/biometric/sse - Server-Sent Events live feed across portals
 const handleSseStream = (req: import("express").Request, res: import("express").Response) => {
   res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform",
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
+    "Access-Control-Allow-Origin": req.headers.origin || "*",
+    "Access-Control-Allow-Credentials": "true",
   });
+  if (typeof (res as any).flushHeaders === "function") {
+    (res as any).flushHeaders();
+  }
   res.write(": connected\n\n");
+  if (typeof (res as any).flush === "function") {
+    (res as any).flush();
+  }
 
-  const send = (payload: string) => res.write(payload);
+  const send = (payload: string) => {
+    try {
+      res.write(payload);
+      if (typeof (res as any).flush === "function") {
+        (res as any).flush();
+      }
+    } catch {
+      // client disconnected
+    }
+  };
+
   const unsubscribe = subscribeSse(send);
-  const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(": ping\n\n");
+      if (typeof (res as any).flush === "function") {
+        (res as any).flush();
+      }
+    } catch {
+      // ignore
+    }
+  }, 12_000);
 
   req.on("close", () => {
     clearInterval(heartbeat);
@@ -936,6 +965,44 @@ const handleSseStream = (req: import("express").Request, res: import("express").
 router.get("/events/stream", handleSseStream);
 router.get("/stream", handleSseStream);
 router.get("/sse", handleSseStream);
+
+// POST /api/biometric/scan & /api/biometric/ingest - Universal real-time attendance scan ingestion
+router.post(["/scan", "/ingest"], async (req, res) => {
+  try {
+    const {
+      fingerprint,
+      its,
+      itsNumber,
+      studentId,
+      teacherId,
+      employeeId,
+      timestamp,
+      verifyMode = "CARD",
+      deviceId = "web-scanner",
+    } = req.body as Record<string, any>;
+
+    const ref = fingerprint || its || itsNumber || studentId || teacherId || employeeId;
+    if (!ref || typeof ref !== "string" || !ref.trim()) {
+      return res.status(400).json({ success: false, error: "Identification (ITS, Employee ID, or Fingerprint) is required." });
+    }
+
+    const event = await processBiometricScan(
+      ref.trim(),
+      timestamp || new Date().toISOString(),
+      deviceId,
+      verifyMode
+    );
+
+    return res.json({
+      success: true,
+      message: event.message || "Attendance scan recorded successfully.",
+      data: event,
+    });
+  } catch (error) {
+    console.error("Universal biometric scan error:", error);
+    return res.status(500).json({ success: false, error: "Failed to process attendance scan." });
+  }
+});
 
 // GET /api/biometric/network-info - Network LAN IPs and webhook URL for device linking
 router.get("/network-info", requireRole("ADMIN"), (_req, res) => {

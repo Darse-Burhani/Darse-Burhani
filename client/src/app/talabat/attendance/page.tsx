@@ -134,21 +134,46 @@ export default function TalabatAttendancePage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Live biometric scan update: attendance marks in real-time when student scans on hardware
+  // Live biometric scan update: attendance marks in real-time when student scans on hardware/cloud
   useEffect(() => {
     let es: EventSource | null = null;
-    try {
-      es = new EventSource("/api/biometric/events/stream");
-      es.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data);
-          if (ev.type === "MATCHED" || ev.type === "DUPLICATE") {
-            fetchAttendance();
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      try {
+        es = new EventSource("/api/biometric/events/stream");
+        es.onmessage = (e) => {
+          try {
+            const ev = JSON.parse(e.data);
+            if (ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)) {
+              fetchAttendance();
+            }
+          } catch {}
+        };
+        es.onerror = () => {
+          try { es?.close(); } catch {}
+          if (!retryTimer) {
+            retryTimer = setTimeout(() => {
+              retryTimer = null;
+              connect();
+            }, 3000);
           }
-        } catch {}
-      };
-    } catch {}
+        };
+      } catch {}
+    };
+
+    connect();
+
+    // Background safety poll every 15s to guarantee fresh attendance on cloud networks
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchAttendance();
+      }
+    }, 15000);
+
     return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      clearInterval(pollInterval);
       es?.close();
     };
   }, [fetchAttendance]);
