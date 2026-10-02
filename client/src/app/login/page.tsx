@@ -169,16 +169,6 @@ export default function LoginPage() {
     setError("");
   };
 
-  // Quick Persona Auto-Fill
-  const handleApplyDemoPersona = (role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT") => {
-    const targetPortal = portals.find((p) => p.role === role);
-    if (!targetPortal) return;
-    setSelectedRole(role);
-    setEmail(targetPortal.demoAccount.email);
-    setPassword(targetPortal.demoAccount.pass);
-    setError("");
-  };
-
   // ITS Scanner Simulator
   const handleStartScanner = () => {
     setShowScannerModal(true);
@@ -401,30 +391,6 @@ export default function LoginPage() {
                       {portal.description}
                     </p>
                   </div>
-                </div>
-              </div>
-
-              {/* Unique Feature 1: Fast One-Click Demo Persona Fillers */}
-              <div className="mb-4 p-2.5 rounded-xl bg-black/35 border border-white/10 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs text-gray-300 font-semibold">
-                  <Zap size={14} className="text-amber-400 shrink-0" />
-                  <span>Quick Test:</span>
-                </div>
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-                  {portals.map((item) => (
-                    <button
-                      key={item.role}
-                      type="button"
-                      onClick={() => handleApplyDemoPersona(item.role)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                        selectedRole === item.role
-                          ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 shadow-xs"
-                          : "bg-white/5 text-gray-400 hover:text-gray-200 hover:bg-white/10"
-                      }`}
-                    >
-                      {item.shortLabel}
-                    </button>
-                  ))}
                 </div>
               </div>
 
