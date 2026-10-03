@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   CalendarDays,
@@ -25,6 +25,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/student/PageHeader";
+import {
+  isAnyWindowOpen,
+  isFinalAttendanceEvent,
+  type WindowTimes,
+} from "@/lib/attendance-window";
 
 const justificationConfig: Record<string, { label: string; color: string; bg: string }> = {
   PENDING: { label: "Justification pending", color: "text-amber-700", bg: "bg-amber-100" },
@@ -134,10 +139,53 @@ export default function TalabatAttendancePage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
+  // Schedule windows used to gate live pulling: auto-pull runs only while
+  // viewing the current month AND a window is open in IST; paused after
+  // window time passes. Fail-open (null) until loaded. Final/manual events
+  // always pull so finalized marks still land.
+  const scheduleWindowsRef = useRef<WindowTimes[] | null>(null);
+  useEffect(() => {
+    fetch("/api/attendance/manual/schedules")
+      .then((r) => r.json())
+      .then((res) => {
+        const wins = res?.success ? res.data?.scheduledWindows : null;
+        if (Array.isArray(wins)) {
+          const all: WindowTimes[] = [];
+          for (const w of wins) {
+            all.push({
+              startTime: w.startTime,
+              endTime: w.endTime,
+              lateEndTime: w.lateEndTime || w.endTime,
+              enabled: w.enabled,
+            });
+            if (w.facultyStartTime && w.facultyEndTime) {
+              all.push({
+                startTime: w.facultyStartTime,
+                endTime: w.facultyEndTime,
+                lateEndTime: w.facultyLateEndTime || w.facultyEndTime,
+                enabled: w.facultyEnabled ?? w.enabled,
+              });
+            }
+          }
+          scheduleWindowsRef.current = all;
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Live biometric scan update: attendance marks in real-time when student scans on hardware/cloud
   useEffect(() => {
     let es: EventSource | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const shouldLivePull = (evType?: unknown) => {
+      if (isFinalAttendanceEvent(evType)) return true;
+      const now = new Date();
+      if (currentMonth !== now.getMonth() || currentYear !== now.getFullYear()) return false;
+      const wins = scheduleWindowsRef.current;
+      if (!wins) return true;
+      return isAnyWindowOpen(wins);
+    };
 
     const connect = () => {
       try {
@@ -145,7 +193,12 @@ export default function TalabatAttendancePage() {
         es.onmessage = (e) => {
           try {
             const ev = JSON.parse(e.data);
-            if (ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)) {
+            if (isFinalAttendanceEvent(ev?.type)) {
+              fetchAttendance();
+            } else if (
+              shouldLivePull(ev?.type) &&
+              ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)
+            ) {
               fetchAttendance();
             }
           } catch {}
@@ -165,9 +218,12 @@ export default function TalabatAttendancePage() {
     connect();
 
     // Background safety poll every 15s to guarantee fresh attendance on cloud networks
+    // (current month + window open only — paused after window time passes)
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        fetchAttendance();
+        if (shouldLivePull("MATCHED")) {
+          fetchAttendance();
+        }
       }
     }, 15000);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
@@ -31,8 +31,14 @@ import { toast } from "@/components/ui/toast";
 import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
 import { getInitials } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import {
+  isAnyWindowOpen,
+  isFinalAttendanceEvent,
+  localDateString,
+  type WindowTimes,
+} from "@/lib/attendance-window";
 
-type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "EXCUSED";
+type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "ON_LEAVE";
 
 const STATUSES: {
   key: AttendanceStatus;
@@ -75,7 +81,7 @@ const STATUSES: {
     dot: "bg-blue-400",
   },
   {
-    key: "EXCUSED",
+    key: "ON_LEAVE",
     label: "Excused",
     icon: ShieldCheck,
     idle: "bg-white text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300",
@@ -97,7 +103,7 @@ const STATUS_DOT: Record<AttendanceStatus, string> = {
   LATE: "bg-amber-400",
   ABSENT: "bg-red-400",
   MEDICAL: "bg-blue-400",
-  EXCUSED: "bg-purple-400",
+  ON_LEAVE: "bg-purple-400",
   EARLY_DEPARTURE: "bg-orange-400",
 };
 
@@ -119,7 +125,7 @@ interface RosterStudent {
 export default function TeacherAttendancePage() {
   const [classes, setClasses] = useState<any[]>([]);
   const [classId, setClassId] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => localDateString());
   const [roster, setRoster] = useState<RosterStudent[]>([]);
   const [query, setQuery] = useState("");
   const [loadingClasses, setLoadingClasses] = useState(true);
@@ -254,7 +260,12 @@ export default function TeacherAttendancePage() {
             avatarUrl: s.avatarUrl || null,
             status: (record?.status as AttendanceStatus) || "PRESENT",
             checkInTime: record?.checkInTime
-              ? new Date(record.checkInTime).toTimeString().slice(0, 5)
+              ? new Date(record.checkInTime).toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                  timeZone: "Asia/Kolkata",
+                })
               : "",
             justificationStatus: record?.justificationStatus || "NONE",
             justification: record?.justification || null,
@@ -272,10 +283,51 @@ export default function TeacherAttendancePage() {
     loadRoster();
   }, [loadRoster]);
 
+  // Schedule windows used to gate live pulling: roster auto-pull runs only
+  // while viewing today AND a window is open in IST; paused after window
+  // time passes. Fail-open (null) until loaded. Final/manual events always pull.
+  const scheduleWindowsRef = useRef<WindowTimes[] | null>(null);
+  useEffect(() => {
+    fetch("/api/attendance/manual/schedules")
+      .then((r) => r.json())
+      .then((res) => {
+        const wins = res?.success ? res.data?.scheduledWindows : null;
+        if (Array.isArray(wins)) {
+          const all: WindowTimes[] = [];
+          for (const w of wins) {
+            all.push({
+              startTime: w.startTime,
+              endTime: w.endTime,
+              lateEndTime: w.lateEndTime || w.endTime,
+              enabled: w.enabled,
+            });
+            if (w.facultyStartTime && w.facultyEndTime) {
+              all.push({
+                startTime: w.facultyStartTime,
+                endTime: w.facultyEndTime,
+                lateEndTime: w.facultyLateEndTime || w.facultyEndTime,
+                enabled: w.facultyEnabled ?? w.enabled,
+              });
+            }
+          }
+          scheduleWindowsRef.current = all;
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Live biometric scan ingestion: roster updates instantly when talabat or faculty scan on hardware/cloud
   useEffect(() => {
     let es: EventSource | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const shouldLivePull = (evType?: unknown) => {
+      if (isFinalAttendanceEvent(evType)) return true;
+      if (date !== localDateString()) return false;
+      const wins = scheduleWindowsRef.current;
+      if (!wins) return true;
+      return isAnyWindowOpen(wins);
+    };
 
     const connect = () => {
       try {
@@ -283,7 +335,12 @@ export default function TeacherAttendancePage() {
         es.onmessage = (e) => {
           try {
             const ev = JSON.parse(e.data);
-            if (ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)) {
+            if (isFinalAttendanceEvent(ev?.type)) {
+              loadRoster();
+            } else if (
+              shouldLivePull(ev?.type) &&
+              ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)
+            ) {
               loadRoster();
             }
           } catch {}
@@ -303,9 +360,12 @@ export default function TeacherAttendancePage() {
     connect();
 
     // Background safety poll every 15s to guarantee fresh attendance on cloud networks
+    // (today + window open only — paused after window time passes)
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        loadRoster();
+        if (shouldLivePull("MATCHED")) {
+          loadRoster();
+        }
       }
     }, 15000);
 
@@ -361,7 +421,7 @@ export default function TeacherAttendancePage() {
       LATE: 0,
       ABSENT: 0,
       MEDICAL: 0,
-      EXCUSED: 0,
+      ON_LEAVE: 0,
       EARLY_DEPARTURE: 0,
     };
     roster.forEach((s) => {
@@ -379,7 +439,7 @@ export default function TeacherAttendancePage() {
       const records = roster.map((s) => ({
         studentId: s.profileId,
         status: s.status,
-        ...(s.checkInTime ? { checkInTime: `${date}T${s.checkInTime}` } : {}),
+        ...(s.checkInTime ? { checkInTime: `${date}T${s.checkInTime}:00+05:30` } : {}),
       }));
       const res = await fetch("/api/attendance/bulk", {
         method: "POST",

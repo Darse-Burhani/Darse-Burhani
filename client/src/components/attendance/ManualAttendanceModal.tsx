@@ -180,11 +180,25 @@ export function ManualAttendanceModal({
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`);
       const json = await res.json();
       if (json.success && json.data) {
+        // Server returns ISO timestamps (UTC). Display them as IST wall-clock
+        // HH:MM so pulled check-in times match what was marked — a raw UTC
+        // slice would shift every faculty time by 5:30 and break event matching.
+        const toISTTime = (iso: string | null): string => {
+          if (!iso) return activeWindow?.startTime || "08:00";
+          const d = new Date(iso);
+          if (Number.isNaN(d.getTime())) return activeWindow?.startTime || "08:00";
+          return d.toLocaleTimeString("en-GB", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZone: "Asia/Kolkata",
+          });
+        };
         setRoster(
           (json.data.roster || []).map((r: any) => ({
             ...r,
             currentStatus: r.status === "NOT_MARKED" ? "PRESENT" : r.status,
-            currentTime: r.checkInTime ? r.checkInTime.slice(11, 16) : (activeWindow?.startTime || "08:00"),
+            currentTime: toISTTime(r.checkInTime),
             customRemarks: r.remarks || "",
           }))
         );
@@ -263,7 +277,11 @@ export function ManualAttendanceModal({
       const records = roster.map((item) => ({
         id: item.id,
         status: item.currentStatus,
-        checkInTime: item.currentTime ? `${date}T${item.currentTime}:00Z` : undefined,
+        // IST wall-clock with +05:30 offset (NOT trailing Z): the server matches
+        // scans to schedule events in IST, so a UTC-suffixed time would shift
+        // the mark 5:30 ahead and land it outside the faculty window as
+        // "General Session" — making manual faculty marks unpullable by event.
+        checkInTime: item.currentTime ? `${date}T${item.currentTime}:00+05:30` : undefined,
         remarks: item.customRemarks ? item.customRemarks.trim() : undefined,
       }));
 

@@ -145,6 +145,10 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
 
     const day = parseDay(date);
 
+    // Sanitize legacy/invalid statuses: the Prisma enum has no EXCUSED —
+    // older clients send it, which would 500 the whole bulk save.
+    const sanitizeStatus = (s: unknown): any => (s === "EXCUSED" ? "ON_LEAVE" : s);
+
     const saved = await prisma.$transaction(
       records.map((r: any) =>
         prisma.attendanceRecord.upsert({
@@ -153,14 +157,14 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
             studentId: r.studentId,
             classId,
             date: day,
-            status: r.status,
+            status: sanitizeStatus(r.status),
             source: AttendanceSource.MANUAL,
             checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
             checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
             recordedById: session.user.id,
           },
           update: {
-            status: r.status,
+            status: sanitizeStatus(r.status),
             source: AttendanceSource.MANUAL,
             checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
             checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
@@ -178,7 +182,7 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
         create: {
           studentId: r.studentId,
           date: day,
-          status: r.status,
+          status: sanitizeStatus(r.status),
           source: AttendanceSource.MANUAL,
           checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
           checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
@@ -186,7 +190,7 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
           recordedById: session.user.id,
         },
         update: {
-          status: r.status,
+          status: sanitizeStatus(r.status),
           source: AttendanceSource.MANUAL,
           checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
           checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,

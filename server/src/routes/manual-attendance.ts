@@ -359,6 +359,10 @@ router.post("/", requireAuth, async (req, res) => {
         actorName,
       });
 
+      // Auto-sync faculty manual marks to Google Sheet (student path already does this;
+      // without it faculty manual attendance never reaches the daily sheet pull).
+      queueAutoSheetSync(targetDate);
+
       return res.json({
         success: true,
         message: `Successfully marked manual attendance for ${updatedCount} faculty member(s).`,

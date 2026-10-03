@@ -386,10 +386,6 @@ export function getISTDetails(date: Date = new Date()) {
   };
 }
 
-export function dayStartUTC(date: Date): Date {
-  return getISTDetails(date).calendarDayUTC;
-}
-
 export function getStartOfDayIST(dateInput: Date | string = new Date()): Date {
   const d = typeof dateInput === "string" ? new Date(dateInput.includes("T") ? dateInput : `${dateInput}T00:00:00Z`) : dateInput;
   const valid = isNaN(d.getTime()) ? new Date() : d;
@@ -973,10 +969,54 @@ export async function processBiometricScan(
         }, when, false);
       }
 
-      // Check if attendance already recorded for this faculty member today
+      // Check if attendance already recorded for this faculty member today.
+      // A genuine scan must always correct an AUTO_SYSTEM absent mark (e.g. the
+      // auto-absent watchdog fired before a late faculty scan arrived) instead
+      // of being swallowed as a duplicate — otherwise late faculty check-ins
+      // after finalization are silently lost and the member stays ABSENT.
       const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
         where: { teacherId_date: { teacherId: teacher.id, date } },
       });
+
+      if (
+        existingTeacherRecord &&
+        existingTeacherRecord.status === "ABSENT" &&
+        existingTeacherRecord.verificationMethod === "AUTO_SYSTEM"
+      ) {
+        const corrected = await prisma.teacherAttendanceRecord.update({
+          where: { teacherId_date: { teacherId: teacher.id, date } },
+          data: {
+            status: teacherStatus,
+            checkInTime: when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? null : method,
+            biometricHash: fingerprint,
+            notes: `Late scan corrected auto-absent (${timeFormatted12} IST via ${method})`,
+          },
+        });
+
+        cache.invalidateTag("teacherAttendanceRecord");
+        cache.invalidateTag("attendanceRecord");
+        cache.invalidateTag("dashboard");
+        cache.invalidateTag("stats");
+
+        queueAutoSheetSync(when);
+
+        return pushEvent({
+          type: "MATCHED",
+          fingerprint,
+          deviceId: deviceId ?? null,
+          role: "TEACHER",
+          teacher: {
+            ...teacherInfo,
+            status: corrected.status as "PRESENT" | "LATE",
+            attendanceId: corrected.id,
+          },
+          message: `Faculty late check-in corrected from ABSENT to ${teacherStatus} for ${teacherInfo.name} at ${timeFormatted12} IST`,
+          verifyMode: method,
+          scanWindow: windowPayload(facultyWindow),
+        }, when, false);
+      }
 
       if (existingTeacherRecord) {
         const firstCheckIn = existingTeacherRecord.checkInTime;

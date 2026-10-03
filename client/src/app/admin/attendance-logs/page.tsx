@@ -39,6 +39,10 @@ import {
   getArchiveStats,
   getAllArchivedDays,
 } from "@/lib/attendance-archive";
+import {
+  isWindowOpenNow,
+  isFinalAttendanceEvent,
+} from "@/lib/attendance-window";
 
 function formatRelative(iso: string | null) {
   if (!iso) return "—";
@@ -244,11 +248,48 @@ export default function AdminAttendanceLogsPage() {
     fetchData(false);
   }, [fetchData]);
 
-  // Live polling — every 4s when enabled, today only
+  // ── Window-aware live pull ──
+  // Auto-pull runs ONLY while the selected event window is open in IST.
+  // After the window time passes, polling + scan-triggered refetch stop and
+  // the finalized roster stays put. Final/manual events (auto-finalize,
+  // overrides, manual saves) always refetch so closing marks still land.
+  // The page re-renders every second (relative-time tick below), so this
+  // flips live the moment a window opens or closes. Fail-open while the
+  // event list hasn't loaded yet.
+  const selectedWindowOpen = (() => {
+    if (date !== todayStr) return false;
+    if (events.length === 0) return true;
+    const list =
+      selectedEventId === "ALL"
+        ? events
+        : events.filter((e) => e.id === selectedEventId);
+    if (list.length === 0) return true;
+    return list.some((e) => {
+      const studentOpen = isWindowOpenNow(e);
+      const facultyTimer =
+        e.facultyStartTime && e.facultyEndTime
+          ? {
+              startTime: e.facultyStartTime,
+              endTime: e.facultyEndTime,
+              lateEndTime: e.facultyLateEndTime || e.facultyEndTime,
+              enabled: e.facultyEnabled ?? e.enabled,
+            }
+          : null;
+      const facultyOpen = facultyTimer ? isWindowOpenNow(facultyTimer) : studentOpen;
+      if (audience === "FACULTY") return facultyOpen;
+      if (audience === "ALL") return studentOpen || facultyOpen;
+      return studentOpen;
+    });
+  })();
+
+  // Live mirror of the window-open flag for the always-connected SSE handler.
+  const windowOpenRef = useRef(true);
+  windowOpenRef.current = selectedWindowOpen;
+
+  // Live polling — every 4s when enabled, today only, window open only
   useEffect(() => {
     if (!isLive) return;
-    const isToday = date === todayStr;
-    if (!isToday) return;
+    if (!selectedWindowOpen) return;
 
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
@@ -258,9 +299,11 @@ export default function AdminAttendanceLogsPage() {
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current);
     };
-  }, [isLive, date, todayStr, fetchData]);
+  }, [isLive, selectedWindowOpen, fetchData]);
 
-  // SSE live trigger — any biometric scan instantly refreshes the log
+  // SSE live trigger — stays connected all day while live; scan events
+  // refresh instantly only while the selected window is open, while
+  // finalize/override/manual-save events always refresh (even after close).
   useEffect(() => {
     if (!isLive) return;
     const isToday = date === todayStr;
@@ -279,8 +322,20 @@ export default function AdminAttendanceLogsPage() {
           }, 3000) as unknown as number;
         }
       };
-      es.onmessage = () => {
-        fetchData(true);
+      es.onmessage = (msg) => {
+        try {
+          const ev = JSON.parse((msg as MessageEvent).data);
+          if (isFinalAttendanceEvent(ev?.type)) {
+            fetchData(true);
+            return;
+          }
+          if (!windowOpenRef.current) return;
+          if (ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)) {
+            fetchData(true);
+          }
+        } catch {
+          if (windowOpenRef.current) fetchData(true);
+        }
       };
     };
     connect();
@@ -371,6 +426,19 @@ export default function AdminAttendanceLogsPage() {
                   <Activity className={`w-3.5 h-3.5 ${livePulse ? "text-emerald-600 animate-bounce" : "text-gray-500"}`} />
                   {totalLiveCount} records • {date}
                 </span>
+              )}
+              {isLive && date === todayStr && events.length > 0 && (
+                selectedWindowOpen ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-400 text-emerald-950">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse" />
+                    Auto-pull live — window open
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/10 text-amber-200 border border-amber-300/30">
+                    <EyeOff className="w-3.5 h-3.5" />
+                    Auto-pull paused — window closed
+                  </span>
+                )
               )}
             </div>
           </div>

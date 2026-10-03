@@ -100,16 +100,18 @@ function eventAudience(w: Record<string, any>): "FACULTY" | "ALL_STUDENTS" | "BO
 // GET /api/biometric/status - Gateway / mock status + counts
 router.get("/status", requireRole("ADMIN"), async (_req, res) => {
   try {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // IST day range — records are keyed by IST calendar day (calendarDayUTC),
+    // so a server-local midnight bound undercounts whenever TZ != Asia/Kolkata.
+    const todayStart = getStartOfDayIST(new Date());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const [scannedToday, fingerprintCount, teacherScannedToday, teacherFingerprintCount] = await Promise.all([
       prisma.attendanceRecord.count({
-        where: { date: { gte: todayStart }, verificationMethod: "BIOMETRIC" },
+        where: { date: { gte: todayStart, lt: todayEnd } },
       }),
       prisma.studentProfile.count({ where: { biometricHash: { not: null } } }),
       prisma.teacherAttendanceRecord.count({
-        where: { date: { gte: todayStart }, verificationMethod: "BIOMETRIC" },
+        where: { date: { gte: todayStart, lt: todayEnd } },
       }),
       prisma.teacherProfile.count({ where: { biometricHash: { not: null } } }),
     ]);
@@ -626,7 +628,7 @@ router.get("/records/today", requireRole("ADMIN"), async (req, res) => {
 
     const [studentRecords, teacherRecords, windows] = await Promise.all([
       prisma.attendanceRecord.findMany({
-        where: { date: { gte: start, lt: end }, verificationMethod: "BIOMETRIC" },
+        where: { date: { gte: start, lt: end } },
         include: {
           student: { include: { user: { select: { firstName: true, lastName: true } } } },
           class: { select: { name: true, subject: true } },
@@ -634,7 +636,10 @@ router.get("/records/today", requireRole("ADMIN"), async (req, res) => {
         orderBy: [{ checkInTime: "desc" }],
       }),
       prisma.teacherAttendanceRecord.findMany({
-        where: { date: { gte: start, lt: end }, verificationMethod: "BIOMETRIC" },
+        // NOTE: no verificationMethod filter — manual, auto-absent, medical and
+        // leave marks must also pull through, otherwise faculty attendance
+        // marked outside a biometric scan never appears in this feed.
+        where: { date: { gte: start, lt: end } },
         include: {
           teacher: { include: { user: { select: { firstName: true, lastName: true } } } },
         },
@@ -765,7 +770,7 @@ router.get("/records/history", requireRole("ADMIN"), async (req, res) => {
 
     const [studentRecords, teacherRecords, windows] = await Promise.all([
       prisma.attendanceRecord.findMany({
-        where: { date: { gte: start, lt: end }, verificationMethod: "BIOMETRIC" },
+        where: { date: { gte: start, lt: end } },
         include: {
           student: { include: { user: { select: { firstName: true, lastName: true } } } },
           class: { select: { name: true, subject: true } },
@@ -774,7 +779,8 @@ router.get("/records/history", requireRole("ADMIN"), async (req, res) => {
         take: limit,
       }),
       prisma.teacherAttendanceRecord.findMany({
-        where: { date: { gte: start, lt: end }, verificationMethod: "BIOMETRIC" },
+        // Same as /records/today: include manual / auto / medical marks.
+        where: { date: { gte: start, lt: end } },
         include: {
           teacher: { include: { user: { select: { firstName: true, lastName: true } } } },
         },

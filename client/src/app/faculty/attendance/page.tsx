@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -20,6 +20,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn, getInitials } from "@/lib/utils";
+import {
+  isAnyWindowOpen,
+  isFinalAttendanceEvent,
+  localDateString,
+  type WindowTimes,
+} from "@/lib/attendance-window";
 
 type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE";
 
@@ -149,7 +155,12 @@ export default function FacultyAttendancePage() {
             avatarUrl: s.avatarUrl || null,
             status: (record?.status as AttendanceStatus) || "PRESENT",
             checkInTime: record?.checkInTime
-              ? new Date(record.checkInTime).toTimeString().slice(0, 5)
+              ? new Date(record.checkInTime).toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                  timeZone: "Asia/Kolkata",
+                })
               : "",
           };
         }),
@@ -165,10 +176,53 @@ export default function FacultyAttendancePage() {
     loadRoster();
   }, [loadRoster]);
 
+  // Schedule windows (Talabat + faculty timers) used to gate live pulling:
+  // roster auto-pull runs only while viewing today AND a window is open in
+  // IST. After window time passes, polling stops. Fail-open (null) until loaded.
+  const scheduleWindowsRef = useRef<WindowTimes[] | null>(null);
+  useEffect(() => {
+    fetch("/api/attendance/manual/schedules")
+      .then((r) => r.json())
+      .then((res) => {
+        const wins = res?.success ? res.data?.scheduledWindows : null;
+        if (Array.isArray(wins)) {
+          const all: WindowTimes[] = [];
+          for (const w of wins) {
+            all.push({
+              startTime: w.startTime,
+              endTime: w.endTime,
+              lateEndTime: w.lateEndTime || w.endTime,
+              enabled: w.enabled,
+            });
+            if (w.facultyStartTime && w.facultyEndTime) {
+              all.push({
+                startTime: w.facultyStartTime,
+                endTime: w.facultyEndTime,
+                lateEndTime: w.facultyLateEndTime || w.facultyEndTime,
+                enabled: w.facultyEnabled ?? w.enabled,
+              });
+            }
+          }
+          scheduleWindowsRef.current = all;
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Live biometric scan ingestion: roster updates instantly when talabat or faculty scan on hardware/cloud
   useEffect(() => {
     let es: EventSource | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Pull only for today while a schedule window is open. Final/manual
+    // events always pull (even after close) so finalized marks still land.
+    const shouldLivePull = (evType?: unknown) => {
+      if (isFinalAttendanceEvent(evType)) return true;
+      if (date !== localDateString()) return false;
+      const wins = scheduleWindowsRef.current;
+      if (!wins) return true;
+      return isAnyWindowOpen(wins);
+    };
 
     const connect = () => {
       try {
@@ -176,7 +230,12 @@ export default function FacultyAttendancePage() {
         es.onmessage = (e) => {
           try {
             const ev = JSON.parse(e.data);
-            if (ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)) {
+            if (isFinalAttendanceEvent(ev?.type)) {
+              loadRoster();
+            } else if (
+              shouldLivePull(ev?.type) &&
+              ev && (ev.type === "MATCHED" || ev.type === "DUPLICATE" || ev.student || ev.teacher || ev.status)
+            ) {
               loadRoster();
             }
           } catch {}
@@ -196,9 +255,12 @@ export default function FacultyAttendancePage() {
     connect();
 
     // Background safety poll every 15s to guarantee fresh attendance on cloud networks
+    // (today + window open only — paused after window time passes)
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        loadRoster();
+        if (shouldLivePull("MATCHED")) {
+          loadRoster();
+        }
       }
     }, 15000);
 
@@ -253,7 +315,7 @@ export default function FacultyAttendancePage() {
       const records = roster.map((s) => ({
         studentId: s.profileId,
         status: s.status,
-        checkInTime: s.checkInTime ? `${date}T${s.checkInTime}` : null,
+        checkInTime: s.checkInTime ? `${date}T${s.checkInTime}:00+05:30` : null,
       }));
       const res = await fetch("/api/attendance/bulk", {
         method: "POST",

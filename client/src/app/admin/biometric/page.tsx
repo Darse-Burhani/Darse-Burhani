@@ -187,13 +187,18 @@ export default function BiometricAdminPage() {
       setTeachers(teaRes.data || []);
       setUnmatched(unRes.data || []);
 
-      // Merge student & teacher logs for today
-      const sLogs: AttendanceLogItem[] = (logRes.data?.records || []).map((r: any) => ({
+      // Merge student & teacher logs for today.
+      // /api/biometric/records/today returns { students, teachers, all }
+      // (legacy shape: { records, teacherRecords }) — accept both so faculty
+      // scans are never silently dropped by a shape mismatch.
+      const rawStudents: any[] = logRes.data?.students || logRes.data?.rawStudents || logRes.data?.records || [];
+      const rawTeachers: any[] = logRes.data?.teachers || logRes.data?.rawTeachers || logRes.data?.teacherRecords || [];
+      const sLogs: AttendanceLogItem[] = rawStudents.map((r: any) => ({
         id: r.id,
-        studentId: r.student?.studentId,
-        name: r.student?.name || "Student",
+        studentId: r.student?.studentId || r.personId,
+        name: r.student?.name || r.name || "Student",
         role: "STUDENT",
-        gradeOrDept: `Grade ${r.student?.grade || ""}-${r.student?.section || ""}`,
+        gradeOrDept: r.student ? `Grade ${r.student?.grade || ""}-${r.student?.section || ""}` : (r.details || `Grade ${r.grade || ""}-${r.section || ""}`),
         status: r.status,
         checkInTime: r.checkInTime,
         verificationMethod: r.verificationMethod,
@@ -201,12 +206,12 @@ export default function BiometricAdminPage() {
         biometricHash: r.biometricHash,
       }));
 
-      const tLogs: AttendanceLogItem[] = (logRes.data?.teacherRecords || []).map((r: any) => ({
+      const tLogs: AttendanceLogItem[] = rawTeachers.map((r: any) => ({
         id: r.id,
-        teacherId: r.teacher?.employeeId,
-        name: r.teacher?.name || "Teacher",
+        teacherId: r.teacher?.employeeId || r.personId,
+        name: r.teacher?.name || r.name || "Teacher",
         role: "TEACHER",
-        gradeOrDept: r.teacher?.department || "Faculty",
+        gradeOrDept: r.teacher?.department || r.details || "Faculty",
         status: r.status,
         checkInTime: r.checkInTime,
         verificationMethod: r.verificationMethod,

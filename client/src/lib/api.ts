@@ -57,6 +57,12 @@ export interface ScheduledEventWindow {
   audience: "ALL_STUDENTS" | "FACULTY" | "ALL";
   status: "ACTIVE" | "UPCOMING" | "CLOSED";
   timeDisplay: string;
+  // Faculty timer of the same unified event (present when the event carries
+  // both Talabat + faculty timings). Used for window-aware faculty pulling.
+  facultyStartTime?: string | null;
+  facultyEndTime?: string | null;
+  facultyLateEndTime?: string | null;
+  facultyEnabled?: boolean;
 }
 
 export interface AttendanceLogRecordItem {
@@ -355,8 +361,6 @@ export async function getAttendanceLogs(params?: {
   return request<AttendanceLogsResponse>(`/api/admin/attendance-logs?${query.toString()}`);
 }
 
-export const getAttendanceRegistry = getAttendanceLogs;
-
 export async function overrideAttendanceLog(payload: {
   studentId?: string;
   teacherId?: string;
@@ -372,13 +376,6 @@ export async function overrideAttendanceLog(payload: {
 }
 
 export const overrideAttendanceRegistry = overrideAttendanceLog;
-
-export async function finalizeEventScans(date?: string): Promise<any> {
-  return request<any>("/api/admin/attendance-logs/finalize-event", {
-    method: "POST",
-    body: JSON.stringify({ date }),
-  });
-}
 
 // ── Google Sheet daily attendance log sync ──
 
@@ -486,6 +483,4 @@ export function getExportAttendanceLogsUrl(params?: {
   if (params?.audience) query.set("audience", params.audience);
   return `/api/admin/attendance-logs/export?${query.toString()}`;
 }
-
-export const getExportAttendanceRegistryUrl = getExportAttendanceLogsUrl;
 
