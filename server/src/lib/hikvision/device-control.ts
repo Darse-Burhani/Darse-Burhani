@@ -448,55 +448,6 @@ export async function deleteUserFromDevice(
 }
 
 /**
- * Deploy / Push Face Image to Device
- */
-export async function deployFaceToDevice(
-  c: HikConnection,
-  employeeNo: string,
-  imageBuffer: Buffer,
-): Promise<{ success: boolean; employeeNo: string; message: string }> {
-  const base = baseUrl(c);
-  const boundary = `----WebKitFormBoundary${Math.random().toString(36).slice(2)}`;
-  const faceDataJson = JSON.stringify({ faceLibType: "blackFD", FDID: "1", FPID: employeeNo });
-
-  const multipartBody = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="FaceDataRecord"; filename="faceData.json"\r\nContent-Type: application/json\r\n\r\n${faceDataJson}\r\n`),
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="img"; filename="face.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`),
-    imageBuffer,
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-
-  const endpoints = [
-    `${base}/ISAPI/Intelligent/FDLib/FaceDataRecord?format=json`,
-    `${base}/ISAPI/AccessControl/FDLib/FaceDataRecord?format=json`,
-    `${base}/ISAPI/AccessControl/UserInfo/FaceData?format=json`,
-  ];
-
-  let lastError = "";
-  for (const url of endpoints) {
-    try {
-      const res = await digestFetch(url, {
-        method: "POST",
-        headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
-        body: multipartBody,
-        username: c.username,
-        password: c.password,
-        timeoutMs: 12000,
-      });
-
-      if (res.ok) {
-        return { success: true, employeeNo, message: `Face photo for ${employeeNo} deployed to terminal successfully.` };
-      }
-      lastError = `HTTP ${res.status}`;
-    } catch (e: any) {
-      lastError = e?.message || String(e);
-    }
-  }
-
-  throw new Error(`Failed to deploy face to terminal: ${lastError}`);
-}
-
-/**
  * Assign / Deploy RFID Card to User on Device
  */
 export async function deployCardToDevice(

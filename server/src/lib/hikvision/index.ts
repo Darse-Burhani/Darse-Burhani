@@ -444,64 +444,6 @@ export async function pullDeviceScansForRange(
   }
 }
 
-/**
- * Fetch and process scans from ALL configured / enabled biometric terminals to portal
- */
-export async function syncAllDevicesScansNow(): Promise<{
-  success: boolean;
-  totalFetched: number;
-  totalProcessed: number;
-  devices: Array<{
-    id: string;
-    name: string;
-    host: string;
-    success: boolean;
-    scansFetched: number;
-    scansProcessed: number;
-    error?: string;
-  }>;
-}> {
-  const devices = await prisma.biometricDevice.findMany({
-    where: { enabled: true },
-    orderBy: { createdAt: "asc" },
-  });
-  const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
-
-  let totalFetched = 0;
-  let totalProcessed = 0;
-  const results: Array<{
-    id: string;
-    name: string;
-    host: string;
-    success: boolean;
-    scansFetched: number;
-    scansProcessed: number;
-    error?: string;
-  }> = [];
-
-  for (const dev of targetDevices) {
-    const res = await syncDeviceScansNow(dev.id);
-    totalFetched += res.scansFetched;
-    totalProcessed += res.scansProcessed;
-    results.push({
-      id: dev.id,
-      name: dev.name,
-      host: dev.host,
-      success: res.success,
-      scansFetched: res.scansFetched,
-      scansProcessed: res.scansProcessed,
-      error: res.error,
-    });
-  }
-
-  return {
-    success: true,
-    totalFetched,
-    totalProcessed,
-    devices: results,
-  };
-}
-
 export async function pullAllDevicesScansForRange(
   fromDate: Date,
   toDate: Date = new Date(),
@@ -760,52 +702,6 @@ export async function fetchMembersFromDevice(id: string): Promise<FetchMembersRe
   };
 }
 
-/**
- * Fetch all enrolled members from ALL terminals to portal
- */
-export async function fetchAllMembersFromAllDevices(): Promise<{
-  success: boolean;
-  totalFound: number;
-  studentsMatched: number;
-  teachersMatched: number;
-  unmatchedCount: number;
-  devices: FetchMembersResult[];
-}> {
-  const devices = await prisma.biometricDevice.findMany({
-    where: { enabled: true },
-    orderBy: { createdAt: "asc" },
-  });
-  const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
-
-  let totalFound = 0;
-  let studentsMatched = 0;
-  let teachersMatched = 0;
-  let unmatchedCount = 0;
-  const deviceReports: FetchMembersResult[] = [];
-
-  for (const dev of targetDevices) {
-    try {
-      const rep = await fetchMembersFromDevice(dev.id);
-      totalFound += rep.totalFound;
-      studentsMatched += rep.studentsMatched;
-      teachersMatched += rep.teachersMatched;
-      unmatchedCount += rep.unmatchedCount;
-      deviceReports.push(rep);
-    } catch (err) {
-      console.error(`[hikvision] Failed to fetch members from ${dev.host}:`, err);
-    }
-  }
-
-  return {
-    success: true,
-    totalFound,
-    studentsMatched,
-    teachersMatched,
-    unmatchedCount,
-    devices: deviceReports,
-  };
-}
-
 export function getStartOfTodayIST(): Date {
   const now = new Date();
   const istFormatter = new Intl.DateTimeFormat("en-IN", {
@@ -989,10 +885,6 @@ export function stopDevicePolling(id: string): void {
     clearInterval(timer);
     timers.delete(id);
   }
-}
-
-export function getPollingDeviceIds(): string[] {
-  return [...timers.keys()];
 }
 
 let supervisorTimer: ReturnType<typeof setInterval> | null = null;

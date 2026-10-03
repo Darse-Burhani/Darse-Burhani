@@ -1,5 +1,6 @@
-# dependencies
-/node_modules
+# dependencies (any level — never commit node_modules or vite caches)
+node_modules/
+.vite/
 /.pnp
 .pnp.js
 .yarn/install-state.gz

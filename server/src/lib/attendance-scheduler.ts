@@ -44,23 +44,6 @@ let lastDailyEmailRunDate: string | null = null;
 // Track which windows have already finalized attendance today (Key: "YYYY-MM-DD:windowId:role")
 const finalizedWindowsToday = new Set<string>();
 
-export function getSchedulerConfig() {
-  return {
-    ...config,
-    lastWeeklyRunDate,
-    lastMonthlyRunDate,
-    lastAutoAbsentRunDate,
-    lastSheetSyncRunDate,
-    lastDailyEmailRunDate,
-    activeWatchdog: true,
-  };
-}
-
-export function updateSchedulerConfig(newCfg: Partial<SchedulerConfig>) {
-  Object.assign(config, newCfg);
-  return getSchedulerConfig();
-}
-
 /** Called by manual sync or automated triggers */
 export function markSheetSyncRan(dateStr = new Date().toISOString().slice(0, 10)) {
   lastSheetSyncRunDate = dateStr;

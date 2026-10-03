@@ -346,21 +346,6 @@ export async function cancelLeaveRequest(leaveId: string, studentId?: string, is
 }
 
 /**
- * Checks if a student has an approved leave for a specific date.
- */
-export async function checkStudentOnLeave(studentId: string, targetDate: Date) {
-  const day = normalizeDateToUTC(targetDate);
-  return prisma.leaveRequest.findFirst({
-    where: {
-      studentId,
-      status: LeaveStatus.APPROVED,
-      startDate: { lte: day },
-      endDate: { gte: day },
-    },
-  });
-}
-
-/**
  * Fetch summary stats for a student's leaves.
  */
 export async function getStudentLeaveSummary(studentId: string) {

@@ -362,32 +362,3 @@ export async function revokeMedicalExemption(id: string, actorId?: string, actor
 
   return updated;
 }
-
-/**
- * Check if student or teacher has an active medical exemption on targetDate.
- */
-export async function checkPersonMedicalExemption(
-  personType: "STUDENT" | "TEACHER",
-  personId: string,
-  targetDate: Date,
-  eventId?: string | null,
-) {
-  const day = normalizeDateToUTC(targetDate);
-  const where: any = {
-    personType,
-    date: day,
-    isActive: true,
-  };
-
-  if (personType === "STUDENT") {
-    where.studentId = personId;
-  } else {
-    where.teacherId = personId;
-  }
-
-  if (eventId) {
-    where.OR = [{ eventId }, { eventId: null }];
-  }
-
-  return prisma.medicalExemption.findFirst({ where });
-}

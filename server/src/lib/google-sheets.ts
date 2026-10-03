@@ -93,21 +93,6 @@ export async function getSheetData(rawInput: string, range?: string, gidParam?: 
   return response.data.values || [];
 }
 
-export async function getSheetMetadata(rawInput: string) {
-  const apiKey = getAuth();
-  const { sheetId } = parseGoogleSheetInput(rawInput);
-  const response = await sheets.spreadsheets.get({
-    auth: apiKey,
-    spreadsheetId: sheetId,
-    fields: "sheets.properties",
-  });
-  return response.data.sheets?.map((s) => ({
-    id: s.properties?.sheetId,
-    title: s.properties?.title,
-    index: s.properties?.index,
-  })) || [];
-}
-
 export function parseSheetRows(rows: string[][]): HifzSheetRow[] {
   if (rows.length < 2) return [];
 
