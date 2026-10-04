@@ -267,11 +267,6 @@ export function ManualAttendanceModal({
       const records = roster.map((item) => ({
         id: item.id,
         status: item.currentStatus,
-        // IST wall-clock with +05:30 offset (NOT trailing Z): the server matches
-        // scans to schedule events in IST, so a UTC-suffixed time would shift
-        // the mark 5:30 ahead and land it outside the faculty window as
-        // "General Session" — making manual faculty marks unpullable by event.
-        checkInTime: item.currentTime ? `${date}T${item.currentTime}:00+05:30` : undefined,
         remarks: item.customRemarks ? item.customRemarks.trim() : undefined,
       }));
 
@@ -384,26 +379,6 @@ export function ManualAttendanceModal({
                 </div>
               </div>
             </div>
-
-            {/* Event Window Active Timing Chip Strip */}
-            {activeWindow && (
-              <div className="flex items-center gap-2 flex-wrap text-xs pt-2 border-t border-emerald-100/80">
-                <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wide">Event Timing:</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold text-[11px] border border-emerald-200">
-                  On-Time: {activeWindow.startTime} – {activeWindow.endTime}
-                </span>
-                {activeWindow.lateEndTime && activeWindow.lateEndTime !== activeWindow.endTime && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono font-bold text-[11px] border border-amber-200">
-                    Late Till: {activeWindow.lateEndTime}
-                  </span>
-                )}
-                {targetType === "TEACHER" && activeWindow.facultyStartTime && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-bold text-[11px] border border-blue-200">
-                    Faculty Shift: {activeWindow.facultyStartTime} – {activeWindow.facultyEndTime}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
 
           {/* ── Date and Filtering Controls ── */}
@@ -612,26 +587,14 @@ export function ManualAttendanceModal({
                     </div>
                   </div>
 
-                  {/* Optional Remarks & Time row */}
+                  {/* Optional Remarks row */}
                   <div className="flex items-center gap-2 pt-1 border-t border-gray-100 text-xs">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Time:</span>
-                    <input
-                      type="time"
-                      value={item.currentTime || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setRoster((prev) =>
-                          prev.map((r) => (r.id === item.id ? { ...r, currentTime: val } : r))
-                        );
-                      }}
-                      className="h-7 px-2 rounded-lg border border-gray-200 bg-white text-xs font-mono font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
                     <input
                       type="text"
-                      placeholder="Optional remarks / reason (e.g. late transport, clinic visit)..."
+                      placeholder="Optional remarks / reason (e.g. late transport, clinic visit, permission)..."
                       value={item.customRemarks || ""}
                       onChange={(e) => updateItemRemarks(item.id, e.target.value)}
-                      className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full h-7 px-2.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
                 </div>

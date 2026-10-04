@@ -9,6 +9,15 @@ import {
   getClientIp,
   resetRateLimits,
 } from "../../lib/security";
+import {
+  getWafStats,
+  getBannedIpsList,
+  getWhitelistedIpsList,
+  banIp,
+  unbanIp,
+  whitelistIp,
+  removeWhitelistIp,
+} from "../../lib/waf";
 
 const router = Router();
 router.use(requireRole("ADMIN"));
@@ -77,6 +86,8 @@ router.get("/overview", async (req, res) => {
   try {
     const policies = getSecurityPolicies();
     const logs = getAuditLogs({ limit: 50 });
+    const wafStats = getWafStats();
+    const bannedIps = getBannedIpsList();
 
     const totalUsers = await prisma.user.count();
     const activeUsers = await prisma.user.count({ where: { isActive: true } });
@@ -89,15 +100,15 @@ router.get("/overview", async (req, res) => {
     const criticalEvents = logs.filter((l) => l.severity === "CRITICAL").length;
 
     // Calculate security score
-    let score = 98;
-    if (!policies.requireStrongPassword) score -= 15;
+    let score = 99;
+    if (!policies.requireStrongPassword) score -= 10;
     if (!policies.twoFactorEnforced) score -= 5;
-    if (criticalEvents > 0) score -= Math.min(10, criticalEvents * 2);
+    if (criticalEvents > 5) score -= Math.min(10, criticalEvents * 2);
 
     res.json({
       success: true,
       data: {
-        securityScore: Math.max(70, score),
+        securityScore: Math.max(75, score),
         totalUsers,
         activeUsers,
         biometricDevices: biometricDeviceCount,
@@ -105,8 +116,11 @@ router.get("/overview", async (req, res) => {
         criticalAlertsCount: criticalEvents,
         policies,
         recentThreats: logs.slice(0, 5),
+        wafStats,
+        bannedIpsCount: bannedIps.length,
         systemStatus: {
-          firewall: "ACTIVE",
+          firewall: "ACTIVE_ENFORCING",
+          wafShield: "ONLINE_PROTECTED",
           rateLimiter: "ONLINE",
           cspPolicy: "ENFORCED",
           jwtEncryption: "HS256_ACTIVE",
@@ -292,4 +306,128 @@ router.post("/rate-limits/reset", (req, res) => {
   }
 });
 
+// ── GET /api/admin/security/waf-stats ──
+router.get("/waf-stats", (_req, res) => {
+  try {
+    const stats = getWafStats();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error("Error fetching WAF stats:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch WAF stats" });
+  }
+});
+
+// ── GET & POST /api/admin/security/banned-ips ──
+router.get("/banned-ips", (_req, res) => {
+  try {
+    const list = getBannedIpsList();
+    res.json({ success: true, data: list });
+  } catch (err) {
+    console.error("Error fetching banned IPs:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch banned IPs" });
+  }
+});
+
+router.post("/banned-ips/ban", (req, res) => {
+  try {
+    const { ip, reason, durationMinutes } = req.body;
+    if (!ip || typeof ip !== "string") {
+      res.status(400).json({ success: false, error: "Valid IP address is required" });
+      return;
+    }
+    banIp(ip.trim(), reason || "Manual administrator ban", durationMinutes ?? 60);
+
+    const adminUser = (req as any).auth?.user;
+    logAuditEvent({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      userName: `${adminUser?.firstName} ${adminUser?.lastName}`,
+      userRole: "ADMIN",
+      action: "IP_MANUALLY_BANNED",
+      category: "SECURITY",
+      severity: "WARN",
+      status: "SUCCESS",
+      ipAddress: getClientIp(req),
+      details: { targetIp: ip, reason, durationMinutes },
+    });
+
+    res.json({ success: true, message: `IP ${ip} has been blocked.` });
+  } catch (err) {
+    console.error("Error banning IP:", err);
+    res.status(500).json({ success: false, error: "Failed to ban IP" });
+  }
+});
+
+router.post("/banned-ips/unban", (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip || typeof ip !== "string") {
+      res.status(400).json({ success: false, error: "Valid IP address is required" });
+      return;
+    }
+    unbanIp(ip.trim());
+
+    const adminUser = (req as any).auth?.user;
+    logAuditEvent({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      userName: `${adminUser?.firstName} ${adminUser?.lastName}`,
+      userRole: "ADMIN",
+      action: "IP_UNBANNED",
+      category: "SECURITY",
+      severity: "INFO",
+      status: "SUCCESS",
+      ipAddress: getClientIp(req),
+      details: { targetIp: ip },
+    });
+
+    res.json({ success: true, message: `IP ${ip} has been unbanned.` });
+  } catch (err) {
+    console.error("Error unbanning IP:", err);
+    res.status(500).json({ success: false, error: "Failed to unban IP" });
+  }
+});
+
+// ── GET & POST /api/admin/security/whitelisted-ips ──
+router.get("/whitelisted-ips", (_req, res) => {
+  try {
+    const list = getWhitelistedIpsList();
+    res.json({ success: true, data: list });
+  } catch (err) {
+    console.error("Error fetching whitelisted IPs:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch whitelisted IPs" });
+  }
+});
+
+router.post("/whitelisted-ips/add", (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip || typeof ip !== "string") {
+      res.status(400).json({ success: false, error: "Valid IP address is required" });
+      return;
+    }
+    whitelistIp(ip.trim());
+    res.json({ success: true, message: `IP ${ip} added to whitelist.` });
+  } catch (err) {
+    console.error("Error adding IP to whitelist:", err);
+    res.status(500).json({ success: false, error: "Failed to whitelist IP" });
+  }
+});
+
+router.post("/whitelisted-ips/remove", (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip || typeof ip !== "string") {
+      res.status(400).json({ success: false, error: "Valid IP address is required" });
+      return;
+    }
+    removeWhitelistIp(ip.trim());
+    res.json({ success: true, message: `IP ${ip} removed from whitelist.` });
+  } catch (err) {
+    console.error("Error removing IP from whitelist:", err);
+    res.status(500).json({ success: false, error: "Failed to remove IP from whitelist" });
+  }
+});
+
 export default router;
+

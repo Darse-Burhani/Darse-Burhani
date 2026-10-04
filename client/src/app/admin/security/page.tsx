@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   ShieldCheck,
   ShieldAlert,
+  ShieldOff,
   Lock,
   Key,
   Users,
@@ -21,6 +22,12 @@ import {
   Fingerprint,
   Eye,
   Server,
+  Flame,
+  Globe,
+  Ban,
+  Radio,
+  PlusCircle,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +36,36 @@ import { useToast } from "@/components/ui/toast";
 import { useSecurity } from "@/components/security/SecurityGuardLayout";
 import { cn } from "@/lib/utils";
 
+interface BlockedAttackEvent {
+  id: string;
+  timestamp: string;
+  ip: string;
+  method: string;
+  url: string;
+  category: string;
+  rule: string;
+  matchedValue: string;
+  userAgent?: string;
+  threatScore: number;
+}
+
+interface BannedIpInfo {
+  ip: string;
+  bannedAt: number;
+  expiresAt: number;
+  reason: string;
+  threatScore: number;
+  totalViolations: number;
+}
+
+interface WafStats {
+  totalRequestsChecked: number;
+  totalAttacksBlocked: number;
+  blockedByCategory: Record<string, number>;
+  activeBannedIpsCount: number;
+  recentAttacks: BlockedAttackEvent[];
+}
+
 interface SecurityOverviewData {
   securityScore: number;
   totalUsers: number;
@@ -36,6 +73,8 @@ interface SecurityOverviewData {
   biometricDevices: number;
   failedLogins24h: number;
   criticalAlertsCount: number;
+  bannedIpsCount?: number;
+  wafStats?: WafStats;
   policies: {
     sessionTimeoutMinutes: number;
     inactivityLockMinutes: number;
@@ -57,6 +96,7 @@ interface SecurityOverviewData {
   }>;
   systemStatus: {
     firewall: string;
+    wafShield?: string;
     rateLimiter: string;
     cspPolicy: string;
     jwtEncryption: string;
@@ -114,10 +154,15 @@ interface RbacModule {
 export default function AdminSecurityPage() {
   const { toast } = useToast();
   const { lockNow } = useSecurity();
-  const [activeTab, setActiveTab] = useState<"overview" | "audit-logs" | "sessions" | "rbac" | "policies">("overview");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "waf-shield" | "audit-logs" | "sessions" | "rbac" | "policies"
+  >("overview");
 
   // State
   const [overview, setOverview] = useState<SecurityOverviewData | null>(null);
+  const [wafStats, setWafStats] = useState<WafStats | null>(null);
+  const [bannedIps, setBannedIps] = useState<BannedIpInfo[]>([]);
+  const [whitelistedIps, setWhitelistedIps] = useState<string[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [rbacModules, setRbacModules] = useState<RbacModule[]>([]);
@@ -125,6 +170,13 @@ export default function AdminSecurityPage() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [savingPolicies, setSavingPolicies] = useState(false);
+  const [wafActionLoading, setWafActionLoading] = useState(false);
+
+  // Manual Ban & Whitelist Form State
+  const [banInputIp, setBanInputIp] = useState("");
+  const [banInputReason, setBanInputReason] = useState("");
+  const [banInputMinutes, setBanInputMinutes] = useState(60);
+  const [whitelistInputIp, setWhitelistInputIp] = useState("");
 
   // Filters for audit logs
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,15 +186,22 @@ export default function AdminSecurityPage() {
   const loadData = async () => {
     try {
       setRefreshing(true);
-      const [overviewRes, logsRes, sessionsRes, rbacRes, policiesRes] = await Promise.all([
-        fetch("/api/admin/security/overview").then((r) => r.json()),
-        fetch("/api/admin/security/audit-logs").then((r) => r.json()),
-        fetch("/api/admin/security/sessions").then((r) => r.json()),
-        fetch("/api/admin/security/rbac-matrix").then((r) => r.json()),
-        fetch("/api/admin/security/policies").then((r) => r.json()),
-      ]);
+      const [overviewRes, wafRes, bannedRes, whitelistRes, logsRes, sessionsRes, rbacRes, policiesRes] =
+        await Promise.all([
+          fetch("/api/admin/security/overview").then((r) => r.json()),
+          fetch("/api/admin/security/waf-stats").then((r) => r.json()),
+          fetch("/api/admin/security/banned-ips").then((r) => r.json()),
+          fetch("/api/admin/security/whitelisted-ips").then((r) => r.json()),
+          fetch("/api/admin/security/audit-logs").then((r) => r.json()),
+          fetch("/api/admin/security/sessions").then((r) => r.json()),
+          fetch("/api/admin/security/rbac-matrix").then((r) => r.json()),
+          fetch("/api/admin/security/policies").then((r) => r.json()),
+        ]);
 
       if (overviewRes.success) setOverview(overviewRes.data);
+      if (wafRes.success) setWafStats(wafRes.data);
+      if (bannedRes.success) setBannedIps(bannedRes.data);
+      if (whitelistRes.success) setWhitelistedIps(whitelistRes.data);
       if (logsRes.success) setAuditLogs(logsRes.data);
       if (sessionsRes.success) setSessions(sessionsRes.data);
       if (rbacRes.success) setRbacModules(rbacRes.data);
@@ -206,6 +265,122 @@ export default function AdminSecurityPage() {
     }
   };
 
+  const handleUnbanIp = async (ip: string) => {
+    try {
+      setWafActionLoading(true);
+      const res = await fetch("/api/admin/security/banned-ips/unban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ title: "IP Unbanned", description: `IP ${ip} has been unblocked.` });
+        setBannedIps((prev) => prev.filter((b) => b.ip !== ip));
+      } else {
+        toast({ title: "Error", description: json.error || "Failed to unban IP", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setWafActionLoading(false);
+    }
+  };
+
+  const handleManualBan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!banInputIp.trim()) return;
+    try {
+      setWafActionLoading(true);
+      const res = await fetch("/api/admin/security/banned-ips/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ip: banInputIp.trim(),
+          reason: banInputReason.trim() || "Manual admin block",
+          durationMinutes: Number(banInputMinutes) || 60,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ title: "IP Blocked", description: `IP ${banInputIp} has been banned.` });
+        setBanInputIp("");
+        setBanInputReason("");
+        loadData();
+      } else {
+        toast({ title: "Error", description: json.error || "Failed to ban IP", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setWafActionLoading(false);
+    }
+  };
+
+  const handleAddWhitelist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!whitelistInputIp.trim()) return;
+    try {
+      setWafActionLoading(true);
+      const res = await fetch("/api/admin/security/whitelisted-ips/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: whitelistInputIp.trim() }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ title: "IP Whitelisted", description: `IP ${whitelistInputIp} is now permanently trusted.` });
+        setWhitelistInputIp("");
+        loadData();
+      } else {
+        toast({ title: "Error", description: json.error || "Failed to whitelist IP", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setWafActionLoading(false);
+    }
+  };
+
+  const handleRemoveWhitelist = async (ip: string) => {
+    try {
+      setWafActionLoading(true);
+      const res = await fetch("/api/admin/security/whitelisted-ips/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ title: "Removed from Whitelist", description: `IP ${ip} removed from trusted whitelist.` });
+        setWhitelistedIps((prev) => prev.filter((item) => item !== ip));
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setWafActionLoading(false);
+    }
+  };
+
+  const handleResetRateLimits = async () => {
+    if (!confirm("Are you sure you want to clear all rate limit counters and temporary lockout buckets?")) {
+      return;
+    }
+    try {
+      setWafActionLoading(true);
+      const res = await fetch("/api/admin/security/rate-limits/reset", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        toast({ title: "Rate Limits Cleared", description: "All client throttling limits have been reset." });
+        loadData();
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to reset rate limits", variant: "destructive" });
+    } finally {
+      setWafActionLoading(false);
+    }
+  };
+
   // Filtered audit logs
   const filteredLogs = useMemo(() => {
     return auditLogs.filter((log) => {
@@ -223,8 +398,6 @@ export default function AdminSecurityPage() {
     });
   }, [auditLogs, searchQuery, severityFilter, categoryFilter]);
 
-  const GOLD = "#d4af37";
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
       {/* ── Page Header ── */}
@@ -236,10 +409,10 @@ export default function AdminSecurityPage() {
             </div>
             <div>
               <h1 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                Security & Access Command
+                Security Wall & Access Command
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Defense headers, RBAC matrix, audit log telemetry, and device session control
+                Active WAF defense, anti-hacking shield, RBAC matrix, and audit telemetry
               </p>
             </div>
           </div>
@@ -273,6 +446,12 @@ export default function AdminSecurityPage() {
       <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-gray-100/80 border border-gray-200 backdrop-blur-sm">
         {[
           { id: "overview", label: "Security Posture", icon: Activity },
+          {
+            id: "waf-shield",
+            label: "WAF & Security Wall",
+            icon: ShieldAlert,
+            count: bannedIps.length > 0 ? bannedIps.length : undefined,
+          },
           { id: "audit-logs", label: "Audit Telemetry", icon: Eye, count: auditLogs.length },
           { id: "sessions", label: "Active Sessions", icon: Laptop, count: sessions.length },
           { id: "rbac", label: "RBAC Matrix", icon: Users },
@@ -324,16 +503,58 @@ export default function AdminSecurityPage() {
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-3xl font-bold font-display text-emerald-950">
-                    {overview?.securityScore ?? 98}%
+                    {overview?.securityScore ?? 99}%
                   </span>
                   <span className="text-xs font-semibold text-emerald-700">Enterprise Grade</span>
                 </div>
                 <div className="w-full bg-emerald-100 h-1.5 rounded-full mt-3 overflow-hidden">
                   <div
                     className="bg-gradient-to-r from-emerald-600 to-amber-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${overview?.securityScore ?? 98}%` }}
+                    style={{ width: `${overview?.securityScore ?? 99}%` }}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-200 bg-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    WAF Attacks Blocked
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-rose-600" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-bold font-display text-gray-900">
+                    {wafStats?.totalAttacksBlocked ?? 0}
+                  </span>
+                  <span className="text-xs text-rose-600 font-semibold">Threats Neutralized</span>
+                </div>
+                <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Deep payload inspection active
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-200 bg-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Banned Malicious IPs
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <Ban className="w-4 h-4 text-amber-600" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-bold font-display text-gray-900">
+                    {bannedIps.length}
+                  </span>
+                  <span className="text-xs text-gray-500">Auto & Manual Locks</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Threat score threshold: 100 pts</p>
               </CardContent>
             </Card>
 
@@ -354,48 +575,8 @@ export default function AdminSecurityPage() {
                   <span className="text-xs text-gray-500">Live Connections</span>
                 </div>
                 <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> All JWT signatures verified
+                  <CheckCircle2 className="w-3.5 h-3.5" /> JWT signature + SameSite cookie
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-200 bg-white">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Failed Logins (24h)
-                  </span>
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold font-display text-gray-900">
-                    {overview?.failedLogins24h ?? 0}
-                  </span>
-                  <span className="text-xs text-gray-500">Throttled</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Rate limiter active on all endpoints</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-200 bg-white">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Biometric Endpoints
-                  </span>
-                  <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <Fingerprint className="w-4 h-4 text-purple-600" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold font-display text-gray-900">
-                    {overview?.biometricDevices ?? 0}
-                  </span>
-                  <span className="text-xs text-gray-500">Terminals</span>
-                </div>
-                <p className="text-xs text-purple-700 mt-2">AES-256 encrypted credentials</p>
               </CardContent>
             </Card>
           </div>
@@ -406,29 +587,47 @@ export default function AdminSecurityPage() {
               <CardHeader className="pb-4">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Server className="w-4 h-4 text-emerald-700" />
-                  Active System Protection Layers
+                  Active Web Security Wall Layers
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Real-time security headers and protocol verification active on this instance
+                  Real-time security headers, deep payload filtering, and firewall rules active on this server
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
                   {
-                    name: "HTTP Defense Headers (OWASP)",
-                    desc: "X-Frame-Options, X-Content-Type-Options, CSP, Referrer-Policy",
+                    name: "Web Application Firewall (WAF) Engine",
+                    desc: "Deep packet inspection for SQLi, XSS, RCE, LFI, and Scanner Bots",
+                    status: "SHIELD ACTIVE",
+                    color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                  },
+                  {
+                    name: "HTTP Armor Headers (OWASP Standards)",
+                    desc: "CSP, X-Frame-Options, X-Content-Type-Options, COOP, CORP, Referrer-Policy",
+                    status: "ENFORCED",
+                    color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                  },
+                  {
+                    name: "Cross-Site Request Forgery (CSRF) Guard",
+                    desc: "Strict Origin and Referer validation on all state-modifying requests",
                     status: "ACTIVE",
                     color: "text-emerald-700 bg-emerald-50 border-emerald-200",
                   },
                   {
-                    name: "Token Bucket Rate Limiter",
-                    desc: "Defends against brute-force login attacks & API hammering",
+                    name: "Sliding-Window Rate Limiter & Lockout",
+                    desc: "Defends against brute-force login attacks, password guessing & API spam",
                     status: "ONLINE",
                     color: "text-emerald-700 bg-emerald-50 border-emerald-200",
                   },
                   {
+                    name: "Dynamic Threat Scoring & Auto-Ban",
+                    desc: "Automatically isolates and bans attacker IPs exceeding threat threshold",
+                    status: "ARMED",
+                    color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                  },
+                  {
                     name: "HttpOnly SameSite Session Cookies",
-                    desc: "Prevents client-side script token theft and CSRF exploits",
+                    desc: "Prevents client-side script token theft and credential exfiltration",
                     status: "ENFORCED",
                     color: "text-emerald-700 bg-emerald-50 border-emerald-200",
                   },
@@ -438,22 +637,16 @@ export default function AdminSecurityPage() {
                     status: "ARMED",
                     color: "text-amber-700 bg-amber-50 border-amber-200",
                   },
-                  {
-                    name: "Role-Based Access Control (RBAC)",
-                    desc: "Strict multi-tenant portal gates (Admin, Teacher, Student, Parent)",
-                    status: "PROTECTED",
-                    color: "text-emerald-700 bg-emerald-50 border-emerald-200",
-                  },
                 ].map((layer, i) => (
                   <div
                     key={i}
                     className="flex items-center justify-between p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 transition-colors"
                   >
                     <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-gray-900">{layer.name}</h4>
-                      <p className="text-[11px] text-gray-500 mt-0.5">{layer.desc}</p>
+                      <h4 className="text-sm font-semibold text-gray-900">{layer.name}</h4>
+                      <p className="text-xs text-gray-500 mt-0.5">{layer.desc}</p>
                     </div>
-                    <Badge variant="outline" className={cn("text-xs font-mono font-bold", layer.color)}>
+                    <Badge variant="outline" className={cn("text-[10px] font-mono uppercase tracking-wide", layer.color)}>
                       {layer.status}
                     </Badge>
                   </div>
@@ -461,54 +654,427 @@ export default function AdminSecurityPage() {
               </CardContent>
             </Card>
 
-            {/* Quick Threat Stream */}
+            {/* Recent Threat Feed */}
             <Card className="border-gray-200">
               <CardHeader className="pb-4">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-amber-600" />
-                  Recent Security Telemetry
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  Recent Security Events
                 </CardTitle>
-                <CardDescription className="text-xs">Latest recorded authentication & access events</CardDescription>
+                <CardDescription className="text-xs">
+                  Latest intercepted attempts and policy alerts
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {auditLogs.slice(0, 5).map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-3 rounded-xl border border-gray-100 bg-white hover:bg-gray-50/80 transition-colors text-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-gray-800 truncate">{log.action}</span>
-                      <span
-                        className={cn(
-                          "px-1.5 py-0.5 rounded text-[10px] font-bold",
-                          log.severity === "CRITICAL"
-                            ? "bg-red-100 text-red-800"
-                            : log.severity === "WARN"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800"
-                        )}
-                      >
-                        {log.severity}
-                      </span>
+                {overview?.recentThreats && overview.recentThreats.length > 0 ? (
+                  overview.recentThreats.map((threat) => (
+                    <div
+                      key={threat.id}
+                      className="p-3 rounded-xl border border-gray-100 bg-gray-50/50 space-y-1 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-gray-900">{threat.action}</span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[9px] font-mono",
+                            threat.severity === "CRITICAL"
+                              ? "text-rose-700 bg-rose-50 border-rose-200"
+                              : threat.severity === "WARN"
+                              ? "text-amber-700 bg-amber-50 border-amber-200"
+                              : "text-blue-700 bg-blue-50 border-blue-200"
+                          )}
+                        >
+                          {threat.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                        <span>IP: {threat.ipAddress}</span>
+                        <span>{new Date(threat.timestamp).toLocaleTimeString()}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-gray-500">
-                      <span className="truncate">{log.userEmail || log.ipAddress}</span>
-                      <span className="font-mono text-[10px]">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-xs text-gray-400">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                    No recent security incidents. System operating normally.
                   </div>
-                ))}
+                )}
 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setActiveTab("audit-logs")}
-                  className="w-full mt-2 text-xs text-gray-700"
+                  onClick={() => setActiveTab("waf-shield")}
+                  className="w-full mt-2 text-xs text-emerald-900 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100"
                 >
-                  View Full Audit Telemetry →
+                  Open WAF & Threat Wall →
                 </Button>
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* ── TAB: WAF & SECURITY WALL ── */}
+      {activeTab === "waf-shield" && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Defense Modules Overview Banner */}
+          <Card className="border-emerald-900/20 bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                      <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+                      FIREWALL ACTIVE & ENFORCING
+                    </span>
+                    <span className="text-xs text-emerald-200/70 font-mono">
+                      Inspection Engine: v2.4 Enterprise
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-bold tracking-tight text-amber-200 font-display">
+                    Next-Gen Web Application Security Wall
+                  </h2>
+                  <p className="text-xs sm:text-sm text-emerald-100/80 max-w-2xl">
+                    Every incoming HTTP request, query parameter, header, and JSON payload is inspected in real-time
+                    for SQL injection, XSS cross-site scripting, remote code execution, directory traversal, and
+                    malicious automated scanners.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <Button
+                    onClick={handleResetRateLimits}
+                    disabled={wafActionLoading}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", wafActionLoading && "animate-spin")} />
+                    Reset Rate Limits & Locks
+                  </Button>
+                </div>
+              </div>
+
+              {/* Core Shield Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 pt-6 border-t border-emerald-800/60">
+                {[
+                  { title: "SQLi Shield", desc: "Union, stacked & time injection", state: "Active" },
+                  { title: "XSS Filter", desc: "Script tags, DOM handlers, URIs", state: "Active" },
+                  { title: "RCE Armor", desc: "Shell chaining & subshells", state: "Active" },
+                  { title: "LFI Guard", desc: "Path traversal & config probe", state: "Active" },
+                  { title: "Bot Hunter", desc: "Vulnerability scanners blocked", state: "Active" },
+                  { title: "CSRF Guard", desc: "Origin & Referer verified", state: "Active" },
+                ].map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
+                    <p className="text-xs font-bold text-amber-300">{item.title}</p>
+                    <p className="text-[10px] text-emerald-200/60 mt-0.5 line-clamp-1">{item.desc}</p>
+                    <Badge className="mt-2 text-[9px] bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
+                      {item.state}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attack Statistics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              {
+                title: "SQL Injections",
+                count: wafStats?.blockedByCategory?.SQL_INJECTION ?? 0,
+                color: "text-rose-600",
+                bg: "bg-rose-50",
+              },
+              {
+                title: "XSS Attacks",
+                count: wafStats?.blockedByCategory?.XSS_ATTACK ?? 0,
+                color: "text-amber-600",
+                bg: "bg-amber-50",
+              },
+              {
+                title: "Command Injections",
+                count: wafStats?.blockedByCategory?.COMMAND_INJECTION ?? 0,
+                color: "text-purple-600",
+                bg: "bg-purple-50",
+              },
+              {
+                title: "Path Traversals",
+                count: wafStats?.blockedByCategory?.PATH_TRAVERSAL ?? 0,
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+              },
+              {
+                title: "Malicious Bots",
+                count: wafStats?.blockedByCategory?.MALICIOUS_BOT ?? 0,
+                color: "text-red-600",
+                bg: "bg-red-50",
+              },
+            ].map((stat, i) => (
+              <Card key={i} className="border-gray-200">
+                <CardContent className="p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">{stat.title}</p>
+                  <p className={cn("text-2xl font-bold font-display mt-2", stat.color)}>{stat.count}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Blocked & Logged</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Banned IP Management and Manual Ban Tool */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Active Banned IPs Table */}
+            <Card className="lg:col-span-2 border-gray-200">
+              <CardHeader className="pb-3 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <Ban className="w-4 h-4 text-rose-600" />
+                      Blocked & Banned IP Addresses
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      IPs automatically quarantined by the threat engine or manually blacklisted by administrators
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 font-mono text-xs">
+                    {bannedIps.length} Active Ban{bannedIps.length !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto max-h-80">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-[10px] font-semibold border-b border-gray-200 sticky top-0">
+                      <tr>
+                        <th className="py-2.5 px-4">IP Address</th>
+                        <th className="py-2.5 px-4">Reason / Violation</th>
+                        <th className="py-2.5 px-4">Threat Score</th>
+                        <th className="py-2.5 px-4">Expires</th>
+                        <th className="py-2.5 px-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {bannedIps.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-gray-400">
+                            No IP addresses are currently banned. The perimeter is clean.
+                          </td>
+                        </tr>
+                      ) : (
+                        bannedIps.map((b) => (
+                          <tr key={b.ip} className="hover:bg-gray-50/80 transition-colors">
+                            <td className="py-3 px-4 font-mono font-bold text-gray-900">{b.ip}</td>
+                            <td className="py-3 px-4 max-w-xs text-gray-600 truncate" title={b.reason}>
+                              {b.reason}
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 text-[10px] font-mono">
+                                {b.threatScore} pts
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
+                              {b.expiresAt === Infinity ? "Permanent" : new Date(b.expiresAt).toLocaleTimeString()}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUnbanIp(b.ip)}
+                                disabled={wafActionLoading}
+                                className="text-xs h-7 px-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                              >
+                                Unban
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Manual IP Ban & Whitelist Form */}
+            <div className="space-y-6">
+              <Card className="border-gray-200">
+                <CardHeader className="pb-3 border-b border-gray-100">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4 text-amber-600" />
+                    Manual IP Quarantine
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Instantly block any malicious or suspicious IP address
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <form onSubmit={handleManualBan} className="space-y-3 text-xs">
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Target IP Address</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 198.51.100.45"
+                        value={banInputIp}
+                        onChange={(e) => setBanInputIp(e.target.value)}
+                        required
+                        className="w-full px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Reason for Ban</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Repeated brute force probe"
+                        value={banInputReason}
+                        onChange={(e) => setBanInputReason(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Duration (Minutes, 0 = Permanent)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={banInputMinutes}
+                        onChange={(e) => setBanInputMinutes(parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={wafActionLoading || !banInputIp.trim()}
+                      className="w-full text-xs font-bold bg-rose-700 hover:bg-rose-800 text-white"
+                    >
+                      Enforce IP Ban
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Whitelist Card */}
+              <Card className="border-gray-200">
+                <CardHeader className="pb-3 border-b border-gray-100">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-emerald-600" />
+                    Trusted IP Whitelist
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3 text-xs">
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {whitelistedIps.map((ip) => (
+                      <Badge key={ip} variant="outline" className="font-mono text-[10px] bg-gray-50 flex items-center gap-1">
+                        {ip}
+                        {ip !== "127.0.0.1" && ip !== "::1" && (
+                          <button
+                            onClick={() => handleRemoveWhitelist(ip)}
+                            className="text-gray-400 hover:text-rose-600 ml-1"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <form onSubmit={handleAddWhitelist} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add IP to whitelist"
+                      value={whitelistInputIp}
+                      onChange={(e) => setWhitelistInputIp(e.target.value)}
+                      className="flex-1 px-3 py-1 rounded-lg border border-gray-200 text-xs font-mono"
+                    />
+                    <Button type="submit" size="sm" variant="outline" className="text-xs">
+                      Add
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Live Blocked Attack Stream */}
+          <Card className="border-gray-200">
+            <CardHeader className="pb-3 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-rose-600" />
+                    Live Blocked Attack Stream & Payloads
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Real-time intercept log of malicious requests rejected at the application perimeter
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 font-mono text-xs">
+                  {wafStats?.recentAttacks?.length ?? 0} Recorded In Memory
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50 text-gray-600 uppercase text-[10px] font-semibold border-b border-gray-200 sticky top-0">
+                    <tr>
+                      <th className="py-2.5 px-4">Time</th>
+                      <th className="py-2.5 px-4">Attacker IP</th>
+                      <th className="py-2.5 px-4">Method & URL</th>
+                      <th className="py-2.5 px-4">Category</th>
+                      <th className="py-2.5 px-4">Triggered Rule</th>
+                      <th className="py-2.5 px-4">Matched Payload Sample</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {!wafStats?.recentAttacks || wafStats.recentAttacks.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-gray-400">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                          No malicious payloads detected yet. The Security Wall is scanning all incoming traffic.
+                        </td>
+                      </tr>
+                    ) : (
+                      wafStats.recentAttacks.map((atk) => (
+                        <tr key={atk.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="py-3 px-4 font-mono text-gray-500 whitespace-nowrap">
+                            {new Date(atk.timestamp).toLocaleTimeString()}
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-gray-900">{atk.ip}</td>
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-gray-700 mr-1">{atk.method}</span>
+                            <span className="text-gray-500 font-mono text-[11px] truncate max-w-xs inline-block align-bottom">
+                              {atk.url}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[9px] font-mono",
+                                atk.category === "SQL_INJECTION"
+                                  ? "text-rose-700 bg-rose-50 border-rose-200"
+                                  : atk.category === "XSS_ATTACK"
+                                  ? "text-amber-700 bg-amber-50 border-amber-200"
+                                  : atk.category === "COMMAND_INJECTION"
+                                  ? "text-purple-700 bg-purple-50 border-purple-200"
+                                  : "text-blue-700 bg-blue-50 border-blue-200"
+                              )}
+                            >
+                              {atk.category}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-gray-700 font-semibold">{atk.rule}</td>
+                          <td className="py-3 px-4 font-mono text-[11px] text-rose-700 bg-rose-50/30 rounded max-w-xs truncate" title={atk.matchedValue}>
+                            {atk.matchedValue}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -599,57 +1165,45 @@ export default function AdminSecurityPage() {
                             <div>
                               <p className="font-semibold text-gray-900">{log.userName || log.userEmail}</p>
                               {log.userRole && (
-                                <span className="text-[10px] text-gray-400 font-mono uppercase">
-                                  {log.userRole}
-                                </span>
+                                <span className="text-[10px] text-gray-500 font-mono">{log.userRole}</span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-gray-400">Anonymous / System</span>
+                            <span className="text-gray-400 font-mono">System</span>
                           )}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-mono text-[10px]">
-                            {log.category}
-                          </span>
-                        </td>
+                        <td className="py-3 px-4 font-mono text-[10px] text-gray-600">{log.category}</td>
                         <td className="py-3 px-4">
                           <Badge
                             variant="outline"
                             className={cn(
-                              "text-[10px] font-bold font-mono",
+                              "text-[9px] font-mono",
                               log.severity === "CRITICAL"
-                                ? "bg-red-50 text-red-700 border-red-200"
+                                ? "text-rose-700 bg-rose-50 border-rose-200"
                                 : log.severity === "WARN"
-                                ? "bg-amber-50 text-amber-800 border-amber-200"
-                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                ? "text-amber-700 bg-amber-50 border-amber-200"
+                                : "text-blue-700 bg-blue-50 border-blue-200"
                             )}
                           >
                             {log.severity}
                           </Badge>
                         </td>
                         <td className="py-3 px-4">
-                          <span
+                          <Badge
+                            variant="outline"
                             className={cn(
-                              "inline-flex items-center gap-1 font-semibold",
+                              "text-[9px] font-mono",
                               log.status === "SUCCESS"
-                                ? "text-emerald-700"
+                                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                                 : log.status === "BLOCKED"
-                                ? "text-red-700"
-                                : "text-amber-700"
+                                ? "text-rose-700 bg-rose-50 border-rose-200"
+                                : "text-gray-700 bg-gray-50 border-gray-200"
                             )}
                           >
-                            {log.status === "SUCCESS" ? (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            ) : log.status === "BLOCKED" ? (
-                              <XCircle className="w-3.5 h-3.5" />
-                            ) : (
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            )}
                             {log.status}
-                          </span>
+                          </Badge>
                         </td>
-                        <td className="py-3 px-4 font-mono text-gray-600">{log.ipAddress}</td>
+                        <td className="py-3 px-4 font-mono text-gray-500">{log.ipAddress}</td>
                       </tr>
                     ))
                   )}
@@ -662,163 +1216,84 @@ export default function AdminSecurityPage() {
 
       {/* ── TAB 3: ACTIVE SESSIONS ── */}
       {activeTab === "sessions" && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Active User Sessions & Terminals</h3>
-              <p className="text-xs text-gray-500">
-                Inspect live authentication sessions with ability to revoke compromised devices
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sessions.map((sess) => (
-              <Card
-                key={sess.id}
-                className={cn(
-                  "border transition-all",
-                  sess.isCurrent ? "border-emerald-300 bg-emerald-50/20 shadow-md" : "border-gray-200 bg-white"
-                )}
-              >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm",
-                          sess.isCurrent
-                            ? "bg-emerald-800 text-amber-300"
-                            : "bg-gray-100 text-gray-600 border border-gray-200"
-                        )}
-                      >
-                        {sess.deviceType === "Mobile" ? (
-                          <Smartphone className="w-5 h-5" />
-                        ) : (
-                          <Laptop className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-gray-900">
-                          {sess.user?.firstName} {sess.user?.lastName}
-                        </h4>
-                        <p className="text-xs text-gray-500">{sess.user?.email}</p>
-                      </div>
-                    </div>
-
-                    {sess.isCurrent ? (
-                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
-                        This Device
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] text-gray-500">
-                        Remote
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-gray-600 pt-2 border-t border-gray-100 font-mono">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">IP Address:</span>
-                      <span className="font-semibold text-gray-800">{sess.ipAddress}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Role:</span>
-                      <span className="font-semibold text-gray-800">{sess.user?.role}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Issued:</span>
-                      <span className="text-gray-700">{new Date(sess.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  {!sess.isCurrent && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleRevokeSession(sess.id)}
-                      className="w-full text-xs rounded-xl flex items-center justify-center gap-1.5 mt-2"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      Revoke Device Access
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB 4: RBAC PERMISSION MATRIX ── */}
-      {activeTab === "rbac" && (
         <Card className="border-gray-200 shadow-sm animate-fade-in">
           <CardHeader className="border-b border-gray-100 pb-4">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Users className="w-5 h-5 text-emerald-700" />
-              Role-Based Access Control (RBAC) Permission Matrix
-            </CardTitle>
-            <CardDescription className="text-xs">
-              System access authorization boundaries for each user role
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <Laptop className="w-5 h-5 text-blue-600" />
+                  Active Connected Sessions
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Inspect and terminate live client sessions and device credentials
+                </CardDescription>
+              </div>
+
+              <Badge variant="outline" className="text-blue-700 bg-blue-50 border-blue-200 font-mono text-xs w-fit">
+                {sessions.length} Active Session{sessions.length !== 1 ? "s" : ""}
+              </Badge>
+            </div>
           </CardHeader>
+
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-gray-600 uppercase text-[10px] font-semibold border-b border-gray-200">
                   <tr>
-                    <th className="py-3.5 px-6">Module & Scope</th>
-                    <th className="py-3.5 px-4 text-center font-bold text-emerald-900 bg-emerald-50/50">
-                      👑 Admin
-                    </th>
-                    <th className="py-3.5 px-4 text-center font-bold text-emerald-700">🎓 Teacher</th>
-                    <th className="py-3.5 px-4 text-center font-bold text-violet-700">📖 Talabat</th>
-                    <th className="py-3.5 px-4 text-center font-bold text-rose-700">👨‍👩‍👧 Parent</th>
+                    <th className="py-3 px-4">User</th>
+                    <th className="py-3 px-4">Role</th>
+                    <th className="py-3 px-4">IP Address</th>
+                    <th className="py-3 px-4">Device / Agent</th>
+                    <th className="py-3 px-4">Authenticated At</th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {rbacModules.map((mod, modIdx) => (
-                    <React.Fragment key={modIdx}>
-                      <tr className="bg-gray-50/80">
-                        <td colSpan={5} className="py-2.5 px-6 font-bold text-gray-900 text-xs">
-                          {mod.module}
-                          <span className="ml-2 font-normal text-gray-500 text-[11px]">— {mod.description}</span>
-                        </td>
-                      </tr>
-                      {mod.permissions.map((perm, permIdx) => (
-                        <tr key={permIdx} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="py-3 px-6 text-gray-700 pl-10">{perm.name}</td>
-                          <td className="py-3 px-4 text-center bg-emerald-50/20">
-                            {perm.admin ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600 mx-auto" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-gray-500 mx-auto" />
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {perm.teacher ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600 mx-auto" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-gray-500 mx-auto" />
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {perm.student ? (
-                              <CheckCircle2 className="w-4 h-4 text-violet-600 mx-auto" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-gray-500 mx-auto" />
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {perm.parent ? (
-                              <CheckCircle2 className="w-4 h-4 text-rose-600 mx-auto" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-gray-500 mx-auto" />
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
+                  {sessions.map((sess) => (
+                    <tr key={sess.id} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center text-xs">
+                            {sess.user?.firstName?.[0] || "U"}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {sess.user ? `${sess.user.firstName} ${sess.user.lastName}` : "Authenticated User"}
+                            </p>
+                            <p className="text-[11px] text-gray-500">{sess.user?.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {sess.user?.role || "USER"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-gray-600">{sess.ipAddress}</td>
+                      <td className="py-3 px-4 max-w-xs text-gray-500 truncate" title={sess.userAgent}>
+                        {sess.userAgent}
+                      </td>
+                      <td className="py-3 px-4 text-gray-500 font-mono whitespace-nowrap">
+                        {new Date(sess.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {sess.isCurrent ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
+                            Current Session
+                          </Badge>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRevokeSession(sess.id)}
+                            className="text-xs h-7 px-2.5 text-rose-700 border-rose-200 hover:bg-rose-50"
+                          >
+                            <LogOut className="w-3 h-3 mr-1" />
+                            Revoke
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -827,39 +1302,115 @@ export default function AdminSecurityPage() {
         </Card>
       )}
 
-      {/* ── TAB 5: ACCESS & SECURITY POLICIES ── */}
+      {/* ── TAB 4: RBAC MATRIX ── */}
+      {activeTab === "rbac" && (
+        <Card className="border-gray-200 shadow-sm animate-fade-in">
+          <CardHeader className="border-b border-gray-100 pb-4">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              Role-Based Access Control (RBAC) Authority Matrix
+            </CardTitle>
+            <CardDescription className="text-xs">
+              System access control boundaries enforced by server authentication middleware
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            {rbacModules.map((mod, i) => (
+              <div key={i} className="border border-gray-200 rounded-2xl p-4 bg-gray-50/50 space-y-3">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">{mod.module}</h3>
+                  <p className="text-xs text-gray-500">{mod.description}</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-white text-gray-600 uppercase text-[10px] font-semibold border-y border-gray-200">
+                      <tr>
+                        <th className="py-2.5 px-3">Permission / Capability</th>
+                        <th className="py-2.5 px-3 text-center">Admin</th>
+                        <th className="py-2.5 px-3 text-center">Teacher</th>
+                        <th className="py-2.5 px-3 text-center">Student</th>
+                        <th className="py-2.5 px-3 text-center">Parent</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {mod.permissions.map((perm, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50/50">
+                          <td className="py-2.5 px-3 font-medium text-gray-900">{perm.name}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            {perm.admin ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-gray-300 mx-auto" />
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {perm.teacher ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-gray-300 mx-auto" />
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {perm.student ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-gray-300 mx-auto" />
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {perm.parent ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-gray-300 mx-auto" />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── TAB 5: POLICIES ── */}
       {activeTab === "policies" && policies && (
-        <form onSubmit={handleSavePolicies} className="space-y-6 animate-fade-in max-w-4xl">
-          <Card className="border-gray-200">
+        <form onSubmit={handleSavePolicies}>
+          <Card className="border-gray-200 shadow-sm animate-fade-in">
             <CardHeader className="border-b border-gray-100 pb-4">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-emerald-700" />
-                Security & Authentication Hardening Policies
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-amber-600" />
+                Access & Lockout Policies Configuration
               </CardTitle>
               <CardDescription className="text-xs">
-                Configure auto-lock intervals, brute-force defense limits, and password criteria
+                Fine-tune session lifespans, inactivity sentinels, and brute-force throttling rules
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              {/* Inactivity Screen Lock */}
+              {/* Inactivity Lock */}
               <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                     <Lock className="w-4 h-4 text-amber-600" />
-                    Inactivity Screen Lock
+                    Inactivity Sentinel Screen-Lock
                   </h4>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Automatically blurs and locks portal after idle time
+                    Automatically blurs sensitive student data and requires PIN / password re-entry after idle time
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
-                    min={5}
+                    min={1}
                     max={120}
                     value={policies.inactivityLockMinutes}
                     onChange={(e) =>
-                      setPolicies({ ...policies, inactivityLockMinutes: parseInt(e.target.value) || 15 })
+                      setPolicies({
+                        ...policies,
+                        inactivityLockMinutes: parseInt(e.target.value) || 15,
+                      })
                     }
                     className="w-20 px-3 py-1.5 text-center text-sm font-bold rounded-xl border border-gray-200 bg-white"
                   />
@@ -867,15 +1418,15 @@ export default function AdminSecurityPage() {
                 </div>
               </div>
 
-              {/* Brute-force Lockout threshold */}
+              {/* Max Failed Logins Before Lockout */}
               <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-red-600" />
-                    Max Failed Login Attempts
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    Max Failed Login Attempts Before IP Lockout
                   </h4>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Temporarily blocks IP/account if failed attempts threshold is reached
+                    Temporarily blocks IP from login attempts if exceeded within 1 minute
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

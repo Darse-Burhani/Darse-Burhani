@@ -320,22 +320,33 @@ export function sanitizeInputsMiddleware(req: Request, _res: Response, next: Nex
  * Security Headers Middleware (OWASP recommended defense in depth)
  */
 export function securityHeadersMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // Prevent MIME type sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
+  // Anti-clickjacking
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  // Legacy XSS filter enforcement
   res.setHeader("X-XSS-Protection", "1; mode=block");
+  // Referrer leakage prevention
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+  // Feature/Permissions policy
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), display-capture=()"
+  );
   res.setHeader("X-DNS-Prefetch-Control", "off");
   res.setHeader("X-Download-Options", "noopen");
+  // Cross-Origin Isolation policies
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
 
-  // Content-Security-Policy (allows safe self assets, data URIs, and styled fonts)
+  // Content-Security-Policy (allows safe self assets, data URIs, WebSockets, and Google Fonts)
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' ws: wss:;"
+    "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' ws: wss:; frame-ancestors 'self';"
   );
 
-  // HSTS - only in production over HTTPS
-  if (process.env.NODE_ENV === "production" && req.secure) {
+  // HSTS - in production or when connection is secure
+  if (process.env.NODE_ENV === "production" || req.secure) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   }
 
@@ -343,11 +354,83 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   if (
     req.path.startsWith("/api/admin") ||
     req.path.startsWith("/api/auth") ||
-    req.path.startsWith("/api/points")
+    req.path.startsWith("/api/points") ||
+    req.path.startsWith("/api/talabat") ||
+    req.path.startsWith("/api/teacher") ||
+    req.path.startsWith("/api/parent")
   ) {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
+  }
+
+  next();
+}
+
+/**
+ * CSRF & Origin Guard Middleware
+ * Validates Origin/Referer on state-modifying requests (POST/PUT/PATCH/DELETE) to prevent cross-site request forgery.
+ */
+export function csrfGuardMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const method = req.method.toUpperCase();
+  // Safe HTTP methods do not change state
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    return next();
+  }
+
+  // Exempt external hardware bridges and webhooks that use custom auth or API signatures
+  const path = req.path;
+  if (
+    path.startsWith("/api/hikvision") ||
+    path.startsWith("/api/events") ||
+    path.startsWith("/api/biometric") ||
+    path.startsWith("/api/dev-access")
+  ) {
+    return next();
+  }
+
+  // If request has Authorization: Bearer token, it is a protected API client call
+  if (req.headers.authorization?.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const origin = req.headers["origin"] || req.headers["referer"];
+  if (origin && typeof origin === "string") {
+    try {
+      const originUrl = new URL(origin);
+      const hostHeader = req.headers["host"] || "";
+      const hostWithoutPort = hostHeader.split(":")[0];
+      const originHostWithoutPort = originUrl.hostname;
+
+      // Allow same host or localhost origins
+      const isSameHost = originHostWithoutPort === hostWithoutPort;
+      const isLocalhost =
+        originHostWithoutPort === "localhost" ||
+        originHostWithoutPort === "127.0.0.1" ||
+        originHostWithoutPort === "::1";
+
+      if (!isSameHost && !isLocalhost && process.env.NODE_ENV === "production") {
+        logAuditEvent({
+          action: "CSRF_ORIGIN_BLOCKED",
+          category: "SECURITY",
+          severity: "CRITICAL",
+          status: "BLOCKED",
+          ipAddress: getClientIp(req),
+          userAgent: req.headers["user-agent"],
+          details: { origin, hostHeader, path: req.originalUrl },
+        });
+
+        res.status(403).json({
+          success: false,
+          error: "Cross-Origin Request Blocked: Origin verification failed.",
+        });
+        return;
+      }
+    } catch {
+      // Invalid URL format in Origin/Referer header
+      res.status(400).json({ success: false, error: "Invalid Origin header format" });
+      return;
+    }
   }
 
   next();
@@ -372,3 +455,4 @@ export function requestTimeoutMiddleware(timeoutMs: number = 30000): RequestHand
     next();
   };
 }
+

@@ -62,11 +62,13 @@ import manualAttendanceRoutes from "./routes/manual-attendance";
 import medicalRoutes from "./routes/medical";
 import {
   securityHeadersMiddleware,
+  csrfGuardMiddleware,
   sanitizeInputsMiddleware,
   requestTimeoutMiddleware,
   globalApiRateLimiter,
   createRateLimiter,
 } from "./lib/security";
+import { webApplicationFirewallMiddleware } from "./lib/waf";
 
 // ── Teacher routes ──
 import teacherStudentsRoutes from "./routes/teacher/students";
@@ -105,6 +107,7 @@ const uploadsDir = path.resolve(process.env.UPLOAD_DIR || path.join(repoRoot, "p
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
+  app.disable("x-powered-by");
 
   // 1. Performance Compression Middleware (Gzip/Deflate for fast payload transport)
   app.use(
@@ -136,7 +139,13 @@ export function createApp() {
   // 3. Security Headers & Defense in Depth
   app.use(securityHeadersMiddleware);
 
-  // 4. Input Sanitization (Blocks prototype pollution, null bytes, script tags)
+  // 4. Next-Gen Web Application Firewall (WAF) Engine
+  app.use(webApplicationFirewallMiddleware());
+
+  // 5. CSRF & Cross-Origin Guard
+  app.use(csrfGuardMiddleware);
+
+  // 6. Input Sanitization (Blocks prototype pollution, null bytes, script tags)
   app.use(sanitizeInputsMiddleware);
 
   // 5. Static uploads with aggressive browser caching & stale-while-revalidate

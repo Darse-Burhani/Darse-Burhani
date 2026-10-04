@@ -649,6 +649,30 @@ router.get("/classes", requireRole("ADMIN"), async (_req, res) => {
   }
 });
 
+// GET /api/admin/attendance/schedule/teachers - List all active faculty/teachers
+router.get("/teachers", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const teachers = await prisma.teacherProfile.findMany({
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+      },
+      orderBy: { user: { firstName: "asc" } },
+    });
+    return res.json({
+      success: true,
+      data: teachers.map((t) => ({
+        id: t.id,
+        name: `${t.user.firstName} ${t.user.lastName}`.trim(),
+        email: t.user.email,
+        department: t.department || "Faculty",
+      })),
+    });
+  } catch (error) {
+    console.error("Fetch teachers error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch teachers" });
+  }
+});
+
 // ── 3. EXCEL / CSV DOWNLOAD ──
 
 // GET /api/admin/attendance/schedule/export - Download schedule as Excel sheet

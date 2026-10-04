@@ -17,14 +17,15 @@ import {
   Timer,
   Fingerprint,
   Mail,
-  Stethoscope,
   Radio,
-  Activity,
   Zap,
   Volume2,
   Bell,
   GraduationCap,
   ClipboardCheck,
+  Users,
+  Shield,
+  Layers,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -50,10 +51,19 @@ interface ScanWindow {
   phase?: "ON_TIME" | "LATE" | null;
   durationMinutes: number;
   onTimeMinutes?: number;
-  audience?: string;
+  audience?: "ALL_STUDENTS" | "FACULTY" | "BOTH";
+  hasFacultyTimer?: boolean;
+  facultyStartTime?: string | null;
+  facultyEndTime?: string | null;
+  facultyLateEndTime?: string | null;
+  facultyEnabled?: boolean;
+  facultyStatus?: "ACTIVE" | "UPCOMING" | "CLOSED" | "NONE";
   applicableClassIds?: string[];
+  applicableTeacherIds?: string[];
   exemptStudentIds?: string[];
+  exemptTeacherIds?: string[];
   applicableClasses?: Array<{ id: string; name: string; grade: string; section: string }>;
+  applicableTeachers?: Array<{ id: string; name: string }>;
   windowType?: "HIKVISION" | "MANUAL" | "BOTH";
   createdAt: string;
   updatedAt: string;
@@ -68,6 +78,13 @@ interface ClassItem {
   teacherName: string;
 }
 
+interface TeacherItem {
+  id: string;
+  name: string;
+  email: string;
+  department?: string;
+}
+
 /**
  * Visual Color-Coded Schedule Timeline Bar
  */
@@ -80,7 +97,7 @@ function ScheduleTimelineBar({
   startTime: string;
   endTime: string;
   lateEndTime?: string | null;
-  accent?: "emerald" | "indigo" | "purple";
+  accent?: "emerald" | "indigo" | "purple" | "blue";
 }) {
   const parseMin = (t: string) => {
     if (!t) return 0;
@@ -106,6 +123,8 @@ function ScheduleTimelineBar({
   const gradientClass =
     accent === "purple"
       ? "bg-gradient-to-r from-purple-500 to-indigo-600"
+      : accent === "blue"
+      ? "bg-gradient-to-r from-blue-500 to-indigo-600"
       : accent === "indigo"
       ? "bg-gradient-to-r from-indigo-500 to-indigo-600"
       : "bg-gradient-to-r from-emerald-500 to-teal-500";
@@ -114,25 +133,27 @@ function ScheduleTimelineBar({
     <div className="space-y-1.5 pt-1">
       <div className="flex items-center justify-between text-[10px] font-semibold text-gray-500">
         <span className="flex items-center gap-1 font-mono text-gray-700">
-          <span className={`w-1.5 h-1.5 rounded-full ${accent === "purple" ? "bg-purple-600" : accent === "indigo" ? "bg-indigo-600" : "bg-emerald-600"}`} />
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              accent === "purple"
+                ? "bg-purple-600"
+                : accent === "blue"
+                ? "bg-blue-600"
+                : accent === "indigo"
+                ? "bg-indigo-600"
+                : "bg-emerald-600"
+            }`}
+          />
           {startTime}
         </span>
         <span className="flex items-center gap-1 font-mono text-amber-700">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          {endTime} (On-Time)
+          {lateEndTime || endTime}
         </span>
-        {lateEndTime && lateEndTime !== endTime && (
-          <span className="flex items-center gap-1 font-mono text-rose-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            {lateEndTime} (Cutoff)
-          </span>
-        )}
       </div>
 
-      {/* Segmented Timeline Bar */}
-      <div className="relative h-2.5 w-full rounded-full bg-gray-100 overflow-hidden flex shadow-inner border border-gray-200/60">
+      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden flex shadow-inner border border-gray-200/50">
         <div
-          style={{ width: `${lateDur > 0 ? onTimePct : 100}%` }}
+          style={{ width: `${onTimePct}%` }}
           className={`h-full ${gradientClass} transition-all duration-500`}
           title={`On-Time: ${onTimeDur} min`}
         />
@@ -158,52 +179,36 @@ function ScheduleTimelineBar({
   );
 }
 
-/**
- * Shimmer Loading Skeleton
- */
-function WindowSkeleton() {
-  return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm space-y-4 animate-pulse"
-        >
-          <div className="flex items-center justify-between">
-            <div className="h-5 w-36 bg-gray-200 rounded-lg" />
-            <div className="h-4 w-12 bg-gray-200 rounded-full" />
-          </div>
-          <div className="h-16 bg-gray-100 rounded-xl" />
-          <div className="h-4 w-full bg-gray-100 rounded-full" />
-          <div className="flex justify-between">
-            <div className="h-4 w-20 bg-gray-200 rounded" />
-            <div className="h-4 w-24 bg-gray-200 rounded" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function AdminAttendanceSchedulePage() {
   const [activeTab, setActiveTab] = useState<"HIKVISION" | "MANUAL">("HIKVISION");
+  const [audienceFilter, setAudienceFilter] = useState<"ALL" | "STUDENT" | "TEACHER" | "BOTH">("ALL");
   const [loading, setLoading] = useState(true);
 
   // Scan Windows state
   const [windows, setWindows] = useState<ScanWindow[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [windowModalOpen, setWindowModalOpen] = useState(false);
   const [editingWindow, setEditingWindow] = useState<ScanWindow | null>(null);
+
+  // Form State
   const [windowForm, setWindowForm] = useState({
     name: "",
     windowType: "HIKVISION" as "HIKVISION" | "MANUAL" | "BOTH",
+    audience: "BOTH" as "STUDENT" | "TEACHER" | "BOTH",
     startTime: "07:30",
     endTime: "08:30",
     lateEndTime: "09:00",
     graceMinutes: 10,
     enabled: true,
     applicableClassIds: [] as string[],
+    useCustomFacultyTime: false,
+    facultyStartTime: "07:30",
+    facultyEndTime: "08:30",
+    facultyLateEndTime: "09:00",
+    applicableTeacherIds: [] as string[],
   });
+
   const [savingWindow, setSavingWindow] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -213,16 +218,6 @@ export default function AdminAttendanceSchedulePage() {
   // Sound audition test state
   const [isPlayingSound, setIsPlayingSound] = useState(false);
   const [desktopNotifState, setDesktopNotifState] = useState<NotificationPermission>("default");
-
-  // Real-Time Biometric Scan Event Stream
-  const [realTimeConnected, setRealTimeConnected] = useState(false);
-  const [latestScan, setLatestScan] = useState<{
-    name: string;
-    role: string;
-    status: string;
-    time: string;
-    message?: string;
-  } | null>(null);
 
   // Check notification permission on mount
   useEffect(() => {
@@ -246,15 +241,19 @@ export default function AdminAttendanceSchedulePage() {
     }
   }, []);
 
-  // Fetch Class Directory for scope selection
-  const fetchClasses = useCallback(async () => {
+  // Fetch Class Directory & Faculty Directory
+  const fetchClassesAndTeachers = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/attendance/schedule/classes");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data?.classes) {
-          setClasses(json.data.classes || []);
-        }
+      const [classRes, teacherRes] = await Promise.all([
+        fetch("/api/admin/attendance/schedule/classes").then((r) => r.json()),
+        fetch("/api/admin/attendance/schedule/teachers").then((r) => r.json()),
+      ]);
+
+      if (classRes.success && classRes.data?.classes) {
+        setClasses(classRes.data.classes || []);
+      }
+      if (teacherRes.success && Array.isArray(teacherRes.data)) {
+        setTeachers(teacherRes.data);
       }
     } catch {
       // silent fallback
@@ -263,111 +262,49 @@ export default function AdminAttendanceSchedulePage() {
 
   const loadData = useCallback(async () => {
     try {
-      await Promise.allSettled([fetchWindows(), fetchClasses()]);
+      await Promise.allSettled([fetchWindows(), fetchClassesAndTeachers()]);
     } finally {
       setLoading(false);
     }
-  }, [fetchWindows, fetchClasses]);
+  }, [fetchWindows, fetchClassesAndTeachers]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Real-Time SSE Stream for Gateway Telemetry
-  useEffect(() => {
-    let es: EventSource | null = null;
-    let reconnectTimeout: any = null;
+  // Filter windows by Tab and Audience Filter
+  const filteredWindows = useMemo(() => {
+    let list = windows;
 
-    function connectSSE() {
-      try {
-        es = new EventSource("/api/biometric/events/stream");
-        es.onopen = () => {
-          setRealTimeConnected(true);
-        };
-        es.onmessage = (e) => {
-          try {
-            if (!e.data || e.data.startsWith(":")) return;
-            const data = JSON.parse(e.data);
-            if (
-              data.type === "SCAN_LOGGED" ||
-              data.type === "WEBHOOK_SCAN" ||
-              data.type === "MOCK_SCAN" ||
-              data.type === "SCAN_EVENT" ||
-              data.type === "MATCHED" ||
-              data.type === "DUPLICATE" ||
-              data.type === "UNKNOWN" ||
-              data.type === "TOO_EARLY" ||
-              data.student ||
-              data.teacher
-            ) {
-              const name =
-                data.student?.name ||
-                data.teacher?.name ||
-                data.studentName ||
-                data.teacherName ||
-                data.personName ||
-                data.name ||
-                "Member";
-              const role =
-                data.role ||
-                (data.teacher || data.teacherName ? "Faculty" : "Talabat");
-              const status =
-                data.attendanceStatus ||
-                data.status ||
-                data.student?.status ||
-                data.teacher?.status ||
-                "PRESENT";
-              const time = new Date().toLocaleTimeString("en-IN", {
-                timeZone: "Asia/Kolkata",
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              });
-              const message = data.message || "";
-              setLatestScan({ name, role, status, time, message });
-
-              // Play gentle bell sound
-              playSmoothChime(status === "LATE" ? "alert" : "arrival");
-            }
-          } catch {
-            // Ignore malformed messages
-          }
-        };
-        es.onerror = () => {
-          setRealTimeConnected(false);
-          es?.close();
-          reconnectTimeout = setTimeout(connectSSE, 5000);
-        };
-      } catch {
-        setRealTimeConnected(false);
-      }
+    // Subsystem filter
+    if (activeTab === "HIKVISION") {
+      list = list.filter(
+        (w) =>
+          w.windowType === "HIKVISION" ||
+          w.id === "default" ||
+          w.id.startsWith("hik_") ||
+          (w.windowType === "BOTH" && !w.id.startsWith("manual_"))
+      );
+    } else {
+      list = list.filter(
+        (w) =>
+          w.windowType === "MANUAL" ||
+          w.id.startsWith("manual_") ||
+          (w.windowType === "BOTH" && w.id !== "default" && !w.id.startsWith("hik_"))
+      );
     }
 
-    connectSSE();
-    return () => {
-      es?.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    };
-  }, []);
+    // Audience filter
+    if (audienceFilter === "STUDENT") {
+      list = list.filter((w) => w.audience === "ALL_STUDENTS");
+    } else if (audienceFilter === "TEACHER") {
+      list = list.filter((w) => w.audience === "FACULTY");
+    } else if (audienceFilter === "BOTH") {
+      list = list.filter((w) => w.audience === "BOTH");
+    }
 
-  // Filter windows by workspace
-  const hikvisionWindows = useMemo(() => {
-    return windows.filter(
-      (w) =>
-        w.windowType === "HIKVISION" ||
-        (w.id === "default" && !w.windowType) ||
-        (w.windowType === "BOTH" && !w.id.startsWith("manual_"))
-    );
-  }, [windows]);
-
-  const manualWindows = useMemo(() => {
-    return windows.filter(
-      (w) =>
-        w.windowType === "MANUAL" ||
-        w.id.startsWith("manual_") ||
-        (w.windowType === "BOTH" && w.id !== "default" && !w.id.startsWith("hik_"))
-    );
-  }, [windows]);
+    return list;
+  }, [windows, activeTab, audienceFilter]);
 
   // Open modal to create/edit window
   const openWindowModal = (
@@ -376,19 +313,33 @@ export default function AdminAttendanceSchedulePage() {
   ) => {
     if (w) {
       setEditingWindow(w);
+      const isFacultyOnly = w.audience === "FACULTY";
+      const isDual = w.audience === "BOTH" || w.hasFacultyTimer;
+      const initialAudience = isFacultyOnly ? "TEACHER" : isDual ? "BOTH" : "STUDENT";
+      const hasSeparateFacultyTime = Boolean(
+        w.facultyStartTime &&
+          (w.facultyStartTime !== w.startTime || w.facultyEndTime !== w.endTime)
+      );
+
       setWindowForm({
         name: w.name,
-        windowType: (w.windowType as any) || presetWindowType || (activeTab === "HIKVISION" ? "HIKVISION" : "MANUAL"),
+        windowType: (w.windowType as any) || presetWindowType || activeTab,
+        audience: initialAudience,
         startTime: w.startTime,
         endTime: w.endTime,
         lateEndTime: w.lateEndTime ?? w.endTime,
         graceMinutes: w.graceMinutes,
         enabled: w.enabled,
         applicableClassIds: w.applicableClassIds || [],
+        useCustomFacultyTime: hasSeparateFacultyTime,
+        facultyStartTime: w.facultyStartTime || w.startTime,
+        facultyEndTime: w.facultyEndTime || w.endTime,
+        facultyLateEndTime: w.facultyLateEndTime || w.lateEndTime || w.endTime,
+        applicableTeacherIds: w.applicableTeacherIds || [],
       });
     } else {
       setEditingWindow(null);
-      const chosenType = presetWindowType || (activeTab === "HIKVISION" ? "HIKVISION" : "MANUAL");
+      const chosenType = presetWindowType || activeTab;
       const defaultName =
         chosenType === "HIKVISION"
           ? "Hikvision Morning Punch Window"
@@ -399,12 +350,18 @@ export default function AdminAttendanceSchedulePage() {
       setWindowForm({
         name: defaultName,
         windowType: chosenType,
+        audience: "BOTH",
         startTime: "07:30",
         endTime: "08:30",
         lateEndTime: "09:00",
         graceMinutes: 10,
         enabled: true,
         applicableClassIds: [],
+        useCustomFacultyTime: false,
+        facultyStartTime: "07:30",
+        facultyEndTime: "08:30",
+        facultyLateEndTime: "09:00",
+        applicableTeacherIds: [],
       });
     }
     setWindowModalOpen(true);
@@ -414,7 +371,7 @@ export default function AdminAttendanceSchedulePage() {
   const saveWindow = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!windowForm.name.trim()) {
-      toast({ title: "Please enter attendance window name", variant: "destructive" });
+      toast({ title: "Please enter attendance schedule name", variant: "destructive" });
       return;
     }
 
@@ -425,20 +382,54 @@ export default function AdminAttendanceSchedulePage() {
         : "/api/admin/attendance/schedule/windows";
       const method = editingWindow ? "PUT" : "POST";
 
+      const payload: Record<string, any> = {
+        name: windowForm.name.trim(),
+        windowType: windowForm.windowType,
+        startTime: windowForm.startTime,
+        endTime: windowForm.endTime,
+        lateEndTime: windowForm.lateEndTime || windowForm.endTime,
+        graceMinutes: windowForm.graceMinutes,
+        enabled: windowForm.enabled,
+      };
+
+      if (windowForm.audience === "STUDENT") {
+        payload.applicableClassIds = windowForm.applicableClassIds;
+        payload.facultyStartTime = null;
+        payload.facultyEndTime = null;
+        payload.facultyLateEndTime = null;
+        payload.applicableTeacherIds = [];
+      } else if (windowForm.audience === "TEACHER") {
+        payload.applicableClassIds = [];
+        payload.facultyStartTime = windowForm.startTime;
+        payload.facultyEndTime = windowForm.endTime;
+        payload.facultyLateEndTime = windowForm.lateEndTime || windowForm.endTime;
+        payload.applicableTeacherIds = windowForm.applicableTeacherIds;
+      } else {
+        // BOTH (Talabat & Faculty)
+        payload.applicableClassIds = windowForm.applicableClassIds;
+        payload.applicableTeacherIds = windowForm.applicableTeacherIds;
+        if (windowForm.useCustomFacultyTime) {
+          payload.facultyStartTime = windowForm.facultyStartTime;
+          payload.facultyEndTime = windowForm.facultyEndTime;
+          payload.facultyLateEndTime = windowForm.facultyLateEndTime || windowForm.facultyEndTime;
+        } else {
+          payload.facultyStartTime = windowForm.startTime;
+          payload.facultyEndTime = windowForm.endTime;
+          payload.facultyLateEndTime = windowForm.lateEndTime || windowForm.endTime;
+        }
+      }
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...windowForm,
-          role: "STUDENT",
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
       if (json.success) {
         toast({
           title: editingWindow ? "Schedule Updated" : "Schedule Created",
-          description: `Attendance window "${windowForm.name}" is now live.`,
+          description: `Attendance schedule "${windowForm.name}" is now live.`,
           variant: "success",
         });
         setWindowModalOpen(false);
@@ -466,7 +457,7 @@ export default function AdminAttendanceSchedulePage() {
       if (json.success) {
         toast({
           title: nextState ? "Schedule Window Enabled" : "Schedule Window Disabled",
-          description: `Attendance window "${w.name}" is now ${nextState ? "active" : "inactive"}.`,
+          description: `Attendance schedule "${w.name}" is now ${nextState ? "active" : "inactive"}.`,
           variant: "success",
         });
         fetchWindows();
@@ -478,7 +469,7 @@ export default function AdminAttendanceSchedulePage() {
 
   // Delete window
   const deleteWindow = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this attendance scan window?")) return;
+    if (!confirm("Are you sure you want to delete this attendance scan schedule?")) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/admin/attendance/schedule/windows/${id}`, { method: "DELETE" });
@@ -528,38 +519,6 @@ export default function AdminAttendanceSchedulePage() {
     }
   };
 
-  // Test notification sound
-  const handleTestSound = () => {
-    setIsPlayingSound(true);
-    playSmoothChime("arrival");
-    sendDesktopNotification({
-      title: "Darse Burhani • Audio Test",
-      body: "Harmonic bell chime notification verified at 0ms latency.",
-      soundType: "arrival",
-    });
-    setTimeout(() => setIsPlayingSound(false), 800);
-  };
-
-  // Enable desktop notifications
-  const handleEnableDesktopNotifs = async () => {
-    const perm = await requestDesktopNotificationPermission();
-    setDesktopNotifState(perm);
-    if (perm === "granted") {
-      toast({
-        title: "Desktop Alerts Enabled",
-        description: "You will receive background attendance alerts outside the browser.",
-        variant: "success",
-      });
-      playSmoothChime("arrival");
-    } else {
-      toast({
-        title: "Permission Required",
-        description: "Please allow notifications in browser site settings.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* ── Attendance Hub Navigation Tabs ── */}
@@ -575,7 +534,7 @@ export default function AdminAttendanceSchedulePage() {
         ]}
       />
 
-      {/* ── Page Header Banner with Audio Audition & Actions ── */}
+      {/* ── Page Header Banner ── */}
       <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-br from-[#042f24] via-[#094d37] to-[#021f18] border border-[#d4af37]/40 shadow-[0_12px_36px_rgba(2,44,34,0.35)]">
         <div className="absolute -right-12 -bottom-12 w-80 h-80 rounded-full bg-[#d4af37]/15 blur-3xl pointer-events-none" />
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
@@ -586,414 +545,143 @@ export default function AdminAttendanceSchedulePage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#fff2b2] text-xs font-black tracking-wider uppercase mb-3 shadow-inner">
               <Sparkles className="w-3.5 h-3.5 text-[#fde047] animate-pulse" />
-              <span>Dual Attendance Timing Engine</span>
+              <span>Scanning Scope: Talabat &amp; Faculty</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-display tracking-tight">
               Attendance Schedule &amp; Timing
             </h1>
             <p className="text-emerald-100/90 text-sm mt-1.5 max-w-2xl font-medium leading-relaxed">
-              Differentiated schedule centers for <strong>Automated Hikvision Hardware Terminals</strong> and <strong>Manual Classroom Registers</strong>.
+              Configure scanning windows for <strong>Talabat (Students)</strong>, <strong>Faculty (Teachers &amp; Staff)</strong>, or <strong>Dual (Both)</strong> with automated gate shifts and manual roll call registers.
             </p>
           </div>
 
-          {/* Action Buttons & Sound Audition */}
+          {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Smooth Sound Audition Pill */}
             <Button
-              onClick={handleTestSound}
-              disabled={isPlayingSound}
-              variant="glass"
-              className="text-xs font-bold h-10 px-4 rounded-xl transition-all flex items-center gap-2"
-              title="Audition smooth 0ms harmonic bell notification sound"
-            >
-              <span className={`p-1 rounded-lg bg-emerald-500/20 text-emerald-300 transition-transform duration-300 ${isPlayingSound ? "scale-125 text-[#fde047]" : "group-hover:scale-110"}`}>
-                <Volume2 className="w-4 h-4" />
-              </span>
-              <span>{isPlayingSound ? "Playing Bell..." : "Test Audio Bell"}</span>
-            </Button>
-
-            {/* Desktop Notification Activator */}
-            {desktopNotifState !== "granted" && (
-              <Button
-                onClick={handleEnableDesktopNotifs}
-                variant="outline"
-                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/50 text-xs font-bold h-10 px-3.5 rounded-xl backdrop-blur-md transition-all flex items-center gap-2"
-                title="Enable OS Desktop Notifications outside the browser"
-              >
-                <span className="p-1 rounded-lg bg-amber-400/20 text-amber-300">
-                  <Bell className="w-4 h-4 animate-bounce" />
-                </span>
-                <span>Enable OS Alerts</span>
-              </Button>
-            )}
-
-            <Button
-              onClick={() => (window.location.href = "/teacher/medical-duty")}
-              variant="default"
-              className="text-xs font-bold h-10 px-4 rounded-xl flex items-center gap-2"
-            >
-              <span className="p-1 rounded-lg bg-emerald-700/60 text-emerald-200">
-                <Stethoscope className="w-3.5 h-3.5" />
-              </span>
-              <span>Health Duty</span>
-            </Button>
-
-            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={downloadExcel}
               disabled={exporting}
-              variant="fatimi-gold"
-              className="text-xs font-black h-10 px-4 rounded-xl shadow-lg"
+              className="h-10 px-4 rounded-xl border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-xs backdrop-blur-sm transition-all active:scale-95 shadow-xs"
             >
-              {exporting ? (
-                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-              )}
-              <span>Download Sheet</span>
+              {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-300" />}
+              <span>Export Schedule CSV</span>
             </Button>
 
             <Button
-              onClick={loadData}
-              variant="glass"
-              className="h-10 w-10 p-0 rounded-xl"
-              title="Refresh attendance schedule and status"
+              type="button"
+              size="sm"
+              onClick={() => openWindowModal()}
+              className="h-10 px-5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-emerald-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center gap-1.5 border border-amber-300/40"
             >
-              <RefreshCw className={`w-4 h-4 transition-transform ${loading ? "animate-spin" : "group-hover:rotate-180 duration-500"}`} />
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Add Schedule Window</span>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ── Daily Google Sheet Online Sync Station ── */}
-      <GoogleSheetSyncCard />
-
-      {/* ── Real-Time Gateway Feed Pulse & Pop-In Live Scan Ticker ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white/90 backdrop-blur-md border border-gray-200/90 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200">
-            <span className={`w-2.5 h-2.5 rounded-full ${realTimeConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
-            {realTimeConnected && (
-              <span className="absolute w-5 h-5 rounded-full bg-emerald-400/40 animate-ping" />
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Radio className={`w-4 h-4 ${realTimeConnected ? "text-emerald-600 animate-pulse" : "text-amber-500"}`} />
-            <span className="text-xs font-bold text-gray-900">
-              {realTimeConnected ? "Live Biometric Gateway Connected (24/7)" : "Connecting to Live Event Stream..."}
-            </span>
-            <Badge variant="outline" className={`text-[10px] font-extrabold ${realTimeConnected ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
-              {realTimeConnected ? "SSE Active" : "Polling"}
-            </Badge>
-          </div>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {latestScan ? (
-            <motion.div
-              key={`${latestScan.name}-${latestScan.time}`}
-              initial={{ opacity: 0, scale: 0.95, y: -4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-950 shadow-sm"
-            >
-              <div className="w-6 h-6 rounded-full bg-emerald-700 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
-                {latestScan.name.slice(0, 1).toUpperCase()}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 text-[11px]">Latest Scan:</span>
-                <strong className="font-bold text-gray-900">{latestScan.name}</strong>
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white font-bold border border-emerald-200 text-emerald-800">
-                {latestScan.role}
-              </span>
-              <Badge
-                variant="outline"
-                className={`text-[10px] font-bold ${
-                  latestScan.status === "LATE"
-                    ? "bg-amber-100 text-amber-800 border-amber-300"
-                    : "bg-emerald-100 text-emerald-800 border-emerald-300"
-                }`}
-              >
-                {latestScan.status}
-              </Badge>
-              <span className="text-[10px] text-gray-400 font-mono">{latestScan.time}</span>
-            </motion.div>
-          ) : (
-            <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-              <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
-              <span>Awaiting device punches...</span>
-            </div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Main Tab Switcher (Differentiated Workspaces: Hikvision vs Manual) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/90 w-fit flex-wrap gap-1.5 shadow-inner">
-          {/* 1. HIKVISION HARDWARE SCHEDULE TAB */}
+      {/* ── Subsystem Mode Tabs (Hikvision Hardware vs Manual Register) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 bg-white rounded-3xl border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-2 p-1 bg-gray-100/80 rounded-2xl border border-gray-200">
           <button
             type="button"
             onClick={() => setActiveTab("HIKVISION")}
-            className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
               activeTab === "HIKVISION"
-                ? "bg-white text-purple-950 shadow-md border border-purple-200 font-black ring-2 ring-purple-500/30"
-                : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
+                ? "bg-purple-900 text-white shadow-md shadow-purple-950/20"
+                : "text-gray-600 hover:text-purple-900 hover:bg-white/60"
             }`}
           >
-            <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "HIKVISION" ? "bg-purple-100 text-purple-800" : "bg-gray-200/70 text-gray-600"}`}>
-              <Radio className="w-3.5 h-3.5" />
-            </span>
-            <span>Hikvision Hardware</span>
-            <Badge variant="outline" className="ml-1 bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-extrabold">
-              {hikvisionWindows.length}
-            </Badge>
+            <Radio className="w-4 h-4" />
+            <span>Hikvision Hardware Gate</span>
           </button>
 
-          {/* 2. MANUAL REGISTER SCHEDULE TAB */}
           <button
             type="button"
             onClick={() => setActiveTab("MANUAL")}
-            className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
               activeTab === "MANUAL"
-                ? "bg-white text-emerald-950 shadow-md border border-emerald-200 font-black ring-2 ring-emerald-500/30"
-                : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
+                ? "bg-emerald-800 text-white shadow-md shadow-emerald-950/20"
+                : "text-gray-600 hover:text-emerald-900 hover:bg-white/60"
             }`}
           >
-            <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "MANUAL" ? "bg-emerald-100 text-emerald-800" : "bg-gray-200/70 text-gray-600"}`}>
-              <ClipboardCheck className="w-3.5 h-3.5" />
-            </span>
-            <span>Manual Register</span>
-            <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold">
-              {manualWindows.length}
-            </Badge>
+            <ClipboardCheck className="w-4 h-4" />
+            <span>Manual Roll Call Register</span>
           </button>
         </div>
 
-        {/* Action Button tailored to active tab */}
-        {activeTab === "HIKVISION" ? (
-          <Button
-            onClick={() => openWindowModal(undefined, "HIKVISION")}
-            variant="default"
-            className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2 shrink-0"
-          >
-            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
-            <span>Add Hikvision Hardware Window</span>
-          </Button>
-        ) : (
-          <Button
-            onClick={() => openWindowModal(undefined, "MANUAL")}
-            variant="default"
-            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2 shrink-0"
-          >
-            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
-            <span>Add Manual Register Window</span>
-          </Button>
-        )}
+        {/* Audience Filter Pills */}
+        <div className="flex items-center gap-1.5 px-2">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Audience:</span>
+          {[
+            { id: "ALL", label: "All Schedules", icon: Layers },
+            { id: "STUDENT", label: "Talabat Only", icon: GraduationCap },
+            { id: "TEACHER", label: "Faculty Only", icon: Shield },
+            { id: "BOTH", label: "Dual (Both)", icon: Zap },
+          ].map((pill) => (
+            <button
+              key={pill.id}
+              onClick={() => setAudienceFilter(pill.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border ${
+                audienceFilter === pill.id
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 shadow-2xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              <pill.icon className="w-3 h-3" />
+              <span>{pill.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── WORKSPACE 1: HIKVISION BIOMETRIC HARDWARE SCHEDULE ── */}
-      {loading ? (
-        <WindowSkeleton />
-      ) : activeTab === "HIKVISION" ? (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/10 via-slate-900/5 to-purple-900/10 border border-purple-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-800 shadow-2xs shrink-0">
-                <Radio className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-purple-950 font-display">
-                  Hikvision Biometric Hardware Timing
-                </h3>
-                <p className="text-xs text-purple-800/80 mt-0.5">
-                  Automated facial recognition &amp; card terminal punch shifts. Terminal scans outside these hours are flagged.
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-xs font-bold bg-white text-purple-900 border-purple-300">
-              {hikvisionWindows.length} Hardware Window(s) Active
-            </Badge>
+      {/* ── SCHEDULE CARDS GRID ── */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-emerald-800" />
+            <h2 className="text-base font-bold text-gray-900">
+              {activeTab === "HIKVISION" ? "Biometric Scanning Windows" : "Classroom Register Schedules"} ({filteredWindows.length})
+            </h2>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={fetchWindows}
+            className="text-xs text-gray-600 hover:text-gray-900"
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            Refresh
+          </Button>
+        </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {hikvisionWindows.map((w) => {
+        {filteredWindows.length === 0 ? (
+          <Card className="p-8 text-center bg-gray-50/50 border-dashed border-2 border-gray-200 rounded-3xl">
+            <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-bold text-gray-800">No attendance windows found</h3>
+            <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+              No schedule matches the current subsystem &amp; audience filter. Create a new window to open scanning shifts.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => openWindowModal()}
+              className="mt-4 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add Schedule Window
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredWindows.map((w) => {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
-              return (
-                <Card
-                  key={w.id}
-                  className={`group relative overflow-hidden transition-all duration-300 rounded-3xl border bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 ${
-                    w.enabled
-                      ? isLive
-                        ? "border-purple-500/80 ring-2 ring-purple-500/20 shadow-purple-500/10"
-                        : "border-purple-200/90 hover:border-purple-400"
-                      : "opacity-60 bg-gray-50/80 border-gray-200"
-                  }`}
-                >
-                  <div
-                    className={`h-2 w-full ${
-                      !w.enabled
-                        ? "bg-gray-300"
-                        : isLive
-                        ? "bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-400"
-                        : "bg-gradient-to-r from-purple-400 via-pink-400 to-amber-400"
-                    }`}
-                  />
-                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
-                        isLive ? "bg-purple-100 text-purple-800 border border-purple-300" : "bg-purple-50 text-purple-700 border border-purple-100"
-                      }`}>
-                        <Radio className="w-5 h-5 stroke-[1.8]" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          {isLive && (
-                            <span className="relative flex h-2.5 w-2.5">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
-                            </span>
-                          )}
-                          <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                          <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
-                            <Radio className="w-2.5 h-2.5 text-purple-600" />
-                            <span>Hikvision Terminal</span>
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
+              const isFaculty = w.audience === "FACULTY";
+              const isDual = w.audience === "BOTH" || w.hasFacultyTimer;
+              const accentColor = isFaculty ? "blue" : isDual ? "purple" : "emerald";
 
-                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => openWindowModal(w, "HIKVISION")}
-                        className="p-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all active:scale-90"
-                        title="Edit Schedule"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteWindow(w.id)}
-                        disabled={deletingId === w.id}
-                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
-                        title="Delete Schedule"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-0 space-y-3.5">
-                    {/* Time Display */}
-                    <div className="p-3.5 bg-purple-50/50 rounded-2xl border border-purple-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-purple-800 shadow-2xs border border-purple-200/60">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Device Punch Window</p>
-                          <p className="text-sm font-black text-purple-950 font-mono">
-                            {w.startTime} &rarr; {w.endTime}
-                          </p>
-                          {w.lateEndTime && w.lateEndTime !== w.endTime && (
-                            <p className="text-xs font-bold text-amber-700 font-mono">
-                              Late Cutoff: {w.lateEndTime}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Span</p>
-                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-purple-200 text-xs font-bold text-purple-900 font-mono">
-                          {w.durationMinutes}m
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Timeline Bar */}
-                    <ScheduleTimelineBar
-                      startTime={w.startTime}
-                      endTime={w.endTime}
-                      lateEndTime={w.lateEndTime}
-                      accent="purple"
-                    />
-
-                    {/* Grace Period & Live Status */}
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-purple-100">
-                      <div className="flex items-center gap-1.5 text-gray-600">
-                        <Timer className="w-4 h-4 text-purple-600" />
-                        <span>
-                          Grace: <strong>{w.graceMinutes} min</strong>
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-2xs ${
-                            !w.enabled
-                              ? "bg-gray-100 text-gray-600 border-gray-300"
-                              : isLive
-                              ? "bg-purple-50 text-purple-900 border-purple-300"
-                              : "bg-amber-50 text-amber-900 border-amber-300"
-                          }`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${!w.enabled ? "bg-gray-400" : isLive ? "bg-purple-600 animate-pulse" : "bg-amber-500"}`} />
-                          {!w.enabled ? "Disabled" : isLive ? "Active Live" : "Closed"}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => toggleWindowActive(w)}
-                          aria-label="Toggle window active state"
-                          className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ease-out select-none active:scale-95 ${
-                            w.enabled ? "bg-purple-600 shadow-sm" : "bg-gray-300"
-                          }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ease-out ${
-                              w.enabled ? "translate-x-4" : "translate-x-0"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </motion.div>
-      ) : null}
-
-      {/* ── WORKSPACE 2: MANUAL CLASSROOM REGISTER SCHEDULE ── */}
-      {!loading && activeTab === "MANUAL" && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-900/10 via-slate-900/5 to-emerald-900/10 border border-emerald-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 shadow-2xs shrink-0">
-                <ClipboardCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-emerald-950 font-display">
-                  Manual Classroom Register Sessions
-                </h3>
-                <p className="text-xs text-emerald-800/80 mt-0.5">
-                  Teacher roll call timing windows for classroom manual attendance sessions.
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-xs font-bold bg-white text-emerald-900 border-emerald-300">
-              {manualWindows.length} Manual Window(s) Active
-            </Badge>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {manualWindows.map((w) => {
-              const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
               return (
                 <Card
                   key={w.id}
@@ -1001,7 +689,7 @@ export default function AdminAttendanceSchedulePage() {
                     w.enabled
                       ? isLive
                         ? "border-emerald-500/80 ring-2 ring-emerald-500/20 shadow-emerald-500/10"
-                        : "border-emerald-200/90 hover:border-emerald-400"
+                        : "border-gray-200/90 hover:border-emerald-400"
                       : "opacity-60 bg-gray-50/80 border-gray-200"
                   }`}
                 >
@@ -1009,41 +697,62 @@ export default function AdminAttendanceSchedulePage() {
                     className={`h-2 w-full ${
                       !w.enabled
                         ? "bg-gray-300"
-                        : isLive
-                        ? "bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400"
-                        : "bg-gradient-to-r from-[#d4af37] via-amber-400 to-yellow-500"
+                        : isFaculty
+                        ? "bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400"
+                        : isDual
+                        ? "bg-gradient-to-r from-purple-600 via-indigo-500 to-emerald-400"
+                        : "bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-400"
                     }`}
                   />
                   <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
-                        isLive ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                      }`}>
-                        <ClipboardCheck className="w-5 h-5 stroke-[1.8]" />
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
+                          isFaculty
+                            ? "bg-blue-100 text-blue-800 border border-blue-300"
+                            : isDual
+                            ? "bg-purple-100 text-purple-800 border border-purple-300"
+                            : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        }`}
+                      >
+                        {isFaculty ? <Shield className="w-5 h-5" /> : isDual ? <Zap className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           {isLive && (
-                            <span className="relative flex h-2.5 w-2.5">
+                            <span className="relative flex h-2.5 w-2.5 shrink-0">
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                             </span>
                           )}
-                          <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
+                          <h3 className="font-bold text-base text-gray-900 leading-tight truncate">{w.name}</h3>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
-                            <ClipboardCheck className="w-2.5 h-2.5 text-emerald-600" />
-                            <span>Manual Register</span>
-                          </Badge>
+                          {/* Audience Badge */}
+                          {isFaculty ? (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200 text-[10px] font-black flex items-center gap-1 py-0 px-2">
+                              <Shield className="w-2.5 h-2.5 text-blue-600" />
+                              <span>Faculty (Staff)</span>
+                            </Badge>
+                          ) : isDual ? (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-black flex items-center gap-1 py-0 px-2">
+                              <Zap className="w-2.5 h-2.5 text-purple-600" />
+                              <span>Dual: Talabat &amp; Faculty</span>
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-black flex items-center gap-1 py-0 px-2">
+                              <GraduationCap className="w-2.5 h-2.5 text-emerald-600" />
+                              <span>Talabat (Students)</span>
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100 shrink-0">
                       <button
                         type="button"
-                        onClick={() => openWindowModal(w, "MANUAL")}
+                        onClick={() => openWindowModal(w)}
                         className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all active:scale-90"
                         title="Edit Schedule"
                       >
@@ -1063,14 +772,16 @@ export default function AdminAttendanceSchedulePage() {
 
                   <CardContent className="pt-0 space-y-3.5">
                     {/* Time Display */}
-                    <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                    <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-emerald-800 shadow-2xs border border-emerald-200/60">
+                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-emerald-800 shadow-2xs border border-gray-200/60">
                           <Clock className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Roll Call Session</p>
-                          <p className="text-sm font-black text-emerald-950 font-mono">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                            {isFaculty ? "Faculty Timing" : "Student Timing"}
+                          </p>
+                          <p className="text-sm font-black text-gray-900 font-mono">
                             {w.startTime} &rarr; {w.endTime}
                           </p>
                           {w.lateEndTime && w.lateEndTime !== w.endTime && (
@@ -1083,22 +794,36 @@ export default function AdminAttendanceSchedulePage() {
 
                       <div className="text-right">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Span</p>
-                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-emerald-200 text-xs font-bold text-emerald-900 font-mono">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-800 font-mono">
                           {w.durationMinutes}m
                         </span>
                       </div>
                     </div>
+
+                    {/* Faculty Timing details if Dual */}
+                    {isDual && w.facultyStartTime && (
+                      <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-100 flex items-center justify-between text-xs">
+                        <span className="font-bold text-purple-900 flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-purple-600" />
+                          Faculty Shift:
+                        </span>
+                        <span className="font-mono font-bold text-purple-950">
+                          {w.facultyStartTime} – {w.facultyEndTime}
+                          {w.facultyLateEndTime && w.facultyLateEndTime !== w.facultyEndTime && ` (Late: ${w.facultyLateEndTime})`}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Timeline Bar */}
                     <ScheduleTimelineBar
                       startTime={w.startTime}
                       endTime={w.endTime}
                       lateEndTime={w.lateEndTime}
-                      accent="emerald"
+                      accent={accentColor}
                     />
 
                     {/* Grace Period & Live Status */}
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-emerald-100">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
                         <Timer className="w-4 h-4 text-emerald-600" />
                         <span>
@@ -1116,7 +841,11 @@ export default function AdminAttendanceSchedulePage() {
                               : "bg-amber-50 text-amber-900 border-amber-300"
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${!w.enabled ? "bg-gray-400" : isLive ? "bg-emerald-600 animate-pulse" : "bg-amber-500"}`} />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              !w.enabled ? "bg-gray-400" : isLive ? "bg-emerald-600 animate-pulse" : "bg-amber-500"
+                            }`}
+                          />
                           {!w.enabled ? "Disabled" : isLive ? "Active Live" : "Closed"}
                         </span>
 
@@ -1141,8 +870,8 @@ export default function AdminAttendanceSchedulePage() {
               );
             })}
           </div>
-        </motion.div>
-      )}
+        )}
+      </div>
 
       {/* ── MODAL: Create / Edit Attendance Window ── */}
       <AnimatePresence>
@@ -1160,7 +889,7 @@ export default function AdminAttendanceSchedulePage() {
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-300 shadow-2xs">
                     <Clock className="w-4 h-4" />
                   </div>
-                  <span>{editingWindow ? "Edit Attendance Schedule" : "Add Attendance Window"}</span>
+                  <span>{editingWindow ? "Edit Attendance Schedule" : "Add Attendance Schedule"}</span>
                 </h3>
                 <button
                   type="button"
@@ -1180,33 +909,89 @@ export default function AdminAttendanceSchedulePage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Tilawat al Dua, Morning Assembly, Dhuhr Attendance"
+                      placeholder="e.g. Morning Tilawat, Dua Session, Faculty Check-In"
                       value={windowForm.name}
                       onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
                       className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
                     />
                   </div>
 
-                  {/* Attendance Subsystem Mode */}
+                  {/* 1. Target Scanning Audience Toggle */}
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1.5">
-                      Target Attendance Subsystem:
+                      Target Audience / Scanning Scope:
                     </label>
                     <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setWindowForm({ ...windowForm, audience: "STUDENT" })}
+                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
+                          windowForm.audience === "STUDENT"
+                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/30 shadow-xs"
+                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-900">
+                          <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Talabat Only</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 leading-tight">Students only</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setWindowForm({ ...windowForm, audience: "TEACHER" })}
+                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
+                          windowForm.audience === "TEACHER"
+                            ? "bg-blue-50 border-blue-500 text-blue-950 ring-2 ring-blue-400/30 shadow-xs"
+                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900">
+                          <Shield className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Faculty Only</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 leading-tight">Teachers &amp; staff only</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setWindowForm({ ...windowForm, audience: "BOTH" })}
+                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
+                          windowForm.audience === "BOTH"
+                            ? "bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-400/30 shadow-xs"
+                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-purple-900">
+                          <Zap className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Dual (Both)</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 leading-tight">Both Talabat &amp; Faculty</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Attendance Subsystem Mode */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1.5">
+                      Subsystem Channel:
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setWindowForm({ ...windowForm, windowType: "HIKVISION" })}
                         className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
                           windowForm.windowType === "HIKVISION"
-                            ? "bg-purple-50/90 border-purple-500 text-purple-950 ring-2 ring-purple-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100/80"
+                            ? "bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-400/30 shadow-xs"
+                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-bold text-xs text-purple-900">
                           <Radio className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Hikvision</span>
+                          <span>Hikvision Hardware Gate</span>
                         </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Hardware device scans &amp; gate terminals</span>
+                        <span className="text-[10px] text-gray-500 leading-tight">Device facial scans &amp; punch terminals</span>
                       </button>
 
                       <button
@@ -1214,31 +999,15 @@ export default function AdminAttendanceSchedulePage() {
                         onClick={() => setWindowForm({ ...windowForm, windowType: "MANUAL" })}
                         className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
                           windowForm.windowType === "MANUAL"
-                            ? "bg-emerald-50/90 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100/80"
+                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/30 shadow-xs"
+                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-900">
                           <ClipboardCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Manual</span>
+                          <span>Manual Classroom Roll Call</span>
                         </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Classroom roll call &amp; teacher registers</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setWindowForm({ ...windowForm, windowType: "BOTH" })}
-                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
-                          windowForm.windowType === "BOTH"
-                            ? "bg-blue-50/90 border-blue-500 text-blue-950 ring-2 ring-blue-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100/80"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900">
-                          <Zap className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Dual (Both)</span>
-                        </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Hardware gates + manual registers</span>
+                        <span className="text-[10px] text-gray-500 leading-tight">Teacher manual attendance register</span>
                       </button>
                     </div>
                   </div>
@@ -1250,73 +1019,136 @@ export default function AdminAttendanceSchedulePage() {
                       startTime={windowForm.startTime}
                       endTime={windowForm.endTime}
                       lateEndTime={windowForm.lateEndTime}
-                      accent={windowForm.windowType === "HIKVISION" ? "purple" : "emerald"}
+                      accent={windowForm.audience === "TEACHER" ? "blue" : windowForm.audience === "BOTH" ? "purple" : "emerald"}
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-emerald-900 block mb-1">On-Time From (24h):</label>
-                      <input
-                        type="time"
-                        required
-                        value={windowForm.startTime}
-                        onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-emerald-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/20"
-                      />
+                  {/* Primary Timing (Talabat / Shared) */}
+                  <div className="space-y-3 p-3.5 bg-gray-50/70 rounded-2xl border border-gray-200">
+                    <p className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>{windowForm.audience === "TEACHER" ? "Faculty Shift Timing" : "Primary Attendance Window"}</span>
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-700 block mb-1">On-Time From (24h):</label>
+                        <input
+                          type="time"
+                          required
+                          value={windowForm.startTime}
+                          onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-700 block mb-1">On-Time To (24h):</label>
+                        <input
+                          type="time"
+                          required
+                          value={windowForm.endTime}
+                          onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-emerald-900 block mb-1">On-Time To (24h):</label>
-                      <input
-                        type="time"
-                        required
-                        value={windowForm.endTime}
-                        onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-emerald-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/20"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-700 block mb-1">Late Till (24h, optional):</label>
+                        <input
+                          type="time"
+                          value={windowForm.lateEndTime || ""}
+                          onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                          placeholder="e.g. 09:00"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-700 block mb-1">Grace Period (Min):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="180"
+                          required
+                          value={windowForm.graceMinutes}
+                          onChange={(e) =>
+                            setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
+                          }
+                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-gray-700 block mb-1">Late Till (24h, optional):</label>
-                      <input
-                        type="time"
-                        value={windowForm.lateEndTime || ""}
-                        onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="e.g. 09:00"
-                      />
-                      <p className="text-[10px] text-gray-500 mt-1 font-medium">
-                        Scans between On-Time To &amp; Late Till are marked <strong>LATE</strong>.
-                      </p>
-                    </div>
+                  {/* Optional Custom Faculty Shift for Dual Mode */}
+                  {windowForm.audience === "BOTH" && (
+                    <div className="space-y-3 p-3.5 bg-purple-50/50 rounded-2xl border border-purple-200">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5 cursor-pointer">
+                          <Shield className="w-3.5 h-3.5 text-purple-700" />
+                          <span>Separate Timing for Faculty?</span>
+                        </label>
+                        <input
+                          type="checkbox"
+                          checked={windowForm.useCustomFacultyTime}
+                          onChange={(e) =>
+                            setWindowForm({ ...windowForm, useCustomFacultyTime: e.target.checked })
+                          }
+                          className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-gray-700 block mb-1">Grace Period (Minutes):</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="180"
-                        required
-                        value={windowForm.graceMinutes}
-                        onChange={(e) =>
-                          setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
-                        }
-                        className="w-full h-10 px-3 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                      {windowForm.useCustomFacultyTime && (
+                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-100">
+                          <div>
+                            <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty From:</label>
+                            <input
+                              type="time"
+                              value={windowForm.facultyStartTime}
+                              onChange={(e) =>
+                                setWindowForm({ ...windowForm, facultyStartTime: e.target.value })
+                              }
+                              className="w-full h-9 px-2 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty To:</label>
+                            <input
+                              type="time"
+                              value={windowForm.facultyEndTime}
+                              onChange={(e) =>
+                                setWindowForm({ ...windowForm, facultyEndTime: e.target.value })
+                              }
+                              className="w-full h-9 px-2 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty Late:</label>
+                            <input
+                              type="time"
+                              value={windowForm.facultyLateEndTime}
+                              onChange={(e) =>
+                                setWindowForm({ ...windowForm, facultyLateEndTime: e.target.value })
+                              }
+                              className="w-full h-9 px-2 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
 
-                  {/* Class Scope for Attendance */}
-                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-emerald-700" />
-                        <span>Class Attendance Scope</span>
-                      </label>
-                      <div className="flex items-center gap-2">
+                  {/* Class Scope (for Talabat and Dual) */}
+                  {(windowForm.audience === "STUDENT" || windowForm.audience === "BOTH") && (
+                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                          <GraduationCap className="w-4 h-4 text-emerald-700" />
+                          <span>Talabat Class Attendance Scope</span>
+                        </label>
                         <button
                           type="button"
                           onClick={() => setWindowForm({ ...windowForm, applicableClassIds: [] })}
@@ -1325,66 +1157,109 @@ export default function AdminAttendanceSchedulePage() {
                           Select All (Default)
                         </button>
                       </div>
-                    </div>
-                    <p className="text-[11px] text-emerald-900 leading-snug">
-                      Choose which classes must attend this session.
-                      <strong> Empty = applies to all classes.</strong>
-                    </p>
-                    <div className="max-h-36 overflow-y-auto space-y-1 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-inner">
-                      {classes.map((c) => (
-                        <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded-lg px-2 py-1 text-xs text-gray-800">
-                          <input
-                            type="checkbox"
-                            checked={windowForm.applicableClassIds.includes(c.id)}
-                            onChange={(e) =>
-                              setWindowForm({
-                                ...windowForm,
-                                applicableClassIds: e.target.checked
-                                  ? [...windowForm.applicableClassIds, c.id]
-                                  : windowForm.applicableClassIds.filter((id) => id !== c.id),
-                              })
-                            }
-                            className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span className="font-semibold">{c.name}</span>
-                          <span className="text-[10px] text-gray-500">Grade {c.grade}-{c.section}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {windowForm.applicableClassIds.length === 0 && (
-                      <p className="text-[10px] text-emerald-800 font-bold">
-                        ✓ Applies to ALL classes and enrolled students.
+                      <p className="text-[11px] text-emerald-900 leading-snug">
+                        Choose which classes must attend this session.
+                        <strong> Empty = applies to all classes.</strong>
                       </p>
-                    )}
-                  </div>
+                      <div className="max-h-32 overflow-y-auto space-y-1 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-inner custom-scrollbar">
+                        {classes.map((c) => (
+                          <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded-lg px-2 py-1 text-xs text-gray-800">
+                            <input
+                              type="checkbox"
+                              checked={windowForm.applicableClassIds.includes(c.id)}
+                              onChange={(e) =>
+                                setWindowForm({
+                                  ...windowForm,
+                                  applicableClassIds: e.target.checked
+                                    ? [...windowForm.applicableClassIds, c.id]
+                                    : windowForm.applicableClassIds.filter((id) => id !== c.id),
+                                })
+                              }
+                              className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="font-semibold">{c.name}</span>
+                            <span className="text-[10px] text-gray-500">Grade {c.grade}-{c.section}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <input
-                      type="checkbox"
-                      id="enabled"
-                      checked={windowForm.enabled}
-                      onChange={(e) => setWindowForm({ ...windowForm, enabled: e.target.checked })}
-                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <label htmlFor="enabled" className="text-xs font-bold text-gray-700 cursor-pointer">
-                      Enable this attendance schedule window immediately
-                    </label>
-                  </div>
+                  {/* Teacher Scope (for Faculty and Dual) */}
+                  {(windowForm.audience === "TEACHER" || windowForm.audience === "BOTH") && (
+                    <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                          <Shield className="w-4 h-4 text-blue-700" />
+                          <span>Faculty Member Scope</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
+                          className="text-[11px] font-bold text-blue-700 hover:underline active:scale-95"
+                        >
+                          Select All Faculty (Default)
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-blue-900 leading-snug">
+                        Choose which teachers/staff are expected.
+                        <strong> Empty = applies to all faculty members.</strong>
+                      </p>
+                      <div className="max-h-32 overflow-y-auto space-y-1 bg-white p-2.5 rounded-xl border border-blue-100 shadow-inner custom-scrollbar">
+                        {teachers.length === 0 ? (
+                          <p className="text-xs text-gray-400 p-2">All active faculty included by default.</p>
+                        ) : (
+                          teachers.map((t) => (
+                            <label key={t.id} className="flex items-center gap-2 cursor-pointer hover:bg-blue-50/80 rounded-lg px-2 py-1 text-xs text-gray-800">
+                              <input
+                                type="checkbox"
+                                checked={windowForm.applicableTeacherIds.includes(t.id)}
+                                onChange={(e) =>
+                                  setWindowForm({
+                                    ...windowForm,
+                                    applicableTeacherIds: e.target.checked
+                                      ? [...windowForm.applicableTeacherIds, t.id]
+                                      : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
+                                  })
+                                }
+                                className="rounded border-blue-400 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="font-semibold">{t.name}</span>
+                              <span className="text-[10px] text-gray-500 font-mono">({t.department || t.email})</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2.5 p-4 border-t border-gray-100 bg-gray-50 shrink-0">
-                  <Button variant="outline" size="sm" type="button" onClick={() => setWindowModalOpen(false)} className="rounded-xl font-bold text-xs h-10 px-4">
+                <div className="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWindowModalOpen(false)}
+                    disabled={savingWindow}
+                    className="rounded-xl border-gray-200 text-xs font-bold"
+                  >
                     Cancel
                   </Button>
                   <Button
-                    size="sm"
                     type="submit"
                     disabled={savingWindow}
-                    variant="default"
-                    className="font-bold rounded-xl text-xs h-10 px-5 shadow-md"
+                    className="bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-800/20"
                   >
-                    {savingWindow ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                    <span>{editingWindow ? "Update Schedule" : "Save Schedule"}</span>
+                    {savingWindow ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                        <span>{editingWindow ? "Update Schedule" : "Create Schedule"}</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
