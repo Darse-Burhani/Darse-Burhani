@@ -170,8 +170,7 @@ const QUICK_LINKS = [
 const COMMUNICATION_TABS = [
   { label: "Broadcast Studio", href: "/admin/notifications", icon: Megaphone, shortcutNumber: 1 },
   { label: "Attendance Schedule", href: "/admin/attendance-schedule", icon: Clock, shortcutNumber: 2 },
-  { label: "Email Dispatches", href: "/admin/attendance-emails", icon: Mail, shortcutNumber: 3 },
-  { label: "Individual Tracking", href: "/admin/tracking", icon: BarChart3, shortcutNumber: 4 },
+  { label: "Individual Tracking", href: "/admin/tracking", icon: BarChart3, shortcutNumber: 3 },
 ];
 
 export default function AdminNotificationStudio() {

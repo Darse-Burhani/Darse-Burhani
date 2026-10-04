@@ -385,6 +385,11 @@ export default function AdminManualAttendancePage() {
   // Filtered Roster
   const filteredRoster = useMemo(() => {
     return roster.filter((m) => {
+      // Strict audience filtering: when Talabat is chosen, ONLY show Talabat students
+      if (targetType === "STUDENT" && m.targetType !== "STUDENT") return false;
+      // Strict audience filtering: when Faculty is chosen, ONLY show Faculty members
+      if (targetType === "TEACHER" && m.targetType !== "TEACHER") return false;
+
       if (statusFilter !== "ALL") {
         if (statusFilter === "UNMARKED" && m.status !== "NOT_MARKED") return false;
         if (statusFilter !== "UNMARKED" && m.status !== statusFilter) return false;
@@ -400,7 +405,7 @@ export default function AdminManualAttendancePage() {
         m.section?.toLowerCase().includes(q)
       );
     });
-  }, [roster, statusFilter, searchQuery]);
+  }, [roster, targetType, statusFilter, searchQuery]);
 
   // Keyboard Hotkey Navigation & Marking
   useEffect(() => {

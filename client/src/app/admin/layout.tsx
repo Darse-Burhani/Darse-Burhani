@@ -68,12 +68,6 @@ const navItems: PortalNavItem[] = [
     category: "Operations",
   },
   {
-    label: "Email Reports",
-    href: "/admin/attendance-emails",
-    icon: Mail,
-    category: "Operations",
-  },
-  {
     label: "Individual Tracking",
     href: "/admin/tracking",
     icon: BarChart3,

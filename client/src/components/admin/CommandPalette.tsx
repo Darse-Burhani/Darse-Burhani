@@ -121,15 +121,6 @@ const COMMANDS: NavCommand[] = [
     keywords: ["schedule", "timing", "scan window", "grace period", "hours", "tilawat al dua", "excel"],
   },
   {
-    id: "attendance-emails",
-    title: "Attendance Email Reports (Weekly & Monthly)",
-    category: "Attendance",
-    href: "/admin/attendance-emails",
-    icon: Mail,
-    shortcut: "G E",
-    keywords: ["send email", "weekly report", "monthly report", "parents", "pdf", "dispatch"],
-  },
-  {
     id: "procurement",
     title: "Procurement & Supplies Requisitions",
     category: "Attendance",
@@ -340,7 +331,6 @@ export function CommandPalette() {
           d: "/admin", // Dashboard
           a: "/admin/biometric", // Attendance Hub
           t: "/admin/attendance-schedule", // Timing / Schedule
-          e: "/admin/attendance-emails", // Attendance Emails
           c: "/admin/classes", // Classes
           h: "/admin/hifz", // Hifz
           s: "/admin/students", // Students

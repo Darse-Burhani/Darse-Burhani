@@ -227,6 +227,11 @@ export function ManualAttendanceModal({
 
   const filteredRoster = useMemo(() => {
     let list = roster;
+    if (targetType === "STUDENT") {
+      list = list.filter((r) => r.targetType === "STUDENT");
+    } else if (targetType === "TEACHER") {
+      list = list.filter((r) => r.targetType === "TEACHER");
+    }
     if (statusFilter !== "ALL") {
       list = list.filter((r) => r.currentStatus === statusFilter);
     }
@@ -240,7 +245,7 @@ export function ManualAttendanceModal({
         r.its?.toLowerCase().includes(q) ||
         r.department?.toLowerCase().includes(q)
     );
-  }, [roster, statusFilter, search]);
+  }, [roster, targetType, statusFilter, search]);
 
   const updateItemStatus = (id: string, status: AttendanceStatus) => {
     setRoster((prev) =>

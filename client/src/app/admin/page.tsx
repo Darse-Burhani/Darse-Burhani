@@ -569,19 +569,6 @@ export default function AdminDashboard() {
                     <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/attendance-emails" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
-                      <Mail className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-emerald-700">
-                        Email Dispatcher
-                      </p>
-                      <p className="text-xs text-gray-500">Weekly &amp; monthly parent reports</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                  </Link>
-
                   <Link href="/admin/tracking" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50/60 transition-colors">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
                       <BarChart3 className="w-3.5 h-3.5" />
