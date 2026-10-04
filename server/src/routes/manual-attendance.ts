@@ -60,13 +60,18 @@ router.get("/schedules", requireAuth, async (req, res) => {
       };
     });
 
+    const manualOnly = scheduledWindows.filter(
+      (w) => w.windowType === "MANUAL" || w.windowType === "BOTH"
+    );
+    const finalScheduledWindows = manualOnly.length > 0 ? manualOnly : scheduledWindows;
+
     const grades = Array.from(new Set(classes.map((c) => c.grade).filter(Boolean))).sort();
     const sections = Array.from(new Set(classes.map((c) => c.section).filter(Boolean))).sort();
 
     return res.json({
       success: true,
       data: {
-        scheduledWindows,
+        scheduledWindows: finalScheduledWindows,
         classes: classes.map((c) => ({
           id: c.id,
           name: c.name,

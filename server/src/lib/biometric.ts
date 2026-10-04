@@ -158,13 +158,13 @@ export function getWindowType(w: ScanWindowRowLike): AttendanceWindowType {
   if (exempt.includes("TYPE_MANUAL") || w.id.startsWith("manual_") || /\[manual\]/i.test(w.name)) {
     return "MANUAL";
   }
-  if (exempt.includes("TYPE_HIKVISION") || w.id.startsWith("hik_") || /\[hikvision\]|\[hik\]/i.test(w.name)) {
-    return "HIKVISION";
-  }
   if (exempt.includes("TYPE_BOTH") || /\[both\]/i.test(w.name)) {
     return "BOTH";
   }
-  return "BOTH";
+  if (exempt.includes("TYPE_HIKVISION") || w.id.startsWith("hik_") || w.id === "default" || /\[hikvision\]|\[hik\]/i.test(w.name)) {
+    return "HIKVISION";
+  }
+  return "HIKVISION";
 }
 
 /** True when the event row carries a usable faculty timer. */

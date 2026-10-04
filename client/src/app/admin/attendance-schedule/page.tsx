@@ -353,13 +353,19 @@ export default function AdminAttendanceSchedulePage() {
   // Filter windows by workspace
   const hikvisionWindows = useMemo(() => {
     return windows.filter(
-      (w) => w.windowType === "HIKVISION" || w.windowType === "BOTH" || !w.windowType
+      (w) =>
+        w.windowType === "HIKVISION" ||
+        (w.id === "default" && (!w.windowType || w.windowType === "HIKVISION")) ||
+        (w.windowType === "BOTH" && !w.id.startsWith("manual_"))
     );
   }, [windows]);
 
   const manualWindows = useMemo(() => {
     return windows.filter(
-      (w) => w.windowType === "MANUAL" || w.windowType === "BOTH" || !w.windowType
+      (w) =>
+        w.windowType === "MANUAL" ||
+        w.id.startsWith("manual_") ||
+        (w.windowType === "BOTH" && w.id !== "default" && !w.id.startsWith("hik_"))
     );
   }, [windows]);
 
@@ -372,7 +378,7 @@ export default function AdminAttendanceSchedulePage() {
       setEditingWindow(w);
       setWindowForm({
         name: w.name,
-        windowType: (w.windowType as any) || presetWindowType || "BOTH",
+        windowType: (w.windowType as any) || presetWindowType || (activeTab === "HIKVISION" ? "HIKVISION" : "MANUAL"),
         startTime: w.startTime,
         endTime: w.endTime,
         lateEndTime: w.lateEndTime ?? w.endTime,
@@ -871,7 +877,7 @@ export default function AdminAttendanceSchedulePage() {
                       <button
                         type="button"
                         onClick={() => deleteWindow(w.id)}
-                        disabled={deletingId === w.id || windows.length <= 1}
+                        disabled={deletingId === w.id}
                         className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
                         title="Delete Schedule"
                       >
@@ -1046,7 +1052,7 @@ export default function AdminAttendanceSchedulePage() {
                       <button
                         type="button"
                         onClick={() => deleteWindow(w.id)}
-                        disabled={deletingId === w.id || windows.length <= 1}
+                        disabled={deletingId === w.id}
                         className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
                         title="Delete Schedule"
                       >

@@ -71,8 +71,8 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
       orderBy: { startTime: "asc" },
     });
 
-    // Seed the unified primary event if missing (ONE event, BOTH timers)
-    if (!windows.some((w) => w.id === "default")) {
+    // Seed the primary Hikvision scan event if missing
+    if (!windows.some((w) => w.id === "default" || (w.exemptStudentIds || []).includes("TYPE_HIKVISION") || w.id.startsWith("hik_"))) {
       const defaultWindow = await prisma.biometricScanWindow.create({
         data: {
           id: "default",
@@ -82,6 +82,7 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
           lateEndTime: "08:15",
           graceMinutes: 10,
           enabled: true,
+          exemptStudentIds: ["TYPE_HIKVISION"],
           facultyStartTime: "07:30",
           facultyEndTime: "08:45",
           facultyLateEndTime: "08:45",
@@ -91,11 +92,33 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
       windows.push(defaultWindow);
     }
 
+    // Seed the primary Manual roll call event if missing
+    if (!windows.some((w) => w.id.startsWith("manual_") || (w.exemptStudentIds || []).includes("TYPE_MANUAL"))) {
+      const manualDefault = await prisma.biometricScanWindow.create({
+        data: {
+          id: "manual_default",
+          name: "Classroom Roll Call Register",
+          startTime: "08:00",
+          endTime: "08:45",
+          lateEndTime: "09:00",
+          graceMinutes: 10,
+          enabled: true,
+          exemptStudentIds: ["TYPE_MANUAL"],
+          facultyStartTime: "08:00",
+          facultyEndTime: "08:45",
+          facultyLateEndTime: "09:00",
+          facultyEnabled: true,
+        },
+      });
+      windows.push(manualDefault);
+    }
+
     // Self-heal: merge any leftover standalone faculty row into the unified
     // event instead of seeding a second row.
     const legacyIdx = windows.findIndex(
       (w) =>
         w.id !== "default" &&
+        w.id !== "manual_default" &&
         (w.id === "faculty_default" ||
           w.id === "faculty" ||
           /faculty|teacher|staff/i.test(w.name)),
@@ -536,12 +559,9 @@ router.delete("/windows/:id", requireRole("ADMIN"), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const count = await prisma.biometricScanWindow.count();
-    if (count <= 1) {
-      return res.status(400).json({
-        success: false,
-        error: "Cannot delete the only remaining attendance schedule window.",
-      });
+    const existing = await prisma.biometricScanWindow.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Attendance window not found" });
     }
 
     await prisma.biometricScanWindow.delete({ where: { id } });
