@@ -177,12 +177,13 @@ const STATUS_BUTTONS: {
 ];
 
 export default function AdminManualAttendancePage() {
-  const [targetType, setTargetType] = useState<"STUDENT" | "TEACHER">("STUDENT");
+  const [targetType, setTargetType] = useState<"ALL" | "STUDENT" | "TEACHER">("ALL");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [scheduledWindows, setScheduledWindows] = useState<ScheduledWindow[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [grades, setGrades] = useState<string[]>([]);
   const [sections, setSections] = useState<string[]>([]);
+  const [department, setDepartment] = useState<string>("ALL");
 
   // Filters
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("");
@@ -267,6 +268,7 @@ export default function AdminManualAttendancePage() {
       if (selectedClassId && selectedClassId !== "ALL") params.set("classId", selectedClassId);
       if (selectedGrade && selectedGrade !== "ALL") params.set("grade", selectedGrade);
       if (selectedSection && selectedSection !== "ALL") params.set("section", selectedSection);
+      if (department && department !== "ALL") params.set("department", department);
 
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`, {
         headers: { "Content-Type": "application/json" },
@@ -290,7 +292,7 @@ export default function AdminManualAttendancePage() {
     } finally {
       setLoadingRoster(false);
     }
-  }, [targetType, date, selectedScheduleId, selectedClassId, selectedGrade, selectedSection]);
+  }, [targetType, date, selectedScheduleId, selectedClassId, selectedGrade, selectedSection, department]);
 
   useEffect(() => {
     loadRoster();
@@ -515,6 +517,7 @@ export default function AdminManualAttendancePage() {
         .filter((m) => m.status !== "NOT_MARKED" && Boolean(m.status))
         .map((m) => ({
           id: m.profileId || m.id,
+          targetType: m.targetType,
           status: m.status,
           checkInTime: m.checkInTime || undefined,
           remarks: m.remarks || undefined,
@@ -541,7 +544,7 @@ export default function AdminManualAttendancePage() {
       if (data.success) {
         toast({
           title: "Manual Attendance Saved Successfully!",
-          description: `Updated ${data.data?.updatedCount || payloadRecords.length} records. Dual sync to logs & sheet complete.`,
+          description: `Updated ${data.data?.updatedCount || payloadRecords.length} records (${data.data?.updatedStudentCount ?? 0} Talabat, ${data.data?.updatedTeacherCount ?? 0} Faculty). Dual sync complete.`,
           variant: "success",
         });
         setRoster((prev) =>
@@ -626,7 +629,7 @@ export default function AdminManualAttendancePage() {
                   Manual Classroom Attendance
                 </h1>
                 <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
-                  Real-time classroom roll call, teacher tablet mode, and keyboard-accelerated marking with dual cloud sync.
+                  Real-time classroom roll call for Talabat &amp; Faculty, tablet mode, and keyboard-accelerated marking with dual cloud sync.
                 </p>
               </div>
             </div>
@@ -640,7 +643,7 @@ export default function AdminManualAttendancePage() {
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md">
                 <Users className="w-3.5 h-3.5 text-emerald-300" />
-                Audience: <strong>{targetType === "STUDENT" ? "Talabat (Students)" : "Faculty & Staff"}</strong>
+                Audience: <strong>{targetType === "ALL" ? "All Users (Talabat & Faculty)" : targetType === "STUDENT" ? "Talabat (Students)" : "Faculty & Staff"}</strong>
               </span>
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md font-mono">
@@ -759,17 +762,30 @@ export default function AdminManualAttendancePage() {
       <Card className="rounded-3xl border-gray-200/90 shadow-sm bg-white overflow-hidden">
         <CardContent className="p-5 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-            {/* Audience Switcher */}
+            {/* Audience Switcher (3 Pills) */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
                 Audience Group
               </label>
-              <div className="grid grid-cols-2 p-1 rounded-2xl bg-gray-100 border border-gray-200">
+              <div className="grid grid-cols-3 p-1 rounded-2xl bg-gray-100 border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setTargetType("ALL")}
+                  className={cn(
+                    "py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1",
+                    targetType === "ALL"
+                      ? "bg-white text-slate-950 shadow-sm border border-slate-300 font-black"
+                      : "text-gray-600 hover:text-gray-900"
+                  )}
+                >
+                  <Users className="w-3.5 h-3.5 text-amber-600" />
+                  All
+                </button>
                 <button
                   type="button"
                   onClick={() => setTargetType("STUDENT")}
                   className={cn(
-                    "py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5",
+                    "py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1",
                     targetType === "STUDENT"
                       ? "bg-white text-emerald-950 shadow-sm border border-emerald-200/50 font-black"
                       : "text-gray-600 hover:text-gray-900"
@@ -782,13 +798,13 @@ export default function AdminManualAttendancePage() {
                   type="button"
                   onClick={() => setTargetType("TEACHER")}
                   className={cn(
-                    "py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5",
+                    "py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1",
                     targetType === "TEACHER"
                       ? "bg-white text-indigo-950 shadow-sm border border-indigo-200/50 font-black"
                       : "text-gray-600 hover:text-gray-900"
                   )}
                 >
-                  <Users className="w-3.5 h-3.5 text-indigo-600" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
                   Faculty
                 </button>
               </div>
@@ -826,8 +842,8 @@ export default function AdminManualAttendancePage() {
               </select>
             </div>
 
-            {/* Class Selector (Students only) */}
-            {targetType === "STUDENT" ? (
+            {/* Class Selector (Students or All) */}
+            {targetType !== "TEACHER" && (
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
                   Class / Section
@@ -845,14 +861,17 @@ export default function AdminManualAttendancePage() {
                   ))}
                 </select>
               </div>
-            ) : (
+            )}
+
+            {/* Department Selector (Faculty or All) */}
+            {targetType !== "STUDENT" && (
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
                   Department / Role
                 </label>
                 <select
-                  value={selectedGrade}
-                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                 >
                   <option value="ALL">All Departments</option>
@@ -1118,20 +1137,48 @@ export default function AdminManualAttendancePage() {
                       {member.avatarUrl && (
                         <AvatarImage src={member.avatarUrl} alt={member.name} className="object-cover" />
                       )}
-                      <AvatarFallback className="bg-gradient-to-br from-emerald-800 to-teal-900 text-white font-black text-xs">
+                      <AvatarFallback className={cn(
+                        "font-black text-xs text-white",
+                        member.targetType === "TEACHER" ? "bg-gradient-to-br from-indigo-800 to-purple-900" : "bg-gradient-to-br from-emerald-800 to-teal-900"
+                      )}>
                         {getInitials(member.name)}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="min-w-0">
-                      <h4 className="text-sm font-black text-gray-900 truncate flex items-center gap-1.5 font-display">
-                        {member.name}
-                      </h4>
-                      <p className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
-                        {member.its && <span className="font-mono text-emerald-800 font-bold">ITS: {member.its}</span>}
-                        {member.grade && <span>Grade {member.grade}-{member.section}</span>}
-                        {member.department && <span>{member.department}</span>}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-sm font-black text-gray-900 truncate font-display">
+                          {member.name}
+                        </h4>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[9px] font-extrabold px-2 py-0.5 rounded-full border",
+                            member.targetType === "TEACHER"
+                              ? "bg-indigo-50 text-indigo-800 border-indigo-200"
+                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          )}
+                        >
+                          {member.targetType === "TEACHER" ? "Faculty" : "Talabat"}
+                        </Badge>
+                      </div>
+
+                      {/* Prominent ITS Badge & Info */}
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-[11px] font-mono font-black shadow-2xs">
+                          ITS: {member.its || member.identifier || "—"}
+                        </span>
+                        {member.grade && (
+                          <span className="text-[11px] text-gray-600 font-semibold">
+                            Grade {member.grade}-{member.section}
+                          </span>
+                        )}
+                        {member.department && (
+                          <span className="text-[11px] text-indigo-700 font-semibold truncate max-w-[120px]">
+                            {member.department}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

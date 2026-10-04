@@ -91,19 +91,26 @@ router.get("/roster", requireAuth, async (req, res) => {
   try {
     const {
       scheduleId,
-      targetType = "STUDENT",
+      targetType = "ALL",
       date,
       grade,
       section,
       classId,
+      department,
       search,
     } = req.query as Record<string, string>;
 
     const targetDate = parseDate(date);
     const dayEnd = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
 
+    const isAll = targetType === "ALL";
+    const isTeacher = targetType === "TEACHER" || isAll;
+    const isStudent = targetType === "STUDENT" || isAll;
+
+    const roster: any[] = [];
+
     // ── 1. FACULTY AUDIENCE ──
-    if (targetType === "TEACHER") {
+    if (isTeacher) {
       let teacherWhere: any = { user: { isActive: true, deletedAt: null } };
 
       if (scheduleId) {
@@ -119,12 +126,17 @@ router.get("/roster", requireAuth, async (req, res) => {
         }
       }
 
+      if (department && department !== "ALL") {
+        teacherWhere.department = { contains: department, mode: "insensitive" };
+      }
+
       if (search && search.trim()) {
         const q = search.trim();
         teacherWhere.OR = [
           { user: { firstName: { contains: q, mode: "insensitive" } } },
           { user: { lastName: { contains: q, mode: "insensitive" } } },
           { employeeId: { contains: q, mode: "insensitive" } },
+          { its: { contains: q, mode: "insensitive" } },
         ];
       }
 
@@ -142,14 +154,15 @@ router.get("/roster", requireAuth, async (req, res) => {
       const recordMap = new Map<string, (typeof records)[0]>();
       for (const r of records) recordMap.set(r.teacherId, r);
 
-      const roster = teachers.map((t) => {
+      for (const t of teachers) {
         const r = recordMap.get(t.id);
-        return {
+        roster.push({
           id: t.id,
           profileId: t.id,
           name: `${t.user.firstName} ${t.user.lastName}`.trim(),
           email: t.user.email,
           identifier: t.employeeId,
+          its: (t as any).its || t.employeeId,
           department: t.department || (t as any).roleTitle || "Faculty",
           avatarUrl: (t as any).photoUrl || t.user.avatarUrl,
           targetType: "TEACHER",
@@ -158,97 +171,104 @@ router.get("/roster", requireAuth, async (req, res) => {
           checkInTime: r?.checkInTime ? new Date(r.checkInTime).toISOString() : null,
           checkOutTime: r?.checkOutTime ? new Date(r.checkOutTime).toISOString() : null,
           remarks: r?.notes || null,
-        };
-      });
-
-      return res.json({
-        success: true,
-        data: { roster, totalCount: roster.length, date: targetDate.toISOString() },
-      });
-    }
-
-    // ── 2. STUDENT / TALABAT AUDIENCE ──
-    const studentWhere: any = { user: { isActive: true, deletedAt: null } };
-    if (grade && grade !== "ALL") studentWhere.grade = grade;
-    if (section && section !== "ALL") studentWhere.section = section;
-
-    if (scheduleId) {
-      const window = await prisma.biometricScanWindow.findUnique({ where: { id: scheduleId } });
-      if (window) {
-        const exemptStudents = (window as any).exemptStudentIds || [];
-        if (exemptStudents.length > 0) {
-          studentWhere.id = { notIn: exemptStudents };
-        }
-        const appClasses = (window as any).applicableClassIds || [];
-        if (appClasses.length > 0) {
-          studentWhere.enrollments = { some: { classId: { in: appClasses }, isActive: true } };
-        }
+        });
       }
     }
 
-    if (classId && classId !== "ALL") {
-      studentWhere.enrollments = { some: { classId, isActive: true } };
+    // ── 2. STUDENT / TALABAT AUDIENCE ──
+    if (isStudent) {
+      const studentWhere: any = { user: { isActive: true, deletedAt: null } };
+      if (grade && grade !== "ALL") studentWhere.grade = grade;
+      if (section && section !== "ALL") studentWhere.section = section;
+
+      if (scheduleId) {
+        const window = await prisma.biometricScanWindow.findUnique({ where: { id: scheduleId } });
+        if (window) {
+          const exemptStudents = (window as any).exemptStudentIds || [];
+          if (exemptStudents.length > 0) {
+            studentWhere.id = { notIn: exemptStudents };
+          }
+          const appClasses = (window as any).applicableClassIds || [];
+          if (appClasses.length > 0) {
+            studentWhere.enrollments = { some: { classId: { in: appClasses }, isActive: true } };
+          }
+        }
+      }
+
+      if (classId && classId !== "ALL") {
+        studentWhere.enrollments = { some: { classId, isActive: true } };
+      }
+
+      if (search && search.trim()) {
+        const q = search.trim();
+        studentWhere.OR = [
+          { user: { firstName: { contains: q, mode: "insensitive" } } },
+          { user: { lastName: { contains: q, mode: "insensitive" } } },
+          { studentId: { contains: q, mode: "insensitive" } },
+          { its: { contains: q, mode: "insensitive" } },
+        ];
+      }
+
+      const [students, registries, records] = await Promise.all([
+        prisma.studentProfile.findMany({
+          where: studentWhere,
+          include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } },
+          orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+        }),
+        prisma.attendanceRegistry.findMany({
+          where: { date: targetDate },
+        }),
+        prisma.attendanceRecord.findMany({
+          where: { date: { gte: targetDate, lt: dayEnd } },
+        }),
+      ]);
+
+      const regMap = new Map<string, (typeof registries)[0]>();
+      for (const reg of registries) regMap.set(reg.studentId, reg);
+
+      const recMap = new Map<string, (typeof records)[0]>();
+      for (const rec of records) {
+        if (!recMap.has(rec.studentId)) recMap.set(rec.studentId, rec);
+      }
+
+      for (const s of students) {
+        const reg = regMap.get(s.id);
+        const rec = recMap.get(s.id);
+        const status = reg?.status || rec?.status || "NOT_MARKED";
+        const source = reg?.source || rec?.source || "MANUAL";
+        const checkInTime = reg?.checkInTime || rec?.checkInTime || null;
+        const checkOutTime = reg?.checkOutTime || rec?.checkOutTime || null;
+        const remarks = reg?.remarks || rec?.justification || null;
+
+        roster.push({
+          id: s.id,
+          profileId: s.id,
+          name: `${s.user.firstName} ${s.user.lastName}`.trim(),
+          email: s.user.email,
+          identifier: s.studentId,
+          its: s.its || s.studentId,
+          grade: s.grade,
+          section: s.section,
+          avatarUrl: s.user.avatarUrl,
+          targetType: "STUDENT",
+          status,
+          source,
+          checkInTime: checkInTime ? new Date(checkInTime).toISOString() : null,
+          checkOutTime: checkOutTime ? new Date(checkOutTime).toISOString() : null,
+          remarks,
+        });
+      }
     }
 
-    if (search && search.trim()) {
-      const q = search.trim();
-      studentWhere.OR = [
-        { user: { firstName: { contains: q, mode: "insensitive" } } },
-        { user: { lastName: { contains: q, mode: "insensitive" } } },
-        { studentId: { contains: q, mode: "insensitive" } },
-        { its: { contains: q, mode: "insensitive" } },
-      ];
+    // Sort combined roster: Teachers first or alphabetical by name
+    if (isAll) {
+      roster.sort((a, b) => {
+        if (a.targetType !== b.targetType) {
+          return a.targetType === "TEACHER" ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
     }
-
-    const [students, registries, records] = await Promise.all([
-      prisma.studentProfile.findMany({
-        where: studentWhere,
-        include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } },
-        orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
-      }),
-      prisma.attendanceRegistry.findMany({
-        where: { date: targetDate },
-      }),
-      prisma.attendanceRecord.findMany({
-        where: { date: { gte: targetDate, lt: dayEnd } },
-      }),
-    ]);
-
-    const regMap = new Map<string, (typeof registries)[0]>();
-    for (const reg of registries) regMap.set(reg.studentId, reg);
-
-    const recMap = new Map<string, (typeof records)[0]>();
-    for (const rec of records) {
-      if (!recMap.has(rec.studentId)) recMap.set(rec.studentId, rec);
-    }
-
-    const roster = students.map((s) => {
-      const reg = regMap.get(s.id);
-      const rec = recMap.get(s.id);
-      const status = reg?.status || rec?.status || "NOT_MARKED";
-      const source = reg?.source || rec?.source || "MANUAL";
-      const checkInTime = reg?.checkInTime || rec?.checkInTime || null;
-      const checkOutTime = reg?.checkOutTime || rec?.checkOutTime || null;
-      const remarks = reg?.remarks || rec?.justification || null;
-
-      return {
-        id: s.id,
-        profileId: s.id,
-        name: `${s.user.firstName} ${s.user.lastName}`.trim(),
-        email: s.user.email,
-        identifier: s.studentId,
-        its: s.its || s.studentId,
-        grade: s.grade,
-        section: s.section,
-        avatarUrl: s.user.avatarUrl,
-        targetType: "STUDENT",
-        status,
-        source,
-        checkInTime: checkInTime ? new Date(checkInTime).toISOString() : null,
-        checkOutTime: checkOutTime ? new Date(checkOutTime).toISOString() : null,
-        remarks,
-      };
-    });
 
     return res.json({
       success: true,
@@ -267,9 +287,10 @@ router.post("/", requireAuth, async (req, res) => {
     const body = req.body as {
       scheduleId?: string;
       date: string;
-      targetType: "STUDENT" | "TEACHER";
+      targetType?: "STUDENT" | "TEACHER" | "ALL";
       records: Array<{
         id: string; // studentId or teacherId
+        targetType?: "STUDENT" | "TEACHER";
         status: AttendanceStatus;
         checkInTime?: string | null;
         checkOutTime?: string | null;
@@ -277,7 +298,7 @@ router.post("/", requireAuth, async (req, res) => {
       }>;
     };
 
-    const { scheduleId, date, targetType = "STUDENT", records } = body;
+    const { scheduleId, date, targetType = "ALL", records } = body;
 
     if (!records || !Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ success: false, error: "records array cannot be empty" });
@@ -293,89 +314,94 @@ router.post("/", requireAuth, async (req, res) => {
       if (win) windowName = win.name;
     }
 
-    let updatedCount = 0;
+    // Split records by type if targetType === ALL or records have targetType attached
+    const teacherRecords: typeof records = [];
+    const studentRecords: typeof records = [];
 
-    // ── A. TEACHER / FACULTY MANUAL ATTENDANCE ──
     if (targetType === "TEACHER") {
+      teacherRecords.push(...records);
+    } else if (targetType === "STUDENT") {
+      studentRecords.push(...records);
+    } else {
+      // Check individual record targetType or lookup ID
+      const allIds = records.map((r) => r.id);
+      const [knownTeachers, knownStudents] = await Promise.all([
+        prisma.teacherProfile.findMany({ where: { id: { in: allIds } }, select: { id: true } }),
+        prisma.studentProfile.findMany({ where: { id: { in: allIds } }, select: { id: true } }),
+      ]);
+      const teacherIdSet = new Set(knownTeachers.map((t) => t.id));
+      const studentIdSet = new Set(knownStudents.map((s) => s.id));
+
       for (const item of records) {
-        if (!item.id || !validStatuses.includes(item.status)) continue;
-
-        const checkIn = item.checkInTime ? new Date(item.checkInTime) : item.status === "PRESENT" || item.status === "LATE" ? new Date() : null;
-        const checkOut = item.checkOutTime ? new Date(item.checkOutTime) : null;
-        const note = item.remarks ? item.remarks.trim() : `Manual mark (${windowName}) by ${actorName}`;
-
-        const existing = await prisma.teacherAttendanceRecord.findUnique({
-          where: { teacherId_date: { teacherId: item.id, date: targetDate } },
-        });
-
-        await prisma.teacherAttendanceRecord.upsert({
-          where: { teacherId_date: { teacherId: item.id, date: targetDate } },
-          create: {
-            teacherId: item.id,
-            date: targetDate,
-            status: item.status,
-            checkInTime: checkIn,
-            checkOutTime: checkOut,
-            verificationMethod: "MANUAL",
-            notes: note,
-          },
-          update: {
-            status: item.status,
-            checkInTime: checkIn,
-            checkOutTime: checkOut,
-            verificationMethod: "MANUAL",
-            notes: note,
-          },
-        });
-
-        // Audit Trail Log
-        await prisma.attendanceAuditLog.create({
-          data: {
-            date: targetDate,
-            entityType: "TEACHER_RECORD",
-            entityId: item.id,
-            teacherId: item.id,
-            action: existing ? "OVERRIDE" : "CREATE",
-            oldStatus: existing?.status || null,
-            newStatus: item.status,
-            oldSource: existing?.verificationMethod || null,
-            newSource: "MANUAL",
-            actorId: session.user.id,
-            actorName,
-            actorRole: session.user.role,
-            reason: note,
-          },
-        }).catch(() => {});
-
-        updatedCount++;
+        if (item.targetType === "TEACHER" || teacherIdSet.has(item.id)) {
+          teacherRecords.push(item);
+        } else {
+          studentRecords.push(item);
+        }
       }
-
-      // Broadcast live event so open dashboards and logs refresh immediately
-      broadcastAttendanceEvent({
-        type: "MANUAL_ATTENDANCE_SAVED",
-        role: "TEACHER",
-        windowName,
-        count: updatedCount,
-        date: targetDate.toISOString(),
-        actorName,
-      });
-
-      // Auto-sync faculty manual marks to Google Sheet (student path already does this;
-      // without it faculty manual attendance never reaches the daily sheet pull).
-      queueAutoSheetSync(targetDate);
-
-      return res.json({
-        success: true,
-        message: `Successfully marked manual attendance for ${updatedCount} faculty member(s).`,
-        data: { updatedCount },
-      });
     }
 
-    // ── B. STUDENT / TALABAT ATTENDANCE (DUAL SYNC: AttendanceRegistry + AttendanceRecord) ──
-    // Fetch a fallback active class just in case a student has no enrollments
+    let updatedTeacherCount = 0;
+    let updatedStudentCount = 0;
+
+    // ── A. TEACHER / FACULTY MANUAL ATTENDANCE ──
+    for (const item of teacherRecords) {
+      if (!item.id || !validStatuses.includes(item.status)) continue;
+
+      const checkIn = item.checkInTime ? new Date(item.checkInTime) : item.status === "PRESENT" || item.status === "LATE" ? new Date() : null;
+      const checkOut = item.checkOutTime ? new Date(item.checkOutTime) : null;
+      const note = item.remarks ? item.remarks.trim() : `Manual mark (${windowName}) by ${actorName}`;
+
+      const existing = await prisma.teacherAttendanceRecord.findUnique({
+        where: { teacherId_date: { teacherId: item.id, date: targetDate } },
+      });
+
+      await prisma.teacherAttendanceRecord.upsert({
+        where: { teacherId_date: { teacherId: item.id, date: targetDate } },
+        create: {
+          teacherId: item.id,
+          date: targetDate,
+          status: item.status,
+          checkInTime: checkIn,
+          checkOutTime: checkOut,
+          verificationMethod: "MANUAL",
+          notes: note,
+        },
+        update: {
+          status: item.status,
+          checkInTime: checkIn,
+          checkOutTime: checkOut,
+          verificationMethod: "MANUAL",
+          notes: note,
+        },
+      });
+
+      // Audit Trail Log
+      await prisma.attendanceAuditLog.create({
+        data: {
+          date: targetDate,
+          entityType: "TEACHER_RECORD",
+          entityId: item.id,
+          teacherId: item.id,
+          action: existing ? "OVERRIDE" : "CREATE",
+          oldStatus: existing?.status || null,
+          newStatus: item.status,
+          oldSource: existing?.verificationMethod || null,
+          newSource: "MANUAL",
+          actorId: session.user.id,
+          actorName,
+          actorRole: session.user.role,
+          reason: note,
+        },
+      }).catch(() => {});
+
+      updatedTeacherCount++;
+    }
+
+    // ── B. STUDENT / TALABAT ATTENDANCE ──
     const fallbackClass = await prisma.class.findFirst({ where: { isActive: true }, select: { id: true } });
 
-    for (const item of records) {
+    for (const item of studentRecords) {
       if (!item.id || !validStatuses.includes(item.status)) continue;
 
       const checkIn = item.checkInTime ? new Date(item.checkInTime) : item.status === "PRESENT" || item.status === "LATE" ? new Date() : null;
@@ -409,7 +435,7 @@ router.post("/", requireAuth, async (req, res) => {
         },
       });
 
-      // 2. Upsert AttendanceRecord for student's active classes (so Teacher & Class view sees it immediately)
+      // 2. Upsert AttendanceRecord for student's active classes
       const enrollments = await prisma.classEnrollment.findMany({
         where: { studentId: item.id, isActive: true },
         select: { classId: true },
@@ -463,26 +489,28 @@ router.post("/", requireAuth, async (req, res) => {
         },
       }).catch(() => {});
 
-      updatedCount++;
+      updatedStudentCount++;
     }
+
+    const totalUpdated = updatedTeacherCount + updatedStudentCount;
 
     // Broadcast live event so open dashboards and logs refresh immediately
     broadcastAttendanceEvent({
       type: "MANUAL_ATTENDANCE_SAVED",
       role: targetType,
       windowName,
-      count: updatedCount,
+      count: totalUpdated,
       date: targetDate.toISOString(),
       actorName,
     });
 
-    // Auto-sync manual attendance entries to Google Sheet
+    // Auto-sync manual marks to Google Sheet
     queueAutoSheetSync(targetDate);
 
     return res.json({
       success: true,
-      message: `Successfully marked manual attendance for ${updatedCount} student(s) in ${windowName}.`,
-      data: { updatedCount },
+      message: `Successfully marked manual attendance for ${totalUpdated} member(s) (${updatedStudentCount} Talabat, ${updatedTeacherCount} Faculty).`,
+      data: { updatedCount: totalUpdated, updatedStudentCount, updatedTeacherCount },
     });
   } catch (error) {
     console.error("Manual attendance recording error:", error);

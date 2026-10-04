@@ -234,7 +234,7 @@ function WindowSkeleton() {
 }
 
 export default function AdminAttendanceSchedulePage() {
-  const [activeTab, setActiveTab] = useState<"ALL_STUDENTS" | "FACULTY" | "CLASSES">("ALL_STUDENTS");
+  const [activeTab, setActiveTab] = useState<"HIKVISION" | "MANUAL" | "FACULTY" | "CLASSES">("HIKVISION");
   const [loading, setLoading] = useState(true);
 
   // Scan Windows state (Students & Faculty)
@@ -244,7 +244,7 @@ export default function AdminAttendanceSchedulePage() {
   const [subsystemFilter, setSubsystemFilter] = useState<"ALL" | "HIKVISION" | "MANUAL">("ALL");
   const [windowForm, setWindowForm] = useState({
     name: "",
-    windowType: "BOTH" as "HIKVISION" | "MANUAL" | "BOTH",
+    windowType: "HIKVISION" as "HIKVISION" | "MANUAL" | "BOTH",
     startTime: "07:30",
     endTime: "08:30",
     lateEndTime: "09:00",
@@ -510,14 +510,18 @@ export default function AdminAttendanceSchedulePage() {
   }, [loadData]);
 
   // Open modal to create/edit window
-  const openWindowModal = (w?: ScanWindow, defaultAudience?: "ALL_STUDENTS" | "FACULTY") => {
+  const openWindowModal = (
+    w?: ScanWindow,
+    defaultAudience?: "ALL_STUDENTS" | "FACULTY",
+    presetWindowType?: "HIKVISION" | "MANUAL" | "BOTH"
+  ) => {
     if (w) {
       setEditingWindow(w);
       const isLegacyFaculty = (w.audience === "FACULTY" || w.id === "faculty_default") && !w.hasFacultyTimer;
       const hasFac = Boolean(w.facultyStartTime && w.facultyEndTime) || isLegacyFaculty;
       setWindowForm({
         name: w.name,
-        windowType: (w.windowType as any) || "BOTH",
+        windowType: (w.windowType as any) || presetWindowType || "BOTH",
         startTime: w.startTime,
         endTime: w.endTime,
         lateEndTime: w.lateEndTime ?? w.endTime,
@@ -537,9 +541,26 @@ export default function AdminAttendanceSchedulePage() {
     } else {
       setEditingWindow(null);
       const aud = defaultAudience || (activeTab === "FACULTY" ? "FACULTY" : "ALL_STUDENTS");
+      const chosenType =
+        presetWindowType ||
+        (activeTab === "HIKVISION"
+          ? "HIKVISION"
+          : activeTab === "MANUAL"
+          ? "MANUAL"
+          : "BOTH");
+
+      const defaultName =
+        aud === "FACULTY"
+          ? "Faculty Reporting & Briefing"
+          : chosenType === "HIKVISION"
+          ? "Hikvision Morning Punch Window"
+          : chosenType === "MANUAL"
+          ? "Classroom Roll Call Window"
+          : "Tilawat al Dua Window";
+
       setWindowForm({
-        name: aud === "FACULTY" ? "Faculty Reporting & Briefing" : "",
-        windowType: subsystemFilter === "HIKVISION" ? "HIKVISION" : subsystemFilter === "MANUAL" ? "MANUAL" : "BOTH",
+        name: defaultName,
+        windowType: chosenType,
         startTime: aud === "FACULTY" ? "07:30" : "07:00",
         endTime: aud === "FACULTY" ? "08:15" : "08:15",
         lateEndTime: aud === "FACULTY" ? "09:00" : "08:15",
@@ -831,25 +852,23 @@ export default function AdminAttendanceSchedulePage() {
       .filter((s) => (classFilter === "ALL" ? true : s.classId === classFilter));
   }, [slots, selectedDay, classFilter]);
 
-  const studentWindows = useMemo(() => {
-    let list = windows;
-    if (subsystemFilter === "HIKVISION") {
-      list = list.filter((w) => w.windowType === "HIKVISION" || w.windowType === "BOTH" || !w.windowType);
-    } else if (subsystemFilter === "MANUAL") {
-      list = list.filter((w) => w.windowType === "MANUAL" || w.windowType === "BOTH");
-    }
-    return list;
-  }, [windows, subsystemFilter]);
+  const hikvisionWindows = useMemo(() => {
+    return windows.filter(
+      (w) => w.windowType === "HIKVISION" || w.windowType === "BOTH" || !w.windowType
+    );
+  }, [windows]);
+
+  const manualWindows = useMemo(() => {
+    return windows.filter(
+      (w) => w.windowType === "MANUAL" || w.windowType === "BOTH" || !w.windowType
+    );
+  }, [windows]);
 
   const facultyWindows = useMemo(() => {
-    let list = windows.filter((w) => w.hasFacultyTimer || w.audience === "FACULTY" || w.id === "faculty_default");
-    if (subsystemFilter === "HIKVISION") {
-      list = list.filter((w) => w.windowType === "HIKVISION" || w.windowType === "BOTH" || !w.windowType);
-    } else if (subsystemFilter === "MANUAL") {
-      list = list.filter((w) => w.windowType === "MANUAL" || w.windowType === "BOTH");
-    }
-    return list;
-  }, [windows, subsystemFilter]);
+    return windows.filter(
+      (w) => w.hasFacultyTimer || w.audience === "FACULTY" || w.id === "faculty_default"
+    );
+  }, [windows]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -877,13 +896,13 @@ export default function AdminAttendanceSchedulePage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#fff2b2] text-xs font-black tracking-wider uppercase mb-3 shadow-inner">
               <Sparkles className="w-3.5 h-3.5 text-[#fde047] animate-pulse" />
-              <span>Attendance Automation Engine</span>
+              <span>Dual Attendance Timing Engine</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-display tracking-tight">
               Attendance Schedule &amp; Timing
             </h1>
             <p className="text-emerald-100/90 text-sm mt-1.5 max-w-2xl font-medium leading-relaxed">
-              Configure attendance sessions, scan windows, start/end times, and grace periods for Talabat, Faculty, and Classes.
+              Differentiated schedule centers for <strong>Automated Hikvision Hardware Terminals</strong> and <strong>Manual Classroom Registers</strong>.
             </p>
           </div>
 
@@ -930,7 +949,7 @@ export default function AdminAttendanceSchedulePage() {
             </Button>
 
             <Button
-              onClick={() => downloadExcel(activeTab)}
+              onClick={() => downloadExcel(activeTab === "HIKVISION" || activeTab === "MANUAL" ? "ALL_STUDENTS" : activeTab)}
               disabled={exporting}
               variant="fatimi-gold"
               className="text-xs font-black h-10 px-4 rounded-xl shadow-lg"
@@ -1019,29 +1038,49 @@ export default function AdminAttendanceSchedulePage() {
         </AnimatePresence>
       </div>
 
-      {/* ── Main Tab Switcher & Subsystem Mode Filter ── */}
+      {/* ── Main Tab Switcher (Differentiated Workspaces: Hikvision vs Manual vs Faculty vs Classes) ── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Main Role / Timetable Tabs */}
           <div className="flex items-center p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/90 w-fit flex-wrap gap-1.5 shadow-inner">
+            {/* 1. HIKVISION HARDWARE SCHEDULE TAB */}
             <button
               type="button"
-              onClick={() => setActiveTab("ALL_STUDENTS")}
+              onClick={() => setActiveTab("HIKVISION")}
               className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
-                activeTab === "ALL_STUDENTS"
-                  ? "bg-white text-emerald-950 shadow-md border border-gray-200 font-black ring-1 ring-emerald-500/20"
+                activeTab === "HIKVISION"
+                  ? "bg-white text-purple-950 shadow-md border border-purple-200 font-black ring-2 ring-purple-500/30"
                   : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
               }`}
             >
-              <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "ALL_STUDENTS" ? "bg-emerald-100 text-emerald-800" : "bg-gray-200/70 text-gray-600"}`}>
-                <Users className="w-3.5 h-3.5" />
+              <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "HIKVISION" ? "bg-purple-100 text-purple-800" : "bg-gray-200/70 text-gray-600"}`}>
+                <Radio className="w-3.5 h-3.5" />
               </span>
-              <span>Talabat Windows</span>
-              <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold">
-                {studentWindows.length}
+              <span>Hikvision Hardware</span>
+              <Badge variant="outline" className="ml-1 bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-extrabold">
+                {hikvisionWindows.length}
               </Badge>
             </button>
 
+            {/* 2. MANUAL REGISTER SCHEDULE TAB */}
+            <button
+              type="button"
+              onClick={() => setActiveTab("MANUAL")}
+              className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none active:scale-[0.97] ${
+                activeTab === "MANUAL"
+                  ? "bg-white text-emerald-950 shadow-md border border-emerald-200 font-black ring-2 ring-emerald-500/30"
+                  : "text-gray-600 hover:text-gray-950 hover:bg-white/60"
+              }`}
+            >
+              <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "MANUAL" ? "bg-emerald-100 text-emerald-800" : "bg-gray-200/70 text-gray-600"}`}>
+                <ClipboardCheck className="w-3.5 h-3.5" />
+              </span>
+              <span>Manual Register</span>
+              <Badge variant="outline" className="ml-1 bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold">
+                {manualWindows.length}
+              </Badge>
+            </button>
+
+            {/* 3. FACULTY ROLE TIMERS TAB */}
             <button
               type="button"
               onClick={() => setActiveTab("FACULTY")}
@@ -1054,12 +1093,13 @@ export default function AdminAttendanceSchedulePage() {
               <span className={`flex items-center justify-center w-6 h-6 rounded-lg transition-transform group-hover:scale-110 ${activeTab === "FACULTY" ? "bg-indigo-100 text-indigo-800" : "bg-gray-200/70 text-gray-600"}`}>
                 <ShieldCheck className="w-3.5 h-3.5" />
               </span>
-              <span>Faculty Role Timer</span>
+              <span>Faculty Role Timers</span>
               <Badge variant="outline" className="ml-1 bg-indigo-50 text-indigo-800 border-indigo-200 text-[10px] font-extrabold">
                 {facultyWindows.length}
               </Badge>
             </button>
 
+            {/* 4. CLASS TIMETABLE TAB */}
             <button
               type="button"
               onClick={() => setActiveTab("CLASSES")}
@@ -1078,58 +1118,26 @@ export default function AdminAttendanceSchedulePage() {
               </Badge>
             </button>
           </div>
-
-          {/* Subsystem Mode Filter for Windows */}
-          {activeTab !== "CLASSES" && (
-            <div className="flex items-center p-1 bg-gray-100/90 rounded-2xl border border-gray-200 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setSubsystemFilter("ALL")}
-                className={`px-3 py-1.5 rounded-xl transition-all ${
-                  subsystemFilter === "ALL"
-                    ? "bg-white text-gray-900 shadow-xs font-black"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
-              >
-                All Modes
-              </button>
-              <button
-                type="button"
-                onClick={() => setSubsystemFilter("HIKVISION")}
-                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-                  subsystemFilter === "HIKVISION"
-                    ? "bg-purple-600 text-white shadow-xs font-black"
-                    : "text-gray-600 hover:text-purple-700"
-                }`}
-              >
-                <Radio className="w-3 h-3" />
-                <span>Hikvision Hardware</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSubsystemFilter("MANUAL")}
-                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-                  subsystemFilter === "MANUAL"
-                    ? "bg-emerald-600 text-white shadow-xs font-black"
-                    : "text-gray-600 hover:text-emerald-700"
-                }`}
-              >
-                <ClipboardCheck className="w-3 h-3" />
-                <span>Manual Register</span>
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Create button according to active tab */}
-        {activeTab === "ALL_STUDENTS" ? (
+        {/* Action Button tailored to active tab */}
+        {activeTab === "HIKVISION" ? (
           <Button
-            onClick={() => openWindowModal(undefined, "ALL_STUDENTS")}
+            onClick={() => openWindowModal(undefined, "ALL_STUDENTS", "HIKVISION")}
             variant="default"
-            className="text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2 shrink-0"
+            className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2 shrink-0"
           >
             <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
-            <span>Add Talabat Window</span>
+            <span>Add Hikvision Hardware Window</span>
+          </Button>
+        ) : activeTab === "MANUAL" ? (
+          <Button
+            onClick={() => openWindowModal(undefined, "ALL_STUDENTS", "MANUAL")}
+            variant="default"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md rounded-xl h-10 px-4 flex items-center gap-2 shrink-0"
+          >
+            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
+            <span>Add Manual Register Window</span>
           </Button>
         ) : activeTab === "FACULTY" ? (
           <Button
@@ -1152,13 +1160,212 @@ export default function AdminAttendanceSchedulePage() {
         )}
       </div>
 
-      {/* ── TAB 1: ALL STUDENTS GENERAL ATTENDANCE SCHEDULE ── */}
+      {/* ── WORKSPACE 1: HIKVISION BIOMETRIC HARDWARE SCHEDULE ── */}
       {loading ? (
         <WindowSkeleton />
-      ) : activeTab === "ALL_STUDENTS" ? (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      ) : activeTab === "HIKVISION" ? (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/10 via-slate-900/5 to-purple-900/10 border border-purple-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-800 shadow-2xs shrink-0">
+                <Radio className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-purple-950 font-display">
+                  Hikvision Biometric Hardware Timing
+                </h3>
+                <p className="text-xs text-purple-800/80 mt-0.5">
+                  Automated facial recognition &amp; card terminal punch shifts. Terminal scans outside these hours are flagged.
+                </p>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-xs font-bold bg-white text-purple-900 border-purple-300">
+              {hikvisionWindows.length} Hardware Window(s) Active
+            </Badge>
+          </div>
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {studentWindows.map((w) => {
+            {hikvisionWindows.map((w) => {
+              const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
+              return (
+                <Card
+                  key={w.id}
+                  className={`group relative overflow-hidden transition-all duration-300 rounded-3xl border bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 ${
+                    w.enabled
+                      ? isLive
+                        ? "border-purple-500/80 ring-2 ring-purple-500/20 shadow-purple-500/10"
+                        : "border-purple-200/90 hover:border-purple-400"
+                      : "opacity-60 bg-gray-50/80 border-gray-200"
+                  }`}
+                >
+                  <div
+                    className={`h-2 w-full ${
+                      !w.enabled
+                        ? "bg-gray-300"
+                        : isLive
+                        ? "bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-400"
+                        : "bg-gradient-to-r from-purple-400 via-pink-400 to-amber-400"
+                    }`}
+                  />
+                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
+                        isLive ? "bg-purple-100 text-purple-800 border border-purple-300" : "bg-purple-50 text-purple-700 border border-purple-100"
+                      }`}>
+                        <Radio className="w-5 h-5 stroke-[1.8]" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          {isLive && (
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
+                            </span>
+                          )}
+                          <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
+                            <Radio className="w-2.5 h-2.5 text-purple-600" />
+                            <span>Hikvision Terminal</span>
+                          </Badge>
+                          {w.hasFacultyTimer && (
+                            <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 text-[10px] font-bold">
+                              Dual Timer
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => openWindowModal(w, "ALL_STUDENTS", "HIKVISION")}
+                        className="p-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all active:scale-90"
+                        title="Edit Schedule"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteWindow(w.id)}
+                        disabled={deletingId === w.id || windows.length <= 1}
+                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
+                        title="Delete Schedule"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pt-0 space-y-3.5">
+                    {/* Time Display */}
+                    <div className="p-3.5 bg-purple-50/50 rounded-2xl border border-purple-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-purple-800 shadow-2xs border border-purple-200/60">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Device Punch Window</p>
+                          <p className="text-sm font-black text-purple-950 font-mono">
+                            {w.startTime} &rarr; {w.endTime}
+                          </p>
+                          {w.lateEndTime && w.lateEndTime !== w.endTime && (
+                            <p className="text-xs font-bold text-amber-700 font-mono">
+                              Late Cutoff: {w.lateEndTime}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Span</p>
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-purple-200 text-xs font-bold text-purple-900 font-mono">
+                          {w.durationMinutes}m
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Timeline Bar */}
+                    <ScheduleTimelineBar
+                      startTime={w.startTime}
+                      endTime={w.endTime}
+                      lateEndTime={w.lateEndTime}
+                      accent="indigo"
+                    />
+
+                    {/* Grace Period & Live Status */}
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-purple-100">
+                      <div className="flex items-center gap-1.5 text-gray-600">
+                        <Timer className="w-4 h-4 text-purple-600" />
+                        <span>
+                          Grace: <strong>{w.graceMinutes} min</strong>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-2xs ${
+                            !w.enabled
+                              ? "bg-gray-100 text-gray-600 border-gray-300"
+                              : isLive
+                              ? "bg-purple-50 text-purple-900 border-purple-300"
+                              : "bg-amber-50 text-amber-900 border-amber-300"
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${!w.enabled ? "bg-gray-400" : isLive ? "bg-purple-600 animate-pulse" : "bg-amber-500"}`} />
+                          {!w.enabled ? "Disabled" : isLive ? "Active Live" : "Closed"}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleWindowActive(w)}
+                          aria-label="Toggle window active state"
+                          className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ease-out select-none active:scale-95 ${
+                            w.enabled ? "bg-purple-600 shadow-sm" : "bg-gray-300"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ease-out ${
+                              w.enabled ? "translate-x-4" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </motion.div>
+      ) : null}
+
+      {/* ── WORKSPACE 2: MANUAL CLASSROOM REGISTER SCHEDULE ── */}
+      {!loading && activeTab === "MANUAL" && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-900/10 via-slate-900/5 to-emerald-900/10 border border-emerald-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 shadow-2xs shrink-0">
+                <ClipboardCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-emerald-950 font-display">
+                  Manual Classroom Register Sessions
+                </h3>
+                <p className="text-xs text-emerald-800/80 mt-0.5">
+                  Teacher roll call timing windows for Talabat and Faculty in classroom registers.
+                </p>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-xs font-bold bg-white text-emerald-900 border-emerald-300">
+              {manualWindows.length} Manual Window(s) Active
+            </Badge>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+            {manualWindows.map((w) => {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
               return (
                 <Card
@@ -1167,7 +1374,7 @@ export default function AdminAttendanceSchedulePage() {
                     w.enabled
                       ? isLive
                         ? "border-emerald-500/80 ring-2 ring-emerald-500/20 shadow-emerald-500/10"
-                        : "border-gray-200/90 hover:border-emerald-500/40"
+                        : "border-emerald-200/90 hover:border-emerald-400"
                       : "opacity-60 bg-gray-50/80 border-gray-200"
                   }`}
                 >
@@ -1185,7 +1392,7 @@ export default function AdminAttendanceSchedulePage() {
                       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
                         isLive ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
                       }`}>
-                        <Users className="w-5 h-5 stroke-[1.8]" />
+                        <ClipboardCheck className="w-5 h-5 stroke-[1.8]" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
@@ -1198,23 +1405,13 @@ export default function AdminAttendanceSchedulePage() {
                           <h3 className="font-bold text-base text-gray-900 leading-tight">{w.name}</h3>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                          <p className="text-xs text-gray-500 font-medium">
-                            {w.audience === "BOTH" || w.hasFacultyTimer ? "Talabat + Faculty (Unified Event)" : "All Talabat (Learners)"}
-                          </p>
-                          {w.windowType === "HIKVISION" ? (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
-                              <Radio className="w-2.5 h-2.5 text-purple-600" />
-                              <span>Hikvision Device</span>
-                            </Badge>
-                          ) : w.windowType === "MANUAL" ? (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
-                              <ClipboardCheck className="w-2.5 h-2.5 text-emerald-600" />
-                              <span>Manual Register</span>
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
-                              <Zap className="w-2.5 h-2.5 text-blue-600" />
-                              <span>Dual (Both)</span>
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-extrabold flex items-center gap-1 py-0 px-2">
+                            <ClipboardCheck className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>Manual Register</span>
+                          </Badge>
+                          {w.hasFacultyTimer && (
+                            <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 text-[10px] font-bold">
+                              Dual Timer
                             </Badge>
                           )}
                         </div>
@@ -1224,7 +1421,7 @@ export default function AdminAttendanceSchedulePage() {
                     <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
                       <button
                         type="button"
-                        onClick={() => openWindowModal(w, "ALL_STUDENTS")}
+                        onClick={() => openWindowModal(w, "ALL_STUDENTS", "MANUAL")}
                         className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all active:scale-90"
                         title="Edit Schedule"
                       >
@@ -1233,7 +1430,7 @@ export default function AdminAttendanceSchedulePage() {
                       <button
                         type="button"
                         onClick={() => deleteWindow(w.id)}
-                        disabled={deletingId === w.id || studentWindows.length <= 1}
+                        disabled={deletingId === w.id || windows.length <= 1}
                         className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
                         title="Delete Schedule"
                       >
@@ -1244,41 +1441,33 @@ export default function AdminAttendanceSchedulePage() {
 
                   <CardContent className="pt-0 space-y-3.5">
                     {/* Time Display */}
-                    <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+                    <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-emerald-800 shadow-2xs border border-slate-200/60">
+                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-emerald-800 shadow-2xs border border-emerald-200/60">
                           <Clock className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Talabat On-Time</p>
-                          <p className="text-sm font-black text-gray-900 font-mono">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Roll Call Session</p>
+                          <p className="text-sm font-black text-emerald-950 font-mono">
                             {w.startTime} &rarr; {w.endTime}
                           </p>
                           {w.lateEndTime && w.lateEndTime !== w.endTime && (
                             <p className="text-xs font-bold text-amber-700 font-mono">
-                              Late Till: {w.lateEndTime}
-                            </p>
-                          )}
-                          {(w.hasFacultyTimer || w.facultyStartTime) && (
-                            <p className="text-xs font-bold text-indigo-700 font-mono mt-1">
-                              Faculty: {w.facultyStartTime} &rarr; {w.facultyEndTime}
-                              {w.facultyLateEndTime && w.facultyLateEndTime !== w.facultyEndTime && (
-                                <span className="text-amber-700"> (Late till {w.facultyLateEndTime})</span>
-                              )}
+                              Late Cutoff: {w.lateEndTime}
                             </p>
                           )}
                         </div>
                       </div>
 
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Duration</p>
-                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-gray-800 font-mono">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Span</p>
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-emerald-200 text-xs font-bold text-emerald-900 font-mono">
                           {w.durationMinutes}m
                         </span>
                       </div>
                     </div>
 
-                    {/* Interactive Visual Timeline Progress Bar */}
+                    {/* Timeline Bar */}
                     <ScheduleTimelineBar
                       startTime={w.startTime}
                       endTime={w.endTime}
@@ -1287,9 +1476,9 @@ export default function AdminAttendanceSchedulePage() {
                     />
 
                     {/* Grace Period & Live Status */}
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-emerald-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
-                        <Timer className="w-4 h-4 text-amber-600" />
+                        <Timer className="w-4 h-4 text-emerald-600" />
                         <span>
                           Grace: <strong>{w.graceMinutes} min</strong>
                         </span>
@@ -1331,7 +1520,7 @@ export default function AdminAttendanceSchedulePage() {
             })}
           </div>
         </motion.div>
-      ) : null}
+      )}
 
       {/* ── TAB 2: FACULTY ROLE TIMER ATTENDANCE SCHEDULE ── */}
       {!loading && activeTab === "FACULTY" && (
