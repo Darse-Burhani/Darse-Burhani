@@ -826,19 +826,34 @@ export default function AdminManualAttendancePage() {
             {/* Schedule Window Selector */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Timing Window
+                Timing Window (Manual Session)
               </label>
               <select
                 value={selectedScheduleId}
                 onChange={(e) => setSelectedScheduleId(e.target.value)}
-                className="w-full h-10 px-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                className="w-full h-10 px-3.5 rounded-2xl border border-emerald-300 bg-white text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none shadow-xs"
               >
                 <option value="">All Schedule Windows</option>
-                {scheduledWindows.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} ({w.startTime} - {w.endTime}) {w.windowType ? `[${w.windowType}]` : ""}
-                  </option>
-                ))}
+                <optgroup label="📝 Manual Classroom Registers">
+                  {scheduledWindows
+                    .filter((w) => w.windowType === "MANUAL" || w.windowType === "BOTH" || !w.windowType)
+                    .map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({w.startTime} - {w.endTime}) {w.windowType === "MANUAL" ? "[Manual]" : "[Dual]"}
+                      </option>
+                    ))}
+                </optgroup>
+                {scheduledWindows.some((w) => w.windowType === "HIKVISION") && (
+                  <optgroup label="⚡ Hikvision Hardware Windows">
+                    {scheduledWindows
+                      .filter((w) => w.windowType === "HIKVISION")
+                      .map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} ({w.startTime} - {w.endTime}) [Hardware Terminal]
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
