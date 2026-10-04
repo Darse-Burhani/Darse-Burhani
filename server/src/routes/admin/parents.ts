@@ -135,7 +135,6 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       watan,
       bloodGroup,
       its,
-      cnic,
       relationType,
       notes,
       avatarUrl,

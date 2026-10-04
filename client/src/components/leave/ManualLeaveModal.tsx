@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   X,
-  Calendar,
   Stethoscope,
   User,
   HeartPulse,
@@ -15,9 +14,7 @@ import {
   AlertCircle,
   GraduationCap,
   Users,
-  ShieldCheck,
   CalendarDays,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 

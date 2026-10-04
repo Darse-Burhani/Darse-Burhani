@@ -25,46 +25,6 @@ interface PrintBarcodeLabelsProps {
   books: LibraryBook[];
 }
 
-// ── Barcode SVG Component ──
-function BarcodeSvg({ value, width = 1.8, height = 0.7 }: { value: string; width?: number; height?: number }) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!svgRef.current || !value) return;
-      setError(false);
-      try {
-        const JsBarcode = (await import("jsbarcode")).default;
-        if (!cancelled && svgRef.current) {
-          JsBarcode(svgRef.current, value, {
-            format: "CODE128",
-            width: width,
-            height: height * 96,
-            displayValue: false,
-            margin: 0,
-            background: "#ffffff",
-          });
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [value, width, height]);
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-12 bg-gray-50 rounded text-[8px] text-gray-500 font-mono">
-        {value}
-      </div>
-    );
-  }
-
-  return <svg ref={svgRef} className="w-full" />;
-}
-
 // ── Main Print Component ──
 export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintBarcodeLabelsProps) {
 

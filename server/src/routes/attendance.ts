@@ -2,7 +2,7 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { cache } from "../lib/cache";
 import { requireAuth, requireRole } from "../middleware";
-import { AttendanceSource, AttendanceStatus } from "@prisma/client";
+import { AttendanceSource } from "@prisma/client";
 import { broadcastAttendanceEvent } from "../lib/biometric";
 import adminAttendanceScheduleRoutes from "./admin/attendance-schedule";
 

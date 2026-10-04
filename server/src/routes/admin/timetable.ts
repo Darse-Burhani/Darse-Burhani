@@ -7,8 +7,7 @@ const router = Router();
 
 router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: ["timetableslot", "class"] }), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const slots = await prisma.timetableSlot.findMany({
       include: {
         class: {
@@ -83,8 +82,7 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: 
 
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { id, classId, dayOfWeek, period, startTime, endTime, subject, roomNumber, isBreak, breakName } = body;
 
@@ -161,8 +159,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const id = (req.query.id as string);
 
     if (!id) {

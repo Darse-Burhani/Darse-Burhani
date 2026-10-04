@@ -7,8 +7,7 @@ const router = Router();
 
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const data = await cache.getOrSet(
       "admin:stats",
       async () => {

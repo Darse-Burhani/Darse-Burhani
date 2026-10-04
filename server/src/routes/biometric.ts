@@ -335,7 +335,7 @@ router.post("/simulate", requireRole("ADMIN"), async (req, res) => {
 // POST /api/biometric/face-scan - Instant facial biometric scan for student or teacher
 router.post("/face-scan", requireAuth, async (req, res) => {
   try {
-    const { studentId, teacherId, itsNumber, verifyMode = "FACIAL" } = req.body as Record<string, any>;
+    const { studentId, teacherId, itsNumber } = req.body as Record<string, any>;
 
     if (studentId || itsNumber) {
       let profile = null;
@@ -1688,8 +1688,7 @@ router.post("/auto-match", requireRole("ADMIN"), async (_req, res) => {
       const stripped = clean.replace(/^0+/, "");
 
       for (const s of students) {
-        const name = `${s.user.firstName} ${s.user.lastName}`.toLowerCase();
-        if (clean === s.studentId || stripped === s.studentId || clean === `STU-${s.studentId}`) {
+                if (clean === s.studentId || stripped === s.studentId || clean === `STU-${s.studentId}`) {
           suggestions.push({ fingerprint: clean, studentId: s.id, studentName: `${s.user.firstName} ${s.user.lastName}`, confidence: 100, matchedBy: "Student ID" });
           break;
         }

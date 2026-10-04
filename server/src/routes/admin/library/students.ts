@@ -7,8 +7,7 @@ const router = Router();
 // GET /api/admin/library/students?query=xxx - Find student by barcode/ID
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const query = (req.query.query as string) || "";
 
     if (!query) {

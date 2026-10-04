@@ -1,5 +1,5 @@
 
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware";
 

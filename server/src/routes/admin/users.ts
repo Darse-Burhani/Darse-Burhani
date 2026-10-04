@@ -10,8 +10,7 @@ const router = Router();
 
 router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: ["user"] }), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const page = parseInt((req.query.page as string) || "1");
     const pageSize = parseInt((req.query.pageSize as string) || "50");
     const search = (req.query.search as string) || "";
@@ -142,8 +141,7 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
 
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const {
       email,
@@ -317,8 +315,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 
 router.put("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { id, firstName, lastName, email, isActive, portfolioEnabled, avatarUrl } = body;
 

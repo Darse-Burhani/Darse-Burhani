@@ -158,12 +158,7 @@ router.get("/sessions", async (req, res) => {
       take: 50,
     });
 
-    const activeAdmins = await prisma.user.findMany({
-      where: { role: "ADMIN", isActive: true },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, avatarUrl: true },
-      take: 5,
-    });
-
+    
     // Merge sessions
     const sessionsList = [
       ...dbSessions.map((s) => ({

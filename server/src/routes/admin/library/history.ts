@@ -7,8 +7,7 @@ const router = Router();
 // GET /api/admin/library/history?bookId=xxx - Get loan history for a book
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const bookId = req.query.bookId as string;
 
     if (!bookId) {

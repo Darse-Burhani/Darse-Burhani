@@ -6,21 +6,19 @@ const router = Router();
 
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const now = new Date();
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(todayStart.getTime() + 86400000);
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
     const oneDayAgo = new Date(now.getTime() - 86400000);
 
     const [
       totalStudents,
       activeTeachers,
       attendanceBreakdown,
-      atRiskStudents,
+      _atRiskStudents,
       topPerformers,
       pointsByCategory,
       activeSessions,

@@ -7,8 +7,7 @@ const router = Router();
 // GET /api/admin/library/overdue - Get overdue loan reports
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const groupByClass = req.query.groupBy === "class";
 
     const overdueLoans = await prisma.bookLoan.findMany({

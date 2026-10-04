@@ -6,8 +6,7 @@ const router = Router();
 
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const rules = await prisma.pointMatrix.findMany({
       orderBy: [{ category: "asc" }, { actionName: "asc" }],
     });
@@ -21,8 +20,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { id, category, actionName, pointValue, actionType, color, iconName } = body;
 

@@ -13,8 +13,7 @@ const COLOR_OPTIONS = [
 // Returns all unique shelves with stats
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     // Get all unique shelf combinations with counts
     const shelves = await prisma.libraryBook.groupBy({
       by: ["rackNumber", "shelfNumber", "locationColor"],
@@ -113,8 +112,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 // Update shelf properties (rename rack, rename shelf, change color)
 router.put("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { oldRackNumber, oldShelfNumber, newRackNumber, newShelfNumber, locationColor } = body;
 
@@ -155,8 +153,7 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
 // Bulk-move books from one shelf to another, or assign unassigned books
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { fromRack, fromShelf, toRack, toShelf, bookIds, locationColor } = body;
 
@@ -203,8 +200,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 // Clear shelf assignments (set rackNumber/shelfNumber to null)
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const rack = req.query.rack as string;
     const shelf = req.query.shelf as string | null;
 

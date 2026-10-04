@@ -7,8 +7,7 @@ const router = Router();
 // POST /api/admin/library/bulk - Bulk import books
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-    const body = req.body as Record<string, any>;
+        const body = req.body as Record<string, any>;
     const { books } = body;
 
     if (!books || !Array.isArray(books) || books.length === 0) {
@@ -88,8 +87,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 // PATCH /api/admin/library/bulk - Bulk update books
 router.patch("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { bookIds, updates } = body;
 
@@ -148,8 +146,7 @@ router.patch("/", requireRole("ADMIN"), async (req, res) => {
 // DELETE /api/admin/library/bulk - Bulk delete books
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { bookIds } = body;
 

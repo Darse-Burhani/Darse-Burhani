@@ -29,8 +29,7 @@ interface OverdueGroup {
 // ── GET: Fetch contact info for overdue students (for the overdue page) ──
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const overdueLoans = await prisma.bookLoan.findMany({
       where: {
         status: "ACTIVE",
@@ -114,8 +113,7 @@ async function fetchStudentProfiles(studentIds: string[]) {
 // POST /api/admin/library/overdue/send-reminders - Send overdue reminders
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { studentIds, channels = ["email"] } = body;
 

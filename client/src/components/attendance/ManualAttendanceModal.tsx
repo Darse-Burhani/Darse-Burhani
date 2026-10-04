@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
 import {
-  CalendarDays,
   CheckCircle2,
   Clock,
   XCircle,
@@ -11,17 +9,10 @@ import {
   Loader2,
   Save,
   Search,
-  Check,
-  X,
-  Building2,
   Shield,
   UserCheck,
-  Filter,
-  BookOpen,
-  Sparkles,
   Users,
   GraduationCap,
-  ChevronDown,
 } from "lucide-react";
 import {
   Modal,
@@ -30,7 +21,6 @@ import {
   ModalTitle,
   ModalFooter,
 } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 

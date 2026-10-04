@@ -7,8 +7,7 @@ const router = Router();
 // POST /api/admin/library/checkout - Issue a book to a student
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const body = req.body as Record<string, any>;
     const { barcode, studentId, dueDate } = body;
 

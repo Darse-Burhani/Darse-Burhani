@@ -7,8 +7,7 @@ const router = Router();
 // GET /api/admin/library/export?format=csv - Export library data
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
+    
     const format = (req.query.format as string) || "csv";
 
     const books = await prisma.libraryBook.findMany({

@@ -182,32 +182,6 @@ function getCoverMaterial(
   return mat;
 }
 
-/** Resolves textures for a list of cover URLs, re-rendering as they load. */
-function useCoverTextures(urls: (string | null | undefined)[]): (THREE.Texture | null)[] {
-  const [loaded, setLoaded] = useState(0);
-
-  const results = useMemo(
-    () => urls.map((u) => (u ? coverTextureCache.get(u) ?? null : null)),
-    [urls, loaded]
-  );
-
-  useEffect(() => {
-    let alive = true;
-    const pending = Array.from(
-      new Set(urls.filter((u): u is string => !!u && !coverTextureCache.has(u)))
-    );
-    if (pending.length === 0) return;
-    Promise.all(pending.map(loadCoverTexture)).then(() => {
-      if (alive) setLoaded((n) => n + 1);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [urls]);
-
-  return results;
-}
-
 // ── 3D: pulsing halo under the searched book ──
 function PulseRing({ position }: { position: [number, number, number] }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -307,17 +281,6 @@ function ShelfLevel({
     },
     [shadeMats, borrowedMat, bookGeometry]
   );
-
-  // Cover textures for the books we actually render
-  const coverUrls = useMemo(
-    () =>
-      Array.from(
-        { length: bookCount },
-        (_, j) => booksForLevel[j]?.coverImage ?? null
-      ),
-    [bookCount, booksForLevel]
-  );
-  const coverTextures = useCoverTextures(coverUrls);
 
   const hex = shelfHex(shelf);
 
