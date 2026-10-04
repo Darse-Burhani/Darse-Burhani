@@ -2,7 +2,7 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
-import { broadcastAttendanceEvent } from "../lib/biometric";
+import { broadcastAttendanceEvent, getWindowType } from "../lib/biometric";
 import { queueAutoSheetSync } from "../lib/google-attendance-sync";
 
 const router = Router();
@@ -42,6 +42,7 @@ router.get("/schedules", requireAuth, async (req, res) => {
       return {
         id: w.id,
         name: w.name,
+        windowType: getWindowType(w),
         startTime: w.startTime,
         endTime: w.endTime,
         lateEndTime: w.lateEndTime || w.endTime,

@@ -25,6 +25,7 @@ import {
   Zap,
   X,
   PlusCircle,
+  ClipboardCheck,
 } from "lucide-react";
 import { prefetchRouteChunk } from "@/lib/prefetch";
 
@@ -90,21 +91,23 @@ export function CommandPalette() {
       },
       {
         id: "act-manual-attendance",
-        title: "Record Manual Attendance",
-        subtitle: "Mark attendance override for student or faculty",
+        title: "Manual Classroom Attendance Station",
+        subtitle: "One-click classroom and faculty manual marking roster",
         category: "Actions",
-        icon: PlusCircle,
-        href: "/admin/attendance-logs",
-        keywords: ["manual", "mark", "override", "absent", "present"],
+        icon: ClipboardCheck,
+        href: "/admin/manual-attendance",
+        keywords: ["manual", "mark", "override", "absent", "present", "classroom", "tablet"],
+        badge: "Roster",
       },
       {
         id: "act-biometric-terminals",
-        title: "Hikvision Biometric Terminals",
-        subtitle: "Check live cloud status and restart terminal listener",
+        title: "Hikvision Biometric Terminals Hub",
+        subtitle: "Live hardware telemetry and device synchronization",
         category: "Actions",
         icon: Fingerprint,
         href: "/admin/biometric",
-        keywords: ["hikvision", "terminal", "devices", "lan", "stream"],
+        keywords: ["hikvision", "terminal", "devices", "lan", "stream", "hardware"],
+        badge: "Hardware",
       },
       {
         id: "act-hifz-marhala",

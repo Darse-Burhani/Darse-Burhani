@@ -12,6 +12,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardList,
+  ClipboardCheck,
   FileText,
   Grid3X3,
   Users,
@@ -84,13 +85,31 @@ const COMMANDS: NavCommand[] = [
 
   // ── Attendance Hub ──
   {
+    id: "manual-attendance",
+    title: "Manual Attendance Station (Classroom & Tablet Roster)",
+    category: "Attendance",
+    href: "/admin/manual-attendance",
+    icon: ClipboardCheck,
+    shortcut: "G M",
+    keywords: ["manual", "classroom", "register", "roster", "tablet", "checkin", "mark", "override", "single-click"],
+  },
+  {
     id: "biometric",
-    title: "Attendance & Biometric Live Feed",
+    title: "Hikvision Biometric Devices & Hardware Terminal Hub",
     category: "Attendance",
     href: "/admin/biometric",
     icon: Fingerprint,
     shortcut: "G A",
-    keywords: ["fingerprint", "hikvision", "terminal", "scans", "live"],
+    keywords: ["fingerprint", "hikvision", "hardware", "terminal", "scans", "live", "devices", "biometric"],
+  },
+  {
+    id: "attendance-logs",
+    title: "Attendance Logs & Verification Audit",
+    category: "Attendance",
+    href: "/admin/attendance-logs",
+    icon: Layers,
+    shortcut: "G L",
+    keywords: ["logs", "audit", "verification", "daily roster", "records"],
   },
   {
     id: "attendance-schedule",

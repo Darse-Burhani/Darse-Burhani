@@ -12,6 +12,8 @@ import {
   isLegacyFacultyRow,
   getISTDetails,
   getStartOfDayIST,
+  getWindowType,
+  type AttendanceWindowType,
 } from "../../lib/biometric";
 
 const router = Router();
@@ -63,6 +65,7 @@ function matchRosterEvent(
 router.get("/windows", requireRole("ADMIN"), async (req, res) => {
   try {
     const audienceFilter = (req.query.audience as string)?.toUpperCase(); // "ALL_STUDENTS" | "FACULTY" | "ALL"
+    const windowTypeFilter = (req.query.windowType as string)?.toUpperCase(); // "HIKVISION" | "MANUAL" | "ALL"
 
     let windows = await prisma.biometricScanWindow.findMany({
       orderBy: { startTime: "asc" },
@@ -203,9 +206,11 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
         const startMin = toMinutes(w.startTime);
         const endMin = toMinutes(w.endTime);
         const lateEndMin = Math.max(endMin, toMinutes((w as any).lateEndTime ?? w.endTime));
+        const windowType = getWindowType(w);
 
         return {
           ...w,
+          windowType,
           lateEndTime: (w as any).lateEndTime ?? w.endTime,
           facultyStartTime: ww.facultyStartTime ?? null,
           facultyEndTime: ww.facultyEndTime ?? null,
@@ -229,6 +234,12 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
       }),
     );
 
+    if (windowTypeFilter === "HIKVISION") {
+      enriched = enriched.filter((w) => w.windowType === "HIKVISION" || w.windowType === "BOTH");
+    } else if (windowTypeFilter === "MANUAL") {
+      enriched = enriched.filter((w) => w.windowType === "MANUAL" || w.windowType === "BOTH");
+    }
+
     if (audienceFilter === "FACULTY") {
       enriched = enriched.filter((w) => w.audience === "FACULTY" || w.audience === "BOTH");
     } else if (audienceFilter === "ALL_STUDENTS" || audienceFilter === "STUDENT") {
@@ -247,7 +258,8 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
   try {
     const { name, startTime, endTime, lateEndTime, graceMinutes = 10, enabled = true,
       applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
-      facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled = true } =
+      facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled = true,
+      windowType = "BOTH" } =
       req.body as Record<string, any>;
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -302,12 +314,22 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
     const applicableClasses = Array.isArray(applicableClassIds)
       ? applicableClassIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
       : [];
-    const exemptStudents = Array.isArray(exemptStudentIds)
-      ? exemptStudentIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
+    let exemptStudents = Array.isArray(exemptStudentIds)
+      ? exemptStudentIds.filter((id) => typeof id === "string" && id.trim() && !id.startsWith("TYPE_")).map((id) => String(id).trim())
       : [];
 
+    const normType = String(windowType || "BOTH").toUpperCase();
+    if (normType === "MANUAL") {
+      exemptStudents.push("TYPE_MANUAL");
+    } else if (normType === "HIKVISION") {
+      exemptStudents.push("TYPE_HIKVISION");
+    } else {
+      exemptStudents.push("TYPE_BOTH");
+    }
+
     const grace = Math.min(180, Math.max(0, Math.round(Number(graceMinutes) || 0)));
-    const id = `window_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const prefix = normType === "MANUAL" ? "manual_" : normType === "HIKVISION" ? "hik_" : "window_";
+    const id = `${prefix}${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
     const created = await prisma.biometricScanWindow.create({
       data: {
@@ -333,7 +355,7 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
       },
     });
 
-    return res.status(201).json({ success: true, data: created });
+    return res.status(201).json({ success: true, data: { ...created, windowType: normType } });
   } catch (error) {
     console.error("Create attendance window error:", error);
     return res.status(500).json({ success: false, error: "Failed to create attendance schedule window" });
@@ -347,7 +369,8 @@ router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
     const {
       name, startTime, endTime, lateEndTime, graceMinutes, enabled,
       applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
-      facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled
+      facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled,
+      windowType
     } = req.body as Record<string, any>;
 
     const existing = await prisma.biometricScanWindow.findUnique({ where: { id } });
@@ -482,12 +505,26 @@ router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
         .map((v) => String(v).trim());
     }
 
+    if (windowType !== undefined) {
+      const normType = String(windowType || "BOTH").toUpperCase();
+      let currentExempt: string[] = updateData.exemptStudentIds ?? existing.exemptStudentIds ?? [];
+      currentExempt = currentExempt.filter((id: string) => !id.startsWith("TYPE_"));
+      if (normType === "MANUAL") {
+        currentExempt.push("TYPE_MANUAL");
+      } else if (normType === "HIKVISION") {
+        currentExempt.push("TYPE_HIKVISION");
+      } else {
+        currentExempt.push("TYPE_BOTH");
+      }
+      updateData.exemptStudentIds = currentExempt;
+    }
+
     const updated = await prisma.biometricScanWindow.update({
       where: { id },
       data: updateData,
     });
 
-    return res.json({ success: true, data: updated });
+    return res.json({ success: true, data: { ...updated, windowType: getWindowType(updated) } });
   } catch (error) {
     console.error("Update attendance window error:", error);
     return res.status(500).json({ success: false, error: "Failed to update attendance schedule window" });

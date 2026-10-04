@@ -32,6 +32,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
   const resolveHref = useMemo(() => {
     return (href: string) => {
       if (isTeacherContext && href.startsWith("/admin/")) {
+        if (href === "/admin/manual-attendance") return "/teacher/attendance";
         return href.replace(/^\/admin\//, "/teacher/");
       }
       return href;
@@ -41,6 +42,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
   const getPageKeyFromHref = (href: string) => {
     const clean = href.replace(/^\/(admin|teacher)\//, "").split("/")[0].split("?")[0];
     if (clean === "attendance-emails") return "email-reports";
+    if (clean === "manual-attendance" || clean === "attendance-manual") return "manual-attendance";
     if (clean === "makhzn") return "makhzan";
     if (clean === "hifz") return "quran";
     return clean;

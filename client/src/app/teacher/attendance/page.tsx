@@ -25,7 +25,9 @@ import {
   Radio,
   GraduationCap,
   ChevronDown,
+  FileText,
 } from "lucide-react";
+import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
@@ -43,6 +45,7 @@ type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MED
 const STATUSES: {
   key: AttendanceStatus;
   label: string;
+  hotkey: string;
   icon: React.ElementType;
   idle: string;
   active: string;
@@ -51,6 +54,7 @@ const STATUSES: {
   {
     key: "PRESENT",
     label: "Present",
+    hotkey: "1",
     icon: CheckCircle2,
     idle: "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300",
     active: "bg-emerald-500 text-white border-emerald-500 ring-2 ring-emerald-300 ring-offset-1",
@@ -59,6 +63,7 @@ const STATUSES: {
   {
     key: "LATE",
     label: "Late",
+    hotkey: "2",
     icon: Clock,
     idle: "bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300",
     active: "bg-amber-500 text-white border-amber-500 ring-2 ring-amber-300 ring-offset-1",
@@ -67,6 +72,7 @@ const STATUSES: {
   {
     key: "ABSENT",
     label: "Absent",
+    hotkey: "3",
     icon: XCircle,
     idle: "bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300",
     active: "bg-red-500 text-white border-red-500 ring-2 ring-red-300 ring-offset-1",
@@ -75,6 +81,7 @@ const STATUSES: {
   {
     key: "MEDICAL",
     label: "Medical",
+    hotkey: "4",
     icon: Stethoscope,
     idle: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300",
     active: "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 ring-offset-1",
@@ -83,6 +90,7 @@ const STATUSES: {
   {
     key: "ON_LEAVE",
     label: "Excused",
+    hotkey: "5",
     icon: ShieldCheck,
     idle: "bg-white text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300",
     active: "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-300 ring-offset-1",
@@ -91,6 +99,7 @@ const STATUSES: {
   {
     key: "EARLY_DEPARTURE",
     label: "Early Dep.",
+    hotkey: "6",
     icon: AlertTriangle,
     idle: "bg-white text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300",
     active: "bg-orange-500 text-white border-orange-500 ring-2 ring-orange-300 ring-offset-1",
@@ -468,7 +477,21 @@ export default function TeacherAttendancePage() {
   const presentPct = roster.length > 0 ? Math.round((summary.PRESENT / roster.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8]">
+    <div className="min-h-screen bg-[#f4f6f8] space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <AdminHubTabs
+          hubTitle="Attendance & Biometric Center"
+          hubDescription="Quick classroom roster marking, daily timing schedules, and biometric scanner status."
+          tabs={[
+            { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck, badge: "Active" },
+            { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
+            { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+            { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint },
+            { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
+          ]}
+        />
+      </div>
+
       {/* ── Hero Header ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900">
         {/* subtle dot grid */}
@@ -868,7 +891,8 @@ export default function TeacherAttendancePage() {
                               )}
                             >
                               <Icon className="w-3.5 h-3.5" />
-                              {cfg.label}
+                              <span>{cfg.label}</span>
+                              <span className="text-[9px] opacity-50 font-mono font-bold ml-0.5">[{cfg.hotkey}]</span>
                             </button>
                           );
                         })}

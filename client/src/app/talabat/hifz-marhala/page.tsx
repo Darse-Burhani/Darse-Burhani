@@ -28,14 +28,14 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 const MARHALA_LABELS: Record<string, string> = {
-  MARHALA_1: "Marhala 1 · Juz 1-6",
-  MARHALA_2: "Marhala 2 · Juz 7-12",
-  MARHALA_3: "Marhala 3 · Juz 13-18",
   MARHALA_4: "Marhala 4 · Juz 19-24",
   MARHALA_5: "Marhala 5 · Juz 25-30",
+  MARHALA_6: "Marhala 6",
+  MARHALA_7: "Marhala 7",
+  MARHALA_8: "Marhala 8",
 };
 
-const MARHALA_ORDER = ["MARHALA_1", "MARHALA_2", "MARHALA_3", "MARHALA_4", "MARHALA_5"];
+const MARHALA_ORDER = ["MARHALA_4", "MARHALA_5", "MARHALA_6", "MARHALA_7", "MARHALA_8"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   DRAFT: { label: "Draft", color: "text-gray-600", bgColor: "bg-gray-100" },
@@ -529,7 +529,7 @@ export default function TalabatHifzMarhalaPage() {
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-900">{MARHALA_LABELS[marhala]}</h3>
-                          <p className="text-sm text-gray-500">Juz {marhala === "MARHALA_1" ? "1-6" : marhala === "MARHALA_2" ? "7-12" : marhala === "MARHALA_3" ? "13-18" : marhala === "MARHALA_4" ? "19-24" : "25-30"}</p>
+                          <p className="text-sm text-gray-500">Juz {marhala === "MARHALA_4" ? "19-24" : marhala === "MARHALA_5" ? "25-30" : "—"}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">

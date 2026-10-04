@@ -18,6 +18,7 @@ import {
   FileText,
   Layers,
   Briefcase,
+  ClipboardCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -325,6 +326,9 @@ export default function AdminAttendanceLogsPage() {
       es.onmessage = (msg) => {
         try {
           const ev = JSON.parse((msg as MessageEvent).data);
+          if (ev?.type === "WINDOW_CLOSED" || ev?.type === "TOO_EARLY") {
+            return; // Outside window — no attendance recorded or changed
+          }
           if (isFinalAttendanceEvent(ev?.type)) {
             fetchData(true);
             return;
@@ -390,13 +394,14 @@ export default function AdminAttendanceLogsPage() {
     <div className="p-3 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
       {/* ── Attendance Hub Navigation Tabs ── */}
       <AdminHubTabs
-        hubTitle="Attendance & Biometrics"
-        hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
+        hubTitle="Attendance & Biometric Center"
+        hubDescription="Real-time terminal monitoring, manual classroom registers, scan windows, and automated reports."
         tabs={[
-          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: FileText },
+          { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
+          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
+          { label: "Live Scans & Logs", href: "/admin/attendance-logs", icon: FileText, badge: "Audit" },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
-          { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
+          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
 

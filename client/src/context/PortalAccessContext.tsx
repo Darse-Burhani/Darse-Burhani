@@ -63,7 +63,10 @@ export function normalizePageKey(keyOrPath: string): string {
   clean = clean.replace(/^\/+(admin|teacher|talabat|faculty|parent)\/+/, "");
   clean = clean.replace(/^\/+|\/+$/g, "");
   if (!clean || clean === "admin" || clean === "teacher") return "dashboard";
+  // Canonical aliases (path id -> stored page id). Each teacher page is
+  // independent — no cross-granting between distinct modules.
   if (clean === "hifz" || clean === "hifz-reports" || clean === "hifz-weekly-slip") return "quran";
+  if (clean === "attendance" || clean === "manual-attendance") return "manual-attendance";
   if (clean === "attendance-emails") return "email-reports";
   if (clean === "makhzn") return "makhzan";
   if (clean.startsWith("library")) return "library";
@@ -208,18 +211,14 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       // Dashboard and profile are always accessible
       if (key === "dashboard" || key === "profile") return true;
 
-      // Check if normalized key or raw id is in teacher's assigned pages
+      // Exact match on canonical id or raw value.
       if (assignedPages.includes(key)) return true;
       if (assignedPages.includes(pageIdOrPath)) return true;
 
-      // Sub-route synonyms
-      if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("hifz-marhala") || assignedPages.includes("quran"))) return true;
-      if (key === "hifz-marhala" && (assignedPages.includes("quran") || assignedPages.includes("hifz") || assignedPages.includes("hifz-marhala"))) return true;
-      if (key === "attendance-logs" && (assignedPages.includes("attendance") || assignedPages.includes("attendance-logs"))) return true;
-      if (key === "attendance-schedule" && (assignedPages.includes("attendance") || assignedPages.includes("attendance-schedule"))) return true;
-      if (key === "manual-attendance" && (assignedPages.includes("attendance") || assignedPages.includes("manual-attendance"))) return true;
-      if (key === "medical-duty" && assignedPages.includes("medical-duty")) return true;
-      if (key === "makhzan" && (assignedPages.includes("library") || assignedPages.includes("makhzan"))) return true;
+      // Legacy synonym: old "hifz" rows grant "quran". Nothing else cross-grants:
+      // quran, hifz-marhala, manual-attendance, attendance-logs,
+      // attendance-schedule, makhzan, library are each independently assigned.
+      if (key === "quran" && assignedPages.includes("hifz")) return true;
 
       return false;
     },

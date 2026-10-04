@@ -30,11 +30,11 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 const MARHALA_LABELS: Record<string, string> = {
-  MARHALA_1: "المرحلة الأولى (1-6 أجزاء)",
-  MARHALA_2: "المرحلة الثانية (7-12 جزء)",
-  MARHALA_3: "المرحلة الثالثة (13-18 جزء)",
   MARHALA_4: "المرحلة الرابعة (19-24 جزء)",
   MARHALA_5: "المرحلة الخامسة (25-30 جزء)",
+  MARHALA_6: "المرحلة السادسة",
+  MARHALA_7: "المرحلة السابعة",
+  MARHALA_8: "المرحلة الثامنة",
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {

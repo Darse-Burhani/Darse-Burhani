@@ -6,6 +6,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardList,
+  ClipboardCheck,
   FileText,
   Users,
   GraduationCap,
@@ -39,7 +40,13 @@ const navItems: PortalNavItem[] = [
     label: "Biometric Scanners",
     href: "/admin/biometric",
     icon: Fingerprint,
-    badge: "Live",
+    badge: "Hardware",
+    category: "Operations",
+  },
+  {
+    label: "Manual Attendance",
+    href: "/admin/manual-attendance",
+    icon: ClipboardCheck,
     category: "Operations",
   },
   {

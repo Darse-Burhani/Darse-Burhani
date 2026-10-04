@@ -3,7 +3,7 @@ import { cache } from "./cache";
 import { appendLocalScanLog } from "./attendance-local-log";
 import { queueAutoSheetSync } from "./google-attendance-sync";
 
-export type ScanOutcome = "MATCHED" | "UNKNOWN" | "NO_CLASS" | "DUPLICATE" | "TOO_EARLY";
+export type ScanOutcome = "MATCHED" | "UNKNOWN" | "NO_CLASS" | "DUPLICATE" | "TOO_EARLY" | "WINDOW_CLOSED";
 
 export interface BiometricClassMatch {
   classId: string;
@@ -124,6 +124,8 @@ export interface ScanWindowConfig {
   /** Source schedule event (one unified event carries both timers). */
   eventId: string;
   eventName: string;
+  /** Subsystem mode: HIKVISION hardware devices, MANUAL register, or BOTH */
+  windowType: "HIKVISION" | "MANUAL" | "BOTH";
 }
 
 /**
@@ -147,6 +149,22 @@ export interface ScanWindowRowLike {
   facultyEndTime?: string | null;
   facultyLateEndTime?: string | null;
   facultyEnabled?: boolean;
+}
+
+export type AttendanceWindowType = "HIKVISION" | "MANUAL" | "BOTH";
+
+export function getWindowType(w: ScanWindowRowLike): AttendanceWindowType {
+  const exempt = w.exemptStudentIds || [];
+  if (exempt.includes("TYPE_MANUAL") || w.id.startsWith("manual_") || /\[manual\]/i.test(w.name)) {
+    return "MANUAL";
+  }
+  if (exempt.includes("TYPE_HIKVISION") || w.id.startsWith("hik_") || /\[hikvision\]|\[hik\]/i.test(w.name)) {
+    return "HIKVISION";
+  }
+  if (exempt.includes("TYPE_BOTH") || /\[both\]/i.test(w.name)) {
+    return "BOTH";
+  }
+  return "BOTH";
 }
 
 /** True when the event row carries a usable faculty timer. */
@@ -404,8 +422,9 @@ export function getStartOfDayIST(dateInput: Date | string = new Date()): Date {
 export async function getScanWindow(
   role?: "STUDENT" | "TEACHER",
   when: Date = new Date(),
+  hardwareOnly = false,
 ): Promise<ScanWindowConfig | null> {
-  const windows = await getRoleWindows(role ?? "STUDENT");
+  const windows = await getRoleWindows(role ?? "STUDENT", hardwareOnly);
   if (windows.length === 0) return null;
   const { scanMinutes } = getISTDetails(when);
   return (
@@ -418,13 +437,19 @@ export async function getScanWindow(
  * Every schedule event exposing a usable timer for the role, earliest first.
  * TEACHER falls back to legacy standalone faculty rows (pre-unification).
  */
-export async function getRoleWindows(role: "STUDENT" | "TEACHER"): Promise<ScanWindowConfig[]> {
+export async function getRoleWindows(
+  role: "STUDENT" | "TEACHER",
+  hardwareOnly = false,
+): Promise<ScanWindowConfig[]> {
   const rows = (await prisma.biometricScanWindow.findMany({
     orderBy: { startTime: "asc" },
   })) as unknown as ScanWindowRowLike[];
 
   const out: ScanWindowConfig[] = [];
   for (const row of rows) {
+    if (hardwareOnly && getWindowType(row) === "MANUAL") {
+      continue;
+    }
     const cfg = toWindowConfig(row, role);
     if (cfg) out.push(cfg);
   }
@@ -481,6 +506,7 @@ export function toWindowConfig(w: ScanWindowRowLike, role: "STUDENT" | "TEACHER"
     role,
     eventId: w.id,
     eventName: w.name,
+    windowType: getWindowType(w),
   };
 }
 
@@ -510,6 +536,7 @@ export function windowPayload(window: ScanWindowConfig | null) {
     lateEndTime: window.lateEndTime,
     graceMinutes: window.graceMinutes,
     allowEarlyCheckIn: window.allowEarlyCheckIn,
+    windowType: window.windowType,
   };
 }
 
@@ -521,8 +548,12 @@ export function windowPayload(window: ScanWindowConfig | null) {
  * early, after the last timer is closed — unscanned members become ABSENT
  * via auto-mark.
  */
-export async function isRoleWindowOpen(role: "STUDENT" | "TEACHER", scanTime: Date = new Date()): Promise<RoleWindowStatus> {
-  const windows = await getRoleWindows(role);
+export async function isRoleWindowOpen(
+  role: "STUDENT" | "TEACHER",
+  scanTime: Date = new Date(),
+  hardwareOnly = false,
+): Promise<RoleWindowStatus> {
+  const windows = await getRoleWindows(role, hardwareOnly);
   const roleName = role === "STUDENT" ? "Talabat (Student)" : "Faculty (Teacher)";
 
   const usable = windows.filter((w) => w.enabled);
@@ -862,9 +893,9 @@ export async function processBiometricScan(
         its: (teacher as any).its || teacher.employeeId,
       };
 
-      // Fetch the faculty timer from the unified schedule event
-      const facultyWindow = await getScanWindow("TEACHER", when);
-      const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when);
+      // Fetch the faculty timer from the unified schedule event (hardware biometric devices)
+      const facultyWindow = await getScanWindow("TEACHER", when, true);
+      const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when, true);
 
       // Determine attendance status (PRESENT / LATE) with strict schedule enforcement
       let teacherStatus: "PRESENT" | "LATE" = "PRESENT";
@@ -877,7 +908,53 @@ export async function processBiometricScan(
             deviceId: deviceId ?? null,
             role: "TEACHER",
             teacher: teacherInfo,
-            message: `Too early to scan. Faculty window opens at ${facultyWindow.startTime} IST. Attendance not recorded.`,
+            message: `Too early to scan. Faculty window opens at ${facultyWindow.startTime} IST in "${facultyWindow.eventName}". Attendance not recorded.`,
+            verifyMode: method,
+            scanWindow: windowPayload(facultyWindow),
+          }, when, false);
+        }
+
+        if (facultyWindowStatus.isExceeded || resolveScanStatus(facultyWindow, scanMinutes) === "CLOSED") {
+          // Strict Schedule Enforcement: Scanning window is CLOSED — do NOT pull or record attendance
+          const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
+            where: { teacherId_date: { teacherId: teacher.id, date } },
+          });
+
+          if (
+            existingTeacherRecord &&
+            (existingTeacherRecord.status === "PRESENT" ||
+              existingTeacherRecord.status === "LATE" ||
+              existingTeacherRecord.status === "MEDICAL" ||
+              existingTeacherRecord.status === "ON_LEAVE")
+          ) {
+            const firstCheckIn = existingTeacherRecord.checkInTime;
+            const timeStr = firstCheckIn
+              ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
+              : timeFormatted12;
+            return pushEvent({
+              type: "DUPLICATE",
+              fingerprint,
+              deviceId: deviceId ?? null,
+              role: "TEACHER",
+              isDuplicate: true,
+              teacher: {
+                ...teacherInfo,
+                status: existingTeacherRecord.status as "PRESENT" | "LATE",
+                attendanceId: existingTeacherRecord.id,
+              },
+              message: `Faculty Verified (Already checked in on-time at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
+              verifyMode: method,
+              scanWindow: windowPayload(facultyWindow),
+            }, when, false);
+          }
+
+          return pushEvent({
+            type: "WINDOW_CLOSED",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            teacher: teacherInfo,
+            message: `Faculty scan window is CLOSED (Closed at ${facultyWindow.lateEndTime || facultyWindow.endTime} IST in "${facultyWindow.eventName}"). Attendance not recorded.`,
             verifyMode: method,
             scanWindow: windowPayload(facultyWindow),
           }, when, false);
@@ -913,15 +990,21 @@ export async function processBiometricScan(
           }
         }
 
-        if (facultyWindowStatus.isOpen) {
-          teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
-        } else {
-          // Window has passed / late arrival
-          teacherStatus = "LATE";
-        }
+        teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
       } else {
         const morningBoundary = 8 * 60 + 30; // 8:30 AM IST fallback
-        teacherStatus = scanMinutes <= morningBoundary ? "PRESENT" : "LATE";
+        if (scanMinutes > morningBoundary) {
+          return pushEvent({
+            type: "WINDOW_CLOSED",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            teacher: teacherInfo,
+            message: `Faculty scan window is CLOSED (Cutoff was 08:30 AM IST). Attendance not recorded.`,
+            verifyMode: method,
+          }, when, false);
+        }
+        teacherStatus = "PRESENT";
       }
 
       // Check if faculty member is on active Medical Exemption today
@@ -1122,9 +1205,9 @@ export async function processBiometricScan(
     avatarUrl: student.user.avatarUrl,
   };
 
-  // Fetch the Talabat timer from the unified schedule event
-  const studentWindow = await getScanWindow("STUDENT", when);
-  const studentWindowStatus = await isRoleWindowOpen("STUDENT", when);
+  // Fetch the Talabat timer from the unified schedule event (hardware biometric devices)
+  const studentWindow = await getScanWindow("STUDENT", when, true);
+  const studentWindowStatus = await isRoleWindowOpen("STUDENT", when, true);
 
   // Ensure active class enrollment exists
   const activeClasses = await ensureStudentEnrollment(student);
@@ -1185,6 +1268,59 @@ export async function processBiometricScan(
       }, when, false);
     }
 
+    if (studentWindowStatus.isExceeded || resolveScanStatus(studentWindow, scanMinutes) === "CLOSED") {
+      // Strict Schedule Enforcement: Scanning window is CLOSED — do NOT pull or record attendance
+      const existingRecords = await prisma.attendanceRecord.findMany({
+        where: { studentId: student.id, date },
+        include: { class: { select: { name: true, subject: true } } },
+      });
+
+      const priorValidRecord = existingRecords.find(
+        (r) =>
+          r.status === "PRESENT" ||
+          r.status === "LATE" ||
+          r.status === "ON_LEAVE" ||
+          r.status === "MEDICAL"
+      );
+      if (priorValidRecord) {
+        const timeStr = priorValidRecord.checkInTime
+          ? getISTDetails(new Date(priorValidRecord.checkInTime)).timeFormatted12
+          : timeFormatted12;
+        return pushEvent({
+          type: "DUPLICATE",
+          fingerprint,
+          deviceId: deviceId ?? null,
+          role: "STUDENT",
+          isDuplicate: true,
+          student: studentInfo,
+          classes: existingRecords.map((r) => ({
+            classId: r.classId,
+            className: r.class?.name ?? `Grade ${student.grade}-${student.section}`,
+            subject: r.class?.subject ?? "Core",
+            period: 1,
+            startTime: studentWindow?.startTime ?? "08:00",
+            endTime: studentWindow?.endTime ?? "08:30",
+            status: r.status as "PRESENT" | "LATE",
+            attendanceId: r.id,
+          })),
+          message: `Learner Verified (Already checked in on-time at ${timeStr || "earlier"} IST): ${studentInfo.name}`,
+          verifyMode: method,
+          scanWindow: windowPayload(studentWindow),
+        }, when, false);
+      }
+
+      return pushEvent({
+        type: "WINDOW_CLOSED",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Talabat scan window is CLOSED (Closed at ${studentWindow.lateEndTime || studentWindow.endTime} IST in "${studentWindow.eventName}"). Attendance not recorded.`,
+        verifyMode: method,
+        scanWindow: windowPayload(studentWindow),
+      }, when, false);
+    }
+
     // Strict Exemption: Excluded from schedule session
     if (studentWindow.exemptStudentIds && studentWindow.exemptStudentIds.includes(student.id)) {
       return pushEvent({
@@ -1218,16 +1354,22 @@ export async function processBiometricScan(
       }
     }
 
-    if (studentWindowStatus.isOpen) {
-      status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
-    } else {
-      // Scanned after late window / late arrival
-      status = "LATE";
-    }
+    status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
   } else {
     // Default morning threshold: 08:00 AM IST
     const morningBoundary = 8 * 60; // 8:00 AM IST
-    status = scanMinutes <= morningBoundary ? "PRESENT" : "LATE";
+    if (scanMinutes > morningBoundary) {
+      return pushEvent({
+        type: "WINDOW_CLOSED",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Talabat scan window is CLOSED (Cutoff was 08:00 AM IST). Attendance not recorded.`,
+        verifyMode: method,
+      }, when, false);
+    }
+    status = "PRESENT";
   }
 
   // Check if attendance is already recorded for this talabat today

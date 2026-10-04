@@ -44,4 +44,6 @@ next-env.d.ts
 /recovery/
 /.mimocode/
 /_trash/
+/scratch/
+
 

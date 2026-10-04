@@ -32,6 +32,7 @@ import {
   Copy,
   Laptop,
   FileText,
+  ClipboardCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import IvmsControlStation from "@/components/admin/biometric/IvmsControlStation";
@@ -555,13 +556,14 @@ export default function BiometricAdminPage() {
     <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 lg:p-8 space-y-6">
       {/* ── Attendance Hub Navigation Tabs ── */}
       <AdminHubTabs
-        hubTitle="Attendance & Biometrics"
-        hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
+        hubTitle="Attendance & Biometric Center"
+        hubDescription="Dedicated separate workspaces for Automated Hikvision Hardware and Manual Classroom Registers."
         tabs={[
-          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: Layers },
+          { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
+          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
+          { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
-          { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
+          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
 

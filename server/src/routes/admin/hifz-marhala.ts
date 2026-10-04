@@ -115,7 +115,7 @@ router.post("/assign", requireRole("ADMIN"), async (req, res) => {
           create: {
             studentId: a.studentId,
             marhala: a.marhala,
-            facultyId: a.facultyId,
+            facultyId: a.facultyId || null,
             musaidId: a.musaidId || null,
             musaidStudentId: a.musaidStudentId || null,
             academicYear: a.academicYear,
@@ -123,7 +123,7 @@ router.post("/assign", requireRole("ADMIN"), async (req, res) => {
           },
           update: {
             marhala: a.marhala,
-            facultyId: a.facultyId,
+            facultyId: a.facultyId || null,
             musaidId: a.musaidId || null,
             musaidStudentId: a.musaidStudentId || null,
             assignedById: session.user.id,
@@ -145,7 +145,7 @@ router.post("/quick-tag", requireRole("ADMIN"), async (req, res) => {
     const session = req.auth!;
     const { studentId, marhala, facultyId, musaidId, musaidStudentId, academicYear } = req.body;
 
-    if (!studentId || !marhala || !facultyId || !academicYear) {
+    if (!studentId || !marhala || !academicYear) {
       return res.status(400).json({ success: false, error: "Missing required fields" });
     }
 
@@ -154,7 +154,7 @@ router.post("/quick-tag", requireRole("ADMIN"), async (req, res) => {
       create: {
         studentId,
         marhala,
-        facultyId,
+        facultyId: facultyId || null,
         musaidId: musaidId || null,
         musaidStudentId: musaidStudentId || null,
         academicYear,
@@ -162,7 +162,7 @@ router.post("/quick-tag", requireRole("ADMIN"), async (req, res) => {
       },
       update: {
         marhala,
-        facultyId,
+        facultyId: facultyId || null,
         musaidId: musaidId || null,
         musaidStudentId: musaidStudentId || null,
         assignedById: session.user.id,
@@ -397,7 +397,7 @@ router.get("/stats", requireRole("ADMIN"), async (req, res) => {
       }),
     ]);
 
-    const marhalaStats = ["MARHALA_1", "MARHALA_2", "MARHALA_3", "MARHALA_4", "MARHALA_5"].map((m) => {
+    const marhalaStats = ["MARHALA_4", "MARHALA_5", "MARHALA_6", "MARHALA_7", "MARHALA_8"].map((m) => {
       const assigned = assignments.filter((a) => a.marhala === m).length;
       const marhalaReports = reports.filter((r) => r.marhala === m);
       const submitted = marhalaReports.filter((r) => r.status !== "DRAFT").length;
@@ -612,14 +612,18 @@ router.post("/weekly-slips/command", requireRole("ADMIN"), async (req, res) => {
       select: { studentId: true },
     });
     const existingIds = new Set(existing.map((e) => e.studentId));
-    const toCreate = assignments.filter((a) => !existingIds.has(a.studentId));
+    // HifzWeeklySlip requires a muhafiz — slips can only be issued for
+    // assigned students; unassigned ones are reported back to the admin.
+    const assignable = assignments.filter((a) => !existingIds.has(a.studentId) && a.facultyId);
+    const unassignedCount = assignments.filter((a) => !existingIds.has(a.studentId) && !a.facultyId).length;
+    const toCreate = assignable;
 
     let created = 0;
     if (toCreate.length > 0) {
       await prisma.hifzWeeklySlip.createMany({
         data: toCreate.map((a) => ({
           studentId: a.studentId,
-          facultyId: a.facultyId,
+          facultyId: a.facultyId as string,
           marhala: a.marhala,
           academicYear,
           weekNumber: wk,
@@ -631,7 +635,7 @@ router.post("/weekly-slips/command", requireRole("ADMIN"), async (req, res) => {
       });
       created = toCreate.length;
       // Notify each muhaffiz that a new week has been opened
-      const teacherIds = [...new Set(toCreate.map((a) => a.facultyId))];
+      const teacherIds = [...new Set(toCreate.map((a) => a.facultyId).filter((v): v is string => !!v))];
       const teachers = await prisma.teacherProfile.findMany({ where: { id: { in: teacherIds } }, select: { userId: true } });
       const notifs = teachers.map((t) => ({
         userId: t.userId,
@@ -656,8 +660,8 @@ router.post("/weekly-slips/command", requireRole("ADMIN"), async (req, res) => {
     // DRAFT = created but not yet filled with marks — treat as not filled until marks >0
     return res.json({
       success: true,
-      data: { weekNumber: wk, academicYear, marhala: marhala || "all", created, alreadyExisted: existing.length, total, statusCounts },
-      message: created > 0 ? `Week ${wk} opened: ${created} new slips created (${existing.length} already existed)` : `Week ${wk} already fully initialized (${existing.length} slips)`,
+      data: { weekNumber: wk, academicYear, marhala: marhala || "all", created, alreadyExisted: existing.length, unassignedSkipped: unassignedCount, total, statusCounts },
+      message: created > 0 ? `Week ${wk} opened: ${created} new slips created (${existing.length} already existed${unassignedCount ? `, ${unassignedCount} skipped — no muhafiz` : ""})` : unassignedCount > 0 ? `No slips created: ${unassignedCount} pending — no muhafiz assigned` : `Week ${wk} already fully initialized (${existing.length} slips)`,
     });
   } catch (error) {
     console.error("Weekly slips command error:", error);

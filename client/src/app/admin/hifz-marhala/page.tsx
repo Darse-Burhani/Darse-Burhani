@@ -273,13 +273,13 @@ export default function AdminHifzMarhalaPage() {
   const [search, setSearch] = useState("");
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(defaultAcademicYear());
   const [stats, setStats] = useState<any>(null);
-  const [activeMarhalaTab, setActiveMarhalaTab] = useState("MARHALA_1");
+  const [activeMarhalaTab, setActiveMarhalaTab] = useState("MARHALA_4");
   const [activeMainTab, setActiveMainTab] = useState("assignments");
   const [tagModalAssignment, setTagModalAssignment] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [savingStudent, setSavingStudent] = useState(false);
   // Academic year is fixed to the current year — admins no longer type it in
-  const [newAssignment, setNewAssignment] = useState({ studentId: "", marhala: "MARHALA_1", facultyId: "" });
+  const [newAssignment, setNewAssignment] = useState({ studentId: "", marhala: "MARHALA_4", facultyId: "" });
 
   const fetchData = useCallback(async () => {
     try {
@@ -341,7 +341,7 @@ export default function AdminHifzMarhalaPage() {
       if (result.success) {
         toast({ title: "Talib added", description: "Student assigned to marhala successfully", variant: "success" });
         setShowAddForm(false);
-        setNewAssignment({ studentId: "", marhala: "MARHALA_1", facultyId: "" });
+        setNewAssignment({ studentId: "", marhala: "MARHALA_4", facultyId: "" });
         fetchData();
         fetchStats();
       } else {

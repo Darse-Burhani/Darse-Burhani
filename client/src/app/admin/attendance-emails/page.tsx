@@ -19,6 +19,7 @@ import {
   BellRing,
   CheckCircle2,
   FileText,
+  ClipboardCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,14 +248,16 @@ export default function AdminAttendanceEmailsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* ── Attendance Hub Navigation Tabs ── */}
+      {/* ── Attendance Hub Navigation Tabs ── */}
       <AdminHubTabs
-        hubTitle="Attendance & Biometrics"
-        hubDescription="Real-time terminal monitoring, daily scan windows, class schedules, and automated email reporting."
+        hubTitle="Attendance & Biometric Center"
+        hubDescription="Dedicated separate workspaces for Automated Hikvision Hardware and Manual Classroom Registers."
         tabs={[
-          { label: "Live Scans & Attendance Logs", href: "/admin/attendance-logs", icon: Layers },
+          { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
+          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
+          { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Live Feeds & Terminals", href: "/admin/biometric", icon: Fingerprint },
-          { label: "Email Reports to Parents", href: "/admin/attendance-emails", icon: Mail },
+          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
 

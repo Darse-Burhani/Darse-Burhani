@@ -24,6 +24,7 @@ import {
   KeyRound,
   Users,
   BarChart3,
+  Award,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -58,6 +59,7 @@ const rawNavItems = [
   { key: "parents", label: "Parents Directory", href: "/teacher/parents", icon: Heart, category: "Community" },
   { key: "users", label: "Staff & Users", href: "/teacher/users", icon: Users, category: "Community" },
   { key: "passwords", label: "User Passwords", href: "/teacher/passwords", icon: KeyRound, category: "Community" },
+  { key: "point-matrix", label: "Point Matrix", href: "/teacher/point-matrix", icon: Award, category: "Community" },
 
   // ── Account ──
   { key: "profile", label: "Profile & Settings", href: "/teacher/profile", icon: User, category: "Account" },

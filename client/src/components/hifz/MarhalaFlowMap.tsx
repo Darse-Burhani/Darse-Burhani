@@ -1,19 +1,16 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
   UserCheck,
   Search,
   ChevronDown,
   ChevronRight,
-  GraduationCap,
   BookOpen,
   Sparkles,
   Layers,
-  ZoomIn,
-  ZoomOut,
   RotateCcw,
   Compass,
   Award,
@@ -24,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import MarhalaTree3D from "@/components/hifz/MarhalaTree3D";
 import {
   MARHALA_ORDER,
   MARHALA_LABELS,
@@ -38,7 +36,7 @@ export interface FlowMapAssignment {
   id: string;
   studentId: string;
   marhala: string;
-  facultyId: string;
+  facultyId: string | null;
   musaidId?: string | null;
   musaidStudentId?: string | null;
   isActive?: boolean;
@@ -52,6 +50,7 @@ interface MarhalaFlowMapProps {
   assignments: FlowMapAssignment[];
   teacherProfileId?: string;
   academicYear?: string;
+  loading?: boolean;
 }
 
 interface StudentLeaf {
@@ -77,16 +76,46 @@ export default function MarhalaFlowMap({
   assignments,
   teacherProfileId,
   academicYear = defaultAcademicYear(),
+  loading = false,
 }: MarhalaFlowMapProps) {
   const [search, setSearch] = useState("");
   const [activeMarhalaFilter, setActiveMarhalaFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"3D_TREE" | "HIERARCHY_GRID">("3D_TREE");
-  const [is3DTilted, setIs3DTilted] = useState(true);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [collapsedBranches, setCollapsedBranches] = useState<Record<string, boolean>>({});
+  const [collapsedMuhaffiz, setCollapsedMuhaffiz] = useState<Record<string, boolean>>({});
+  const [selectedMarhala, setSelectedMarhala] = useState<string | null>(null);
   const [selectedLeaf, setSelectedLeaf] = useState<StudentLeaf | null>(null);
+  const [webglOK, setWebglOK] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // WebGL is required for the 3D tree — fall back to selectable branches otherwise.
+  useEffect(() => {
+    try {
+      const c = document.createElement("canvas");
+      const ok = !!(
+        window.WebGLRenderingContext &&
+        (c.getContext("webgl2") || c.getContext("webgl"))
+      );
+      setWebglOK(ok);
+    } catch {
+      setWebglOK(false);
+    }
+  }, []);
+
+  // Modal ergonomics: Esc closes, background scroll locks while open.
+  useEffect(() => {
+    if (!selectedLeaf) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedLeaf(null);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [selectedLeaf]);
 
   const active = useMemo(() => assignments.filter((a) => a.isActive !== false), [assignments]);
 
@@ -167,32 +196,42 @@ export default function MarhalaFlowMap({
     [treeData]
   );
 
-  const toggleBranch = (key: string) => {
-    setCollapsedBranches((prev) => ({ ...prev, [key]: !prev[key] }));
+  // The revealed marhala: explicit selection, else the first visible branch.
+  const revealed = treeData.find((m) => m.marhala === selectedMarhala) ?? treeData[0] ?? null;
+  const revealedUnassigned =
+    revealed?.nodes.find((n) => n.facultyId === "__unassigned__")?.leaves.length ?? 0;
+
+  // Branches for the real 3D tree (trunk = Darse Burhani, fruits = marhalas).
+  const tree3DBranches = useMemo(
+    () =>
+      treeData.map(({ marhala, nodes, totalStudents }) => ({
+        marhala,
+        shortLabel: MARHALA_LABELS_SHORT[marhala] ?? marhala,
+        totalStudents,
+        unassigned: nodes.find((n) => n.facultyId === "__unassigned__")?.leaves.length ?? 0,
+        colorHex: marhalaColor(marhala).hex,
+      })),
+    [treeData]
+  );
+
+  const toggleMuhaffiz = (key: string) => {
+    setCollapsedMuhaffiz((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const expandAll = () => setCollapsedBranches({});
-  const collapseAll = () => {
-    const collapsed: Record<string, boolean> = {};
-    for (const m of MARHALA_ORDER) {
-      collapsed[m] = true;
-    }
-    setCollapsedBranches(collapsed);
+  const selectPill = (m: string) => {
+    setActiveMarhalaFilter(m);
+    if (m !== "all") setSelectedMarhala(m);
   };
 
-  const handleZoom = (delta: number) => {
-    setZoomLevel((prev) => Math.min(Math.max(0.65, prev + delta), 1.4));
-  };
-
-  const resetView = () => {
-    setZoomLevel(1);
-    setIs3DTilted(true);
+  const clearAll = () => {
+    setSelectedMarhala(null);
+    setCollapsedMuhaffiz({});
     setActiveMarhalaFilter("all");
     setSearch("");
   };
 
   return (
-    <div className="space-y-6 select-none">
+    <div className="space-y-6">
       {/* ── Top Control & View Bar ── */}
       <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 p-4 sm:p-5 rounded-3xl text-white shadow-xl border border-emerald-800/40 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-full opacity-15 pointer-events-none bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-300 via-emerald-400 to-transparent blur-2xl" />
@@ -212,7 +251,7 @@ export default function MarhalaFlowMap({
               </Badge>
             </h2>
             <p className="text-xs text-emerald-100/70 max-w-xl">
-              Interactive 3D tree visualizing the hierarchy from Marhala stage branches down to faculty Muhaffiz mentors and assigned Talabat huffaz leaves.
+              Click a marhala fruit on the tree to reveal its muhaffiz mentors and talabat leaves.
             </p>
           </div>
 
@@ -220,7 +259,7 @@ export default function MarhalaFlowMap({
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10 text-xs font-semibold text-emerald-200">
               <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-              <span>5 Stages</span>
+              <span>{MARHALA_ORDER.length} Stages</span>
               <span className="text-white/30">|</span>
               <UserCheck className="w-3.5 h-3.5 text-blue-400" />
               <span>{totalMuhaffizCount} Mentors</span>
@@ -241,7 +280,7 @@ export default function MarhalaFlowMap({
                 )}
               >
                 <Compass className="w-3.5 h-3.5" />
-                <span>3D Tree Canvas</span>
+                <span>Tree View</span>
               </button>
               <button
                 type="button"
@@ -254,7 +293,7 @@ export default function MarhalaFlowMap({
                 )}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Hierarchy Grid</span>
+                <span>Grid View</span>
               </button>
             </div>
           </div>
@@ -265,7 +304,7 @@ export default function MarhalaFlowMap({
           {/* Marhala Branch Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
             <button
-              onClick={() => setActiveMarhalaFilter("all")}
+              onClick={() => selectPill("all")}
               className={cn(
                 "px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all text-xs flex items-center gap-1",
                 activeMarhalaFilter === "all"
@@ -282,11 +321,12 @@ export default function MarhalaFlowMap({
               return (
                 <button
                   key={m}
-                  onClick={() => setActiveMarhalaFilter(m)}
+                  onClick={() => selectPill(m)}
+                  aria-pressed={isActive}
                   className={cn(
                     "px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all text-xs flex items-center gap-1.5",
                     isActive
-                      ? `bg-gradient-to-r ${color.grad} text-white ring-2 ring-white/40 shadow-md`
+                      ? `bg-gradient-to-r ${color.grad} text-white ring-2 ring-white/40 shadow-md [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]`
                       : "bg-white/10 text-emerald-100 hover:bg-white/15"
                   )}
                 >
@@ -300,321 +340,288 @@ export default function MarhalaFlowMap({
 
           {/* Search Input */}
           <div className="relative min-w-[240px]">
-            <Search className="w-3.5 h-3.5 text-emerald-300 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-emerald-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search talabat, ITS, muhaffiz..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-black/40 border border-white/15 rounded-xl text-white placeholder:text-emerald-200/50 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              aria-label="Search talabat, ITS or muhaffiz"
+              className="w-full pl-8 pr-8 py-1.5 text-xs bg-black/40 border border-white/15 rounded-xl text-white placeholder:text-emerald-200/50 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-200/60 hover:text-white transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── 3D Tree Canvas & Visual Interactive Space ── */}
+      {/* ── Living Tree Canvas + Reveal Panel ── */}
       {viewMode === "3D_TREE" ? (
-        <div className="relative bg-gradient-to-b from-slate-950 via-emerald-950/40 to-slate-950 rounded-3xl p-4 sm:p-8 border border-emerald-900/50 shadow-2xl overflow-hidden min-h-[700px] flex flex-col justify-between">
-          {/* Atmospheric Ambient Glows */}
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-emerald-500/10 blur-[120px] pointer-events-none rounded-full" />
-          <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-amber-500/10 blur-[140px] pointer-events-none rounded-full" />
+        <div className="space-y-5">
+          <div className="relative bg-gradient-to-b from-sky-50 via-emerald-50/70 to-stone-100 rounded-3xl border border-emerald-900/15 shadow-xl overflow-hidden">
+            {/* Ambient light wash */}
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-emerald-200/40 blur-[100px] pointer-events-none rounded-full" />
+            <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[600px] h-[280px] bg-amber-200/40 blur-[120px] pointer-events-none rounded-full" />
 
-          {/* Canvas Floating Tools Overlay */}
-          <div className="absolute top-4 right-4 z-30 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-lg text-white">
-            <button
-              type="button"
-              onClick={() => setIs3DTilted(!is3DTilted)}
-              className={cn(
-                "p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all",
-                is3DTilted
-                  ? "bg-emerald-700 text-white shadow-sm"
-                  : "bg-white/10 text-slate-300 hover:text-white"
-              )}
-              title="Toggle 3D Isometric View"
-            >
-              <Compass className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">3D Angle</span>
-            </button>
-            <div className="w-px h-5 bg-white/20 mx-0.5" />
-            <button
-              type="button"
-              onClick={() => handleZoom(0.1)}
-              className="p-2 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleZoom(-0.1)}
-              className="p-2 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={resetView}
-              className="p-2 rounded-xl hover:bg-white/10 transition-colors text-slate-200 hover:text-white"
-              title="Reset View"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            <div className="w-px h-5 bg-white/20 mx-0.5" />
-            <button
-              type="button"
-              onClick={expandAll}
-              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white/10 hover:bg-white/20 text-slate-200"
-            >
-              Expand All
-            </button>
-            <button
-              type="button"
-              onClick={collapseAll}
-              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white/10 hover:bg-white/20 text-slate-200"
-            >
-              Collapse
-            </button>
-          </div>
+            {/* Reset */}
+            <div className="absolute top-4 right-4 z-30">
+              <button
+                type="button"
+                onClick={clearAll}
+                aria-label="Reset tree view"
+                className="p-2 rounded-xl bg-white/85 backdrop-blur-md border border-gray-200 text-slate-500 hover:text-emerald-700 hover:border-emerald-300 shadow-sm transition-colors"
+                title="Reset tree view"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
 
-          {/* ── 3D Viewport Transform Wrapper ── */}
-          <div
-            ref={containerRef}
-            className="w-full flex-1 flex flex-col items-center justify-start py-8 transition-transform duration-500 ease-out"
-            style={{
-              perspective: "1400px",
-              transform: `scale(${zoomLevel})`,
-              transformOrigin: "top center",
-            }}
-          >
-            {/* Inner 3D Pitch Container */}
             <div
-              className={cn(
-                "w-full max-w-6xl space-y-12 transition-all duration-700 ease-out",
-                is3DTilted ? "rotate-x-[12deg] translate-y-4" : ""
-              )}
-              style={{
-                transformStyle: "preserve-3d",
-                transform: is3DTilted
-                  ? "rotateX(14deg) rotateY(0deg) translateZ(10px)"
-                  : "rotateX(0deg) rotateY(0deg)",
-              }}
+              ref={containerRef}
+              role="img"
+              aria-label={`Interactive 3D Hifz tree, ${totalLeavesCount} students across ${treeData.length} marhala stages. Use the marhala pills above to explore each stage.`}
+              className="relative z-10 h-[440px] sm:h-[500px] select-none"
             >
-              {/* ── ROOT NODE: Sacred Central Quranic Hifz Trunk ── */}
-              <div className="flex flex-col items-center justify-center relative z-20">
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="relative group cursor-pointer"
-                >
-                  {/* Glowing 3D Base Disk */}
-                  <div className="absolute -inset-4 bg-gradient-to-r from-amber-500/30 via-emerald-500/40 to-teal-500/30 rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500 animate-pulse" />
-
-                  {/* 3D Root Podium Card */}
-                  <div className="relative px-8 py-5 rounded-3xl bg-gradient-to-br from-emerald-900 via-[#034431] to-teal-950 border-2 border-amber-400/80 shadow-[0_25px_60px_-15px_rgba(4,120,87,0.7)] text-center text-white flex flex-col items-center gap-2 backdrop-blur-xl">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-200 flex items-center justify-center text-emerald-950 shadow-lg shadow-amber-400/30 ring-4 ring-emerald-600/50">
-                      <GraduationCap className="w-8 h-8 stroke-[2.2]" />
-                    </div>
-
-                    <div>
-                      <span className="font-arabic text-amber-300 font-extrabold text-base tracking-wide">
-                        شجرة حفظ القرآن الكريم المباركة
-                      </span>
-                      <h3 className="font-display font-extrabold text-xl text-white tracking-tight">
-                        Holy Hifz Marhala Foundation Tree
-                      </h3>
-                      <p className="text-[11px] text-emerald-200/80 font-medium mt-0.5">
-                        Academic Year {academicYear} · Complete Institutional Registry
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                        {totalLeavesCount} Registered Huffaz
-                      </span>
-                      <span className="bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                        {totalMuhaffizCount} Mentors
-                      </span>
+              {loading ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4" aria-label="Loading tree">
+                  <div className="flex items-end gap-3">
+                    {[10, 20, 13, 24, 35].map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-10 rounded-t-xl bg-emerald-200/70 animate-pulse"
+                        style={{ height: `${h * 6}px`, animationDelay: `${i * 120}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs font-semibold text-slate-500">Growing your tree…</p>
+                </div>
+              ) : !webglOK ? (
+                <div className="absolute inset-0 flex items-center justify-center p-6">
+                  <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                    <p className="text-sm font-bold text-gray-900">3D view unavailable on this device</p>
+                    <p className="text-xs text-gray-500 mt-1 mb-4">
+                      Your browser could not start WebGL. Pick a marhala below — or switch to Grid View above.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {treeData.map(({ marhala, totalStudents }) => {
+                        const color = marhalaColor(marhala);
+                        const isSel = revealed?.marhala === marhala;
+                        return (
+                          <button
+                            key={marhala}
+                            type="button"
+                            onClick={() => setSelectedMarhala(marhala)}
+                            aria-pressed={isSel}
+                            className={cn(
+                              "px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2",
+                              isSel
+                                ? "text-white shadow-md"
+                                : "bg-gray-50 text-gray-800 border-gray-200 hover:border-emerald-400"
+                            )}
+                            style={isSel ? { background: color.gradCss, borderColor: "transparent" } : undefined}
+                          >
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color.hex }} />
+                            {MARHALA_LABELS_SHORT[marhala]} · {totalStudents}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </motion.div>
+                </div>
+              ) : (
+                <>
+                  {/* Real 3D tree: Darse Burhani trunk, marhala branches + fruits */}
+                  <MarhalaTree3D
+                    branches={tree3DBranches}
+                    selected={revealed?.marhala ?? null}
+                    onSelect={setSelectedMarhala}
+                    academicYear={academicYear}
+                  />
 
-                {/* Central Trunk Stem Connecting to Marhalas */}
-                <div className="w-1 h-12 bg-gradient-to-b from-amber-400 via-emerald-400 to-emerald-600/70 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
-              </div>
+                  {treeData.length === 0 && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                      <p className="text-sm text-slate-500 bg-white/90 px-5 py-3 rounded-2xl border border-gray-200 shadow-sm">
+                        No branches match your search — clear it to regrow the tree.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
 
-              {/* ── 5 MARHALA BRANCHES (Tiered 3D Branch Architecture) ── */}
-              <div className="space-y-10">
-                {treeData.map(({ marhala, nodes, totalStudents }) => {
-                  const color = marhalaColor(marhala);
-                  const isCollapsed = collapsedBranches[marhala];
+          {/* ── Reveal panel: talabat inside the selected marhala ── */}
+          <AnimatePresence mode="wait">
+            {loading ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden"
+                aria-label="Loading marhala details"
+              >
+                <div className="h-24 bg-gray-100 animate-pulse" />
+                <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="rounded-2xl border border-gray-100 p-3.5 space-y-2">
+                      <div className="h-9 rounded-xl bg-gray-100 animate-pulse" />
+                      <div className="h-16 rounded-xl bg-gray-50 animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : revealed ? (
+              <motion.div
+                key={revealed.marhala}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden"
+              >
+                {/* Reveal header */}
+                <div
+                  className="px-5 sm:px-6 py-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  style={{ background: marhalaColor(revealed.marhala).gradCss }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-display font-bold text-lg leading-tight truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+                        {MARHALA_LABELS[revealed.marhala]}
+                        <span className="font-arabic font-bold text-sm opacity-90"> ({MARHALA_LABELS_AR[revealed.marhala]})</span>
+                      </h3>
+                      <p className="text-xs text-white/90 font-semibold [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">
+                        {revealed.nodes.length} mentors · {revealed.totalStudents} huffaz
+                      </p>
+                    </div>
+                  </div>
+                  {revealedUnassigned > 0 && (
+                    <span className="inline-flex items-center gap-1.5 bg-black/30 text-amber-200 border border-amber-300/50 text-xs font-bold px-3 py-1.5 rounded-xl shrink-0">
+                      <Info className="w-3.5 h-3.5" />
+                      {revealedUnassigned} awaiting muhafiz
+                    </span>
+                  )}
+                </div>
 
-                  return (
-                    <motion.div
-                      key={marhala}
-                      layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="relative rounded-3xl bg-slate-900/90 border border-white/10 shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-300"
-                      style={{
-                        boxShadow: `0 15px 35px -10px ${color.hex}25`,
-                      }}
-                    >
-                      {/* Branch Header Bar (3D Marhala Plate) */}
-                      <div
-                        onClick={() => toggleBranch(marhala)}
-                        className="px-6 py-4 flex items-center justify-between gap-4 cursor-pointer select-none text-white relative overflow-hidden transition-all hover:brightness-110"
-                        style={{ background: color.gradCss }}
-                      >
-                        <div className="absolute right-0 top-0 w-64 h-full bg-white/10 blur-xl pointer-events-none" />
-
-                        {/* Stage Info */}
-                        <div className="flex items-center gap-3.5 min-w-0 z-10">
-                          <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 backdrop-blur flex items-center justify-center shrink-0 shadow-inner">
-                            <BookOpen className="w-6 h-6 text-white" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-display font-bold text-lg text-white tracking-tight">
-                                {MARHALA_LABELS[marhala]}
-                              </h4>
-                              <span className="font-arabic font-bold text-sm text-white/90">
-                                ({MARHALA_LABELS_AR[marhala]})
+                {/* Mentors + leaves */}
+                <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {revealed.nodes.length === 0 ? (
+                    <p className="text-sm text-gray-500 col-span-full text-center py-8">
+                      No mentors or talabat in this marhala yet.
+                    </p>
+                  ) : (
+                    revealed.nodes.map((node) => {
+                      const isUnassigned = node.facultyId === "__unassigned__";
+                      const muKey = `${revealed.marhala}::${node.facultyId}`;
+                      const muCollapsed = collapsedMuhaffiz[muKey];
+                      return (
+                        <div
+                          key={muKey}
+                          className={cn(
+                            "rounded-2xl border overflow-hidden",
+                            isUnassigned ? "border-amber-300 bg-amber-50/50" : "border-gray-200 bg-gray-50/60"
+                          )}
+                        >
+<button
+                            type="button"
+                            onClick={() => toggleMuhaffiz(muKey)}
+                            aria-label={`View muhaffiz details for ${node.name}`}
+                            className="w-full flex items-center gap-2.5 p-3.5 text-left hover:bg-white/60 transition-colors"
+                          >
+                            <Avatar className="w-9 h-9 rounded-xl ring-2 ring-emerald-400/40 shrink-0">
+                              {node.avatarUrl && <AvatarImage src={node.avatarUrl} alt={node.name} className="object-cover" />}
+                              <AvatarFallback
+                                className={cn(
+                                  "w-full h-full font-bold text-white text-xs flex items-center justify-center",
+                                  isUnassigned ? "bg-amber-500" : "bg-gradient-to-br from-emerald-500 to-teal-600"
+                                )}
+                              >
+                                {isUnassigned ? ( <Info className="w-4 h-4 text-white" /> ) : node.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-bold text-sm text-gray-900 truncate">
+                                {node.name}
+                                {!isUnassigned && (
+                                  <span className="font-arabic text-[11px] text-emerald-600 font-bold"> (المُحَفِّظ)</span>
+                                )}
                               </span>
-                            </div>
-                            <p className="text-xs text-white/80 font-medium">
-                              {nodes.length} Muhaffiz Mentors · {totalStudents} Assigned Hafiz Talabat
-                            </p>
-                          </div>
-                        </div>
+                              <span className="block text-[11px] text-gray-500 truncate">
+                                {node.department || (isUnassigned ? "Awaiting Mentor" : "Faculty Mentor")}
+                              </span>
+                            </span>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md shrink-0">
+                              {node.leaves.length}
+                            </span>
+                            {muCollapsed ? (
+                              <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                            )}
+                          </button>
 
-                        {/* Status Pills & Toggle */}
-                        <div className="flex items-center gap-3 z-10 shrink-0">
-                          <Badge className="bg-black/30 text-white border-0 text-xs font-bold px-3 py-1">
-                            {totalStudents} Huffaz
-                          </Badge>
-                          <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-white">
-                            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ── Muhaffiz Pods & Student Leaves Area ── */}
-                      {!isCollapsed && (
-                        <div className="p-6 bg-slate-950/60 space-y-6">
-                          {nodes.length === 0 ? (
-                            <div className="py-8 text-center text-slate-400 text-xs">
-                              No students or muhaffiz faculty assigned under this marhala stage yet.
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                              {nodes.map((node) => {
-                                const isUnassigned = node.facultyId === "__unassigned__";
-
-                                return (
-                                  <div
-                                    key={`${marhala}-${node.facultyId}`}
-                                    className="rounded-2xl bg-slate-900/90 border border-emerald-900/40 hover:border-emerald-500/50 shadow-lg p-4 space-y-3 transition-all duration-300 hover:shadow-emerald-900/20"
-                                  >
-                                    {/* Muhaffiz Mentor Capsule Header with Profile Picture */}
-                                    <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
-                                      <div className="flex items-center gap-2.5 min-w-0">
-                                        <Avatar className="w-10 h-10 rounded-xl ring-2 ring-emerald-400/40 shrink-0 shadow-md">
-                                          {node.avatarUrl && <AvatarImage src={node.avatarUrl} alt={node.name} className="object-cover" />}
-                                          <AvatarFallback
-                                            className={cn(
-                                              "w-full h-full font-bold text-white text-xs flex items-center justify-center",
-                                              isUnassigned ? "bg-amber-600/80" : "bg-gradient-to-br from-emerald-500 to-teal-600"
-                                            )}
-                                          >
-                                            {isUnassigned ? <Info className="w-5 h-5 text-white" /> : node.name.charAt(0)}
-                                          </AvatarFallback>
-                                        </Avatar>
-
-                                        <div className="min-w-0">
-                                          <div className="flex items-center gap-1.5">
-                                            <p className="font-bold text-sm text-white truncate">
-                                              {node.name}
-                                            </p>
-                                            <span className="font-arabic text-[11px] text-emerald-400 font-bold shrink-0">
-                                              (المُحَفِّظ)
-                                            </span>
-                                          </div>
-                                          <p className="text-[11px] text-slate-400 truncate">
-                                            {node.department || (isUnassigned ? "Awaiting Mentor" : "Faculty Mentor")}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-emerald-950/60 text-emerald-300 border-emerald-700/50 text-[10px] font-bold px-2 py-0.5 shrink-0"
-                                      >
-                                        {node.leaves.length} Talabat
-                                      </Badge>
-                                    </div>
-
-                                    {/* Assigned Talabat Leaves Container with Profile Pictures */}
-                                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-emerald-900">
-                                      {node.leaves.map((leaf) => (
-                                        <div
-                                          key={leaf.assignment.id}
-                                          onClick={() => setSelectedLeaf(leaf)}
-                                          className="group/leaf cursor-pointer p-2.5 rounded-xl bg-slate-800/70 hover:bg-emerald-950/80 border border-white/5 hover:border-emerald-500/40 transition-all duration-200 flex items-center justify-between gap-2.5"
-                                        >
-                                          <div className="flex items-center gap-2.5 min-w-0">
-                                            {/* Talabat Leaf Profile Picture */}
-                                            <Avatar className="w-8 h-8 rounded-lg shrink-0 ring-1 ring-white/10 group-hover/leaf:ring-amber-400/50 transition-all">
-                                              {leaf.avatarUrl && <AvatarImage src={leaf.avatarUrl} alt={leaf.name} className="object-cover" />}
-                                              <AvatarFallback
-                                                className={cn(
-                                                  "w-full h-full text-white font-extrabold text-xs flex items-center justify-center",
-                                                  color.solid
-                                                )}
-                                              >
-                                                {leaf.name.charAt(0)}
-                                              </AvatarFallback>
-                                            </Avatar>
-
-                                            <div className="min-w-0">
-                                              <p className="font-semibold text-xs text-slate-100 group-hover/leaf:text-amber-300 transition-colors truncate">
-                                                {leaf.name}
-                                              </p>
-                                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                                                {leaf.its && (
-                                                  <span className="font-mono text-emerald-300/80">
-                                                    ITS {leaf.its}
-                                                  </span>
-                                                )}
-                                                {leaf.grade && (
-                                                  <span>· Gr. {leaf.grade}{leaf.section || ""}</span>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          <div className="flex items-center gap-1.5 shrink-0">
-                                            <span className="text-[10px] font-bold text-amber-400 group-hover/leaf:underline flex items-center gap-0.5">
-                                              <span>View</span>
-                                              <ChevronRight className="w-3 h-3" />
-                                            </span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                          {!muCollapsed && (
+                            <div className="px-3.5 pb-3.5">
+                              <div className="ml-[18px] border-l-2 border-emerald-200 space-y-0.5 max-h-72 overflow-y-auto pr-1">
+{node.leaves.map((leaf) => (
+<button
+                               key={leaf.assignment.id}
+                               type="button"
+                               onClick={() => setSelectedLeaf(leaf)}
+                               className="px-2 py-1 rounded-lg bg-white border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-[11px] font-semibold text-gray-800 transition-colors flex items-center gap-1.5 shadow-2xs"
+                               >
+                                      <span className="absolute left-0 top-1/2 h-px w-4 bg-emerald-300" />
+                                      <Avatar className="w-7 h-7 rounded-lg shrink-0 ring-1 ring-gray-200 group-hover/leaf:ring-emerald-400 transition-all">
+                                        {leaf.avatarUrl && <AvatarImage src={leaf.avatarUrl} alt={leaf.name} className="object-cover" />}
+                                        <AvatarFallback className="bg-emerald-700 text-white font-bold text-[11px]">
+                                          {leaf.name.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-[13px] font-semibold text-gray-900 group-hover/leaf:text-emerald-800">
+                                          {leaf.name}
+                                        </span>
+                                        {leaf.its && (
+                                          <span className="block font-mono text-[10px] text-gray-400">ITS {leaf.its}</span>
+                                        )}
+                                      </span>
+                                      <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover/leaf:text-emerald-500 shrink-0 transition-colors" />
+</button>
+                     ))}
+                              </div>
                             </div>
                           )}
                         </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+                      );
+                    })
+                  )}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="bg-white/60 rounded-3xl border border-dashed border-gray-300 px-6 py-10 text-center"
+              >
+                <Info className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-gray-600">Click a marhala fruit on the tree to reveal its talabat.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ) : (
         /* ── HIERARCHY GRID VIEW (Dense 3D Stage Cards with Profile Pictures) ── */
@@ -638,10 +645,10 @@ export default function MarhalaFlowMap({
                         <BookOpen className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-base text-white leading-tight">
+                        <h3 className="font-bold text-base text-white leading-tight [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
                           {MARHALA_LABELS[marhala]}
                         </h3>
-                        <p className="text-xs text-white/80 font-arabic">{MARHALA_LABELS_AR[marhala]}</p>
+                        <p className="text-xs text-white/90 font-semibold font-arabic [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">{MARHALA_LABELS_AR[marhala]}</p>
                       </div>
                     </div>
                     <Badge className="bg-white text-gray-900 border-0 text-xs font-bold px-2.5 py-1">
@@ -651,44 +658,52 @@ export default function MarhalaFlowMap({
 
                   {/* Muhaffiz List with Profile Pictures */}
                   <div className="p-4 space-y-4">
-                    {nodes.map((node) => (
-                      <div key={node.facultyId} className="p-3 bg-gray-50 rounded-2xl border border-gray-200/80 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Avatar className="w-7 h-7 rounded-lg shrink-0">
-                              {node.avatarUrl && <AvatarImage src={node.avatarUrl} alt={node.name} className="object-cover" />}
-                              <AvatarFallback className="bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                                {node.name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <p className="font-bold text-xs text-gray-900 truncate">{node.name}</p>
-                          </div>
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
-                            {node.leaves.length} students
-                          </span>
-                        </div>
-
-                        {/* Student Chips with Mini Avatars */}
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {node.leaves.map((leaf) => (
-                            <button
-                              key={leaf.assignment.id}
-                              onClick={() => setSelectedLeaf(leaf)}
-                              className="px-2 py-1 rounded-lg bg-white border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-[11px] font-semibold text-gray-800 transition-colors flex items-center gap-1.5 shadow-2xs"
-                            >
-                              <Avatar className="w-4 h-4 rounded-full shrink-0">
-                                {leaf.avatarUrl && <AvatarImage src={leaf.avatarUrl} alt={leaf.name} className="object-cover" />}
-                                <AvatarFallback className="bg-emerald-700 text-white font-bold text-[8px]">
-                                  {leaf.name.charAt(0)}
+                    {nodes.map((node) => {
+                      const isUnassignedNode = node.facultyId === "__unassigned__";
+                      return (
+                        <div key={node.facultyId} className={cn("p-3 rounded-2xl border space-y-2", isUnassignedNode ? "bg-amber-50/70 border-amber-300" : "bg-gray-50 border-gray-200/80")}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Avatar className="w-7 h-7 rounded-lg shrink-0">
+                                {node.avatarUrl && <AvatarImage src={node.avatarUrl} alt={node.name} className="object-cover" />}
+                                <AvatarFallback className={cn("font-bold text-[10px]", isUnassignedNode ? "bg-amber-500 text-white" : "bg-emerald-100 text-emerald-800")}>
+                                  {isUnassignedNode ? <Info className="w-3.5 h-3.5" /> : node.name.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="truncate">{leaf.name}</span>
-                              {leaf.its && <span className="text-[9px] text-gray-400 font-mono">{leaf.its}</span>}
-                            </button>
-                          ))}
+                              <div className="min-w-0">
+                                <p className="font-bold text-xs text-gray-900 truncate">{node.name}</p>
+                                {isUnassignedNode && (
+                                  <p className="text-[10px] font-bold text-amber-700">Awaiting mentor</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
+                              {node.leaves.length} students
+                            </span>
+                          </div>
+
+                          {/* Student Chips with Mini Avatars */}
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {node.leaves.map((leaf) => (
+                              <button
+                                key={leaf.assignment.id}
+                                onClick={() => setSelectedLeaf(leaf)}
+                                className="px-2 py-1 rounded-lg bg-white border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-[11px] font-semibold text-gray-800 transition-colors flex items-center gap-1.5 shadow-2xs"
+                              >
+                                <Avatar className="w-4 h-4 rounded-full shrink-0">
+                                  {leaf.avatarUrl && <AvatarImage src={leaf.avatarUrl} alt={leaf.name} className="object-cover" />}
+                                  <AvatarFallback className="bg-emerald-700 text-white font-bold text-[8px]">
+                                    {leaf.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{leaf.name}</span>
+                                {leaf.its && <span className="text-[9px] text-gray-400 font-mono">{leaf.its}</span>}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -1,0 +1,4 @@
+ALTER TYPE "HifzMarhala" ADD VALUE 'MARHALA_6';
+ALTER TYPE "HifzMarhala" ADD VALUE 'MARHALA_7';
+ALTER TYPE "HifzMarhala" ADD VALUE 'MARHALA_8';
+ALTER TABLE "hifz_marhala_assignments" ALTER COLUMN "facultyId" DROP NOT NULL;

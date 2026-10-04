@@ -65,11 +65,11 @@ enum TakhteetStatus {
 }
 
 enum HifzMarhala {
-  MARHALA_1
-  MARHALA_2
-  MARHALA_3
   MARHALA_4
   MARHALA_5
+  MARHALA_6
+  MARHALA_7
+  MARHALA_8
 }
 
 enum HifzReportSource {
@@ -297,7 +297,9 @@ model HifzMarhalaAssignment {
   studentId     String
   marhala       HifzMarhala
   assignedById  String
-  facultyId     String
+  // Muhafiz (primary teacher) — nullable so talabat can be grouped into a
+  // marhala before a muhafiz is assigned. UI partitions assigned/unassigned.
+  facultyId     String?
   musaidId      String?
   // Musa'id (المساعد) as a hafiz talib — a fellow student who assists the muhaffiz.
   // Legacy musaidId (teacher) is kept for history; new assignments use musaidStudentId.
@@ -308,7 +310,7 @@ model HifzMarhalaAssignment {
   updatedAt     DateTime       @updatedAt
 
   student       StudentProfile @relation("StudentHifzAssignments", fields: [studentId], references: [id], onDelete: Cascade)
-  faculty       TeacherProfile @relation("FacultyHifzAssignments", fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty       TeacherProfile? @relation("FacultyHifzAssignments", fields: [facultyId], references: [id], onDelete: Cascade)
   musaid        TeacherProfile? @relation("MusaidHifzAssignments", fields: [musaidId], references: [id], onDelete: SetNull)
   musaidStudent StudentProfile? @relation("MusaidStudentHifzAssignments", fields: [musaidStudentId], references: [id], onDelete: SetNull)
   assignedBy    User           @relation("AdminHifzAssignments", fields: [assignedById], references: [id], onDelete: Cascade)

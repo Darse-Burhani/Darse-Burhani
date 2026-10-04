@@ -20,20 +20,22 @@ import {
   FileText,
   Package,
   User,
-  Settings,
   Sparkles,
   Check,
-  Filter,
   Clock,
   Mail,
   ShoppingBag,
   Library,
   Activity,
   CalendarCheck,
+  CalendarDays,
   SlidersHorizontal,
   CheckSquare,
   Square,
   Stethoscope,
+  Fingerprint,
+  Award,
+  BarChart3,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
@@ -52,13 +54,15 @@ import { getInitials } from "@/lib/utils";
 export interface PageDefinition {
   id: string;
   label: string;
-  category: "Academics" | "Hifz" | "Attendance" | "Operations" | "Communications" | "Library" | "General";
+  category: "Academics" | "Hifz" | "Attendance" | "Operations" | "Communications" | "Library" | "General" | "Community" | "Systems";
   description: string;
   icon: React.ElementType;
   badgeColor: string;
   cardColor: string;
 }
 
+// Canonical catalog — must match TEACHER_AVAILABLE_PAGES on the server
+// (server/src/routes/admin/portal-assignments.ts) and /teacher routes in App.tsx.
 export const AVAILABLE_PAGES: PageDefinition[] = [
   {
     id: "manual-attendance",
@@ -140,6 +144,96 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     icon: Sparkles,
     badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200",
     cardColor: "hover:border-cyan-400 hover:bg-cyan-50/40",
+  },
+  {
+    id: "hifz-marhala",
+    label: "Hifz Marhala",
+    category: "Hifz",
+    description: "Marhala progress & exams",
+    icon: GraduationCap,
+    badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200",
+    cardColor: "hover:border-cyan-400 hover:bg-cyan-50/40",
+  },
+  {
+    id: "biometric",
+    label: "Biometric Scanners",
+    category: "Operations",
+    description: "Device status & management",
+    icon: Fingerprint,
+    badgeColor: "bg-slate-100 text-slate-800 border-slate-200",
+    cardColor: "hover:border-slate-400 hover:bg-slate-50/40",
+  },
+  {
+    id: "students",
+    label: "Talabat (Students)",
+    category: "Community",
+    description: "Student directory & details",
+    icon: GraduationCap,
+    badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
+    cardColor: "hover:border-blue-400 hover:bg-blue-50/40",
+  },
+  {
+    id: "parents",
+    label: "Parents Directory",
+    category: "Community",
+    description: "Parent contacts & directory",
+    icon: Heart,
+    badgeColor: "bg-pink-100 text-pink-800 border-pink-200",
+    cardColor: "hover:border-pink-400 hover:bg-pink-50/40",
+  },
+  {
+    id: "users",
+    label: "Staff & Users",
+    category: "Community",
+    description: "Staff directory & accounts",
+    icon: Users,
+    badgeColor: "bg-violet-100 text-violet-800 border-violet-200",
+    cardColor: "hover:border-violet-400 hover:bg-violet-50/40",
+  },
+  {
+    id: "timetable",
+    label: "Timetable Matrix",
+    category: "Academics",
+    description: "Master timetable & schedule",
+    icon: CalendarDays,
+    badgeColor: "bg-sky-100 text-sky-800 border-sky-200",
+    cardColor: "hover:border-sky-400 hover:bg-sky-50/40",
+  },
+  {
+    id: "tracking",
+    label: "Individual Tracking",
+    category: "Operations",
+    description: "Student tracking & metrics",
+    icon: BarChart3,
+    badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
+    cardColor: "hover:border-teal-400 hover:bg-teal-50/40",
+  },
+  {
+    id: "point-matrix",
+    label: "Point Matrix",
+    category: "Systems",
+    description: "Star point rules & matrix",
+    icon: Award,
+    badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
+    cardColor: "hover:border-amber-400 hover:bg-amber-50/40",
+  },
+  {
+    id: "passwords",
+    label: "User Passwords",
+    category: "Community",
+    description: "Password resets & credentials",
+    icon: KeyRound,
+    badgeColor: "bg-stone-100 text-stone-800 border-stone-200",
+    cardColor: "hover:border-stone-400 hover:bg-stone-50/40",
+  },
+  {
+    id: "portal-assignments",
+    label: "Portal Assignments",
+    category: "Community",
+    description: "Assign portal pages to teachers (delegates management)",
+    icon: UserCheck,
+    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "takhteet",
@@ -298,7 +392,7 @@ export default function AdminPortalAssignmentsPage() {
     if (activeModuleFilter !== "ALL") {
       list = list.filter((t) => {
         const pages = t.assignedPages || [];
-        return pages.includes(activeModuleFilter);
+        return pages.includes(activeModuleFilter) || t.hasFullAccess;
       });
     }
 
@@ -307,21 +401,30 @@ export default function AdminPortalAssignmentsPage() {
 
   const stats = useMemo(() => {
     const total = teachers.length;
-    const fullAuth = teachers.filter((t) => (t.assignedPages?.length || 0) >= AVAILABLE_PAGES.length).length;
-    const partial = teachers.filter((t) => (t.assignedPages?.length || 0) > 0 && (t.assignedPages?.length || 0) < AVAILABLE_PAGES.length).length;
-    const minimal = teachers.filter((t) => (t.assignedPages?.length || 0) <= 2).length;
+    const fullAuth = teachers.filter((t) => t.hasFullAccess || (t.assignedPages?.length || 0) >= AVAILABLE_PAGES.length).length;
+    const partial = teachers.filter((t) => !t.hasFullAccess && (t.assignedPages?.length || 0) > 2 && (t.assignedPages?.length || 0) < AVAILABLE_PAGES.length).length;
+    const minimal = teachers.filter((t) => !t.hasFullAccess && (t.assignedPages?.length || 0) <= 2).length;
     return { total, fullAuth, partial, minimal };
   }, [teachers]);
+
+  const MINIMAL_PAGES = ["dashboard", "profile"];
 
   const openModalForTeachers = (teacherIds: string[], currentPages?: string[]) => {
     setModalTargetTeacherIds(teacherIds);
     if (currentPages && currentPages.length > 0) {
-      setModalSelectedPages(new Set(currentPages));
+      // Normalize legacy ids (hifz -> quran) and drop unknown keys so save is exact.
+      const valid = Array.from(
+        new Set(
+          currentPages.map((p) => (p === "hifz" ? "quran" : p)).filter((p) => AVAILABLE_PAGES.some((ap) => ap.id === p) || p === "dashboard" || p === "profile")
+        )
+      );
+      setModalSelectedPages(new Set(valid.length > 0 ? valid : MINIMAL_PAGES));
     } else if (teacherIds.length === 1) {
       const t = teachers.find((tch) => tch.id === teacherIds[0]);
-      setModalSelectedPages(new Set(t?.assignedPages || ["dashboard", "classes", "attendance-logs", "takhteet", "quran", "profile"]));
+      const valid = (t?.assignedPages || []).filter((p: string) => AVAILABLE_PAGES.some((ap) => ap.id === p));
+      setModalSelectedPages(new Set(valid.length > 0 ? valid : MINIMAL_PAGES));
     } else {
-      setModalSelectedPages(new Set(["dashboard", "classes", "attendance-logs", "takhteet", "quran", "profile"]));
+      setModalSelectedPages(new Set(MINIMAL_PAGES));
     }
     setShowConfigModal(true);
   };
@@ -444,7 +547,7 @@ export default function AdminPortalAssignmentsPage() {
                   </span>
                 </div>
                 <p className="text-emerald-100 text-sm mt-1.5 max-w-2xl">
-                  Granular control to assign, grant full authority, or completely hide any of the 12 core modules for any faculty member. Inactive or deleted profiles are strictly excluded from all directories.
+                  Granular control to assign, grant full authority, or completely hide any of the {AVAILABLE_PAGES.length} core modules for any faculty member. Inactive or deleted profiles are strictly excluded from all directories.
                 </p>
               </div>
             </div>
@@ -486,7 +589,7 @@ export default function AdminPortalAssignmentsPage() {
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
               <span className="text-[11px] text-emerald-200 font-medium block">Total Modules Controlled</span>
-              <span className="text-xl font-bold text-white mt-0.5 block">12 Core Pages</span>
+              <span className="text-xl font-bold text-white mt-0.5 block">{AVAILABLE_PAGES.length} Core Pages</span>
             </div>
           </div>
 
@@ -494,7 +597,7 @@ export default function AdminPortalAssignmentsPage() {
         </div>
       </motion.div>
 
-      {/* ── 12 Modules Quick-Filter Bar ── */}
+      {/* ── Modules Quick-Filter Bar ── */}
       <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2">
@@ -641,7 +744,7 @@ export default function AdminPortalAssignmentsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTeachers.map((teacher) => {
             const assignedCount = teacher.assignedPages?.length || 0;
-            const isFullAuthority = assignedCount >= AVAILABLE_PAGES.length;
+            const isFullAuthority = teacher.hasFullAccess || assignedCount >= AVAILABLE_PAGES.length;
             const isSelected = selectedFacultyIds.includes(teacher.id);
 
             return (
@@ -707,7 +810,7 @@ export default function AdminPortalAssignmentsPage() {
                   </div>
                 </div>
 
-                {/* Assigned 12 Modules Matrix */}
+                {/* Assigned Modules Matrix */}
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -762,7 +865,7 @@ export default function AdminPortalAssignmentsPage() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          ASSIGN & CONFIGURE TEACHER PAGES MODAL (All 12 Modules)
+          ASSIGN & CONFIGURE TEACHER PAGES MODAL
          ───────────────────────────────────────────────────────────── */}
       <Modal open={showConfigModal} onOpenChange={setShowConfigModal}>
         <ModalContent className="max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:p-8">
@@ -808,7 +911,7 @@ export default function AdminPortalAssignmentsPage() {
               </div>
             </div>
 
-            {/* All 12 Modules Grid Selector */}
+            {/* All Modules Grid Selector */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
@@ -820,7 +923,7 @@ export default function AdminPortalAssignmentsPage() {
                     onClick={() => setModalSelectedPages(new Set(AVAILABLE_PAGES.map((p) => p.id)))}
                     className="text-xs text-emerald-700 font-bold hover:underline"
                   >
-                    Grant All (12)
+                    Grant All ({AVAILABLE_PAGES.length})
                   </button>
                   <span className="text-gray-300">•</span>
                   <button

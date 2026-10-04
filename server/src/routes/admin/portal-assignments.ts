@@ -1,10 +1,14 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
-import { requireAuth, requireRole } from "../../middleware";
+import { requireAuth } from "../../middleware";
 
 const router = Router();
 
 // Standard available teacher pages and modules in Darse Burhani
+// CANONICAL CATALOG: every id here must have a matching /teacher route in
+// client/src/App.tsx and a nav entry in client/src/app/teacher/layout.tsx.
+// Admin-only pages (notifications, security) are intentionally excluded —
+///they have no /teacher route so assigning them would silently do nothing.
 export const TEACHER_AVAILABLE_PAGES = [
   { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main HUD & point analytics", path: "/teacher", icon: "LayoutDashboard" },
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
@@ -24,15 +28,68 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "users", label: "Staff & Users", category: "Community", description: "Staff directory & accounts", path: "/teacher/users", icon: "Users" },
   { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
   { id: "tracking", label: "Individual Tracking", category: "Operations", description: "Student tracking & metrics", path: "/teacher/tracking", icon: "BarChart3" },
-  { id: "notifications", label: "Broadcast Studio", category: "Systems", description: "Send announcements & notifications", path: "/teacher/notifications", icon: "Megaphone" },
   { id: "point-matrix", label: "Point Matrix", category: "Systems", description: "Star point rules & matrix", path: "/teacher/point-matrix", icon: "Award" },
-  { id: "security", label: "Security & Audit", category: "Systems", description: "Audit logs & security", path: "/teacher/security", icon: "ShieldCheck" },
   { id: "passwords", label: "User Passwords", category: "Community", description: "Password resets & credentials", path: "/teacher/passwords", icon: "KeyRound" },
   { id: "portal-assignments", label: "Portal Assignments", category: "Community", description: "Assign portal pages to teachers", path: "/teacher/portal-assignments", icon: "UserCheck" },
   { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
   { id: "medical-duty", label: "Medical & Health Duty", category: "Operations", description: "Mark Talabat & Faculty on Medical Leave / Exemption", path: "/teacher/medical-duty", icon: "Stethoscope" },
   { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
 ];
+
+const PAGE_IDS = new Set(TEACHER_AVAILABLE_PAGES.map((p) => p.id));
+
+// Normalizes any stored portalType (legacy or current) to a canonical page id.
+// Legacy values seen in DB: "HIFZ" (= quran), "PORTAL-ASSIGNMENTS", lowercase ids.
+export function toPageId(portalType: string): string | null {
+  if (!portalType) return null;
+  if (portalType === "ALL") return "ALL";
+  if (portalType === "HIFZ") return "quran";
+  if (portalType === "PORTAL-ASSIGNMENTS") return "portal-assignments";
+  if (portalType.startsWith("PAGE:")) {
+    const id = portalType.slice(5).toLowerCase();
+    if (id === "hifz") return "quran";
+    return id;
+  }
+  const lower = portalType.toLowerCase();
+  if (lower === "hifz") return "quran";
+  return lower;
+}
+
+// Normalizes any incoming page id to the precise stored portalType.
+export function toPortalType(pageId: string): string | null {
+  if (!pageId) return null;
+  const clean = pageId.trim();
+  if (clean === "ALL") return "ALL";
+  const id = clean.startsWith("PAGE:") ? clean.slice(5).toLowerCase() : clean.toLowerCase();
+  const canonical = id === "hifz" ? "quran" : id;
+  if (canonical === "portal-assignments" || canonical === "portal_assignments") return "PAGE:portal-assignments";
+  if (!PAGE_IDS.has(canonical)) return null;
+  return `PAGE:${canonical}`;
+}
+
+// Teachers delegated the portal-assignments page can manage assignments too.
+async function hasPortalManageAuthority(userId: string, role: string): Promise<boolean> {
+  if (role === "ADMIN") return true;
+  if (role !== "TEACHER") return false;
+  const profile = await prisma.teacherProfile.findUnique({
+    where: { userId },
+    include: { portalAssignments: true },
+  });
+  if (!profile) return false;
+  return profile.portalAssignments.some(
+    (a) => a.isActive && (a.portalType === "ALL" || a.portalType === "PAGE:portal-assignments" || a.portalType === "PORTAL-ASSIGNMENTS")
+  );
+}
+
+function toAssignedPageIds(portalTypes: string[]): string[] {
+  const ids = portalTypes
+    .map((t) => toPageId(t))
+    .filter((v): v is string => !!v && v !== "ALL");
+  const unique = Array.from(new Set(ids)).filter((id) => PAGE_IDS.has(id));
+  if (!unique.includes("dashboard")) unique.push("dashboard");
+  if (!unique.includes("profile")) unique.push("profile");
+  return unique;
+}
 
 // When a teacher has no explicit portal assignments, only give them the safe minimum.
 // All other pages (classes, hifz, manual-attendance, medical-duty, etc.) must be explicitly assigned.
@@ -49,16 +106,12 @@ router.get("/", requireAuth, async (req, res) => {
     let currentTeacherProfile: any = null;
 
     if (!isAdmin && session.user.role === "TEACHER") {
-      currentTeacherProfile = await prisma.teacherProfile.findUnique({
-        where: { userId: session.user.id },
-        include: { portalAssignments: true },
-      });
-
-      if (currentTeacherProfile) {
-        const activeAssignments = currentTeacherProfile.portalAssignments.filter((a: any) => a.isActive);
-        hasManageAuthority = activeAssignments.some(
-          (a: any) => a.portalType === "ALL" || a.portalType === "PAGE:portal-assignments" || a.portalType === "PORTAL-ASSIGNMENTS"
-        );
+      hasManageAuthority = await hasPortalManageAuthority(session.user.id, session.user.role);
+      if (hasManageAuthority) {
+        currentTeacherProfile = await prisma.teacherProfile.findUnique({
+          where: { userId: session.user.id },
+          include: { portalAssignments: true },
+        });
       }
     }
 
@@ -88,13 +141,7 @@ router.get("/", requireAuth, async (req, res) => {
       if (isAll) {
         assignedPageIds = TEACHER_AVAILABLE_PAGES.map((p) => p.id);
       } else if (activeAssignments.length > 0) {
-        assignedPageIds = activeAssignments.map((a: any) => {
-          if (a.portalType.startsWith("PAGE:")) return a.portalType.replace("PAGE:", "");
-          if (a.portalType === "HIFZ") return "quran";
-          return a.portalType.toLowerCase();
-        });
-        if (!assignedPageIds.includes("dashboard")) assignedPageIds.push("dashboard");
-        if (!assignedPageIds.includes("profile")) assignedPageIds.push("profile");
+        assignedPageIds = toAssignedPageIds(activeAssignments.map((a: any) => a.portalType));
       } else {
         assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
       }
@@ -156,13 +203,6 @@ router.get("/", requireAuth, async (req, res) => {
         teachers: teachers.map((t) => {
           const raw = t.portalAssignments.filter((a) => a.isActive);
           const hasAll = raw.some((a) => a.portalType === "ALL");
-          const pageKeys = hasAll
-            ? TEACHER_AVAILABLE_PAGES.map((p) => p.id)
-            : raw.map((a) => {
-                if (a.portalType.startsWith("PAGE:")) return a.portalType.replace("PAGE:", "");
-                if (a.portalType === "HIFZ") return "hifz";
-                return a.portalType.toLowerCase();
-              });
 
           return {
             id: t.userId,
@@ -173,7 +213,10 @@ router.get("/", requireAuth, async (req, res) => {
             department: t.department || t.roleTitle || "Faculty",
             avatarUrl: t.user.avatarUrl || t.photoUrl,
             isActive: t.user.isActive,
-            assignedPages: Array.from(new Set(pageKeys.length > 0 ? pageKeys : ["dashboard", "classes", "attendance-logs", "takhteet", "quran", "profile"])),
+            hasFullAccess: hasAll,
+            assignedPages: hasAll
+              ? TEACHER_AVAILABLE_PAGES.map((p) => p.id)
+              : Array.from(new Set(raw.length > 0 ? toAssignedPageIds(raw.map((a) => a.portalType)) : [...DEFAULT_BASE_TEACHER_PAGES])),
             assignments: t.portalAssignments.map((a) => ({
               id: a.id,
               portalType: a.portalType,
@@ -190,9 +233,13 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // POST /api/admin/portal-assignments - Assign single page or portal type to teacher
-router.post("/", requireRole("ADMIN"), async (req, res) => {
+// Allowed: ADMIN, or TEACHER delegated PAGE:portal-assignments (GET already allows them to view).
+router.post("/", requireAuth, async (req, res) => {
   try {
     const session = req.auth!;
+    if (!(await hasPortalManageAuthority(session.user.id, session.user.role))) {
+      return res.status(403).json({ success: false, error: "Access denied: Portal Assignments management authority required" });
+    }
     const body = req.body as Record<string, any>;
     const { teacherId, portalType } = body;
 
@@ -208,9 +255,10 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    const cleanPortalType = portalType.startsWith("PAGE:") || ["HIFZ", "ALL"].includes(portalType)
-      ? portalType
-      : `PAGE:${portalType}`;
+    const cleanPortalType = toPortalType(String(portalType)) ?? (String(portalType) === "ALL" ? "ALL" : null);
+    if (!cleanPortalType) {
+      return res.status(400).json({ success: false, error: `Unknown page: ${portalType}` });
+    }
 
     const assignment = await prisma.teacherPortalAssignment.upsert({
       where: {
@@ -239,12 +287,17 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/portal-assignments/batch - Batch update assigned pages for one or multiple teachers
-router.post("/batch", requireRole("ADMIN"), async (req, res) => {
+// Atomically replaces each teacher's assignments (transaction per teacher).
+// grantAll stores a single "ALL" row instead of ALL + N PAGE rows.
+router.post("/batch", requireAuth, async (req, res) => {
   try {
     const session = req.auth!;
+    if (!(await hasPortalManageAuthority(session.user.id, session.user.role))) {
+      return res.status(403).json({ success: false, error: "Access denied: Portal Assignments management authority required" });
+    }
     const body = req.body as {
       teacherIds: string[]; // User IDs or TeacherProfile IDs
-      pages: string[]; // Array of page IDs like ['dashboard', 'classes', 'attendance', 'hifz']
+      pages: string[]; // Canonical page ids, e.g. ['dashboard', 'classes', 'quran']
       grantAll?: boolean;
     };
 
@@ -262,28 +315,36 @@ router.post("/batch", requireRole("ADMIN"), async (req, res) => {
       return res.status(404).json({ success: false, error: "No matching teacher profiles found" });
     }
 
-    const pageKeys = grantAll
-      ? ["ALL", ...TEACHER_AVAILABLE_PAGES.map((p) => `PAGE:${p.id}`)]
-      : (pages || []).map((p) => (p.startsWith("PAGE:") ? p : `PAGE:${p}`));
+    const fullGrant = grantAll || (pages || []).length >= TEACHER_AVAILABLE_PAGES.length;
+    const pageKeys = fullGrant
+      ? ["ALL"]
+      : Array.from(
+          new Set(
+            (pages || [])
+              .map((p) => toPortalType(p))
+              .filter((v): v is string => !!v)
+          )
+        );
+
+    if (!fullGrant && pageKeys.length === 0) {
+      return res.status(400).json({ success: false, error: "No valid pages provided" });
+    }
 
     for (const profile of profiles) {
-      // 1. Remove previous custom page assignments
-      await prisma.teacherPortalAssignment.deleteMany({
-        where: { teacherId: profile.id },
+      await prisma.$transaction(async (tx) => {
+        await tx.teacherPortalAssignment.deleteMany({ where: { teacherId: profile.id } });
+        if (pageKeys.length > 0) {
+          await tx.teacherPortalAssignment.createMany({
+            data: pageKeys.map((pk) => ({
+              teacherId: profile.id,
+              portalType: pk,
+              assignedById: session.user.id,
+              isActive: true,
+            })),
+            skipDuplicates: true,
+          });
+        }
       });
-
-      // 2. Insert new page assignments
-      if (pageKeys.length > 0) {
-        await prisma.teacherPortalAssignment.createMany({
-          data: pageKeys.map((pk) => ({
-            teacherId: profile.id,
-            portalType: pk,
-            assignedById: session.user.id,
-            isActive: true,
-          })),
-          skipDuplicates: true,
-        });
-      }
     }
 
     return res.json({
@@ -298,8 +359,12 @@ router.post("/batch", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/portal-assignments - Revoke assignment by ID or teacher + page
-router.delete("/", requireRole("ADMIN"), async (req, res) => {
+router.delete("/", requireAuth, async (req, res) => {
   try {
+    const session = req.auth!;
+    if (!(await hasPortalManageAuthority(session.user.id, session.user.role))) {
+      return res.status(403).json({ success: false, error: "Access denied: Portal Assignments management authority required" });
+    }
     const id = req.query.id as string;
     const teacherId = req.query.teacherId as string;
     const page = req.query.page as string;
@@ -314,9 +379,16 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
         where: { OR: [{ userId: teacherId }, { id: teacherId }] },
       });
       if (profile) {
-        const portalType = page.startsWith("PAGE:") ? page : `PAGE:${page}`;
+        const portalType = toPortalType(page);
+        // Also match legacy rows (HIFZ, unprefixed lowercase) for the same page.
+        const pageId = toPageId(page) ?? page.toLowerCase();
+        const candidates = Array.from(
+          new Set(
+            [portalType, `PAGE:${pageId}`, pageId.toUpperCase(), pageId].filter(Boolean) as string[]
+          )
+        );
         await prisma.teacherPortalAssignment.deleteMany({
-          where: { teacherId: profile.id, portalType },
+          where: { teacherId: profile.id, portalType: { in: candidates } },
         });
       }
       return res.json({ success: true });

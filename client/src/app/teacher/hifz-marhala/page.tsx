@@ -29,14 +29,14 @@ import MarhalaFlowMap from "@/components/hifz/MarhalaFlowMap";
 import { cn } from "@/lib/utils";
 
 const MARHALA_LABELS: Record<string, string> = {
-  MARHALA_1: "Marhala 1 · Juz 1-6",
-  MARHALA_2: "Marhala 2 · Juz 7-12",
-  MARHALA_3: "Marhala 3 · Juz 13-18",
   MARHALA_4: "Marhala 4 · Juz 19-24",
   MARHALA_5: "Marhala 5 · Juz 25-30",
+  MARHALA_6: "Marhala 6",
+  MARHALA_7: "Marhala 7",
+  MARHALA_8: "Marhala 8",
 };
 
-const MARHALA_ORDER = ["MARHALA_1", "MARHALA_2", "MARHALA_3", "MARHALA_4", "MARHALA_5"];
+const MARHALA_ORDER = ["MARHALA_4", "MARHALA_5", "MARHALA_6", "MARHALA_7", "MARHALA_8"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   DRAFT: { label: "Draft", color: "text-gray-600", bgColor: "bg-gray-100" },

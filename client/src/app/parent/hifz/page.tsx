@@ -29,11 +29,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MARHALA_LABELS: Record<string, string> = {
-  MARHALA_1: "Marhala 1 · Juz 1-6",
-  MARHALA_2: "Marhala 2 · Juz 7-12",
-  MARHALA_3: "Marhala 3 · Juz 13-18",
   MARHALA_4: "Marhala 4 · Juz 19-24",
   MARHALA_5: "Marhala 5 · Juz 25-30",
+  MARHALA_6: "Marhala 6",
+  MARHALA_7: "Marhala 7",
+  MARHALA_8: "Marhala 8",
 };
 
 function FatimiProgressRing({ progress, size = 120, strokeWidth = 8 }: { progress: number; size?: number; strokeWidth?: number }) {
