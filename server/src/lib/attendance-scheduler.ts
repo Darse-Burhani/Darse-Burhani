@@ -1,6 +1,6 @@
 import prisma from "./prisma";
 import { sendEmail } from "./email";
-import { getStartOfDayIST, getISTDetails, broadcastAttendanceEvent } from "./biometric";
+import { getStartOfDayIST, getISTDetails, broadcastAttendanceEvent, getWindowType } from "./biometric";
 import {
   generateAttendanceReportEmailHtml,
   generateAttendanceReportPlainText,
@@ -452,9 +452,13 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   let medicalCount = 0;
   let exemptCount = 0;
 
-  const activeStudentWindows = await prisma.biometricScanWindow.findMany({
+  const allActiveWindows = await prisma.biometricScanWindow.findMany({
     where: { enabled: true },
   });
+  // Auto-mark absent only processes automated hardware windows (HIKVISION / BOTH)
+  const activeStudentWindows = allActiveWindows.filter(
+    (w) => getWindowType(w as any) !== "MANUAL"
+  );
 
   const windowClassFilterActive = activeStudentWindows.some(
     (w) => ((w as any).applicableClassIds ?? []).length > 0,
@@ -628,7 +632,7 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
 export async function getExpectedFacultyForDay(): Promise<
   Array<{ id: string; name: string; department: string | null; userId: string }>
 > {
-  const rows = (await prisma.biometricScanWindow.findMany({
+  const rawRows = (await prisma.biometricScanWindow.findMany({
     orderBy: { startTime: "asc" },
   })) as unknown as Array<{
     id: string;
@@ -638,6 +642,8 @@ export async function getExpectedFacultyForDay(): Promise<
     facultyEndTime: string | null;
     facultyEnabled: boolean;
   }>;
+  // Hardware attendance roster only derives from automated windows (HIKVISION / BOTH)
+  const rows = rawRows.filter((w) => getWindowType(w as any) !== "MANUAL");
 
   const hasFacultyTimer = (w: { facultyStartTime: string | null; facultyEndTime: string | null }) =>
     Boolean(w.facultyStartTime && w.facultyEndTime);
