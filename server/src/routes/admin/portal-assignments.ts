@@ -17,7 +17,6 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
   { id: "attendance-logs", label: "Attendance Logs", category: "Attendance", description: "Live scans, daily registry & student status", path: "/teacher/attendance-logs", icon: "FileText" },
   { id: "attendance-schedule", label: "Attendance Schedule", category: "Attendance", description: "Scan windows, shifts & period timers", path: "/teacher/attendance-schedule", icon: "Clock" },
-  { id: "email-reports", label: "Email Reports", category: "Communications", description: "Automated daily email dispatches", path: "/teacher/attendance-emails", icon: "Mail" },
   { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/teacher/leave", icon: "CalendarCheck" },
   { id: "procurement", label: "Procurement", category: "Operations", description: "Stationery & supply requisitions", path: "/teacher/procurement", icon: "ShoppingBag" },
   { id: "biometric", label: "Biometric Scanners", category: "Operations", description: "Device status & management", path: "/teacher/biometric", icon: "Fingerprint" },

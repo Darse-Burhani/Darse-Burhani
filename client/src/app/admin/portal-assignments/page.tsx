@@ -110,15 +110,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     cardColor: "hover:border-teal-400 hover:bg-teal-50/40",
   },
   {
-    id: "email-reports",
-    label: "Email Reports",
-    category: "Communications",
-    description: "Automated daily attendance dispatch, email logs & reports",
-    icon: Mail,
-    badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    cardColor: "hover:border-indigo-400 hover:bg-indigo-50/40",
-  },
-  {
     id: "procurement",
     label: "Procurement",
     category: "Operations",
@@ -303,8 +294,8 @@ const PRESETS = [
   },
   {
     name: "Attendance Officer",
-    description: "Dashboard, Manual Attendance, Attendance Logs, Attendance Schedule, Email Reports, Leave, Profile",
-    pages: ["dashboard", "manual-attendance", "attendance-logs", "attendance-schedule", "email-reports", "leave", "profile"],
+    description: "Dashboard, Manual Attendance, Attendance Logs, Attendance Schedule, Leave, Profile",
+    pages: ["dashboard", "manual-attendance", "attendance-logs", "attendance-schedule", "leave", "profile"],
     color: "from-emerald-800 to-green-900",
   },
   {
