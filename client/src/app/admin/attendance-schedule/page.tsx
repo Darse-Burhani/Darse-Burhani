@@ -530,8 +530,7 @@ export default function AdminAttendanceSchedulePage() {
           { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
           { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
-        ]}
+                  ]}
       />
 
       {/* ── Page Header Banner ── */}
@@ -581,6 +580,9 @@ export default function AdminAttendanceSchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Google Sheet Live Sync Status ── */}
+      <GoogleSheetSyncCard />
 
       {/* ── Subsystem Mode Tabs (Hikvision Hardware vs Manual Register) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 bg-white rounded-3xl border border-gray-200 shadow-sm">

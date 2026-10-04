@@ -69,6 +69,16 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
   const teacherId = user.teacherProfile?.id;
 
   await prisma.$transaction(async (tx) => {
+    // Clean up reviewer/assignee references on User
+    await tx.leaveRequest.updateMany({ where: { reviewerId: userId }, data: { reviewerId: null } });
+    await tx.procurementRequest.deleteMany({
+      where: { requesterId: userId },
+    });
+    await tx.procurementRequest.updateMany({
+      where: { assignedToId: userId },
+      data: { assignedToId: null },
+    });
+
     // Delete student-related dependencies
     if (studentId) {
       await tx.attendanceRecord.deleteMany({ where: { studentId } });
@@ -87,10 +97,11 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.badgeProgress.deleteMany({ where: { studentId } });
       await tx.skillTreePoint.deleteMany({ where: { studentId } });
       await tx.walletTransaction.deleteMany({ where: { studentId } });
+      await tx.medicalExemption.deleteMany({ where: { studentId } });
       await tx.studentProfile.delete({ where: { id: studentId } });
     }
 
-    // Delete teacher-related dependencies
+    // Delete teacher/faculty-related dependencies
     if (teacherId) {
       await tx.teacherPortalAssignment.deleteMany({ where: { teacherId } });
       await tx.teacherAttendanceRecord.deleteMany({ where: { teacherId } });
@@ -102,8 +113,21 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.hifzMarhalaAssignment.deleteMany({
         where: { OR: [{ facultyId: teacherId }, { musaidId: teacherId }] },
       });
+      await tx.medicalExemption.deleteMany({ where: { teacherId } });
+      await tx.pointLog.deleteMany({ where: { teacherId } });
+
+      // Disassociate as masool in classes
+      await tx.class.updateMany({ where: { masoolId: teacherId }, data: { masoolId: null } });
+
+      // Clean up classes taught by this teacher
+      await tx.attendanceRecord.deleteMany({ where: { class: { teacherId } } });
       await tx.classEnrollment.deleteMany({ where: { class: { teacherId } } });
+      await tx.timetableSlot.deleteMany({ where: { class: { teacherId } } });
       await tx.class.deleteMany({ where: { teacherId } });
+
+      // Clean up attendance audit logs referencing this teacher
+      await tx.attendanceAuditLog.deleteMany({ where: { teacherId } });
+
       await tx.teacherProfile.delete({ where: { id: teacherId } });
     }
 
@@ -113,9 +137,40 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.parentProfile.delete({ where: { id: user.parentProfile.id } });
     }
 
-    // Finally delete the user root record (cascades sessions, accounts, notifications)
+    // Sessions, accounts, and notifications
+    await tx.session.deleteMany({ where: { userId } });
+    await tx.account.deleteMany({ where: { userId } });
+    await tx.notification.deleteMany({ where: { userId } });
+
+    // Finally delete the user root record
     await tx.user.delete({ where: { id: userId } });
   });
+
+  // 3. Purge schedule window scopes (remove id from applicableTeacherIds and exempt arrays)
+  if (teacherId) {
+    try {
+      const windows = await prisma.biometricScanWindow.findMany({
+        where: {
+          OR: [
+            { applicableTeacherIds: { has: teacherId } },
+            { exemptTeacherIds: { has: teacherId } },
+          ],
+        },
+      });
+
+      for (const w of windows) {
+        await prisma.biometricScanWindow.update({
+          where: { id: w.id },
+          data: {
+            applicableTeacherIds: (w.applicableTeacherIds || []).filter((id) => id !== teacherId),
+            exemptTeacherIds: (w.exemptTeacherIds || []).filter((id) => id !== teacherId),
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("[user-deletion] Notice removing teacher from scan windows:", e);
+    }
+  }
 
   return {
     success: true,

@@ -13,6 +13,10 @@ import {
   UserCheck,
   Users,
   GraduationCap,
+  Stethoscope,
+  ShieldCheck,
+  CheckCheck,
+  Sparkles,
 } from "lucide-react";
 import {
   Modal,
@@ -24,7 +28,13 @@ import {
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 
-export type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "MEDICAL" | "ON_LEAVE" | "EARLY_DEPARTURE";
+export type AttendanceStatus =
+  | "PRESENT"
+  | "LATE"
+  | "ABSENT"
+  | "MEDICAL"
+  | "ON_LEAVE"
+  | "EARLY_DEPARTURE";
 
 interface ScheduledWindow {
   id: string;
@@ -46,7 +56,7 @@ interface ManualAttendanceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialScheduleId?: string;
-  initialTargetType?: "STUDENT" | "TEACHER";
+  initialTargetType?: "ALL" | "STUDENT" | "TEACHER";
   initialDate?: string;
   onSuccess?: () => void;
 }
@@ -72,20 +82,20 @@ const STATUS_CONFIG: Record<
   ABSENT: {
     label: "Absent",
     icon: XCircle,
-    color: "text-red-700 bg-red-50 border-red-200",
-    activeClass: "bg-red-600 text-white border-red-600 shadow-sm",
-    badge: "bg-red-100 text-red-800 border-red-200",
+    color: "text-rose-700 bg-rose-50 border-rose-200",
+    activeClass: "bg-rose-600 text-white border-rose-600 shadow-sm",
+    badge: "bg-rose-100 text-rose-800 border-rose-200",
   },
   MEDICAL: {
     label: "Medical",
-    icon: AlertTriangle,
-    color: "text-blue-700 bg-blue-50 border-blue-200",
-    activeClass: "bg-blue-600 text-white border-blue-600 shadow-sm",
-    badge: "bg-blue-100 text-blue-800 border-blue-200",
+    icon: Stethoscope,
+    color: "text-sky-700 bg-sky-50 border-sky-200",
+    activeClass: "bg-sky-600 text-white border-sky-600 shadow-sm",
+    badge: "bg-sky-100 text-sky-800 border-sky-200",
   },
   ON_LEAVE: {
     label: "On Leave",
-    icon: UserCheck,
+    icon: ShieldCheck,
     color: "text-purple-700 bg-purple-50 border-purple-200",
     activeClass: "bg-purple-600 text-white border-purple-600 shadow-sm",
     badge: "bg-purple-100 text-purple-800 border-purple-200",
@@ -103,13 +113,13 @@ export function ManualAttendanceModal({
   open,
   onOpenChange,
   initialScheduleId = "",
-  initialTargetType = "STUDENT",
+  initialTargetType = "ALL",
   initialDate,
   onSuccess,
 }: ManualAttendanceModalProps) {
   const [scheduledWindows, setScheduledWindows] = useState<ScheduledWindow[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState(initialScheduleId);
-  const [targetType, setTargetType] = useState<"STUDENT" | "TEACHER">(initialTargetType);
+  const [targetType, setTargetType] = useState<"ALL" | "STUDENT" | "TEACHER">(initialTargetType);
   const [date, setDate] = useState(() => initialDate || new Date().toISOString().slice(0, 10));
 
   // Filters
@@ -148,7 +158,7 @@ export function ManualAttendanceModal({
         toast({ variant: "destructive", title: "Schedule Error", description: "Failed to load schedule event windows." });
       })
       .finally(() => setLoadingSchedule(false));
-  }, [open]);
+  }, [open, selectedScheduleId]);
 
   const activeWindow = useMemo(() => {
     return scheduledWindows.find((w) => w.id === selectedScheduleId) || scheduledWindows[0] || null;
@@ -170,9 +180,6 @@ export function ManualAttendanceModal({
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`);
       const json = await res.json();
       if (json.success && json.data) {
-        // Server returns ISO timestamps (UTC). Display them as IST wall-clock
-        // HH:MM so pulled check-in times match what was marked — a raw UTC
-        // slice would shift every faculty time by 5:30 and break event matching.
         const toISTTime = (iso: string | null): string => {
           if (!iso) return activeWindow?.startTime || "08:00";
           const d = new Date(iso);
@@ -204,7 +211,7 @@ export function ManualAttendanceModal({
     if (open && (selectedScheduleId || scheduledWindows.length > 0)) {
       fetchRoster();
     }
-  }, [open, selectedScheduleId, targetType, selectedGrade, selectedSection, date, fetchRoster]);
+  }, [open, selectedScheduleId, targetType, selectedGrade, selectedSection, date, fetchRoster, scheduledWindows.length]);
 
   const statusCounts = useMemo(() => {
     let present = 0, late = 0, absent = 0, medical = 0, onLeave = 0;
@@ -266,6 +273,7 @@ export function ManualAttendanceModal({
     try {
       const records = roster.map((item) => ({
         id: item.id,
+        targetType: item.targetType,
         status: item.currentStatus,
         remarks: item.customRemarks ? item.customRemarks.trim() : undefined,
       }));
@@ -318,7 +326,7 @@ export function ManualAttendanceModal({
             <div>
               <p className="text-xl font-black text-gray-900 tracking-tight">Record Manual Attendance</p>
               <p className="text-xs text-gray-500 font-medium">
-                Mark attendance for schedule event windows. Records sync across Teacher &amp; Admin views.
+                Mark attendance for all applicable <strong>Talabat</strong> &amp; <strong>Faculty</strong> users.
               </p>
             </div>
           </ModalTitle>
@@ -349,9 +357,21 @@ export function ManualAttendanceModal({
               <div className="shrink-0">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] flex items-center gap-1.5 mb-1.5">
                   <Users className="w-3.5 h-3.5 text-emerald-600" />
-                  Audience
+                  Audience Scope
                 </label>
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100 border border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setTargetType("ALL")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                      targetType === "ALL"
+                        ? "bg-white text-emerald-950 shadow-sm border border-emerald-300"
+                        : "text-gray-500 hover:text-gray-800"
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5 text-emerald-700" />
+                    All Users
+                  </button>
                   <button
                     type="button"
                     onClick={() => setTargetType("STUDENT")}
@@ -362,7 +382,7 @@ export function ManualAttendanceModal({
                     }`}
                   >
                     <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-                    Talabat (Students)
+                    Talabat
                   </button>
                   <button
                     type="button"
@@ -374,256 +394,228 @@ export function ManualAttendanceModal({
                     }`}
                   >
                     <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                    Faculty / Teachers
+                    Faculty
                   </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* ── Date and Filtering Controls ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-            <div className="sm:col-span-3">
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] block mb-1.5">Attendance Date:</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors"
-              />
-            </div>
+            {/* Date & Sub-filters */}
+            <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-emerald-100/80">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-700">Date:</span>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 shadow-xs focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
 
-            {targetType === "STUDENT" && (
-              <>
-                <div className="sm:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] block mb-1.5">Grade:</label>
+              {targetType === "STUDENT" && grades.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-700">Grade:</span>
                   <select
                     value={selectedGrade}
                     onChange={(e) => setSelectedGrade(e.target.value)}
-                    className="w-full h-10 px-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors"
+                    className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 shadow-xs"
                   >
                     <option value="ALL">All Grades</option>
                     {grades.map((g) => (
-                      <option key={g} value={g}>
-                        Grade {g}
-                      </option>
+                      <option key={g} value={g}>Grade {g}</option>
                     ))}
                   </select>
                 </div>
+              )}
 
-                <div className="sm:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] block mb-1.5">Section:</label>
+              {targetType === "STUDENT" && sections.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-700">Section:</span>
                   <select
                     value={selectedSection}
                     onChange={(e) => setSelectedSection(e.target.value)}
-                    className="w-full h-10 px-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors"
+                    className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 shadow-xs"
                   >
                     <option value="ALL">All Sections</option>
                     {sections.map((s) => (
-                      <option key={s} value={s}>
-                        Section {s}
-                      </option>
+                      <option key={s} value={s}>Sec {s}</option>
                     ))}
                   </select>
                 </div>
-              </>
-            )}
+              )}
 
-            <div className={targetType === "STUDENT" ? "sm:col-span-5" : "sm:col-span-9"}>
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] block mb-1.5">Search Name / ITS / ID:</label>
-              <div className="relative">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Type name, ITS, ID, department..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-colors placeholder:text-gray-400"
-                />
+              {/* Status summary pills */}
+              <div className="ml-auto flex items-center gap-1.5 flex-wrap text-[11px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  {statusCounts.present} Present
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                  {statusCounts.absent} Absent
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                  {statusCounts.late} Late
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">
+                  {statusCounts.medical} Medical
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                  {statusCounts.onLeave} Leave
+                </span>
               </div>
             </div>
           </div>
 
-          {/* ── Status Breakdown Filter Pills ── */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {[
-              { id: "ALL", label: "All Candidates", count: statusCounts.total, color: "text-gray-700 bg-gray-100 hover:bg-gray-200 border-gray-200" },
-              { id: "PRESENT", label: "Present", count: statusCounts.present, color: "text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200" },
-              { id: "LATE", label: "Late", count: statusCounts.late, color: "text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200" },
-              { id: "ABSENT", label: "Absent", count: statusCounts.absent, color: "text-red-800 bg-red-50 hover:bg-red-100 border-red-200" },
-              { id: "MEDICAL", label: "Medical", count: statusCounts.medical, color: "text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-200" },
-              { id: "ON_LEAVE", label: "On Leave", count: statusCounts.onLeave, color: "text-purple-800 bg-purple-50 hover:bg-purple-100 border-purple-200" },
-            ].map((p) => {
-              const isActive = statusFilter === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setStatusFilter(p.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border whitespace-nowrap ${
-                    isActive
-                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                      : p.color
-                  }`}
-                >
-                  <span>{p.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${isActive ? "bg-white text-slate-950" : "bg-white/80"}`}>
-                    {p.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ── Bulk Actions Header ── */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-700">
-                Showing: <strong className="text-emerald-700">{filteredRoster.length}</strong> of {roster.length} candidate(s)
-              </span>
-              {loadingRoster && <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
+          {/* ── Search & Bulk Action Bar ── */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, ITS, ID, department..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              />
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide mr-1">Bulk Mark:</span>
               <button
                 type="button"
                 onClick={() => markAllStatus("PRESENT")}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                className="px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-bold transition-colors flex items-center gap-1"
               >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 All Present
               </button>
               <button
                 type="button"
-                onClick={() => markAllStatus("LATE")}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
+                onClick={() => markAllStatus("ABSENT")}
+                className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 text-xs font-bold transition-colors flex items-center gap-1"
               >
-                All Late
+                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                All Absent
               </button>
               <button
                 type="button"
-                onClick={() => markAllStatus("ABSENT")}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
+                onClick={() => markAllStatus("MEDICAL")}
+                className="px-2.5 py-1.5 rounded-lg border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 text-xs font-bold transition-colors flex items-center gap-1"
               >
-                All Absent
+                <Stethoscope className="w-3.5 h-3.5 text-sky-600" />
+                All Medical
+              </button>
+              <button
+                type="button"
+                onClick={() => markAllStatus("ON_LEAVE")}
+                className="px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-colors flex items-center gap-1"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                All Leave
               </button>
             </div>
           </div>
 
-          {/* ── Candidate Roster List ── */}
-          <div className="border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100/80 max-h-[380px] overflow-y-auto">
-            {loadingRoster ? (
-              <div className="p-8 text-center">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600 mb-2" />
-                <p className="text-xs font-bold text-gray-600">Loading roster for {activeWindow?.name || "event"}...</p>
+          {/* ── Roster List ── */}
+          <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+            {loadingRoster || loadingSchedule ? (
+              <div className="p-12 flex flex-col items-center justify-center gap-2 text-gray-500">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                <p className="text-xs font-semibold">Loading roster candidates...</p>
               </div>
             ) : filteredRoster.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
-                <Users className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-xs font-bold">No candidates found for the selected criteria.</p>
+              <div className="p-10 text-center text-gray-500 space-y-1">
+                <p className="text-sm font-bold text-gray-700">No candidates match current selection</p>
+                <p className="text-xs text-gray-400">Change audience, filters, or search term to view roster.</p>
               </div>
             ) : (
-              filteredRoster.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 sm:p-3.5 flex flex-col gap-2 hover:bg-gray-50/70 transition-colors duration-150"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    {/* Student / Teacher Info */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-xs shrink-0 shadow-sm"
-                        style={{ background: "linear-gradient(135deg, #059669 0%, #065f46 100%)" }}
-                      >
-                        {getInitials(item.name)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-extrabold text-gray-900 truncate">{item.name}</p>
-                          {item.its && (
-                            <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-mono font-bold text-gray-600 border border-gray-200">
-                              ITS {item.its}
-                            </span>
-                          )}
-                          {item.grade && (
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-800 border border-emerald-100">
-                              Gr {item.grade}-{item.section || "A"}
-                            </span>
-                          )}
-                          {item.department && (
-                            <span className="px-1.5 py-0.5 rounded bg-purple-50 text-[10px] font-bold text-purple-800 border border-purple-100">
-                              {item.department}
-                            </span>
-                          )}
+              <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100">
+                {filteredRoster.map((item) => {
+                  const isFaculty = item.targetType === "TEACHER";
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-emerald-50/40 transition-colors"
+                    >
+                      {/* Member Info */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                            isFaculty
+                              ? "bg-blue-100 text-blue-800 border border-blue-200"
+                              : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          }`}
+                        >
+                          {getInitials(item.name)}
                         </div>
-                        <p className="text-[11px] text-gray-400 font-mono truncate mt-0.5">
-                          ID: {item.identifier || item.id.slice(0, 8)} · Prev: <span className="font-bold text-gray-600">{item.status}</span> ({item.source || "MANUAL"})
-                        </p>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-900 truncate">{item.name}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
+                                isFaculty ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              }`}
+                            >
+                              {isFaculty ? "Faculty" : `Grade ${item.grade || "1"}-${item.section || "A"}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-gray-500 font-medium">
+                            <span className="font-mono">{item.identifier || item.its}</span>
+                            {item.department && <span>· {item.department}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Selection Buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                        {statuses.map((st) => {
+                          const conf = STATUS_CONFIG[st];
+                          const isActive = item.currentStatus === st;
+                          const Icon = conf.icon;
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => updateItemStatus(item.id, st)}
+                              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 border ${
+                                isActive
+                                  ? conf.activeClass
+                                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <Icon className="w-3 h-3" />
+                              <span>{conf.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-
-                    {/* Status Button Selection Grid */}
-                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
-                      {statuses.map((st) => {
-                        const cfg = STATUS_CONFIG[st];
-                        const isSelected = item.currentStatus === st;
-                        const Icon = cfg.icon;
-                        return (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => updateItemStatus(item.id, st)}
-                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1 border active:scale-[0.96] ${
-                              isSelected
-                                ? cfg.activeClass
-                                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                            }`}
-                          >
-                            <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : ""}`} />
-                            <span>{cfg.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Optional Remarks row */}
-                  <div className="flex items-center gap-2 pt-1 border-t border-gray-100 text-xs">
-                    <input
-                      type="text"
-                      placeholder="Optional remarks / reason (e.g. late transport, clinic visit, permission)..."
-                      value={item.customRemarks || ""}
-                      onChange={(e) => updateItemRemarks(item.id, e.target.value)}
-                      className="w-full h-7 px-2.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-              ))
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
 
-        <ModalFooter className="flex items-center justify-between gap-3 border-t border-gray-100 pt-4 bg-gray-50/30">
-          <p className="text-xs text-gray-500 font-medium hidden sm:block">
-            Updates reflect immediately in Teacher Portal &amp; Admin Attendance Logs.
+        <ModalFooter className="flex items-center justify-between border-t border-gray-100 pt-3">
+          <p className="text-xs text-gray-500 font-medium">
+            <strong>{roster.length}</strong> candidate(s) ready to submit
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              disabled={saving}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || filteredRoster.length === 0}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-black transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] disabled:opacity-60 shadow-md shadow-emerald-700/20"
+              disabled={saving || roster.length === 0}
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs font-black shadow-md hover:from-emerald-500 hover:to-teal-600 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              Save Attendance ({filteredRoster.length})
+              <span>Save Attendance</span>
             </button>
           </div>
         </ModalFooter>

@@ -42,8 +42,7 @@ const rawNavItems = [
   { key: "manual-attendance", label: "Manual Attendance", href: "/teacher/attendance", icon: ClipboardCheck, category: "Attendance" },
   { key: "attendance-logs", label: "Attendance Logs", href: "/teacher/attendance-logs", icon: FileText, category: "Attendance" },
   { key: "attendance-schedule", label: "Attendance Schedule", href: "/teacher/attendance-schedule", icon: Clock, category: "Attendance" },
-  { key: "email-reports", label: "Email Reports", href: "/teacher/attendance-emails", icon: Mail, category: "Attendance" },
-  { key: "biometric", label: "Biometric Scanners", href: "/teacher/biometric", icon: Fingerprint, category: "Attendance" },
+    { key: "biometric", label: "Biometric Scanners", href: "/teacher/biometric", icon: Fingerprint, category: "Attendance" },
 
   // ── Operations & Health ──
   { key: "medical-duty", label: "Medical Duty", href: "/teacher/medical-duty", icon: Stethoscope, category: "Operations" },

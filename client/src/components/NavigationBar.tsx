@@ -149,7 +149,6 @@ export function NavigationBar() {
         ...(isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
         ...(isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Attendance Logs", href: "/admin/attendance-logs", icon: FileText }] : []),
         ...(isModuleVisible("attendance-schedule", "TEACHER") ? [{ label: "Attendance Schedule", href: "/admin/attendance-schedule", icon: Clock }] : []),
-        ...(isModuleVisible("email-reports", "TEACHER") ? [{ label: "Email Reports", href: "/admin/attendance-emails", icon: FileSpreadsheet }] : []),
         ...(isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/admin/leave", icon: UserCheck }] : []),
         ...(isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/admin/procurement", icon: Package }] : []),
         ...(isModuleVisible("makhzan", "TEACHER") ? [{ label: "Makhzan", href: "/admin/library", icon: Package }] : []),
