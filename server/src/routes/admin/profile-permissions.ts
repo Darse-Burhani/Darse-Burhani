@@ -6,11 +6,12 @@ import {
   getProfilePermissions,
   updateProfilePermissions,
 } from "../../lib/profile-permissions";
+import { apiCacheMiddleware, cache } from "../../lib/cache";
 
 const router = Router();
 
 // GET /api/admin/profile-permissions/modules - Get portal module lock status for portals
-router.get("/modules", async (req, res) => {
+router.get("/modules", apiCacheMiddleware({ ttlMs: 30_000, tags: ["permissions"] }), async (req, res) => {
   try {
     const user = getSessionUser(req);
     const role = user?.role;
@@ -107,7 +108,7 @@ router.get("/modules", async (req, res) => {
 });
 
 // GET /api/admin/profile-permissions - Get regional profile edit permissions
-router.get("/", (req, res) => {
+router.get("/", apiCacheMiddleware({ ttlMs: 30_000, tags: ["permissions"] }), (req, res) => {
   return res.json({
     success: true,
     data: getProfilePermissions(),
@@ -122,6 +123,8 @@ router.put("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
   }
 
   const updated = await updateProfilePermissions(updates);
+  cache.invalidateTag("permissions");
+
   return res.json({
     success: true,
     data: updated,

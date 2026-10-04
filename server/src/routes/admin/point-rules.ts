@@ -1,26 +1,30 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { apiCacheMiddleware, cache } from "../../lib/cache";
 
 const router = Router();
 
-router.get("/", requireRole("ADMIN"), async (req, res) => {
-  try {
-    
-    const rules = await prisma.pointMatrix.findMany({
-      orderBy: [{ category: "asc" }, { actionName: "asc" }],
-    });
+router.get(
+  "/",
+  requireRole("ADMIN"),
+  apiCacheMiddleware({ ttlMs: 60_000, tags: ["point-rules"] }),
+  async (req, res) => {
+    try {
+      const rules = await prisma.pointMatrix.findMany({
+        orderBy: [{ category: "asc" }, { actionName: "asc" }],
+      });
 
-    return res.json({ success: true, data: rules });
-  } catch (error) {
-    console.error("Point rules fetch error:", error);
-    return res.status(500).json({ success: false, error: "Failed to fetch rules" });
+      return res.json({ success: true, data: rules });
+    } catch (error) {
+      console.error("Point rules fetch error:", error);
+      return res.status(500).json({ success: false, error: "Failed to fetch rules" });
+    }
   }
-});
+);
 
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    
     const body = req.body as Record<string, any>;
     const { id, category, actionName, pointValue, actionType, color, iconName } = body;
 
@@ -36,6 +40,8 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       : await prisma.pointMatrix.create({
           data: { category, actionName, pointValue, actionType, color: color || "#6366f1", iconName: iconName || "star" },
         });
+
+    cache.invalidateTag("point-rules");
 
     return res.json({ success: true, data: rule });
   } catch (error) {
