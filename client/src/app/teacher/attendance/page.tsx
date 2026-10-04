@@ -487,8 +487,7 @@ export default function TeacherAttendancePage() {
             { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
             { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
             { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint },
-            { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
-          ]}
+                      ]}
         />
       </div>
 

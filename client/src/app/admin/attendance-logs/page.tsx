@@ -401,8 +401,7 @@ export default function AdminAttendanceLogsPage() {
           { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
           { label: "Live Scans & Logs", href: "/admin/attendance-logs", icon: FileText, badge: "Audit" },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
-        ]}
+                  ]}
       />
 
       {/* ── Premium Streamlined Header ── */}

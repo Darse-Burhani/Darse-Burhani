@@ -182,25 +182,9 @@ router.get("/roster", requireAuth, async (req, res) => {
 
     // ── 2. STUDENT / TALABAT AUDIENCE ──
     if (isStudent) {
-      const studentWhere: any = { user: { isActive: true, deletedAt: null } };
+      const studentWhere: any = { user: { deletedAt: null } };
       if (grade && grade !== "ALL") studentWhere.grade = grade;
       if (section && section !== "ALL") studentWhere.section = section;
-
-      if (scheduleId) {
-        const window = await prisma.biometricScanWindow.findUnique({ where: { id: scheduleId } });
-        if (window) {
-          const exemptStudents = ((window as any).exemptStudentIds || []).filter(
-            (id: string) => typeof id === "string" && id.trim() && !id.startsWith("TYPE_")
-          );
-          if (exemptStudents.length > 0) {
-            studentWhere.id = { notIn: exemptStudents };
-          }
-          const appClasses = (window as any).applicableClassIds || [];
-          if (appClasses.length > 0) {
-            studentWhere.enrollments = { some: { classId: { in: appClasses }, isActive: true } };
-          }
-        }
-      }
 
       if (classId && classId !== "ALL") {
         studentWhere.enrollments = { some: { classId, isActive: true } };

@@ -563,8 +563,7 @@ export default function BiometricAdminPage() {
           { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
           { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
-        ]}
+                  ]}
       />
 
       {/* TOP HEADER & ADMIN HUB NAVIGATION */}

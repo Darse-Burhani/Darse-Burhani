@@ -238,10 +238,8 @@ export default function AdminManualAttendancePage() {
 
         if (data.data.scheduledWindows?.length > 0 && !selectedScheduleId) {
           // Prefer Manual window or Both window
-          const manualWin = data.data.scheduledWindows.find(
-            (w: ScheduledWindow) => w.windowType === "MANUAL" || w.windowType === "BOTH"
-          );
-          setSelectedScheduleId(manualWin ? manualWin.id : data.data.scheduledWindows[0].id);
+          // Default to All Schedules so full Talabat & Faculty roster is visible immediately
+          setSelectedScheduleId("");
         }
       }
     } catch (err) {
@@ -604,8 +602,7 @@ export default function AdminManualAttendancePage() {
           { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck, badge: "Active" },
           { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
-        ]}
+                  ]}
       />
 
       {/* ── Header Banner (Fatimi Luxury Emerald & Gold Theme) ── */}

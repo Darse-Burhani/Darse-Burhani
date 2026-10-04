@@ -22,15 +22,15 @@ interface SchedulerConfig {
 }
 
 const config: SchedulerConfig = {
-  autoWeeklyEnabled: process.env.AUTO_WEEKLY_ATTENDANCE_EMAILS === "true", // paused by default
+  autoWeeklyEnabled: false, // paused by default
   weeklyDayOfWeek: parseInt(process.env.WEEKLY_ATTENDANCE_DAY || "0", 10), // Sunday
   weeklyHourUtc: parseInt(process.env.WEEKLY_ATTENDANCE_HOUR || "4", 10), // 4am UTC (9:30am IST)
-  autoMonthlyEnabled: process.env.AUTO_MONTHLY_ATTENDANCE_EMAILS === "true", // paused by default
+  autoMonthlyEnabled: false, // paused by default
   monthlyDayOfMonth: 1,
   monthlyHourUtc: 4,
   autoMarkAbsentEnabled: process.env.AUTO_MARK_ABSENT_ENABLED !== "false", // enabled by default
   autoMarkAbsentHourUtc: parseInt(process.env.AUTO_MARK_ABSENT_HOUR || "14", 10), // 14:00 UTC / 19:30 IST
-  autoDailyEmailEnabled: process.env.AUTO_DAILY_ATTENDANCE_EMAILS === "true", // paused by default
+  autoDailyEmailEnabled: false, // paused by default
   sheetSyncEnabled: process.env.GOOGLE_SHEET_DAILY_SYNC !== "false", // enabled by default when configured
   sheetSyncHourUtc: parseInt(process.env.GOOGLE_SHEET_SYNC_HOUR || "15", 10), // 15:00 UTC / 20:30 IST
 };
@@ -51,341 +51,21 @@ export function markSheetSyncRan(dateStr = new Date().toISOString().slice(0, 10)
 }
 
 /**
- * Executes automated daily attendance email notifications to parents of absent/late/present students.
+ * Automated email reports disabled per system configuration.
  */
-export async function runDailyAttendanceEmailDigestJob(targetDate?: Date): Promise<{ sent: number; failed: number }> {
-  if (!config.autoDailyEmailEnabled) return { sent: 0, failed: 0 };
-
-  const dayStart = getStartOfDayIST(targetDate || new Date());
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const dateStr = dayStart.toLocaleDateString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  console.log(`[attendance-automation] Starting automated daily attendance parent email dispatch for ${dateStr}...`);
-
-  const students = await prisma.studentProfile.findMany({
-    where: { user: { isActive: true } },
-    include: {
-      user: true,
-      parentLinks: {
-        include: { parent: { include: { user: true } } },
-      },
-      attendanceRecords: {
-        where: { date: { gte: dayStart, lt: dayEnd } },
-        take: 1,
-      },
-    },
-  });
-
-  let sent = 0;
-  let failed = 0;
-
-  for (const s of students) {
-    const parentEmails = new Set<string>();
-    if (s.fatherEmail?.includes("@")) parentEmails.add(s.fatherEmail.trim().toLowerCase());
-    if (s.motherEmail?.includes("@")) parentEmails.add(s.motherEmail.trim().toLowerCase());
-    for (const link of s.parentLinks) {
-      if (link.parent?.user?.email?.includes("@")) parentEmails.add(link.parent.user.email.trim().toLowerCase());
-    }
-
-    if (parentEmails.size === 0) continue;
-
-    const record = s.attendanceRecords[0];
-    const status = record?.status || "ABSENT";
-    const checkInIST = record?.checkInTime
-      ? getISTDetails(new Date(record.checkInTime)).timeFormatted12
-      : "—";
-
-    const studentName = `${s.user.firstName} ${s.user.lastName}`.trim();
-    const statusColor = status === "PRESENT" ? "#047857" : status === "LATE" ? "#b45309" : "#b91c1c";
-    const statusEmoji = status === "PRESENT" ? "✅" : status === "LATE" ? "⚠️" : "❌";
-
-    const subject = `${statusEmoji} Daily Attendance Notice: ${studentName} (${status}) – ${dateStr}`;
-    const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-        <div style="background: linear-gradient(135deg, #093b2a 0%, #0d503a 100%); padding: 24px; text-align: center;">
-          <h2 style="color: #d4af37; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px;">DARSE BURHANI</h2>
-          <p style="color: #ecfdf5; margin: 4px 0 0 0; font-size: 13px;">Daily Attendance Notification</p>
-        </div>
-        <div style="padding: 24px;">
-          <p style="font-size: 14px; color: #334155; margin-top: 0;">Respected Parents of <strong>${studentName}</strong>,</p>
-          <div style="background: #f8fafc; border-radius: 12px; padding: 18px; border: 1px solid #e2e8f0; margin: 16px 0;">
-            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Student:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${studentName} (ITS: ${s.its || s.studentId})</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Grade / Section:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Grade ${s.grade}-${s.section}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Date:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${dateStr}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Attendance Status:</td>
-                <td style="padding: 6px 0;">
-                  <span style="display: inline-block; padding: 3px 10px; border-radius: 20px; font-weight: 800; font-size: 12px; color: #ffffff; background-color: ${statusColor};">
-                    ${status}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Check-In Time:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${checkInIST}</td>
-              </tr>
-            </table>
-          </div>
-          <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 0;">
-            This is an automated attendance notice generated by the Darse Burhani Biometric Gateway. For questions or absence justifications, please log in to the Parent Portal.
-          </p>
-        </div>
-      </div>
-    `;
-
-    const text = `Darse Burhani Attendance Notice\nStudent: ${studentName}\nDate: ${dateStr}\nStatus: ${status}\nCheck-in Time: ${checkInIST}`;
-
-    for (const email of parentEmails) {
-      const isSent = await sendEmail({ to: email, subject, html, text });
-      if (isSent) sent++;
-      else failed++;
-    }
-  }
-
-  lastDailyEmailRunDate = new Date().toISOString();
-  console.log(`[attendance-automation] Daily parent email dispatch complete. Sent: ${sent}, Failed: ${failed}`);
-  return { sent, failed };
+export async function runDailyAttendanceEmailDigestJob(_targetDate?: Date): Promise<{ sent: number; failed: number }> {
+  return { sent: 0, failed: 0 };
 }
 
-/**
- * Executes weekly attendance report dispatch for all active students.
- */
-export async function runWeeklyAttendanceReportJob(): Promise<{ sent: number; failed: number }> {
-  if (!config.autoWeeklyEnabled) {
-    console.log("[attendance-scheduler] Weekly attendance parent emails are currently paused/disabled.");
-    return { sent: 0, failed: 0 };
-  }
-  console.log("[attendance-scheduler] Starting automated weekly attendance report dispatch...");
-  const now = new Date();
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
-  const start = new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000);
-  start.setUTCHours(0, 0, 0, 0);
-
-  const label = `Week of ${start.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
-
-  const students = await prisma.studentProfile.findMany({
-    where: { user: { isActive: true } },
-    include: {
-      user: true,
-      parentLinks: {
-        include: { parent: { include: { user: true } } },
-      },
-      attendanceRecords: {
-        where: { date: { gte: start, lt: end } },
-        orderBy: { date: "asc" },
-      },
-    },
-  });
-
-  let sent = 0;
-  let failed = 0;
-
-  for (const s of students) {
-    const parentEmails = new Set<string>();
-    if (s.fatherEmail?.includes("@")) parentEmails.add(s.fatherEmail.trim().toLowerCase());
-    if (s.motherEmail?.includes("@")) parentEmails.add(s.motherEmail.trim().toLowerCase());
-    for (const link of s.parentLinks) {
-      if (link.parent?.user?.email?.includes("@")) parentEmails.add(link.parent.user.email.trim().toLowerCase());
-    }
-
-    if (parentEmails.size === 0) continue;
-
-    let present = 0;
-    let late = 0;
-    let absent = 0;
-    let early = 0;
-    const dailyRecords: any[] = [];
-
-    for (const r of s.attendanceRecords) {
-      if (r.status === "PRESENT") present++;
-      else if (r.status === "LATE") late++;
-      else if (r.status === "ABSENT") absent++;
-      else if (r.status === "EARLY_DEPARTURE") early++;
-
-      const d = new Date(r.date);
-      dailyRecords.push({
-        date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
-        dayName: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
-        status: r.status,
-        checkInTime: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
-        justification: r.justification,
-        justificationStatus: r.justificationStatus,
-      });
-    }
-
-    const total = s.attendanceRecords.length;
-    const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
-    const punctuality = present + late > 0 ? Math.round((present / (present + late)) * 100) : 100;
-
-    const reportData: AttendanceReportData = {
-      studentName: `${s.user.firstName} ${s.user.lastName}`,
-      studentNameAr: s.nameAr,
-      itsNumber: s.its || s.studentId,
-      grade: s.grade,
-      section: s.section,
-      parentName: s.fatherName || s.motherName || null,
-      periodType: "WEEKLY",
-      periodLabel: label,
-      dateRange: {
-        startDate: start.toISOString().slice(0, 10),
-        endDate: end.toISOString().slice(0, 10),
-      },
-      metrics: {
-        totalDays: total,
-        presentDays: present,
-        lateDays: late,
-        absentDays: absent,
-        earlyDepartureDays: early,
-        attendancePercentage: rate,
-        punctualityPercentage: punctuality,
-        currentStreakDays: s.streakDays,
-      },
-      dailyRecords,
-    };
-
-    const html = generateAttendanceReportEmailHtml(reportData);
-    const plainText = generateAttendanceReportPlainText(reportData);
-    const subject = `📅 Weekly Attendance Report – ${reportData.studentName} (${rate}%)`;
-
-    for (const email of parentEmails) {
-      const isSent = await sendEmail({ to: email, subject, html, text: plainText });
-      if (isSent) sent++;
-      else failed++;
-    }
-  }
-
-  lastWeeklyRunDate = new Date().toISOString();
-  console.log(`[attendance-scheduler] Weekly dispatch complete. Sent: ${sent}, Failed: ${failed}`);
-  return { sent, failed };
+export async function runWeeklyAttendanceReportJob(_targetDate?: Date): Promise<{ sent: number; failed: number }> {
+  return { sent: 0, failed: 0 };
 }
 
-/**
- * Executes monthly attendance report dispatch for all active students.
- */
-export async function runMonthlyAttendanceReportJob(): Promise<{ sent: number; failed: number }> {
-  if (!config.autoMonthlyEnabled) {
-    console.log("[attendance-scheduler] Monthly attendance parent emails are currently paused/disabled.");
-    return { sent: 0, failed: 0 };
-  }
-  console.log("[attendance-scheduler] Starting automated monthly attendance report dispatch...");
-  const now = new Date();
-  const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));
-  const start = new Date(Date.UTC(prevMonthDate.getUTCFullYear(), prevMonthDate.getUTCMonth(), 1, 0, 0, 0));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
-
-  const monthName = start.toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
-  const label = `${monthName} ${start.getUTCFullYear()}`;
-
-  const students = await prisma.studentProfile.findMany({
-    where: { user: { isActive: true } },
-    include: {
-      user: true,
-      parentLinks: {
-        include: { parent: { include: { user: true } } },
-      },
-      attendanceRecords: {
-        where: { date: { gte: start, lt: end } },
-        orderBy: { date: "asc" },
-      },
-    },
-  });
-
-  let sent = 0;
-  let failed = 0;
-
-  for (const s of students) {
-    const parentEmails = new Set<string>();
-    if (s.fatherEmail?.includes("@")) parentEmails.add(s.fatherEmail.trim().toLowerCase());
-    if (s.motherEmail?.includes("@")) parentEmails.add(s.motherEmail.trim().toLowerCase());
-    for (const link of s.parentLinks) {
-      if (link.parent?.user?.email?.includes("@")) parentEmails.add(link.parent.user.email.trim().toLowerCase());
-    }
-
-    if (parentEmails.size === 0) continue;
-
-    let present = 0;
-    let late = 0;
-    let absent = 0;
-    let early = 0;
-    const dailyRecords: any[] = [];
-
-    for (const r of s.attendanceRecords) {
-      if (r.status === "PRESENT") present++;
-      else if (r.status === "LATE") late++;
-      else if (r.status === "ABSENT") absent++;
-      else if (r.status === "EARLY_DEPARTURE") early++;
-
-      const d = new Date(r.date);
-      dailyRecords.push({
-        date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
-        dayName: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
-        status: r.status,
-        checkInTime: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
-        justification: r.justification,
-        justificationStatus: r.justificationStatus,
-      });
-    }
-
-    const total = s.attendanceRecords.length;
-    const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
-    const punctuality = present + late > 0 ? Math.round((present / (present + late)) * 100) : 100;
-
-    const reportData: AttendanceReportData = {
-      studentName: `${s.user.firstName} ${s.user.lastName}`,
-      studentNameAr: s.nameAr,
-      itsNumber: s.its || s.studentId,
-      grade: s.grade,
-      section: s.section,
-      parentName: s.fatherName || s.motherName || null,
-      periodType: "MONTHLY",
-      periodLabel: label,
-      dateRange: {
-        startDate: start.toISOString().slice(0, 10),
-        endDate: end.toISOString().slice(0, 10),
-      },
-      metrics: {
-        totalDays: total,
-        presentDays: present,
-        lateDays: late,
-        absentDays: absent,
-        earlyDepartureDays: early,
-        attendancePercentage: rate,
-        punctualityPercentage: punctuality,
-        currentStreakDays: s.streakDays,
-      },
-      dailyRecords,
-    };
-
-    const html = generateAttendanceReportEmailHtml(reportData);
-    const plainText = generateAttendanceReportPlainText(reportData);
-    const subject = `📊 Monthly Attendance Report – ${reportData.studentName} (${label})`;
-
-    for (const email of parentEmails) {
-      const isSent = await sendEmail({ to: email, subject, html, text: plainText });
-      if (isSent) sent++;
-      else failed++;
-    }
-  }
-
-  lastMonthlyRunDate = new Date().toISOString();
-  console.log(`[attendance-scheduler] Monthly dispatch complete. Sent: ${sent}, Failed: ${failed}`);
-  return { sent, failed };
+export async function runMonthlyAttendanceReportJob(_targetDate?: Date): Promise<{ sent: number; failed: number }> {
+  return { sent: 0, failed: 0 };
 }
+
+
 
 /**
  * Automatically marks all active students who have NOT logged any attendance today as ABSENT.
