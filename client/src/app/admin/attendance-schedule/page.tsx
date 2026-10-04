@@ -355,7 +355,7 @@ export default function AdminAttendanceSchedulePage() {
     return windows.filter(
       (w) =>
         w.windowType === "HIKVISION" ||
-        (w.id === "default" && (!w.windowType || w.windowType === "HIKVISION")) ||
+        (w.id === "default" && !w.windowType) ||
         (w.windowType === "BOTH" && !w.id.startsWith("manual_"))
     );
   }, [windows]);
