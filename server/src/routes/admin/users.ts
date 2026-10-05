@@ -125,9 +125,14 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
       prisma.user.count({ where }),
     ]);
 
+    const mappedUsers = users.map((u) => ({
+      ...u,
+      avatarUrl: u.avatarUrl || (u.role === "ADMIN" ? "/logo.png" : null),
+    }));
+
     return res.json({
       success: true,
-      data: users,
+      data: mappedUsers,
       total,
       page,
       pageSize,
@@ -225,6 +230,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         role,
+        avatarUrl: role === "ADMIN" ? "/logo.png" : undefined,
         ...(role === "TEACHER" && {
           teacherProfile: {
             create: {

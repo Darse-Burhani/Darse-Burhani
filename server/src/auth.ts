@@ -342,7 +342,7 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role as Role,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: user.avatarUrl || (user.role === "ADMIN" ? "/logo.png" : null),
   };
 
   logAuditEvent({
@@ -482,13 +482,19 @@ export async function sessionHandler(req: Request, res: Response): Promise<void>
         firstName: fresh.firstName,
         lastName: fresh.lastName,
         role: fresh.role as Role,
-        avatarUrl: fresh.avatarUrl,
+        avatarUrl: fresh.avatarUrl || (fresh.role === "ADMIN" ? "/logo.png" : null),
       };
       res.json({ success: true, data: { user } });
     } catch (error) {
       console.error("Session database fetch error:", error);
       // Fall back to cookie claims if database is temporarily unavailable
-      res.json({ success: true, data: { user: sessionUser } });
+      const fallbackUser = sessionUser
+        ? {
+            ...sessionUser,
+            avatarUrl: sessionUser.avatarUrl || (sessionUser.role === "ADMIN" ? "/logo.png" : null),
+          }
+        : null;
+      res.json({ success: true, data: { user: fallbackUser } });
     }
   } catch (error) {
     console.error("Session handler error:", error);

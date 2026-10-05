@@ -344,8 +344,8 @@ export function NavigationBar() {
                 className={`flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-all ${roleColors.ring}`}
               >
                 <Avatar className="w-8 h-8 ring-2 ring-white shadow-sm">
-                  {session.user.avatarUrl && (
-                    <AvatarImage src={session.user.avatarUrl} alt={`${session.user.firstName} ${session.user.lastName}`} />
+                  {(session.user.avatarUrl || session.user.role === "ADMIN") && (
+                    <AvatarImage src={session.user.avatarUrl || "/logo.png"} alt={`${session.user.firstName} ${session.user.lastName}`} />
                   )}
                   <AvatarFallback
                     className={`bg-gradient-to-br ${

@@ -87,7 +87,7 @@ export function InactivityLockModal({ isOpen, onUnlock, idleMinutes }: Inactivit
         {/* User Card */}
         <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-100 mb-6">
           <Avatar className="w-12 h-12 ring-2 ring-amber-400/50 shadow-sm">
-            {session.user.avatarUrl && <AvatarImage src={session.user.avatarUrl} />}
+            {(session.user.avatarUrl || session.user.role === "ADMIN") && <AvatarImage src={session.user.avatarUrl || "/logo.png"} />}
             <AvatarFallback className="bg-gradient-to-br from-emerald-800 to-emerald-950 text-white font-semibold">
               {getInitials(session.user.firstName, session.user.lastName)}
             </AvatarFallback>

@@ -566,9 +566,9 @@ export function PortalShell({
               <div className="shrink-0 p-3.5 border-t border-white/10 relative z-10 bg-black/25 backdrop-blur-sm">
                 <div className="flex items-center gap-3 mb-2.5">
                   <Avatar className="w-9 h-9 border-2" style={{ borderColor: GOLD }}>
-                    {session.user.avatarUrl && (
+                    {(session.user.avatarUrl || session.user.role === "ADMIN") && (
                       <AvatarImage
-                        src={session.user.avatarUrl}
+                        src={session.user.avatarUrl || "/logo.png"}
                         alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User avatar"}
                       />
                     )}
@@ -673,9 +673,9 @@ export function PortalShell({
                   className={cn("flex items-center gap-3 p-1.5 rounded-xl transition-colors", theme.hoverBg)}
                 >
                   <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
-                    {session?.user?.avatarUrl && (
+                    {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
                       <AvatarImage
-                        src={session.user.avatarUrl}
+                        src={session.user.avatarUrl || "/logo.png"}
                         alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User profile"}
                       />
                     )}
@@ -804,9 +804,9 @@ export function PortalShell({
                   aria-label="Open profile menu"
                 >
                   <Avatar className="w-8 h-8 ring-2 ring-amber-400/50 shadow-xs">
-                    {session?.user?.avatarUrl && (
+                    {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
                       <AvatarImage
-                        src={session.user.avatarUrl}
+                        src={session.user.avatarUrl || "/logo.png"}
                         alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User profile"}
                       />
                     )}

@@ -11,13 +11,16 @@ async function main() {
   // Create a single admin user for initial access
   const admin = await prisma.user.upsert({
     where: { email: "admin@darseburhani.edu" },
-    update: {},
+    update: {
+      avatarUrl: "/logo.png",
+    },
     create: {
       email: "admin@darseburhani.edu",
       passwordHash,
       firstName: "Admin",
       lastName: "User",
       role: "ADMIN",
+      avatarUrl: "/logo.png",
       isActive: true,
     },
   });
