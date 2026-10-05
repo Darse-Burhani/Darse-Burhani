@@ -531,7 +531,7 @@ export default function FacultyAttendancePage() {
                           <img
                             src={s.avatarUrl}
                             alt={s.name}
-                            className="w-10 h-10 rounded-xl object-cover border border-emerald-200 shadow-xs"
+                            className="w-10 h-10 rounded-xl object-contain bg-[#03180f] border border-emerald-200 shadow-xs"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-900 flex items-center justify-center text-xs font-black border border-emerald-200 shadow-xs">

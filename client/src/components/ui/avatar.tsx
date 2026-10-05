@@ -11,7 +11,7 @@ const Avatar = React.forwardRef<
   <AvatarPrimitive.Root
     ref={ref}
     className={cn(
-      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-emerald-950/10",
+      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#03180f]",
       className,
     )}
     {...props}
@@ -29,7 +29,8 @@ const AvatarImage = React.forwardRef<
     decoding="async"
     alt={alt}
     className={cn(
-      "aspect-square h-full w-full object-cover object-center transition-opacity duration-200",
+      /* object-contain — full image, no crop; bg-[#03180f] fills the letterbox */
+      "h-full w-full object-contain object-center transition-opacity duration-300 bg-[#03180f]",
       className,
     )}
     {...props}

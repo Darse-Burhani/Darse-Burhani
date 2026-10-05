@@ -369,7 +369,7 @@ export function ManualLeaveModal({
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-200/70 text-emerald-900 flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
                     {selectedStudent.avatarUrl ? (
-                      <img src={selectedStudent.avatarUrl} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                      <img src={selectedStudent.avatarUrl} alt={selectedStudent.name} className="w-full h-full object-contain bg-[#03180f]" />
                     ) : (
                       selectedStudent.name.slice(0, 2)
                     )}
@@ -394,7 +394,7 @@ export function ManualLeaveModal({
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-purple-200/70 text-purple-900 flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
                     {selectedTeacher.avatarUrl ? (
-                      <img src={selectedTeacher.avatarUrl} alt={selectedTeacher.name} className="w-full h-full object-cover" />
+                      <img src={selectedTeacher.avatarUrl} alt={selectedTeacher.name} className="w-full h-full object-contain bg-[#03180f]" />
                     ) : (
                       selectedTeacher.name.slice(0, 2)
                     )}

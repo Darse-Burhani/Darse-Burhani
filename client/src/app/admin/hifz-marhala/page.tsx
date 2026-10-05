@@ -83,7 +83,7 @@ function QuickTagModal({
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10 rounded-xl border border-white/20 shrink-0">
               {assignment.student?.user?.avatarUrl && (
-                <AvatarImage src={assignment.student.user.avatarUrl} alt={studentName} className="object-cover" />
+                <AvatarImage src={assignment.student.user.avatarUrl} alt={studentName} className="object-contain bg-[#03180f]" />
               )}
               <AvatarFallback className="bg-amber-400 text-emerald-950 font-bold text-sm">
                 {studentName.charAt(0)}
@@ -121,7 +121,7 @@ function QuickTagModal({
                       <div className="flex items-center gap-2">
                         <Avatar className="w-5 h-5 rounded-full shrink-0">
                           {(t.user?.avatarUrl || t.photoUrl) && (
-                            <AvatarImage src={t.user?.avatarUrl || t.photoUrl} alt={fullName(t.user)} className="object-cover" />
+                            <AvatarImage src={t.user?.avatarUrl || t.photoUrl} alt={fullName(t.user)} className="object-contain bg-[#03180f]" />
                           )}
                           <AvatarFallback className="bg-emerald-100 text-emerald-800 text-[9px] font-bold">
                             {fullName(t.user)?.charAt(0) || "T"}
@@ -176,7 +176,7 @@ function StudentAssignmentCard({
         <div className="flex items-center gap-3 min-w-0">
           <Avatar className="w-10 h-10 rounded-xl shadow-sm shrink-0 ring-1 ring-black/5">
             {assignment.student?.user?.avatarUrl && (
-              <AvatarImage src={assignment.student.user.avatarUrl} alt={studentName} className="object-cover" />
+              <AvatarImage src={assignment.student.user.avatarUrl} alt={studentName} className="object-contain bg-[#03180f]" />
             )}
             <AvatarFallback className={cn("w-full h-full font-bold text-white text-base", mColor.grad)}>
               {studentName.charAt(0)}
@@ -200,7 +200,7 @@ function StudentAssignmentCard({
           <div className="flex items-center gap-2 px-2.5 py-1.5 bg-emerald-50 rounded-lg ring-1 ring-emerald-100">
             <Avatar className="w-5 h-5 rounded-full shrink-0">
               {(assignment.faculty?.user?.avatarUrl || assignment.faculty?.photoUrl) && (
-                <AvatarImage src={assignment.faculty?.user?.avatarUrl || assignment.faculty?.photoUrl} alt={muhaffizName} className="object-cover" />
+                <AvatarImage src={assignment.faculty?.user?.avatarUrl || assignment.faculty?.photoUrl} alt={muhaffizName} className="object-contain bg-[#03180f]" />
               )}
               <AvatarFallback className="bg-emerald-200 text-emerald-800 text-[9px] font-bold">
                 {muhaffizName.charAt(0)}
@@ -482,7 +482,7 @@ export default function AdminHifzMarhalaPage() {
                           <div className="flex items-center gap-2">
                             <Avatar className="w-5 h-5 rounded-full shrink-0">
                               {s.user?.avatarUrl && (
-                                <AvatarImage src={s.user.avatarUrl} alt={fullName(s.user)} className="object-cover" />
+                                <AvatarImage src={s.user.avatarUrl} alt={fullName(s.user)} className="object-contain bg-[#03180f]" />
                               )}
                               <AvatarFallback className="bg-amber-100 text-amber-800 text-[9px] font-bold">
                                 {fullName(s.user)?.charAt(0) || "S"}
@@ -520,7 +520,7 @@ export default function AdminHifzMarhalaPage() {
                           <div className="flex items-center gap-2">
                             <Avatar className="w-5 h-5 rounded-full shrink-0">
                               {(t.user?.avatarUrl || t.photoUrl) && (
-                                <AvatarImage src={t.user?.avatarUrl || t.photoUrl} alt={fullName(t.user)} className="object-cover" />
+                                <AvatarImage src={t.user?.avatarUrl || t.photoUrl} alt={fullName(t.user)} className="object-contain bg-[#03180f]" />
                               )}
                               <AvatarFallback className="bg-emerald-100 text-emerald-800 text-[9px] font-bold">
                                 {fullName(t.user)?.charAt(0) || "T"}
@@ -854,7 +854,7 @@ export default function AdminHifzMarhalaPage() {
                                     <div className="flex items-center gap-2.5">
                                       <Avatar className="w-7 h-7 rounded-lg shrink-0 shadow-xs">
                                         {report.student?.user?.avatarUrl && (
-                                          <AvatarImage src={report.student.user.avatarUrl} alt={fullName(report.student?.user) || report.name} className="object-cover" />
+                                          <AvatarImage src={report.student.user.avatarUrl} alt={fullName(report.student?.user) || report.name} className="object-contain bg-[#03180f]" />
                                         )}
                                         <AvatarFallback className="bg-slate-100 text-slate-700 text-[10px] font-bold">
                                           {(fullName(report.student?.user) || report.name || "S").charAt(0)}
@@ -874,7 +874,7 @@ export default function AdminHifzMarhalaPage() {
                                       {report.faculty?.user && (
                                         <Avatar className="w-5 h-5 rounded-full shrink-0">
                                           {(report.faculty.user.avatarUrl || report.faculty.photoUrl) && (
-                                            <AvatarImage src={report.faculty.user.avatarUrl || report.faculty.photoUrl} alt={fullName(report.faculty.user)} className="object-cover" />
+                                            <AvatarImage src={report.faculty.user.avatarUrl || report.faculty.photoUrl} alt={fullName(report.faculty.user)} className="object-contain bg-[#03180f]" />
                                           )}
                                           <AvatarFallback className="bg-emerald-100 text-emerald-800 text-[8px] font-bold">
                                             {fullName(report.faculty.user)?.charAt(0) || "T"}

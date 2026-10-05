@@ -386,7 +386,7 @@ export default function TeacherProfilePage() {
                         <img
                           src={form.photoUrl}
                           alt={form.name || "Teacher Photo"}
-                          className="w-full h-full object-cover object-center"
+                          className="w-full h-full object-contain object-center bg-[#03180f]"
                           loading="lazy"
                           decoding="async"
                           onError={() => setImgError(true)}

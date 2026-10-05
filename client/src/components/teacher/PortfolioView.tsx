@@ -223,7 +223,7 @@ export default function PortfolioView({ data }: PortfolioViewProps) {
                               <AvatarImage
                                 src={student.avatarUrl}
                                 alt={`${student.firstName} ${student.lastName}`}
-                                className="object-cover"
+                                className="object-contain bg-[#03180f]"
                               />
                             )}
                             <AvatarFallback className={`${selectedStudents.has(student.id) ? "bg-gradient-to-br from-amber-400 to-orange-500" : "bg-gradient-to-br from-amber-300 to-orange-400"}`}>

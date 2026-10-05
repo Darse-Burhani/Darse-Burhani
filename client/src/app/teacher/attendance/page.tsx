@@ -840,7 +840,7 @@ export default function TeacherAttendancePage() {
                             <img
                               src={s.avatarUrl}
                               alt={s.name}
-                              className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm"
+                              className="w-10 h-10 rounded-xl object-contain bg-[#03180f] border-2 border-white shadow-sm"
                             />
                           ) : (
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-xs font-black text-white border-2 border-white shadow-sm">

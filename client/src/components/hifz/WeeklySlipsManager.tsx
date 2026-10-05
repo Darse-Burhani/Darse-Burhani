@@ -73,7 +73,7 @@ function SlipCard({
           <div className="flex items-center gap-2.5 min-w-0">
             <Avatar className="w-10 h-10 rounded-xl shrink-0 group-hover:scale-105 transition-transform duration-500 shadow-sm ring-1 ring-black/5">
               {slip.student?.user?.avatarUrl && (
-                <AvatarImage src={slip.student.user.avatarUrl} alt={studentName} className="object-cover" />
+                <AvatarImage src={slip.student.user.avatarUrl} alt={studentName} className="object-contain bg-[#03180f]" />
               )}
               <AvatarFallback className={cn("w-full h-full font-bold text-white text-sm", mColor.grad)}>
                 {studentName.charAt(0)}
@@ -123,7 +123,7 @@ function SlipCard({
               <>
                 <Avatar className="w-4 h-4 rounded-full shrink-0">
                   {(slip.faculty.user?.avatarUrl || slip.faculty?.photoUrl) && (
-                    <AvatarImage src={slip.faculty.user?.avatarUrl || slip.faculty?.photoUrl} alt={muhaffizName} className="object-cover" />
+                    <AvatarImage src={slip.faculty.user?.avatarUrl || slip.faculty?.photoUrl} alt={muhaffizName} className="object-contain bg-[#03180f]" />
                   )}
                   <AvatarFallback className="bg-emerald-100 text-emerald-800 text-[8px] font-bold">
                     {muhaffizName.charAt(0)}
@@ -139,7 +139,7 @@ function SlipCard({
             <div className="flex items-center gap-1.5 text-[11px] text-slate-500 truncate">
               <Avatar className="w-4 h-4 rounded-full shrink-0">
                 {((slip.musaidStudent?.user?.avatarUrl || slip.musaid?.user?.avatarUrl || slip.musaid?.photoUrl)) && (
-                  <AvatarImage src={slip.musaidStudent?.user?.avatarUrl || slip.musaid?.user?.avatarUrl || slip.musaid?.photoUrl} alt={musaidName} className="object-cover" />
+                  <AvatarImage src={slip.musaidStudent?.user?.avatarUrl || slip.musaid?.user?.avatarUrl || slip.musaid?.photoUrl} alt={musaidName} className="object-contain bg-[#03180f]" />
                 )}
                 <AvatarFallback className="bg-sky-100 text-sky-800 text-[8px] font-bold">
                   {musaidName.charAt(0)}

@@ -577,20 +577,21 @@ export default function LoginPage() {
         {/* ── TOP HEADER ── */}
         <header className="relative z-10 w-full max-w-md mx-auto pt-2 sm:pt-4 pb-2 flex flex-col items-center shrink-0">
           {/* Brand Emblem */}
-          <div className="flex items-center gap-3.5 mb-2">
-            {/* Official Logo */}
-            <div
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-xl shrink-0 border border-amber-300/30 overflow-hidden"
-              style={{
-                background: "linear-gradient(135deg, #0a2e1e 0%, #031d12 100%)",
-                boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.1)",
-              }}
-            >
+          <div className="flex items-center gap-4 mb-2">
+            {/* Official Logo — clearly visible, no dark box */}
+            <div className="relative shrink-0">
+              {/* Soft golden halo behind logo */}
+              <div
+                className="absolute inset-0 rounded-2xl blur-xl opacity-60 pointer-events-none"
+                style={{ background: "radial-gradient(circle, rgba(245,158,11,0.55) 0%, transparent 70%)" }}
+              />
               <img
                 src="/logo.png"
                 alt="Darse Burhani Logo"
-                className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-lg"
+                className="relative w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-2xl"
                 draggable={false}
+                loading="eager"
+                decoding="sync"
               />
             </div>
 

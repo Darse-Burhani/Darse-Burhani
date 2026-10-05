@@ -451,7 +451,7 @@ export default function ExpertTeacherDashboard() {
                       <AvatarImage
                         src={teacher.avatarUrl}
                         alt={teacher ? `${teacher.firstName} ${teacher.lastName}` : "Faculty"}
-                        className="object-cover object-center"
+                        className="object-contain object-center bg-[#03180f]"
                       />
                     )}
                     <AvatarFallback className="bg-gradient-to-br from-[#065f46] to-[#011f18] text-[#ffe082] text-xl sm:text-2xl font-bold font-display">
@@ -947,7 +947,7 @@ export default function ExpertTeacherDashboard() {
                                 <AvatarImage
                                   src={student.avatarUrl}
                                   alt={`${student.firstName} ${student.lastName}`}
-                                  className="object-cover object-center"
+                                  className="object-contain object-center bg-[#03180f]"
                                 />
                               )}
                               <AvatarFallback
@@ -1362,7 +1362,7 @@ export default function ExpertTeacherDashboard() {
                                   <AvatarImage
                                     src={log.studentAvatar}
                                     alt={log.studentName}
-                                    className="object-cover object-center"
+                                    className="object-contain object-center bg-[#03180f]"
                                   />
                                 )}
                                 <AvatarFallback className="bg-emerald-100 text-emerald-900 text-[10px] font-black">

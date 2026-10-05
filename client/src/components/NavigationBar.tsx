@@ -576,7 +576,7 @@ export function NavigationBar() {
               <img
                 src={session.user.avatarUrl || "/logo.png"}
                 alt={`${session.user.firstName} ${session.user.lastName}`}
-                className="w-full h-full object-cover object-center"
+                className="w-full h-full object-contain object-center bg-[#03180f]"
                 draggable={false}
               />
             </div>

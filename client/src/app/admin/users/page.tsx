@@ -785,7 +785,7 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-3">
                           <Avatar className="w-10 h-10 border border-gray-200">
                             {(u.avatarUrl || u.teacherProfile?.photoUrl) ? (
-                              <AvatarImage src={u.avatarUrl || u.teacherProfile?.photoUrl} alt={u.firstName} className="object-cover" />
+                              <AvatarImage src={u.avatarUrl || u.teacherProfile?.photoUrl} alt={u.firstName} className="object-contain bg-[#03180f]" />
                             ) : null}
                             <AvatarFallback className="bg-emerald-100 text-emerald-800 font-bold text-xs">
                               {getInitials(u.firstName, u.lastName)}
@@ -1618,7 +1618,7 @@ function TalabatCard({
               isHafiz ? "border-amber-400 ring-2 ring-amber-200/50" : "border-[#047857] ring-2 ring-emerald-100"
             }`}>
               {user.avatarUrl ? (
-                <AvatarImage src={user.avatarUrl} alt={user.firstName} className="object-cover" />
+                <AvatarImage src={user.avatarUrl} alt={user.firstName} className="object-contain bg-[#03180f]" />
               ) : null}
               <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#064e3b] text-white font-black text-lg">
                 {getInitials(user.firstName, user.lastName)}
@@ -1843,7 +1843,7 @@ function FacultyCard({
                 <AvatarImage
                   src={tp.photoUrl || user.avatarUrl}
                   alt={`${user.firstName} ${user.lastName}`}
-                  className="object-cover object-center"
+                  className="object-contain object-center bg-[#03180f]"
                 />
               ) : null}
               <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#034430] text-amber-300 font-black text-2xl">

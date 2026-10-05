@@ -1391,7 +1391,7 @@ export default function AdminManualAttendancePage() {
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar className="w-12 h-12 rounded-2xl border-2 border-emerald-100 shadow-2xs shrink-0">
                       {member.avatarUrl && (
-                        <AvatarImage src={member.avatarUrl} alt={member.name} className="object-cover" />
+                        <AvatarImage src={member.avatarUrl} alt={member.name} className="object-contain bg-[#03180f]" />
                       )}
                       <AvatarFallback className={cn(
                         "font-black text-xs text-white",

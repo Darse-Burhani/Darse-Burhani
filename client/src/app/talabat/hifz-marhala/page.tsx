@@ -282,7 +282,7 @@ export default function TalabatHifzMarhalaPage() {
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16 rounded-2xl ring-2 ring-emerald-400/30 shadow-md shadow-emerald-500/20 shrink-0">
                 {student.user?.avatarUrl && (
-                  <AvatarImage src={student.user.avatarUrl} alt={studentName} className="object-cover" />
+                  <AvatarImage src={student.user.avatarUrl} alt={studentName} className="object-contain bg-[#03180f]" />
                 )}
                 <AvatarFallback className="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-2xl rounded-2xl">
                   {studentName.charAt(0)}
@@ -297,7 +297,7 @@ export default function TalabatHifzMarhalaPage() {
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white ring-1 ring-slate-200 text-slate-600">
                       <Avatar className="w-4 h-4 rounded-full shrink-0">
                         {(assignment.faculty.user?.avatarUrl || assignment.faculty.photoUrl) && (
-                          <AvatarImage src={assignment.faculty.user?.avatarUrl || assignment.faculty.photoUrl} alt={assignment.faculty.user?.firstName} className="object-cover" />
+                          <AvatarImage src={assignment.faculty.user?.avatarUrl || assignment.faculty.photoUrl} alt={assignment.faculty.user?.firstName} className="object-contain bg-[#03180f]" />
                         )}
                         <AvatarFallback className="bg-emerald-100 text-emerald-800 text-[8px] font-bold">
                           {assignment.faculty.user?.firstName?.charAt(0) || "T"}
@@ -310,7 +310,7 @@ export default function TalabatHifzMarhalaPage() {
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white ring-1 ring-slate-200 text-slate-600">
                       <Avatar className="w-4 h-4 rounded-full shrink-0">
                         {(assignment.musaid.user?.avatarUrl || assignment.musaid.photoUrl) && (
-                          <AvatarImage src={assignment.musaid.user?.avatarUrl || assignment.musaid.photoUrl} alt={assignment.musaid.user?.firstName} className="object-cover" />
+                          <AvatarImage src={assignment.musaid.user?.avatarUrl || assignment.musaid.photoUrl} alt={assignment.musaid.user?.firstName} className="object-contain bg-[#03180f]" />
                         )}
                         <AvatarFallback className="bg-sky-100 text-sky-800 text-[8px] font-bold">
                           {assignment.musaid.user?.firstName?.charAt(0) || "M"}
