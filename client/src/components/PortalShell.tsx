@@ -30,6 +30,7 @@ import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { cn, getInitials } from "@/lib/utils";
 
 export interface PortalNavItem {
@@ -1130,16 +1131,16 @@ export function PortalShell({
               <X className="w-4 h-4" />
             </button>
 
-            {/* Large profile image */}
+            {/* Large profile image — blur-fill, no black bars */}
             <div
               className="w-72 h-72 sm:w-96 sm:h-96 rounded-3xl overflow-hidden shadow-2xl"
               style={{ boxShadow: `0 0 0 4px ${GOLD}, 0 0 60px rgba(212,175,55,0.35), 0 25px 50px -12px rgba(0,0,0,0.8)` }}
             >
-              <img
+              <ProfilePhoto
                 src={session.user.avatarUrl || "/logo.png"}
                 alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "Profile"}
-                className="w-full h-full object-contain object-center bg-[#03180f]"
-                draggable={false}
+                loading="eager"
+                decoding="async"
               />
             </div>
 

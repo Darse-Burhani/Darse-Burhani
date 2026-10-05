@@ -683,7 +683,7 @@ export default function MarhalaFlowMap({
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <Avatar className="w-10 h-10 rounded-xl ring-2 ring-emerald-500/30 shrink-0">
-                                {node.avatarUrl && <AvatarImage src={node.avatarUrl} alt={node.name} className="object-contain bg-[#03180f]" />}
+                                {node.avatarUrl && <AvatarImage src={node.avatarUrl} alt={node.name} className="object-cover object-center" />}
                                 <AvatarFallback className="bg-emerald-600 text-white font-bold text-xs">
                                   {node.name.charAt(0)}
                                 </AvatarFallback>
@@ -727,7 +727,7 @@ export default function MarhalaFlowMap({
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
                                     <Avatar className="w-8 h-8 rounded-lg shrink-0 ring-1 ring-slate-200 dark:ring-slate-700">
-                                      {leaf.avatarUrl && <AvatarImage src={leaf.avatarUrl} alt={leaf.name} className="object-contain bg-[#03180f]" />}
+                                      {leaf.avatarUrl && <AvatarImage src={leaf.avatarUrl} alt={leaf.name} className="object-cover object-center" />}
                                       <AvatarFallback className="bg-emerald-700 text-white font-bold text-xs">
                                         {leaf.name.charAt(0)}
                                       </AvatarFallback>
@@ -866,7 +866,7 @@ export default function MarhalaFlowMap({
                 <div className="flex items-center gap-4">
                   <Avatar className="w-14 h-14 rounded-2xl border-2 border-white/40 shadow-lg shrink-0">
                     {selectedLeaf.avatarUrl && (
-                      <AvatarImage src={selectedLeaf.avatarUrl} alt={selectedLeaf.name} className="object-contain bg-[#03180f]" />
+                      <AvatarImage src={selectedLeaf.avatarUrl} alt={selectedLeaf.name} className="object-cover object-center" />
                     )}
                     <AvatarFallback className="bg-emerald-800 text-white font-bold text-lg">
                       {selectedLeaf.name.charAt(0)}

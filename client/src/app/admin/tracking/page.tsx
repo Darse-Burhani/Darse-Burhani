@@ -923,7 +923,7 @@ export default function IndividualTrackingPage() {
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="relative shrink-0">
                         <Avatar className="w-11 h-11 rounded-xl border border-gray-200">
-                          {person.avatarUrl && <img src={person.avatarUrl} alt={person.name} className="object-contain bg-[#03180f]" />}
+                          {person.avatarUrl && <img src={person.avatarUrl} alt={person.name} className="object-cover object-center" />}
                           <AvatarFallback className="bg-gradient-to-br from-[#022c22] to-[#047857] text-white font-bold text-xs">
                             {getInitials(person.name)}
                           </AvatarFallback>
@@ -1029,7 +1029,7 @@ export default function IndividualTrackingPage() {
                   <div className="flex items-center gap-3.5">
                     <Avatar className="w-14 h-14 rounded-2xl border-2 border-white/20 shadow-lg">
                       {selectedPerson.avatarUrl && (
-                        <img src={selectedPerson.avatarUrl} alt={selectedPerson.name} className="object-contain bg-[#03180f]" />
+                        <img src={selectedPerson.avatarUrl} alt={selectedPerson.name} className="object-cover object-center" />
                       )}
                       <AvatarFallback className="bg-white text-emerald-950 font-black text-base">
                         {getInitials(selectedPerson.name)}

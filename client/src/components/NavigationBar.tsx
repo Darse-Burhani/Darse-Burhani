@@ -35,6 +35,7 @@ import {
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { Badge } from "@/components/ui/badge";
 import { cn, getInitials } from "@/lib/utils";
 
@@ -573,11 +574,11 @@ export function NavigationBar() {
               className="w-72 h-72 sm:w-96 sm:h-96 rounded-3xl overflow-hidden"
               style={{ boxShadow: "0 0 0 4px #d4af37, 0 0 60px rgba(212,175,55,0.35), 0 25px 50px -12px rgba(0,0,0,0.8)" }}
             >
-              <img
+              <ProfilePhoto
                 src={session.user.avatarUrl || "/logo.png"}
                 alt={`${session.user.firstName} ${session.user.lastName}`}
-                className="w-full h-full object-contain object-center bg-[#03180f]"
-                draggable={false}
+                loading="eager"
+                decoding="async"
               />
             </div>
             <div className="text-center">

@@ -45,6 +45,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
@@ -785,7 +786,7 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-3">
                           <Avatar className="w-10 h-10 border border-gray-200">
                             {(u.avatarUrl || u.teacherProfile?.photoUrl) ? (
-                              <AvatarImage src={u.avatarUrl || u.teacherProfile?.photoUrl} alt={u.firstName} className="object-contain bg-[#03180f]" />
+                              <AvatarImage src={u.avatarUrl || u.teacherProfile?.photoUrl} alt={u.firstName} className="object-cover object-center" />
                             ) : null}
                             <AvatarFallback className="bg-emerald-100 text-emerald-800 font-bold text-xs">
                               {getInitials(u.firstName, u.lastName)}
@@ -1618,7 +1619,7 @@ function TalabatCard({
               isHafiz ? "border-amber-400 ring-2 ring-amber-200/50" : "border-[#047857] ring-2 ring-emerald-100"
             }`}>
               {user.avatarUrl ? (
-                <AvatarImage src={user.avatarUrl} alt={user.firstName} className="object-contain bg-[#03180f]" />
+                <AvatarImage src={user.avatarUrl} alt={user.firstName} className="object-cover object-center" />
               ) : null}
               <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#064e3b] text-white font-black text-lg">
                 {getInitials(user.firstName, user.lastName)}
@@ -1837,26 +1838,28 @@ function FacultyCard({
       {/* Floating Avatar & Details Body */}
       <div className="px-5 pb-5 pt-0 -mt-8 flex-1 space-y-3.5 relative z-10">
         <div className="flex items-end gap-3.5">
-          <div className="relative shrink-0">
-            <Avatar className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl ring-2 ring-[#d4af37]/70 shrink-0">
-              {(tp.photoUrl || user.avatarUrl) ? (
-                <AvatarImage
-                  src={tp.photoUrl || user.avatarUrl}
-                  alt={`${user.firstName} ${user.lastName}`}
-                  className="object-contain object-center bg-[#03180f]"
-                />
-              ) : null}
-              <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#034430] text-amber-300 font-black text-2xl">
-                {getInitials(user.firstName, user.lastName)}
-              </AvatarFallback>
-            </Avatar>
-            <span
-              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                user.isActive ? "bg-emerald-500" : "bg-gray-400"
-              }`}
-              title={user.isActive ? "Active Account" : "Inactive"}
-            />
-          </div>
+            <div className="relative shrink-0">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-xl ring-2 ring-[#d4af37]/70">
+                {(tp.photoUrl || user.avatarUrl) ? (
+                  <ProfilePhoto
+                    src={tp.photoUrl || user.avatarUrl}
+                    alt={`${user.firstName} ${user.lastName}`}
+                    loading="eager"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#047857] to-[#034430] text-amber-300 font-black text-2xl">
+                    {getInitials(user.firstName, user.lastName)}
+                  </div>
+                )}
+              </div>
+              <span
+                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                  user.isActive ? "bg-emerald-500" : "bg-gray-400"
+                }`}
+                title={user.isActive ? "Active Account" : "Inactive"}
+              />
+            </div>
 
           <div className="min-w-0 flex-1 pb-1">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#047857] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 inline-block mb-1">

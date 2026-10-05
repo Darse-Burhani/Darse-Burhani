@@ -202,7 +202,7 @@ export default function TeacherHifzMarhalaReportForm({
               <div className="flex items-center gap-4">
                 <Avatar className="w-14 h-14 rounded-xl shadow-md shrink-0 ring-1 ring-black/5">
                   {((student as any).user?.avatarUrl || (student as any).avatarUrl) && (
-                    <AvatarImage src={(student as any).user?.avatarUrl || (student as any).avatarUrl} alt={student.name} className="object-contain bg-[#03180f]" />
+                    <AvatarImage src={(student as any).user?.avatarUrl || (student as any).avatarUrl} alt={student.name} className="object-cover object-center" />
                   )}
                   <AvatarFallback className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white font-bold text-xl font-arabic rounded-xl">
                     {student.name.charAt(0)}

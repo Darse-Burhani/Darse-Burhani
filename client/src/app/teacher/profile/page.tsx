@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 
 interface TeacherProfileForm {
   // 18 fields in strict sequence
@@ -381,18 +382,17 @@ export default function TeacherProfilePage() {
               <CardContent className="pt-2 pb-6">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div className="relative group shrink-0">
-                    <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl ring-4 ring-[#d4af37]/40 shadow-xl overflow-hidden bg-gradient-to-br from-[#047857] to-[#022c22] flex items-center justify-center transition-all duration-200 group-hover:scale-105 group-hover:ring-[#d4af37]/70">
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl ring-4 ring-[#d4af37]/40 shadow-xl overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:ring-[#d4af37]/70">
                       {form.photoUrl && !imgError ? (
-                        <img
+                        <ProfilePhoto
                           src={form.photoUrl}
                           alt={form.name || "Teacher Photo"}
-                          className="w-full h-full object-contain object-center bg-[#03180f]"
                           loading="lazy"
                           decoding="async"
                           onError={() => setImgError(true)}
                         />
                       ) : (
-                        <span className="text-3xl sm:text-4xl font-extrabold text-amber-200 tracking-wider select-none">
+                        <span className="flex w-full h-full items-center justify-center bg-gradient-to-br from-[#047857] to-[#022c22] text-3xl sm:text-4xl font-extrabold text-amber-200 tracking-wider select-none">
                           {getInitials(form.firstName || "U", form.lastName || "T")}
                         </span>
                       )}

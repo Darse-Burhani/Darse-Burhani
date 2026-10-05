@@ -333,7 +333,7 @@ _Dar-e-Burhani — Quran Memorization Progress Tracker_`,
                   <AvatarImage
                     src={(student as any).user?.avatarUrl || (student as any).avatarUrl || existingSlip?.student?.user?.avatarUrl}
                     alt={studentName}
-                    className="object-contain bg-[#03180f]"
+                    className="object-cover object-center"
                   />
                 )}
                 <AvatarFallback className="w-full h-full bg-gradient-to-br from-amber-400 to-amber-600 text-emerald-950 font-bold text-lg rounded-2xl">

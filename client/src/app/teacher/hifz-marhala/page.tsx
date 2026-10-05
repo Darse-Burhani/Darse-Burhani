@@ -387,7 +387,7 @@ export default function TeacherHifzMarhalaPage() {
                           <div className="flex items-center gap-3">
                             <Avatar className="w-12 h-12 rounded-xl shadow-lg shadow-amber-500/20 shrink-0 ring-1 ring-black/5">
                               {student.user?.avatarUrl && (
-                                <AvatarImage src={student.user.avatarUrl} alt={studentName} className="object-contain bg-[#03180f]" />
+                                <AvatarImage src={student.user.avatarUrl} alt={studentName} className="object-cover object-center" />
                               )}
                               <AvatarFallback className="w-full h-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white font-bold text-lg rounded-xl">
                                 {studentName.charAt(0)}
@@ -417,7 +417,7 @@ export default function TeacherHifzMarhalaPage() {
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-full border border-gray-100 text-xs text-gray-600">
                               <Avatar className="w-4 h-4 rounded-full shrink-0">
                                 {(assignment.faculty.user?.avatarUrl || assignment.faculty.photoUrl) && (
-                                  <AvatarImage src={assignment.faculty.user?.avatarUrl || assignment.faculty.photoUrl} alt={assignment.faculty.user?.firstName} className="object-contain bg-[#03180f]" />
+                                  <AvatarImage src={assignment.faculty.user?.avatarUrl || assignment.faculty.photoUrl} alt={assignment.faculty.user?.firstName} className="object-cover object-center" />
                                 )}
                                 <AvatarFallback className="bg-emerald-100 text-emerald-800 text-[8px] font-bold">
                                   {assignment.faculty.user?.firstName?.charAt(0) || "T"}
@@ -430,7 +430,7 @@ export default function TeacherHifzMarhalaPage() {
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 rounded-full border border-sky-100 text-xs text-sky-700">
                               <Avatar className="w-4 h-4 rounded-full shrink-0">
                                 {(assignment.musaid.user?.avatarUrl || assignment.musaid.photoUrl) && (
-                                  <AvatarImage src={assignment.musaid.user?.avatarUrl || assignment.musaid.photoUrl} alt={assignment.musaid.user?.firstName} className="object-contain bg-[#03180f]" />
+                                  <AvatarImage src={assignment.musaid.user?.avatarUrl || assignment.musaid.photoUrl} alt={assignment.musaid.user?.firstName} className="object-cover object-center" />
                                 )}
                                 <AvatarFallback className="bg-sky-100 text-sky-800 text-[8px] font-bold">
                                   {assignment.musaid.user?.firstName?.charAt(0) || "M"}
@@ -542,7 +542,7 @@ export default function TeacherHifzMarhalaPage() {
                                 <div className="flex items-center gap-2">
                                   <Avatar className="w-8 h-8 rounded-lg shrink-0 ring-1 ring-black/5">
                                     {student.user?.avatarUrl && (
-                                      <AvatarImage src={student.user.avatarUrl} alt={studentName} className="object-contain bg-[#03180f]" />
+                                      <AvatarImage src={student.user.avatarUrl} alt={studentName} className="object-cover object-center" />
                                     )}
                                     <AvatarFallback className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xs font-bold rounded-lg">
                                       {studentName.charAt(0)}

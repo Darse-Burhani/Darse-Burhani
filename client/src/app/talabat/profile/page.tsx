@@ -22,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -317,14 +318,21 @@ export default function TalabatProfilePage() {
               <CardContent className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-center gap-5">
                   <div className="relative group">
-                    <Avatar className="w-24 h-24 sm:w-28 sm:h-28 ring-4 ring-[#d4af37]/30 shadow-md">
+                    {/* Circular frame with blur-fill photo */}
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ring-[#d4af37]/30 shadow-md">
                       {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt={user?.firstName || "Student"} className="object-contain object-center bg-[#03180f]" />
-                      ) : null}
-                      <AvatarFallback className="bg-gradient-to-br from-[#1e1b4b] to-[#1e3a8a] text-xl font-bold text-white">
-                        {getInitials(user?.firstName || "T", user?.lastName || "A")}
-                      </AvatarFallback>
-                    </Avatar>
+                        <ProfilePhoto
+                          src={avatarUrl}
+                          alt={user?.firstName || "Student"}
+                          loading="eager"
+                          decoding="async"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1e1b4b] to-[#1e3a8a] text-xl font-bold text-white">
+                          {getInitials(user?.firstName || "T", user?.lastName || "A")}
+                        </div>
+                      )}
+                    </div>
                     {uploadingPhoto && (
                       <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
                         <Loader2 className="w-5 h-5 text-white animate-spin" />

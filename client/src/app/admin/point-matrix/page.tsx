@@ -835,7 +835,7 @@ export default function AdminPointMatrixPage() {
                                     <img
                                       src={talib.avatarUrl}
                                       alt={talib.name}
-                                      className="w-full h-full rounded-full object-contain bg-[#03180f]"
+                                      className="w-full h-full rounded-full object-cover object-center"
                                     />
                                   ) : (
                                     talib.firstName?.[0] || "T"

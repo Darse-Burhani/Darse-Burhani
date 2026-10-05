@@ -11,6 +11,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { getInitials } from "@/lib/utils";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";
 
@@ -67,25 +68,26 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
             {/* Student Photo */}
             <div className="relative shrink-0">
-              <div
-                className="p-1 rounded-2xl shadow-md"
-                style={{ background: `linear-gradient(135deg, ${theme.swatch.gold}, #f0d76e, ${theme.swatch.gold})` }}
-              >
-                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-emerald-950">
-                  {data.avatarUrl && (
-                    <AvatarImage
-                      src={data.avatarUrl}
-                      alt={fullName}
-                      className="object-contain object-center bg-[#03180f]"
-                    />
-                  )}
-                  <AvatarFallback
-                    className="rounded-xl bg-emerald-900 text-amber-300 text-xl sm:text-2xl font-bold"
-                  >
-                    {getInitials(firstName, lastName) || "TS"}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
+                {/* Gold ring frame + blur-fill photo */}
+                <div
+                  className="p-1 rounded-2xl shadow-md"
+                  style={{ background: `linear-gradient(135deg, ${theme.swatch.gold}, #f0d76e, ${theme.swatch.gold})` }}
+                >
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-emerald-950">
+                    {data.avatarUrl ? (
+                      <ProfilePhoto
+                        src={data.avatarUrl}
+                        alt={fullName}
+                        loading="eager"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-emerald-900 text-amber-300 text-xl sm:text-2xl font-bold">
+                        {getInitials(firstName, lastName) || "TS"}
+                      </div>
+                    )}
+                  </div>
+                </div>
             </div>
 
             {/* Name & Academic Meta */}
