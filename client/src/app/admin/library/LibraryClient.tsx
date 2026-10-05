@@ -1657,28 +1657,6 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
     }
   };
 
-  // ── Seed Institutional Catalog ──
-  const [seeding, setSeeding] = useState(false);
-
-  const handleSeedCatalog = async () => {
-    if (!confirm("Populate standard institutional Maktabat books with barcodes & QR codes? Existing books will be preserved.")) return;
-    setSeeding(true);
-    try {
-      const res = await fetch("/api/admin/library/seed-catalog", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        toast({ title: "Maktabat Catalog Ready", description: data.message, variant: "success" });
-        fetchBooks();
-      } else {
-        toast({ title: "Error", description: data.error || "Failed to seed catalog", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Error", description: "Failed to connect to library server", variant: "destructive" });
-    } finally {
-      setSeeding(false);
-    }
-  };
-
   // ── Keyboard Shortcuts ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1792,17 +1770,6 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
               </Button>
               <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95" onClick={() => setShowScanModal(true)}>
                 <Scan className="w-4 h-4 mr-1.5" /> Scan
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/20 font-medium active:scale-95"
-                onClick={handleSeedCatalog}
-                disabled={seeding}
-                title="Populate authentic Maktabat curriculum books with barcodes & QR codes"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${seeding ? "animate-spin" : ""}`} />
-                {seeding ? "Populating..." : "Sync Books"}
               </Button>
               <Button size="sm" className="btn-fatimi-gold text-white shadow-md active:scale-95" onClick={() => setShowAddModal(true)}>
                 <Plus className="w-4 h-4 mr-1.5" /> Add Book
