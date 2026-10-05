@@ -1,6 +1,6 @@
 /**
  * Offline Makhzan Cache & Transaction Queue Manager
- * Provides client-side local caching (IndexedDB/LocalStorage) for offline warehouse/depot operations.
+ * Provides client-side local caching (IndexedDB/LocalStorage) for offline Makhzan operations.
  */
 
 export interface CachedMakhzanItem {

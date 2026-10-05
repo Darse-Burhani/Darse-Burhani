@@ -146,7 +146,7 @@ const navItems: PortalNavItem[] = [
 
   // ── Systems & Governance ──
   {
-    label: "Makhzan (Warehouse)",
+    label: "Makhzan",
     href: "/admin/makhzn",
     icon: Barcode,
     category: "Systems",

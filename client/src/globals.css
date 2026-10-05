@@ -91,11 +91,11 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-50 text-slate-900 antialiased;
     font-family: var(--font-body);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "salt", "calt", "kern";
     font-optical-sizing: auto;
-    font-size: 15.5px;
+    font-size: 15px;
     line-height: 1.62;
     overflow-x: hidden;
     width: 100%;
@@ -104,7 +104,7 @@
   }
 
   ::selection {
-    @apply bg-emerald-200/70 text-emerald-950;
+    @apply bg-emerald-200/80 text-emerald-950;
   }
 
   /* Placeholder text must meet 4.5:1 on white inputs app-wide */
@@ -125,6 +125,7 @@
   .font-heading,
   .font-display {
     font-family: var(--font-heading);
+    color: #0f172a;
     letter-spacing: -0.025em;
     font-weight: 800;
   }
@@ -132,10 +133,24 @@
   h1 {
     letter-spacing: -0.035em;
     font-weight: 850;
+    line-height: 1.15;
   }
 
   h2 {
     letter-spacing: -0.028em;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  h3 {
+    letter-spacing: -0.02em;
+    font-weight: 750;
+    line-height: 1.3;
+  }
+
+  h4, h5, h6 {
+    letter-spacing: -0.015em;
+    font-weight: 700;
   }
 
   /* ── Tier 2: Information & Body Typography ── */
@@ -152,6 +167,7 @@
 
   p {
     @apply leading-relaxed;
+    color: #334155;
   }
 
   /* ── Tier 3: Error & Alert & Technical Typography ── */
@@ -313,12 +329,72 @@
   }
 
   .section-title {
-    @apply font-display text-2xl sm:text-3xl font-bold text-gray-900;
+    @apply font-display text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white;
     letter-spacing: -0.03em;
   }
 
   .section-subtitle {
-    @apply text-gray-500 mt-1;
+    @apply text-slate-600 dark:text-slate-300 mt-1.5 text-sm sm:text-base font-normal leading-relaxed;
+  }
+
+  /* ====== 2026 Executive Typography & Contrast Layout System ====== */
+  .text-page-title {
+    @apply font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+  }
+
+  .text-section-title {
+    @apply font-heading text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight;
+    letter-spacing: -0.02em;
+  }
+
+  .text-kicker {
+    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-400 inline-flex items-center gap-1.5;
+    letter-spacing: 0.08em;
+  }
+
+  .text-kicker-gold {
+    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400 inline-flex items-center gap-1.5;
+    letter-spacing: 0.08em;
+  }
+
+  .text-contrast-body {
+    @apply font-body text-[14.5px] text-slate-700 dark:text-slate-200 leading-relaxed;
+  }
+
+  .text-contrast-muted {
+    @apply font-info text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium;
+  }
+
+  .text-stat-value {
+    @apply font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  .text-highlight-emerald {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-emerald-950 bg-emerald-100/80 border border-emerald-300/80 shadow-xs;
+  }
+
+  .text-highlight-gold {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-amber-950 bg-amber-100/80 border border-amber-300/80 shadow-xs;
+  }
+
+  .text-highlight-blue {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-sky-950 bg-sky-100/80 border border-sky-300/80 shadow-xs;
+  }
+
+  .text-highlight-rose {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-rose-950 bg-rose-100/80 border border-rose-300/80 shadow-xs;
+  }
+
+  .text-highlight-purple {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-indigo-950 bg-indigo-100/80 border border-indigo-300/80 shadow-xs;
+  }
+
+  .badge-tabular {
+    @apply font-mono text-xs font-bold tracking-tight px-2 py-0.5 rounded-md;
+    font-feature-settings: "tnum" 1;
   }
 }
 

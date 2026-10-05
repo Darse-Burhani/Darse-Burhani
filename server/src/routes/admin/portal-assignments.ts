@@ -23,7 +23,7 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/teacher/leave", icon: "CalendarCheck" },
   { id: "tracking", label: "Individual Tracking", category: "Operations", description: "Student tracking & metrics", path: "/teacher/tracking", icon: "BarChart3" },
   { id: "procurement", label: "Procurement", category: "Operations", description: "Stationery & supply requisitions", path: "/teacher/procurement", icon: "ShoppingBag" },
-  { id: "makhzan", label: "Makhzan (Warehouse)", category: "Operations", description: "School asset & resource inventory", path: "/teacher/makhzn", icon: "Package" },
+  { id: "makhzan", label: "Makhzan", category: "Operations", description: "School inventory, assets & physical equipment", path: "/teacher/makhzn", icon: "Package" },
   { id: "library", label: "Library", category: "Library", description: "Digital catalog, 3D shelf & loans", path: "/teacher/library", icon: "Library" },
   { id: "students", label: "Talabat (Students)", category: "Community", description: "Student directory & details", path: "/teacher/students", icon: "GraduationCap" },
   { id: "parents", label: "Parents Directory", category: "Community", description: "Parent contacts & directory", path: "/teacher/parents", icon: "Heart" },

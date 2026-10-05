@@ -223,12 +223,12 @@ const COMMANDS: NavCommand[] = [
   // ── Library Hub ──
   {
     id: "makhzan",
-    title: "Makhzan Warehouse & Barcode Hub",
+    title: "Makhzan & Barcode Hub",
     category: "Library",
     href: "/admin/makhzn",
     icon: Barcode,
     shortcut: "G M",
-    keywords: ["makhzan", "warehouse", "barcode", "scanner", "issue", "inventory", "stock", "talabat", "faculty"],
+    keywords: ["makhzan", "barcode", "scanner", "issue", "inventory", "stock", "assets", "talabat", "faculty"],
   },
   {
     id: "library",
