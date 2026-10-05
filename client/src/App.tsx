@@ -333,11 +333,13 @@ export default function App() {
           <Route path="library" element={<RequireAdminPageAccess pageKey="library"><AdminLibrary /></RequireAdminPageAccess>} />
           <Route path="makhzn" element={<RequireAdminPageAccess pageKey="makhzan"><AdminMakhzan /></RequireAdminPageAccess>} />
           <Route path="makhzan" element={<Navigate to="/teacher/makhzn" replace />} />
+          <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />
+          <Route path="security" element={<RequireAdminPageAccess pageKey="security"><AdminSecurity /></RequireAdminPageAccess>} />
           <Route path="schedule" element={<Navigate to="/teacher/attendance-schedule" replace />} />
           <Route path="attendance-log" element={<Navigate to="/teacher/attendance-logs" replace />} />
           <Route path="attendance-registry" element={<Navigate to="/teacher/attendance-logs" replace />} />
-          <Route path="profile" element={<ModuleLockGuard moduleKey="profile" role="TEACHER" title="My Profile"><TeacherProfile /></ModuleLockGuard>} />
-          <Route path="settings" element={<TeacherSettings />} />
+          <Route path="profile" element={<RequireAdminPageAccess pageKey="profile"><TeacherProfile /></RequireAdminPageAccess>} />
+          <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />
         </Route>
 
         {/* ── Faculty Routes ── */}

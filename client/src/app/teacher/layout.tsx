@@ -25,6 +25,9 @@ import {
   Users,
   BarChart3,
   Award,
+  Bell,
+  Shield,
+  Settings,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -42,7 +45,8 @@ const rawNavItems = [
   { key: "manual-attendance", label: "Manual Attendance", href: "/teacher/attendance", icon: ClipboardCheck, category: "Attendance" },
   { key: "attendance-logs", label: "Attendance Logs", href: "/teacher/attendance-logs", icon: FileText, category: "Attendance" },
   { key: "attendance-schedule", label: "Attendance Schedule", href: "/teacher/attendance-schedule", icon: Clock, category: "Attendance" },
-    { key: "biometric", label: "Biometric Scanners", href: "/teacher/biometric", icon: Fingerprint, category: "Attendance" },
+  { key: "email-reports", label: "Email Reports", href: "/teacher/attendance-emails", icon: Mail, category: "Attendance" },
+  { key: "biometric", label: "Biometric Scanners", href: "/teacher/biometric", icon: Fingerprint, category: "Attendance" },
 
   // ── Operations & Health ──
   { key: "medical-duty", label: "Medical Duty", href: "/teacher/medical-duty", icon: Stethoscope, category: "Operations" },
@@ -59,8 +63,11 @@ const rawNavItems = [
   { key: "users", label: "Staff & Users", href: "/teacher/users", icon: Users, category: "Community" },
   { key: "passwords", label: "User Passwords", href: "/teacher/passwords", icon: KeyRound, category: "Community" },
   { key: "point-matrix", label: "Point Matrix", href: "/teacher/point-matrix", icon: Award, category: "Community" },
+  { key: "notifications", label: "Notification Studio", href: "/teacher/notifications", icon: Bell, category: "Community" },
 
-  // ── Account ──
+  // ── Account & Systems ──
+  { key: "security", label: "Security & Logs", href: "/teacher/security", icon: Shield, category: "Account" },
+  { key: "settings", label: "Portal Settings", href: "/teacher/settings", icon: Settings, category: "Account" },
   { key: "profile", label: "Profile & Settings", href: "/teacher/profile", icon: User, category: "Account" },
 ];
 

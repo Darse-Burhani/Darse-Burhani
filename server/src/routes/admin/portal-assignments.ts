@@ -1,37 +1,39 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth } from "../../middleware";
+import { cache } from "../../lib/cache";
 
 const router = Router();
 
 // Standard available teacher pages and modules in Darse Burhani
-// CANONICAL CATALOG: every id here must have a matching /teacher route in
-// client/src/App.tsx and a nav entry in client/src/app/teacher/layout.tsx.
-// Admin-only pages (notifications, security) are intentionally excluded —
-///they have no /teacher route so assigning them would silently do nothing.
+// CANONICAL CATALOG: every id here matches a route and nav entry for assigning to faculty
 export const TEACHER_AVAILABLE_PAGES = [
   { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main HUD & point analytics", path: "/teacher", icon: "LayoutDashboard" },
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
+  { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
   { id: "quran", label: "Quran (Hifz)", category: "Hifz", description: "Ajza progress, marhala & weekly slips", path: "/teacher/hifz", icon: "Sparkles" },
   { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala progress & exams", path: "/teacher/hifz-marhala", icon: "GraduationCap" },
   { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
+  { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
   { id: "attendance-logs", label: "Attendance Logs", category: "Attendance", description: "Live scans, daily registry & student status", path: "/teacher/attendance-logs", icon: "FileText" },
   { id: "attendance-schedule", label: "Attendance Schedule", category: "Attendance", description: "Scan windows, shifts & period timers", path: "/teacher/attendance-schedule", icon: "Clock" },
+  { id: "email-reports", label: "Email Attendance Reports", category: "Attendance", description: "Automated attendance summaries & email delivery", path: "/teacher/attendance-emails", icon: "Mail" },
+  { id: "biometric", label: "Biometric Scanners", category: "Attendance", description: "Device status & scanner management", path: "/teacher/biometric", icon: "Fingerprint" },
+  { id: "medical-duty", label: "Medical & Health Duty", category: "Operations", description: "Mark Talabat & Faculty on Medical Leave / Exemption", path: "/teacher/medical-duty", icon: "Stethoscope" },
   { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/teacher/leave", icon: "CalendarCheck" },
+  { id: "tracking", label: "Individual Tracking", category: "Operations", description: "Student tracking & metrics", path: "/teacher/tracking", icon: "BarChart3" },
   { id: "procurement", label: "Procurement", category: "Operations", description: "Stationery & supply requisitions", path: "/teacher/procurement", icon: "ShoppingBag" },
-  { id: "biometric", label: "Biometric Scanners", category: "Operations", description: "Device status & management", path: "/teacher/biometric", icon: "Fingerprint" },
   { id: "makhzan", label: "Makhzan (Warehouse)", category: "Operations", description: "School asset & resource inventory", path: "/teacher/makhzn", icon: "Package" },
   { id: "library", label: "Library", category: "Library", description: "Digital catalog, 3D shelf & loans", path: "/teacher/library", icon: "Library" },
   { id: "students", label: "Talabat (Students)", category: "Community", description: "Student directory & details", path: "/teacher/students", icon: "GraduationCap" },
   { id: "parents", label: "Parents Directory", category: "Community", description: "Parent contacts & directory", path: "/teacher/parents", icon: "Heart" },
   { id: "users", label: "Staff & Users", category: "Community", description: "Staff directory & accounts", path: "/teacher/users", icon: "Users" },
-  { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
-  { id: "tracking", label: "Individual Tracking", category: "Operations", description: "Student tracking & metrics", path: "/teacher/tracking", icon: "BarChart3" },
-  { id: "point-matrix", label: "Point Matrix", category: "Systems", description: "Star point rules & matrix", path: "/teacher/point-matrix", icon: "Award" },
   { id: "passwords", label: "User Passwords", category: "Community", description: "Password resets & credentials", path: "/teacher/passwords", icon: "KeyRound" },
-  { id: "portal-assignments", label: "Portal Assignments", category: "Community", description: "Assign portal pages to teachers", path: "/teacher/portal-assignments", icon: "UserCheck" },
-  { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
-  { id: "medical-duty", label: "Medical & Health Duty", category: "Operations", description: "Mark Talabat & Faculty on Medical Leave / Exemption", path: "/teacher/medical-duty", icon: "Stethoscope" },
+  { id: "point-matrix", label: "Point Matrix", category: "Systems", description: "Star point rules & matrix", path: "/teacher/point-matrix", icon: "Award" },
+  { id: "portal-assignments", label: "Portal Assignments", category: "Systems", description: "Assign portal pages to teachers (delegates authority)", path: "/teacher/portal-assignments", icon: "UserCheck" },
+  { id: "notifications", label: "Notification Studio", category: "Systems", description: "School-wide broadcasts & notification center", path: "/teacher/notifications", icon: "Bell" },
+  { id: "security", label: "Security & Logs", category: "Systems", description: "Audit logs, active sessions & security preferences", path: "/teacher/security", icon: "Shield" },
+  { id: "settings", label: "Portal Settings", category: "Systems", description: "Global portal module locks & permissions", path: "/teacher/settings", icon: "Settings" },
   { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
 ];
 
@@ -47,10 +49,12 @@ export function toPageId(portalType: string): string | null {
   if (portalType.startsWith("PAGE:")) {
     const id = portalType.slice(5).toLowerCase();
     if (id === "hifz") return "quran";
+    if (id === "attendance-emails") return "email-reports";
     return id;
   }
   const lower = portalType.toLowerCase();
   if (lower === "hifz") return "quran";
+  if (lower === "attendance-emails") return "email-reports";
   return lower;
 }
 
@@ -60,7 +64,7 @@ export function toPortalType(pageId: string): string | null {
   const clean = pageId.trim();
   if (clean === "ALL") return "ALL";
   const id = clean.startsWith("PAGE:") ? clean.slice(5).toLowerCase() : clean.toLowerCase();
-  const canonical = id === "hifz" ? "quran" : id;
+  const canonical = id === "hifz" ? "quran" : id === "attendance-emails" ? "email-reports" : id;
   if (canonical === "portal-assignments" || canonical === "portal_assignments") return "PAGE:portal-assignments";
   if (!PAGE_IDS.has(canonical)) return null;
   return `PAGE:${canonical}`;
@@ -91,7 +95,7 @@ function toAssignedPageIds(portalTypes: string[]): string[] {
 }
 
 // When a teacher has no explicit portal assignments, only give them the safe minimum.
-// All other pages (classes, hifz, manual-attendance, medical-duty, etc.) must be explicitly assigned.
+// All other pages must be explicitly assigned.
 const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "profile"];
 
 // GET /api/admin/portal-assignments - List all teachers and their assigned pages
@@ -278,6 +282,9 @@ router.post("/", requireAuth, async (req, res) => {
       },
     });
 
+    cache.invalidateTag("permissions");
+    cache.invalidateTag("portal-assignments");
+
     return res.status(201).json({ success: true, data: assignment });
   } catch (error) {
     console.error("Portal assignment create error:", error);
@@ -346,6 +353,9 @@ router.post("/batch", requireAuth, async (req, res) => {
       });
     }
 
+    cache.invalidateTag("permissions");
+    cache.invalidateTag("portal-assignments");
+
     return res.json({
       success: true,
       message: `Updated page permissions for ${profiles.length} teacher(s)`,
@@ -370,6 +380,8 @@ router.delete("/", requireAuth, async (req, res) => {
 
     if (id) {
       await prisma.teacherPortalAssignment.delete({ where: { id } });
+      cache.invalidateTag("permissions");
+      cache.invalidateTag("portal-assignments");
       return res.json({ success: true });
     }
 
@@ -389,6 +401,8 @@ router.delete("/", requireAuth, async (req, res) => {
         await prisma.teacherPortalAssignment.deleteMany({
           where: { teacherId: profile.id, portalType: { in: candidates } },
         });
+        cache.invalidateTag("permissions");
+        cache.invalidateTag("portal-assignments");
       }
       return res.json({ success: true });
     }

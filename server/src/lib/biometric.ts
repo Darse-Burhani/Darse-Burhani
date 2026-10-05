@@ -992,6 +992,17 @@ export async function processBiometricScan(
 
         teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
       } else {
+        if (facultyWindowStatus.isDisabled) {
+          return pushEvent({
+            type: "WINDOW_CLOSED",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            teacher: teacherInfo,
+            message: `Faculty scanning is DISABLED by Admin schedule. Attendance not recorded.`,
+            verifyMode: method,
+          }, when, false);
+        }
         const morningBoundary = 8 * 60 + 30; // 8:30 AM IST fallback
         if (scanMinutes > morningBoundary) {
           return pushEvent({
@@ -1356,6 +1367,17 @@ export async function processBiometricScan(
 
     status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
   } else {
+    if (studentWindowStatus.isDisabled) {
+      return pushEvent({
+        type: "WINDOW_CLOSED",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Talabat scanning is DISABLED by Admin schedule. Attendance not recorded.`,
+        verifyMode: method,
+      }, when, false);
+    }
     // Default morning threshold: 08:00 AM IST
     const morningBoundary = 8 * 60; // 8:00 AM IST
     if (scanMinutes > morningBoundary) {

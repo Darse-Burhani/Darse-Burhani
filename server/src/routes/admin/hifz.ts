@@ -29,7 +29,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       const assignment = await prisma.teacherPortalAssignment.findFirst({
         where: {
           teacherId: teacherProfile.id,
-          portalType: { in: ["HIFZ", "ALL"] },
+          portalType: { in: ["HIFZ", "ALL", "PAGE:quran", "PAGE:hifz", "PAGE:hifz-marhala", "quran", "hifz"] },
           isActive: true,
         },
       });

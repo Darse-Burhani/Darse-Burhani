@@ -63,25 +63,23 @@ export function normalizePageKey(keyOrPath: string): string {
   clean = clean.replace(/^\/+(admin|teacher|talabat|faculty|parent)\/+/, "");
   clean = clean.replace(/^\/+|\/+$/g, "");
   if (!clean || clean === "admin" || clean === "teacher") return "dashboard";
-  // Canonical aliases (path id -> stored page id). Each teacher page is
-  // independent — no cross-granting between distinct modules.
-  if (clean === "hifz" || clean === "hifz-reports" || clean === "hifz-weekly-slip") return "quran";
-  if (clean === "attendance" || clean === "manual-attendance") return "manual-attendance";
-  if (clean === "attendance-emails") return "email-reports";
+  if (clean === "hifz" || clean === "hifz-reports" || clean === "hifz-weekly-slip" || clean === "weekly-slips") return "quran";
+  if (clean === "attendance" || clean === "manual-attendance" || clean === "attendance-manual") return "manual-attendance";
+  if (clean === "attendance-emails" || clean === "attendance-email") return "email-reports";
+  if (clean === "attendance-log" || clean === "attendance-registry") return "attendance-logs";
+  if (clean === "schedule") return "attendance-schedule";
   if (clean === "makhzn") return "makhzan";
   if (clean.startsWith("library")) return "library";
   if (clean.startsWith("parents")) return "parents";
+  if (clean === "credentials") return "passwords";
+  if (clean === "analytics") return "tracking";
+  if (clean === "point-rules") return "point-matrix";
   return clean;
 }
 
 /**
  * Maps a nav item key to the equivalent key used in the module config (admin settings).
  * Nav items sometimes use different keys than the module lock system.
- *
- * Admin settings module keys: dashboard, classes, takhteet, attendance, faculty, calendar, hifz, profile
- * Nav keys that differ:
- *   "quran" / "hifz-marhala" / "hifz-weekly-slip"  → module key "hifz"
- *   "manual-attendance" / "attendance-logs" / "attendance-schedule" → module key "attendance"
  */
 function navKeyToModuleConfigKey(navKey: string): string {
   if (navKey === "quran" || navKey === "hifz-marhala" || navKey === "hifz-weekly-slip") return "hifz";
@@ -215,10 +213,10 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       if (assignedPages.includes(key)) return true;
       if (assignedPages.includes(pageIdOrPath)) return true;
 
-      // Legacy synonym: old "hifz" rows grant "quran". Nothing else cross-grants:
-      // quran, hifz-marhala, manual-attendance, attendance-logs,
-      // attendance-schedule, makhzan, library are each independently assigned.
+      // Legacy synonyms and parent page mappings
       if (key === "quran" && assignedPages.includes("hifz")) return true;
+      if (key === "hifz-marhala" && (assignedPages.includes("hifz") || assignedPages.includes("quran"))) return true;
+      if (key === "passwords" && assignedPages.includes("users")) return true;
 
       return false;
     },
