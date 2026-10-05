@@ -34,6 +34,7 @@ import {
   CalendarDays,
   ArrowRight,
   ShieldCheck,
+  QrCode,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFo
 import { toast } from "@/components/ui/toast";
 import PrintBarcodeLabels from "@/components/admin/PrintBarcodeLabels";
 import BarcodeDisplay from "@/components/admin/BarcodeDisplay";
+import QRCodeDisplay from "@/components/admin/QRCodeDisplay";
 import BookScanModal from "@/components/admin/BookScanModal";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import Link from "next/link";
@@ -1322,25 +1324,70 @@ function BookDetailModal({ book, open, onOpenChange }: {
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="col-span-2">
-                <span className="text-gray-500">Barcode:</span>
+              <div className="col-span-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <QrCode className="w-3.5 h-3.5 text-emerald-700" />
+                    Digital Tags &amp; Physical Codes
+                  </span>
+                  {book.barcode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(book.barcode || "");
+                        toast({ title: "Copied!", description: `Barcode ${book.barcode} copied to clipboard`, variant: "success" });
+                      }}
+                      className="text-[11px] font-mono text-emerald-700 hover:text-emerald-800 bg-white border border-emerald-200 px-2 py-0.5 rounded-md hover:bg-emerald-50 transition-colors shadow-2xs"
+                    >
+                      Copy: {book.barcode}
+                    </button>
+                  )}
+                </div>
+
                 {book.barcode ? (
-                  <div className="mt-1 bg-white border border-gray-100 rounded-xl p-3 flex flex-col items-center">
-                    <BarcodeDisplay value={book.barcode} scale="md" showText={true} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* 2D QR Code */}
+                    <div className="bg-white border border-slate-200/90 rounded-xl p-3 flex flex-col items-center justify-center text-center shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                        <QrCode className="w-3 h-3 text-emerald-600" />
+                        2D QR Matrix (Mobile)
+                      </span>
+                      <QRCodeDisplay value={book.barcode} size={110} />
+                      <span className="font-mono text-[10px] text-slate-600 font-semibold mt-1">
+                        {book.barcode}
+                      </span>
+                    </div>
+
+                    {/* 1D Laser Barcode */}
+                    <div className="bg-white border border-slate-200/90 rounded-xl p-3 flex flex-col items-center justify-center text-center shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                        <Barcode className="w-3 h-3 text-emerald-600" />
+                        1D Code-128 (Laser)
+                      </span>
+                      <div className="py-2 flex items-center justify-center w-full overflow-hidden">
+                        <BarcodeDisplay value={book.barcode} scale="sm" showText={false} />
+                      </div>
+                      <span className="font-mono text-[10px] text-slate-600 font-semibold mt-1">
+                        {book.barcode}
+                      </span>
+                    </div>
                   </div>
                 ) : (
-                  <span className="font-medium font-mono ml-1">—</span>
+                  <div className="text-center py-4 text-slate-400 text-xs font-medium">
+                    No physical barcode assigned to this volume.
+                  </div>
                 )}
               </div>
-              <div><span className="text-gray-500">Category:</span> <span className="font-medium">{book.category}</span></div>
-              <div><span className="text-gray-500">Copies:</span> <span className="font-medium">{book.availableCopies}/{book.totalCopies} available</span></div>
-              <div><span className="text-gray-500">Rack:</span> <span className="font-medium">{book.rackNumber || "—"}</span></div>
-              <div><span className="text-gray-500">Shelf:</span> <span className="font-medium">{book.shelfNumber || "—"}</span></div>
+
+              <div><span className="text-gray-500">Category:</span> <span className="font-medium text-gray-900">{book.category}</span></div>
+              <div><span className="text-gray-500">Copies:</span> <span className="font-medium text-gray-900">{book.availableCopies}/{book.totalCopies} available</span></div>
+              <div><span className="text-gray-500">Rack:</span> <span className="font-medium text-gray-900">{book.rackNumber || "—"}</span></div>
+              <div><span className="text-gray-500">Shelf:</span> <span className="font-medium text-gray-900">{book.shelfNumber || "—"}</span></div>
               {book.locationColor && (
                 <div className="col-span-2 flex items-center gap-2">
                   <span className="text-gray-500">Spine Label:</span>
                   <div className={`w-4 h-4 rounded ${colorConfig[book.locationColor] || "bg-gray-200"}`} />
-                  <span className="font-medium">{book.locationColor}</span>
+                  <span className="font-medium text-gray-900">{book.locationColor}</span>
                 </div>
               )}
             </div>
@@ -1610,6 +1657,28 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
     }
   };
 
+  // ── Seed Institutional Catalog ──
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedCatalog = async () => {
+    if (!confirm("Populate standard institutional Maktabat books with barcodes & QR codes? Existing books will be preserved.")) return;
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/admin/library/seed-catalog", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Maktabat Catalog Ready", description: data.message, variant: "success" });
+        fetchBooks();
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to seed catalog", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to connect to library server", variant: "destructive" });
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   // ── Keyboard Shortcuts ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1698,8 +1767,12 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                   <Scan className="w-4 h-4 mr-1.5" /> Shelf Auditor
                 </Button>
               </Link>
-              <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95" onClick={() => setShowPrintLabelsModal(true)}>
-                <Printer className="w-4 h-4 mr-1.5" /> Print Labels
+              <Button
+                size="sm"
+                className="bg-emerald-800/80 hover:bg-emerald-700/80 text-white border border-emerald-400/40 font-semibold shadow-xs backdrop-blur-sm active:scale-95"
+                onClick={() => setShowPrintLabelsModal(true)}
+              >
+                <QrCode className="w-4 h-4 mr-1.5 text-amber-300" /> QR &amp; Barcode Studio
               </Button>
               <button
                 type="button"
@@ -1719,6 +1792,17 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
               </Button>
               <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95" onClick={() => setShowScanModal(true)}>
                 <Scan className="w-4 h-4 mr-1.5" /> Scan
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/20 font-medium active:scale-95"
+                onClick={handleSeedCatalog}
+                disabled={seeding}
+                title="Populate authentic Maktabat curriculum books with barcodes & QR codes"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${seeding ? "animate-spin" : ""}`} />
+                {seeding ? "Populating..." : "Sync Books"}
               </Button>
               <Button size="sm" className="btn-fatimi-gold text-white shadow-md active:scale-95" onClick={() => setShowAddModal(true)}>
                 <Plus className="w-4 h-4 mr-1.5" /> Add Book
