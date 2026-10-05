@@ -209,18 +209,55 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       const rawLower = (pageIdOrPath || "").toLowerCase().replace(/^page:/, "");
       if (assignedPages.some((a) => a.toLowerCase().replace(/^page:/, "") === rawLower)) return true;
 
-      // Attendance parent mapping: if attendance is assigned, grant manual-attendance, attendance-logs, attendance-schedule
-      if (
-        (key === "manual-attendance" || key === "attendance-logs" || key === "attendance-schedule") &&
-        (assignedPages.includes("attendance") || assignedPages.includes("PAGE:attendance") || normalizedAssigned.includes("manual-attendance") || normalizedAssigned.includes("attendance-logs"))
-      ) {
-        return true;
+      // Attendance mapping: if teacher has 'attendance', 'manual-attendance', or 'attendance-logs'
+      if (key === "manual-attendance") {
+        if (
+          assignedPages.includes("manual-attendance") ||
+          assignedPages.includes("attendance") ||
+          assignedPages.includes("PAGE:manual-attendance") ||
+          assignedPages.includes("PAGE:attendance") ||
+          assignedPages.includes("manual") ||
+          normalizedAssigned.includes("manual-attendance")
+        ) {
+          return true;
+        }
+      }
+
+      if (key === "attendance-logs") {
+        if (
+          assignedPages.includes("attendance-logs") ||
+          assignedPages.includes("attendance") ||
+          assignedPages.includes("PAGE:attendance-logs") ||
+          assignedPages.includes("PAGE:attendance") ||
+          assignedPages.includes("logs") ||
+          assignedPages.includes("log") ||
+          normalizedAssigned.includes("attendance-logs")
+        ) {
+          return true;
+        }
+      }
+
+      if (key === "attendance-schedule") {
+        if (
+          assignedPages.includes("attendance-schedule") ||
+          assignedPages.includes("attendance") ||
+          assignedPages.includes("PAGE:attendance-schedule") ||
+          assignedPages.includes("PAGE:attendance") ||
+          normalizedAssigned.includes("attendance-schedule")
+        ) {
+          return true;
+        }
       }
 
       // Medical mapping
       if (
         key === "medical-duty" &&
-        (assignedPages.includes("medical") || assignedPages.includes("PAGE:medical") || assignedPages.includes("medical-desk") || assignedPages.includes("medical-duty") || normalizedAssigned.includes("medical-duty"))
+        (assignedPages.includes("medical") ||
+          assignedPages.includes("PAGE:medical") ||
+          assignedPages.includes("medical-desk") ||
+          assignedPages.includes("medical-duty") ||
+          assignedPages.includes("PAGE:medical-duty") ||
+          normalizedAssigned.includes("medical-duty"))
       ) {
         return true;
       }
@@ -228,7 +265,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       // Legacy synonyms and parent page mappings
       if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("PAGE:hifz") || normalizedAssigned.includes("quran"))) return true;
       if (key === "hifz-marhala" && (assignedPages.includes("hifz") || assignedPages.includes("quran") || normalizedAssigned.includes("hifz-marhala"))) return true;
-      if (key === "passwords" && (assignedPages.includes("users") || assignedPages.includes("PAGE:users") || normalizedAssigned.includes("users"))) return true;
+      if (key === "passwords" && (assignedPages.includes("users") || assignedPages.includes("PAGE:users") || normalizedAssigned.includes("users") || normalizedAssigned.includes("passwords"))) return true;
 
       return false;
     },

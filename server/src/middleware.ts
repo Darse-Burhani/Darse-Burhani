@@ -80,8 +80,8 @@ export async function hasTeacherPageAuthority(userId: string, reqOrPages: Reques
     const cachedAssignments = await cache.getOrSet<string[]>(
       `teacher_assignments:${userId}`,
       async () => {
-        const profile = await prisma.teacherProfile.findUnique({
-          where: { userId },
+        const profile = await prisma.teacherProfile.findFirst({
+          where: { OR: [{ userId }, { id: userId }] },
           include: { portalAssignments: { where: { isActive: true } } },
         });
         if (!profile) return [];

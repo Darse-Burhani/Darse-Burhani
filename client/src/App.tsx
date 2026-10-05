@@ -307,15 +307,15 @@ export default function App() {
           }
         >
           <Route index element={<TeacherDashboard />} />
-          <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><ModuleLockGuard moduleKey="classes" role="TEACHER" title="My Classes"><TeacherClasses /></ModuleLockGuard></RequireAdminPageAccess>} />
-          <Route path="attendance" element={<RequireAdminPageAccess pageKey="manual-attendance"><ModuleLockGuard moduleKey="attendance" role="TEACHER" title="Manual Attendance"><TeacherAttendance /></ModuleLockGuard></RequireAdminPageAccess>} />
+          <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><TeacherClasses /></RequireAdminPageAccess>} />
+          <Route path="attendance" element={<RequireAdminPageAccess pageKey="manual-attendance"><TeacherAttendance /></RequireAdminPageAccess>} />
           <Route path="manual-attendance" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="medical-duty" element={<RequireAdminPageAccess pageKey="medical-duty"><TeacherMedicalDuty /></RequireAdminPageAccess>} />
-          <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><ModuleLockGuard moduleKey="leave" role="TEACHER" title="Leave Requests"><TeacherLeave /></ModuleLockGuard></RequireAdminPageAccess>} />
-          <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><ModuleLockGuard moduleKey="hifz" role="TEACHER" title="Hifz Reports"><TeacherHifz /></ModuleLockGuard></RequireAdminPageAccess>} />
-          <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><ModuleLockGuard moduleKey="hifz" role="TEACHER" title="Hifz Marhala"><TeacherHifzMarhala /></ModuleLockGuard></RequireAdminPageAccess>} />
-          <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><ModuleLockGuard moduleKey="hifz" role="TEACHER" title="Hifz Weekly Slips"><TeacherHifzWeeklySlip /></ModuleLockGuard></RequireAdminPageAccess>} />
-          <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><ModuleLockGuard moduleKey="takhteet" role="TEACHER" title="Takhteet"><TeacherTakhteet /></ModuleLockGuard></RequireAdminPageAccess>} />
+          <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><TeacherLeave /></RequireAdminPageAccess>} />
+          <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifz /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
+          <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
+          <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
           <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="parents" element={<RequireAdminPageAccess pageKey="parents"><AdminParents /></RequireAdminPageAccess>} />

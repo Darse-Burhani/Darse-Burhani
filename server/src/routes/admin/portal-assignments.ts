@@ -100,8 +100,8 @@ export function toPortalType(pageId: string): string | null {
 async function hasPortalManageAuthority(userId: string, role: string): Promise<boolean> {
   if (role === "ADMIN") return true;
   if (role !== "TEACHER") return false;
-  const profile = await prisma.teacherProfile.findUnique({
-    where: { userId },
+  const profile = await prisma.teacherProfile.findFirst({
+    where: { OR: [{ userId }, { id: userId }] },
     include: { portalAssignments: true },
   });
   if (!profile) return false;
@@ -145,8 +145,8 @@ router.get("/", requireAuth, async (req, res) => {
     if (!isAdmin && session.user.role === "TEACHER") {
       hasManageAuthority = await hasPortalManageAuthority(session.user.id, session.user.role);
       if (hasManageAuthority) {
-        currentTeacherProfile = await prisma.teacherProfile.findUnique({
-          where: { userId: session.user.id },
+        currentTeacherProfile = await prisma.teacherProfile.findFirst({
+          where: { OR: [{ userId: session.user.id }, { id: session.user.id }] },
           include: { portalAssignments: true },
         });
       }
@@ -155,8 +155,8 @@ router.get("/", requireAuth, async (req, res) => {
     // If explicit self-request OR teacher lacks manage authority, return their own page access profile
     if (isSelfRequest || (!isAdmin && !hasManageAuthority)) {
       if (!currentTeacherProfile) {
-        currentTeacherProfile = await prisma.teacherProfile.findUnique({
-          where: { userId: session.user.id },
+        currentTeacherProfile = await prisma.teacherProfile.findFirst({
+          where: { OR: [{ userId: session.user.id }, { id: session.user.id }] },
           include: { portalAssignments: true },
         });
       }
