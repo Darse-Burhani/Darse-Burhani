@@ -15,7 +15,7 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala progress & exams", path: "/teacher/hifz-marhala", icon: "GraduationCap" },
   { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
   { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
-  { id: "attendance-logs", label: "Attendance Logs", category: "Attendance", description: "Live scans, daily registry & student status", path: "/teacher/attendance-logs", icon: "FileText" },
+  { id: "attendance-logs", label: "Manual Attendance Logs", category: "Attendance", description: "View student roll-call registers, manual class entries & attendance logs (Faculty View)", path: "/teacher/attendance-logs", icon: "FileText" },
   { id: "attendance-schedule", label: "Attendance Schedule", category: "Attendance", description: "Scan windows, shifts & period timers", path: "/teacher/attendance-schedule", icon: "Clock" },
   { id: "email-reports", label: "Email Attendance Reports", category: "Attendance", description: "Automated attendance summaries & email delivery", path: "/teacher/attendance-emails", icon: "Mail" },
   { id: "biometric", label: "Biometric Scanners", category: "Attendance", description: "Device status & scanner management", path: "/teacher/biometric", icon: "Fingerprint" },

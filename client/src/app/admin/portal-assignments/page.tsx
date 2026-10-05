@@ -86,9 +86,9 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
   },
   {
     id: "attendance-logs",
-    label: "Attendance Logs",
+    label: "Manual Attendance Logs",
     category: "Attendance",
-    description: "Live biometric scans, punch logs & daily class registry",
+    description: "View student roll-call registers, manual class entries & attendance logs (Faculty View)",
     icon: FileText,
     badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
     cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",

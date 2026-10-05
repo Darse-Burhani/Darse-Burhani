@@ -1,6 +1,6 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
-import { requireRole } from "../../middleware";
+import { requireRole, requireAuth } from "../../middleware";
 import { normalizeDateToUTC } from "../../lib/leave-service";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } from "../../lib/attendance-scheduler";
@@ -59,7 +59,7 @@ function matchScheduledEvent(
 }
 
 // GET /api/admin/attendance-logs/events — Get available scheduled events / windows for toggling
-router.get("/events", requireRole("ADMIN"), async (req, res) => {
+router.get("/events", requireAuth, async (req, res) => {
   try {
     const windows = await prisma.biometricScanWindow.findMany({
       orderBy: { startTime: "asc" },
@@ -70,9 +70,10 @@ router.get("/events", requireRole("ADMIN"), async (req, res) => {
 
     const events = windows.map((w) => {
       const ww = w as any;
+      const isTilawatDua = /tilawat/i.test(w.name);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
-      const audience = legacyFaculty ? "FACULTY" : unifiedFaculty ? "BOTH" : "ALL_STUDENTS";
+      const audience = isTilawatDua ? "FACULTY" : legacyFaculty ? "FACULTY" : unifiedFaculty ? "BOTH" : "ALL_STUDENTS";
 
       const studentRange = eventRangeForRole(ww, "STUDENT");
       const facultyRange = eventRangeForRole(ww, "TEACHER");
@@ -105,7 +106,8 @@ router.get("/events", requireRole("ADMIN"), async (req, res) => {
         facultyEndTime: ww.facultyEndTime ?? null,
         facultyLateEndTime: ww.facultyLateEndTime ?? ww.facultyEndTime ?? null,
         facultyEnabled: ww.facultyEnabled ?? true,
-        hasFacultyTimer: unifiedFaculty || legacyFaculty,
+        hasFacultyTimer: unifiedFaculty || legacyFaculty || isTilawatDua,
+        isTilawatDua,
         enabled: w.enabled,
         audience,
         status,
@@ -121,19 +123,30 @@ router.get("/events", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/admin/attendance-logs — Day-by-day attendance log with schedule event matching
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireAuth, async (req, res) => {
   try {
+    const isTeacher = req.auth?.user.role === "TEACHER";
     const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const { grade, section, status, source, search, eventWindowId, audience = "STUDENT" } = req.query;
+    let { grade, section, status, source, search, eventWindowId, audience = "STUDENT", logType = "ALL" } = req.query as Record<string, string>;
+
+    // If teacher/faculty is accessing the portal, enforce MANUAL attendance log only
+    if (isTeacher) {
+      logType = "MANUAL";
+    }
 
     // Fetch scheduled windows for event matching
     const windows = await prisma.biometricScanWindow.findMany({
       orderBy: { startTime: "asc" },
     });
 
-    // 1. Fetch Students
+    const isTilawatFilter = Boolean(
+      eventWindowId &&
+      (eventWindowId === "default" || windows.some((w) => w.id === eventWindowId && /tilawat/i.test(w.name)))
+    );
+
+    // 1. Fetch Students (unless Tilawat Dua is active which is Faculty-only)
     const studentWhere: any = {
       user: { isActive: true },
     };
@@ -157,7 +170,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     }
 
     let studentRecords: any[] = [];
-    if (audience === "STUDENT" || audience === "ALL") {
+    if (!isTilawatFilter && (audience === "STUDENT" || audience === "ALL")) {
       const students = await prisma.studentProfile.findMany({
         where: studentWhere,
         include: {
@@ -269,9 +282,9 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       });
     }
 
-    // 2. Fetch Faculty / Teachers if requested
+    // 2. Fetch Faculty / Teachers (includes Tilawat Dua scanning)
     let facultyRecords: any[] = [];
-    if (audience === "FACULTY" || audience === "ALL") {
+    if (isTilawatFilter || audience === "FACULTY" || audience === "ALL") {
       const teacherWhere: any = {
         user: { isActive: true },
       };
@@ -340,12 +353,24 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       });
     }
 
-    const allRecords = [...studentRecords, ...facultyRecords];
+    // For Tilawat Dua, show faculty scanning attendance only
+    if (isTilawatFilter) {
+      facultyRecords = facultyRecords.filter((r) => r.source === "SCAN" || r.status !== "NOT_MARKED" || !logType || logType === "ALL" || logType === "HIKVISION");
+    }
+
+    const allRecords = isTilawatFilter ? facultyRecords : [...studentRecords, ...facultyRecords];
 
     // 3. Filter by Event Window if specified
     let filteredRecords = allRecords;
     if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
-      filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId);
+      filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId || (isTilawatFilter && r.role === "FACULTY"));
+    }
+
+    // Total Separation of Logs: Hikvision vs Manual
+    if (logType === "HIKVISION") {
+      filteredRecords = filteredRecords.filter((r) => r.source === "SCAN" || r.source === "BIOMETRIC");
+    } else if (logType === "MANUAL") {
+      filteredRecords = filteredRecords.filter((r) => r.source !== "SCAN" && r.source !== "BIOMETRIC");
     }
 
     // Filter by Status
@@ -358,12 +383,6 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       filteredRecords = filteredRecords.filter((r) => r.source === source);
     }
 
-    // 4. Calculate Summary Counters — BUGFIX: audience-isolated + filter-aware
-    // Previously summary was always computed from allRecords, so selecting
-    // a specific Event / Status / Source filter never updated the numbers.
-    // Now we compute BOTH the live filtered summary (for the numbers the
-    // user sees) and the audience totals (for context), plus split
-    // Talabat vs Faculty counters so the UI can show proper separated numbers.
     function countSummary(list: typeof allRecords) {
       let present = 0, late = 0, absent = 0, medical = 0, onLeave = 0, notMarked = 0;
       let scanned = 0, manual = 0, autoAbsent = 0, medicalLeave = 0, leaveApproved = 0;
@@ -384,14 +403,18 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         sources: { scanned, manual, autoAbsent, medicalLeave, leaveApproved } };
     }
 
-    // Filter-aware summary (what the metric cards should display)
+    // Filter-aware summary
     const summary = countSummary(filteredRecords);
-    // Audience-isolated live rosters (for "both" glitch — never mix counts)
     const talabatSummary = countSummary(studentRecords);
     const facultySummary = countSummary(facultyRecords);
     const overallSummary = countSummary(allRecords);
 
-    // Per-event live counts for the Event chips (so each chip shows its live number)
+    const hikvisionRecords = allRecords.filter((r) => r.source === "SCAN" || r.source === "BIOMETRIC");
+    const manualRecords = allRecords.filter((r) => r.source !== "SCAN" && r.source !== "BIOMETRIC");
+    const hikvisionSummary = countSummary(hikvisionRecords);
+    const manualSummary = countSummary(manualRecords);
+
+    // Per-event live counts
     const eventLiveCounts: Record<string, number> = {};
     for (const r of allRecords) {
       const eid = r.scheduledEvent?.id;
@@ -401,7 +424,6 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     const distinctGrades = Array.from(new Set(studentRecords.map((s) => s.grade).filter(Boolean))).sort();
     const distinctSections = Array.from(new Set(studentRecords.map((s) => s.section).filter(Boolean))).sort();
 
-    // No-cache for live polling
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.setHeader("Pragma", "no-cache");
 
@@ -410,12 +432,16 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       data: {
         date: dayStart.toISOString(),
         summary,
-        // Extra live splits so frontend can show proper Talabat vs Faculty numbers without mixing
         talabatSummary,
         facultySummary,
         overallSummary,
+        hikvisionSummary,
+        manualSummary,
         eventLiveCounts,
-        audience,
+        audience: isTilawatFilter ? "FACULTY" : audience,
+        logType,
+        isTeacherView: isTeacher,
+        isTilawatDua: isTilawatFilter,
         filters: {
           grades: distinctGrades,
           sections: distinctSections,

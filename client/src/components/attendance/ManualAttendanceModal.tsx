@@ -41,22 +41,13 @@ interface ScheduledWindow {
   name: string;
   startTime: string;
   endTime: string;
-  lateEndTime: string;
-  graceMinutes: number;
   enabled: boolean;
-  hasFacultyTimer: boolean;
-  facultyStartTime?: string;
-  facultyEndTime?: string;
-  facultyLateEndTime?: string;
-  facultyEnabled?: boolean;
-  applicableTeacherIds?: string[];
 }
 
 interface ManualAttendanceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialScheduleId?: string;
-  initialTargetType?: "ALL" | "STUDENT" | "TEACHER";
   initialDate?: string;
   onSuccess?: () => void;
 }
@@ -113,13 +104,12 @@ export function ManualAttendanceModal({
   open,
   onOpenChange,
   initialScheduleId = "",
-  initialTargetType = "ALL",
   initialDate,
   onSuccess,
 }: ManualAttendanceModalProps) {
   const [scheduledWindows, setScheduledWindows] = useState<ScheduledWindow[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState(initialScheduleId);
-  const [targetType, setTargetType] = useState<"ALL" | "STUDENT" | "TEACHER">(initialTargetType);
+  const targetType = "STUDENT";
   const [date, setDate] = useState(() => initialDate || new Date().toISOString().slice(0, 10));
 
   // Filters
@@ -164,17 +154,17 @@ export function ManualAttendanceModal({
     return scheduledWindows.find((w) => w.id === selectedScheduleId) || scheduledWindows[0] || null;
   }, [scheduledWindows, selectedScheduleId]);
 
-  // Load candidate roster whenever schedule event ID, audience, filters or date changes
+  // Load candidate roster whenever schedule event ID, filters or date changes
   const fetchRoster = useCallback(async () => {
     if (!open) return;
     setLoadingRoster(true);
     try {
       const params = new URLSearchParams({
         scheduleId: selectedScheduleId || "",
-        targetType,
+        targetType: "STUDENT",
         date,
-        ...(targetType === "STUDENT" && selectedGrade !== "ALL" ? { grade: selectedGrade } : {}),
-        ...(targetType === "STUDENT" && selectedSection !== "ALL" ? { section: selectedSection } : {}),
+        ...(selectedGrade !== "ALL" ? { grade: selectedGrade } : {}),
+        ...(selectedSection !== "ALL" ? { section: selectedSection } : {}),
       });
 
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`);
@@ -205,13 +195,13 @@ export function ManualAttendanceModal({
     } finally {
       setLoadingRoster(false);
     }
-  }, [open, selectedScheduleId, targetType, selectedGrade, selectedSection, date, activeWindow]);
+  }, [open, selectedScheduleId, selectedGrade, selectedSection, date, activeWindow]);
 
   useEffect(() => {
     if (open && (selectedScheduleId || scheduledWindows.length > 0)) {
       fetchRoster();
     }
-  }, [open, selectedScheduleId, targetType, selectedGrade, selectedSection, date, fetchRoster, scheduledWindows.length]);
+  }, [open, selectedScheduleId, selectedGrade, selectedSection, date, fetchRoster, scheduledWindows.length]);
 
   const statusCounts = useMemo(() => {
     let present = 0, late = 0, absent = 0, medical = 0, onLeave = 0;
@@ -226,12 +216,7 @@ export function ManualAttendanceModal({
   }, [roster]);
 
   const filteredRoster = useMemo(() => {
-    let list = roster;
-    if (targetType === "STUDENT") {
-      list = list.filter((r) => r.targetType === "STUDENT");
-    } else if (targetType === "TEACHER") {
-      list = list.filter((r) => r.targetType === "TEACHER");
-    }
+    let list = roster.filter((r) => r.targetType === "STUDENT" || !r.targetType);
     if (statusFilter !== "ALL") {
       list = list.filter((r) => r.currentStatus === statusFilter);
     }
@@ -243,9 +228,10 @@ export function ManualAttendanceModal({
         r.email?.toLowerCase().includes(q) ||
         r.identifier?.toLowerCase().includes(q) ||
         r.its?.toLowerCase().includes(q) ||
-        r.department?.toLowerCase().includes(q)
+        r.grade?.toLowerCase().includes(q) ||
+        r.section?.toLowerCase().includes(q)
     );
-  }, [roster, targetType, statusFilter, search]);
+  }, [roster, statusFilter, search]);
 
   const updateItemStatus = (id: string, status: AttendanceStatus) => {
     setRoster((prev) =>
@@ -278,7 +264,7 @@ export function ManualAttendanceModal({
     try {
       const records = roster.map((item) => ({
         id: item.id,
-        targetType: item.targetType,
+        targetType: "STUDENT",
         status: item.currentStatus,
         remarks: item.customRemarks ? item.customRemarks.trim() : undefined,
       }));
@@ -286,7 +272,7 @@ export function ManualAttendanceModal({
       const payload = {
         scheduleId: selectedScheduleId || undefined,
         date,
-        targetType,
+        targetType: "STUDENT",
         records,
       };
 
@@ -301,7 +287,7 @@ export function ManualAttendanceModal({
         toast({
           variant: "success",
           title: "Attendance Recorded",
-          description: json.message || `Successfully saved manual attendance for ${records.length} candidate(s).`,
+          description: json.message || `Successfully saved manual attendance for ${records.length} Talabat student(s).`,
         });
         onOpenChange(false);
         if (onSuccess) onSuccess();
@@ -329,22 +315,22 @@ export function ManualAttendanceModal({
               <CheckCircle2 className="w-5 h-5 text-amber-300" />
             </div>
             <div>
-              <p className="text-xl font-black text-gray-900 tracking-tight">Record Manual Attendance</p>
+              <p className="text-xl font-black text-gray-900 tracking-tight">Record Manual Attendance — Talabat</p>
               <p className="text-xs text-gray-500 font-medium">
-                Mark attendance for all applicable <strong>Talabat</strong> &amp; <strong>Faculty</strong> users.
+                Mark manual attendance for <strong>Talabat students</strong> with instant window status.
               </p>
             </div>
           </ModalTitle>
         </ModalHeader>
 
         <div className="space-y-4 py-2">
-          {/* ── Schedule Event Window Selector & Audience ── */}
+          {/* ── Schedule Event Window Selector ── */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] flex items-center gap-1.5 mb-1.5">
                   <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                  Scheduled Attendance Window
+                  Attendance Window
                 </label>
                 <select
                   value={selectedScheduleId}
@@ -353,54 +339,16 @@ export function ManualAttendanceModal({
                 >
                   {scheduledWindows.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} · ({w.startTime} - {w.endTime}{w.lateEndTime && w.lateEndTime !== w.endTime ? ` | Late till ${w.lateEndTime}` : ""})
+                      {w.name} ({w.startTime} - {w.endTime}) — Window Open
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="shrink-0">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] flex items-center gap-1.5 mb-1.5">
-                  <Users className="w-3.5 h-3.5 text-emerald-600" />
-                  Audience Scope
-                </label>
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100 border border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => setTargetType("ALL")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                      targetType === "ALL"
-                        ? "bg-white text-emerald-950 shadow-sm border border-emerald-300"
-                        : "text-gray-500 hover:text-gray-800"
-                    }`}
-                  >
-                    <Users className="w-3.5 h-3.5 text-emerald-700" />
-                    All Users
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetType("STUDENT")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                      targetType === "STUDENT"
-                        ? "bg-white text-emerald-900 shadow-sm border border-emerald-200"
-                        : "text-gray-500 hover:text-gray-800"
-                    }`}
-                  >
-                    <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-                    Talabat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetType("TEACHER")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                      targetType === "TEACHER"
-                        ? "bg-white text-emerald-900 shadow-sm border border-emerald-200"
-                        : "text-gray-500 hover:text-gray-800"
-                    }`}
-                  >
-                    <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                    Faculty
-                  </button>
+              <div className="shrink-0 flex items-end">
+                <div className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                  <span>Window Open for Marking Attendance</span>
                 </div>
               </div>
             </div>
@@ -417,7 +365,7 @@ export function ManualAttendanceModal({
                 />
               </div>
 
-              {targetType === "STUDENT" && grades.length > 0 && (
+              {grades.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-gray-700">Grade:</span>
                   <select
@@ -433,7 +381,7 @@ export function ManualAttendanceModal({
                 </div>
               )}
 
-              {targetType === "STUDENT" && sections.length > 0 && (
+              {sections.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-gray-700">Section:</span>
                   <select
@@ -529,12 +477,11 @@ export function ManualAttendanceModal({
             ) : filteredRoster.length === 0 ? (
               <div className="p-10 text-center text-gray-500 space-y-1">
                 <p className="text-sm font-bold text-gray-700">No candidates match current selection</p>
-                <p className="text-xs text-gray-400">Change audience, filters, or search term to view roster.</p>
+                <p className="text-xs text-gray-400">Change filters or search term to view roster.</p>
               </div>
             ) : (
               <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100">
                 {filteredRoster.map((item) => {
-                  const isFaculty = item.targetType === "TEACHER";
                   return (
                     <div
                       key={item.id}
@@ -542,30 +489,19 @@ export function ManualAttendanceModal({
                     >
                       {/* Member Info */}
                       <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isFaculty
-                              ? "bg-blue-100 text-blue-800 border border-blue-200"
-                              : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          }`}
-                        >
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 bg-emerald-100 text-emerald-800 border border-emerald-200">
                           {getInitials(item.name)}
                         </div>
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-900 truncate">{item.name}</span>
-                            <span
-                              className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                                isFaculty ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              }`}
-                            >
-                              {isFaculty ? "Faculty" : `Grade ${item.grade || "1"}-${item.section || "A"}`}
+                            <span className="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Grade {item.grade || "1"}-{item.section || "A"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px] text-gray-500 font-medium">
-                            <span className="font-mono">{item.identifier || item.its}</span>
-                            {item.department && <span>· {item.department}</span>}
+                            <span className="font-mono">ITS: {item.identifier || item.its}</span>
                           </div>
                         </div>
                       </div>

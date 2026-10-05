@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,8 @@ import {
   Layers,
   Briefcase,
   ClipboardCheck,
+  Zap,
+  UserCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -160,12 +163,21 @@ function getTodayDateString(): string {
 
 export default function AdminAttendanceLogsPage() {
   const todayStr = getTodayDateString();
+  const { data: session } = useSession();
+  const isFaculty = session?.user?.role === "TEACHER";
 
   const [date, setDate] = useState<string>(todayStr);
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [selectedEventId, setSelectedEventId] = useState<string>("ALL");
   const [audience, setAudience] = useState<"STUDENT" | "FACULTY" | "ALL">("STUDENT");
+  const [logType, setLogType] = useState<"HIKVISION" | "MANUAL" | "ALL">(isFaculty ? "MANUAL" : "ALL");
+
+  useEffect(() => {
+    if (isFaculty) {
+      setLogType("MANUAL");
+    }
+  }, [isFaculty]);
 
   const [data, setData] = useState<AttendanceLogsResponse | null>(null);
   const [events, setEvents] = useState<ScheduledEventWindow[]>([]);
@@ -205,12 +217,14 @@ export default function AdminAttendanceLogsPage() {
       else setLoading(true);
       setError(null);
       try {
+        const effectiveLogType = isFaculty ? "MANUAL" : logType;
         const res = await getAttendanceLogs({
           date,
           grade: selectedGrade || undefined,
           section: selectedSection || undefined,
           eventWindowId: selectedEventId !== "ALL" ? selectedEventId : undefined,
           audience,
+          logType: effectiveLogType,
         });
         setData(res);
         setLastUpdatedAt(new Date().toISOString());
@@ -220,7 +234,7 @@ export default function AdminAttendanceLogsPage() {
         // Persist all-days to localStorage
         try {
           const archiveAudience = "ALL";
-          const archiveRes = audience === "ALL" ? res : await getAttendanceLogs({ date, audience: archiveAudience as any });
+          const archiveRes = audience === "ALL" ? res : await getAttendanceLogs({ date, audience: archiveAudience as any, logType: "ALL" });
           saveDailyArchive(date, {
             records: archiveRes.records,
             summary: archiveRes.summary,
@@ -237,7 +251,7 @@ export default function AdminAttendanceLogsPage() {
         setRefreshing(false);
       }
     },
-    [date, selectedGrade, selectedSection, selectedEventId, audience]
+    [date, selectedGrade, selectedSection, selectedEventId, audience, logType, isFaculty]
   );
 
   // Initial
@@ -389,20 +403,26 @@ export default function AdminAttendanceLogsPage() {
   });
 
   const totalLiveCount = data?.summary.total ?? 0;
+  const isTilawatSelected = Boolean(
+    data?.isTilawatDua ||
+    events.find((e) => e.id === selectedEventId && /tilawat/i.test(e.name))
+  );
 
   return (
     <div className="p-3 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
-      {/* ── Attendance Hub Navigation Tabs ── */}
-      <AdminHubTabs
-        hubTitle="Attendance & Biometric Center"
-        hubDescription="Real-time terminal monitoring, manual classroom registers, scan windows, and automated reports."
-        tabs={[
-          { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
-          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
-          { label: "Live Scans & Logs", href: "/admin/attendance-logs", icon: FileText, badge: "Audit" },
-          { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-                  ]}
-      />
+      {/* ── Attendance Hub Navigation Tabs (Admin Only) ── */}
+      {!isFaculty && (
+        <AdminHubTabs
+          hubTitle="Attendance & Biometric Center"
+          hubDescription="Real-time terminal monitoring, manual classroom registers, scan windows, and automated reports."
+          tabs={[
+            { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
+            { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
+            { label: "Live Scans & Logs", href: "/admin/attendance-logs", icon: FileText, badge: "Audit" },
+            { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          ]}
+        />
+      )}
 
       {/* ── Premium Streamlined Header ── */}
       <div className="relative overflow-hidden rounded-[20px] border border-emerald-100 bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 p-5 sm:p-6 shadow-lg">
@@ -412,13 +432,19 @@ export default function AdminAttendanceLogsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-[18px] sm:text-[22px] font-black tracking-tight text-white flex items-center gap-2">
                 <span className="inline-flex w-8 h-8 rounded-xl bg-white/10 border border-white/15 items-center justify-center">
-                  <Layers className="w-4 h-4 text-emerald-300" />
+                  {logType === "HIKVISION" ? <Fingerprint className="w-4 h-4 text-emerald-300" /> : <FileText className="w-4 h-4 text-emerald-300" />}
                 </span>
-                Attendance Logs
+                {isFaculty ? "Manual Attendance Logs" : logType === "HIKVISION" ? "Hikvision Biometric Scan Logs" : logType === "MANUAL" ? "Manual Classroom Attendance Logs" : "Attendance Logs & Verification"}
               </h1>
             </div>
             <p className="text-[12px] leading-relaxed text-emerald-100/80 max-w-2xl">
-              Real-time daily attendance roster, biometric verification records, and automated cloud sync.
+              {isFaculty
+                ? "Faculty view — review student classroom roll-call entries, manual status marks, and excused absences."
+                : logType === "HIKVISION"
+                ? "Direct hardware scan logs from Hikvision terminals with punch timestamps and verification methods."
+                : logType === "MANUAL"
+                ? "Teacher roll-call registers, manual overrides, medical exemptions, and approved leaves."
+                : "Real-time daily attendance roster, biometric verification records, and automated cloud sync."}
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/10 text-emerald-100 border border-white/15">
@@ -431,18 +457,11 @@ export default function AdminAttendanceLogsPage() {
                   {totalLiveCount} records • {date}
                 </span>
               )}
-              {isLive && date === todayStr && events.length > 0 && (
-                selectedWindowOpen ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-400 text-emerald-950">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse" />
-                    Auto-pull live — window open
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/10 text-amber-200 border border-amber-300/30">
-                    <EyeOff className="w-3.5 h-3.5" />
-                    Auto-pull paused — window closed
-                  </span>
-                )
+              {isTilawatSelected && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-amber-400 text-slate-950 shadow-md">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Tilawat al-Dua — Faculty Scanning Attendance Only
+                </span>
               )}
             </div>
           </div>
@@ -498,7 +517,7 @@ export default function AdminAttendanceLogsPage() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
             </button>
 
-            {/* Single Streamlined CSV Download Group */}
+            {/* CSV Download Group */}
             <div className="flex items-center rounded-xl bg-white/10 p-1 border border-white/15 shadow-md">
               <a
                 href={exportUrl}
@@ -530,6 +549,74 @@ export default function AdminAttendanceLogsPage() {
         </div>
       </div>
 
+      {/* ── Log Subsystem Switcher (Hikvision vs Manual Logs Separated Totally) ── */}
+      {!isFaculty && (
+        <div className="p-1.5 rounded-2xl bg-gray-100 border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 ml-2">Log Mode:</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
+            {/* Hikvision Biometric Log Pill */}
+            <button
+              type="button"
+              onClick={() => setLogType("HIKVISION")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                logType === "HIKVISION"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md font-black ring-2 ring-emerald-500/40"
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              <Fingerprint className={`w-3.5 h-3.5 ${logType === "HIKVISION" ? "text-emerald-200" : "text-emerald-600"}`} />
+              <span>Hikvision Biometric Log</span>
+              {data?.hikvisionSummary && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "HIKVISION" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>
+                  {data.hikvisionSummary.total}
+                </span>
+              )}
+            </button>
+
+            {/* Manual Attendance Log Pill */}
+            <button
+              type="button"
+              onClick={() => setLogType("MANUAL")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                logType === "MANUAL"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md font-black ring-2 ring-blue-500/40"
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              <ClipboardCheck className={`w-3.5 h-3.5 ${logType === "MANUAL" ? "text-blue-200" : "text-blue-600"}`} />
+              <span>Manual Attendance Log</span>
+              {data?.manualSummary && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "MANUAL" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-800"}`}>
+                  {data.manualSummary.total}
+                </span>
+              )}
+            </button>
+
+            {/* All Combined Logs Pill */}
+            <button
+              type="button"
+              onClick={() => setLogType("ALL")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                logType === "ALL"
+                  ? "bg-slate-900 text-white shadow-md font-black ring-2 ring-slate-700"
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              <Layers className={`w-3.5 h-3.5 ${logType === "ALL" ? "text-amber-300" : "text-gray-500"}`} />
+              <span>All Combined</span>
+              {data?.overallSummary && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "ALL" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-800"}`}>
+                  {data.overallSummary.total}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Audience + Event Filter Bar — Live counts ── */}
       <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -541,35 +628,44 @@ export default function AdminAttendanceLogsPage() {
             {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
           </div>
 
-          <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
-            <button
-              type="button"
-              onClick={() => setAudience("STUDENT")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              Talabat
-              {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudience("FACULTY")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              Faculty
-              {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudience("ALL")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              All
-              {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
-            </button>
-          </div>
+          {!isTilawatSelected && (
+            <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setAudience("STUDENT")}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+              >
+                <GraduationCap className="w-3.5 h-3.5" />
+                Talabat
+                {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudience("FACULTY")}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                Faculty
+                {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudience("ALL")}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                All
+                {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
+              </button>
+            </div>
+          )}
+
+          {isTilawatSelected && (
+            <div className="px-3.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>Tilawat al-Dua — Showing Faculty Scanning Only</span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -585,6 +681,7 @@ export default function AdminAttendanceLogsPage() {
           {events.map((ev) => {
             const isSelected = selectedEventId === ev.id;
             const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
+            const isTilawat = /tilawat/i.test(ev.name);
             return (
               <button
                 key={ev.id}
@@ -592,8 +689,9 @@ export default function AdminAttendanceLogsPage() {
                 onClick={() => setSelectedEventId(ev.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300"}`}
               >
-                <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : "text-emerald-600"}`} />
+                <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isTilawat ? "text-amber-500" : "text-emerald-600"}`} />
                 <span>{ev.name}</span>
+                {isTilawat && <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold">Faculty Only</span>}
                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/15 text-emerald-100" : "bg-gray-100 text-gray-600"}`}>{ev.timeDisplay}</span>
                 {liveCount !== null && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? "bg-amber-400 text-emerald-950" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{liveCount}</span>
@@ -652,7 +750,6 @@ export default function AdminAttendanceLogsPage() {
         open={manualModalOpen}
         onOpenChange={setManualModalOpen}
         initialScheduleId={selectedEventId !== "ALL" ? selectedEventId : undefined}
-        initialTargetType={audience === "FACULTY" ? "TEACHER" : "STUDENT"}
         initialDate={date}
         onSuccess={() => fetchData(true)}
       />

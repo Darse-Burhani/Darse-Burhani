@@ -213,13 +213,12 @@ const STATUS_CONFIG: {
 ];
 
 export default function AdminManualAttendancePage() {
-  const [targetType, setTargetType] = useState<"ALL" | "STUDENT" | "TEACHER">("STUDENT");
+  const targetType = "STUDENT";
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [scheduledWindows, setScheduledWindows] = useState<ScheduledWindow[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [grades, setGrades] = useState<string[]>([]);
   const [sections, setSections] = useState<string[]>([]);
-  const [department, setDepartment] = useState<string>("ALL");
 
   // Filters & Layout Mode
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("");
@@ -293,24 +292,25 @@ export default function AdminManualAttendancePage() {
     try {
       setLoadingRoster(true);
       const params = new URLSearchParams({
-        targetType,
+        targetType: "STUDENT",
         date,
       });
       if (selectedScheduleId) params.set("scheduleId", selectedScheduleId);
       if (selectedClassId && selectedClassId !== "ALL") params.set("classId", selectedClassId);
       if (selectedGrade && selectedGrade !== "ALL") params.set("grade", selectedGrade);
       if (selectedSection && selectedSection !== "ALL") params.set("section", selectedSection);
-      if (department && department !== "ALL") params.set("department", department);
 
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`, {
         headers: { "Content-Type": "application/json" },
       });
       const json = await res.json();
       if (json.success && json.data?.roster) {
-        const list: RosterMember[] = json.data.roster.map((m: any) => ({
-          ...m,
-          originalStatus: m.status,
-        }));
+        const list: RosterMember[] = json.data.roster
+          .filter((m: any) => m.targetType === "STUDENT" || !m.targetType)
+          .map((m: any) => ({
+            ...m,
+            originalStatus: m.status,
+          }));
         setRoster(list);
         setHasChanges(false);
         setFocusedIndex(list.length > 0 ? 0 : null);
@@ -324,69 +324,31 @@ export default function AdminManualAttendancePage() {
     } finally {
       setLoadingRoster(false);
     }
-  }, [targetType, date, selectedScheduleId, selectedClassId, selectedGrade, selectedSection, department]);
+  }, [date, selectedScheduleId, selectedClassId, selectedGrade, selectedSection]);
 
   useEffect(() => {
     loadRoster();
   }, [loadRoster]);
 
-  // Active Window Timing Status
+  // Active Window Timing Status - Simply open for marking attendance
   const activeWindow = useMemo(() => {
     if (!selectedScheduleId) return scheduledWindows[0] || null;
     return scheduledWindows.find((w) => w.id === selectedScheduleId) || scheduledWindows[0] || null;
   }, [scheduledWindows, selectedScheduleId]);
 
   const windowTimingStatus = useMemo(() => {
-    if (!activeWindow) return { state: "UNKNOWN", text: "Full Day Register Open", color: "bg-emerald-50 text-emerald-900 border-emerald-300" };
-    const now = new Date();
-    const istMinutes = (now.getUTCHours() * 60 + now.getUTCMinutes() + 330) % 1440;
-
-    const isFac = targetType === "TEACHER" && activeWindow.hasFacultyTimer;
-    const startStr = isFac ? activeWindow.facultyStartTime || activeWindow.startTime : activeWindow.startTime;
-    const endStr = isFac ? activeWindow.facultyEndTime || activeWindow.endTime : activeWindow.endTime;
-    const lateStr = isFac ? activeWindow.facultyLateEndTime || activeWindow.lateEndTime || endStr : activeWindow.lateEndTime || endStr;
-
-    const [sh, sm] = (startStr || "07:00").split(":").map(Number);
-    const [eh, em] = (endStr || "08:15").split(":").map(Number);
-    const [lh, lm] = (lateStr || endStr || "08:30").split(":").map(Number);
-
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
-    const lateMin = lh * 60 + lm;
-
+    if (!activeWindow) {
+      return { state: "OPEN", text: "Window Open for Marking Attendance", color: "bg-emerald-100 text-emerald-950 border-emerald-400 ring-2 ring-emerald-400/30" };
+    }
     if (!activeWindow.enabled) {
       return { state: "DISABLED", text: "Session Disabled", color: "bg-gray-100 text-gray-700 border-gray-300" };
     }
-    if (istMinutes < startMin) {
-      const diff = startMin - istMinutes;
-      return {
-        state: "UPCOMING",
-        text: `Opens in ${diff}m (${startStr} IST)`,
-        color: "bg-amber-50 text-amber-900 border-amber-300",
-      };
-    }
-    if (istMinutes <= endMin) {
-      const diff = endMin - istMinutes;
-      return {
-        state: "OPEN",
-        text: `On-Time Window Open (${diff}m left)`,
-        color: "bg-emerald-100 text-emerald-950 border-emerald-400 ring-2 ring-emerald-400/30",
-      };
-    }
-    if (istMinutes <= lateMin) {
-      const diff = lateMin - istMinutes;
-      return {
-        state: "LATE",
-        text: `Late / Grace Window (${diff}m left)`,
-        color: "bg-amber-100 text-amber-950 border-amber-400 ring-2 ring-amber-400/30",
-      };
-    }
     return {
-      state: "CLOSED",
-      text: `Window Closed (Cutoff ${lateStr} IST)`,
-      color: "bg-rose-100 text-rose-950 border-rose-300",
+      state: "OPEN",
+      text: "Window Open for Marking Attendance",
+      color: "bg-emerald-100 text-emerald-950 border-emerald-400 ring-2 ring-emerald-400/30",
     };
-  }, [activeWindow, targetType, currentTimeStr]);
+  }, [activeWindow]);
 
   // Status Change for candidate
   const handleStatusChange = (memberId: string, newStatus: AttendanceStatus) => {
@@ -416,32 +378,27 @@ export default function AdminManualAttendancePage() {
     setHasChanges(true);
   };
 
-  // Strict Audience Filtering & Search
+  // Strict Student Audience Filtering & Search
   const filteredRoster = useMemo(() => {
     return roster.filter((m) => {
-      // 1. Strict audience group
-      if (targetType === "STUDENT" && m.targetType !== "STUDENT") return false;
-      if (targetType === "TEACHER" && m.targetType !== "TEACHER") return false;
-
-      // 2. Status filter
+      // 1. Status filter
       if (statusFilter !== "ALL") {
         if (statusFilter === "UNMARKED" && m.status !== "NOT_MARKED") return false;
         if (statusFilter !== "UNMARKED" && m.status !== statusFilter) return false;
       }
 
-      // 3. Search query
+      // 2. Search query
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
         m.name.toLowerCase().includes(q) ||
         m.identifier?.toLowerCase().includes(q) ||
         m.its?.toLowerCase().includes(q) ||
-        m.department?.toLowerCase().includes(q) ||
         m.grade?.toLowerCase().includes(q) ||
         m.section?.toLowerCase().includes(q)
       );
     });
-  }, [roster, targetType, statusFilter, searchQuery]);
+  }, [roster, statusFilter, searchQuery]);
 
   // Keyboard Hotkeys
   useEffect(() => {
@@ -678,10 +635,10 @@ export default function AdminManualAttendancePage() {
               </span>
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-display">
-                  Manual Classroom Attendance
+                  Manual Classroom Attendance — Talabat
                 </h1>
                 <p className="text-xs sm:text-sm text-emerald-100/90 font-medium mt-1">
-                  High-speed roll call for Talabat &amp; Faculty with instant one-touch marking, tablet kiosk mode, and dual cloud database sync.
+                  High-speed roll call for Talabat students with instant one-touch marking, tablet kiosk mode, and dual cloud database sync.
                 </p>
               </div>
             </div>
@@ -701,6 +658,11 @@ export default function AdminManualAttendancePage() {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md">
                 <CheckSquare className="w-3.5 h-3.5 text-emerald-300" />
                 Marked: <strong>{stats.marked} / {stats.total}</strong> ({stats.completionRate}%)
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-400/20 text-emerald-200 border border-emerald-400/40 backdrop-blur-md">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Window Open for Marking Attendance
               </span>
 
               {hasChanges && (
@@ -857,80 +819,21 @@ export default function AdminManualAttendancePage() {
         )}
       </AnimatePresence>
 
-      {/* ── Audience Segment Tabs (All / Talabat / Faculty) ── */}
-      <div className="p-1.5 rounded-2xl bg-gray-100 border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
-          {/* Talabat Students Pill */}
-          <button
-            type="button"
-            onClick={() => setTargetType("STUDENT")}
-            className={cn(
-              "px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2",
-              targetType === "STUDENT"
-                ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md font-black ring-2 ring-emerald-500/40 scale-102"
-                : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200/80"
-            )}
-          >
-            <GraduationCap className={cn("w-4 h-4", targetType === "STUDENT" ? "text-emerald-200" : "text-emerald-600")} />
-            <span>Talabat Students</span>
-            <span className={cn(
-              "px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold",
-              targetType === "STUDENT" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-900"
-            )}>
-              {audienceCounts.student}
-            </span>
-          </button>
-
-          {/* Faculty Staff Pill */}
-          <button
-            type="button"
-            onClick={() => setTargetType("TEACHER")}
-            className={cn(
-              "px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2",
-              targetType === "TEACHER"
-                ? "bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-md font-black ring-2 ring-indigo-500/40 scale-102"
-                : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200/80"
-            )}
-          >
-            <ShieldCheck className={cn("w-4 h-4", targetType === "TEACHER" ? "text-indigo-200" : "text-indigo-600")} />
-            <span>Faculty &amp; Staff</span>
-            <span className={cn(
-              "px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold",
-              targetType === "TEACHER" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-900"
-            )}>
-              {audienceCounts.teacher}
-            </span>
-          </button>
-
-          {/* All Combined Pill */}
-          <button
-            type="button"
-            onClick={() => setTargetType("ALL")}
-            className={cn(
-              "px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2",
-              targetType === "ALL"
-                ? "bg-slate-900 text-white shadow-md font-black ring-2 ring-slate-700 scale-102"
-                : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200/80"
-            )}
-          >
-            <Users className={cn("w-4 h-4", targetType === "ALL" ? "text-amber-300" : "text-gray-500")} />
-            <span>All Combined</span>
-            <span className={cn(
-              "px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold",
-              targetType === "ALL" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-800"
-            )}>
-              {audienceCounts.all}
-            </span>
-          </button>
+      {/* ── Active Session Window Status Strip ── */}
+      <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-bold text-gray-500">Audience Scope:</span>
+          <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-black text-xs px-2.5 py-0.5">
+            Talabat Students Only
+          </Badge>
         </div>
 
-        {/* Live Active Schedule Window Indicator */}
         {activeWindow && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-gray-500 font-medium">Session:</span>
+          <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
+            <span className="text-gray-500 font-medium">Active Session:</span>
             <span className="font-extrabold text-slate-900">{activeWindow.name}</span>
-            <span className="text-gray-400 font-mono font-normal">({activeWindow.startTime} - {activeWindow.endTime} IST)</span>
+            <span className="text-emerald-700 font-medium">({activeWindow.startTime} - {activeWindow.endTime} IST) — Window Open</span>
           </div>
         )}
       </div>
@@ -970,55 +873,34 @@ export default function AdminManualAttendancePage() {
                   <option value="">All Schedule Windows</option>
                   {scheduledWindows.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} ({w.startTime} - {w.endTime})
+                      {w.name} ({w.startTime} - {w.endTime}) — Window Open
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Class Selector (Students) or Department (Teachers) */}
-            {targetType !== "TEACHER" ? (
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                  Class / Section
-                </label>
-                <div className="relative">
-                  <BookOpen className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <select
-                    value={selectedClassId}
-                    onChange={(e) => setSelectedClassId(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                  >
-                    <option value="ALL">All Classes &amp; Sections</option>
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} (Grade {c.grade}-{c.section})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Class Selector (Students) */}
+            <div>
+              <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
+                Class / Section
+              </label>
+              <div className="relative">
+                <BookOpen className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                >
+                  <option value="ALL">All Classes &amp; Sections</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (Grade {c.grade}-{c.section})
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : (
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                  Faculty Department
-                </label>
-                <div className="relative">
-                  <Building2 className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <select
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                  >
-                    <option value="ALL">All Departments</option>
-                    <option value="Hifz">Hifz Faculty</option>
-                    <option value="Academic">Academic Teachers</option>
-                    <option value="Admin">Administration</option>
-                  </select>
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Instant Search Input */}
             <div>
@@ -1029,7 +911,7 @@ export default function AdminManualAttendancePage() {
                 <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search name, ITS number, class..."
+                  placeholder="Search student name, ITS, grade..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-10 pl-9 pr-8 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
@@ -1393,12 +1275,7 @@ export default function AdminManualAttendancePage() {
                       {member.avatarUrl && (
                         <AvatarImage src={member.avatarUrl} alt={member.name} className="object-cover object-center" />
                       )}
-                      <AvatarFallback className={cn(
-                        "font-black text-xs text-white",
-                        member.targetType === "TEACHER"
-                          ? "bg-gradient-to-br from-indigo-800 to-purple-900"
-                          : "bg-gradient-to-br from-emerald-800 to-teal-900"
-                      )}>
+                      <AvatarFallback className="font-black text-xs text-white bg-gradient-to-br from-emerald-800 to-teal-900">
                         {getInitials(member.name)}
                       </AvatarFallback>
                     </Avatar>
@@ -1410,14 +1287,9 @@ export default function AdminManualAttendancePage() {
                         </h4>
                         <Badge
                           variant="outline"
-                          className={cn(
-                            "text-[9px] font-extrabold px-2 py-0.5 rounded-full border",
-                            member.targetType === "TEACHER"
-                              ? "bg-indigo-50 text-indigo-800 border-indigo-200"
-                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          )}
+                          className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200"
                         >
-                          {member.targetType === "TEACHER" ? "Faculty" : "Talabat"}
+                          Talabat
                         </Badge>
                       </div>
 
@@ -1428,11 +1300,6 @@ export default function AdminManualAttendancePage() {
                         {member.grade && (
                           <span className="text-[11px] text-gray-600 font-semibold">
                             Grade {member.grade}-{member.section}
-                          </span>
-                        )}
-                        {member.department && (
-                          <span className="text-[11px] text-indigo-700 font-semibold truncate max-w-[110px]">
-                            {member.department}
                           </span>
                         )}
                       </div>

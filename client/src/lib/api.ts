@@ -126,8 +126,13 @@ export interface AttendanceLogsResponse {
   talabatSummary?: AttendanceLogsSummary;
   facultySummary?: AttendanceLogsSummary;
   overallSummary?: AttendanceLogsSummary;
+  hikvisionSummary?: AttendanceLogsSummary;
+  manualSummary?: AttendanceLogsSummary;
   eventLiveCounts?: Record<string, number>;
   audience?: "STUDENT" | "FACULTY" | "ALL";
+  logType?: "HIKVISION" | "MANUAL" | "ALL";
+  isTeacherView?: boolean;
+  isTilawatDua?: boolean;
   filters: {
     grades: string[];
     sections: string[];
@@ -401,6 +406,7 @@ export async function getAttendanceLogs(params?: {
   search?: string;
   eventWindowId?: string;
   audience?: "STUDENT" | "FACULTY" | "ALL";
+  logType?: "HIKVISION" | "MANUAL" | "ALL";
 }): Promise<AttendanceLogsResponse> {
   const query = new URLSearchParams();
   if (params?.date) query.set("date", params.date);
@@ -411,6 +417,7 @@ export async function getAttendanceLogs(params?: {
   if (params?.search) query.set("search", params.search);
   if (params?.eventWindowId) query.set("eventWindowId", params.eventWindowId);
   if (params?.audience) query.set("audience", params.audience);
+  if (params?.logType) query.set("logType", params.logType);
 
   return request<AttendanceLogsResponse>(`/api/admin/attendance-logs?${query.toString()}`);
 }
