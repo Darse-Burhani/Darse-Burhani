@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { getSessionUser, type SessionUser } from "./auth";
 import prisma from "./lib/prisma";
 import { cache } from "./lib/cache";
+import { toAssignedPageIds, normalizeCanonicalPageId } from "./routes/admin/portal-assignments";
 
 declare global {
   namespace Express {
@@ -92,20 +93,13 @@ export async function hasTeacherPageAuthority(userId: string, reqOrPages: Reques
     if (!cachedAssignments || cachedAssignments.length === 0) return false;
     if (cachedAssignments.includes("ALL") || cachedAssignments.includes("*")) return true;
 
-    const activePages = new Set(
-      cachedAssignments.map((t) => {
-        if (t === "HIFZ") return "quran";
-        if (t === "PORTAL-ASSIGNMENTS") return "portal-assignments";
-        if (t.startsWith("PAGE:")) return t.slice(5).toLowerCase();
-        return t.toLowerCase();
-      })
-    );
+    const assignedPages = new Set(toAssignedPageIds(cachedAssignments));
 
     let targetPages: string[] = [];
     if (typeof reqOrPages === "string") {
-      targetPages = [reqOrPages.toLowerCase()];
+      targetPages = normalizeCanonicalPageId(reqOrPages);
     } else if (Array.isArray(reqOrPages)) {
-      targetPages = reqOrPages.map((p) => p.toLowerCase());
+      targetPages = reqOrPages.flatMap((p) => normalizeCanonicalPageId(p));
     } else {
       targetPages = getRouteRequiredPages(reqOrPages);
     }
@@ -116,9 +110,11 @@ export async function hasTeacherPageAuthority(userId: string, reqOrPages: Reques
 
     return targetPages.some(
       (p) =>
-        activePages.has(p) ||
-        (p === "quran" && activePages.has("hifz")) ||
-        (p === "passwords" && activePages.has("users"))
+        assignedPages.has(p) ||
+        p === "dashboard" ||
+        p === "profile" ||
+        (p === "quran" && assignedPages.has("quran")) ||
+        (p === "passwords" && assignedPages.has("users"))
     );
   } catch (err) {
     console.error("Error checking teacher page authority:", err);

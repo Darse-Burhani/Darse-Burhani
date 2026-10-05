@@ -62,18 +62,25 @@ export function normalizePageKey(keyOrPath: string): string {
   let clean = keyOrPath.trim().toLowerCase();
   clean = clean.replace(/^\/+(admin|teacher|talabat|faculty|parent)\/+/, "");
   clean = clean.replace(/^\/+|\/+$/g, "");
+  clean = clean.replace(/^page:/, "");
   if (!clean || clean === "admin" || clean === "teacher") return "dashboard";
   if (clean === "hifz" || clean === "hifz-reports" || clean === "hifz-weekly-slip" || clean === "weekly-slips") return "quran";
-  if (clean === "attendance" || clean === "manual-attendance" || clean === "attendance-manual") return "manual-attendance";
-  if (clean === "attendance-emails" || clean === "attendance-email") return "email-reports";
-  if (clean === "attendance-log" || clean === "attendance-registry") return "attendance-logs";
-  if (clean === "schedule") return "attendance-schedule";
-  if (clean === "makhzn") return "makhzan";
+  if (clean === "hifz-marhala" || clean === "hifz_marhala" || clean === "marhala") return "hifz-marhala";
+  if (clean === "attendance" || clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance_manual" || clean === "manual_attendance" || clean === "manual") return "manual-attendance";
+  if (clean === "attendance-emails" || clean === "attendance-email" || clean === "email-reports" || clean === "email_reports" || clean === "emails") return "email-reports";
+  if (clean === "attendance-log" || clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry") return "attendance-logs";
+  if (clean === "schedule" || clean === "attendance-schedule" || clean === "attendance_schedule") return "attendance-schedule";
+  if (clean === "biometric" || clean === "biometrics" || clean === "scanners") return "biometric";
+  if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return "medical-duty";
+  if (clean === "makhzn" || clean === "makhzan" || clean === "warehouse" || clean === "inventory") return "makhzan";
   if (clean.startsWith("library")) return "library";
   if (clean.startsWith("parents")) return "parents";
-  if (clean === "credentials") return "passwords";
-  if (clean === "analytics") return "tracking";
-  if (clean === "point-rules") return "point-matrix";
+  if (clean === "credentials" || clean === "passwords") return "passwords";
+  if (clean === "analytics" || clean === "tracking") return "tracking";
+  if (clean === "point-rules" || clean === "point-matrix" || clean === "point_matrix" || clean === "points") return "point-matrix";
+  if (clean === "portal-assignments" || clean === "portal_assignments" || clean === "assignments") return "portal-assignments";
+  if (clean === "notifications" || clean === "broadcasts") return "notifications";
+  if (clean === "security" || clean === "audit") return "security";
   return clean;
 }
 
@@ -86,7 +93,9 @@ function navKeyToModuleConfigKey(navKey: string): string {
   if (
     navKey === "manual-attendance" ||
     navKey === "attendance-logs" ||
-    navKey === "attendance-schedule"
+    navKey === "attendance-schedule" ||
+    navKey === "email-reports" ||
+    navKey === "biometric"
   )
     return "attendance";
   return navKey;
@@ -169,25 +178,6 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
     }
   }, [status, fetchModules]);
 
-  const isModuleVisible = useCallback(
-    (moduleKey: string, targetRole?: string) => {
-      const role = (targetRole || session?.user?.role || "").toUpperCase();
-      const bucket =
-        role === "TEACHER" ? modules.teacher : role === "STUDENT" ? modules.talabat : null;
-      if (!bucket) return true;
-
-      // Check direct key first
-      if (bucket[moduleKey] === false) return false;
-
-      // Check aliased module config key (nav keys can differ from admin module config keys)
-      const configKey = navKeyToModuleConfigKey(moduleKey);
-      if (configKey !== moduleKey && bucket[configKey] === false) return false;
-
-      return true;
-    },
-    [modules, session]
-  );
-
   const isPageAssigned = useCallback(
     (pageIdOrPath: string) => {
       const role = session?.user?.role?.toUpperCase();
@@ -209,18 +199,59 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       // Dashboard and profile are always accessible
       if (key === "dashboard" || key === "profile") return true;
 
-      // Exact match on canonical id or raw value.
+      // Check normalized key against normalized assigned pages
+      const normalizedAssigned = assignedPages.map((p) => normalizePageKey(p));
+      if (normalizedAssigned.includes(key)) return true;
       if (assignedPages.includes(key)) return true;
       if (assignedPages.includes(pageIdOrPath)) return true;
 
+      // Direct checks on raw strings
+      const rawLower = (pageIdOrPath || "").toLowerCase().replace(/^page:/, "");
+      if (assignedPages.some((a) => a.toLowerCase().replace(/^page:/, "") === rawLower)) return true;
+
+      // Attendance parent mapping: if attendance is assigned, grant manual-attendance, attendance-logs, attendance-schedule
+      if (
+        (key === "manual-attendance" || key === "attendance-logs" || key === "attendance-schedule") &&
+        (assignedPages.includes("attendance") || assignedPages.includes("PAGE:attendance") || normalizedAssigned.includes("manual-attendance") || normalizedAssigned.includes("attendance-logs"))
+      ) {
+        return true;
+      }
+
+      // Medical mapping
+      if (
+        key === "medical-duty" &&
+        (assignedPages.includes("medical") || assignedPages.includes("PAGE:medical") || assignedPages.includes("medical-desk") || assignedPages.includes("medical-duty") || normalizedAssigned.includes("medical-duty"))
+      ) {
+        return true;
+      }
+
       // Legacy synonyms and parent page mappings
-      if (key === "quran" && assignedPages.includes("hifz")) return true;
-      if (key === "hifz-marhala" && (assignedPages.includes("hifz") || assignedPages.includes("quran"))) return true;
-      if (key === "passwords" && assignedPages.includes("users")) return true;
+      if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("PAGE:hifz") || normalizedAssigned.includes("quran"))) return true;
+      if (key === "hifz-marhala" && (assignedPages.includes("hifz") || assignedPages.includes("quran") || normalizedAssigned.includes("hifz-marhala"))) return true;
+      if (key === "passwords" && (assignedPages.includes("users") || assignedPages.includes("PAGE:users") || normalizedAssigned.includes("users"))) return true;
 
       return false;
     },
     [session, assignedPages, loading]
+  );
+
+  const isModuleVisible = useCallback(
+    (moduleKey: string, targetRole?: string) => {
+      const role = (targetRole || session?.user?.role || "").toUpperCase();
+      const bucket =
+        role === "TEACHER" ? modules.teacher : role === "STUDENT" ? modules.talabat : null;
+      if (!bucket) return true;
+
+      // Check direct key first
+      if (bucket[moduleKey] === false) return false;
+
+      // Check aliased module config key (nav keys can differ from admin module config keys)
+      const configKey = navKeyToModuleConfigKey(moduleKey);
+      if (configKey !== moduleKey && bucket[configKey] === false) return false;
+
+      return true;
+    },
+    [modules, session]
   );
 
   return (

@@ -39,35 +39,61 @@ export const TEACHER_AVAILABLE_PAGES = [
 
 const PAGE_IDS = new Set(TEACHER_AVAILABLE_PAGES.map((p) => p.id));
 
+// Normalizes any stored portalType or page name to one or more canonical page ids.
+export function normalizeCanonicalPageId(raw: string): string[] {
+  if (!raw) return [];
+  const clean = raw.trim().toLowerCase().replace(/^page:/, "");
+  if (clean === "all" || clean === "*") return ["ALL"];
+  if (clean === "attendance" || clean === "attendance_all") return ["manual-attendance", "attendance-logs", "attendance-schedule"];
+  if (clean === "manual-attendance" || clean === "manual_attendance" || clean === "attendance-manual" || clean === "attendance_manual" || clean === "manual") return ["manual-attendance"];
+  if (clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance-log" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry") return ["attendance-logs"];
+  if (clean === "attendance-schedule" || clean === "attendance_schedule" || clean === "schedule") return ["attendance-schedule"];
+  if (clean === "email-reports" || clean === "email_reports" || clean === "attendance-emails" || clean === "attendance_emails" || clean === "emails" || clean === "attendance-email") return ["email-reports"];
+  if (clean === "biometric" || clean === "biometrics" || clean === "scanners") return ["biometric"];
+  if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return ["medical-duty"];
+  if (clean === "quran" || clean === "hifz" || clean === "hifz-reports" || clean === "weekly-slips") return ["quran"];
+  if (clean === "hifz-marhala" || clean === "hifz_marhala" || clean === "marhala") return ["hifz-marhala"];
+  if (clean === "makhzan" || clean === "makhzn" || clean === "warehouse" || clean === "inventory") return ["makhzan"];
+  if (clean === "point-matrix" || clean === "point_matrix" || clean === "point-rules" || clean === "points") return ["point-matrix"];
+  if (clean === "portal-assignments" || clean === "portal_assignments" || clean === "assignments") return ["portal-assignments"];
+  if (clean === "passwords" || clean === "credentials") return ["passwords"];
+  if (clean === "tracking" || clean === "analytics") return ["tracking"];
+  if (clean === "classes" || clean === "class") return ["classes"];
+  if (clean === "timetable") return ["timetable"];
+  if (clean === "takhteet") return ["takhteet"];
+  if (clean === "leave" || clean === "leaves") return ["leave"];
+  if (clean === "procurement") return ["procurement"];
+  if (clean === "library") return ["library"];
+  if (clean === "students" || clean === "talabat") return ["students"];
+  if (clean === "parents") return ["parents"];
+  if (clean === "users" || clean === "staff") return ["users"];
+  if (clean === "notifications" || clean === "broadcasts") return ["notifications"];
+  if (clean === "security" || clean === "audit") return ["security"];
+  if (clean === "settings") return ["settings"];
+  if (clean === "dashboard") return ["dashboard"];
+  if (clean === "profile") return ["profile"];
+  if (PAGE_IDS.has(clean)) return [clean];
+  return [];
+}
+
 // Normalizes any stored portalType (legacy or current) to a canonical page id.
-// Legacy values seen in DB: "HIFZ" (= quran), "PORTAL-ASSIGNMENTS", lowercase ids.
 export function toPageId(portalType: string): string | null {
   if (!portalType) return null;
-  if (portalType === "ALL") return "ALL";
-  if (portalType === "HIFZ") return "quran";
-  if (portalType === "PORTAL-ASSIGNMENTS") return "portal-assignments";
-  if (portalType.startsWith("PAGE:")) {
-    const id = portalType.slice(5).toLowerCase();
-    if (id === "hifz") return "quran";
-    if (id === "attendance-emails") return "email-reports";
-    return id;
-  }
-  const lower = portalType.toLowerCase();
-  if (lower === "hifz") return "quran";
-  if (lower === "attendance-emails") return "email-reports";
-  return lower;
+  const mapped = normalizeCanonicalPageId(portalType);
+  if (mapped.length > 0) return mapped[0];
+  return null;
 }
 
 // Normalizes any incoming page id to the precise stored portalType.
 export function toPortalType(pageId: string): string | null {
   if (!pageId) return null;
   const clean = pageId.trim();
-  if (clean === "ALL") return "ALL";
-  const id = clean.startsWith("PAGE:") ? clean.slice(5).toLowerCase() : clean.toLowerCase();
-  const canonical = id === "hifz" ? "quran" : id === "attendance-emails" ? "email-reports" : id;
-  if (canonical === "portal-assignments" || canonical === "portal_assignments") return "PAGE:portal-assignments";
-  if (!PAGE_IDS.has(canonical)) return null;
-  return `PAGE:${canonical}`;
+  if (clean === "ALL" || clean === "*") return "ALL";
+  const mapped = normalizeCanonicalPageId(clean);
+  if (mapped.length > 0 && mapped[0] !== "ALL") {
+    return `PAGE:${mapped[0]}`;
+  }
+  return null;
 }
 
 // Teachers delegated the portal-assignments page can manage assignments too.
@@ -84,14 +110,22 @@ async function hasPortalManageAuthority(userId: string, role: string): Promise<b
   );
 }
 
-function toAssignedPageIds(portalTypes: string[]): string[] {
-  const ids = portalTypes
-    .map((t) => toPageId(t))
-    .filter((v): v is string => !!v && v !== "ALL");
-  const unique = Array.from(new Set(ids)).filter((id) => PAGE_IDS.has(id));
-  if (!unique.includes("dashboard")) unique.push("dashboard");
-  if (!unique.includes("profile")) unique.push("profile");
-  return unique;
+export function toAssignedPageIds(portalTypes: string[]): string[] {
+  const result = new Set<string>();
+  for (const t of portalTypes) {
+    const ids = normalizeCanonicalPageId(t);
+    for (const id of ids) {
+      if (id === "ALL") {
+        return TEACHER_AVAILABLE_PAGES.map((p) => p.id);
+      }
+      if (PAGE_IDS.has(id)) {
+        result.add(id);
+      }
+    }
+  }
+  result.add("dashboard");
+  result.add("profile");
+  return Array.from(result);
 }
 
 // When a teacher has no explicit portal assignments, only give them the safe minimum.

@@ -1,3 +1,5 @@
+import { getSessionUser } from "../auth";
+
 type CacheEntry<T> = {
   data: T;
   expiresAt: number;
@@ -192,7 +194,8 @@ export function apiCacheMiddleware(options: {
       return next();
     }
 
-    const userId = req.user?.id || req.session?.user?.id || "public";
+    const sessionUser = req.auth?.user || req.user || req.session?.user || getSessionUser(req);
+    const userId = sessionUser?.id || "public";
     const cacheKey = keyGenerator
       ? keyGenerator(req)
       : `api:${req.baseUrl || ""}${req.path}:${JSON.stringify(req.query)}:${userId}`;

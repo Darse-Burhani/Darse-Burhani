@@ -17,108 +17,13 @@ router.get("/modules", apiCacheMiddleware({ ttlMs: 30_000, tags: ["permissions"]
     const role = user?.role;
     const permissions = getProfilePermissions();
 
-    let teacherModules = { ...permissions.modules.teacher };
-
-    // If teacher is authenticated, check for teacher-specific page assignments
-    if (role === "TEACHER" && user) {
-      const teacherProfile = await prisma.teacherProfile.findUnique({
-        where: { userId: user.id },
-        include: { portalAssignments: true },
-      });
-
-      const globalTeacher = permissions.modules.teacher || {};
-
-      if (teacherProfile && teacherProfile.portalAssignments.length > 0) {
-        const active = teacherProfile.portalAssignments.filter((a) => a.isActive);
-        const hasAll = active.some((a) => a.portalType === "ALL");
-
-        if (!hasAll) {
-          const assignedPages = new Set(
-            active.map((a) =>
-              a.portalType.startsWith("PAGE:") ? a.portalType.replace("PAGE:", "") : a.portalType.toLowerCase()
-            )
-          );
-
-          // Build dynamic module availability based on assigned pages AND global admin module locks
-          teacherModules = {
-            dashboard: globalTeacher.dashboard !== false,
-            classes: globalTeacher.classes !== false && assignedPages.has("classes"),
-            timetable: globalTeacher.timetable !== false && assignedPages.has("timetable"),
-            "attendance-logs": globalTeacher.attendance !== false && (assignedPages.has("attendance-logs") || assignedPages.has("attendance")),
-            attendance: globalTeacher.attendance !== false && (assignedPages.has("attendance-logs") || assignedPages.has("attendance") || assignedPages.has("manual-attendance")),
-            "manual-attendance": globalTeacher.attendance !== false && (assignedPages.has("manual-attendance") || assignedPages.has("attendance")),
-            "attendance-schedule": globalTeacher.attendance !== false && (assignedPages.has("attendance-schedule") || assignedPages.has("attendance")),
-            "email-reports": globalTeacher["email-reports"] !== false && assignedPages.has("email-reports"),
-            biometric: globalTeacher.biometric !== false && assignedPages.has("biometric"),
-            leave: globalTeacher.leave !== false && assignedPages.has("leave"),
-            procurement: globalTeacher.procurement !== false && assignedPages.has("procurement"),
-            quran: globalTeacher.hifz !== false && (assignedPages.has("quran") || assignedPages.has("hifz")),
-            hifz: globalTeacher.hifz !== false && (assignedPages.has("quran") || assignedPages.has("hifz")),
-            "hifz-marhala": globalTeacher.hifz !== false && (assignedPages.has("hifz-marhala") || assignedPages.has("quran") || assignedPages.has("hifz")),
-            takhteet: globalTeacher.takhteet !== false && assignedPages.has("takhteet"),
-            makhzan: globalTeacher.makhzan !== false && (assignedPages.has("makhzan") || assignedPages.has("library")),
-            library: globalTeacher.library !== false && assignedPages.has("library"),
-            "medical-duty": globalTeacher["medical-duty"] !== false && assignedPages.has("medical-duty"),
-            students: assignedPages.has("students"),
-            parents: assignedPages.has("parents"),
-            users: assignedPages.has("users"),
-            passwords: assignedPages.has("passwords") || assignedPages.has("users"),
-            tracking: assignedPages.has("tracking"),
-            "point-matrix": assignedPages.has("point-matrix"),
-            "portal-assignments": assignedPages.has("portal-assignments"),
-            notifications: assignedPages.has("notifications"),
-            security: assignedPages.has("security"),
-            profile: globalTeacher.profile !== false,
-            settings: true,
-            faculty: globalTeacher.faculty !== false,
-            calendar: globalTeacher.calendar !== false,
-          };
-        }
-      } else {
-        // Teacher has no custom assignments: only base pages (dashboard, profile) are available
-        teacherModules = {
-          dashboard: globalTeacher.dashboard !== false,
-          classes: false,
-          timetable: false,
-          "attendance-logs": false,
-          attendance: false,
-          "manual-attendance": false,
-          "attendance-schedule": false,
-          "email-reports": false,
-          biometric: false,
-          leave: false,
-          procurement: false,
-          quran: false,
-          hifz: false,
-          "hifz-marhala": false,
-          takhteet: false,
-          makhzan: false,
-          library: false,
-          "medical-duty": false,
-          students: false,
-          parents: false,
-          users: false,
-          passwords: false,
-          tracking: false,
-          "point-matrix": false,
-          "portal-assignments": false,
-          notifications: false,
-          security: false,
-          profile: globalTeacher.profile !== false,
-          settings: true,
-          faculty: globalTeacher.faculty !== false,
-          calendar: globalTeacher.calendar !== false,
-        };
-      }
-    }
-
     return res.json({
       success: true,
       data: {
         talabat: permissions.modules.talabat,
-        teacher: teacherModules,
+        teacher: permissions.modules.teacher,
       },
-      roleModules: role === "STUDENT" ? permissions.modules.talabat : role === "TEACHER" ? teacherModules : permissions.modules,
+      roleModules: role === "STUDENT" ? permissions.modules.talabat : role === "TEACHER" ? permissions.modules.teacher : permissions.modules,
     });
   } catch (err) {
     console.error("Error resolving module permissions:", err);
