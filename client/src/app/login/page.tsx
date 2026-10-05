@@ -609,6 +609,22 @@ export default function LoginPage() {
                 className="absolute inset-[3px] bottom-0 rounded-t-[40px] pointer-events-none border-t border-x border-[#d4af37]/35"
               />
 
+              {/* Official Logo with Golden Halo */}
+              <div className="relative mb-1 shrink-0">
+                <div
+                  className="absolute inset-0 rounded-full blur-lg opacity-60 pointer-events-none"
+                  style={{ background: "radial-gradient(circle, rgba(245,158,11,0.6) 0%, transparent 70%)" }}
+                />
+                <img
+                  src="/logo.png"
+                  alt="Darse Burhani Emblem"
+                  className="relative w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]"
+                  draggable={false}
+                  loading="eager"
+                  decoding="sync"
+                />
+              </div>
+
               {/* Arabic Calligraphy Crest */}
               <div className="text-[#d8b458] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-serif text-sm sm:text-base tracking-widest font-normal opacity-95">
                 الْجَمِيلَةُ الْعُرْفِيَّة
@@ -616,9 +632,9 @@ export default function LoginPage() {
 
               {/* Title & Subtitle */}
               <h1
-                className="font-serif font-bold text-xl sm:text-2xl tracking-wide mt-0.5"
+                className="font-serif font-extrabold text-xl sm:text-2xl tracking-wide mt-0.5"
                 style={{
-                  background: "linear-gradient(180deg, #fff2b2 0%, #d4af37 60%, #997822 100%)",
+                  background: "linear-gradient(180deg, #fff3c4 0%, #d4af37 60%, #997822 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))",
@@ -627,7 +643,7 @@ export default function LoginPage() {
                 Darse Burhani
               </h1>
               <p
-                className="text-[11px] sm:text-xs font-medium tracking-normal mt-[-1px]"
+                className="text-[11px] sm:text-xs font-semibold tracking-normal mt-[-1px]"
                 style={{
                   color: "#d4af37",
                   textShadow: "0 1px 3px rgba(0,0,0,0.8)",
