@@ -29,7 +29,7 @@ const AvatarImage = React.forwardRef<
     decoding="async"
     alt={alt}
     className={cn(
-      "aspect-square h-full w-full object-cover object-[50%_18%] transition-opacity duration-200",
+      "aspect-square h-full w-full object-cover object-center transition-opacity duration-200",
       className,
     )}
     {...props}

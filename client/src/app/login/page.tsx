@@ -578,27 +578,20 @@ export default function LoginPage() {
         <header className="relative z-10 w-full max-w-md mx-auto pt-2 sm:pt-4 pb-2 flex flex-col items-center shrink-0">
           {/* Brand Emblem */}
           <div className="flex items-center gap-3.5 mb-2">
+            {/* Official Logo */}
             <div
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-xl shrink-0 border border-amber-300/30 overflow-hidden"
               style={{
-                background: "linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #92400e 100%)",
-                boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6)",
+                background: "linear-gradient(135deg, #0a2e1e 0%, #031d12 100%)",
+                boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.1)",
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8L12 2Z"
-                  fill="#ffffff"
-                  stroke="#78350f"
-                  strokeWidth="0.8"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M12 5L13.3 10.7L19 12L13.3 13.3L12 19L10.7 13.3L5 12L10.7 10.7L12 5Z"
-                  fill="#ffffff"
-                  opacity="0.85"
-                />
-              </svg>
+              <img
+                src="/logo.png"
+                alt="Darse Burhani Logo"
+                className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-lg"
+                draggable={false}
+              />
             </div>
 
             <div className="flex flex-col">

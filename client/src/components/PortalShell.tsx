@@ -104,6 +104,7 @@ export function PortalShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [quickCommandOpen, setQuickCommandOpen] = useState(false);
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string>("ALL");
   const [istTime, setIstTime] = useState<string>("");
@@ -262,6 +263,7 @@ export function PortalShell({
   const settingsHref = `${rootPath}/settings`;
 
   return (
+    <>
     <div className="min-h-screen flex" style={{ background: theme.content }}>
       {/* ── Desktop Sidebar ── */}
       <aside
@@ -672,7 +674,15 @@ export function PortalShell({
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                   className={cn("flex items-center gap-3 p-1.5 rounded-xl transition-colors", theme.hoverBg)}
                 >
-                  <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
+                  <Avatar
+                    className="w-9 h-9 ring-2 ring-white shadow-sm cursor-zoom-in"
+                    onClick={(e) => {
+                      if (session?.user?.avatarUrl || session?.user?.role === "ADMIN") {
+                        e.stopPropagation();
+                        setAvatarLightboxOpen(true);
+                      }
+                    }}
+                  >
                     {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
                       <AvatarImage
                         src={session.user.avatarUrl || "/logo.png"}
@@ -803,7 +813,15 @@ export function PortalShell({
                   className="p-0.5 rounded-2xl active:scale-90 transition-transform cursor-pointer"
                   aria-label="Open profile menu"
                 >
-                  <Avatar className="w-8 h-8 ring-2 ring-amber-400/50 shadow-xs">
+                  <Avatar
+                    className="w-8 h-8 ring-2 ring-amber-400/50 shadow-xs cursor-zoom-in"
+                    onClick={(e) => {
+                      if (session?.user?.avatarUrl || session?.user?.role === "ADMIN") {
+                        e.stopPropagation();
+                        setAvatarLightboxOpen(true);
+                      }
+                    }}
+                  >
                     {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
                       <AvatarImage
                         src={session.user.avatarUrl || "/logo.png"}
@@ -1087,5 +1105,59 @@ export function PortalShell({
         </nav>
       </div>
     </div>
+
+      {/* ── Profile Image Lightbox ── */}
+      {avatarLightboxOpen && (session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md"
+          onClick={() => setAvatarLightboxOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && setAvatarLightboxOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile photo"
+          tabIndex={-1}
+        >
+          <div
+            className="relative flex flex-col items-center gap-4 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setAvatarLightboxOpen(false)}
+              className="absolute -top-2 -right-2 z-10 w-9 h-9 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 transition-colors shadow-lg"
+              aria-label="Close photo viewer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Large profile image */}
+            <div
+              className="w-72 h-72 sm:w-96 sm:h-96 rounded-3xl overflow-hidden shadow-2xl"
+              style={{ boxShadow: `0 0 0 4px ${GOLD}, 0 0 60px rgba(212,175,55,0.35), 0 25px 50px -12px rgba(0,0,0,0.8)` }}
+            >
+              <img
+                src={session.user.avatarUrl || "/logo.png"}
+                alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "Profile"}
+                className="w-full h-full object-cover object-center"
+                draggable={false}
+              />
+            </div>
+
+            {/* Name & role tag */}
+            <div className="text-center">
+              <p className="text-white font-bold text-lg tracking-tight drop-shadow-lg">
+                {session.user.firstName} {session.user.lastName}
+              </p>
+              <span
+                className="inline-block mt-1 text-xs font-semibold px-3 py-0.5 rounded-full"
+                style={{ background: `linear-gradient(90deg, ${GOLD_DARK}, ${GOLD})`, color: "#0a1a0f" }}
+              >
+                {roleLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

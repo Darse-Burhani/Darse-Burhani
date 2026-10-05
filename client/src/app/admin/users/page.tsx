@@ -1843,7 +1843,7 @@ function FacultyCard({
                 <AvatarImage
                   src={tp.photoUrl || user.avatarUrl}
                   alt={`${user.firstName} ${user.lastName}`}
-                  className="object-cover object-top"
+                  className="object-cover object-center"
                 />
               ) : null}
               <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#034430] text-amber-300 font-black text-2xl">

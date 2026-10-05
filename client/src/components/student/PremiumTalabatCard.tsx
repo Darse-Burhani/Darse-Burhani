@@ -76,7 +76,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
                     <AvatarImage
                       src={data.avatarUrl}
                       alt={fullName}
-                      className="object-cover object-[50%_18%]"
+                      className="object-cover object-center"
                     />
                   )}
                   <AvatarFallback
