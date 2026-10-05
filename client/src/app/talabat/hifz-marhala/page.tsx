@@ -51,104 +51,6 @@ const MARKS_CONFIG = [
   { key: "jadeedMarks", label: "New (10)", max: 10 },
 ] as const;
 
-function buildWeeklySlipWhatsAppText(slip: any) {
-  const studentName = slip.student?.user
-    ? `${slip.student.user.firstName || ""} ${slip.student.user.lastName || ""}`.trim()
-    : "Student";
-  const stars = "⭐".repeat(slip.disciplineRating || 5).slice(0, 5);
-  return `📊 *Weekly Hifz Slip - Dar-e-Burhani* 📖\n━━━━━━━━━━━━━━━━\n👤 *Student:* ${studentName}\n📌 *Marhala:* ${MARHALA_LABELS[slip.marhala] || slip.marhala}\n📅 *Week:* ${slip.weekNumber} | Academic Year: ${slip.academicYear}\n\n📖 *New Memorization (Sabaq):*\n- Current Juz: ${slip.currentJuz || "—"} | Page: ${slip.currentSafah || "—"}\n- Amount: ${slip.sabaqLines || 0} lines / pages\n\n🔄 *Revision (Sabiqi / Past):* ${slip.murajaatSabqi || "Scheduled revision completed"}\n⭐ *Commitment Rating:* ${stars}\n\n🎯 *Detailed Marks (out of 50):*\n- Revision (20): ${slip.murajaatMarks || 0}\n- Current Juz (20): ${slip.juzhaliMarks || 0}\n- New Memorization (10): ${slip.jadeedMarks || 0}\n🏆 *Total:* ${slip.totalMarks || 0}/50 (*${slip.overallPerformance || 0}%*)\n\n📝 *Teacher Notes:*\n${slip.teacherNotes || "Good and blessed effort, may Allah reward it."}\n━━━━━━━━━━━━━━━━\n_Dar-e-Burhani - Quran Memorization Progress Tracker_`;
-}
-
-function TalabatWeeklySlipCard({ slip, copied, onCopy }: { slip: any; copied: boolean; onCopy: () => void }) {
-  const stars = "⭐".repeat(slip.disciplineRating || 5).slice(0, 5);
-  const perf = slip.overallPerformance || 0;
-  const perfColor = perf >= 80 ? "#059669" : perf >= 60 ? "#2563eb" : "#d97706";
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-all duration-200 group">
-      <div className="h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
-      <div className="p-5">
-        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white">
-              <Calendar className="w-3.5 h-3.5" /> Week {slip.weekNumber}
-            </span>
-            {slip.publishedAt && (
-              <span className="text-[11px] text-gray-400">Published: {new Date(slip.publishedAt).toLocaleDateString()}</span>
-            )}
-          </div>
-          <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">
-            <CheckCircle className="w-3 h-3 ml-1" /> Published
-          </Badge>
-        </div>
-
-        {slip.marhala && (
-          <p className="text-xs text-gray-500 mb-3">
-            Stage: <span className="font-medium text-gray-700">{MARHALA_LABELS[slip.marhala] || slip.marhala}</span>
-          </p>
-        )}
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="p-2.5 rounded-xl text-center bg-amber-50 border border-amber-100">
-            <p className="text-xs text-gray-500 mb-0.5">Juz / Page</p>
-            <p className="text-sm font-bold text-amber-700">{slip.currentJuz || "—"} / {slip.currentSafah || "—"}</p>
-          </div>
-          <div className="p-2.5 rounded-xl text-center bg-emerald-50 border border-emerald-100">
-            <p className="text-xs text-gray-500 mb-0.5">New Memorization</p>
-            <p className="text-sm font-bold text-emerald-700">{slip.sabaqLines || 0} lines</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-600">Commitment & Tajweed</span>
-          <span className="text-xs">{stars}</span>
-        </div>
-
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-gray-500">
-            Revision {slip.murajaatMarks || 0} + Current {slip.juzhaliMarks || 0} + New {slip.jadeedMarks || 0}
-          </span>
-          <span className="text-sm font-bold" style={{ color: perfColor }}>{slip.totalMarks || 0}/50 ({perf}%)</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
-          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${perf}%`, background: `linear-gradient(90deg, #f59e0b, ${perfColor})` }} />
-        </div>
-
-        {slip.murajaatSabqi && (
-          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-            <span className="font-bold text-gray-800">Revision:</span> {slip.murajaatSabqi}
-          </p>
-        )}
-
-        {slip.teacherNotes && (
-          <div className="p-3 rounded-xl mb-3 text-xs leading-relaxed bg-amber-50 border border-amber-200 text-amber-900">
-            <p className="font-bold mb-1 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Teacher Notes
-            </p>
-            {slip.teacherNotes}
-          </div>
-        )}
-
-        {slip.faculty?.user && (
-          <p className="text-[11px] text-gray-500 mb-3">
-            Muhaffiz: <span className="font-medium text-gray-700">{slip.faculty.user.firstName} {slip.faculty.user.lastName}</span>
-          </p>
-        )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCopy}
-          className="w-full h-9 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 ml-1.5" /> : <Copy className="w-3.5 h-3.5 ml-1.5" />}
-          {copied ? "Copied — send via WhatsApp" : "Copy WhatsApp Card"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function TalabatHifzMarhalaPage() {
   const [data, setData] = useState<{ assignment: any; reports: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,9 +58,6 @@ export default function TalabatHifzMarhalaPage() {
   const [academicYear, setAcademicYear] = useState("");
   const [editingReport, setEditingReport] = useState<any | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [weeklySlips, setWeeklySlips] = useState<any[]>([]);
-  const [slipsLoading, setSlipsLoading] = useState(true);
-  const [copiedSlip, setCopiedSlip] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -180,28 +79,9 @@ export default function TalabatHifzMarhalaPage() {
     }
   }, [academicYear]);
 
-  const fetchWeeklySlips = useCallback(async () => {
-    try {
-      const res = await fetch("/api/talabat/hifz-marhala/weekly-slips");
-      const data = await res.json();
-      if (data.success) setWeeklySlips(data.data || []);
-    } catch {
-      // Keep empty state on network failure
-    } finally {
-      setSlipsLoading(false);
-    }
-  }, []);
-
-  const copySlipCard = async (slip: any) => {
-    await navigator.clipboard.writeText(buildWeeklySlipWhatsAppText(slip));
-    setCopiedSlip(slip.id);
-    setTimeout(() => setCopiedSlip(null), 2500);
-  };
-
   useEffect(() => {
     fetchData();
-    fetchWeeklySlips();
-  }, [fetchData, fetchWeeklySlips]);
+  }, [fetchData]);
 
   const currentYear = new Date().getFullYear();
   const defaultYear = `${currentYear}-${currentYear + 1}`;
@@ -464,7 +344,7 @@ export default function TalabatHifzMarhalaPage() {
             <option value={`${currentYear}-${currentYear + 1}`}>{currentYear}-{currentYear + 1}</option>
             <option value={`${currentYear + 1}-${currentYear + 2}`}>{currentYear + 1}-{currentYear + 2}</option>
           </select>
-          <Button variant="outline" size="sm" onClick={() => { fetchData(); fetchWeeklySlips(); }}>
+          <Button variant="outline" size="sm" onClick={() => fetchData()}>
             <RefreshCw className="w-4 h-4 ml-1" /> Refresh
           </Button>
         </div>
@@ -702,52 +582,6 @@ export default function TalabatHifzMarhalaPage() {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Published Weekly Slips */}
-        <Card className="border-0 shadow-sm overflow-hidden mt-8">
-          <div className="flex items-center justify-between flex-wrap gap-2 px-6 pt-6 pb-0">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-amber-600" />
-                Published Weekly Slips
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Weekly hifz slips published for you by the school</p>
-            </div>
-            {weeklySlips.length > 0 && (
-              <Badge className="bg-amber-50 text-amber-700 border border-amber-200">
-                {weeklySlips.length} Slips
-              </Badge>
-            )}
-          </div>
-          <CardContent className="p-6">
-            {slipsLoading ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-56 bg-gray-100 rounded-2xl animate-pulse" />
-                ))}
-              </div>
-            ) : weeklySlips.length === 0 ? (
-              <div className="py-10 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                  <FileText className="w-7 h-7 text-gray-300" />
-                </div>
-                <p className="text-gray-400">No published weekly slips yet</p>
-                <p className="text-gray-300 text-sm mt-1">They will appear here once the admin publishes them</p>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {weeklySlips.map((slip) => (
-                  <TalabatWeeklySlipCard
-                    key={slip.id}
-                    slip={slip}
-                    copied={copiedSlip === slip.id}
-                    onCopy={() => copySlipCard(slip)}
-                  />
-                ))}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

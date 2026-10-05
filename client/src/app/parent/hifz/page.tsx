@@ -26,7 +26,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MARHALA_LABELS: Record<string, string> = {
   MARHALA_4: "Marhala 4 · Juz 19-24",
@@ -86,100 +85,15 @@ function GeometricPattern() {
   );
 }
 
-function WeeklySlipCard({ slip, copied, onCopy }: { slip: any; copied: boolean; onCopy: () => void }) {
-  const stars = "⭐".repeat(slip.disciplineRating || 5).slice(0, 5);
-  const perf = slip.overallPerformance || 0;
-  const perfColor = perf >= 80 ? "#047857" : perf >= 60 ? "#2563eb" : "#d97706";
-
-  return (
-    <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "#d4af3715" }}>
-      <div className="h-1" style={{ background: "linear-gradient(90deg, #047857, #d4af37)" }} />
-      <div className="p-5">
-        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37" }}>
-              <Calendar className="w-3.5 h-3.5" /> Week {slip.weekNumber}
-            </span>
-            {slip.publishedAt && (
-              <span className="text-[11px] text-gray-400">Published: {new Date(slip.publishedAt).toLocaleDateString()}</span>
-            )}
-          </div>            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px]">
-              <Globe className="w-3 h-3 ml-1" /> Published to Parents
-            </Badge>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="p-2.5 rounded-xl text-center" style={{ background: "#f0fdf4", border: "1px solid #a7f3d0" }}>              <p className="text-xs text-gray-500 mb-0.5">Juz / Page</p>
-              <p className="text-sm font-bold" style={{ color: "#047857" }}>
-              {slip.currentJuz || "—"} / {slip.currentSafah || "—"}
-            </p>
-          </div>
-          <div className="p-2.5 rounded-xl text-center" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>              <p className="text-xs text-gray-500 mb-0.5">New Memorization</p>
-              <p className="text-sm font-bold" style={{ color: "#b8860b" }}>{slip.sabaqLines || 0} Lines/Pages</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-2">            <span className="text-xs text-gray-600">Commitment & Tajweed</span>
-          <span className="text-xs">{stars}</span>
-        </div>
-
-        <div className="flex items-center justify-between mb-1.5">          <span className="text-xs text-gray-500">
-              Revision {slip.murajaatMarks || 0} + Current {slip.juzhaliMarks || 0} + New {slip.jadeedMarks || 0}
-            </span>
-          <span className="text-sm font-bold" style={{ color: perfColor }}>{slip.totalMarks || 0}/50 ({perf}%)</span>
-        </div>
-        <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: "#e5e7eb" }}>
-          <div className="h-full rounded-full" style={{ width: `${perf}%`, background: `linear-gradient(90deg, #047857, ${perfColor})` }} />
-        </div>
-
-        {slip.murajaatSabqi && (
-          <p className="text-xs text-gray-600 mb-3 leading-relaxed">              <span className="font-bold text-gray-800">Revision:</span> {slip.murajaatSabqi}
-          </p>
-        )}
-
-        {slip.teacherNotes && (
-          <div className="p-3 rounded-xl mb-3 text-xs leading-relaxed" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#78350f" }}>
-            <p className="font-bold mb-1 flex items-center gap-1">                <Sparkles className="w-3.5 h-3.5" style={{ color: "#b8860b" }} /> Teacher Notes
-              </p>
-            {slip.teacherNotes}
-          </div>
-        )}
-
-        {slip.faculty?.user && (
-          <p className="text-[11px] text-gray-500 mb-3">
-            Muhaffiz: <span className="font-medium text-gray-700">{slip.faculty.user.firstName} {slip.faculty.user.lastName}</span>
-          </p>
-        )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCopy}
-          className="w-full h-9 text-xs"
-          style={{ color: "#047857", borderColor: "#a7f3d0" }}
-        >
-          {copied ? <Check className="w-3.5 h-3.5 ml-1.5" /> : <Copy className="w-3.5 h-3.5 ml-1.5" />}
-          {copied ? "Copied — send via WhatsApp" : "Copy WhatsApp Card"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function ParentHifzPage() {
   const [children, setChildren] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedChild, setExpandedChild] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("reports");
-  const [weeklySlips, setWeeklySlips] = useState<any[]>([]);
-  const [slipsLoading, setSlipsLoading] = useState(true);
-  const [copiedSlip, setCopiedSlip] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHifzData();
-    fetchWeeklySlips();
   }, []);
 
   const fetchHifzData = async () => {
@@ -199,57 +113,18 @@ export default function ParentHifzPage() {
     }
   };
 
-  const fetchWeeklySlips = async () => {
-    try {
-      const res = await fetch("/api/parent/hifz/weekly-slips");
-      const data = await res.json();
-      if (data.success) {
-        setWeeklySlips(data.data || []);
-      }
-    } catch {
-      // Keep empty state on network failure
-    } finally {
-      setSlipsLoading(false);
-    }
-  };
-
-  const copySlipCard = async (slip: any) => {
-    await navigator.clipboard.writeText(buildSlipWhatsAppText(slip));
-    setCopiedSlip(slip.id);
-    setTimeout(() => setCopiedSlip(null), 2500);
-  };
-
   const copyStudentLink = async (studentId: string) => {
     const url = `${window.location.origin}/talabat/hifz?studentId=${studentId}`;
     await navigator.clipboard.writeText(url);
     setCopiedLink(studentId);
     setTimeout(() => setCopiedLink(null), 2000);
   };
-
-  const slipsByChild = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    weeklySlips.forEach((s) => {
-      const key = s.studentId;
-      if (!map[key]) map[key] = [];
-      map[key].push(s);
-    });
-    return map;
-  }, [weeklySlips]);
-
   const getAchievementLevel = (progress: number) => {
     if (progress >= 90) return { label: "Outstanding", color: "text-amber-700", bgColor: "bg-amber-50", icon: Star, border: "border-amber-300" };
     if (progress >= 75) return { label: "Excellent", color: "text-emerald-700", bgColor: "bg-emerald-50", icon: TrendingUp, border: "border-emerald-300" };
     if (progress >= 50) return { label: "Very Good", color: "text-blue-700", bgColor: "bg-blue-50", icon: CheckCircle, border: "border-blue-300" };
     if (progress >= 25) return { label: "Good", color: "text-indigo-700", bgColor: "bg-indigo-50", icon: Clock, border: "border-indigo-300" };
     return { label: "Needs Support", color: "text-gray-600", bgColor: "bg-gray-50", icon: AlertTriangle, border: "border-gray-200" };
-  };
-
-  const buildSlipWhatsAppText = (slip: any) => {
-    const studentName = slip.student?.user
-      ? `${slip.student.user.firstName || ""} ${slip.student.user.lastName || ""}`.trim()
-      : "Student";
-    const stars = "⭐".repeat(slip.disciplineRating || 5).slice(0, 5);
-    return `📊 *Weekly Hifz Slip - Dar-e-Burhani* 📖\n━━━━━━━━━━━━━━━━\n👤 *Student:* ${studentName}\n📌 *Marhala:* ${MARHALA_LABELS[slip.marhala] || slip.marhala}\n📅 *Week:* ${slip.weekNumber} | Academic Year: ${slip.academicYear}\n\n📖 *New Memorization (Sabaq):*\n- Current Juz: ${slip.currentJuz || "—"} | Page: ${slip.currentSafah || "—"}\n- Amount: ${slip.sabaqLines || 0} lines / pages\n\n🔄 *Revision (Sabiqi / Past):* ${slip.murajaatSabqi || "Scheduled revision completed"}\n⭐ *Commitment Rating:* ${stars}\n\n🎯 *Detailed Marks (out of 50):*\n- Revision (20): ${slip.murajaatMarks || 0}\n- Current Juz (20): ${slip.juzhaliMarks || 0}\n- New Memorization (10): ${slip.jadeedMarks || 0}\n🏆 *Total:* ${slip.totalMarks || 0}/50 (*${slip.overallPerformance || 0}%*)\n\n📝 *Teacher Notes:*\n${slip.teacherNotes || "Good and blessed effort, may Allah reward it."}\n━━━━━━━━━━━━━━━━\n_Dar-e-Burhani - Quran Memorization Progress Tracker_`;
   };
 
   return (
@@ -290,7 +165,7 @@ export default function ParentHifzPage() {
                 variant="ghost"
                 size="sm"
                 className="text-emerald-100 hover:text-white hover:bg-white/10 hidden sm:flex"
-                onClick={() => { setLoading(true); setSlipsLoading(true); fetchHifzData(); fetchWeeklySlips(); }}
+                onClick={() => { setLoading(true); fetchHifzData(); }}
               >
                 <RefreshCw className="w-4 h-4 ml-2" />
                 Refresh
@@ -301,27 +176,6 @@ export default function ParentHifzPage() {
           </div>
         </div>
 
-        {/* Tabs: Progress Reports / Weekly Slips */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="mb-6">
-            <TabsList className="grid w-full grid-cols-2 max-w-md bg-white rounded-xl p-1 shadow-sm border border-[#d4af3715]">
-              <TabsTrigger value="reports" className="text-sm">
-                <FileSpreadsheet className="w-4 h-4 ml-1.5" />
-                Progress Reports
-              </TabsTrigger>
-              <TabsTrigger value="weekly" className="text-sm">
-                <FileText className="w-4 h-4 ml-1.5" />
-                Weekly Slips
-                {weeklySlips.length > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold mr-1" style={{ background: "#047857", color: "#d4af37" }}>
-                    {weeklySlips.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="reports" className="mt-0">
         {/* Loading */}
         {loading ? (
           <div className="grid sm:grid-cols-2 gap-6">
@@ -529,71 +383,6 @@ export default function ParentHifzPage() {
             })}
           </div>
         )}
-
-          </TabsContent>
-
-          <TabsContent value="weekly" className="mt-0">
-            {slipsLoading ? (
-              <div className="grid sm:grid-cols-2 gap-6">
-                {[1, 2, 3, 4].map((i) => (
-                  <Card key={i} className="animate-pulse border-0 shadow-sm">
-                    <CardContent className="p-6">
-                      <div className="h-48 bg-gray-100 rounded-xl" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : weeklySlips.length === 0 ? (
-              <Card className="border-0 shadow-sm">
-                <CardContent className="p-16 text-center">
-                  <div className="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4 border border-gray-200">
-                    <FileText className="w-10 h-10 text-gray-400" />
-                  </div>
-                  <p className="text-gray-600 text-2xl">No published weekly slips yet</p>
-                  <p className="text-gray-500 text-lg mt-1">Weekly hifz slips will appear here once the admin publishes them</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-8">
-                {Object.entries(slipsByChild).map(([studentId, slips]) => {
-                  const first = slips[0];
-                  const childName = first?.student?.user
-                    ? `${first.student.user.firstName || ""} ${first.student.user.lastName || ""}`.trim()
-                    : "Student";
-                  const marhala = first?.marhala;
-                  return (
-                    <div key={studentId}>
-                      <div className="flex items-center gap-3 mb-4">
-                        <Avatar className="w-11 h-11 border-2" style={{ borderColor: "#d4af37" }}>
-                          <AvatarFallback className="text-base font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37" }}>
-                            {childName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-bold text-gray-900 text-lg">{childName}</h3>
-                          <p className="text-sm text-gray-500">
-                            {marhala ? MARHALA_LABELS[marhala] || marhala : ""}
-                            {slips.length > 0 && ` • ${slips.length} Published Slips`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid sm:grid-cols-2 gap-5">
-                        {slips.map((slip) => (
-                          <WeeklySlipCard
-                            key={slip.id}
-                            slip={slip}
-                            copied={copiedSlip === slip.id}
-                            onCopy={() => copySlipCard(slip)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
 
         {/* Footer */}
         <div className="text-center py-6 mt-4">

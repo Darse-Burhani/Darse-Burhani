@@ -29,7 +29,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import WeeklySlipsManager from "@/components/hifz/WeeklySlipsManager";
 import MarhalaFlowMap from "@/components/hifz/MarhalaFlowMap";
 import {
   MARHALA_ORDER,
@@ -607,13 +606,7 @@ export default function AdminHifzMarhalaPage() {
                   value="flow-map"
                   className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-xl px-4 py-2.5 text-xs"
                 >
-                  <GitBranch className="w-4 h-4" /> Flow Map <span className="font-arabic mr-1">خريطة المراحل</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="weekly-slips"
-                  className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-xl px-4 py-2.5 text-xs"
-                >
-                  <ClipboardList className="w-4 h-4" /> Weekly Slips
+                  <GitBranch className="w-4 h-4" /> Sacred Tree <span className="font-arabic mr-1">شجرة الحفظ</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="reports"
@@ -766,14 +759,9 @@ export default function AdminHifzMarhalaPage() {
               })}
             </TabsContent>
 
-            {/* ===== FLOW MAP TAB ===== */}
+            {/* ===== SACRED TREE FLOW MAP TAB ===== */}
             <TabsContent value="flow-map" className="mt-0">
               <MarhalaFlowMap assignments={data?.assignments || []} academicYear={selectedAcademicYear} />
-            </TabsContent>
-
-            {/* ===== WEEKLY SLIPS TAB ===== */}
-            <TabsContent value="weekly-slips" className="mt-0">
-              <WeeklySlipsManager />
             </TabsContent>
 
             {/* ===== REPORTS TAB ===== */}
