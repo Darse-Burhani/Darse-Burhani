@@ -502,7 +502,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       AND: [
         {
           OR: [
-            { biometricHash: { not: null, not: "" } },
+            { AND: [{ biometricHash: { not: null } }, { biometricHash: { not: "" } }] },
             { attendanceRecords: { some: { date: { gte: dayStart, lt: dayEnd } } } },
           ],
         },
@@ -522,7 +522,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       AND: [
         {
           OR: [
-            { biometricHash: { not: null, not: "" } },
+            { AND: [{ biometricHash: { not: null } }, { biometricHash: { not: "" } }] },
             { attendanceRecords: { some: { date: { gte: dayStart, lt: dayEnd } } } },
           ],
         },
