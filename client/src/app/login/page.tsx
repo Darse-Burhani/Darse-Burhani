@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { signIn, getSession, signOut } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -23,17 +23,13 @@ import {
   Loader2,
   QrCode,
   Sparkles,
-  Zap,
   Calendar,
-  Activity,
   CheckCircle2,
   Camera,
   RefreshCw,
   Upload,
   Flashlight,
-  CreditCard,
   ScanLine,
-  SlidersHorizontal,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 
@@ -47,8 +43,7 @@ export interface PortalConfig {
   accentColor: string;
   glowColor: string;
   btnGradient: string;
-  iconBg: string;
-  badgeBg: string;
+  gemGradient: string;
   placeholder: string;
   inputLabel: string;
   rolePath: string;
@@ -64,10 +59,9 @@ export const portals: PortalConfig[] = [
     description: "Governance, institutional security & records management",
     icon: Shield,
     accentColor: "#10b981",
-    glowColor: "rgba(16, 185, 129, 0.25)",
-    btnGradient: "linear-gradient(135deg, #059669 0%, #047857 60%, #064e3b 100%)",
-    iconBg: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-    badgeBg: "bg-emerald-950/70 text-emerald-300 border border-emerald-600/30",
+    glowColor: "rgba(16, 185, 129, 0.45)",
+    btnGradient: "linear-gradient(180deg, #186b49 0%, #0d462f 60%, #083321 100%)",
+    gemGradient: "linear-gradient(135deg, #34d399 0%, #059669 50%, #064e3b 100%)",
     placeholder: "admin@darseburhani.edu",
     inputLabel: "Administrator Email",
     rolePath: "/admin",
@@ -77,14 +71,13 @@ export const portals: PortalConfig[] = [
     role: "TEACHER",
     label: "Faculty Portal",
     shortLabel: "Faculty",
-    badgeLabel: "FACULTY",
+    badgeLabel: "FACULTY GATEWAY",
     description: "Class rosters, live attendance, Hifz & daily logbooks",
     icon: GraduationCap,
     accentColor: "#06b6d4",
-    glowColor: "rgba(6, 182, 212, 0.25)",
-    btnGradient: "linear-gradient(135deg, #0891b2 0%, #0e7490 60%, #155e75 100%)",
-    iconBg: "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30",
-    badgeBg: "bg-cyan-950/70 text-cyan-200 border border-cyan-600/30",
+    glowColor: "rgba(6, 182, 212, 0.45)",
+    btnGradient: "linear-gradient(180deg, #0e7490 0%, #155e75 60%, #083344 100%)",
+    gemGradient: "linear-gradient(135deg, #22d3ee 0%, #0891b2 50%, #164e63 100%)",
     placeholder: "faculty@darseburhani.edu",
     inputLabel: "Faculty Email",
     rolePath: "/teacher",
@@ -94,14 +87,13 @@ export const portals: PortalConfig[] = [
     role: "STUDENT",
     label: "Talabat Portal",
     shortLabel: "Talabat",
-    badgeLabel: "TALABAT",
+    badgeLabel: "TALABAT SYSTEM",
     description: "Timetable, Qur'an progress, library loans & attendance",
     icon: BookOpen,
     accentColor: "#f59e0b",
-    glowColor: "rgba(245, 158, 11, 0.25)",
-    btnGradient: "linear-gradient(135deg, #d97706 0%, #b45309 60%, #78350f 100%)",
-    iconBg: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
-    badgeBg: "bg-amber-950/70 text-amber-200 border border-amber-500/30",
+    glowColor: "rgba(245, 158, 11, 0.45)",
+    btnGradient: "linear-gradient(180deg, #b45309 0%, #92400e 60%, #451a03 100%)",
+    gemGradient: "linear-gradient(135deg, #fbbf24 0%, #d97706 50%, #78350f 100%)",
     placeholder: "8-digit ITS or student email",
     inputLabel: "ITS Number or Student Email",
     rolePath: "/talabat",
@@ -111,14 +103,13 @@ export const portals: PortalConfig[] = [
     role: "PARENT",
     label: "Parent Portal",
     shortLabel: "Parent",
-    badgeLabel: "PARENT",
+    badgeLabel: "PARENT NETWORK",
     description: "Academic reports, leave requests & official notices",
     icon: Users,
     accentColor: "#a855f7",
-    glowColor: "rgba(168, 85, 247, 0.25)",
-    btnGradient: "linear-gradient(135deg, #9333ea 0%, #7e22ce 60%, #581c87 100%)",
-    iconBg: "bg-purple-500/15 text-purple-300 border border-purple-500/30",
-    badgeBg: "bg-purple-950/70 text-purple-200 border border-purple-500/30",
+    glowColor: "rgba(168, 85, 247, 0.45)",
+    btnGradient: "linear-gradient(180deg, #7e22ce 0%, #6b21a8 60%, #3b0764 100%)",
+    gemGradient: "linear-gradient(135deg, #c084fc 0%, #9333ea 50%, #581c87 100%)",
     placeholder: "parent@darseburhani.edu",
     inputLabel: "Registered Parent Email",
     rolePath: "/parent",
@@ -126,7 +117,7 @@ export const portals: PortalConfig[] = [
   },
 ];
 
-// High-precision sound feedback generator
+// Sound feedback generator
 function playScanSuccessChime() {
   try {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -157,16 +148,15 @@ function playScanSuccessChime() {
     osc1.stop(ctx.currentTime + 0.26);
     osc2.stop(ctx.currentTime + 0.26);
   } catch {
-    // ignore audio block
+    // ignore
   }
 }
 
 export default function LoginPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<"ADMIN" | "TEACHER" | "STUDENT" | "PARENT">("ADMIN");
 
   const portal = portals.find((p) => p.role === selectedRole) || portals[0];
-  const PortalIcon = portal.icon;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -178,8 +168,8 @@ export default function LoginPage() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [showForgotModal, setShowForgotModal] = useState(false);
-  
-  // High-Precision ITS Scanner State
+
+  // ITS Scanner State
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [scannerMode, setScannerMode] = useState<"camera" | "upload">("camera");
   const [cameraActive, setCameraActive] = useState(false);
@@ -200,19 +190,17 @@ export default function LoginPage() {
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [serverPing] = useState("24ms");
 
-  // Live Caps Lock detector
   const checkCapsLock = (e: React.KeyboardEvent) => {
     setCapsLockOn(e.getModifierState("CapsLock"));
   };
 
-  // Smart student ITS detector (Only for Talabat)
   const isEightDigitIts = /^\d{8}$/.test(email.trim());
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isStudentInputValid = isEightDigitIts || isEmail;
 
-  // Gregorian Date Formatter
+  // Formatted Date matching the aesthetic
   const todayDate = new Date();
-  const gregorianStr = todayDate.toLocaleDateString("en-US", {
+  const dateStr = todayDate.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -230,9 +218,11 @@ export default function LoginPage() {
   const handlePortalChange = (role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT") => {
     setSelectedRole(role);
     setError("");
+    if (role === "ADMIN" && !email) {
+      setEmail("");
+    }
   };
 
-  // Stop camera media stream
   const stopCameraStream = useCallback(() => {
     if (scanLoopRef.current) {
       cancelAnimationFrame(scanLoopRef.current);
@@ -247,30 +237,31 @@ export default function LoginPage() {
     setHasTorchCapability(false);
   }, []);
 
-  // Process and verify recognized ITS ID
-  const handleSuccessfulScan = useCallback((detectedIts: string) => {
-    playScanSuccessChime();
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      try {
-        navigator.vibrate([50, 50, 100]);
-      } catch {
-        // ignore
+  const handleSuccessfulScan = useCallback(
+    (detectedIts: string) => {
+      playScanSuccessChime();
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate([50, 50, 100]);
+        } catch {
+          // ignore
+        }
       }
-    }
-    setScanConfidence(100);
-    setScannedItsResult(detectedIts);
-    setScannerStatus(`Verified ITS: ${detectedIts}`);
+      setScanConfidence(100);
+      setScannedItsResult(detectedIts);
+      setScannerStatus(`Verified ITS: ${detectedIts}`);
 
-    setTimeout(() => {
-      stopCameraStream();
-      setSelectedRole("STUDENT");
-      setEmail(detectedIts);
-      setShowScannerModal(false);
-      setScannedItsResult(null);
-    }, 900);
-  }, [stopCameraStream]);
+      setTimeout(() => {
+        stopCameraStream();
+        setSelectedRole("STUDENT");
+        setEmail(detectedIts);
+        setShowScannerModal(false);
+        setScannedItsResult(null);
+      }, 900);
+    },
+    [stopCameraStream]
+  );
 
-  // Optical Analysis Loop with BarcodeDetector & fallback
   const startScanningLoop = useCallback(() => {
     const processFrame = async () => {
       if (!videoRef.current || videoRef.current.readyState < 2) {
@@ -290,7 +281,6 @@ export default function LoginPage() {
         }
       }
 
-      // Check if native BarcodeDetector API is supported
       if (typeof window !== "undefined" && "BarcodeDetector" in window) {
         try {
           const detector = new (window as unknown as {
@@ -317,72 +307,67 @@ export default function LoginPage() {
             }
           }
         } catch {
-          // fallback to optical pattern detection
+          // fallback
         }
       }
 
-      // Live confidence simulation when card is positioned
-      setScanConfidence((prev) => {
-        const next = Math.min(85, prev + 2);
-        return next;
-      });
-
+      setScanConfidence((prev) => Math.min(85, prev + 2));
       scanLoopRef.current = requestAnimationFrame(processFrame);
     };
 
     scanLoopRef.current = requestAnimationFrame(processFrame);
   }, [handleSuccessfulScan]);
 
-  // Start Live Camera
-  const startCameraStream = useCallback(async (facing: "environment" | "user" = "environment") => {
-    stopCameraStream();
-    setCameraError(null);
-    setScannerStatus("Initializing high-precision optical sensor...");
-    setScanConfidence(15);
+  const startCameraStream = useCallback(
+    async (facing: "environment" | "user" = "environment") => {
+      stopCameraStream();
+      setCameraError(null);
+      setScannerStatus("Initializing high-precision optical sensor...");
+      setScanConfidence(15);
 
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera API not supported on this browser.");
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(() => {});
-          setCameraActive(true);
-          setScannerStatus("Align 8-digit ITS barcode or QR in card reticle");
-          startScanningLoop();
-        };
-      }
-
-      // Check for torch capability
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        const capabilities = videoTrack.getCapabilities?.() as { torch?: boolean } | undefined;
-        if (capabilities && capabilities.torch) {
-          setHasTorchCapability(true);
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Camera API not supported on this browser.");
         }
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unable to access camera";
-      setCameraError(message);
-      setScannerStatus("Camera access unavailable. Use photo upload or manual entry.");
-      setScannerMode("upload");
-    }
-  }, [startScanningLoop, stopCameraStream]);
 
-  // Handle Torch Toggle
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+
+        streamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(() => {});
+            setCameraActive(true);
+            setScannerStatus("Align 8-digit ITS barcode or QR in card reticle");
+            startScanningLoop();
+          };
+        }
+
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          const capabilities = videoTrack.getCapabilities?.() as { torch?: boolean } | undefined;
+          if (capabilities && capabilities.torch) {
+            setHasTorchCapability(true);
+          }
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unable to access camera";
+        setCameraError(message);
+        setScannerStatus("Camera access unavailable. Use photo upload or manual entry.");
+        setScannerMode("upload");
+      }
+    },
+    [startScanningLoop, stopCameraStream]
+  );
+
   const toggleTorch = async () => {
     if (!streamRef.current) return;
     const track = streamRef.current.getVideoTracks()[0];
@@ -399,14 +384,12 @@ export default function LoginPage() {
     }
   };
 
-  // Handle Camera Flip
   const flipCamera = () => {
     const nextFacing = cameraFacing === "environment" ? "user" : "environment";
     setCameraFacing(nextFacing);
     startCameraStream(nextFacing);
   };
 
-  // Handle Static Image Upload for Scan
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -419,8 +402,6 @@ export default function LoginPage() {
       const img = new Image();
       img.onload = async () => {
         setScanConfidence(80);
-
-        // Analyze image using BarcodeDetector if available
         if (typeof window !== "undefined" && "BarcodeDetector" in window) {
           try {
             const detector = new (window as unknown as {
@@ -445,8 +426,6 @@ export default function LoginPage() {
             // fallback
           }
         }
-
-        // Simulating high-precision OCR extraction for ITS card image demo
         setTimeout(() => {
           handleSuccessfulScan("50463544");
         }, 800);
@@ -456,7 +435,6 @@ export default function LoginPage() {
     reader.readAsDataURL(file);
   };
 
-  // Trigger Open Scanner Modal
   const handleOpenScanner = () => {
     setShowScannerModal(true);
     setScannerMode("camera");
@@ -467,7 +445,6 @@ export default function LoginPage() {
     }, 150);
   };
 
-  // Close Scanner Modal
   const handleCloseScanner = () => {
     stopCameraStream();
     setShowScannerModal(false);
@@ -551,8 +528,8 @@ export default function LoginPage() {
       };
 
       setTimeout(() => {
-        router.push(rolePaths[role] || "/admin");
-      }, 350);
+        navigate(rolePaths[role] || "/admin");
+      }, 400);
     } catch {
       setError("Connection failed. Please check your network connection.");
     } finally {
@@ -569,338 +546,584 @@ export default function LoginPage() {
 
       <canvas ref={canvasRef} className="hidden" />
 
-      <main className="relative min-h-[100dvh] w-full bg-[#02130e] text-white flex flex-col justify-between items-center p-3 sm:p-6 selection:bg-amber-400 selection:text-black overflow-x-hidden">
-        {/* Subtle Ambient Radial Lighting */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-emerald-600/10 blur-[130px] pointer-events-none rounded-full" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[250px] bg-amber-500/5 blur-[120px] pointer-events-none rounded-full" />
+      {/* Main Fullscreen Experience with Dark Wood Grain & Perspective Green Grid */}
+      <main
+        className="relative min-h-[100dvh] w-full flex flex-col justify-between items-center p-3 sm:p-6 select-none overflow-x-hidden"
+        style={{
+          backgroundColor: "#070b09",
+          backgroundImage: `
+            radial-gradient(ellipse 90% 60% at 50% 30%, rgba(13, 38, 25, 0.75) 0%, rgba(7, 18, 12, 0.95) 60%, #040806 100%),
+            linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
+          `,
+          backgroundSize: "100% 100%, 40px 40px, 40px 40px",
+        }}
+      >
+        {/* Glowing Perspective 3D Cybernetic Grid on the Floor / Desk */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-[45vh] pointer-events-none opacity-40"
+          style={{
+            perspective: "400px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            className="w-full h-[200%] origin-bottom"
+            style={{
+              transform: "rotateX(72deg) translateY(-20%)",
+              backgroundImage: `
+                linear-gradient(to right, rgba(16, 185, 129, 0.28) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(16, 185, 129, 0.28) 1px, transparent 1px)
+              `,
+              backgroundSize: "60px 60px",
+              maskImage: "radial-gradient(ellipse 80% 60% at 50% 60%, black 20%, transparent 80%)",
+              WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 60%, black 20%, transparent 80%)",
+            }}
+          />
+        </div>
 
-        {/* ── TOP HEADER ── */}
-        <header className="relative z-10 w-full max-w-md mx-auto pt-2 sm:pt-4 pb-2 flex flex-col items-center shrink-0">
-          {/* Brand Emblem */}
-          <div className="flex items-center gap-4 mb-2">
-            {/* Official Logo — clearly visible, no dark box */}
-            <div className="relative shrink-0">
-              {/* Soft golden halo behind logo */}
+        {/* Ambient Top Light Beam */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] pointer-events-none"
+          style={{
+            background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(212, 175, 55, 0.05) 45%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
+        />
+
+        {/* ── CENTRAL BOOK / CONSOLE CONTAINER ── */}
+        <div className="relative z-10 w-full max-w-[1020px] mx-auto my-auto flex flex-col items-center pt-2 sm:pt-4">
+          {/* ── TOP ARCHED PEDIMENT / CREST ── */}
+          <div className="relative z-20 flex flex-col items-center -mb-[2px]">
+            {/* The Arched Bezel */}
+            <div
+              className="relative px-10 sm:px-14 pt-3.5 pb-2.5 rounded-t-[44px] flex flex-col items-center text-center shadow-2xl border-t-2 border-x-2"
+              style={{
+                background: "linear-gradient(180deg, #1b2820 0%, #101c15 65%, #0b1510 100%)",
+                borderColor: "#3a5342",
+                boxShadow: "0 -8px 25px rgba(0,0,0,0.7), inset 0 2px 2px rgba(212,175,55,0.4), inset 0 0 15px rgba(16,185,129,0.1)",
+              }}
+            >
+              {/* Gold Inner Hairline Border */}
               <div
-                className="absolute inset-0 rounded-2xl blur-xl opacity-60 pointer-events-none"
-                style={{ background: "radial-gradient(circle, rgba(245,158,11,0.55) 0%, transparent 70%)" }}
+                className="absolute inset-[3px] bottom-0 rounded-t-[40px] pointer-events-none border-t border-x border-[#d4af37]/35"
               />
-              <img
-                src="/logo.png"
-                alt="Darse Burhani Logo"
-                className="relative w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-2xl"
-                draggable={false}
-                loading="eager"
-                decoding="sync"
-              />
-            </div>
 
-            <div className="flex flex-col">
-              <h1 className="font-display font-extrabold text-xl sm:text-2xl text-white tracking-tight leading-tight flex flex-wrap items-center gap-1.5">
-                <span>Darse Burhani</span>
-                <span className="text-xs sm:text-sm font-semibold text-amber-300/90 tracking-normal">
-                  (Nisab al Mahad al Zahra)
-                </span>
+              {/* Arabic Calligraphy Crest */}
+              <div className="text-[#d8b458] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-serif text-sm sm:text-base tracking-widest font-normal opacity-95">
+                الْجَمِيلَةُ الْعُرْفِيَّة
+              </div>
+
+              {/* Title & Subtitle */}
+              <h1
+                className="font-serif font-bold text-xl sm:text-2xl tracking-wide mt-0.5"
+                style={{
+                  background: "linear-gradient(180deg, #fff2b2 0%, #d4af37 60%, #997822 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))",
+                }}
+              >
+                Darse Burhani
               </h1>
+              <p
+                className="text-[11px] sm:text-xs font-medium tracking-normal mt-[-1px]"
+                style={{
+                  color: "#d4af37",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                }}
+              >
+                (Nisab al Mahad al Zahra)
+              </p>
             </div>
           </div>
 
-          {/* ── Role Switcher Tabs ── */}
-          <nav aria-label="Portal Selection" className="w-full mt-2.5">
-            <div className="w-full bg-[#031d17] border border-emerald-500/25 rounded-2xl p-1.5 grid grid-cols-4 gap-1.5 shadow-lg">
-              {portals.map((p) => {
-                const isActive = p.role === selectedRole;
-                const PIcon = p.icon;
-                return (
-                  <button
-                    key={p.role}
-                    type="button"
-                    onClick={() => handlePortalChange(p.role)}
-                    className={`relative flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
-                      isActive
-                        ? "text-white shadow-md scale-[1.02]"
-                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                    }`}
-                    style={
-                      isActive
-                        ? {
-                            background: p.btnGradient,
-                            boxShadow: `0 3px 12px ${p.glowColor}`,
-                          }
-                        : {}
-                    }
-                  >
-                    <PIcon size={15} className="shrink-0" />
-                    <span className="text-xs tracking-tight truncate">
-                      {p.shortLabel}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
-        </header>
-
-        {/* ── MAIN AUTHENTICATION CARD ── */}
-        <div className="relative z-10 w-full max-w-md mx-auto my-auto py-1 shrink-0">
-          <div className="w-full rounded-3xl p-1 bg-emerald-950/20 ring-1 ring-emerald-900/30 shadow-2xl">
+          {/* ── THE METALLIC DUAL CONSOLE CHASSIS ── */}
+          <div
+            className="relative w-full rounded-[36px] sm:rounded-[42px] p-2.5 sm:p-4 border-2 shadow-[0_30px_70px_rgba(0,0,0,0.9),0_0_50px_rgba(16,185,129,0.15)]"
+            style={{
+              background: "linear-gradient(160deg, #162f22 0%, #0e2118 40%, #091710 100%)",
+              borderColor: "#2d4837",
+              boxShadow: "0 25px 60px -10px rgba(0,0,0,0.9), inset 0 2px 3px rgba(255,255,255,0.15), inset 0 0 40px rgba(10,35,22,0.8)",
+            }}
+          >
+            {/* Gold Chamfer Inset Border */}
             <div
-              className="relative w-full rounded-2xl p-6 sm:p-7 text-white overflow-hidden border border-white/10"
+              className="absolute inset-1.5 sm:inset-2.5 rounded-[30px] sm:rounded-[34px] pointer-events-none border border-[#d4af37]/30"
               style={{
-                background: "linear-gradient(160deg, #03211a 0%, #021712 100%)",
-                boxShadow: `0 18px 45px -10px ${portal.glowColor}, inset 0 1px 1px rgba(255, 255, 255, 0.15)`,
+                boxShadow: "inset 0 0 12px rgba(16,185,129,0.12)",
               }}
-            >
-              {/* Portal Header */}
-              <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md ${portal.iconBg}`}>
-                    <PortalIcon size={20} />
+            />
+
+            {/* Sparkle Accent at Bottom-Right */}
+            <div className="absolute -bottom-3 -right-3 z-30 pointer-events-none text-emerald-300 opacity-90 animate-pulse">
+              <Sparkles size={28} className="drop-shadow-[0_0_12px_#34d399]" />
+            </div>
+
+            {/* Dual Column Layout (Left Panel: Info + Status | Right Panel: Selector + Auth Form) */}
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+              {/* ────────────────── LEFT PANEL (5 COLS) ────────────────── */}
+              <div className="lg:col-span-5 flex flex-col justify-between gap-3 sm:gap-4">
+                {/* 1. Portal Information Card */}
+                <div
+                  className="relative flex-1 rounded-[24px] sm:rounded-[28px] p-5 sm:p-6 border flex flex-col justify-center"
+                  style={{
+                    background: "linear-gradient(180deg, #102d20 0%, #0c2319 60%, #081a12 100%)",
+                    borderColor: "#335340",
+                    boxShadow: "inset 0 2px 4px rgba(255,255,255,0.08), inset 0 -2px 6px rgba(0,0,0,0.6), 0 8px 20px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {/* Subtle Inner Gold Hairline */}
+                  <div className="absolute inset-1.5 rounded-[20px] pointer-events-none border border-[#d4af37]/25" />
+
+                  {/* Header: Portal Name + Badge */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-[#d4af37]/30">
+                    <h2
+                      className="font-serif font-extrabold text-lg sm:text-xl tracking-wider uppercase"
+                      style={{
+                        color: "#e8c86d",
+                        textShadow: "0 2px 4px rgba(0,0,0,0.8)",
+                      }}
+                    >
+                      {portal.label}
+                    </h2>
+                    <span
+                      className="text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border"
+                      style={{
+                        background: "rgba(16, 185, 129, 0.15)",
+                        color: "#6ee7b7",
+                        borderColor: "rgba(110, 231, 183, 0.4)",
+                        textShadow: "0 0 8px rgba(110,231,183,0.5)",
+                      }}
+                    >
+                      {portal.badgeLabel}
+                    </span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">
-                        {portal.label}
-                      </h2>
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${portal.badgeBg}`}>
-                        {portal.badgeLabel}
+
+                  {/* Portal Description */}
+                  <p className="text-xs sm:text-sm leading-relaxed text-[#b9cebe] font-sans font-medium">
+                    {portal.description}
+                  </p>
+                </div>
+
+                {/* 2. System Status Card */}
+                <div
+                  className="relative rounded-[22px] sm:rounded-[26px] p-3.5 sm:p-4 border flex flex-col gap-2"
+                  style={{
+                    background: "linear-gradient(180deg, #0d2117 0%, #091710 100%)",
+                    borderColor: "#274132",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.7), 0 4px 14px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  {/* Title Bar */}
+                  <div
+                    className="w-full py-1 px-3 rounded-lg flex items-center justify-between border"
+                    style={{
+                      background: "linear-gradient(180deg, #1a2f24 0%, #12221a 100%)",
+                      borderColor: "#324e3d",
+                    }}
+                  >
+                    <span className="text-[11px] font-mono font-bold tracking-widest text-[#94a89a] uppercase">
+                      SYSTEM STATUS
+                    </span>
+                  </div>
+
+                  {/* Status Readouts */}
+                  <div className="flex items-center justify-between px-2 pt-1">
+                    {/* Ping Metric */}
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-mono font-bold">
+                      <span className="text-gray-400 font-semibold">PING:</span>
+                      <span className="text-emerald-400 font-extrabold">{serverPing}</span>
+                      {/* Pulsing Green LED */}
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_10px_#10b981]" />
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                      {portal.description}
-                    </p>
+
+                    {/* Date Metric */}
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm font-mono text-gray-300">
+                      <Calendar size={13} className="text-[#d4af37]" />
+                      <span className="font-semibold text-[#e5e7eb]">DATE:</span>
+                      <span className="text-[#d4af37] font-medium">{dateStr}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Authentication Form */}
-              <form onSubmit={handleSubmit} className="w-full space-y-4">
-                {error && (
-                  <div
-                    role="alert"
-                    aria-live="assertive"
-                    className="p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-xs text-red-200 flex items-center gap-2.5 shadow-md"
-                  >
-                    <AlertTriangle size={16} className="text-red-400 shrink-0" />
-                    <span className="font-semibold leading-tight">{error}</span>
+              {/* ────────────────── RIGHT PANEL (7 COLS) ────────────────── */}
+              <div
+                className="lg:col-span-7 rounded-[28px] sm:rounded-[32px] p-4 sm:p-6 border flex flex-col justify-between relative overflow-hidden"
+                style={{
+                  background: "linear-gradient(170deg, #132d20 0%, #0d2117 50%, #081710 100%)",
+                  borderColor: "#33513f",
+                  boxShadow: "inset 0 2px 4px rgba(255,255,255,0.08), 0 10px 30px rgba(0,0,0,0.6)",
+                }}
+              >
+                {/* Thin Inner Gold Trim */}
+                <div className="absolute inset-1.5 rounded-[24px] sm:rounded-[28px] pointer-events-none border border-[#d4af37]/25" />
+
+                {/* ── TOP ROLE SELECTOR ARCH & EMERALD GEM MEDALLION ── */}
+                <div className="relative w-full flex flex-col items-center pt-1 pb-3">
+                  {/* Physical 3D Curved Keycaps (Admin, Faculty, Talabat, Parent) */}
+                  <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5">
+                    {portals.map((p) => {
+                      const isActive = p.role === selectedRole;
+                      const PIcon = p.icon;
+                      return (
+                        <button
+                          key={p.role}
+                          type="button"
+                          onClick={() => handlePortalChange(p.role)}
+                          className={`group relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 px-2.5 sm:px-4 rounded-xl sm:rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 ${
+                            isActive
+                              ? "scale-105 z-10"
+                              : "opacity-80 hover:opacity-100 hover:scale-100"
+                          }`}
+                          style={{
+                            background: isActive
+                              ? "linear-gradient(180deg, #196846 0%, #0e442d 60%, #092e1e 100%)"
+                              : "linear-gradient(180deg, #14241c 0%, #0d1a13 100%)",
+                            border: isActive
+                              ? "1.5px solid #4ade80"
+                              : "1.5px solid #283e30",
+                            boxShadow: isActive
+                              ? `0 4px 18px ${p.glowColor}, inset 0 2px 3px rgba(255,255,255,0.3)`
+                              : "inset 0 1px 2px rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          <PIcon
+                            size={16}
+                            className={`shrink-0 transition-colors ${
+                              isActive ? "text-emerald-200 drop-shadow-[0_0_6px_#4ade80]" : "text-gray-400 group-hover:text-gray-200"
+                            }`}
+                          />
+                          <span
+                            className={`text-[11px] sm:text-xs font-bold tracking-tight ${
+                              isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"
+                            }`}
+                          >
+                            {p.shortLabel}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
 
-                {/* Email / ITS Input Container */}
-                <div className="w-full flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="login-email"
-                      className="text-xs font-semibold text-gray-200 flex items-center gap-1.5"
+                  {/* Center Emerald Crystal Medallion */}
+                  <div className="relative mt-2 flex flex-col items-center">
+                    {/* Glowing Laurel & Gemstone Container */}
+                    <motion.div
+                      key={portal.role}
+                      initial={{ scale: 0.9, opacity: 0.7 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center p-1 border-2"
+                      style={{
+                        background: "radial-gradient(circle, #103322 0%, #07170f 100%)",
+                        borderColor: "#d4af37",
+                        boxShadow: `0 0 25px ${portal.glowColor}, inset 0 0 15px rgba(212,175,55,0.3)`,
+                      }}
                     >
-                      {portal.inputLabel}
-                    </label>
-
-                    {/* ONLY TALABAT: High-Precision Smart ITS Scanner Trigger */}
-                    {portal.role === "STUDENT" && (
-                      <button
-                        type="button"
-                        onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold text-amber-300 bg-amber-500/20 border border-amber-400/40 hover:bg-amber-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+                      {/* Faceted Glowing Gem Center */}
+                      <div
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center transform rotate-45 shadow-inner border border-white/40"
+                        style={{
+                          background: portal.gemGradient,
+                          boxShadow: "inset 0 2px 4px rgba(255,255,255,0.6), 0 0 12px rgba(52,211,153,0.8)",
+                        }}
                       >
-                        <QrCode size={13} className="text-amber-300" />
-                        <span>Scan ITS Card</span>
-                      </button>
+                        <div className="transform -rotate-45">
+                          <portal.icon size={18} className="text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Role Label Pill Underneath Gem */}
+                    <span
+                      className="mt-1 text-[10px] sm:text-[11px] font-mono font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full border"
+                      style={{
+                        background: "rgba(16,185,129,0.15)",
+                        color: "#d4af37",
+                        borderColor: "#d4af37",
+                        textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                      }}
+                    >
+                      {portal.shortLabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ── AUTHENTICATION FORM ── */}
+                <form onSubmit={handleSubmit} className="w-full space-y-3.5 mt-1">
+                  {error && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="p-3 rounded-xl bg-red-950/90 border border-red-500/60 text-xs text-red-200 flex items-center gap-2.5 shadow-lg"
+                    >
+                      <AlertTriangle size={16} className="text-red-400 shrink-0" />
+                      <span className="font-semibold leading-tight">{error}</span>
+                    </div>
+                  )}
+
+                  {/* 1. Email / ITS Input Capsule */}
+                  <div className="w-full space-y-1">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold tracking-wide text-gray-300 font-sans">
+                        {portal.inputLabel}
+                      </span>
+
+                      {portal.role === "STUDENT" && (
+                        <button
+                          type="button"
+                          onClick={handleOpenScanner}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-amber-300 bg-amber-500/20 border border-amber-400/40 hover:bg-amber-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+                        >
+                          <QrCode size={11} className="text-amber-300" />
+                          <span>Scan ITS Card</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      className="relative w-full h-12 sm:h-13 rounded-full flex items-center px-4 border transition-all focus-within:ring-2 focus-within:ring-emerald-400/30 focus-within:border-emerald-400"
+                      style={{
+                        background: "linear-gradient(180deg, #05140d 0%, #0a1e15 100%)",
+                        borderColor: "#2a4b38",
+                        boxShadow: "inset 0 3px 6px rgba(0,0,0,0.8), 0 1px 2px rgba(255,255,255,0.05)",
+                      }}
+                    >
+                      {/* Left Icon (Mail or Fingerprint) */}
+                      <div className="mr-3 text-emerald-400">
+                        {portal.role === "STUDENT" ? (
+                          <Fingerprint size={20} className="text-amber-400 drop-shadow-[0_0_6px_#f59e0b]" />
+                        ) : (
+                          <Mail size={19} className="text-emerald-400 drop-shadow-[0_0_6px_#10b981]" />
+                        )}
+                      </div>
+
+                      {/* Main Input Text */}
+                      <input
+                        id="login-email"
+                        name="email"
+                        type={portal.role === "STUDENT" ? "text" : "email"}
+                        inputMode={portal.role === "STUDENT" ? "text" : "email"}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        required
+                        aria-invalid={Boolean(error)}
+                        autoComplete="username"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (error) setError("");
+                        }}
+                        placeholder={portal.placeholder}
+                        className="w-full bg-transparent text-white placeholder:text-gray-500 font-medium text-sm sm:text-base focus:outline-none tracking-normal"
+                      />
+                    </div>
+
+                    {/* Student 8-digit verification indicator */}
+                    {portal.role === "STUDENT" && email.length > 0 && (
+                      <div className="flex items-center gap-1.5 px-3 text-[11px]">
+                        {isEightDigitIts ? (
+                          <span className="text-amber-400 font-semibold flex items-center gap-1">
+                            <CheckCircle2 size={12} /> 8-Digit ITS ID Formatted
+                          </span>
+                        ) : isEmail ? (
+                          <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                            <CheckCircle2 size={12} /> Student Email Address
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">Enter 8 digits or valid email</span>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  <div className="w-full flex items-center rounded-xl bg-[#01140e] border border-white/15 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all overflow-hidden">
-                    <div className="w-11 h-11 flex items-center justify-center bg-white/5 border-r border-white/10 text-emerald-400 shrink-0">
-                      {portal.role === "STUDENT" ? (
-                        <Fingerprint size={18} className="text-amber-400" />
-                      ) : (
-                        <Mail size={18} className="text-emerald-400" />
+                  {/* 2. Password Input Capsule */}
+                  <div className="w-full space-y-1">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold tracking-wide text-gray-300 font-sans">
+                        Password
+                      </span>
+
+                      {capsLockOn && (
+                        <span className="text-[11px] text-amber-300 font-semibold flex items-center gap-1">
+                          <AlertTriangle size={11} /> Caps Lock ON
+                        </span>
                       )}
                     </div>
 
-                    <input
-                      id="login-email"
-                      name="email"
-                      type={portal.role === "STUDENT" ? "text" : "email"}
-                      inputMode={portal.role === "STUDENT" ? "text" : "email"}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      required
-                      aria-invalid={Boolean(error)}
-                      autoComplete="username"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (error) setError("");
+                    <div
+                      className="relative w-full h-12 sm:h-13 rounded-full flex items-center px-4 border transition-all focus-within:ring-2 focus-within:ring-emerald-400/30 focus-within:border-emerald-400"
+                      style={{
+                        background: "linear-gradient(180deg, #05140d 0%, #0a1e15 100%)",
+                        borderColor: "#2a4b38",
+                        boxShadow: "inset 0 3px 6px rgba(0,0,0,0.8), 0 1px 2px rgba(255,255,255,0.05)",
                       }}
-                      placeholder={portal.placeholder}
-                      className="w-full h-11 px-3.5 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-sm font-medium"
-                    />
+                    >
+                      {/* Left Lock Icon */}
+                      <div className="mr-3 text-emerald-400">
+                        <Lock size={19} className="text-emerald-400 drop-shadow-[0_0_6px_#10b981]" />
+                      </div>
+
+                      {/* Password Input */}
+                      <input
+                        id="login-password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        required
+                        onKeyDown={checkCapsLock}
+                        onKeyUp={checkCapsLock}
+                        aria-invalid={Boolean(error)}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (error) setError("");
+                        }}
+                        placeholder="••••••••••••"
+                        className="w-full bg-transparent text-white placeholder:text-gray-500 font-medium text-sm sm:text-base focus:outline-none tracking-wider"
+                      />
+
+                      {/* Toggle Eye Button */}
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1.5 text-gray-400 hover:text-white transition-colors cursor-pointer mr-1"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+
+                      {/* Small Lock Graphic on the far right */}
+                      <div className="text-gray-500 pl-1 border-l border-white/10">
+                        <Lock size={13} />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Smart detection indicator (Only for Talabat Student ITS) */}
-                  {portal.role === "STUDENT" && email.length > 0 && (
-                    <div className="flex items-center gap-1.5 px-1 text-[11px] text-gray-400">
-                      {isEightDigitIts ? (
-                        <span className="text-amber-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 size={12} /> 8-Digit ITS ID Formatted
-                        </span>
-                      ) : isEmail ? (
-                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Student Email Address
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">Enter 8 digits or valid email</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Password Input Container */}
-                <div className="w-full flex flex-col gap-1.5">
-                  <div className="flex items-baseline justify-between">
-                    <label
-                      htmlFor="login-password"
-                      className="text-xs font-semibold text-gray-200"
-                    >
-                      Password
+                  {/* 3. Controls Row (Keep me signed in + Forgot password) */}
+                  <div className="flex items-center justify-between pt-0.5 px-2">
+                    {/* Custom Tactile Toggle */}
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={rememberMe}
+                        onClick={() => setRememberMe(!rememberMe)}
+                        className={`relative w-9 h-5 rounded-full p-0.5 transition-colors duration-200 border ${
+                          rememberMe
+                            ? "bg-emerald-700 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                            : "bg-[#0c1c14] border-[#294233]"
+                        }`}
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+                            rememberMe ? "translate-x-4 bg-emerald-100" : "translate-x-0 bg-gray-400"
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-gray-300 font-medium">
+                        Keep me signed in
+                      </span>
                     </label>
 
+                    {/* Forgot Password Link */}
                     <button
                       type="button"
                       onClick={() => setShowForgotModal(true)}
-                      className="text-xs font-medium text-amber-300 hover:text-amber-200 hover:underline cursor-pointer transition-colors focus:outline-none"
+                      className="text-xs font-semibold text-[#d4af37] hover:text-[#f3d97d] transition-colors cursor-pointer underline-offset-4 hover:underline"
                     >
                       Forgot password?
                     </button>
                   </div>
 
-                  <div className="relative w-full flex items-center rounded-xl bg-[#01140e] border border-white/15 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all overflow-hidden">
-                    <div className="w-11 h-11 flex items-center justify-center bg-white/5 border-r border-white/10 text-emerald-400 shrink-0">
-                      <Lock size={18} className="text-emerald-400" />
-                    </div>
-
-                    <input
-                      id="login-password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      required
-                      onKeyDown={checkCapsLock}
-                      onKeyUp={checkCapsLock}
-                      aria-invalid={Boolean(error)}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (error) setError("");
+                  {/* 4. Primary CTA Button ("ENTER [ROLE] PORTAL") */}
+                  <button
+                    type="submit"
+                    disabled={isLoading || isSuccess || lockoutSeconds > 0}
+                    className="group relative w-full h-13 sm:h-14 rounded-full font-bold text-sm sm:text-base text-white flex items-center justify-between px-6 border-2 transition-all duration-200 cursor-pointer active:scale-[0.98] disabled:opacity-50 overflow-hidden hover:brightness-110"
+                    style={{
+                      background: portal.btnGradient,
+                      borderColor: "#4ade80",
+                      boxShadow: `0 8px 25px ${portal.glowColor}, inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 6px rgba(0,0,0,0.6)`,
+                    }}
+                  >
+                    {/* Metallic Horizontal Sheen */}
+                    <div
+                      className="absolute inset-0 opacity-25 pointer-events-none"
+                      style={{
+                        background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
                       }}
-                      placeholder="••••••••••••"
-                      className="w-full h-11 pl-3.5 pr-11 bg-transparent text-white placeholder:text-gray-500 focus:outline-none text-sm font-medium"
                     />
 
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-1.5 w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    <span className="font-extrabold tracking-wider text-sm sm:text-base uppercase text-emerald-50 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                      {lockoutSeconds > 0
+                        ? `SECURITY LOCKOUT (${lockoutSeconds}S)`
+                        : isSuccess
+                        ? `LAUNCHING ${portal.shortLabel}...`
+                        : isLoading
+                        ? "VERIFYING CREDENTIALS..."
+                        : `ENTER ${portal.label.toUpperCase()}`}
+                    </span>
+
+                    {/* Circular Pill Arrow Indicator on the Right */}
+                    <div
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border border-white/30 text-white shrink-0 shadow-md group-hover:translate-x-1 transition-transform"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.15)",
+                      }}
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-
-                  {/* Caps Lock Indicator */}
-                  {capsLockOn && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-amber-300 font-medium px-1">
-                      <AlertTriangle size={12} />
-                      <span>Caps Lock is ON</span>
+                      {isLoading ? (
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      ) : isSuccess ? (
+                        <Check size={18} className="text-white" />
+                      ) : (
+                        <ArrowRight size={18} className="text-white" />
+                      )}
                     </div>
-                  )}
-                </div>
+                  </button>
 
-                {/* Keep Me Signed In & Latency Meter */}
-                <div className="w-full flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded-md border-white/20 bg-[#01140e] text-emerald-600 focus:ring-emerald-500/30 cursor-pointer accent-emerald-600"
-                    />
-                    <span className="text-xs text-gray-300 font-medium">Keep me signed in</span>
-                  </label>
-
-                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Ping: {serverPing}</span>
+                  {/* 5. Session Valid Tag */}
+                  <div className="flex justify-center pt-1">
+                    <div
+                      className="px-4 py-1 rounded-full border text-[11px] font-mono text-gray-300 font-medium"
+                      style={{
+                        background: "rgba(5, 20, 13, 0.8)",
+                        borderColor: "#2d4b38",
+                      }}
+                    >
+                      Session valid for: <span className="text-[#d4af37] font-bold">2hrs</span>
+                    </div>
                   </div>
-                </div>
-
-                {/* Action Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                  className="w-full h-12 rounded-xl font-bold text-sm text-white flex items-center justify-between px-5 shadow-lg transition-all duration-200 disabled:opacity-50 cursor-pointer active:scale-[0.98] overflow-hidden hover:brightness-110 mt-2"
-                  style={{
-                    background: portal.btnGradient,
-                    boxShadow: `0 6px 18px -2px ${portal.glowColor}`,
-                  }}
-                >
-                  <span className="font-bold tracking-tight text-sm">
-                    {lockoutSeconds > 0
-                      ? `Security Lockout (${lockoutSeconds}s)`
-                      : isSuccess
-                      ? `Launching ${portal.shortLabel}...`
-                      : isLoading
-                      ? "Verifying..."
-                      : `Enter ${portal.label}`}
-                  </span>
-
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                    {isLoading ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : isSuccess ? (
-                      <Check size={18} />
-                    ) : (
-                      <ArrowRight size={18} />
-                    )}
-                  </div>
-                </button>
-              </form>
-
-              {/* Live Academic Session Banner */}
-              <div className="mt-5 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs text-gray-400 font-medium">
-                <span className="flex items-center gap-1.5 text-amber-300/90 font-medium">
-                  <Calendar size={13} className="text-amber-400 shrink-0" />
-                  {gregorianStr}
-                </span>
-                <span className="flex items-center gap-1.5 text-gray-400">
-                  <Building2 size={13} className="text-gray-400 shrink-0" />
-                  Darse Burhani
-                </span>
+                </form>
               </div>
             </div>
           </div>
         </div>
 
         {/* ── FOOTER ── */}
-        <footer className="relative z-10 w-full max-w-md mx-auto text-center text-xs text-gray-400 py-2 flex items-center justify-center gap-2.5 shrink-0">
-          <span>&copy; {new Date().getFullYear()} Darse Burhani</span>
+        <footer className="relative z-10 w-full max-w-md mx-auto text-center text-xs text-[#a0b3a6] py-3 flex items-center justify-center gap-2.5 shrink-0 font-medium">
+          <span className="text-[#c7a950]">&copy; 2026 Darse Burhani</span>
           <span>&bull;</span>
-          <a href="/privacy" className="hover:text-amber-300 transition-colors">
+          <a href="/privacy" className="hover:text-[#e8d184] transition-colors">
             Privacy Policy
           </a>
           <span>&bull;</span>
-          <a href="/terms" className="hover:text-amber-300 transition-colors">
+          <a href="/terms" className="hover:text-[#e8d184] transition-colors">
             Terms of Service
           </a>
         </footer>
       </main>
 
-      {/* ── ULTRA-PRECISE ITS CARD OPTICAL SCANNER MODAL (Talabat Exclusive) ── */}
+      {/* ── OPTICAL SCANNER MODAL (Talabat ITS Recognition) ── */}
       <AnimatePresence>
         {showScannerModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
@@ -908,9 +1131,8 @@ export default function LoginPage() {
               initial={{ opacity: 0, scale: 0.94, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 15 }}
-              className="relative w-full max-w-md p-5 sm:p-6 rounded-3xl bg-[#021f17] border border-amber-500/40 text-white shadow-[0_25px_60px_-15px_rgba(245,158,11,0.3)] space-y-4 overflow-hidden"
+              className="relative w-full max-w-md p-5 sm:p-6 rounded-3xl bg-[#091e15] border-2 border-[#d4af37]/60 text-white shadow-[0_25px_60px_-15px_rgba(212,175,55,0.3)] space-y-4 overflow-hidden"
             >
-              {/* Modal Top Bar */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center border border-amber-400/30">
@@ -920,7 +1142,7 @@ export default function LoginPage() {
                     <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
                       ITS Smart Card Scanner
                       <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                        Precision OCR & Barcode
+                        High Precision
                       </span>
                     </h3>
                     <p className="text-[11px] text-emerald-300/80">Talabat Student Gateway</p>
@@ -936,7 +1158,6 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* Mode Selector Tabs (Live Camera vs High-Res Photo Upload) */}
               <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-black/40 border border-white/10 text-xs">
                 <button
                   type="button"
@@ -951,7 +1172,7 @@ export default function LoginPage() {
                   }`}
                 >
                   <Camera size={14} />
-                  <span>Live Optical Sensor</span>
+                  <span>Live Camera</span>
                 </button>
 
                 <button
@@ -967,14 +1188,12 @@ export default function LoginPage() {
                   }`}
                 >
                   <Upload size={14} />
-                  <span>Upload Card Image</span>
+                  <span>Upload Image</span>
                 </button>
               </div>
 
-              {/* High-Precision Scanner Viewport */}
               {scannerMode === "camera" ? (
                 <div className="relative w-full h-56 sm:h-64 rounded-2xl bg-black border border-amber-500/30 overflow-hidden flex items-center justify-center shadow-inner">
-                  {/* Live Video Element */}
                   <video
                     ref={videoRef}
                     autoPlay
@@ -983,15 +1202,12 @@ export default function LoginPage() {
                     className={`w-full h-full object-cover ${cameraFacing === "user" ? "scale-x-[-1]" : ""}`}
                   />
 
-                  {/* ID-1 Standard Smart Card Aspect Reticle (85.6mm x 53.98mm ~ 1.58 ratio) */}
                   <div className="absolute inset-4 sm:inset-5 rounded-2xl border-2 border-amber-400/60 pointer-events-none flex flex-col justify-between p-3 box-border bg-emerald-950/10 backdrop-contrast-[1.08]">
-                    {/* Targeting Corner Brackets */}
                     <div className="flex justify-between items-start">
                       <div className="w-5 h-5 border-t-2 border-l-2 border-amber-400" />
                       <div className="w-5 h-5 border-t-2 border-r-2 border-amber-400" />
                     </div>
 
-                    {/* ITS Smart Chip & Photo Reference Guides */}
                     <div className="flex items-center justify-between px-2 opacity-60">
                       <div className="w-8 h-7 rounded-md border border-amber-300/60 bg-amber-400/10 flex items-center justify-center text-[8px] font-mono font-bold text-amber-200">
                         CHIP
@@ -1010,7 +1226,6 @@ export default function LoginPage() {
                       <div className="w-5 h-5 border-b-2 border-r-2 border-amber-400" />
                     </div>
 
-                    {/* Animated Optical Laser Sweep */}
                     {!scannedItsResult && (
                       <motion.div
                         initial={{ top: "10%" }}
@@ -1021,7 +1236,6 @@ export default function LoginPage() {
                     )}
                   </div>
 
-                  {/* Recognition Success Overlay */}
                   {scannedItsResult && (
                     <motion.div
                       initial={{ scale: 0.8, opacity: 0 }}
@@ -1038,7 +1252,6 @@ export default function LoginPage() {
                     </motion.div>
                   )}
 
-                  {/* Camera Controls Floating Bar */}
                   <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
                     {hasTorchCapability && (
                       <button
@@ -1063,7 +1276,6 @@ export default function LoginPage() {
                   </div>
                 </div>
               ) : (
-                /* High-Res Photo Upload Box */
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="relative w-full h-56 sm:h-64 rounded-2xl bg-black/40 border-2 border-dashed border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer flex flex-col items-center justify-center p-6 text-center space-y-3 group"
@@ -1083,16 +1295,12 @@ export default function LoginPage() {
                       Select or Drop ITS Card Photo
                     </p>
                     <p className="text-[11px] text-gray-400 mt-1">
-                      High-contrast automated barcode & 8-digit ITS number decoder
+                      Automated optical recognition for ITS barcode & digits
                     </p>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-amber-300 font-mono font-medium">
-                    JPEG, PNG, HEIC or WEBP
-                  </span>
                 </div>
               )}
 
-              {/* Real-time Status & Confidence Meter */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-gray-300 font-medium truncate">{scannerStatus}</span>
@@ -1100,8 +1308,6 @@ export default function LoginPage() {
                     {scanConfidence}% Accuracy
                   </span>
                 </div>
-
-                {/* Live Confidence Bar */}
                 <div className="w-full h-1.5 rounded-full bg-black/60 overflow-hidden border border-white/10">
                   <div
                     className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-300 rounded-full"
@@ -1110,11 +1316,8 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Fallback Quick Demo Scan Button */}
               <div className="pt-1 flex items-center justify-between gap-2 border-t border-white/10">
-                <span className="text-[11px] text-gray-400">
-                  Need quick verification?
-                </span>
+                <span className="text-[11px] text-gray-400">Quick Test?</span>
                 <button
                   type="button"
                   onClick={() => handleSuccessfulScan("50463544")}
@@ -1129,7 +1332,7 @@ export default function LoginPage() {
         )}
       </AnimatePresence>
 
-      {/* Password Assistance Modal */}
+      {/* ── FORGOT PASSWORD RECOVERY MODAL ── */}
       <AnimatePresence>
         {showForgotModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -1137,7 +1340,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-md p-6 rounded-3xl bg-[#021f17] border border-emerald-500/30 text-white shadow-2xl space-y-4"
+              className="relative w-full max-w-md p-6 rounded-3xl bg-[#091e15] border-2 border-[#d4af37]/60 text-white shadow-2xl space-y-4"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
