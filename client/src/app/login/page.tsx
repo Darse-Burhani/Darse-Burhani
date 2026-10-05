@@ -563,8 +563,8 @@ export default function LoginPage() {
   return (
     <>
       <SEO
-        title="Sign In — Darse Burhani"
-        description="Portal gateway for Aljamea-tus-Saifiyah administrators, faculty, talabat, and parents."
+        title="Sign In — Darse Burhani (Nisab al Mahad al Zahra)"
+        description="Portal gateway for Darse Burhani administrators, faculty, talabat, and parents."
       />
 
       <canvas ref={canvasRef} className="hidden" />
@@ -602,12 +602,12 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col">
-              <h1 className="font-display font-extrabold text-2xl text-white tracking-tight leading-tight">
-                Darse Burhani
+              <h1 className="font-display font-extrabold text-xl sm:text-2xl text-white tracking-tight leading-tight flex flex-wrap items-center gap-1.5">
+                <span>Darse Burhani</span>
+                <span className="text-xs sm:text-sm font-semibold text-amber-300/90 tracking-normal">
+                  (Nisab al Mahad al Zahra)
+                </span>
               </h1>
-              <span className="text-xs text-emerald-300 font-medium tracking-normal mt-0.5">
-                Aljamea-tus-Saifiyah
-              </span>
             </div>
           </div>
 
