@@ -496,8 +496,18 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     orderBy: { startTime: "asc" },
   })) as unknown as ScanWindowRow[];
 
-  const students = await prisma.studentProfile.findMany({
-    where: { user: { isActive: true } },
+  const rawStudents = await prisma.studentProfile.findMany({
+    where: {
+      user: { isActive: true },
+      AND: [
+        {
+          OR: [
+            { biometricHash: { not: null, not: "" } },
+            { attendanceRecords: { some: { date: { gte: dayStart, lt: dayEnd } } } },
+          ],
+        },
+      ],
+    },
     include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
     orderBy: [{ grade: "asc" }, { section: "asc" }, { studentId: "asc" }],
   });
@@ -506,8 +516,18 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     where: { date: { gte: dayStart, lt: dayEnd } },
   });
 
-  const teachers = await prisma.teacherProfile.findMany({
-    where: { user: { isActive: true } },
+  const rawTeachers = await prisma.teacherProfile.findMany({
+    where: {
+      user: { isActive: true },
+      AND: [
+        {
+          OR: [
+            { biometricHash: { not: null, not: "" } },
+            { attendanceRecords: { some: { date: { gte: dayStart, lt: dayEnd } } } },
+          ],
+        },
+      ],
+    },
     include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
     orderBy: [{ employeeId: "asc" }],
   });
@@ -515,6 +535,17 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
   const teacherRecords = await prisma.teacherAttendanceRecord.findMany({
     where: { date: { gte: dayStart, lt: dayEnd } },
   });
+
+  const sMap = new Map(studentRecords.map((r) => [r.studentId, r]));
+  const tMap = new Map(teacherRecords.map((r) => [r.teacherId, r]));
+
+  // Strictly filter in-memory to ensure only members applicable for scanning appear on Google Sheet
+  const students = rawStudents.filter(
+    (s) => (s.biometricHash && s.biometricHash.trim().length > 0) || sMap.has(s.id)
+  );
+  const teachers = rawTeachers.filter(
+    (t) => (t.biometricHash && t.biometricHash.trim().length > 0) || tMap.has(t.id)
+  );
 
   const studentLeaves = await prisma.leaveRequest.findMany({
     where: {
@@ -533,8 +564,6 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     select: { studentId: true, teacherId: true, reason: true, eventName: true },
   });
 
-  const sMap = new Map(studentRecords.map((r) => [r.studentId, r]));
-  const tMap = new Map(teacherRecords.map((r) => [r.teacherId, r]));
   const sLeaveMap = new Map(studentLeaves.map((l) => [l.studentId, l]));
   const sMedMap = new Map(medicalExemptions.filter((m) => m.studentId).map((m) => [m.studentId!, m]));
   const tMedMap = new Map(medicalExemptions.filter((m) => m.teacherId).map((m) => [m.teacherId!, m]));
@@ -646,7 +675,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     } else if (status === "ON_LEAVE" || status === "MEDICAL") {
       tLeave++;
       source = "EXCUSED";
-      reason = status === "MEDICAL" ? "Medical Leave" : "On Leave";
+      reason = status === "MEDICAL" ? "Medical Leave" : ((att as { notes?: string })?.notes || "On Holiday / Leave");
     } else {
       status = "ABSENT";
       tA++;

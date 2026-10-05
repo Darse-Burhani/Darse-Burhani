@@ -619,15 +619,42 @@ export function ManualLeaveModal({
 
           {/* ── 5. Reason & Notes ── */}
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                5. Reason / Symptoms / Notes <span className="text-rose-500">*</span>
-              </label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  5. Reason / Remarks <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-gray-400 font-medium">Click quick preset to fill</span>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {[
+                  { label: "🌴 Holiday / Vacation", text: "Approved Holiday / Vacation Leave", cat: "PERSONAL" },
+                  { label: "🕌 Umrah / Ziyarat", text: "Umrah / Ziyarat Travel Exemption", cat: "PERSONAL" },
+                  { label: "🩺 Medical Rest", text: "Medical Exemption / Rest Advised", cat: "MEDICAL" },
+                  { label: "👨‍👩‍👧 Family Function", text: "Family Obligation / Wedding Function", cat: "FAMILY_EMERGENCY" },
+                  { label: "🏛️ Official Duty", text: "School Representation / Official Assignment", cat: "OTHER" },
+                ].map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setReason(p.text);
+                      setCategory(p.cat);
+                    }}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-emerald-50 hover:text-emerald-800 border border-gray-200 hover:border-emerald-300 transition-colors"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
               <textarea
                 rows={2}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Explain the reason (e.g. Doctor appointment, fever and rest advised, family function, visa processing)..."
+                placeholder="Explain the reason (e.g. Official holiday, medical rest advised, family function, visa processing)..."
                 className="w-full p-3 rounded-2xl border border-gray-200 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 resize-none"
               />
             </div>
@@ -640,7 +667,7 @@ export function ManualLeaveModal({
                 type="text"
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="e.g. Verified with parent on phone / Approved by Principal"
+                placeholder="e.g. Verified with parent / Authorized by Principal"
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500"
               />
             </div>

@@ -269,6 +269,33 @@ export async function rejectTeacherLeave(
   });
 }
 
+export async function batchApproveTeacherLeaves(
+  leaveIds: string[],
+  reviewerNotes?: string
+): Promise<{ success: boolean; message: string; data: { total: number; approvedCount: number } }> {
+  return request<{ success: boolean; message: string; data: { total: number; approvedCount: number } }>(
+    `/api/teacher/leave/batch-approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ leaveIds, reviewerNotes }),
+    }
+  );
+}
+
+export async function markTeacherHolidayLeave(data: {
+  studentIds: string[];
+  startDate: string;
+  endDate: string;
+  reason: string;
+  type?: string;
+  notes?: string;
+}): Promise<{ success: boolean; message: string; data: any }> {
+  return request<{ success: boolean; message: string; data: any }>(`/api/teacher/leave/mark-holiday`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 // ── Admin API ──
 
 export async function getAdminLeaves(params?: {
@@ -329,6 +356,33 @@ export async function rejectAdminLeave(
 export async function deleteAdminLeave(leaveId: string): Promise<{ id: string; status: string }> {
   return request<{ id: string; status: string }>(`/api/admin/leave/${leaveId}`, {
     method: "DELETE",
+  });
+}
+
+export async function batchApproveAdminLeaves(
+  leaveIds: string[],
+  reviewerNotes?: string
+): Promise<{ success: boolean; message: string; data: { total: number; approvedCount: number } }> {
+  return request<{ success: boolean; message: string; data: { total: number; approvedCount: number } }>(
+    `/api/admin/leave/batch-approve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ leaveIds, reviewerNotes }),
+    }
+  );
+}
+
+export async function markAdminHolidayLeave(data: {
+  studentIds: string[];
+  startDate: string;
+  endDate: string;
+  reason: string;
+  type?: string;
+  notes?: string;
+}): Promise<{ success: boolean; message: string; data: any }> {
+  return request<{ success: boolean; message: string; data: any }>(`/api/admin/leave/mark-holiday`, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 

@@ -12,12 +12,15 @@ import {
   Loader2,
   AlertCircle,
   Plus,
+  Palmtree,
+  Sparkles,
 } from "lucide-react";
 import {
   getAdminLeaves,
   approveAdminLeave,
   rejectAdminLeave,
   deleteAdminLeave,
+  batchApproveAdminLeaves,
   LeaveRequestItem,
   AdminLeaveStats,
 } from "@/lib/api";
@@ -77,6 +80,11 @@ export default function AdminLeavePage() {
 
   const handleApprove = async (id: string, notes?: string) => {
     await approveAdminLeave(id, notes);
+    await fetchData(true);
+  };
+
+  const handleBatchApprove = async (ids: string[], notes?: string) => {
+    await batchApproveAdminLeaves(ids, notes);
     await fetchData(true);
   };
 
@@ -275,6 +283,21 @@ export default function AdminLeavePage() {
         </div>
       </div>
 
+      {/* Live Sync Information Banner */}
+      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 text-xs text-emerald-900 font-medium">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Palmtree className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-bold text-emerald-950">Applied Student Holiday & Leave Sync Active</div>
+            <div className="text-[11px] text-emerald-800 opacity-90">
+              When student holiday or leave is approved, their attendance is automatically marked as <span className="font-bold">ON_LEAVE / MEDICAL</span> across all attendance registries and reflects on the Google Sheet immediately.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Error state */}
       {error && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2">
@@ -295,6 +318,7 @@ export default function AdminLeavePage() {
           isAdmin={true}
           onApprove={handleApprove}
           onReject={handleReject}
+          onBatchApprove={handleBatchApprove}
           onDelete={handleDelete}
           loading={loading}
         />

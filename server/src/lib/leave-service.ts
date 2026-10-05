@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { cache } from "./cache";
+import { queueAutoSheetSync } from "./google-attendance-sync";
 import { LeaveType, LeaveStatus, AttendanceSource, AttendanceStatus } from "@prisma/client";
 
 export interface CreateLeaveInput {
@@ -253,6 +254,8 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
 
+  queueAutoSheetSync(leave.startDate);
+
   return updatedLeave;
 }
 
@@ -303,6 +306,8 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
 
+  queueAutoSheetSync(leave.startDate);
+
   return updatedLeave;
 }
 
@@ -341,6 +346,8 @@ export async function cancelLeaveRequest(leaveId: string, studentId?: string, is
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
+
+  queueAutoSheetSync(leave.startDate);
 
   return updatedLeave;
 }
@@ -531,6 +538,8 @@ export async function createDirectApprovedLeave(input: CreateManualLeaveInput) {
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
 
+  queueAutoSheetSync(start);
+
   return leave;
 }
 
@@ -632,6 +641,52 @@ export async function createDirectFacultyLeave(input: CreateManualFacultyLeaveIn
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
 
+  queueAutoSheetSync(start);
+
   return { success: true, teacherId: teacher.id, datesCount: dates.length };
+}
+
+export interface BatchHolidayLeaveInput {
+  studentIds: string[];
+  type?: LeaveType;
+  startDate: Date | string;
+  endDate: Date | string;
+  reason: string;
+  reviewerId: string;
+  reviewerNotes?: string;
+}
+
+/**
+ * 1-Click Batch mark applied or selected students on Holiday / Leave.
+ * Sets status to ON_LEAVE across AttendanceRegistry & AttendanceRecord and triggers Google Sheet sync.
+ */
+export async function markHolidayLeaveBatch(input: BatchHolidayLeaveInput) {
+  if (!input.studentIds || input.studentIds.length === 0) {
+    throw new Error("At least one student must be selected");
+  }
+
+  const results = [];
+  for (const studentId of input.studentIds) {
+    try {
+      const leave = await createDirectApprovedLeave({
+        studentId,
+        type: input.type || LeaveType.PERSONAL,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        reason: input.reason || "Approved Holiday / Leave",
+        reviewerId: input.reviewerId,
+        reviewerNotes: input.reviewerNotes || "Authorized Holiday Exemption",
+      });
+      results.push({ studentId, success: true, leaveId: leave.id });
+    } catch (err: any) {
+      results.push({ studentId, success: false, error: err?.message });
+    }
+  }
+
+  return {
+    total: input.studentIds.length,
+    successCount: results.filter((r) => r.success).length,
+    results,
+  };
 }
 

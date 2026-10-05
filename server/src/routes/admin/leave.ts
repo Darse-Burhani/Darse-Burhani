@@ -7,6 +7,7 @@ import {
   cancelLeaveRequest,
   createDirectApprovedLeave,
   createDirectFacultyLeave,
+  markHolidayLeaveBatch,
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 
@@ -315,6 +316,79 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
       success: false,
       error: error.message || "Failed to reject leave request",
     });
+  }
+});
+
+// POST /api/admin/leave/batch-approve — 1-Click Approve multiple pending leave requests
+router.post("/batch-approve", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { leaveIds, reviewerNotes } = req.body;
+
+    if (!Array.isArray(leaveIds) || leaveIds.length === 0) {
+      return res.status(400).json({ success: false, error: "leaveIds array is required" });
+    }
+
+    const results = [];
+    for (const id of leaveIds) {
+      try {
+        const leave = await approveLeaveRequest({
+          leaveId: id,
+          reviewerId: session.user.id,
+          reviewerNotes: reviewerNotes || "Batch approved by Administrator.",
+        });
+        results.push({ id, success: true, status: leave.status });
+      } catch (err: any) {
+        results.push({ id, success: false, error: err?.message });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Processed ${results.filter((r) => r.success).length} of ${leaveIds.length} leave approvals`,
+      data: {
+        total: leaveIds.length,
+        approvedCount: results.filter((r) => r.success).length,
+        results,
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Batch approve error:", error);
+    return res.status(500).json({ success: false, error: "Failed to batch approve leave requests" });
+  }
+});
+
+// POST /api/admin/leave/mark-holiday — 1-Click Mark applied / selected students on Holiday / Leave
+router.post("/mark-holiday", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { studentIds, startDate, endDate, reason, type = "PERSONAL", notes } = req.body;
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ success: false, error: "At least one student must be selected" });
+    }
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, error: "Start date and end date are required" });
+    }
+
+    const result = await markHolidayLeaveBatch({
+      studentIds,
+      type: type as LeaveType,
+      startDate,
+      endDate,
+      reason: reason || "Approved Holiday / Leave",
+      reviewerId: session.user.id,
+      reviewerNotes: notes || "Direct holiday authorization by Administrator",
+    });
+
+    return res.json({
+      success: true,
+      message: `Successfully marked ${result.successCount} student(s) on Holiday / Leave`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Mark holiday error:", error);
+    return res.status(400).json({ success: false, error: error?.message || "Failed to mark holiday" });
   }
 });
 

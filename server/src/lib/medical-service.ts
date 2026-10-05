@@ -1,6 +1,7 @@
 import prisma from "./prisma";
 import { cache } from "./cache";
 import { normalizeDateToUTC } from "./leave-service";
+import { queueAutoSheetSync } from "./google-attendance-sync";
 import { AttendanceStatus, AttendanceSource, LeaveType, LeaveStatus } from "@prisma/client";
 
 export interface MarkMedicalInput {
@@ -276,6 +277,8 @@ export async function markMedicalExemption(input: MarkMedicalInput) {
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
 
+  queueAutoSheetSync(day);
+
   return createdExemption;
 }
 
@@ -359,6 +362,8 @@ export async function revokeMedicalExemption(id: string, actorId?: string, actor
   cache.invalidateTag("attendanceRegistry");
   cache.invalidateTag("teacherAttendanceRecord");
   cache.invalidateTag("dashboard");
+
+  queueAutoSheetSync(existing.date);
 
   return updated;
 }

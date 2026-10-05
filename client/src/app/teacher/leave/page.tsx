@@ -12,11 +12,14 @@ import {
   Loader2,
   AlertCircle,
   Plus,
+  Palmtree,
+  Sparkles,
 } from "lucide-react";
 import {
   getTeacherLeaves,
   approveTeacherLeave,
   rejectTeacherLeave,
+  batchApproveTeacherLeaves,
   LeaveRequestItem,
   TeacherLeaveStats,
 } from "@/lib/api";
@@ -70,6 +73,11 @@ export default function TeacherLeavePage() {
 
   const handleApprove = async (id: string, notes?: string) => {
     await approveTeacherLeave(id, notes);
+    await fetchData(true);
+  };
+
+  const handleBatchApprove = async (ids: string[], notes?: string) => {
+    await batchApproveTeacherLeaves(ids, notes);
     await fetchData(true);
   };
 
@@ -209,6 +217,21 @@ export default function TeacherLeavePage() {
         </div>
       </div>
 
+      {/* Live Sync Information Banner */}
+      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 text-xs text-emerald-900 font-medium">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Palmtree className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-bold text-emerald-950">Student Holiday & Leave Attendance Sync</div>
+            <div className="text-[11px] text-emerald-800 opacity-90">
+              When approved, student attendance is automatically marked as <span className="font-bold">ON_LEAVE / MEDICAL</span> across all class rosters and reflects directly on Google Sheet & Attendance Logs.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Error notification */}
       {error && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2">
@@ -228,6 +251,7 @@ export default function TeacherLeavePage() {
           requests={requests}
           onApprove={handleApprove}
           onReject={handleReject}
+          onBatchApprove={handleBatchApprove}
           loading={loading}
         />
       )}
