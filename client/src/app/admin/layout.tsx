@@ -74,7 +74,7 @@ const navItems: PortalNavItem[] = [
     category: "Operations",
   },
   {
-    label: "Procurement Requisitions",
+    label: "Procurement",
     href: "/admin/procurement",
     icon: ShoppingBag,
     category: "Operations",
@@ -199,7 +199,7 @@ export default function AdminLayout() {
         subtitle={isTeacher ? "Teacher & Admin Operations" : "Admin Command"}
         roleLabel={isTeacher ? "Teacher (Admin Access)" : "Admin"}
         navItems={displayNavItems}
-        searchPlaceholder="Type ⌘K to search or jump..."
+        searchPlaceholder="Search or jump..."
       />
     </>
   );

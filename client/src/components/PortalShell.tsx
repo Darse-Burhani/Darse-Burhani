@@ -195,6 +195,31 @@ export function PortalShell({
       ? pathname === rootPath || pathname === `${rootPath}/`
       : pathname.startsWith(href);
 
+  // Track open/collapsed state for sidebar categories (accordion)
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [cat]: !prev[cat],
+    }));
+  };
+
+  // Group nav items by category for structured accordion scanning
+  const categorizedNavItems = useMemo(() => {
+    const groups: { category: string; items: PortalNavItem[] }[] = [];
+    const map = new Map<string, PortalNavItem[]>();
+    for (const item of navItems) {
+      const cat = item.category || "General";
+      if (!map.has(cat)) {
+        map.set(cat, []);
+        groups.push({ category: cat, items: map.get(cat)! });
+      }
+      map.get(cat)!.push(item);
+    }
+    return groups;
+  }, [navItems]);
+
   // Extract unique categories for quick mobile filtering
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -263,53 +288,81 @@ export function PortalShell({
           )}
         </div>
 
-        {/* Desktop Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 relative z-10 scrollbar-thin">
-          {navItems.map((item, index) => {
-            const active = isActive(item.href);
-            const prevCategory = index > 0 ? navItems[index - 1].category : undefined;
-            const showCategoryHeader = item.category && item.category !== prevCategory;
+        {/* Desktop Navigation with Collapsible Category Accordions */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 relative z-10 scrollbar-thin">
+          {categorizedNavItems.map((group) => {
+            const isCollapsed = !sidebarCollapsed && !!collapsedCategories[group.category];
+            const hasActiveItem = group.items.some((item) => isActive(item.href));
+
             return (
-              <div key={item.href} className="space-y-1">
-                {showCategoryHeader && !sidebarCollapsed && (
-                  <div className="pt-3 pb-1 px-3 flex items-center gap-2">
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-white/70">{item.category}</span>
-                    <div className="h-[1px] flex-1 bg-white/10" />
-                  </div>
-                )}
-                {showCategoryHeader && sidebarCollapsed && (
+              <div key={group.category} className="space-y-1">
+                {!sidebarCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(group.category)}
+                    className="w-full pt-2.5 pb-1 px-2.5 flex items-center justify-between gap-2 text-[10px] font-bold tracking-wider uppercase text-white/70 hover:text-white transition-colors cursor-pointer group"
+                    title={`Toggle ${group.category} section`}
+                  >
+                    <span className="truncate">{group.category}</span>
+                    <ChevronDown
+                      className={cn(
+                        "w-3 h-3 text-white/50 group-hover:text-white transition-transform duration-200 shrink-0",
+                        isCollapsed && "-rotate-90"
+                      )}
+                    />
+                  </button>
+                ) : (
                   <div className="my-2 mx-auto w-6 h-[1px] bg-white/15" />
                 )}
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200",
-                    active
-                      ? "bg-white/20 text-white shadow-sm ring-1 ring-white/20"
-                      : "text-white/80 hover:bg-white/10 hover:text-white",
-                    sidebarCollapsed && "justify-center px-2"
-                  )}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  <item.icon
-                    className={cn("w-5 h-5 shrink-0 transition-transform duration-200", !active && "group-hover:scale-110 opacity-90 group-hover:opacity-100")}
-                    style={active ? { color: theme.activeIcon } : undefined}
-                  />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                  {!sidebarCollapsed && item.badge && (
-                    <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-200 border border-amber-400/30">
-                      {item.badge}
-                    </span>
-                  )}
-                  {!sidebarCollapsed && item.shortcut && !item.badge && (
-                    <kbd className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-white border border-white/20 opacity-80 group-hover:opacity-100 transition-opacity">
-                      {item.shortcut}
-                    </kbd>
-                  )}
-                  {active && !sidebarCollapsed && !item.shortcut && !item.badge && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: theme.goldAccent, boxShadow: `0 0 8px ${theme.ambientGlow}` }} />
-                  )}
-                </Link>
+
+                {(!isCollapsed || sidebarCollapsed) && (
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const active = isActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={cn(
+                            "group flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200",
+                            active
+                              ? "bg-white/20 text-white shadow-sm ring-1 ring-white/20"
+                              : "text-white/80 hover:bg-white/10 hover:text-white",
+                            sidebarCollapsed && "justify-center px-2"
+                          )}
+                          title={sidebarCollapsed ? item.label : undefined}
+                        >
+                          <item.icon
+                            className={cn(
+                              "w-4 h-4 shrink-0 transition-transform duration-200",
+                              !active && "group-hover:scale-110 opacity-90 group-hover:opacity-100"
+                            )}
+                            style={active ? { color: theme.activeIcon } : undefined}
+                          />
+                          {!sidebarCollapsed && (
+                            <span className="truncate flex-1 min-w-0">{item.label}</span>
+                          )}
+                          {!sidebarCollapsed && item.badge && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-200 border border-amber-400/30 shrink-0">
+                              {item.badge}
+                            </span>
+                          )}
+                          {!sidebarCollapsed && item.shortcut && !item.badge && (
+                            <kbd className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-white border border-white/20 opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
+                              {item.shortcut}
+                            </kbd>
+                          )}
+                          {active && !sidebarCollapsed && !item.shortcut && !item.badge && (
+                            <span
+                              className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ background: theme.goldAccent, boxShadow: `0 0 8px ${theme.ambientGlow}` }}
+                            />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

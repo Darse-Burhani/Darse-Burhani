@@ -129,30 +129,19 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
           )}
         </div>
 
-        {/* Quick Keyboard & Fast DB HUD */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={triggerCommandPalette}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all active:scale-95 border border-slate-700 cursor-pointer"
-            title="Open Quick Commander (Ctrl+K or ⌘K)"
-          >
-            <Search className="w-3.5 h-3.5 text-amber-400" />
-            <span>Quick Commander</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-[10px] text-amber-300 font-mono">⌘K</kbd>
-          </button>
-
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <Zap className="w-3 h-3 text-emerald-600" />
-            <span>Fast DB Load Active</span>
+        {/* Hub Status & Shortcut Utilities */}
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+            <Zap className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Fast DB Active</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-1 text-[11px] text-gray-500">
-            <span>Cycle:</span>
-            <kbd className="px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-600">
+          <div className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-xs text-slate-600 font-medium">
+            <span className="text-[11px]">Tab Cycle:</span>
+            <kbd className="px-1 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
               [
             </kbd>
-            <kbd className="px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-600">
+            <kbd className="px-1 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
               ]
             </kbd>
           </div>
