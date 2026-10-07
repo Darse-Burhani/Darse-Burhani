@@ -1350,69 +1350,101 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* TAB 8: CLOUD WEBHOOK GUIDE */}
+      {/* TAB 8: CLOUD WEBHOOK & CLOUDFLARE TUNNEL GUIDE */}
       {activeTab === "cloud" && (
         <div className="space-y-6">
           <Card className="rounded-3xl border-gray-100 shadow-xs p-6 sm:p-8 bg-white space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
                 <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                Cloud-to-Terminal Webhook Architecture
+                Render & Cloud Hardware Architecture
               </div>
               <h2 className="text-2xl font-black text-gray-950">
-                Hikvision MinMoe Outbound Webhook Guide
+                Hikvision MinMoe Cloud & Tunnel Integration Guide
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600 max-w-2xl leading-relaxed">
-                Hikvision MinMoe terminals push real-time face and fingerprint punches outbound via HTTP/HTTPS listening to Darse Burhani's cloud server. This requires zero port forwarding on your local router.
+              <p className="text-xs sm:text-sm text-gray-600 max-w-3xl leading-relaxed">
+                When deployed on Render or cloud hosting, physical Hikvision terminals inside your school LAN cannot be polled directly via private IP (e.g. <span className="font-mono text-emerald-700 font-bold">192.168.0.4</span>). Use the <strong>Local Cloud Bridge Daemon</strong> or <strong>Cloudflare Tunnel</strong> below to stream all live face &amp; fingerprint punches to Render in real-time.
               </p>
             </div>
 
             <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4">
               <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
                 <Globe className="w-4 h-4" />
-                Your Dedicated Webhook Endpoint
+                Your Live Cloud Webhook Endpoint
               </div>
               <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-4 rounded-2xl border border-white/10 flex-wrap">
                 <span className="font-mono text-sm sm:text-base text-emerald-300 font-bold select-all break-all">
-                  {webhookUrl}
+                  {webhookUrl || `${typeof window !== "undefined" ? window.location.origin : "https://darse-burhani.onrender.com"}/api/hikvision/events`}
                 </span>
                 <Button
                   size="sm"
                   onClick={handleCopyWebhook}
-                  className="rounded-xl bg-white text-slate-900 hover:bg-emerald-50 font-bold text-xs h-9 px-4"
+                  className="rounded-xl bg-white text-slate-900 hover:bg-emerald-50 font-bold text-xs h-9 px-4 cursor-pointer"
                 >
                   {copiedWebhook ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-                  {copiedWebhook ? "Copied" : "Copy URL"}
+                  {copiedWebhook ? "Copied" : "Copy Endpoint"}
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3 p-5 rounded-2xl bg-gray-50 border border-gray-100">
-                <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
-                  <Laptop className="w-4 h-4 text-emerald-600" />
-                  1. Terminal HTTP Listening Settings
-                </h3>
-                <ul className="text-xs text-gray-600 space-y-2 list-disc pl-4">
-                  <li>Log in to terminal Web GUI (<span className="font-mono font-semibold">http://192.168.0.4</span>).</li>
-                  <li>Navigate to <strong>Configuration &gt; Network &gt; Advanced &gt; HTTP Listening</strong>.</li>
-                  <li>Set <strong>Protocol</strong> to <span className="font-semibold text-gray-900">HTTPS</span> (or HTTP).</li>
-                  <li>Set <strong>Port</strong> to <span className="font-semibold text-gray-900">443</span> (or 80).</li>
-                  <li>Set <strong>URL / Path</strong> to <span className="font-mono font-semibold text-emerald-700">/api/hikvision/events</span>.</li>
-                  <li>Save configuration.</li>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Option 1: Local Cloud Bridge (Recommended) */}
+              <div className="space-y-3 p-5 rounded-2xl bg-emerald-50/60 border border-emerald-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-emerald-950 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-emerald-600" />
+                    Option 1: Local Cloud Bridge
+                  </h3>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-600 text-white">
+                    Recommended
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-900/80">
+                  Zero router changes required. Runs on any school PC on the same Wi-Fi/LAN as your terminals.
+                </p>
+                <div className="bg-slate-900 text-slate-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto">
+                  npm run hikvision:cloud-bridge
+                </div>
+                <ul className="text-xs text-emerald-950/80 space-y-1.5 list-disc pl-4">
+                  <li>Or double-click <span className="font-mono font-bold">scripts/start-hikvision-cloud-bridge.bat</span>.</li>
+                  <li>Subscribes to live ISAPI alertStream + 3s scan polling.</li>
+                  <li>Automatically buffers &amp; pushes punches to Render.</li>
                 </ul>
               </div>
 
-              <div className="space-y-3 p-5 rounded-2xl bg-gray-50 border border-gray-100">
-                <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  2. Verify Live Punch Ingestion
+              {/* Option 2: Cloudflare Tunnel */}
+              <div className="space-y-3 p-5 rounded-2xl bg-sky-50/60 border border-sky-200">
+                <h3 className="font-bold text-sm text-sky-950 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-sky-600" />
+                  Option 2: Cloudflare Tunnel
                 </h3>
-                <ul className="text-xs text-gray-600 space-y-2 list-disc pl-4">
-                  <li>Scan any registered Talabat or Faculty member's face on the terminal.</li>
-                  <li>Look at the <strong>Live Punch Stream</strong> tab above; the scan will appear immediately.</li>
-                  <li>Attendance is automatically marked whether the scan window is open or closed.</li>
-                  <li>If an unrecognized ID scans, it will appear under <strong>Unmatched Scans</strong> for 1-click assignment.</li>
+                <p className="text-xs text-sky-900/80">
+                  Expose the local gateway or MinMoe terminals via Cloudflare edge daemon (<span className="font-mono font-semibold">cloudflared</span>).
+                </p>
+                <div className="bg-slate-900 text-slate-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto">
+                  cloudflared tunnel run
+                </div>
+                <ul className="text-xs text-sky-950/80 space-y-1.5 list-disc pl-4">
+                  <li>Preconfigured in <span className="font-mono font-bold">scripts/cloudflared-tunnel.yml</span>.</li>
+                  <li>Assign custom hostname (e.g. <span className="font-mono font-bold">tunnel.yourdomain.com</span>).</li>
+                  <li>Provides TLS termination for older terminal firmware.</li>
+                </ul>
+              </div>
+
+              {/* Option 3: MinMoe Direct HTTP Listening */}
+              <div className="space-y-3 p-5 rounded-2xl bg-amber-50/60 border border-amber-200">
+                <h3 className="font-bold text-sm text-amber-950 flex items-center gap-2">
+                  <Laptop className="w-4 h-4 text-amber-600" />
+                  Option 3: MinMoe Direct Push
+                </h3>
+                <p className="text-xs text-amber-900/80">
+                  Configure Hikvision device built-in HTTP Listening / Alarm Server directly in Web GUI.
+                </p>
+                <ul className="text-xs text-amber-950/80 space-y-1.5 list-disc pl-4">
+                  <li>Log in to terminal Web GUI (<span className="font-mono font-bold">http://192.168.0.4</span>).</li>
+                  <li>Go to <strong>Configuration &gt; Network &gt; Advanced &gt; HTTP Listening</strong>.</li>
+                  <li>Set <strong>Protocol</strong>: <span className="font-bold">HTTPS</span>, <strong>Port</strong>: <span className="font-bold">443</span>.</li>
+                  <li>Set <strong>URL Path</strong>: <span className="font-mono font-bold text-emerald-800">/api/hikvision/events</span>.</li>
                 </ul>
               </div>
             </div>

@@ -16,9 +16,11 @@
     "postinstall": "prisma generate",
     "hikvision:render": "node scripts/configure-render-push.mjs",
     "hikvision:tunnel": "node scripts/configure-tunnel-push.mjs",
+    "hikvision:cloud-bridge": "node scripts/hikvision-cloud-bridge.mjs",
     "hikvision:sync": "node scripts/sync-today-scans.mjs",
     "attendance-log:sheet": "npm run attendance-log:sheet -w server",
-    "attendence-log:sheet": "npm run attendance-log:sheet -w server"
+    "attendence-log:sheet": "npm run attendance-log:sheet -w server",
+    "password:reset-faculty": "tsx scripts/reset-faculty-passwords.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

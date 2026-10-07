@@ -1,0 +1,34 @@
+# ==============================================================================
+# Cloudflare Tunnel Configuration for Darse Burhani Hikvision Hardware Integration
+# ==============================================================================
+#
+# This file configures cloudflared on your local school network to securely bridge
+# local Hikvision terminals (e.g. 192.168.0.4) and the local gateway to Cloudflare
+# and your Render site.
+#
+# QUICK SETUP:
+# 1. Download cloudflared: https://github.com/cloudflare/cloudflared/releases
+# 2. Login to your Cloudflare account:
+#      cloudflared tunnel login
+# 3. Create a tunnel:
+#      cloudflared tunnel create darse-burhani-tunnel
+# 4. Point your DNS (e.g. tunnel.yourdomain.com) to the tunnel:
+#      cloudflared tunnel route dns darse-burhani-tunnel tunnel.yourdomain.com
+# 5. Run the tunnel:
+#      cloudflared tunnel run --config scripts/cloudflared-tunnel.yml darse-burhani-tunnel
+#
+# ==============================================================================
+
+tunnel: <YOUR_TUNNEL_UUID_OR_NAME>
+credentials-file: C:\Users\<YourUser>\.cloudflared\<YOUR_TUNNEL_UUID>.json
+
+ingress:
+  # Route traffic for webhook gateway to local Express server port 4000
+  - hostname: tunnel.yourdomain.com
+    service: http://localhost:4000
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: true
+
+  # Default catch-all (returns HTTP 404 for unmapped hostnames)
+  - service: http_status:404

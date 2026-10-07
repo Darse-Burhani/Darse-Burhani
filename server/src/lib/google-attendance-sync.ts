@@ -498,15 +498,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
 
   const rawStudents = await prisma.studentProfile.findMany({
     where: {
-      user: { isActive: true },
-      AND: [
-        {
-          OR: [
-            { AND: [{ biometricHash: { not: null } }, { biometricHash: { not: "" } }] },
-            { attendanceRecords: { some: { date: { gte: dayStart, lt: dayEnd } } } },
-          ],
-        },
-      ],
+      user: { isActive: true, deletedAt: null },
     },
     include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
     orderBy: [{ grade: "asc" }, { section: "asc" }, { studentId: "asc" }],
@@ -518,18 +510,10 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
 
   const rawTeachers = await prisma.teacherProfile.findMany({
     where: {
-      user: { isActive: true },
-      AND: [
-        {
-          OR: [
-            { AND: [{ biometricHash: { not: null } }, { biometricHash: { not: "" } }] },
-            { attendanceRecords: { some: { date: { gte: dayStart, lt: dayEnd } } } },
-          ],
-        },
-      ],
+      user: { isActive: true, deletedAt: null },
     },
     include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
-    orderBy: [{ employeeId: "asc" }],
+    orderBy: [{ department: "asc" }, { employeeId: "asc" }],
   });
 
   const teacherRecords = await prisma.teacherAttendanceRecord.findMany({
@@ -539,13 +523,9 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
   const sMap = new Map(studentRecords.map((r) => [r.studentId, r]));
   const tMap = new Map(teacherRecords.map((r) => [r.teacherId, r]));
 
-  // Strictly filter in-memory to ensure only members applicable for scanning appear on Google Sheet
-  const students = rawStudents.filter(
-    (s) => (s.biometricHash && s.biometricHash.trim().length > 0) || sMap.has(s.id)
-  );
-  const teachers = rawTeachers.filter(
-    (t) => (t.biometricHash && t.biometricHash.trim().length > 0) || tMap.has(t.id)
-  );
+  // Ensure full roster (all active members) appear cleanly on Google Sheet
+  const students = rawStudents;
+  const teachers = rawTeachers;
 
   const studentLeaves = await prisma.leaveRequest.findMany({
     where: {

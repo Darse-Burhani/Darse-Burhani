@@ -403,11 +403,14 @@ router.get("/", requireAuth, async (req, res) => {
         sources: { scanned, manual, autoAbsent, medicalLeave, leaveApproved } };
     }
 
-    // Filter-aware summary
+    // Filter-aware summary (strictly isolated per selected logType & filters)
+    const studentFiltered = filteredRecords.filter((r) => r.role === "STUDENT");
+    const facultyFiltered = filteredRecords.filter((r) => r.role === "FACULTY");
+
     const summary = countSummary(filteredRecords);
-    const talabatSummary = countSummary(studentRecords);
-    const facultySummary = countSummary(facultyRecords);
-    const overallSummary = countSummary(allRecords);
+    const talabatSummary = countSummary(studentFiltered);
+    const facultySummary = countSummary(facultyFiltered);
+    const overallSummary = countSummary(filteredRecords);
 
     const hikvisionRecords = allRecords.filter((r) => r.source === "SCAN" || r.source === "BIOMETRIC");
     const manualRecords = allRecords.filter((r) => r.source !== "SCAN" && r.source !== "BIOMETRIC");

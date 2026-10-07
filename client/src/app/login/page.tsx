@@ -81,7 +81,7 @@ export const portals: PortalConfig[] = [
     placeholder: "faculty@darseburhani.edu",
     inputLabel: "Faculty Email",
     rolePath: "/teacher",
-    demoAccount: { email: "teacher@darseburhani.edu", pass: "teacher123", title: "Class Murabbi" },
+    demoAccount: { email: "teacher@darseburhani.edu", pass: "515253", title: "Class Murabbi" },
   },
   {
     role: "STUDENT",
@@ -97,7 +97,7 @@ export const portals: PortalConfig[] = [
     placeholder: "8-digit ITS or student email",
     inputLabel: "ITS Number or Student Email",
     rolePath: "/talabat",
-    demoAccount: { email: "50463544", pass: "student123", title: "Talabat Student" },
+    demoAccount: { email: "50463544", pass: "515253", title: "Talabat Student" },
   },
   {
     role: "PARENT",
