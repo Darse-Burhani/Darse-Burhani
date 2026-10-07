@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import ElearningQuranSyncModal from "@/components/hifz/ElearningQuranSyncModal";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   COMPLETED: { label: "Completed", color: "text-emerald-700", bgColor: "bg-emerald-100" },
@@ -64,6 +65,7 @@ export default function TeacherHifzPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -108,18 +110,35 @@ export default function TeacherHifzPage() {
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-700 p-6 sm:p-8 shadow-xl shadow-amber-500/20">
             <div className="absolute -top-12 -left-12 w-44 h-44 rounded-full bg-amber-300/20 blur-3xl" />
             <div className="absolute -bottom-14 -right-10 w-52 h-52 rounded-full bg-rose-400/20 blur-3xl" />
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 backdrop-blur flex items-center justify-center">
-                <BookOpen className="w-7 h-7 text-white" />
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 backdrop-blur flex items-center justify-center">
+                  <BookOpen className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white">Hifz Reports & Daily Evaluation</h1>
+                  <p className="text-sm text-amber-100/80 mt-1">Track Quran memorization & sync Mahad Al-Zahra evaluations</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white">Hifz Reports</h1>
-                <p className="text-sm text-amber-100/80 mt-1">Track Quran memorization progress across your talabat</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setSyncModalOpen(true)}
+                  className="bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur font-semibold text-sm shadow-sm"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Sync eLearningQuran
+                </Button>
               </div>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
           </div>
         </div>
+
+        <ElearningQuranSyncModal
+          open={syncModalOpen}
+          onOpenChange={setSyncModalOpen}
+          onSuccess={fetchReports}
+        />
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

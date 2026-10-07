@@ -28,6 +28,16 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Student profile not found" });
     }
 
+    const isHafiz = studentProfile.status === "HAFIZ" || !!studentProfile.hafizYear;
+    if (isHafiz) {
+      return res.json({
+        success: true,
+        isHafiz: true,
+        hafizYear: studentProfile.hafizYear,
+        data: { report: null },
+      });
+    }
+
     // Allow viewing other students' reports (for portal links) or own report
     const targetStudentId = studentId || studentProfile.id;
 
@@ -57,7 +67,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
     });
 
     if (!report) {
-      return res.json({ success: true, data: { report: null } });
+      return res.json({ success: true, isHafiz: false, data: { report: null } });
     }
 
     const parts = report.parts;

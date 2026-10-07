@@ -53,28 +53,37 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
 
         const studentProfileIds = links.map((l) => l.student.id);
 
-        // Date calculations
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Date calculations (UTC normalized)
+        const now = new Date();
+        const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
         const tonight = new Date(today.getTime() + 86400000);
         const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000);
 
         const [
           todayAttendanceRecords,
+          todayAttendanceRegistries,
           weeklyAttendanceRecords,
+          todayHifzEvaluations,
           pointAggregations,
           allPointLogs,
           allBadges,
           latestHifzSlips,
         ] = await Promise.all([
-          // 1. Today's attendance for all children
+          // 1. Today's class attendance records
           prisma.attendanceRecord.findMany({
             where: {
               studentId: { in: studentProfileIds },
               date: { gte: today, lt: tonight },
             },
             orderBy: { checkInTime: "desc" },
-            distinct: ["studentId"],
+          }),
+          // 1b. Today's Master Attendance Registry (Biometric punches)
+          prisma.attendanceRegistry.findMany({
+            where: {
+              studentId: { in: studentProfileIds },
+              date: { gte: today, lt: tonight },
+            },
+            orderBy: { checkInTime: "desc" },
           }),
           // 2. Past 7 days attendance records
           prisma.attendanceRecord.findMany({
@@ -87,6 +96,16 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
               date: true,
               status: true,
               checkInTime: true,
+            },
+          }),
+          // 2b. Today's Daily Hifz Evaluation
+          prisma.hifzDailyEvaluation.findMany({
+            where: {
+              studentId: { in: studentProfileIds },
+              evaluationDate: today,
+            },
+            include: {
+              faculty: { include: { user: { select: { firstName: true, lastName: true } } } },
             },
           }),
           // 3. Points today aggregated per student
@@ -132,10 +151,10 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
           }),
         ]);
 
-        // Group attendance by student
-        const attendanceByStudent = new Map(
-          todayAttendanceRecords.map((a) => [a.studentId, a]),
-        );
+        // Group attendance by student (prefer Registry checkInTime if available)
+        const registryByStudent = new Map(todayAttendanceRegistries.map((r) => [r.studentId, r]));
+        const attendanceByStudent = new Map(todayAttendanceRecords.map((a) => [a.studentId, a]));
+        const hifzEvalByStudent = new Map(todayHifzEvaluations.map((h) => [h.studentId, h]));
 
         // Group 7-day attendance count
         const weeklyAttendanceByStudent = new Map<string, typeof weeklyAttendanceRecords>();
@@ -178,7 +197,9 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
 
         const children = links.map((link) => {
           const student = link.student;
+          const registry = registryByStudent.get(student.id);
           const attendance = attendanceByStudent.get(student.id);
+          const hifzEval = hifzEvalByStudent.get(student.id);
           const weeklyRecords = weeklyAttendanceByStudent.get(student.id) || [];
           const pointsToday = (pointsTodayByStudent.get(student.id) as number) || 0;
           const studentLogs = pointLogsByStudentMap.get(student.id) || [];
@@ -186,6 +207,11 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
           const latestSlip = latestSlipByStudentMap.get(student.id) || null;
 
           const daysPresentLast7 = weeklyRecords.filter((r) => r.checkInTime || r.status === "PRESENT").length;
+          
+          // Determine active check-in status
+          const checkInTime = registry?.checkInTime || attendance?.checkInTime || null;
+          const isCheckedIn = !!checkInTime || (registry?.status === "PRESENT" || attendance?.status === "PRESENT");
+          const attendanceStatus = registry?.status || attendance?.status || (isCheckedIn ? "PRESENT" : "ABSENT");
 
           return {
             id: student.userId,
@@ -210,12 +236,33 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
             relationship: link.relationship || parentProfile.relationType || "Parent",
 
             // Attendance details
-            isCheckedIn: !!attendance,
-            lastCheckIn: attendance?.checkInTime || null,
-            checkOutTime: (attendance as any)?.checkOutTime || null,
-            gate: (attendance as any)?.gate || "Main Gate",
+            isCheckedIn,
+            attendanceStatus,
+            lastCheckIn: checkInTime,
+            checkOutTime: (registry as any)?.checkOutTime || (attendance as any)?.checkOutTime || null,
+            gate: (registry as any)?.gate || (attendance as any)?.gate || "Main Gate MinMoe",
+            method: (registry as any)?.method || (attendance as any)?.method || "BIOMETRIC",
             daysPresentLast7,
             attendanceRateLast7: Math.round((daysPresentLast7 / 7) * 100),
+
+            // Today's Daily Hifz Evaluation
+            todayHifzEvaluation: hifzEval
+              ? {
+                  sabaqSurah: hifzEval.sabaqSurah,
+                  sabaqLines: hifzEval.sabaqLines,
+                  sabaqMarks: hifzEval.sabaqMarks,
+                  sabqiJuz: hifzEval.sabqiJuz,
+                  sabqiMarks: hifzEval.sabqiMarks,
+                  murajaatJuz: hifzEval.murajaatJuz,
+                  murajaatMarks: hifzEval.murajaatMarks,
+                  totalMarks: hifzEval.totalMarks,
+                  performanceRating: hifzEval.performanceRating,
+                  teacherRemarks: hifzEval.teacherRemarks,
+                  muhaffizName: hifzEval.faculty?.user
+                    ? `${hifzEval.faculty.user.firstName} ${hifzEval.faculty.user.lastName}`
+                    : "Muhaffiz",
+                }
+              : null,
 
             // Points
             pointsToday,
@@ -276,7 +323,7 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
         };
       },
       {
-        ttl: 10_000, // 10 seconds cache
+        ttl: 5_000, // 5s cache for real-time live attendance updates
         tags: ["dashboard", "studentprofile", "pointlog", "attendancerecord", "hifzweeklyslip"],
       },
     );

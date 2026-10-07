@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Activity,
   Clock,
@@ -33,10 +33,28 @@ const rawNavItems = [
 
 export default function TalabatLayout() {
   const { isModuleVisible } = usePortalAccess();
+  const [isHafiz, setIsHafiz] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch("/api/talabat/profile")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && (data.status === "HAFIZ" || !!data.hafizYear)) {
+          setIsHafiz(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filteredNavItems = useMemo(() => {
-    return rawNavItems.filter((item) => isModuleVisible(item.key, "STUDENT"));
-  }, [isModuleVisible]);
+    return rawNavItems.filter((item) => {
+      // For Hafiz students, do not show Hifz pages
+      if (isHafiz && item.key === "hifz") {
+        return false;
+      }
+      return isModuleVisible(item.key, "STUDENT");
+    });
+  }, [isModuleVisible, isHafiz]);
 
   const showProfile = isModuleVisible("profile", "STUDENT");
 

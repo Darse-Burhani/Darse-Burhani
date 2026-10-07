@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
@@ -27,6 +27,10 @@ import {
   MapPin,
   FileText,
   Navigation,
+  ShieldCheck,
+  Zap,
+  ArrowUpRight,
+  Fingerprint,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,19 +42,14 @@ import { getInitials, timeAgo, formatPoints } from "@/lib/utils";
 import { ParentNotificationCenter } from "@/components/parent/ParentNotificationCenter";
 import { ParentLeaveManager } from "@/components/parent/ParentLeaveManager";
 
-type ParentTab = "overview" | "tracking" | "leave" | "hifz";
+type ParentTab = "overview" | "tracking" | "hifz" | "leave";
 
-const TABS: Array<{ id: ParentTab; label: string; icon: React.ElementType }> = [
-  { id: "overview", label: "Overview", icon: Heart },
-  { id: "tracking", label: "Talabat Tracking", icon: Navigation },
-  { id: "leave", label: "Leave Applications", icon: CalendarDays },
-  { id: "hifz", label: "Hifz & Merits", icon: BookOpen },
+const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.ElementType }> = [
+  { id: "overview", label: "Overview", labelAr: "نظرة عامة", icon: Heart },
+  { id: "tracking", label: "Live Tracking", labelAr: "الحضور والبصمة", icon: Navigation },
+  { id: "hifz", label: "Hifz & Daily Work", labelAr: "الحفظ واليومية", icon: BookOpen },
+  { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
 ];
-
-const activityIcons: Record<string, any> = {
-  POINTS: Award,
-  ATTENDANCE: Clock,
-};
 
 export default function ParentDashboard() {
   const [data, setData] = useState<any>(null);
@@ -135,15 +134,17 @@ export default function ParentDashboard() {
       });
       days.push({
         date: d,
-        label: d.toLocaleDateString("en-US", { weekday: "narrow" }),
-        present: !!match,
+        label: d.toLocaleDateString("en-US", { weekday: "short" }),
+        present: !!match || (selectedChild?.isCheckedIn && i === 0),
         time: match?.checkInTime
           ? new Date(match.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : (selectedChild?.isCheckedIn && i === 0 && selectedChild?.lastCheckIn)
+          ? new Date(selectedChild.lastCheckIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           : null,
       });
     }
     return days;
-  }, [trackingLogs]);
+  }, [trackingLogs, selectedChild]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -166,39 +167,42 @@ export default function ParentDashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      {/* ═══ Compact hero ═══ */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="relative overflow-hidden rounded-[1.75rem] p-5 text-white shadow-xl sm:p-7"
-          style={{ background: "linear-gradient(135deg, #022c22 0%, #047857 55%, #065f46 100%)" }}>
-          <div className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 opacity-10">
-            <svg viewBox="0 0 100 100" className="h-full w-full fill-amber-300">
-              <polygon points="50,0 63,38 100,50 63,62 50,100 37,62 0,50 37,38" />
-            </svg>
-          </div>
+      {/* ═══ Top Hero Banner ═══ */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <div
+          className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-emerald-950/20"
+          style={{ background: "linear-gradient(135deg, #01241c 0%, #034433 50%, #065f46 100%)" }}
+        >
+          <div className="absolute -right-12 -top-12 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-12 -left-12 h-60 w-60 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+
           <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/40 shadow-lg"
-                style={{ background: "linear-gradient(135deg, #d4af37, #b8972e)" }}>
-                <Heart className="h-7 w-7 fill-white/20 text-white" />
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-amber-300/40 shadow-lg"
+                style={{ background: "linear-gradient(135deg, #d4af37, #997b1e)" }}
+              >
+                <Heart className="h-8 w-8 text-white fill-white/20" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-amber-300/30 bg-black/25 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-widest text-amber-300">
+                  <span className="rounded-full border border-amber-300/40 bg-black/30 px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-amber-300">
                     Parent Guardian Portal
                   </span>
-                  <span className="text-[12px] text-emerald-200">
+                  <span className="text-xs text-emerald-200/90 font-medium">
                     {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 </div>
-                <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-white sm:text-[1.7rem]">
-                  Salam, {parentProfile?.firstName || "Parent"}!
+                <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  Afzalus Salam, {parentProfile?.firstName || "Parent"}!
                 </h1>
-                <p className="mt-0.5 text-[13px] font-medium text-emerald-100">
-                  {children.length} {children.length === 1 ? "talabat assigned" : "talabat assigned"} · live campus tracking, leave & Hifz below.
+                <p className="mt-0.5 text-xs sm:text-sm text-emerald-100/80 font-medium">
+                  Monitoring {children.length} {children.length === 1 ? "child" : "children"} · Live campus attendance, daily Hifz & activity
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+
+            <div className="flex flex-wrap items-center gap-2.5">
               <ParentNotificationCenter
                 childrenList={children}
                 onChildSelect={(cId) => setSelectedChildId(cId)}
@@ -209,10 +213,10 @@ export default function ParentDashboard() {
                 size="sm"
                 onClick={() => fetchDashboard(true)}
                 disabled={refreshing || loading}
-                className="h-10 gap-1.5 rounded-2xl border-white/25 bg-white/10 px-4 text-xs font-semibold text-white shadow-sm hover:bg-white/20"
+                className="h-10 gap-2 rounded-2xl border-white/25 bg-white/10 px-4 text-xs font-semibold text-white shadow-sm hover:bg-white/20 backdrop-blur"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
-                Refresh
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
+                Live Sync
               </Button>
             </div>
           </div>
@@ -230,79 +234,96 @@ export default function ParentDashboard() {
           <div className="h-48 animate-pulse rounded-3xl border border-emerald-100 bg-white" />
         </div>
       ) : children.length === 0 ? (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="rounded-[1.75rem] border-2 border-dashed border-emerald-200 bg-emerald-50/20 p-10 text-center">
-            <CardContent className="mx-auto max-w-md space-y-4">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 text-amber-800 shadow-inner">
-                <Users className="h-8 w-8" />
-              </div>
-              <div>
-                <h3 className="font-display text-xl font-bold text-gray-900">No Talabat Assigned Yet</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
-                  Your parent account is registered, but no students are linked yet.
-                </p>
-              </div>
-              <div className="space-y-2 rounded-2xl border border-emerald-100 bg-white p-4 text-left text-xs text-gray-600 shadow-xs">
-                <p className="flex items-center gap-1.5 font-bold text-emerald-800">
-                  <Shield className="h-3.5 w-3.5 text-[#d4af37]" /> How to link your children:
-                </p>
-                <p>1. Share your registered ITS ID (<b>{parentProfile?.its || "—"}</b>) with the Darse Burhani admin.</p>
-                <p>2. The admin links your children to your family account.</p>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+        <Card className="rounded-3xl border-2 border-dashed border-emerald-200 bg-emerald-50/20 p-10 text-center">
+          <CardContent className="mx-auto max-w-md space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 text-amber-800 shadow-inner">
+              <Users className="h-8 w-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">No Talabat Linked Yet</h3>
+              <p className="mt-1.5 text-xs text-gray-500">
+                Share your registered ITS ID (<strong>{parentProfile?.its || "—"}</strong>) with the school administration to link your family.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <>
-          {/* ═══ Child switcher ═══ */}
+          {/* ═══ Child Selection Cards ═══ */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2 font-display text-[15px] font-bold text-gray-900">
-                <GraduationCap className="h-4 w-4 text-[#047857]" />
-                My Children ({children.length})
+              <h2 className="flex items-center gap-2 text-sm sm:text-base font-bold text-gray-900">
+                <GraduationCap className="h-5 w-5 text-emerald-700" />
+                Select Child to View ({children.length})
               </h2>
-              <span className="hidden text-xs font-medium text-gray-500 sm:block">Select a child to track</span>
+              <span className="text-xs font-medium text-gray-500">Real-time status updated</span>
             </div>
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {children.map((child) => {
                 const isSelected = selectedChild?.id === child.id;
-                const isHafiz = child.status === "HAFIZ";
+                const isHafiz = child.status === "HAFIZ" || !!child.hafizYear;
                 return (
                   <motion.button
                     key={child.id}
                     type="button"
                     onClick={() => setSelectedChildId(child.id)}
-                    whileHover={{ y: -1 }}
-                    whileTap={{ scale: 0.99 }}
-                    className={`w-full rounded-[1.4rem] p-3 text-left transition-all ${
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`w-full rounded-2xl p-4 text-left transition-all relative overflow-hidden ${
                       isSelected
-                        ? "bg-emerald-700 text-white shadow-lg ring-2 ring-emerald-500"
-                        : "border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm"
+                        ? "bg-gradient-to-br from-emerald-800 to-teal-900 text-white shadow-lg ring-2 ring-emerald-500"
+                        : "border border-slate-200/80 bg-white hover:border-emerald-300 hover:shadow-md"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Avatar className={`h-12 w-12 shrink-0 rounded-xl border-2 ${isHafiz ? "border-amber-400" : "border-white/40"}`}>
-                        {child.avatarUrl ? (
-                          <AvatarImage src={child.avatarUrl} alt={child.firstName} loading="lazy" decoding="async" />
-                        ) : null}
-                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#047857] to-[#064e3b] text-sm font-black text-white">
-                          {getInitials(child.firstName, child.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
+                    <div className="flex items-center gap-3.5">
+                      <div className="relative">
+                        <Avatar className={`h-14 w-14 shrink-0 rounded-2xl border-2 ${isHafiz ? "border-amber-400" : isSelected ? "border-emerald-300" : "border-slate-200"}`}>
+                          {child.avatarUrl ? (
+                            <AvatarImage src={child.avatarUrl} alt={child.firstName} />
+                          ) : null}
+                          <AvatarFallback className="rounded-2xl bg-gradient-to-br from-emerald-700 to-teal-900 text-base font-bold text-white">
+                            {getInitials(child.firstName, child.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {isHafiz && (
+                          <div className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 rounded-full p-0.5 shadow">
+                            <Crown className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                      </div>
+
                       <div className="min-w-0 flex-1">
-                        <p className={`flex items-center gap-1.5 truncate text-[14.5px] font-extrabold ${isSelected ? "text-white" : "text-gray-900"}`}>
+                        <p className={`flex items-center gap-1.5 truncate text-base font-extrabold ${isSelected ? "text-white" : "text-gray-900"}`}>
                           {child.firstName} {child.lastName}
-                          {isHafiz && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-400" />}
                         </p>
-                        <p className={`font-mono text-[12px] font-semibold ${isSelected ? "text-emerald-100" : "text-emerald-800"}`}>
+                        <p className={`text-xs font-semibold ${isSelected ? "text-emerald-200" : "text-emerald-800"}`}>
                           ITS: {child.its} · Gr {child.grade}{child.section ? `-${child.section}` : ""}
                         </p>
-                        <p className={`mt-0.5 flex items-center gap-1.5 text-[11.5px] font-bold ${child.isCheckedIn ? (isSelected ? "text-emerald-200" : "text-emerald-700") : isSelected ? "text-white/70" : "text-gray-400"}`}>
-                          <span className={`h-2 w-2 rounded-full ${child.isCheckedIn ? "animate-pulse bg-emerald-400" : "bg-gray-300"}`} />
-                          {child.isCheckedIn ? "On campus now" : "Not checked in today"}
-                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            child.isCheckedIn
+                              ? isSelected ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/30" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : isSelected ? "bg-white/10 text-white/70" : "bg-slate-100 text-slate-500 border border-slate-200"
+                          }`}>
+                            <span className={`h-2 w-2 rounded-full ${child.isCheckedIn ? "animate-pulse bg-emerald-400" : "bg-slate-400"}`} />
+                            {child.isCheckedIn ? "On Campus" : "Awaiting Scan"}
+                          </span>
+                          {isHafiz && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              isSelected ? "bg-amber-400/20 text-amber-200" : "bg-amber-100 text-amber-900"
+                            }`}>
+                              Hafiz
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {isSelected && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-200" />}
+
+                      {isSelected && (
+                        <div className="shrink-0 p-1.5 rounded-full bg-white/20 text-emerald-200">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                      )}
                     </div>
                   </motion.button>
                 );
@@ -310,8 +331,8 @@ export default function ParentDashboard() {
             </div>
           </div>
 
-          {/* ═══ Tabs ═══ */}
-          <div className="sticky top-0 z-20 -mx-1 bg-gradient-to-b from-[#f4f6f5] via-[#f4f6f5]/95 to-transparent px-1 pb-2 pt-1">
+          {/* ═══ Navigation Tabs ═══ */}
+          <div className="sticky top-0 z-20 bg-slate-50/80 backdrop-blur-md py-2">
             <div className="flex gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
               {TABS.map((t) => {
                 const active = activeTab === t.id;
@@ -321,18 +342,21 @@ export default function ParentDashboard() {
                     key={t.id}
                     type="button"
                     onClick={() => setActiveTab(t.id)}
-                    className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-[13px] font-bold transition active:scale-[0.98] ${
-                      active ? "bg-emerald-700 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
+                      active
+                        ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
-                    <Icon size={15} />
-                    {t.label}
+                    <Icon size={16} />
+                    <span>{t.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
+          {/* ═══ Tab Content ═══ */}
           {selectedChild && (
             <AnimatePresence mode="wait">
               <motion.div
@@ -341,415 +365,474 @@ export default function ParentDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2 }}
+                className="space-y-6"
               >
+                {/* ─────────────────────────────────────────────────────────────
+                    TAB 1: OVERVIEW
+                ───────────────────────────────────────────────────────────── */}
                 {activeTab === "overview" && (
                   <div className="space-y-5">
-                    {/* Live safety banner */}
-                    <div className={`flex flex-col gap-4 rounded-[1.4rem] border p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6 ${
-                      selectedChild.isCheckedIn ? "border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-amber-50/50" : "border-slate-200 bg-white"
-                    }`}>
-                      <div className="flex items-center gap-4">
-                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ${
-                          selectedChild.isCheckedIn ? "bg-emerald-600 text-white ring-4 ring-emerald-200" : "border border-slate-200 bg-slate-100 text-slate-400"
-                        }`}>
-                          {selectedChild.isCheckedIn ? <CheckCircle2 className="h-7 w-7" /> : <Clock className="h-7 w-7" />}
-                        </div>
-                        <div>
-                          <Badge className={`px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${selectedChild.isCheckedIn ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-600"}`}>
-                            {selectedChild.isCheckedIn ? "Checked in on campus" : "Awaiting arrival"}
-                          </Badge>
-                          <h3 className="mt-1 font-display text-lg font-extrabold leading-tight text-gray-900">
-                            {selectedChild.isCheckedIn
-                              ? `${selectedChild.firstName} is safely at Darse Burhani`
-                              : `No scan recorded for ${selectedChild.firstName} today`}
-                          </h3>
-                          <p className="mt-0.5 text-[12.5px] text-gray-500">
-                            {selectedChild.lastCheckIn ? (
-                              <>Arrival {new Date(selectedChild.lastCheckIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Gate {selectedChild.gate || "Main Gate"}</>
+                    {/* Live Campus Attendance Hero Card */}
+                    <div
+                      className={`rounded-3xl border p-6 shadow-sm transition-all ${
+                        selectedChild.isCheckedIn
+                          ? "border-emerald-200 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/40"
+                          : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start sm:items-center gap-4">
+                          <div
+                            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl shadow-sm ${
+                              selectedChild.isCheckedIn
+                                ? "bg-emerald-600 text-white ring-4 ring-emerald-100"
+                                : "border border-slate-200 bg-slate-100 text-slate-400"
+                            }`}
+                          >
+                            {selectedChild.isCheckedIn ? (
+                              <CheckCircle2 className="h-8 w-8" />
                             ) : (
-                              "Live biometric scans appear here the moment your child checks in."
+                              <Clock className="h-8 w-8" />
                             )}
-                          </p>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`px-2.5 py-0.5 text-xs font-bold ${
+                                  selectedChild.isCheckedIn
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-slate-200 text-slate-700"
+                                }`}
+                              >
+                                {selectedChild.isCheckedIn ? "Campus Arrival Verified" : "Awaiting Check-in"}
+                              </Badge>
+                              {selectedChild.method && (
+                                <Badge variant="outline" className="text-[11px] font-semibold border-slate-300">
+                                  <Fingerprint className="w-3 h-3 mr-1 text-emerald-600" />
+                                  {selectedChild.method}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <h3 className="mt-1.5 text-xl font-bold text-gray-900">
+                              {selectedChild.isCheckedIn
+                                ? `${selectedChild.firstName} is safely on campus at Darse Burhani`
+                                : `No biometric scan recorded for ${selectedChild.firstName} today`}
+                            </h3>
+
+                            <p className="mt-0.5 text-xs sm:text-sm text-gray-600">
+                              {selectedChild.lastCheckIn ? (
+                                <>
+                                  Check-in at{" "}
+                                  <strong className="text-emerald-800">
+                                    {new Date(selectedChild.lastCheckIn).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </strong>{" "}
+                                  via {selectedChild.gate || "Main Gate MinMoe terminal"}
+                                </>
+                              ) : (
+                                "Biometric terminal scans reflect live here the second your child scans at the gate."
+                              )}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2.5">
-                        <div className="min-w-[96px] rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                          <span className="block text-[10px] font-bold uppercase text-gray-400">7-day rate</span>
-                          <span className="text-base font-extrabold text-[#047857]">{selectedChild.attendanceRateLast7 ?? 100}%</span>
-                        </div>
-                        <div className="min-w-[96px] rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                          <span className="block text-[10px] font-bold uppercase text-gray-400">Streak</span>
-                          <span className="flex items-center justify-center gap-1 text-base font-extrabold text-amber-700">
-                            <Flame className="h-4 w-4 fill-orange-500 text-orange-500" />{selectedChild.streakDays || 0}d
-                          </span>
+
+                        {/* Quick metrics */}
+                        <div className="flex shrink-0 items-center gap-3">
+                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5 text-center min-w-[100px]">
+                            <span className="block text-[11px] font-bold uppercase text-emerald-700">7-Day Rate</span>
+                            <span className="text-lg font-black text-emerald-800">
+                              {selectedChild.attendanceRateLast7 ?? 100}%
+                            </span>
+                          </div>
+                          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-3.5 text-center min-w-[100px]">
+                            <span className="block text-[11px] font-bold uppercase text-amber-700">Streak</span>
+                            <span className="flex items-center justify-center gap-1 text-lg font-black text-amber-800">
+                              <Flame className="h-4 w-4 fill-orange-500 text-orange-500" />
+                              {selectedChild.streakDays || 0}d
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Stat cards */}
-                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {/* Stats 4-Grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
                       {[
-                        { label: "Today's merits", value: `+${selectedChild.pointsToday || 0}`, icon: TrendingUp, box: "bg-amber-50 text-amber-700 border-amber-200" },
-                        { label: "Total points", value: formatPoints(selectedChild.currentPoints || 0), icon: Award, box: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-                        { label: "Tier", value: selectedChild.tier || "BRONZE", icon: Shield, box: "bg-violet-50 text-violet-700 border-violet-200" },
-                        { label: "Blood group", value: selectedChild.bloodGroup || "—", icon: Droplet, box: "bg-rose-50 text-rose-600 border-rose-200" },
+                        { label: "Today's Merits", value: `+${selectedChild.pointsToday || 0}`, icon: TrendingUp, box: "bg-amber-50 text-amber-700 border-amber-200" },
+                        { label: "Total Points", value: formatPoints(selectedChild.currentPoints || 0), icon: Award, box: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                        { label: "Tier Rank", value: selectedChild.tier || "BRONZE", icon: Shield, box: "bg-violet-50 text-violet-700 border-violet-200" },
+                        { label: "Blood Group", value: selectedChild.bloodGroup || "—", icon: Droplet, box: "bg-rose-50 text-rose-600 border-rose-200" },
                       ].map((s) => (
-                        <div key={s.label} className="flex items-center gap-3 rounded-[1.2rem] border border-slate-200 bg-white p-4">
-                          <div className={`shrink-0 rounded-xl border p-2.5 ${s.box}`}><s.icon className="h-5 w-5" /></div>
+                        <div key={s.label} className="flex items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+                          <div className={`shrink-0 rounded-xl border p-2.5 ${s.box}`}>
+                            <s.icon className="h-5 w-5" />
+                          </div>
                           <div>
-                            <span className="block text-[10px] font-bold uppercase text-gray-400">{s.label}</span>
+                            <span className="block text-[11px] font-bold uppercase text-gray-400">{s.label}</span>
                             <span className="text-lg font-extrabold text-gray-900">{s.value}</span>
                           </div>
                         </div>
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                      {/* Hifz mini */}
-                      <Card className="overflow-hidden rounded-[1.4rem] lg:col-span-1">
-                        <div className="flex items-center justify-between bg-gradient-to-r from-[#047857] to-[#065f46] p-4 text-white">
-                          <p className="flex items-center gap-2 text-[13.5px] font-bold"><BookOpen size={16} className="text-amber-300" /> Hifz weekly slip</p>
-                          <button type="button" onClick={() => setActiveTab("hifz")} className="rounded-lg bg-amber-400 px-2.5 py-1 text-[11.5px] font-bold text-gray-950 hover:bg-amber-300">
-                            Open
+                    {/* 2-Column: Daily Hifz Snapshot + Recent Activity */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                      {/* Daily Hifz / Hafiz Card */}
+                      <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden lg:col-span-1">
+                        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 p-4 text-white flex items-center justify-between">
+                          <p className="flex items-center gap-2 text-sm font-bold">
+                            <BookOpen size={16} className="text-amber-300" />
+                            Daily Hifz & Evaluation
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("hifz")}
+                            className="rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-bold text-slate-950 hover:bg-amber-300 transition"
+                          >
+                            Details
                           </button>
                         </div>
-                        <CardContent className="space-y-3 p-5 text-[13px]">
-                          {selectedChild.latestHifzSlip ? (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11.5px] font-bold text-emerald-800">
-                                  Week {selectedChild.latestHifzSlip.weekNumber}
-                                </span>
-                                <span className="flex items-center gap-0.5">
-                                  {Array.from({ length: selectedChild.latestHifzSlip.disciplineRating || 5 }).map((_, i) => (
-                                    <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                                  ))}
-                                </span>
+
+                        <CardContent className="p-5 space-y-3">
+                          {selectedChild.status === "HAFIZ" || selectedChild.hafizYear ? (
+                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-1.5">
+                              <Crown className="w-8 h-8 text-amber-600 mx-auto" />
+                              <p className="font-bold text-amber-900 text-sm">Certified Hafiz Al-Quran</p>
+                              <p className="text-xs text-amber-700">
+                                Completed full Quran memorization ({selectedChild.hafizYear ? `Sanah ${selectedChild.hafizYear} H` : "Alhamdulillah"})
+                              </p>
+                            </div>
+                          ) : selectedChild.todayHifzEvaluation ? (
+                            <div className="space-y-2 text-xs">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="text-slate-500">Today's Sabaq:</span>
+                                <span className="text-slate-900 font-semibold">{selectedChild.todayHifzEvaluation.sabaqSurah || "Regular Sabaq"}</span>
                               </div>
-                              <p className="font-extrabold text-gray-900">
-                                Juz {selectedChild.latestHifzSlip.currentJuz || "—"} · Safah {selectedChild.latestHifzSlip.currentSafah || "—"}
-                              </p>
-                              <p className="text-gray-500">
-                                Score {selectedChild.latestHifzSlip.totalMarks || 0}/50 ({selectedChild.latestHifzSlip.overallPerformance || 0}%)
-                              </p>
-                              {selectedChild.latestHifzSlip.teacherNotes && (
-                                <p className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[12px] leading-relaxed text-amber-950">
-                                  {selectedChild.latestHifzSlip.teacherNotes}
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-500">Score:</span>
+                                <span className="text-emerald-700 font-bold">{selectedChild.todayHifzEvaluation.totalMarks}/30</span>
+                              </div>
+                              {selectedChild.todayHifzEvaluation.teacherRemarks && (
+                                <p className="p-2 rounded-lg bg-emerald-50 text-emerald-900 text-[11px]">
+                                  <strong>Teacher note:</strong> {selectedChild.todayHifzEvaluation.teacherRemarks}
                                 </p>
                               )}
-                            </>
+                            </div>
+                          ) : selectedChild.latestHifzSlip ? (
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between font-bold">
+                                <span className="text-slate-500">Current Position:</span>
+                                <span className="text-slate-900 font-semibold">Juz {selectedChild.latestHifzSlip.currentJuz || "—"} · Safah {selectedChild.latestHifzSlip.currentSafah || "—"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Performance:</span>
+                                <span className="text-emerald-700 font-bold">{selectedChild.latestHifzSlip.overallPerformance}%</span>
+                              </div>
+                            </div>
                           ) : (
-                            <p className="py-4 text-center text-[12.5px] text-gray-400">No published Hifz slips yet.</p>
+                            <p className="text-xs text-slate-400 text-center py-4">No daily Hifz record yet today.</p>
                           )}
                         </CardContent>
                       </Card>
 
-                      {/* Recent activity */}
-                      <Card className="rounded-[1.4rem] lg:col-span-2">
+                      {/* Recent Activity Live Feed */}
+                      <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
                         <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-5">
-                          <CardTitle className="flex items-center gap-2 text-[15px] font-bold text-gray-900">
-                            <Activity size={16} className="text-[#047857]" /> Recent activity
+                          <CardTitle className="flex items-center gap-2 text-base font-bold text-gray-900">
+                            <Activity size={16} className="text-emerald-700" />
+                            Recent Classroom Activity & Merits
                           </CardTitle>
                           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                            Live feed
+                            Live Feed
                           </span>
                         </CardHeader>
-                        <CardContent className="space-y-2.5 p-5">
+                        <CardContent className="p-5 space-y-2.5">
                           {selectedChild.recentActivity?.length ? (
-                            selectedChild.recentActivity.slice(0, 4).map((act: any) => {
-                              const Icon = activityIcons[act.type] || Award;
-                              return (
-                                <div key={act.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
-                                  <div className="rounded-xl border border-amber-200 bg-amber-100/70 p-2 text-amber-700"><Icon size={15} /></div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="truncate text-[13px] font-bold text-gray-900">{act.title}</p>
-                                      <span className="shrink-0 text-[11px] text-gray-400">{timeAgo(new Date(act.createdAt))}</span>
-                                    </div>
-                                    <p className="mt-0.5 truncate text-[12px] text-gray-500">{act.detail}</p>
-                                  </div>
+                            selectedChild.recentActivity.slice(0, 4).map((act: any) => (
+                              <div key={act.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
+                                <div className="rounded-xl border border-amber-200 bg-amber-100/70 p-2 text-amber-700 shrink-0">
+                                  <Award size={16} />
                                 </div>
-                              );
-                            })
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="truncate text-xs sm:text-sm font-bold text-gray-900">{act.title}</p>
+                                    <span className="shrink-0 text-[11px] text-gray-400">{timeAgo(new Date(act.createdAt))}</span>
+                                  </div>
+                                  <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{act.detail}</p>
+                                </div>
+                              </div>
+                            ))
                           ) : (
-                            <p className="py-6 text-center text-[12.5px] text-gray-400">No recent activity yet.</p>
+                            <p className="py-6 text-center text-xs text-gray-400">No merit logs recorded yet today.</p>
                           )}
-                          <Link href="/parent/activity" className="flex items-center justify-center gap-1 pt-1 text-[12.5px] font-bold text-emerald-800 hover:underline">
-                            View complete log <ChevronRight size={14} />
+                          <Link href="/parent/activity" className="flex items-center justify-center gap-1 pt-1 text-xs font-bold text-emerald-800 hover:underline">
+                            View Full Activity Log <ChevronRight size={14} />
                           </Link>
                         </CardContent>
                       </Card>
                     </div>
-
-                    {/* Student identity strip */}
-                    <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5">
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px] sm:grid-cols-4">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase text-gray-400">ITS</p>
-                          <button type="button" onClick={() => copyToClipboard(selectedChild.its, "ITS ID")}
-                            className="mt-0.5 flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono font-bold text-emerald-800">
-                            {selectedChild.its} {copiedText === selectedChild.its ? <Check size={12} /> : <Copy size={12} className="opacity-60" />}
-                          </button>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase text-gray-400">Class</p>
-                          <p className="mt-0.5 font-bold text-gray-900">Grade {selectedChild.grade}{selectedChild.section ? `-${selectedChild.section}` : ""}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase text-gray-400">Watan</p>
-                          <p className="mt-0.5 font-semibold text-gray-800">{selectedChild.watan || selectedChild.residentCity || "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase text-gray-400">Hifz status</p>
-                          <Badge className={`mt-0.5 text-[11px] ${selectedChild.status === "HAFIZ" ? "border-amber-300 bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-600"}`}>
-                            {selectedChild.status === "HAFIZ" ? `Hafiz ${selectedChild.hafizYear ? `(${selectedChild.hafizYear})` : ""}` : "Sanah student"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
 
+                {/* ─────────────────────────────────────────────────────────────
+                    TAB 2: LIVE TRACKING & BIOMETRICS
+                ───────────────────────────────────────────────────────────── */}
                 {activeTab === "tracking" && (
                   <div className="space-y-5">
-                    {/* Today timeline */}
-                    <div className="rounded-[1.4rem] border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-white p-5 sm:p-6">
+                    {/* Live Campus Banner */}
+                    <div className="rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-teal-50/30 p-6">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-gray-900">
-                          <MapPin size={16} className="text-emerald-700" /> Today — live campus tracking
+                        <h3 className="flex items-center gap-2 text-base font-extrabold text-gray-900">
+                          <MapPin size={18} className="text-emerald-700" />
+                          Today's Campus Access & Gate Scans
                         </h3>
-                        <button type="button" onClick={fetchTracking}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600 hover:bg-slate-50">
-                          <RefreshCw size={13} className={trackingLoading ? "animate-spin text-emerald-700" : ""} /> Refresh scans
-                        </button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchTracking}
+                          className="h-8 gap-1.5 text-xs font-bold border-slate-200"
+                        >
+                          <RefreshCw size={13} className={trackingLoading ? "animate-spin text-emerald-700" : ""} />
+                          Refresh Scans
+                        </Button>
                       </div>
-                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="rounded-2xl border border-slate-200 bg-white p-4">
                           <p className="text-[11px] font-bold uppercase text-gray-400">Status</p>
-                          <p className={`mt-1 flex items-center gap-1.5 text-[14px] font-extrabold ${selectedChild.isCheckedIn ? "text-emerald-700" : "text-slate-500"}`}>
+                          <p className={`mt-1 flex items-center gap-2 text-sm font-extrabold ${selectedChild.isCheckedIn ? "text-emerald-700" : "text-slate-500"}`}>
                             <span className={`h-2.5 w-2.5 rounded-full ${selectedChild.isCheckedIn ? "animate-pulse bg-emerald-500" : "bg-slate-300"}`} />
-                            {selectedChild.isCheckedIn ? "On campus" : "Not arrived"}
+                            {selectedChild.isCheckedIn ? "On Campus" : "Awaiting Scan"}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[11px] font-bold uppercase text-gray-400">Arrival scan</p>
-                          <p className="mt-1 text-[14px] font-extrabold text-gray-900">
+                          <p className="text-[11px] font-bold uppercase text-gray-400">Check-in Time</p>
+                          <p className="mt-1 text-sm font-extrabold text-gray-900">
                             {selectedChild.lastCheckIn
                               ? new Date(selectedChild.lastCheckIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                               : "—"}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[11px] font-bold uppercase text-gray-400">Gate</p>
-                          <p className="mt-1 text-[14px] font-extrabold text-gray-900">{selectedChild.gate || "Main Gate"}</p>
+                          <p className="text-[11px] font-bold uppercase text-gray-400">Gate / Terminal</p>
+                          <p className="mt-1 text-sm font-extrabold text-gray-900">{selectedChild.gate || "Main Gate MinMoe"}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* 7-day strip */}
-                    <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 sm:p-6">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-gray-900">
-                          <Calendar size={16} className="text-emerald-700" /> 7-day attendance trail
+                    {/* 7-Day Attendance Strip */}
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <h3 className="flex items-center gap-2 text-base font-extrabold text-gray-900">
+                          <Calendar size={18} className="text-emerald-700" />
+                          7-Day Attendance History
                         </h3>
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11.5px] font-bold text-emerald-800">
-                          {selectedChild.daysPresentLast7 ?? 0}/7 present · {selectedChild.attendanceRateLast7 ?? 100}%
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
+                          {selectedChild.daysPresentLast7 ?? 0}/7 Days Present · {selectedChild.attendanceRateLast7 ?? 100}% Rate
                         </span>
                       </div>
-                      {trackingLoading ? (
-                        <div className="mt-4 grid grid-cols-7 gap-2">
-                          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                            <div key={i} className="h-[86px] animate-pulse rounded-2xl bg-slate-100" />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mt-4 grid grid-cols-7 gap-1.5 sm:gap-2">
-                          {weekStrip.map((d, i) => (
-                            <div key={i} className={`rounded-2xl border p-2 text-center sm:p-3 ${
-                              d.present ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"
+
+                      <div className="grid grid-cols-7 gap-2">
+                        {weekStrip.map((d, i) => (
+                          <div
+                            key={i}
+                            className={`rounded-2xl border p-3 text-center transition-all ${
+                              d.present ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-slate-50/60"
+                            }`}
+                          >
+                            <p className="text-[11px] font-bold uppercase text-gray-400">{d.label}</p>
+                            <div className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-xs font-extrabold ${
+                              d.present ? "bg-emerald-600 text-white shadow-xs" : "bg-slate-200 text-slate-400"
                             }`}>
-                              <p className="text-[11px] font-bold uppercase text-gray-400">{d.label}</p>
-                              <p className={`mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-extrabold sm:h-8 sm:w-8 ${
-                                d.present ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-400"
-                              }`}>
-                                {d.present ? <Check size={15} /> : "–"}
-                              </p>
-                              <p className="mt-1 truncate text-[10px] font-semibold text-gray-500">
-                                {d.date.toLocaleDateString("en-US", { day: "numeric", month: "short" })}
-                              </p>
-                              <p className="truncate text-[10px] font-bold text-emerald-700">{d.time || ""}</p>
+                              {d.present ? <Check size={16} /> : "—"}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                            <p className="mt-1 text-[10px] font-semibold text-gray-500">
+                              {d.date.toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                            </p>
+                            <p className="truncate text-[10px] font-bold text-emerald-700">{d.time || ""}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Recent scans */}
-                    <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 sm:p-6">
-                      <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-gray-900">
-                        <Clock size={16} className="text-emerald-700" /> Recent biometric scans
+                    {/* Recent Raw Scans Feed */}
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h3 className="flex items-center gap-2 text-base font-extrabold text-gray-900 mb-4">
+                        <Clock size={18} className="text-emerald-700" />
+                        Live Gate Scans Feed
                       </h3>
-                      {trackingLoading ? (
-                        <div className="mt-4 space-y-2">
-                          {[0, 1, 2].map((i) => (
-                            <div key={i} className="h-[64px] animate-pulse rounded-2xl bg-slate-100" />
-                          ))}
-                        </div>
-                      ) : trackingLogs.length === 0 ? (
-                        <p className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-[12.5px] text-gray-500">
-                          No scans in the recent window. New check-ins will appear here automatically.
+
+                      {trackingLogs.length === 0 ? (
+                        <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400">
+                          No scan logs in the recent buffer. Gate scans appear automatically.
                         </p>
                       ) : (
-                        <div className="mt-4 space-y-2">
-                          {trackingLogs.slice(0, 8).map((a: any) => (
-                            <div key={a.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
-                              <div className="rounded-xl border border-emerald-200 bg-emerald-100/60 p-2 text-emerald-700">
-                                <Clock size={15} />
+                        <div className="space-y-2">
+                          {trackingLogs.map((log: any) => (
+                            <div key={log.id} className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50/60 text-xs">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                                  <Fingerprint size={16} />
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-900">{log.title || "Biometric Check-in"}</p>
+                                  <p className="text-slate-500 text-[11px]">{log.detail || "Verified at terminal"}</p>
+                                </div>
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[13px] font-bold text-gray-900">{a.title}</p>
-                                <p className="truncate text-[12px] text-gray-500">{a.detail}</p>
-                              </div>
-                              <span className="shrink-0 text-[11px] font-medium text-gray-400">
-                                {new Date(a.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
-                              </span>
+                              <span className="font-mono text-slate-500 font-semibold">{timeAgo(new Date(log.createdAt))}</span>
                             </div>
                           ))}
                         </div>
                       )}
-                      <button type="button" onClick={() => setActiveTab("leave")}
-                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[12.5px] font-bold text-emerald-800 transition hover:bg-emerald-100">
-                        <FileText size={14} /> Absent a day? Apply for leave <ChevronRight size={14} />
-                      </button>
                     </div>
                   </div>
                 )}
 
-                {activeTab === "leave" && (
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 sm:p-6">
-                    <h3 className="flex items-center gap-2 text-[15px] font-extrabold text-gray-900">
-                      <CalendarDays size={16} className="text-emerald-700" />
-                      Leave applications for {selectedChild.firstName}
-                    </h3>
-                    <p className="mt-1 text-[12.5px] text-gray-500">
-                      Parents apply for holidays and emergencies here. Medical leave is handled by the school medical desk and never appears here.
-                    </p>
-                    <div className="mt-4">
-                      <ParentLeaveManager childrenList={leaveChildren} />
-                    </div>
-                  </div>
-                )}
-
+                {/* ─────────────────────────────────────────────────────────────
+                    TAB 3: HIFZ & DAILY WORK TRACKING
+                ───────────────────────────────────────────────────────────── */}
                 {activeTab === "hifz" && (
                   <div className="space-y-5">
-                    <Card className="overflow-hidden rounded-[1.4rem]">
-                      <div className="flex items-center justify-between bg-gradient-to-r from-[#047857] to-[#065f46] p-5 text-white">
-                        <div className="flex items-center gap-2.5">
-                          <BookOpen size={20} className="text-amber-300" />
-                          <div>
-                            <h3 className="font-display text-[16px] font-bold">Hifz progress & weekly slip</h3>
-                            <p className="text-[12px] text-emerald-100">Official Quran memorization evaluation</p>
+                    {selectedChild.status === "HAFIZ" || selectedChild.hafizYear ? (
+                      <Card className="border-0 shadow-xl overflow-hidden bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white relative">
+                        <div className="p-8 sm:p-12 text-center relative z-10 space-y-4">
+                          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center">
+                            <Crown className="w-10 h-10 text-amber-400" />
                           </div>
+                          <span className="text-xs font-bold uppercase tracking-widest text-amber-300 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-400/20">
+                            Certified Hafiz Al-Quran
+                          </span>
+                          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                            مَا شَاءَ اللَّهُ لَا قُوَّةَ إِلَّا بِاللَّهِ
+                          </h2>
+                          <p className="text-sm text-emerald-100/90 max-w-md mx-auto">
+                            {selectedChild.firstName} has completed the memorization of the Holy Quran. Daily beginner evaluations and ikhtebaar testing are not applicable.
+                          </p>
+                          {selectedChild.hafizYear && (
+                            <Badge className="bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1">
+                              Certified Year: {selectedChild.hafizYear} H
+                            </Badge>
+                          )}
                         </div>
-                        <Link href="/parent/hifz">
-                          <Button size="sm" className="h-8 gap-1 rounded-xl bg-amber-400 px-3.5 text-xs font-bold text-gray-950 hover:bg-amber-300">
-                            Full record <ChevronRight size={14} />
-                          </Button>
-                        </Link>
-                      </div>
-                      <CardContent className="space-y-4 p-5 sm:p-6">
-                        {selectedChild.latestHifzSlip ? (
-                          <>
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-[#047857]">
-                                <Calendar size={14} /> Week {selectedChild.latestHifzSlip.weekNumber} report
-                              </span>
-                              <span className="flex items-center gap-0.5">
-                                {Array.from({ length: selectedChild.latestHifzSlip.disciplineRating || 5 }).map((_, i) => (
-                                  <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                                ))}
-                              </span>
+                      </Card>
+                    ) : (
+                      <>
+                        {/* Daily Evaluation Card */}
+                        <div className="rounded-3xl border border-amber-200/80 bg-gradient-to-br from-white via-amber-50/10 to-amber-50/20 p-6 shadow-sm">
+                          <div className="flex items-center justify-between border-b border-amber-100 pb-3 mb-4">
+                            <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+                              <BookOpen className="w-5 h-5 text-amber-600" />
+                              Today's Daily Evaluation (اليومية)
+                            </h3>
+                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-semibold">
+                              Live Feedback
+                            </Badge>
+                          </div>
+
+                          {selectedChild.todayHifzEvaluation ? (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-xs">
+                                  <span className="text-[11px] font-bold text-amber-800 uppercase">Sabaq (سبق)</span>
+                                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                    {selectedChild.todayHifzEvaluation.sabaqSurah || "Sabaq recitation"}
+                                  </p>
+                                  <p className="text-xs text-slate-500">{selectedChild.todayHifzEvaluation.sabaqLines || 0} Lines recited</p>
+                                </div>
+
+                                <div className="p-3.5 rounded-2xl bg-white border border-blue-100 shadow-xs">
+                                  <span className="text-[11px] font-bold text-blue-800 uppercase">Sabqi (سبقي)</span>
+                                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                    {selectedChild.todayHifzEvaluation.sabqiJuz ? `Juz ${selectedChild.todayHifzEvaluation.sabqiJuz}` : "Sabqi Revision"}
+                                  </p>
+                                  <p className="text-xs text-slate-500">Marks: {selectedChild.todayHifzEvaluation.sabqiMarks || 0}/10</p>
+                                </div>
+
+                                <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-xs">
+                                  <span className="text-[11px] font-bold text-emerald-800 uppercase">Muraja'at (مراجعة)</span>
+                                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                    {selectedChild.todayHifzEvaluation.murajaatJuz ? `Juz ${selectedChild.todayHifzEvaluation.murajaatJuz}` : "Dhor"}
+                                  </p>
+                                  <p className="text-xs text-slate-500">Marks: {selectedChild.todayHifzEvaluation.murajaatMarks || 0}/10</p>
+                                </div>
+                              </div>
+
+                              {selectedChild.todayHifzEvaluation.teacherRemarks && (
+                                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
+                                  <strong>Muhaffiz Remarks: </strong> {selectedChild.todayHifzEvaluation.teacherRemarks}
+                                </div>
+                              )}
                             </div>
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 text-center">
-                                <span className="block text-[10px] font-bold uppercase text-gray-400">Juz / Safah</span>
-                                <span className="text-base font-black text-[#047857]">
-                                  {selectedChild.latestHifzSlip.currentJuz || "—"} / {selectedChild.latestHifzSlip.currentSafah || "—"}
-                                </span>
+                          ) : (
+                            <p className="py-6 text-center text-xs text-slate-400">
+                              No daily evaluation recorded yet for today.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Latest Weekly Slip */}
+                        {selectedChild.latestHifzSlip && (
+                          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                                <FileText className="w-5 h-5 text-emerald-700" />
+                                Weekly Hifz Slip (Week {selectedChild.latestHifzSlip.weekNumber})
+                              </h3>
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 font-bold">
+                                {selectedChild.latestHifzSlip.overallPerformance}% Score
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                              <div className="p-3 rounded-xl bg-slate-50">
+                                <span className="text-slate-400 block font-bold">Current Juz</span>
+                                <span className="text-sm font-black text-slate-900">Juz {selectedChild.latestHifzSlip.currentJuz || "—"}</span>
                               </div>
-                              <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-3.5 text-center">
-                                <span className="block text-[10px] font-bold uppercase text-gray-400">Sabaq</span>
-                                <span className="text-base font-black text-amber-800">{selectedChild.latestHifzSlip.sabaqLines || 0} lines</span>
+                              <div className="p-3 rounded-xl bg-slate-50">
+                                <span className="text-slate-400 block font-bold">Safah</span>
+                                <span className="text-sm font-black text-slate-900">Page {selectedChild.latestHifzSlip.currentSafah || "—"}</span>
                               </div>
-                              <div className="col-span-2 rounded-2xl border border-violet-100 bg-violet-50/60 p-3.5 text-center sm:col-span-1">
-                                <span className="block text-[10px] font-bold uppercase text-gray-400">Score</span>
-                                <span className="text-base font-black text-violet-900">
-                                  {selectedChild.latestHifzSlip.totalMarks || 0}/50 ({selectedChild.latestHifzSlip.overallPerformance || 0}%)
-                                </span>
+                              <div className="p-3 rounded-xl bg-slate-50">
+                                <span className="text-slate-400 block font-bold">Discipline Rating</span>
+                                <div className="flex items-center gap-0.5 mt-0.5">
+                                  {Array.from({ length: selectedChild.latestHifzSlip.disciplineRating || 5 }).map((_, i) => (
+                                    <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="p-3 rounded-xl bg-slate-50">
+                                <span className="text-slate-400 block font-bold">Muhaffiz</span>
+                                <span className="text-xs font-bold text-slate-800">{selectedChild.latestHifzSlip.muhaffizName}</span>
                               </div>
                             </div>
+
                             {selectedChild.latestHifzSlip.teacherNotes && (
-                              <div className="space-y-1.5 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs leading-relaxed text-amber-950">
-                                <p className="flex items-center gap-1.5 font-bold text-amber-900">
-                                  <Sparkles size={14} className="text-amber-600" /> Muhaffiz feedback ({selectedChild.latestHifzSlip.muhaffizName}):
-                                </p>
-                                <p>{selectedChild.latestHifzSlip.teacherNotes}</p>
+                              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                                <strong className="text-slate-900">Teacher Notes: </strong>
+                                {selectedChild.latestHifzSlip.teacherNotes}
                               </div>
                             )}
-                          </>
-                        ) : (
-                          <div className="space-y-2 rounded-2xl border border-dashed border-slate-300 p-6 text-center">
-                            <BookOpen className="mx-auto h-8 w-8 text-gray-300" />
-                            <p className="text-xs font-medium text-gray-500">No published Hifz slips yet for this student.</p>
                           </div>
                         )}
-                      </CardContent>
-                    </Card>
-
-                    {selectedChild.recentBadges?.length > 0 && (
-                      <Card className="rounded-[1.4rem]">
-                        <CardHeader className="border-b border-slate-100 p-5">
-                          <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
-                            <Award size={16} className="text-amber-500" /> Earned badges & honors
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-5">
-                          <div className="flex flex-wrap gap-2">
-                            {selectedChild.recentBadges.map((badge: any, idx: number) => (
-                              <Badge key={idx} variant="outline"
-                                className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-bold ${
-                                  badge.tier === "GOLD" ? "border-amber-300 bg-amber-50 text-amber-900"
-                                  : badge.tier === "SILVER" ? "border-slate-300 bg-slate-50 text-slate-800"
-                                  : "border-orange-200 bg-orange-50 text-orange-900"
-                                }`}>
-                                <Crown size={12} className="text-amber-600" /> {badge.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+                      </>
                     )}
+                  </div>
+                )}
 
-                    <div className="rounded-[1.4rem] bg-gradient-to-br from-[#022c22] to-[#047857] p-6 text-white">
-                      <h4 className="flex items-center gap-1.5 text-sm font-bold">
-                        <Sparkles size={16} className="text-amber-300" /> Parent quick actions
-                      </h4>
-                      <p className="mt-1 text-xs text-emerald-100">
-                        Questions about {selectedChild.firstName}? Use Hifz reports or the school calendar.
-                      </p>
-                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                        <Link href="/parent/hifz" className="flex-1">
-                          <Button size="sm" className="h-9 w-full rounded-xl bg-white text-xs font-bold text-[#047857] hover:bg-emerald-50">
-                            <BookOpen size={14} className="mr-1" /> Hifz reports
-                          </Button>
-                        </Link>
-                        <Link href="/fatimi-calendar" className="flex-1">
-                          <Button size="sm" variant="outline" className="h-9 w-full rounded-xl border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20">
-                            <Calendar size={14} className="mr-1" /> School calendar
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
+                {/* ─────────────────────────────────────────────────────────────
+                    TAB 4: LEAVE APPLICATIONS
+                ───────────────────────────────────────────────────────────── */}
+                {activeTab === "leave" && (
+                  <div className="space-y-4">
+                    <ParentLeaveManager
+                      childrenList={leaveChildren}
+                      defaultChildId={selectedChild.studentProfileId || selectedChild.id}
+                      onSuccess={() => fetchDashboard(false)}
+                    />
                   </div>
                 )}
               </motion.div>

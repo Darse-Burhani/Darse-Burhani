@@ -124,6 +124,24 @@ async function forwardEventToRender(eventData) {
   }
 }
 
+// Format Hikvision local timezone ISO string (e.g. 2026-10-07T17:50:00+05:30)
+function getHikvisionTime(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  
+  const offset = -d.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const offsetHours = pad(Math.floor(Math.abs(offset) / 60));
+  const offsetMinutes = pad(Math.abs(offset) % 60);
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetMinutes}`;
+}
+
 // Track seen serials to prevent duplicates
 const seenEvents = new Set();
 function isDuplicate(key) {
@@ -139,15 +157,17 @@ function isDuplicate(key) {
 // Poll historical/recent events from device
 async function pollDeviceEvents(dev) {
   const now = new Date();
-  const startTime = new Date(now.getTime() - 2 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-  const endTime = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  // Look back 15 minutes to avoid any missed punches during network hiccups
+  const past = new Date(now.getTime() - 15 * 60 * 1000);
+  const startTime = getHikvisionTime(past);
+  const endTime = getHikvisionTime(now);
 
   const payload = JSON.stringify({
     AcsEventCond: {
       searchID: `bridge-${Date.now()}`,
       searchResultPosition: 0,
-      maxResults: 30,
-      major: 5,
+      maxResults: 50,
+      major: 0,
       minor: 0,
       startTime,
       endTime,

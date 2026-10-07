@@ -103,6 +103,7 @@ import parentDashboardRoutes from "./routes/parent/dashboard";
 import parentActivityRoutes from "./routes/parent/activity";
 import parentProfileRoutes from "./routes/parent/profile";
 import parentLeaveRoutes from "./routes/parent/leave";
+import hifzDailyEvaluationRoutes from "./routes/hifz/daily-evaluation";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -292,6 +293,7 @@ export function createApp() {
   app.use("/api/parent/activity", parentActivityRoutes);
   app.use("/api/parent/profile", parentProfileRoutes);
   app.use("/api/parent/leave", parentLeaveRoutes);
+  app.use("/api/hifz/daily-evaluation", hifzDailyEvaluationRoutes);
 
   // ── Serve the built SPA (production) with immutable asset caching ──
   const clientDist = path.join(repoRoot, "client", "dist");

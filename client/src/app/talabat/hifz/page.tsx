@@ -34,6 +34,9 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import DailyEvaluationCard from "@/components/hifz/DailyEvaluationCard";
+import Hifz30JuzProgressBar from "@/components/hifz/Hifz30JuzProgressBar";
+import IkhtebaarRoadmapCard from "@/components/hifz/IkhtebaarRoadmapCard";
 
 const PART_CHART_COLORS: Record<string, string> = {
   COMPLETED: "#059669",
@@ -229,6 +232,7 @@ function JourneyNode({ part, index, isExpanded, onToggle, isLast, isCurrent }: {
 
 export default function TalabatHifzPage() {
   const [report, setReport] = useState<any>(null);
+  const [dailyData, setDailyData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -246,13 +250,20 @@ export default function TalabatHifzPage() {
 
   const fetchReport = async () => {
     try {
-      const res = await fetch("/api/talabat/hifz");
-      const data = await res.json();
-      if (data.success) {
-        setReport(data.data.report);
+      const [resHifz, resDaily] = await Promise.all([
+        fetch("/api/talabat/hifz").then((r) => r.json()).catch(() => null),
+        fetch("/api/hifz/daily-evaluation/my-progress").then((r) => r.json()).catch(() => null),
+      ]);
+
+      if (resDaily && resDaily.success) {
+        setDailyData(resDaily);
+      }
+
+      if (resHifz && resHifz.success) {
+        setReport(resHifz.data.report);
         setError(null);
-      } else {
-        setError(data.error || "Failed to load report");
+      } else if (!resDaily || !resDaily.success) {
+        setError(resHifz?.error || "Failed to load report");
       }
     } catch {
       setError("Network error");
@@ -366,6 +377,50 @@ export default function TalabatHifzPage() {
               </Button>
             </CardContent>
           </Card>
+        ) : dailyData?.isHafiz ? (
+          <Card className="border-0 shadow-xl overflow-hidden bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white relative">
+            <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-emerald-400/20 blur-3xl pointer-events-none" />
+            
+            <CardContent className="p-8 sm:p-12 text-center relative z-10 space-y-6">
+              <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 p-0.5 shadow-xl shadow-amber-500/20">
+                <div className="w-full h-full rounded-[22px] bg-slate-900 flex items-center justify-center">
+                  <Award className="w-12 h-12 text-amber-400 animate-pulse" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-300 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-400/20">
+                  Hafiz Al-Quran
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                  مَا شَاءَ اللَّهُ لَا قُوَّةَ إِلَّا بِاللَّهِ
+                </h2>
+                <h3 className="text-xl sm:text-2xl font-bold text-amber-200">
+                  حَافِظُ الْقُرْآنِ الْكَرِيمِ
+                </h3>
+              </div>
+
+              <p className="text-sm sm:text-base text-emerald-100/90 max-w-lg mx-auto leading-relaxed">
+                Mubarak! You have completed the memorization of the entire Holy Quran (30 Ajza). Daily beginner evaluations and ikhtebaar preparation are not applicable to certified Huffaz.
+              </p>
+
+              {dailyData.student?.hafizYear && (
+                <div className="inline-block px-4 py-2 rounded-xl bg-white/10 border border-white/15 text-xs text-amber-200 font-semibold backdrop-blur">
+                  Certified Hafiz Year: {dailyData.student.hafizYear} H
+                </div>
+              )}
+
+              <div className="pt-4">
+                <Button
+                  onClick={() => window.location.href = "/talabat"}
+                  className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold px-6 py-2.5 rounded-xl shadow-lg"
+                >
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : !report ? (
           <Card className="border-0 shadow-sm">
             <CardContent className="p-16 text-center">
@@ -378,6 +433,33 @@ export default function TalabatHifzPage() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {/* 1. Daily Evaluation (اليومية) */}
+            {dailyData && (
+              <DailyEvaluationCard
+                evaluation={dailyData.todayEvaluation}
+                weeklySummary={dailyData.weeklySummary}
+              />
+            )}
+
+            {/* 2. Mahad Al-Zahra Ikhtebaar Milestone */}
+            {dailyData && dailyData.progress && (
+              <IkhtebaarRoadmapCard
+                nextMilestone={dailyData.progress.nextMilestone}
+                currentMilestone={dailyData.progress.currentMilestone}
+                ikhtebaarTarget={dailyData.nextIkhtebaar}
+              />
+            )}
+
+            {/* 3. Full Quran 30-Juz Annual Journey */}
+            {dailyData && dailyData.progress && (
+              <Hifz30JuzProgressBar
+                completedPages={dailyData.progress.totalMemorizedPages}
+                completedAjza={dailyData.progress.completedAjza}
+                fullQuranPercentage={dailyData.progress.fullQuranPercentage}
+                projection={dailyData.progress.projection}
+              />
+            )}
+
             {/* Profile Card + Progress */}
             <Card className="border-0 shadow-lg overflow-hidden" style={{ borderColor: "#d4af3720" }}>
               <div className="h-1.5" style={{ background: "linear-gradient(90deg, #047857, #d4af37, #047857)" }} />

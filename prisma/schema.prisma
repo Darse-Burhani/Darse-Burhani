@@ -210,6 +210,7 @@ model TeacherProfile {
   musaidHifzAssignments      HifzMarhalaAssignment[] @relation("MusaidHifzAssignments")
   hifzMarhalaReports         HifzMarhalaReport[]     @relation("FacultyHifzReports")
   weeklySlipsAuthored        HifzWeeklySlip[]        @relation("TeacherWeeklySlips")
+  dailyEvaluationsAuthored   HifzDailyEvaluation[]   @relation("FacultyDailyEvaluations")
   medicalExemptions          MedicalExemption[]
 
   @@index([userId])
@@ -283,6 +284,8 @@ model StudentProfile {
   musaidHifzAssignments      HifzMarhalaAssignment[] @relation("MusaidStudentHifzAssignments")
   hifzMarhalaReports         HifzMarhalaReport[]     @relation("StudentHifzReports")
   weeklySlips                HifzWeeklySlip[]        @relation("StudentWeeklySlips")
+  dailyEvaluations           HifzDailyEvaluation[]   @relation("StudentDailyEvaluations")
+  ikhtebaarTargets           HifzIkhtebaarTarget[]   @relation("StudentIkhtebaarTargets")
   medicalExemptions          MedicalExemption[]
 
   @@index([userId])
@@ -412,6 +415,89 @@ model HifzWeeklySlip {
   @@index([academicYear, weekNumber])
   @@index([status])
   @@map("hifz_weekly_slips")
+}
+
+model HifzDailyEvaluation {
+  id                String          @id @default(cuid())
+  studentId         String
+  facultyId         String?
+  evaluationDate    DateTime        @db.Date
+  academicYear      String
+  marhala           String?         // e.g. "BALAD", "INSHIQAQ", "JUZ_AMMA", "MARHALA_4", "MARHALA_5", etc.
+  
+  // Current Position
+  currentJuz        Int?
+  currentSafah      Int?
+  
+  // Sabaq (New Memorization)
+  sabaqSurah        String?
+  sabaqAyahFrom     Int?
+  sabaqAyahTo       Int?
+  sabaqLines        Int?            @default(0)
+  sabaqMarks        Float?          @default(0)
+  
+  // Sabqi (Recent Revision)
+  sabqiJuz          Int?
+  sabqiSafah        Int?
+  sabqiMarks        Float?          @default(0)
+  
+  // Muraja'at (Dhor)
+  murajaatJuz       Int?
+  murajaatSafah     Int?
+  murajaatMarks     Float?          @default(0)
+  
+  // Daily Summary
+  totalMarks        Float?          @default(0)
+  performanceRating String?         @default("GOOD") // "MUMTAZ", "JAYYID_JIDDAN", "JAYYID", "MAQBOOL", "DAEEF", "ABSENT"
+  attendanceStatus  String?         @default("PRESENT") // "PRESENT", "ABSENT", "EXCUSED"
+  teacherRemarks    String?         @db.Text
+  source            String          @default("ELEARNING_QURAN") // "ELEARNING_QURAN", "MANUAL", "EXTENSION_SYNC"
+  
+  syncedAt          DateTime        @default(now())
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  student           StudentProfile  @relation("StudentDailyEvaluations", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty           TeacherProfile? @relation("FacultyDailyEvaluations", fields: [facultyId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, evaluationDate])
+  @@index([facultyId])
+  @@index([evaluationDate])
+  @@index([academicYear])
+  @@map("hifz_daily_evaluations")
+}
+
+model HifzIkhtebaarTarget {
+  id                  String          @id @default(cuid())
+  studentId           String
+  targetMarhala       String          // e.g. "BALAD", "INSHIQAQ", "JUZ_AMMA", "MARHALA_1", "MARHALA_2", "MARHALA_3", "MARHALA_4", "MARHALA_5", "MARHALA_6", "MARHALA_7", "MARHALA_8", "FULL_QURAN"
+  targetName          String          // e.g. "Mahad Al-Zahra Marhala 4 Ikhtebaar (Juz 19-24)"
+  targetJuzCount      Int             @default(1)
+  targetDate          DateTime?
+  status              String          @default("PREPARING") // "PREPARING", "READY_FOR_TEST", "SUBMITTED", "PASSED", "RETEST"
+  
+  // Readiness breakdown
+  pagesCompleted      Int             @default(0)
+  totalPagesRequired  Int             @default(20)
+  readinessPercentage Float           @default(0)
+  murajaatCompleted   Boolean         @default(false)
+  weakAjzaCleared     Boolean         @default(true)
+  
+  // Results / Clearance
+  examDate            DateTime?
+  examinerName        String?
+  resultScore         Float?
+  resultGrade         String?         // "MUMTAZ", "JAYYID_JIDDAN", "JAYYID", "RASIB"
+  adminRemarks        String?         @db.Text
+  
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  student             StudentProfile  @relation("StudentIkhtebaarTargets", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
+  @@map("hifz_ikhtebaar_targets")
 }
 
 model ParentProfile {
