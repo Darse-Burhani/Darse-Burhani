@@ -1,6 +1,6 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
-import { authenticateSession, requireRole } from "../../middleware";
+import { requireAuth, requireRole } from "../../middleware";
 import {
   calculateHifzProgressAndIkhtebaar,
   MAHAD_IKHTEBAAR_MILESTONES,
@@ -20,7 +20,7 @@ function normalizeDate(dateStr?: string | Date): Date {
  * POST /api/hifz/daily-evaluation/sync
  * Syncs daily evaluation data (from eLearningQuran scraper/extension or manual bulk entry)
  */
-router.post("/sync", authenticateSession, async (req, res) => {
+router.post("/sync", requireAuth, async (req, res) => {
   try {
     const session = req.auth!;
     const { evaluations, date, academicYear = "1446-1447", source = "ELEARNING_QURAN" } = req.body;
@@ -202,7 +202,7 @@ router.post("/sync", authenticateSession, async (req, res) => {
  * GET /api/hifz/daily-evaluation/overview
  * Overview for teachers / admins for a specific date
  */
-router.get("/overview", authenticateSession, async (req, res) => {
+router.get("/overview", requireAuth, async (req, res) => {
   try {
     const session = req.auth!;
     const dateQuery = (req.query.date as string) || "";
@@ -295,7 +295,7 @@ router.get("/overview", authenticateSession, async (req, res) => {
  * GET /api/hifz/daily-evaluation/student/:studentId
  * Detailed Hifz daily evaluations, weekly slip progress, and Ikhtebaar readiness for a student
  */
-router.get("/student/:studentId", authenticateSession, async (req, res) => {
+router.get("/student/:studentId", requireAuth, async (req, res) => {
   try {
     const { studentId } = req.params;
     const academicYear = (req.query.academicYear as string) || "1446-1447";
@@ -386,7 +386,7 @@ router.get("/student/:studentId", authenticateSession, async (req, res) => {
  * GET /api/hifz/daily-evaluation/my-progress
  * Endpoint for logged-in Talabat or Parent to view daily & Ikhtebaar reflection
  */
-router.get("/my-progress", authenticateSession, async (req, res) => {
+router.get("/my-progress", requireAuth, async (req, res) => {
   try {
     const session = req.auth!;
     let studentId: string | null = null;

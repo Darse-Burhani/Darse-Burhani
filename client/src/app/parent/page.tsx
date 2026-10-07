@@ -830,8 +830,6 @@ export default function ParentDashboard() {
                   <div className="space-y-4">
                     <ParentLeaveManager
                       childrenList={leaveChildren}
-                      defaultChildId={selectedChild.studentProfileId || selectedChild.id}
-                      onSuccess={() => fetchDashboard(false)}
                     />
                   </div>
                 )}

@@ -26,6 +26,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
+export const authenticateSession = requireAuth;
+
 /**
  * Maps request URL / base route to canonical portal page ID(s)
  */

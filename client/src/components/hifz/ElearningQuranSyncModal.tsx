@@ -2,19 +2,18 @@
 
 import React, { useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalFooter,
+} from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, CheckCircle2, AlertCircle, Copy, FileText, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
+import { RefreshCw, CheckCircle2, Copy, ArrowRight } from "lucide-react";
+import { toast } from "@/components/ui/toast";
 
 interface ElearningQuranSyncModalProps {
   open: boolean;
@@ -51,7 +50,7 @@ export default function ElearningQuranSyncModal({
 
   const handleSync = async () => {
     if (!jsonData.trim()) {
-      toast.error("Please paste the evaluation JSON data");
+      toast({ variant: "destructive", title: "Missing Payload", description: "Please paste the evaluation JSON data" });
       return;
     }
 
@@ -60,8 +59,8 @@ export default function ElearningQuranSyncModal({
       let parsed;
       try {
         parsed = JSON.parse(jsonData);
-      } catch (e) {
-        toast.error("Invalid JSON format. Please check the pasted data.");
+      } catch {
+        toast({ variant: "destructive", title: "Format Error", description: "Invalid JSON format. Please check the pasted data." });
         setLoading(false);
         return;
       }
@@ -84,10 +83,10 @@ export default function ElearningQuranSyncModal({
       }
 
       setSyncResult(data);
-      toast.success(`Successfully synced ${data.processedCount} student evaluations!`);
+      toast({ variant: "default", title: "Sync Successful", description: `Successfully synced ${data.processedCount} student evaluations!` });
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      toast.error(err.message || "Failed to sync evaluations");
+      toast({ variant: "destructive", title: "Sync Failed", description: err.message || "Failed to sync evaluations" });
     } finally {
       setLoading(false);
     }
@@ -95,21 +94,21 @@ export default function ElearningQuranSyncModal({
 
   const handleCopyBookmarklet = () => {
     navigator.clipboard.writeText(bookmarkletCode);
-    toast.success("eLearningQuran 1-Click Bookmarklet copied to clipboard!");
+    toast({ variant: "default", title: "Copied", description: "eLearningQuran 1-Click Bookmarklet copied to clipboard!" });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-slate-800">
+    <Modal open={open} onOpenChange={onOpenChange}>
+      <ModalContent className="max-w-xl">
+        <ModalHeader>
+          <ModalTitle className="flex items-center gap-2 text-slate-800">
             <RefreshCw className="w-5 h-5 text-amber-600" />
             Sync from Mahad Al-Zahra (eLearningQuran)
-          </DialogTitle>
-          <DialogDescription>
+          </ModalTitle>
+          <ModalDescription>
             Import daily evaluations from <code className="text-amber-700 bg-amber-50 px-1 py-0.5 rounded">teachers.elearningquran.com</code> to reflect directly to talabat.
-          </DialogDescription>
-        </DialogHeader>
+          </ModalDescription>
+        </ModalHeader>
 
         <div className="space-y-4 py-2">
           {/* Date Selector */}
@@ -119,7 +118,7 @@ export default function ElearningQuranSyncModal({
               id="syncDate"
               type="date"
               value={syncDate}
-              onChange={(e) => setSyncDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSyncDate(e.target.value)}
             />
           </div>
 
@@ -146,13 +145,13 @@ export default function ElearningQuranSyncModal({
           {/* JSON Payload Input */}
           <div className="space-y-1.5">
             <Label htmlFor="jsonData">Paste Daily Evaluation Payload (JSON)</Label>
-            <Textarea
+            <textarea
               id="jsonData"
-              rows={6}
+              rows={5}
               placeholder='[{"its": "12345678", "sabaqSurah": "An-Naba", "sabaqLines": 15, "sabaqMarks": 9, "currentJuz": 30, "currentSafah": 582}]'
               value={jsonData}
-              onChange={(e) => setJsonData(e.target.value)}
-              className="font-mono text-xs"
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setJsonData(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs focus:border-amber-500 focus:outline-hidden"
             />
           </div>
 
@@ -168,7 +167,7 @@ export default function ElearningQuranSyncModal({
           )}
         </div>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -189,8 +188,8 @@ export default function ElearningQuranSyncModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }
