@@ -38,6 +38,8 @@ import {
   BarChart3,
   Bell,
   Settings,
+  ClipboardList,
+  Palette,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
@@ -290,6 +292,33 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     icon: Settings,
     badgeColor: "bg-slate-100 text-slate-800 border-slate-200",
     cardColor: "hover:border-slate-400 hover:bg-slate-50/40",
+  },
+  {
+    id: "student-assignments",
+    label: "Assignments",
+    category: "Academics",
+    description: "Create assignments, grade talabat & view skill assessment scores",
+    icon: ClipboardList,
+    badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    cardColor: "hover:border-indigo-400 hover:bg-indigo-50/40",
+  },
+  {
+    id: "hobbies",
+    label: "Hobbies & Skills",
+    category: "Community",
+    description: "View & manage talabat hobbies, interests and skills",
+    icon: Palette,
+    badgeColor: "bg-pink-100 text-pink-800 border-pink-200",
+    cardColor: "hover:border-pink-400 hover:bg-pink-50/40",
+  },
+  {
+    id: "talabat-skills",
+    label: "Talabat Skills Records",
+    category: "Academics",
+    description: "Every talabat's skill %, Q&A scores, assignment marks & hobbies",
+    icon: Sparkles,
+    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "dashboard",

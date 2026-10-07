@@ -22,7 +22,7 @@ import { cancelTalabatLeave, type LeaveRequestItem } from "@/lib/api";
 interface LeaveHistoryListProps {
   leaves: LeaveRequestItem[];
   onRefresh: () => void;
-  onRequestClick: () => void;
+  onRequestClick?: () => void;
 }
 
 const statusBadgeConfig: Record<
@@ -91,16 +91,18 @@ export function LeaveHistoryList({ leaves, onRefresh, onRequestClick }: LeaveHis
         </div>
         <h3 className="font-bold text-sm text-gray-900 mb-1">No Leave Records</h3>
         <p className="text-xs text-gray-500 max-w-sm mx-auto mb-4">
-          You haven't submitted any leave requests yet. Need time off for medical or personal reasons?
+          No leave applications found. Your parent can submit holiday applications from the Parent Portal.
         </p>
-        <button
-          type="button"
-          onClick={onRequestClick}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-xs font-bold text-white shadow-xs transition-colors"
-        >
-          <span>Submit Request</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+        {onRequestClick && (
+          <button
+            type="button"
+            onClick={onRequestClick}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-xs font-bold text-white shadow-xs transition-colors"
+          >
+            <span>Submit Request</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     );
   }

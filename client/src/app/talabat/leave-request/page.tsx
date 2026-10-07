@@ -5,14 +5,12 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Stethoscope,
-  Plus,
   RefreshCw,
   Loader2,
   AlertCircle,
+  Info,
 } from "lucide-react";
 
-import { LeaveFormModal } from "@/components/leave/LeaveFormModal";
 import { LeaveHistoryList } from "@/components/leave/LeaveHistoryList";
 import { getTalabatLeaves, type LeaveRequestItem, type StudentLeaveSummary } from "@/lib/api";
 
@@ -29,7 +27,6 @@ export default function TalabatLeavePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -58,49 +55,40 @@ export default function TalabatLeavePage() {
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">Medical & Leave Requests</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Submit and monitor official absence applications</p>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">Leave Records</h1>
+          <p className="text-xs text-gray-500 mt-0.5">View your official absence applications and their status</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fetchData(true)}
-            disabled={refreshing}
-            className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
-            title="Refresh list"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Apply for Leave</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => fetchData(true)}
+          disabled={refreshing}
+          className="self-start sm:self-auto p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
+          title="Refresh list"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
+        </button>
+      </div>
+
+      {/* ── Parent-applies notice (holiday/medical removed from talabat) ── */}
+      <div className="flex items-start gap-2.5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3.5 text-[13px] leading-relaxed text-sky-900">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+        <p>
+          <span className="font-bold">Leave applications are now submitted by your parent / guardian</span> from
+          the Parent Portal. Holiday and medical applications are no longer available on the talabat side —
+          please ask your parent to apply on your behalf.
+        </p>
       </div>
 
       {/* ── Metric Cards Stack ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Leaves</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Approved Days</span>
             <Calendar className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-gray-900">{summary.approvedDays}</div>
           <div className="text-[11px] text-gray-500 mt-0.5">Approved days off</div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Medical Leave</span>
-            <Stethoscope className="w-4 h-4 text-rose-600" />
-          </div>
-          <div className="text-2xl font-black text-gray-900">{summary.medicalDays}</div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Doctor verified days</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
@@ -112,7 +100,7 @@ export default function TalabatLeavePage() {
           <div className="text-[11px] text-gray-500 mt-0.5">Pending approval</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Applications</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -130,7 +118,7 @@ export default function TalabatLeavePage() {
         </div>
       )}
 
-      {/* ── Leave History List ── */}
+      {/* ── Leave History List (read-only) ── */}
       <div>
         <h2 className="text-sm font-bold text-gray-800 mb-3">Leave History</h2>
         {loading ? (
@@ -142,17 +130,9 @@ export default function TalabatLeavePage() {
           <LeaveHistoryList
             leaves={leaves}
             onRefresh={() => fetchData(true)}
-            onRequestClick={() => setModalOpen(true)}
           />
         )}
       </div>
-
-      {/* ── Submit Modal ── */}
-      <LeaveFormModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSuccess={() => fetchData(true)}
-      />
     </div>
   );
 }

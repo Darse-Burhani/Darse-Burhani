@@ -10,6 +10,8 @@ import {
   Shield,
   BarChart3,
   User,
+  ClipboardList,
+  Palette,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -17,11 +19,13 @@ import { usePortalAccess } from "@/context/PortalAccessContext";
 const rawNavItems = [
   { key: "dashboard", label: "Dashboard", href: "/talabat", icon: Activity },
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock },
-  { key: "attendance", label: "Leave Requests", href: "/talabat/leave-request", icon: CalendarDays },
+  { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarDays },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
   { key: "hifz", label: "Hifz Journey", href: "/talabat/hifz", icon: BookMarked },
   { key: "hifz", label: "Hifz Marhala", href: "/talabat/hifz-marhala", icon: BookOpen },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen },
+  { key: "assignments", label: "Assignments", href: "/talabat/assignments", icon: ClipboardList },
+  { key: "hobbies", label: "Hobbies & Skills", href: "/talabat/hobbies", icon: Palette },
   { key: "skillTree", label: "Skill Tree", href: "/talabat/skill-tree", icon: BarChart3 },
   { key: "badges", label: "Badges", href: "/talabat/badges", icon: Shield },
   { key: "profile", label: "My Profile", href: "/talabat/profile", icon: User },

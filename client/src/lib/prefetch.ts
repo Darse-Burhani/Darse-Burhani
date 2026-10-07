@@ -41,6 +41,12 @@ const routeRegistry: Record<string, RouteImporter> = {
   "/talabat/library": () => import("@/app/talabat/library/page"),
   "/talabat/profile": () => import("@/app/talabat/profile/page"),
   "/talabat/leave-request": () => import("@/app/talabat/leave-request/page"),
+  "/talabat/assignments": () => import("@/app/talabat/assignments/page"),
+  "/talabat/hobbies": () => import("@/app/talabat/hobbies/page"),
+  "/talabat/skill-tree": () => import("@/app/talabat/skill-tree/page"),
+  "/admin/assignments": () => import("@/app/admin/assignments/page"),
+  "/admin/hobbies": () => import("@/app/admin/hobbies/page"),
+  "/admin/skills": () => import("@/app/admin/skills/page"),
 
   // Teacher / Faculty
   "/teacher": () => import("@/app/teacher/page"),

@@ -93,12 +93,16 @@ import talabatDashboardRoutes from "./routes/talabat/dashboard";
 import talabatHifzRoutes from "./routes/talabat/hifz";
 import talabatLeaveRoutes from "./routes/talabat/leave";
 import talabatHifzMarhalaRoutes from "./routes/talabat/hifz-marhala";
+import assignmentsRoutes from "./routes/assignments";
+import hobbiesRoutes from "./routes/hobbies";
+import skillsRoutes from "./routes/skills";
 
 // ── Parent routes ──
 import parentHifzRoutes from "./routes/parent/hifz";
 import parentDashboardRoutes from "./routes/parent/dashboard";
 import parentActivityRoutes from "./routes/parent/activity";
 import parentProfileRoutes from "./routes/parent/profile";
+import parentLeaveRoutes from "./routes/parent/leave";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -278,12 +282,16 @@ export function createApp() {
   app.use("/api/talabat/hifz", talabatHifzRoutes);
   app.use("/api/talabat/leave", talabatLeaveRoutes);
   app.use("/api/talabat/hifz-marhala", talabatHifzMarhalaRoutes);
+  app.use("/api/assignments", assignmentsRoutes);
+  app.use("/api/hobbies", hobbiesRoutes);
+  app.use("/api/skills", skillsRoutes);
 
   // ── Parent routes ──
   app.use("/api/parent/hifz", parentHifzRoutes);
   app.use("/api/parent/dashboard", parentDashboardRoutes);
   app.use("/api/parent/activity", parentActivityRoutes);
   app.use("/api/parent/profile", parentProfileRoutes);
+  app.use("/api/parent/leave", parentLeaveRoutes);
 
   // ── Serve the built SPA (production) with immutable asset caching ──
   const clientDist = path.join(repoRoot, "client", "dist");

@@ -68,6 +68,9 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/procurement")) return ["procurement"];
   if (url.includes("/api/medical") || url.includes("/api/attendance/medical")) return ["medical-duty"];
   if (url.includes("/api/admin/profile-permissions") || url.includes("/api/portal-permissions")) return ["settings", "portal-assignments"];
+  if (url.includes("/api/assignments")) return ["student-assignments"];
+  if (url.includes("/api/hobbies")) return ["hobbies"];
+  if (url.includes("/api/skills")) return ["talabat-skills"];
 
   return [];
 }

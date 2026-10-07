@@ -22,6 +22,8 @@ import {
   ShoppingBag,
   Barcode,
   KeyRound,
+  Palette,
+  Sparkles,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -111,6 +113,18 @@ const navItems: PortalNavItem[] = [
     icon: ClipboardList,
     category: "Academics",
   },
+  {
+    label: "Assignments",
+    href: "/admin/assignments",
+    icon: FileText,
+    category: "Academics",
+  },
+  {
+    label: "Talabat Skills Records",
+    href: "/admin/skills",
+    icon: Sparkles,
+    category: "Academics",
+  },
 
   // ── Talabat & Community ──
   {
@@ -123,6 +137,12 @@ const navItems: PortalNavItem[] = [
     label: "Parents Directory",
     href: "/admin/parents",
     icon: Heart,
+    category: "Community",
+  },
+  {
+    label: "Hobbies & Skills",
+    href: "/admin/hobbies",
+    icon: Palette,
     category: "Community",
   },
   {

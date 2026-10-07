@@ -96,6 +96,9 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       });
       await tx.badgeProgress.deleteMany({ where: { studentId } });
       await tx.skillTreePoint.deleteMany({ where: { studentId } });
+      await tx.skillAssessmentAttempt.deleteMany({ where: { studentId } });
+      await tx.assignmentGrade.deleteMany({ where: { studentId } });
+      await tx.studentHobby.deleteMany({ where: { studentId } });
       await tx.walletTransaction.deleteMany({ where: { studentId } });
       await tx.medicalExemption.deleteMany({ where: { studentId } });
       await tx.studentProfile.delete({ where: { id: studentId } });

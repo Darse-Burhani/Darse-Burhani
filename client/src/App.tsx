@@ -70,6 +70,11 @@ const TalabatLibrary = lazy(() => import("@/app/talabat/library/page"));
 const TalabatProfile = lazy(() => import("@/app/talabat/profile/page"));
 const TalabatSettings = lazy(() => import("@/app/talabat/settings/page"));
 const TalabatSkillTree = lazy(() => import("@/app/talabat/skill-tree/page"));
+const TalabatAssignments = lazy(() => import("@/app/talabat/assignments/page"));
+const TalabatHobbies = lazy(() => import("@/app/talabat/hobbies/page"));
+const AdminAssignments = lazy(() => import("@/app/admin/assignments/page"));
+const AdminHobbies = lazy(() => import("@/app/admin/hobbies/page"));
+const AdminSkills = lazy(() => import("@/app/admin/skills/page"));
 
 // ── Teacher Portal Pages ──
 const TeacherLayout = lazy(() => import("@/app/teacher/layout"));
@@ -272,6 +277,9 @@ export default function App() {
           <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />
           <Route path="security" element={<RequireAdminPageAccess pageKey="security"><AdminSecurity /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><AdminProcurement /></RequireAdminPageAccess>} />
+          <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
+          <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
+          <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
         </Route>
 
@@ -286,7 +294,7 @@ export default function App() {
         >
           <Route index element={<TalabatDashboard />} />
           <Route path="attendance" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Attendance"><TalabatAttendance /></ModuleLockGuard>} />
-          <Route path="leave-request" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Leave Request"><TalabatLeaveRequest /></ModuleLockGuard>} />
+          <Route path="leave-request" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Leave Records"><TalabatLeaveRequest /></ModuleLockGuard>} />
           <Route path="scans" element={<ModuleLockGuard moduleKey="scans" role="STUDENT" title="My Scans"><TalabatScans /></ModuleLockGuard>} />
           <Route path="badges" element={<ModuleLockGuard moduleKey="badges" role="STUDENT" title="Badges"><TalabatBadges /></ModuleLockGuard>} />
           <Route path="hifz" element={<ModuleLockGuard moduleKey="hifz" role="STUDENT" title="Hifz Journey"><TalabatHifz /></ModuleLockGuard>} />
@@ -295,6 +303,8 @@ export default function App() {
           <Route path="profile" element={<ModuleLockGuard moduleKey="profile" role="STUDENT" title="My Profile"><TalabatProfile /></ModuleLockGuard>} />
           <Route path="settings" element={<TalabatSettings />} />
           <Route path="skill-tree" element={<ModuleLockGuard moduleKey="skillTree" role="STUDENT" title="Skill Tree"><TalabatSkillTree /></ModuleLockGuard>} />
+          <Route path="assignments" element={<ModuleLockGuard moduleKey="assignments" role="STUDENT" title="Assignments"><TalabatAssignments /></ModuleLockGuard>} />
+          <Route path="hobbies" element={<ModuleLockGuard moduleKey="hobbies" role="STUDENT" title="Hobbies & Skills"><TalabatHobbies /></ModuleLockGuard>} />
         </Route>
 
         {/* ── Teacher Routes ── */}
@@ -339,6 +349,9 @@ export default function App() {
           <Route path="attendance-log" element={<Navigate to="/teacher/attendance-logs" replace />} />
           <Route path="attendance-registry" element={<Navigate to="/teacher/attendance-logs" replace />} />
           <Route path="profile" element={<RequireAdminPageAccess pageKey="profile"><TeacherProfile /></RequireAdminPageAccess>} />
+          <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
+          <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
+          <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />
         </Route>
 

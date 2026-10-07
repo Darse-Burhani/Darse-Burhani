@@ -2,8 +2,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
-import { createLeaveRequest, cancelLeaveRequest, getStudentLeaveSummary } from "../../lib/leave-service";
-import { LeaveType } from "@prisma/client";
+import { cancelLeaveRequest, getStudentLeaveSummary } from "../../lib/leave-service";
 
 const router = Router();
 
@@ -53,67 +52,13 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
   }
 });
 
-// POST /api/talabat/leave — Submit a new leave request
-router.post("/", requireRole("STUDENT"), async (req, res) => {
-  try {
-    const session = req.auth!;
-    const student = await prisma.studentProfile.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!student) {
-      return res.status(404).json({ success: false, error: "Student profile not found" });
-    }
-
-    const { type, startDate, endDate, reason, attachmentUrl } = req.body;
-
-    if (!type || !Object.values(LeaveType).includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid leave type. Must be one of: ${Object.values(LeaveType).join(", ")}`,
-      });
-    }
-
-    if (!startDate || !endDate) {
-      return res.status(400).json({ success: false, error: "Start date and end date are required" });
-    }
-
-    if (!reason || typeof reason !== "string" || reason.trim().length < 5) {
-      return res.status(400).json({
-        success: false,
-        error: "Please provide a clear reason for the leave (at least 5 characters)",
-      });
-    }
-
-    const leave = await createLeaveRequest({
-      studentId: student.id,
-      type,
-      startDate,
-      endDate,
-      reason,
-      attachmentUrl: typeof attachmentUrl === "string" ? attachmentUrl.trim() : undefined,
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: {
-        id: leave.id,
-        type: leave.type,
-        startDate: leave.startDate.toISOString(),
-        endDate: leave.endDate.toISOString(),
-        reason: leave.reason,
-        status: leave.status,
-        createdAt: leave.createdAt.toISOString(),
-      },
-    });
-  } catch (error: any) {
-    console.error("[talabat-leave] POST error:", error);
-    return res.status(400).json({
-      success: false,
-      error: error.message || "Failed to submit leave request",
-    });
-  }
+// POST /api/talabat/leave — Disabled: leave is now applied by parents only
+// (GET history + DELETE cancel remain active so past requests stay visible.)
+router.post("/", requireRole("STUDENT"), async (_req, res) => {
+  return res.status(403).json({
+    success: false,
+    error: "Leave applications are now submitted by your parent / guardian from the Parent Portal.",
+  });
 });
 
 // DELETE /api/talabat/leave/:id — Cancel a pending leave request

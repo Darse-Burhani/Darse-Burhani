@@ -660,18 +660,61 @@ export default function TalabatProfilePage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label htmlFor="externalSchooling" className="text-sm font-medium text-gray-700">
-                    External Schooling Status
-                  </label>
-                  <input
-                    id="externalSchooling"
-                    name="externalSchooling"
-                    disabled={!isAcademicOpen}
-                    className="fatimi-input mt-1 disabled:bg-gray-100 disabled:opacity-75"
-                    placeholder="Enter external schooling status"
-                    value={profile.externalSchooling}
-                    onChange={(e) => handleChange("externalSchooling", e.target.value)}
-                  />
+                  <span id="furtherStudiesLabel" className="text-sm font-medium text-gray-700">
+                    Further Studies
+                  </span>
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="furtherStudiesLabel"
+                    className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2"
+                  >
+                    {[
+                      { value: "HSC (10)", hint: "Class 10" },
+                      { value: "HSC (12)", hint: "Class 12" },
+                      { value: "Graduate", hint: "College" },
+                    ].map((opt) => {
+                      const selected = profile.externalSchooling === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          disabled={!isAcademicOpen}
+                          onClick={() =>
+                            handleChange("externalSchooling", selected ? "" : opt.value)
+                          }
+                          className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+                            selected
+                              ? "border-emerald-600 bg-emerald-50 shadow-sm ring-2 ring-emerald-600/20"
+                              : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/40"
+                          }`}
+                        >
+                          <span>
+                            <span className={`block text-sm font-bold ${selected ? "text-emerald-900" : "text-gray-800"}`}>
+                              {opt.value}
+                            </span>
+                            <span className="block text-[11px] font-medium text-gray-500">{opt.hint}</span>
+                          </span>
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                              selected ? "border-emerald-600 bg-emerald-600 text-white" : "border-gray-300 text-transparent"
+                            }`}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-gray-500">
+                    Tap to select your further-studies level. Tap again to clear.
+                    {profile.externalSchooling ? (
+                      <span className="font-semibold text-emerald-700"> Selected: {profile.externalSchooling}</span>
+                    ) : (
+                      <span> No level selected.</span>
+                    )}
+                  </p>
                 </div>
               </div>
             </CardContent>

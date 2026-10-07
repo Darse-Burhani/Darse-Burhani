@@ -223,6 +223,253 @@ export async function cancelTalabatLeave(leaveId: string): Promise<{ id: string;
   });
 }
 
+// ── Parent leave API (no MEDICAL — PERSONAL / FAMILY_EMERGENCY / OTHER only) ──
+
+export type ParentLeaveType = "PERSONAL" | "FAMILY_EMERGENCY" | "OTHER";
+
+export interface ParentLeaveItem extends LeaveRequestItem {
+  studentProfileId: string;
+  studentName: string;
+}
+
+export async function getParentLeaves(studentProfileId?: string): Promise<{
+  leaves: ParentLeaveItem[];
+  summaryByChild: Record<string, unknown>;
+}> {
+  const q = studentProfileId ? `?studentId=${encodeURIComponent(studentProfileId)}` : "";
+  return request<{ leaves: ParentLeaveItem[]; summaryByChild: Record<string, unknown> }>(
+    `/api/parent/leave${q}`
+  );
+}
+
+export async function submitParentLeave(payload: {
+  studentProfileId: string;
+  type: ParentLeaveType;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  attachmentUrl?: string;
+}): Promise<LeaveRequestItem> {
+  return request<LeaveRequestItem>("/api/parent/leave", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function cancelParentLeave(leaveId: string): Promise<{ id: string; status: string }> {
+  return request<{ id: string; status: string }>(`/api/parent/leave/${leaveId}`, {
+    method: "DELETE",
+  });
+}
+
+// ── Assignments API ──
+
+export type SkillCategory = "criticalThinking" | "collaboration" | "leadership" | "resilience";
+
+export interface AssignmentItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  subject?: string | null;
+  skillCategory?: string | null;
+  maxMarks: number;
+  dueDate?: string | null;
+  grade?: string | null;
+  section?: string | null;
+  createdAt: string;
+  gradedCount?: number;
+  myGrade?: { marks: number; feedback?: string | null; updatedAt: string } | null;
+}
+
+export interface AssignmentGradeItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  its: string;
+  grade: string;
+  section: string;
+  marks: number;
+  feedback?: string | null;
+  updatedAt: string;
+}
+
+export async function getAssignments(): Promise<AssignmentItem[]> {
+  return request<AssignmentItem[]>("/api/assignments");
+}
+
+export async function createAssignment(payload: {
+  title: string;
+  description?: string;
+  subject?: string;
+  skillCategory?: string;
+  maxMarks?: number;
+  dueDate?: string;
+  grade?: string;
+  section?: string;
+}): Promise<{ id: string }> {
+  return request<{ id: string }>("/api/assignments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAssignment(id: string, payload: Record<string, unknown>): Promise<void> {
+  await request<unknown>(`/api/assignments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAssignment(id: string): Promise<void> {
+  await request<unknown>(`/api/assignments/${id}`, { method: "DELETE" });
+}
+
+export interface AssignmentStudentOption {
+  id: string;
+  name: string;
+  its: string;
+  grade: string;
+  section: string;
+}
+
+export async function getAssignmentStudents(q?: string): Promise<AssignmentStudentOption[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  return request<AssignmentStudentOption[]>(`/api/assignments/students${qs}`);
+}
+
+export async function getAssignmentGrades(assignmentId: string): Promise<AssignmentGradeItem[]> {
+  return request<AssignmentGradeItem[]>(`/api/assignments/${assignmentId}/grades`);
+}
+
+export async function saveAssignmentGrade(
+  assignmentId: string,
+  payload: { studentId: string; marks: number; feedback?: string }
+): Promise<{ id: string }> {
+  return request<{ id: string }>(`/api/assignments/${assignmentId}/grades`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface SkillAttemptItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  skill: string;
+  score: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  createdAt: string;
+}
+
+export async function getSkillAttempts(params?: {
+  studentId?: string;
+  skill?: string;
+}): Promise<SkillAttemptItem[]> {
+  const q = new URLSearchParams();
+  if (params?.studentId) q.set("studentId", params.studentId);
+  if (params?.skill) q.set("skill", params.skill);
+  const qs = q.toString();
+  return request<SkillAttemptItem[]>(`/api/assignments/skill-attempts/recent${qs ? `?${qs}` : ""}`);
+}
+
+export async function submitSkillAttempt(payload: {
+  skill: string;
+  score: number;
+  totalQuestions: number;
+  correctAnswers: number;
+}): Promise<{ score: number; criticalThinking: number; collaboration: number; leadership: number; resilience: number }> {
+  return request<{ score: number; criticalThinking: number; collaboration: number; leadership: number; resilience: number }>(
+    "/api/talabat/skill-tree/attempt",
+    { method: "POST", body: JSON.stringify(payload) }
+  );
+}
+
+// ── Hobbies & Skills API ──
+
+export interface HobbyItem {
+  id: string;
+  studentId?: string;
+  studentName?: string;
+  grade?: string;
+  section?: string;
+  name: string;
+  category?: string | null;
+  level?: string | null;
+  createdAt: string;
+}
+
+export async function getMyHobbies(): Promise<HobbyItem[]> {
+  return request<HobbyItem[]>("/api/hobbies");
+}
+
+export async function getStudentHobbies(studentId: string): Promise<HobbyItem[]> {
+  return request<HobbyItem[]>(`/api/hobbies?studentId=${encodeURIComponent(studentId)}`);
+}
+
+export async function getAllHobbies(): Promise<HobbyItem[]> {
+  return request<HobbyItem[]>("/api/hobbies?all=1");
+}
+
+export async function addHobby(payload: {
+  name: string;
+  category?: string;
+  level?: string;
+  studentId?: string;
+}): Promise<{ id: string }> {
+  return request<{ id: string }>("/api/hobbies", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteHobby(id: string): Promise<void> {
+  await request<unknown>(`/api/hobbies/${id}`, { method: "DELETE" });
+}
+
+// ── Talabat Skills Records (admin / assigned-teacher view) ──
+
+export interface TalabatSkillRecord {
+  studentId: string;
+  name: string;
+  its: string;
+  grade: string;
+  section: string;
+  avatarUrl?: string | null;
+  skills: Record<SkillCategory, number>;
+  latestScores: Record<SkillCategory, number | null>;
+  assignmentStats: {
+    graded: number;
+    averagePct: number | null;
+    marks: Array<{
+      assignmentId: string;
+      title: string;
+      subject?: string | null;
+      marks: number;
+      maxMarks: number;
+      feedback?: string | null;
+    }>;
+  };
+  attempts: Array<{
+    id: string;
+    skill: string;
+    score: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    createdAt: string;
+  }>;
+  hobbies: Array<{ id: string; name: string; category?: string | null; level?: string | null }>;
+  totalAssignments: number;
+}
+
+export async function getSkillsRecords(params?: { q?: string; grade?: string }): Promise<TalabatSkillRecord[]> {
+  const q = new URLSearchParams();
+  if (params?.q) q.set("q", params.q);
+  if (params?.grade) q.set("grade", params.grade);
+  const qs = q.toString();
+  return request<TalabatSkillRecord[]>(`/api/skills/records${qs ? `?${qs}` : ""}`);
+}
+
 // ── Teacher API ──
 
 export async function getTeacherLeaves(params?: {

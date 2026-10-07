@@ -35,6 +35,9 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "security", label: "Security & Logs", category: "Systems", description: "Audit logs, active sessions & security preferences", path: "/teacher/security", icon: "Shield" },
   { id: "settings", label: "Portal Settings", category: "Systems", description: "Global portal module locks & permissions", path: "/teacher/settings", icon: "Settings" },
   { id: "profile", label: "Profile & Settings", category: "General", description: "Khidmat details, credentials & security", path: "/teacher/profile", icon: "UserCheck" },
+  { id: "student-assignments", label: "Assignments", category: "Academics", description: "Create assignments, grade talabat & view skill assessments", path: "/teacher/assignments", icon: "ClipboardList" },
+  { id: "talabat-skills", label: "Talabat Skills Records", category: "Academics", description: "Every talabat's skill %, test scores, assignment marks & hobbies", path: "/teacher/skills", icon: "Sparkles" },
+  { id: "hobbies", label: "Hobbies & Skills", category: "Community", description: "View & manage talabat hobbies and skills", path: "/teacher/hobbies", icon: "Palette" },
 ];
 
 const PAGE_IDS = new Set(TEACHER_AVAILABLE_PAGES.map((p) => p.id));

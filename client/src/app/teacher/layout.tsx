@@ -28,6 +28,8 @@ import {
   Bell,
   Shield,
   Settings,
+  ClipboardList,
+  Palette,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -40,6 +42,8 @@ const rawNavItems = [
   { key: "quran", label: "Quran (Hifz)", href: "/teacher/hifz", icon: Sparkles, category: "Academics" },
   { key: "hifz-marhala", label: "Hifz Marhala", href: "/teacher/hifz-marhala", icon: GraduationCap, category: "Academics" },
   { key: "takhteet", label: "Takhteet", href: "/teacher/takhteet", icon: Layers, category: "Academics" },
+  { key: "student-assignments", label: "Assignments", href: "/teacher/assignments", icon: ClipboardList, category: "Academics" },
+  { key: "talabat-skills", label: "Talabat Skills Records", href: "/teacher/skills", icon: Sparkles, category: "Academics" },
 
   // ── Attendance & Scanners ──
   { key: "manual-attendance", label: "Manual Attendance", href: "/teacher/attendance", icon: ClipboardCheck, category: "Attendance" },
@@ -60,6 +64,7 @@ const rawNavItems = [
   { key: "students", label: "Talabat (Students)", href: "/teacher/students", icon: GraduationCap, category: "Community" },
   { key: "portal-assignments", label: "Portal Assignments", href: "/teacher/portal-assignments", icon: UserCheck, category: "Community" },
   { key: "parents", label: "Parents Directory", href: "/teacher/parents", icon: Heart, category: "Community" },
+  { key: "hobbies", label: "Hobbies & Skills", href: "/teacher/hobbies", icon: Palette, category: "Community" },
   { key: "users", label: "Staff & Users", href: "/teacher/users", icon: Users, category: "Community" },
   { key: "passwords", label: "User Passwords", href: "/teacher/passwords", icon: KeyRound, category: "Community" },
   { key: "point-matrix", label: "Point Matrix", href: "/teacher/point-matrix", icon: Award, category: "Community" },
