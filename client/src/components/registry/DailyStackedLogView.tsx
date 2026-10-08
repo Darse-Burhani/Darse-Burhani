@@ -233,23 +233,27 @@ function AttendanceTableView({
 
                   {/* Event Window */}
                   <td className="px-3 py-2.5 text-gray-700">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-gray-900">{r.scheduledEvent?.name || "General Session"}</span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-mono text-gray-500">{r.scheduledEvent?.timeWindow || "Standard Hours"}</span>
-                        {r.scheduledEvent?.audience && (
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
-                            r.scheduledEvent.audience === "FACULTY"
-                              ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                              : r.scheduledEvent.audience === "BOTH"
-                              ? "bg-teal-50 text-teal-700 border border-teal-200"
-                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          }`}>
-                            {r.scheduledEvent.audience === "FACULTY" ? "Faculty" : r.scheduledEvent.audience === "BOTH" ? "Both" : "Talabat"}
-                          </span>
-                        )}
+                    {r.scheduledEvent ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-bold text-gray-900">{r.scheduledEvent.name}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-mono text-gray-500">{r.scheduledEvent.timeWindow}</span>
+                          {r.scheduledEvent.audience && (
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
+                              r.scheduledEvent.audience === "FACULTY"
+                                ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                : r.scheduledEvent.audience === "BOTH"
+                                ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}>
+                              {r.scheduledEvent.audience === "FACULTY" ? "Faculty" : r.scheduledEvent.audience === "BOTH" ? "Both" : "Talabat"}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <span className="text-gray-400 font-normal text-[11px]">—</span>
+                    )}
                   </td>
 
                   {/* Status Chip */}

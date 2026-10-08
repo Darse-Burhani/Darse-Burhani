@@ -39,21 +39,29 @@ function matchScheduledEvent(
   // Convert to IST minutes
   const istMinutes = (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
 
-  // Strictly evaluate windows for THIS member's role only
+  // Strictly evaluate genuine biometric scan windows for THIS member's role only
   const inWindow = windows.filter((w) => {
     if (!w.enabled) return false;
-    const range = eventRangeForRole(w as any, isFaculty ? "TEACHER" : "STUDENT");
+    const ww = w as any;
+    // Exclude manual register windows
+    if (ww.id?.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name)) {
+      return false;
+    }
+    // Students must NEVER match faculty-only windows
+    if (!isFaculty && (isLegacyFacultyRow(ww) || /tilawat/i.test(w.name))) {
+      return false;
+    }
+    // Faculty must NEVER match student-only windows
+    if (isFaculty && !hasFacultyTimer(ww) && !isLegacyFacultyRow(ww) && !/tilawat/i.test(w.name)) {
+      return false;
+    }
+    const range = eventRangeForRole(ww, isFaculty ? "TEACHER" : "STUDENT");
     if (!range || !range.enabled) return false;
     return istMinutes >= range.startMin && istMinutes <= range.lateMin;
   });
 
   if (inWindow.length === 0) {
-    return {
-      id: "general",
-      name: "General Session",
-      timeWindow: "Standard Hours",
-      audience: isFaculty ? "FACULTY" : "STUDENT",
-    };
+    return null;
   }
 
   const matched = inWindow[0];
@@ -78,10 +86,19 @@ function matchScheduledEvent(
   };
 }
 
-// GET /api/admin/attendance-logs/events — Get available scheduled events / windows for toggling
+// GET /api/admin/attendance-logs/events — Get available scheduled biometric scan windows for toggling
 router.get("/events", requireAuth, async (req, res) => {
   try {
     const windows = await prisma.biometricScanWindow.findMany({
+      where: {
+        NOT: {
+          OR: [
+            { id: { startsWith: "manual_" } },
+            { exemptStudentIds: { has: "TYPE_MANUAL" } },
+            { name: { contains: "[manual]", mode: "insensitive" } },
+          ],
+        },
+      },
       orderBy: { startTime: "asc" },
     });
 
@@ -162,8 +179,17 @@ router.get("/", requireAuth, async (req, res) => {
       logType = "MANUAL";
     }
 
-    // Fetch scheduled windows for event matching
+    // Fetch scheduled windows for biometric event matching (excluding manual schedule windows)
     const windows = await prisma.biometricScanWindow.findMany({
+      where: {
+        NOT: {
+          OR: [
+            { id: { startsWith: "manual_" } },
+            { exemptStudentIds: { has: "TYPE_MANUAL" } },
+            { name: { contains: "[manual]", mode: "insensitive" } },
+          ],
+        },
+      },
       orderBy: { startTime: "asc" },
     });
 
