@@ -304,7 +304,7 @@ export function PortalShell({
                   </span>
                 </div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/80 leading-tight mt-1 truncate">
-                  {subtitle || "Al-Jamea tus-Saifiyah"}
+                  {subtitle || "Mahad al Zahra"}
                 </p>
               </div>
             )}
@@ -463,7 +463,7 @@ export function PortalShell({
                     Darse Burhani
                   </span>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/85 leading-tight truncate">
-                    {subtitle || "Al-Jamea tus-Saifiyah"}
+                    {subtitle || "Mahad al Zahra"}
                   </p>
                 </div>
               </Link>

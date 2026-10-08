@@ -31,9 +31,9 @@ export function InstitutionalFooter({
       <footer className={`mt-auto border-t border-slate-200/80 bg-white/60 backdrop-blur-md py-4 px-4 text-center text-xs text-slate-500 ${className}`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="flex items-center gap-1.5 font-medium">
-            <span>© {currentYear} Darse Burhani. All rights reserved.</span>
+            <span>© {currentYear} Darse Burhani (Nisab). All rights reserved.</span>
             <span className="hidden sm:inline text-slate-300">·</span>
-            <span className="text-emerald-800 font-semibold">Al-Jamea tus-Saifiyah</span>
+            <span className="text-emerald-800 font-semibold">Mahad al Zahra</span>
           </p>
           <div className="flex items-center gap-4 text-xs">
             <Link href="/privacy" className="hover:text-emerald-800 transition-colors font-medium">Privacy Policy</Link>
@@ -68,10 +68,10 @@ export function InstitutionalFooter({
               </div>
               <div>
                 <h3 className="font-display font-bold text-lg text-white tracking-tight leading-none">
-                  Darse Burhani
+                  Darse Burhani (Nisab)
                 </h3>
                 <p className="text-xs font-semibold text-amber-300/80 uppercase tracking-wider mt-1">
-                  Al-Jamea tus-Saifiyah · Nisab al Mahad al Zahra
+                  Mahad al Zahra
                 </p>
               </div>
             </div>

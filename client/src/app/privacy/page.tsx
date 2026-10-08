@@ -67,7 +67,7 @@ export default function PrivacyPolicyPage() {
               </div>
               <div>
                 <span className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#d4af37]">
-                  Aljamea-tus-Saifiyah
+                  Mahad al Zahra
                 </span>
                 <h1 className="font-display font-black text-3xl sm:text-4xl text-white tracking-tight">
                   Privacy Policy & Data Protection
@@ -104,7 +104,7 @@ export default function PrivacyPolicyPage() {
               1. Information We Collect
             </h2>
             <p>
-              Darse Burhani operates as the unified academic, attendance, and behavioral administration platform for Aljamea-tus-Saifiyah. In order to administer academic courses, monitor attendance integrity, and deliver real-time student updates to families, we collect and process the following categories of data:
+              Darse Burhani (Nisab) operates as the unified academic, attendance, and behavioral administration platform for Mahad al Zahra. In order to administer academic courses, monitor attendance integrity, and deliver real-time student updates to families, we collect and process the following categories of data:
             </p>
             <ul className="list-disc list-inside space-y-1.5 pl-2 text-gray-300 text-xs sm:text-sm">
               <li><strong className="text-white">Academic & Identity Records:</strong> Full legal name, ITS credentials, student ID numbers, enrolled class grade, course sections, and Quran Hifz milestone progress.</li>
@@ -169,7 +169,7 @@ export default function PrivacyPolicyPage() {
               For inquiries regarding data records, student profile rectification, or privacy governance, please contact the institutional administration office:
             </p>
             <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-xs font-mono space-y-1">
-              <p className="text-[#d4af37] font-bold">Aljamea-tus-Saifiyah IT & Academic Registry</p>
+              <p className="text-[#d4af37] font-bold">Mahad al Zahra IT & Academic Registry</p>
               <p className="text-gray-300">Email: privacy@darseburhani.edu / admin@darseburhani.edu</p>
               <p className="text-gray-400">Website: https://darseburhani.edu</p>
             </div>
@@ -178,7 +178,7 @@ export default function PrivacyPolicyPage() {
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
-          <span>&copy; {new Date().getFullYear()} Darse Burhani · Aljamea-tus-Saifiyah. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} Darse Burhani (Nisab) · Mahad al Zahra. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link href="/terms" className="hover:text-white transition-colors underline">
               Terms & Conditions

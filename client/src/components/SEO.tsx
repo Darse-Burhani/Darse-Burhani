@@ -13,10 +13,10 @@ export interface SEOProps {
   noIndex?: boolean;
 }
 
-const DEFAULT_TITLE = "Darse Burhani — Aljamea-tus-Saifiyah Academic & Attendance Platform";
+const DEFAULT_TITLE = "Darse Burhani (Nisab) — Mahad al Zahra Academic & Attendance Platform";
 const TITLE_TEMPLATE = "%s | Darse Burhani";
 const DEFAULT_DESCRIPTION =
-  "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student engagement platform for Aljamea-tus-Saifiyah.";
+  "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student engagement platform for Darse Burhani (Nisab) — Mahad al Zahra.";
 const DEFAULT_OG_IMAGE = "https://darseburhani.edu/og-image.svg";
 const BASE_URL = "https://darseburhani.edu";
 
@@ -25,11 +25,11 @@ const BASE_URL = "https://darseburhani.edu";
  */
 export const ROUTE_METADATA: Record<string, { title: string; description: string; noIndex?: boolean }> = {
   "/": {
-    title: "Sign In — Darse Burhani",
-    description: "Secure gateway for Aljamea-tus-Saifiyah administrators, faculty, talabat, and parents.",
+    title: "Sign In — Darse Burhani (Nisab)",
+    description: "Secure gateway for administrators, faculty, talabat, and parents.",
   },
   "/login": {
-    title: "Sign In — Darse Burhani",
+    title: "Sign In — Darse Burhani (Nisab)",
     description: "Sign in with your ITS credentials or institutional email to access Darse Burhani modules.",
   },
   "/thank-you": {
@@ -42,11 +42,11 @@ export const ROUTE_METADATA: Record<string, { title: string; description: string
   },
   "/terms": {
     title: "Terms of Portal Service",
-    description: "Terms and conditions governing the usage of Aljamea-tus-Saifiyah Darse Burhani academic services.",
+    description: "Terms and conditions governing the usage of Darse Burhani academic services.",
   },
   "/fatimi-calendar": {
     title: "Fatimi Hijri Calendar & Academic Schedule",
-    description: "Official Aljamea-tus-Saifiyah Fatimi calendar, miqaats, examination cycles, and academic milestones.",
+    description: "Official Fatimi calendar, miqaats, examination cycles, and academic milestones.",
   },
   "/library/tv": {
     title: "Library Circulation TV Billboard",

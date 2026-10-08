@@ -95,7 +95,7 @@ export default function ThankYouPage() {
               </h1>
 
               <p className="text-sm text-emerald-100/80 max-w-sm mx-auto mb-6 leading-relaxed">
-                Your records have been securely registered with Aljamea-tus-Saifiyah's central academic telemetry system.
+                Your records have been securely registered with Mahad al Zahra central academic telemetry system.
               </p>
 
               {/* Reference ID Card */}
@@ -161,7 +161,7 @@ export default function ThankYouPage() {
               {/* Institutional Notice */}
               <div className="pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-[11px] text-gray-400">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Protected by Aljamea-tus-Saifiyah Institutional Telemetry</span>
+                <span>Protected by Darse Burhani (Nisab) Institutional Telemetry</span>
               </div>
             </div>
           </motion.div>

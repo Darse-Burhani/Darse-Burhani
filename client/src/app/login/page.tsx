@@ -550,53 +550,56 @@ export default function LoginPage() {
               />
 
               <div className="relative">
-                {/* LOGO ONLY — Darse Burhani PNG, no Arabic text */}
-                <div className="inline-flex items-center rounded-2xl bg-white p-2.5 pr-5 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/60">
+                {/* ENLARGED LOGO & BRAND HEADER */}
+                <div className="inline-flex items-center rounded-2xl bg-white p-3 pr-6 shadow-[0_12px_36px_rgba(0,0,0,0.38)] ring-2 ring-white/80 transition-transform duration-200 hover:scale-[1.02]">
                   {!logoFailed ? (
                     <img
                       src="/logo.png"
                       alt="Darse Burhani logo"
                       onError={() => setLogoFailed(true)}
-                      className="h-16 w-16 sm:h-[72px] sm:w-[72px] rounded-xl object-contain"
+                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-contain shrink-0 p-1"
                       draggable={false}
                       loading="eager"
                     />
                   ) : (
-                    <span className="flex h-16 w-16 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-xl bg-emerald-900 text-2xl font-serif font-extrabold text-amber-300">
+                    <span className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-xl bg-emerald-900 text-3xl font-serif font-extrabold text-amber-300 shrink-0">
                       DB
                     </span>
                   )}
-                  <span className="ml-3 flex flex-col leading-none">
-                    <span className="font-serif text-[26px] sm:text-[30px] font-extrabold tracking-tight text-[#0b2e23]">
-                      Darse Burhani
+                  <div className="ml-4 flex flex-col justify-center">
+                    <span className="font-serif text-[26px] sm:text-[32px] font-extrabold tracking-tight text-[#0b2e23] leading-none">
+                      Darse Burhani <span className="text-emerald-800 text-[22px] sm:text-[26px] font-bold">(Nisab)</span>
                     </span>
-                    <span className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">
-                      Nisab al Mahad al Zahra
+                    <span className="mt-2 text-[12px] sm:text-[13px] font-extrabold uppercase tracking-[0.2em] text-emerald-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shadow-xs" />
+                      Mahad al Zahra
                     </span>
+                  </div>
+                </div>
+
+                {/* Highlighted Portal Badge on Left Panel */}
+                <div className="mt-7 flex items-center gap-2">
+                  <span
+                    className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12px] font-extrabold uppercase tracking-[0.14em] shadow-sm backdrop-blur-md"
+                    style={{ borderColor: "rgba(253,230,138,0.4)", background: "rgba(212,175,55,0.18)", color: "#fef08a" }}
+                  >
+                    <PortalIcon size={14} className="text-amber-300" />
+                    <span>Active: {portal.badgeLabel}</span>
                   </span>
                 </div>
 
-                <div className="mt-6 flex items-center gap-2">
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em]"
-                    style={{ borderColor: "rgba(255,255,255,0.22)", background: "rgba(255,255,255,0.08)", color: "#fde68a" }}
-                  >
-                    <PortalIcon size={13} />
-                    {portal.badgeLabel}
-                  </span>
-                </div>
-                <h1 className="mt-3 font-serif text-[28px] sm:text-[34px] font-extrabold leading-[1.1] tracking-tight">
+                <h1 className="mt-3 font-serif text-[28px] sm:text-[36px] font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-sm">
                   {portal.label}
                 </h1>
-                <p className="mt-2 max-w-[38ch] text-[14px] leading-relaxed text-emerald-50/80">
+                <p className="mt-2 max-w-[38ch] text-[14.5px] leading-relaxed text-emerald-50/90 font-medium">
                   {portal.description}
                 </p>
 
                 <ul className="mt-5 space-y-2.5">
                   {portal.bullets.map((b) => (
-                    <li key={b} className="flex items-center gap-2.5 text-[13.5px] font-medium text-emerald-50/90">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
-                        <Check size={14} className="text-emerald-300" />
+                    <li key={b} className="flex items-center gap-2.5 text-[13.5px] font-semibold text-emerald-50">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-400/40 shrink-0">
+                        <Check size={14} className="text-amber-300 font-bold" />
                       </span>
                       {b}
                     </li>
@@ -618,7 +621,7 @@ export default function LoginPage() {
                     Session valid for 2 hours. Contact the administration desk for password recovery.
                   </div>
                 </div>
-                <p className="mt-4 text-[12px] text-emerald-50/50">© 2026 Darse Burhani · Privacy · Terms</p>
+                <p className="mt-4 text-[12px] text-emerald-50/50">© 2026 Darse Burhani (Nisab) · Mahad al Zahra</p>
               </div>
             </div>
 
@@ -628,13 +631,18 @@ export default function LoginPage() {
                 <h2 className="font-serif text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
                   Welcome back
                 </h2>
-                <p className="mt-1 text-[13.5px] text-slate-500">
-                  Select your portal, then sign in with your institutional credentials.
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-[13.5px] text-slate-600 font-medium">
+                    Select your portal to continue:
+                  </p>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                    {portal.shortLabel} Selected
+                  </span>
+                </div>
               </div>
 
-              {/* Role selector */}
-              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Select portal">
+              {/* Role selector with high-visibility highlighted text and active glow */}
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Select portal">
                 {portals.map((p) => {
                   const active = p.role === selectedRole;
                   const Icon = p.icon;
@@ -645,14 +653,27 @@ export default function LoginPage() {
                       role="tab"
                       aria-selected={active}
                       onClick={() => handlePortalChange(p.role)}
-                      className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] ${
+                      className={`relative flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl border px-3 py-3 text-[13px] font-extrabold tracking-wide transition-all duration-200 active:scale-[0.97] cursor-pointer ${
                         active
-                          ? `${p.accentRing} ring-2 shadow-sm`
-                          : "border-slate-200 bg-slate-50/60 text-slate-500 hover:border-slate-300 hover:bg-white hover:text-slate-800"
+                          ? `${p.accentRing} ring-2 shadow-md text-slate-900 font-black`
+                          : "border-slate-200 bg-slate-50/70 text-slate-600 hover:border-slate-300 hover:bg-slate-100/80 hover:text-slate-900"
                       }`}
                     >
-                      <Icon size={16} style={{ color: active ? p.accent : undefined }} />
-                      {p.shortLabel}
+                      <Icon
+                        size={17}
+                        className={active ? "scale-110 transition-transform" : "opacity-75"}
+                        style={{ color: active ? p.accent : undefined }}
+                      />
+                      <span className={active ? "text-slate-950 font-black" : "text-slate-700"}>
+                        {p.shortLabel}
+                      </span>
+                      {active && (
+                        <span
+                          className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600 text-[9px] text-white shadow-xs ring-2 ring-white font-bold"
+                        >
+                          ✓
+                        </span>
+                      )}
                     </button>
                   );
                 })}

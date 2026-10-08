@@ -195,7 +195,7 @@ export function FatimiWordmark({
   size = 32,
   variant = "gold",
   showTagline = true,
-  tagline = "Al-Jamea tus-Saifiyah",
+  tagline = "Mahad al Zahra",
   theme = "dark",
   className = "",
 }: {

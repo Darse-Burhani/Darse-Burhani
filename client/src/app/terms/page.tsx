@@ -66,7 +66,7 @@ export default function TermsPage() {
               </div>
               <div>
                 <span className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#d4af37]">
-                  Aljamea-tus-Saifiyah
+                  Mahad al Zahra
                 </span>
                 <h1 className="font-display font-black text-3xl sm:text-4xl text-white tracking-tight">
                   Terms & Conditions of Portal Access
@@ -103,7 +103,7 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </h2>
             <p>
-              By accessing or using the Darse Burhani platform (including the Admin Portal, Faculty Portal, Talabat Student Hub, and Parent Portal), you agree to comply with and be legally bound by these Terms and Conditions and all institutional rules established by Aljamea-tus-Saifiyah.
+              By accessing or using the Darse Burhani platform (including the Admin Portal, Faculty Portal, Talabat Student Hub, and Parent Portal), you agree to comply with and be legally bound by these Terms and Conditions and all institutional rules established by Darse Burhani (Nisab) — Mahad al Zahra.
             </p>
             <p className="text-xs text-gray-400">
               If you do not agree with these Terms, you must immediately terminate your session and refrain from utilizing your account credentials.
@@ -179,14 +179,14 @@ export default function TermsPage() {
               5. Intellectual Property & Institutional Rights
             </h2>
             <p>
-              All software architecture, visual designs, Fatimi ornamental assets, Quranic Takhteet curricula, and databases comprising Darse Burhani are the exclusive intellectual property of Aljamea-tus-Saifiyah. Unauthorized reproduction or external redistribution is prohibited.
+              All software architecture, visual designs, Fatimi ornamental assets, Quranic Takhteet curricula, and databases comprising Darse Burhani are the exclusive intellectual property of Darse Burhani (Nisab) — Mahad al Zahra. Unauthorized reproduction or external redistribution is prohibited.
             </p>
           </section>
         </div>
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
-          <span>&copy; {new Date().getFullYear()} Darse Burhani · Aljamea-tus-Saifiyah. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} Darse Burhani (Nisab) · Mahad al Zahra. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-white transition-colors underline">
               Privacy Policy
