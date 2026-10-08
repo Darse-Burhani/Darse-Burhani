@@ -20,7 +20,8 @@ const ThankYouPage = lazy(() => import("@/app/thank-you/page"));
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useAutoRouteSEO } from "@/components/SEO";
-
+import { SplashScreen } from "@/components/SplashScreen";
+import { WaitingInterface } from "@/components/WaitingInterface";
 
 // ── Admin Portal Pages ──
 const AdminLayout = lazy(() => import("@/app/admin/layout"));
@@ -102,23 +103,15 @@ const ParentActivity = lazy(() => import("@/app/parent/activity/page"));
 const ParentHifz = lazy(() => import("@/app/parent/hifz/page"));
 const ParentSettings = lazy(() => import("@/app/parent/settings/page"));
 
-function SuspenseFallback({ variant = "stats" }: { variant?: "card-grid" | "table" | "details" | "stats" }) {
-  return <PageSkeleton variant={variant} />;
+function SuspenseFallback() {
+  return <WaitingInterface variant="fullscreen" />;
 }
 
 function RequireRole({ role, children }: { role: string; children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div
-          role="status"
-          aria-label="Loading"
-          className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-700 rounded-full animate-spin"
-        />
-      </div>
-    );
+    return <WaitingInterface variant="fullscreen" message="Verifying Institutional Credentials…" />;
   }
 
   if (!session) return <Navigate to="/login" replace />;
@@ -144,15 +137,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div
-          role="status"
-          aria-label="Loading"
-          className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-700 rounded-full animate-spin"
-        />
-      </div>
-    );
+    return <WaitingInterface variant="fullscreen" message="Authenticating Academic Session…" />;
   }
 
   if (!session) return <Navigate to="/login" replace />;
@@ -204,6 +189,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <DevLockGuard>
+        <SplashScreen />
         <Suspense fallback={<SuspenseFallback />}>
           <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />

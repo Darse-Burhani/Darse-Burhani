@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 type RoleVariant = "default" | "admin" | "teacher" | "student" | "parent" | "gold";
 
@@ -9,9 +9,14 @@ interface FatimiLogoProps {
   variant?: RoleVariant;
   className?: string;
   glow?: boolean;
+  useSvg?: boolean;
+  alt?: string;
 }
 
-const gradientMap: Record<RoleVariant, { id: string; primary: string; secondary: string; accent: string; stops: { offset: string; color: string }[] }> = {
+const gradientMap: Record<
+  RoleVariant,
+  { id: string; primary: string; secondary: string; accent: string; stops: { offset: string; color: string }[] }
+> = {
   default: {
     id: "fatimiDefault",
     primary: "#d4af37",
@@ -86,11 +91,52 @@ const gradientMap: Record<RoleVariant, { id: string; primary: string; secondary:
   },
 };
 
-export function FatimiLogo({ size = 36, variant = "default", className = "", glow = true }: FatimiLogoProps) {
+/**
+ * Main Fatimi Brand Emblem.
+ * By default renders the official high-resolution /logo.png with fallback to sacred geometry SVG.
+ */
+export function FatimiLogo({
+  size = 36,
+  variant = "default",
+  className = "",
+  glow = true,
+  useSvg = false,
+  alt = "Darse Burhani Logo",
+}: FatimiLogoProps) {
+  const [imgError, setImgError] = useState(false);
   const grad = gradientMap[variant] || gradientMap.default;
   const gradId = grad.id;
   const glowId = `${gradId}Glow`;
 
+  if (!useSvg && !imgError) {
+    return (
+      <div
+        className={`relative inline-flex items-center justify-center shrink-0 select-none ${className}`}
+        style={{ width: size, height: size }}
+      >
+        {glow && (
+          <div
+            className="absolute inset-0 rounded-full blur-[6px] opacity-40 transition-opacity"
+            style={{
+              background: `radial-gradient(circle, ${grad.primary} 0%, transparent 70%)`,
+            }}
+          />
+        )}
+        <img
+          src="/logo.png"
+          alt={alt}
+          width={size}
+          height={size}
+          loading="eager"
+          decoding="async"
+          onError={() => setImgError(true)}
+          className="relative z-10 w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(212,175,55,0.35)]"
+        />
+      </div>
+    );
+  }
+
+  // Pure SVG Sacred Geometry Variant
   return (
     <div
       className={`relative inline-flex items-center justify-center shrink-0 select-none ${className}`}
@@ -189,10 +235,10 @@ export function FatimiLogo({ size = 36, variant = "default", className = "", glo
 }
 
 /**
- * A full-wordmark logo combining the Fatimi icon with "Darse Burhani" text.
+ * A full-wordmark logo combining the Fatimi icon with "Darse Burhani (Nisab)" text.
  */
 export function FatimiWordmark({
-  size = 32,
+  size = 34,
   variant = "gold",
   showTagline = true,
   tagline = "Mahad al Zahra",
@@ -222,15 +268,15 @@ export function FatimiWordmark({
       </div>
       <div className="flex flex-col min-w-0">
         <span
-          className={`font-display font-bold tracking-tight text-base sm:text-lg leading-tight truncate ${
+          className={`font-display font-extrabold tracking-tight text-base sm:text-lg leading-tight truncate ${
             isDark ? "text-white" : "text-slate-900"
           }`}
         >
-          Darse Burhani
+          Darse Burhani <span className="text-amber-400 font-semibold text-xs sm:text-sm font-sans">(Nisab)</span>
         </span>
         {showTagline && tagline && (
           <span
-            className={`text-[10px] font-semibold tracking-wider uppercase truncate ${
+            className={`text-[10.5px] font-bold tracking-wider uppercase truncate ${
               isDark ? "text-amber-300/80" : "text-emerald-800"
             }`}
           >
@@ -241,4 +287,3 @@ export function FatimiWordmark({
     </div>
   );
 }
-
