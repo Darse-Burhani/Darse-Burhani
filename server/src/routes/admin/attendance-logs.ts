@@ -565,6 +565,10 @@ router.get("/", requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error("[attendance-logs] GET error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch attendance logs" });
+  }
+});
+
 // POST /api/admin/attendance-logs/poll-now — Instant sync & pull hardware biometric scans
 router.post("/poll-now", requireAuth, async (_req, res) => {
   try {
