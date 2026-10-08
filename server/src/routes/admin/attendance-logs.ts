@@ -48,7 +48,7 @@ function matchScheduledEvent(
       return false;
     }
     // Students must NEVER match faculty-only windows
-    if (!isFaculty && (isLegacyFacultyRow(ww) || /tilawat/i.test(w.name))) {
+    if (!isFaculty && isLegacyFacultyRow(ww)) {
       return false;
     }
     // Faculty must NEVER match student-only windows
@@ -68,7 +68,7 @@ function matchScheduledEvent(
   const ww = matched as any;
   const isTilawat = /tilawat/i.test(matched.name);
   const eventAudience = isTilawat
-    ? "FACULTY"
+    ? "BOTH"
     : isLegacyFacultyRow(ww)
     ? "FACULTY"
     : hasFacultyTimer(ww)
@@ -111,7 +111,7 @@ router.get("/events", requireAuth, async (req, res) => {
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
       const audience: "FACULTY" | "BOTH" | "STUDENT" = isTilawatDua
-        ? "FACULTY"
+        ? "BOTH"
         : legacyFaculty
         ? "FACULTY"
         : unifiedFaculty
@@ -199,14 +199,14 @@ router.get("/", requireAuth, async (req, res) => {
       (eventWindowId === "default" || (selectedWindow && /tilawat/i.test(selectedWindow.name)))
     );
     const isFacultyOnlyWindow = Boolean(
-      isTilawatFilter ||
+      !isTilawatFilter &&
       (selectedWindow && (isLegacyFacultyRow(selectedWindow as any) || ((selectedWindow as any).facultyEnabled && !selectedWindow.enabled)))
     );
     const isStudentOnlyWindow = Boolean(
-      selectedWindow && !isFacultyOnlyWindow && !hasFacultyTimer(selectedWindow as any)
+      selectedWindow && !isFacultyOnlyWindow && !isTilawatFilter && !hasFacultyTimer(selectedWindow as any)
     );
     const isBothWindow = Boolean(
-      selectedWindow && !isFacultyOnlyWindow && hasFacultyTimer(selectedWindow as any)
+      selectedWindow && (isTilawatFilter || (!isFacultyOnlyWindow && hasFacultyTimer(selectedWindow as any)))
     );
 
     // Strict effective audience resolution

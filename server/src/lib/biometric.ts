@@ -210,7 +210,7 @@ export function eventRangeForRole(
     return null;
   }
   // Role === "STUDENT": strictly exclude faculty-only rows
-  if (isLegacyFacultyRow(w) || /tilawat/i.test(w.name)) {
+  if (isLegacyFacultyRow(w)) {
     return null;
   }
   if (!w.enabled) return null;

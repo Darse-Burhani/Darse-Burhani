@@ -408,8 +408,7 @@ export default function AdminAttendanceLogsPage() {
   const isFacultyOnlyEvent = Boolean(
     selectedEventId !== "ALL" && (
       (data as any)?.isFacultyOnly ||
-      (data as any)?.isTilawatDua ||
-      (activeEvent && (activeEvent.audience === "FACULTY" || /tilawat/i.test(activeEvent.name)))
+      (activeEvent && activeEvent.audience === "FACULTY")
     )
   );
   const isStudentOnlyEvent = Boolean(
@@ -428,7 +427,7 @@ export default function AdminAttendanceLogsPage() {
     if (eventId === "ALL") return;
     const ev = events.find((e) => e.id === eventId);
     if (!ev) return;
-    if (ev.audience === "FACULTY" || /tilawat/i.test(ev.name)) {
+    if (ev.audience === "FACULTY") {
       setAudience("FACULTY");
     } else if (ev.audience === "ALL_STUDENTS" || ev.audience === "STUDENT") {
       setAudience("STUDENT");
@@ -487,7 +486,7 @@ export default function AdminAttendanceLogsPage() {
               {isTilawatSelected && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-amber-400 text-slate-950 shadow-md">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Tilawat al-Dua — Faculty Scanning Attendance Only
+                  Tilawat al-Dua — Talabat & Faculty Window
                 </span>
               )}
             </div>
@@ -771,8 +770,7 @@ export default function AdminAttendanceLogsPage() {
             {events.map((ev) => {
               const isSelected = selectedEventId === ev.id;
               const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
-              const isTilawat = /tilawat/i.test(ev.name);
-              const isFacultyEvent = ev.audience === "FACULTY" || isTilawat;
+              const isFacultyEvent = ev.audience === "FACULTY";
               const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
               const isBothEvent = ev.audience === "BOTH";
 
