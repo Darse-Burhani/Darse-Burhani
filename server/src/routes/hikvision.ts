@@ -39,22 +39,63 @@ function buildPushUrl(req: import("express").Request, deviceIp?: string): string
   return `http://${lanIp}:4000/api/hikvision/events`;
 }
 
+import crypto from "node:crypto";
+
 function authorizePush(req: import("express").Request): boolean {
   const secret = process.env.BIOMETRIC_SECRET;
-  if (!secret) return true; // dev mode — open
-  if (req.headers["x-biometric-secret"] === secret) return true;
+  const isProd = process.env.NODE_ENV === "production";
 
-  // Hikvision httpHosts supports HTTP Basic auth (but not custom headers).
+  if (!secret) {
+    if (isProd) {
+      console.error("[hikvision:security] BIOMETRIC_SECRET is not configured in production! Rejecting unauthenticated webhook.");
+      return false;
+    }
+    return true; // Dev mode warning only
+  }
+
+  // 1. Direct header token verification (timing-safe)
+  const headerSecret = req.headers["x-biometric-secret"] || req.headers["x-webhook-secret"];
+  if (typeof headerSecret === "string") {
+    const a = Buffer.from(headerSecret);
+    const b = Buffer.from(secret);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+      return true;
+    }
+  }
+
+  // 2. HMAC SHA-256 Signature Verification
+  const signature = req.headers["x-signature-sha256"] || req.headers["x-hub-signature-256"];
+  if (typeof signature === "string" && req.body) {
+    try {
+      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+      const expectedSig = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+      const cleanSig = signature.replace(/^sha256=/, "");
+      const a = Buffer.from(cleanSig);
+      const b = Buffer.from(expectedSig);
+      if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+        return true;
+      }
+    } catch {}
+  }
+
+  // 3. Hikvision HTTP Basic auth support (used by MinMoe httpHosts configuration)
   const auth = req.headers.authorization ?? "";
   if (auth.toLowerCase().startsWith("basic ")) {
     try {
       const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
       const [, password] = decoded.split(":");
-      if (password === secret) return true;
+      if (password) {
+        const a = Buffer.from(password);
+        const b = Buffer.from(secret);
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+          return true;
+        }
+      }
     } catch {
       // fall through
     }
   }
+
   return false;
 }
 

@@ -437,6 +437,97 @@ export function csrfGuardMiddleware(req: Request, res: Response, next: NextFunct
 }
 
 /**
+ * Sensitive Data Log Redactor
+ * Strips passwords, secrets, JWT tokens, and sensitive personal identity numbers before logging.
+ */
+export function sanitizeForLogs(data: any, depth = 0): any {
+  if (depth > 5 || !data) return data;
+  if (typeof data === "string") {
+    // Redact JWT tokens
+    if (/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/.test(data) && data.length > 30) {
+      return "[REDACTED_JWT_TOKEN]";
+    }
+    // Redact Bearer tokens
+    if (data.toLowerCase().startsWith("bearer ")) {
+      return "Bearer [REDACTED]";
+    }
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeForLogs(item, depth + 1));
+  }
+  if (typeof data === "object") {
+    const sensitiveKeys = new Set([
+      "password",
+      "passwordhash",
+      "plainpassword",
+      "currentpassword",
+      "newpassword",
+      "secret",
+      "biometricsecret",
+      "token",
+      "authorization",
+      "cookie",
+      "refreshtoken",
+      "accesstoken",
+      "privatekey",
+      "serviceaccountjson",
+    ]);
+    const clean: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      const lowerKey = k.toLowerCase().replace(/[-_]/g, "");
+      if (sensitiveKeys.has(lowerKey)) {
+        clean[k] = "[REDACTED]";
+      } else {
+        clean[k] = sanitizeForLogs(v, depth + 1);
+      }
+    }
+    return clean;
+  }
+  return data;
+}
+
+/**
+ * Strict CORS Guard Middleware
+ * Restricts cross-origin requests to explicit whitelist and strictly disallows wildcard '*' when credentials/cookies are active.
+ */
+export function corsGuardMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const origin = req.headers.origin;
+  const isDev = process.env.NODE_ENV !== "production";
+
+  const allowedOrigins = new Set([
+    "http://localhost:3000",
+    "http://localhost:4000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:4000",
+  ]);
+
+  if (process.env.APP_URL) allowedOrigins.add(process.env.APP_URL.replace(/\/+$/, ""));
+  if (process.env.PUBLIC_APP_URL) allowedOrigins.add(process.env.PUBLIC_APP_URL.replace(/\/+$/, ""));
+  if (process.env.NEXTAUTH_URL) allowedOrigins.add(process.env.NEXTAUTH_URL.replace(/\/+$/, ""));
+
+  if (origin && typeof origin === "string") {
+    const isAllowed = allowedOrigins.has(origin) || (isDev && origin.includes("localhost"));
+    if (isAllowed) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, X-Requested-With, X-CSRF-Token, X-Biometric-Secret"
+      );
+    }
+  }
+
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+
+  next();
+}
+
+/**
  * Request timeout middleware (prevents Slowloris & hung requests from blocking connection pool)
  */
 export function requestTimeoutMiddleware(timeoutMs: number = 30000): RequestHandler {
@@ -455,4 +546,5 @@ export function requestTimeoutMiddleware(timeoutMs: number = 30000): RequestHand
     next();
   };
 }
+
 

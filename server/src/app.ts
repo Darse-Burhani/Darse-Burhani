@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import path from "path";
 import { fileURLToPath } from "node:url";
-import { loginHandler, sessionHandler, logoutHandler, changePasswordHandler } from "./auth";
+import { loginHandler, sessionHandler, logoutHandler, changePasswordHandler, verify2FaHandler } from "./auth";
 
 import pointsRoutes from "./routes/points";
 import attendanceRoutes from "./routes/attendance";
@@ -62,6 +62,7 @@ import manualAttendanceRoutes from "./routes/manual-attendance";
 import medicalRoutes from "./routes/medical";
 import {
   securityHeadersMiddleware,
+  corsGuardMiddleware,
   csrfGuardMiddleware,
   sanitizeInputsMiddleware,
   requestTimeoutMiddleware,
@@ -141,16 +142,19 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
   app.use(cookieParser());
 
-  // 3. Security Headers & Defense in Depth
+  // 3. Strict CORS Policy Guard
+  app.use(corsGuardMiddleware);
+
+  // 4. Security Headers & Defense in Depth
   app.use(securityHeadersMiddleware);
 
-  // 4. Next-Gen Web Application Firewall (WAF) Engine
+  // 5. Next-Gen Web Application Firewall (WAF) Engine
   app.use(webApplicationFirewallMiddleware());
 
-  // 5. CSRF & Cross-Origin Guard
+  // 6. CSRF & Cross-Origin Guard
   app.use(csrfGuardMiddleware);
 
-  // 6. Input Sanitization (Blocks prototype pollution, null bytes, script tags)
+  // 7. Input Sanitization (Blocks prototype pollution, null bytes, script tags)
   app.use(sanitizeInputsMiddleware);
 
   // 5. Static uploads with aggressive browser caching & stale-while-revalidate
@@ -187,6 +191,7 @@ export function createApp() {
   const uploadLimiter = createRateLimiter(60000, 60, "upload_api");
 
   app.post("/api/auth/login", authLimiter, loginHandler);
+  app.post("/api/auth/verify-2fa", authLimiter, verify2FaHandler);
   app.post("/api/auth/logout", logoutHandler);
   app.post("/api/auth/change-password", passwordLimiter, changePasswordHandler);
 

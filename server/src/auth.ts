@@ -10,7 +10,8 @@ const compare = (s: string, hashStr: string): Promise<boolean> => getBcrypt().co
 const hash = (s: string, salt: number | string): Promise<string> => getBcrypt().hash(s, salt);
 
 import prisma from "./lib/prisma";
-import { logAuditEvent, getClientIp } from "./lib/security";
+import { logAuditEvent, getClientIp, getSecurityPolicies } from "./lib/security";
+import { createMfaChallenge, verifyMfaChallenge } from "./lib/mfa";
 
 export type Role = "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
 
@@ -26,12 +27,45 @@ export interface SessionUser {
 export const COOKIE_NAME = "sis_session";
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days (seconds)
 
+const INSECURE_SECRET_PATTERNS = ["secret", "password", "default", "changeme", "123456", "admin", "jwtsecret"];
+
 function getSecret(): string {
-  const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret || secret.length < 16) {
-    throw new Error("NEXTAUTH_SECRET is missing or too short (min 16 chars). Set it in .env");
+  const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET is missing. Please set a secure secret key (min 32 characters) in your environment variables.");
+  }
+  if (secret.length < 16) {
+    throw new Error("NEXTAUTH_SECRET is too short. Minimum 16 characters required (32+ recommended for production).");
+  }
+  if (process.env.NODE_ENV === "production") {
+    if (secret.length < 32) {
+      throw new Error("Production Error: NEXTAUTH_SECRET must be at least 32 characters long for cryptographically secure session signing.");
+    }
+    const lower = secret.toLowerCase();
+    if (INSECURE_SECRET_PATTERNS.some((pattern) => lower.includes(pattern))) {
+      throw new Error("Production Error: Insecure or default NEXTAUTH_SECRET detected. Please use a cryptographically random secret string.");
+    }
   }
   return secret;
+}
+
+export function validatePasswordComplexity(password: string): { valid: boolean; error?: string } {
+  if (!password || typeof password !== "string") {
+    return { valid: false, error: "Password is required" };
+  }
+  if (password.length < 8) {
+    return { valid: false, error: "Password must be at least 8 characters long" };
+  }
+  if (password.length > 128) {
+    return { valid: false, error: "Password must be under 128 characters" };
+  }
+  if (!/[a-zA-Z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one letter" };
+  }
+  if (!/\d/.test(password)) {
+    return { valid: false, error: "Password must contain at least one number" };
+  }
+  return { valid: true };
 }
 
 export function signSession(user: SessionUser): string {
@@ -387,12 +421,9 @@ async function changePasswordHandlerInner(req: Request, res: Response): Promise<
     res.status(400).json({ success: false, error: "Current and new password are required" });
     return;
   }
-  if (newPassword.trim().length < 8) {
-    res.status(400).json({ success: false, error: "New password must be at least 8 characters (include 1 number & 1 letter)" });
-    return;
-  }
-  if (!/(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
-    res.status(400).json({ success: false, error: "Password must contain at least 1 letter and 1 number" });
+  const complexity = validatePasswordComplexity(newPassword);
+  if (!complexity.valid) {
+    res.status(400).json({ success: false, error: complexity.error });
     return;
   }
 
@@ -428,7 +459,7 @@ async function changePasswordHandlerInner(req: Request, res: Response): Promise<
     where: { id: sessionUser.id },
     data: {
       passwordHash: newPasswordHash,
-      plainPassword: newPassword,
+      plainPassword: null, // Purge plain password for security
     },
   });
 
@@ -444,7 +475,68 @@ async function changePasswordHandlerInner(req: Request, res: Response): Promise<
     ipAddress: getClientIp(req),
   });
 
-  res.json({ success: true, data: { message: "Password updated" } });
+  res.json({ success: true, data: { message: "Password updated successfully" } });
+}
+
+export async function verify2FaHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { ticket, code } = (req.body ?? {}) as { ticket?: string; code?: string };
+    if (!ticket || !code) {
+      res.status(400).json({ success: false, error: "Verification ticket and code are required" });
+      return;
+    }
+
+    const verification = verifyMfaChallenge(ticket, code);
+    if (!verification.valid || !verification.userId) {
+      res.status(401).json({ success: false, error: verification.error || "Invalid 2FA verification code" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: verification.userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        avatarUrl: true,
+        isActive: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      res.status(401).json({ success: false, error: "User account inactive or not found" });
+      return;
+    }
+
+    const sessionUser: SessionUser = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role as Role,
+      avatarUrl: user.avatarUrl || (user.role === "ADMIN" ? "/logo.png" : null),
+    };
+
+    logAuditEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userName: `${user.firstName} ${user.lastName}`,
+      userRole: user.role,
+      action: "2FA_LOGIN_SUCCESS",
+      category: "AUTH",
+      severity: "INFO",
+      status: "SUCCESS",
+      ipAddress: getClientIp(req),
+    });
+
+    setSessionCookie(res, signSession(sessionUser));
+    res.json({ success: true, data: { user: sessionUser } });
+  } catch (error) {
+    console.error("2FA verification error:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 }
 
 export async function sessionHandler(req: Request, res: Response): Promise<void> {

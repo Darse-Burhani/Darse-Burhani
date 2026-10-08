@@ -13,6 +13,8 @@ export interface SendSmsOptions {
  * Returns true if the message was sent successfully, false otherwise.
  * Requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER env vars.
  */
+import { safeFetch } from "./ssrf";
+
 export async function sendSms(options: SendSmsOptions): Promise<boolean> {
   const { to, message } = options;
 
@@ -22,7 +24,6 @@ export async function sendSms(options: SendSmsOptions): Promise<boolean> {
   }
 
   try {
-    // Use fetch directly to avoid requiring the twilio SDK
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_PHONE_NUMBER;
@@ -30,8 +31,8 @@ export async function sendSms(options: SendSmsOptions): Promise<boolean> {
     // Format phone number: remove any non-digit characters, ensure it starts with +
     const formattedTo = to.startsWith("+") ? to : `+${to.replace(/\D/g, "")}`;
 
-    const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    const response = await safeFetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`,
       {
         method: "POST",
         headers: {

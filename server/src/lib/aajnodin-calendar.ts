@@ -240,8 +240,10 @@ function parseMiqaats(html: string, monthIndex: number): AajNoDinMiqaat[] {
   return miqaats.sort((a, b) => a.day - b.day);
 }
 
+import { safeFetch } from "./ssrf";
+
 async function fetchHtml(gdate: string): Promise<string> {
-  const res = await fetch(`${AAJNODIN_API}?gdate=${gdate}`, {
+  const res = await safeFetch(`${AAJNODIN_API}?gdate=${encodeURIComponent(gdate)}`, {
     headers: { "User-Agent": USER_AGENT },
   });
   if (!res.ok) {

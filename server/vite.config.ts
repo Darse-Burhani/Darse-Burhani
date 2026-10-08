@@ -10,6 +10,7 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     ssr: true,
+    sourcemap: false,
     target: "node22",
     rollupOptions: {
       input: "src/index.ts",
