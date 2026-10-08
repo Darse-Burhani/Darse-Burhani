@@ -544,7 +544,7 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       const verifyMethod = isFaceScan ? "FACIAL" : isFingerprintScan ? "FINGERPRINT" : (ev.currentVerifyMode || "FACIAL");
       const result: BiometricEvent = await processBiometricScan(
         employee,
-        ev.time ? new Date(ev.time) : new Date(),
+        ev.time || new Date(),
         deviceRef ? `hikvision:push:${deviceRef}` : source,
         verifyMethod,
       );

@@ -15,8 +15,9 @@ const argUrl = process.argv[2];
 const TUNNEL_URL = (
   argUrl ||
   process.env.CLOUDFLARE_TUNNEL_URL ||
-  process.env.PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.RENDER_URL ||
+  (process.env.PUBLIC_APP_URL && !process.env.PUBLIC_APP_URL.includes("localhost") && !process.env.PUBLIC_APP_URL.includes("127.0.0.1") ? process.env.PUBLIC_APP_URL : null) ||
+  (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost") && !process.env.NEXT_PUBLIC_APP_URL.includes("127.0.0.1") ? process.env.NEXT_PUBLIC_APP_URL : null) ||
   "https://darse-burhani.onrender.com"
 ).replace(/\/+$/, "");
 

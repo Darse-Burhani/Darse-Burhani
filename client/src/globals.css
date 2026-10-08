@@ -339,36 +339,36 @@
 
   /* ====== 2026 Executive Typography & Contrast Layout System ====== */
   .text-page-title {
-    @apply font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight;
+    @apply font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight;
     letter-spacing: -0.03em;
     line-height: 1.2;
   }
 
   .text-section-title {
-    @apply font-heading text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight;
+    @apply font-heading text-lg sm:text-xl font-bold text-slate-900 tracking-tight;
     letter-spacing: -0.02em;
   }
 
   .text-kicker {
-    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-400 inline-flex items-center gap-1.5;
+    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-emerald-800 inline-flex items-center gap-1.5;
     letter-spacing: 0.08em;
   }
 
   .text-kicker-gold {
-    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-amber-800 dark:text-amber-400 inline-flex items-center gap-1.5;
+    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-amber-800 inline-flex items-center gap-1.5;
     letter-spacing: 0.08em;
   }
 
   .text-contrast-body {
-    @apply font-body text-[14.5px] text-slate-700 dark:text-slate-200 leading-relaxed;
+    @apply font-body text-[14.5px] text-slate-700 leading-relaxed;
   }
 
   .text-contrast-muted {
-    @apply font-info text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium;
+    @apply font-info text-xs sm:text-sm text-slate-600 font-medium;
   }
 
   .text-stat-value {
-    @apply font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight;
+    @apply font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight;
     font-feature-settings: "tnum" 1, "zero" 1;
   }
 
@@ -395,6 +395,31 @@
   .badge-tabular {
     @apply font-mono text-xs font-bold tracking-tight px-2 py-0.5 rounded-md;
     font-feature-settings: "tnum" 1;
+  }
+
+  /* ====== Standardized Unified Portal Layout Utilities ====== */
+  .portal-container {
+    @apply max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-7;
+  }
+
+  .portal-card-base {
+    @apply rounded-2xl sm:rounded-3xl border border-slate-200/85 bg-white p-4 sm:p-6 shadow-xs transition-all duration-200;
+  }
+
+  .portal-card-interactive {
+    @apply portal-card-base hover:shadow-md hover:border-emerald-200/90 active:scale-[0.995];
+  }
+
+  .portal-stat-card {
+    @apply relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/85 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200 hover:shadow-md;
+  }
+
+  .portal-header-group {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-100;
+  }
+
+  .portal-table-wrapper {
+    @apply overflow-x-auto rounded-2xl border border-slate-200/85 bg-white shadow-xs;
   }
 }
 

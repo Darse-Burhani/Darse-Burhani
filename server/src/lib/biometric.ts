@@ -340,12 +340,21 @@ export function parseScanTime(input?: string | number | Date | null): Date {
     if (!isNaN(d.getTime())) return d;
   }
 
-  // Format "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss" without offset
-  const normalized = raw.replace(" ", "T");
-  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/);
-  if (match) {
-    const [_, y, m, d, h, min, s, ms] = match;
+  // Format "YYYY-MM-DDTHH:mm:ss" or "YYYY/MM/DD HH:mm:ss" or "YYYY-MM-DD HH:mm:ss" without offset
+  const normalized = raw.replace(/\//g, "-").replace(" ", "T");
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/);
+  if (isoMatch) {
+    const [_, y, m, d, h, min, s, ms] = isoMatch;
     const isoWithIST = `${y}-${m}-${d}T${h}:${min}:${s}${ms ? `.${ms}` : ""}+05:30`;
+    const parsed = new Date(isoWithIST);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  // Format "DD-MM-YYYY HH:mm:ss" or "DD/MM/YYYY HH:mm:ss"
+  const dmyMatch = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (dmyMatch) {
+    const [_, d, m, y, h, min, s] = dmyMatch;
+    const isoWithIST = `${y}-${m}-${d}T${h}:${min}:${s}+05:30`;
     const parsed = new Date(isoWithIST);
     if (!isNaN(parsed.getTime())) return parsed;
   }

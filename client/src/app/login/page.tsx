@@ -33,6 +33,7 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { InstitutionalFooter } from "@/components/InstitutionalFooter";
 
 export interface PortalConfig {
   role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
@@ -798,43 +799,49 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                  className="group relative flex h-[54px] w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[#064e3b] text-[15px] font-bold text-white shadow-[0_12px_28px_-8px_rgba(6,78,59,0.6)] transition hover:bg-[#053f30] hover:shadow-[0_14px_32px_-8px_rgba(6,78,59,0.7)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  {isLoading ? (
-                    <>
-                      <Loader2 size={19} className="animate-spin" />
-                      Verifying credentials…
-                    </>
-                  ) : isSuccess ? (
-                    <>
-                      <Check size={19} />
-                      Signing you in…
-                    </>
-                  ) : lockoutSeconds > 0 ? (
-                    `Locked — try again in ${lockoutSeconds}s`
-                  ) : (
-                    <>
-                      Sign in to {portal.shortLabel}
-                      <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
-                    </>
-                  )}
-                </button>
+                {/* ── HIGHLY PROMINENT INSTANT LOGIN BUTTON ── */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoading || isSuccess || lockoutSeconds > 0}
+                    className="group relative flex h-[58px] sm:h-[62px] w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-700 text-white shadow-[0_16px_36px_-6px_rgba(4,120,87,0.55),0_6px_16px_rgba(0,0,0,0.15)] ring-2 ring-amber-400/60 hover:ring-amber-400 transition-all duration-300 hover:from-emerald-700 hover:via-emerald-500 hover:to-teal-600 hover:shadow-[0_20px_42px_-6px_rgba(4,120,87,0.7)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer select-none"
+                  >
+                    {/* Continuous animated shimmer beam */}
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
 
-                <p className="text-center text-[12px] text-slate-400">
-                  Protected institutional access · Session expires after 2 hours of inactivity
+                    {isLoading ? (
+                      <span className="flex items-center gap-2.5 text-base sm:text-lg font-bold tracking-tight">
+                        <Loader2 size={22} className="animate-spin text-amber-300" />
+                        Verifying credentials…
+                      </span>
+                    ) : isSuccess ? (
+                      <span className="flex items-center gap-2.5 text-base sm:text-lg font-bold tracking-tight text-emerald-100">
+                        <Check size={22} className="text-amber-300" />
+                        Signing you in…
+                      </span>
+                    ) : lockoutSeconds > 0 ? (
+                      <span className="text-base font-bold text-amber-200">
+                        Locked — try again in {lockoutSeconds}s
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2.5 text-[16px] sm:text-[17px] font-extrabold tracking-tight drop-shadow-sm">
+                        <span>Sign In to {portal.label}</span>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white shadow-xs transition-transform duration-200 group-hover:translate-x-1 group-hover:bg-white/30">
+                          <ArrowRight size={18} className="text-amber-200" />
+                        </div>
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                <p className="text-center text-[12px] font-medium text-slate-500 pt-1">
+                  🔒 256-bit Encrypted Institutional Session · Auto-expires after 2 hours
                 </p>
               </form>
             </div>
           </div>
 
-          <p className="mt-4 text-center text-[12.5px] text-slate-400">
-            © 2026 Darse Burhani · <a href="/privacy" className="font-medium hover:text-slate-600">Privacy Policy</a> ·{" "}
-            <a href="/terms" className="font-medium hover:text-slate-600">Terms of Service</a>
-          </p>
+          <InstitutionalFooter variant="minimal" className="mt-6 rounded-2xl bg-white/80 shadow-2xs border border-slate-200/80" />
         </div>
       </main>
 

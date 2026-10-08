@@ -8,73 +8,99 @@ interface FatimiLogoProps {
   size?: number;
   variant?: RoleVariant;
   className?: string;
+  glow?: boolean;
 }
 
-const gradientMap: Record<RoleVariant, { id: string; stops: { offset: string; color: string }[] }> = {
+const gradientMap: Record<RoleVariant, { id: string; primary: string; secondary: string; accent: string; stops: { offset: string; color: string }[] }> = {
   default: {
     id: "fatimiDefault",
+    primary: "#d4af37",
+    secondary: "#b8860b",
+    accent: "#047857",
     stops: [
-      { offset: "0%", color: "#d4af37" },
-      { offset: "50%", color: "#b8860b" },
-      { offset: "100%", color: "#047857" },
+      { offset: "0%", color: "#fef08a" },
+      { offset: "35%", color: "#d4af37" },
+      { offset: "75%", color: "#b8860b" },
+      { offset: "100%", color: "#065f46" },
     ],
   },
   gold: {
     id: "fatimiGold",
+    primary: "#fbbf24",
+    secondary: "#d4af37",
+    accent: "#b45309",
     stops: [
-      { offset: "0%", color: "#fbbf24" },
-      { offset: "50%", color: "#d4af37" },
-      { offset: "100%", color: "#b8860b" },
+      { offset: "0%", color: "#fffbeb" },
+      { offset: "30%", color: "#fcd34d" },
+      { offset: "65%", color: "#d4af37" },
+      { offset: "100%", color: "#92400e" },
     ],
   },
   admin: {
     id: "fatimiAdmin",
+    primary: "#d4af37",
+    secondary: "#b8860b",
+    accent: "#047857",
     stops: [
-      { offset: "0%", color: "#d4af37" },
-      { offset: "50%", color: "#b8860b" },
+      { offset: "0%", color: "#fde047" },
+      { offset: "40%", color: "#d4af37" },
+      { offset: "75%", color: "#b8860b" },
       { offset: "100%", color: "#047857" },
     ],
   },
   teacher: {
     id: "fatimiTeacher",
+    primary: "#38bdf8",
+    secondary: "#0284c7",
+    accent: "#0369a1",
     stops: [
-      { offset: "0%", color: "#fbbf24" },
-      { offset: "50%", color: "#d4af37" },
-      { offset: "100%", color: "#047857" },
+      { offset: "0%", color: "#e0f2fe" },
+      { offset: "40%", color: "#38bdf8" },
+      { offset: "75%", color: "#0284c7" },
+      { offset: "100%", color: "#075985" },
     ],
   },
   student: {
     id: "fatimiStudent",
+    primary: "#34d399",
+    secondary: "#10b981",
+    accent: "#047857",
     stops: [
-      { offset: "0%", color: "#34d399" },
-      { offset: "50%", color: "#10b981" },
-      { offset: "100%", color: "#047857" },
+      { offset: "0%", color: "#ecfdf5" },
+      { offset: "40%", color: "#34d399" },
+      { offset: "75%", color: "#059669" },
+      { offset: "100%", color: "#064e3b" },
     ],
   },
   parent: {
     id: "fatimiParent",
+    primary: "#fbbf24",
+    secondary: "#f59e0b",
+    accent: "#d97706",
     stops: [
-      { offset: "0%", color: "#fbbf24" },
-      { offset: "50%", color: "#d4af37" },
-      { offset: "100%", color: "#047857" },
+      { offset: "0%", color: "#fffbeb" },
+      { offset: "40%", color: "#fbbf24" },
+      { offset: "75%", color: "#d97706" },
+      { offset: "100%", color: "#b45309" },
     ],
   },
 };
 
-export function FatimiLogo({ size = 36, variant = "default", className = "" }: FatimiLogoProps) {
-  const grad = gradientMap[variant];
+export function FatimiLogo({ size = 36, variant = "default", className = "", glow = true }: FatimiLogoProps) {
+  const grad = gradientMap[variant] || gradientMap.default;
   const gradId = grad.id;
   const glowId = `${gradId}Glow`;
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center ${className}`}
+      className={`relative inline-flex items-center justify-center shrink-0 select-none ${className}`}
       style={{ width: size, height: size }}
     >
       <svg
         viewBox="0 0 100 100"
-        className="w-full h-full"
+        className="w-full h-full drop-shadow-sm"
         xmlns="http://www.w3.org/2000/svg"
+        shapeRendering="geometricPrecision"
       >
         <defs>
           <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -83,102 +109,80 @@ export function FatimiLogo({ size = 36, variant = "default", className = "" }: F
             ))}
           </linearGradient>
           <radialGradient id={glowId} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={grad.stops[0].color} stopOpacity="0.25" />
-            <stop offset="100%" stopColor={grad.stops[0].color} stopOpacity="0" />
+            <stop offset="0%" stopColor={grad.primary} stopOpacity={glow ? "0.3" : "0"} />
+            <stop offset="100%" stopColor={grad.secondary} stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        {/* Outer glow */}
-        <circle cx="50" cy="50" r="48" fill={`url(#${glowId})`} />
+        {/* Outer radial ambient aura */}
+        {glow && <circle cx="50" cy="50" r="48" fill={`url(#${glowId})`} />}
 
-        {/* Outer octagon / 8-pointed star base */}
+        {/* Primary 8-Pointed Star (Rub-el-Hizb) Silhouette */}
         <path
-          d="M50 3L73 27L97 50L73 73L50 97L27 73L3 50L27 27Z"
+          d="M50 4L63.5 22.5L86 22.5L78.5 44L96 50L78.5 56L86 77.5L63.5 77.5L50 96L36.5 77.5L14 77.5L21.5 56L4 50L21.5 44L14 22.5L36.5 22.5Z"
           fill="none"
           stroke={`url(#${gradId})`}
-          strokeWidth="2"
-          opacity="0.5"
+          strokeWidth="2.2"
+          strokeLinejoin="round"
+          opacity="0.95"
         />
 
-        {/* 8-pointed star (Rub el Hizb) — outer */}
-        <path
-          d="M50 8L58 42L92 50L58 58L50 92L42 58L8 50L42 42Z"
-          fill="none"
-          stroke={`url(#${gradId})`}
-          strokeWidth="1.8"
-        />
-
-        {/* Inner diamond */}
-        <path
-          d="M50 20L80 50L50 80L20 50Z"
+        {/* Interlocking Rotated Square 1 (Square) */}
+        <rect
+          x="20"
+          y="20"
+          width="60"
+          height="60"
           fill="none"
           stroke={`url(#${gradId})`}
           strokeWidth="1.2"
-          opacity="0.7"
+          opacity="0.6"
         />
 
-        {/* Inner circle */}
+        {/* Interlocking Rotated Square 2 (Diamond 45 deg) */}
+        <rect
+          x="20"
+          y="20"
+          width="60"
+          height="60"
+          transform="rotate(45 50 50)"
+          fill="none"
+          stroke={`url(#${gradId})`}
+          strokeWidth="1.2"
+          opacity="0.6"
+        />
+
+        {/* Inner Geometric Sacred Ring */}
         <circle
           cx="50"
           cy="50"
-          r="14"
+          r="16"
           fill="none"
           stroke={`url(#${gradId})`}
-          strokeWidth="1"
-          opacity="0.5"
+          strokeWidth="1.5"
+          opacity="0.8"
         />
 
-        {/* Central 8-pointed star */}
+        {/* Central Core Starburst */}
         <path
-          d="M50 28L54 46L72 50L54 54L50 72L46 54L28 50L46 46Z"
+          d="M50 36L53.5 46.5L64 50L53.5 53.5L50 64L46.5 53.5L36 50L46.5 46.5Z"
           fill={`url(#${gradId})`}
-          opacity="0.9"
+          opacity="0.95"
         />
 
-        {/* Center dot */}
-        <circle cx="50" cy="50" r="4" fill={grad.stops[0].color} opacity="0.8" />
+        {/* Center Golden Bindu/Nucleus */}
+        <circle cx="50" cy="50" r="3.2" fill="#ffffff" opacity="0.9" />
+        <circle cx="50" cy="50" r="1.8" fill={grad.primary} />
 
-        {/* Decorative dots at octagon vertices */}
-        <circle cx="50" cy="5" r="2.5" fill={grad.stops[0].color} opacity="0.6" />
-        <circle cx="95" cy="50" r="2.5" fill={grad.stops[0].color} opacity="0.6" />
-        <circle cx="50" cy="95" r="2.5" fill={grad.stops[0].color} opacity="0.6" />
-        <circle cx="5" cy="50" r="2.5" fill={grad.stops[0].color} opacity="0.6" />
-
-        {/* Diagonal decorative dots */}
-        <circle cx="72" cy="28" r="1.8" fill={grad.stops[0].color} opacity="0.4" />
-        <circle cx="28" cy="28" r="1.8" fill={grad.stops[0].color} opacity="0.4" />
-        <circle cx="72" cy="72" r="1.8" fill={grad.stops[0].color} opacity="0.4" />
-        <circle cx="28" cy="72" r="1.8" fill={grad.stops[0].color} opacity="0.4" />
-
-        {/* Arabesque petals — 4 curved arcs */}
-        <path
-          d="M50 14Q60 30 50 42Q40 30 50 14Z"
-          fill="none"
-          stroke={grad.stops[0].color}
-          strokeWidth="0.8"
-          opacity="0.35"
-        />
-        <path
-          d="M86 50Q70 60 58 50Q70 40 86 50Z"
-          fill="none"
-          stroke={grad.stops[0].color}
-          strokeWidth="0.8"
-          opacity="0.35"
-        />
-        <path
-          d="M50 86Q40 70 50 58Q60 70 50 86Z"
-          fill="none"
-          stroke={grad.stops[0].color}
-          strokeWidth="0.8"
-          opacity="0.35"
-        />
-        <path
-          d="M14 50Q30 40 42 50Q30 60 14 50Z"
-          fill="none"
-          stroke={grad.stops[0].color}
-          strokeWidth="0.8"
-          opacity="0.35"
-        />
+        {/* 8 Cardinal Vertex Accent Pips */}
+        <circle cx="50" cy="7" r="1.6" fill={grad.primary} />
+        <circle cx="93" cy="50" r="1.6" fill={grad.primary} />
+        <circle cx="50" cy="93" r="1.6" fill={grad.primary} />
+        <circle cx="7" cy="50" r="1.6" fill={grad.primary} />
+        <circle cx="80" cy="20" r="1.2" fill={grad.primary} opacity="0.75" />
+        <circle cx="80" cy="80" r="1.2" fill={grad.primary} opacity="0.75" />
+        <circle cx="20" cy="80" r="1.2" fill={grad.primary} opacity="0.75" />
+        <circle cx="20" cy="20" r="1.2" fill={grad.primary} opacity="0.75" />
       </svg>
     </div>
   );
@@ -188,25 +192,48 @@ export function FatimiLogo({ size = 36, variant = "default", className = "" }: F
  * A full-wordmark logo combining the Fatimi icon with "Darse Burhani" text.
  */
 export function FatimiWordmark({
-  size = 28,
-  variant = "default",
-  showTagline = false,
-  tagline = "",
+  size = 32,
+  variant = "gold",
+  showTagline = true,
+  tagline = "Al-Jamea tus-Saifiyah",
+  theme = "dark",
+  className = "",
 }: {
   size?: number;
   variant?: RoleVariant;
   showTagline?: boolean;
   tagline?: string;
+  theme?: "dark" | "light";
+  className?: string;
 }) {
+  const isDark = theme === "dark";
+
   return (
-    <div className="flex items-center gap-2.5">
-      <FatimiLogo size={size} variant={variant} />
-      <div className="flex flex-col">
-        <span className="font-display font-bold text-white text-base leading-tight tracking-tight">
+    <div className={`flex items-center gap-3 select-none ${className}`}>
+      <div
+        className="rounded-2xl p-1.5 flex items-center justify-center shadow-md ring-1 ring-amber-400/30 shrink-0 transition-transform duration-200 group-hover:scale-105"
+        style={{
+          background: isDark
+            ? "linear-gradient(135deg, #022c22 0%, #064e3b 100%)"
+            : "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+        }}
+      >
+        <FatimiLogo size={size} variant={variant} />
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span
+          className={`font-display font-bold tracking-tight text-base sm:text-lg leading-tight truncate ${
+            isDark ? "text-white" : "text-slate-900"
+          }`}
+        >
           Darse Burhani
         </span>
         {showTagline && tagline && (
-          <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: "rgba(212,175,55,0.7)" }}>
+          <span
+            className={`text-[10px] font-semibold tracking-wider uppercase truncate ${
+              isDark ? "text-amber-300/80" : "text-emerald-800"
+            }`}
+          >
             {tagline}
           </span>
         )}
@@ -214,3 +241,4 @@ export function FatimiWordmark({
     </div>
   );
 }
+

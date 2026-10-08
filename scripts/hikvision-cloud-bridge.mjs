@@ -24,8 +24,8 @@ const RENDER_BASE = (
   process.argv[2] ||
   process.env.RENDER_URL ||
   process.env.RENDER_APP_URL ||
-  process.env.PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.PUBLIC_APP_URL && !process.env.PUBLIC_APP_URL.includes('localhost') && !process.env.PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.PUBLIC_APP_URL : null) ||
+  (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost') && !process.env.NEXT_PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.NEXT_PUBLIC_APP_URL : null) ||
   'https://darse-burhani.onrender.com'
 ).replace(/\/+$/, '');
 
@@ -142,6 +142,18 @@ function getHikvisionTime(d = new Date()) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetMinutes}`;
 }
 
+// Ensure any device timestamp is normalized to an accurate IST ISO string (+05:30)
+function normalizeDeviceTime(raw) {
+  if (!raw) return getHikvisionTime(new Date());
+  const s = String(raw).trim();
+  if (/[Zz]|([+-]\d{2}:?\d{2})$/.test(s)) return s;
+  const normalized = s.replace(/\//g, '-').replace(' ', 'T');
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(normalized)) {
+    return `${normalized}+05:30`;
+  }
+  return s;
+}
+
 // Track seen serials to prevent duplicates
 const seenEvents = new Set();
 function isDuplicate(key) {
@@ -157,8 +169,8 @@ function isDuplicate(key) {
 // Poll historical/recent events from device
 async function pollDeviceEvents(dev) {
   const now = new Date();
-  // Look back 15 minutes to avoid any missed punches during network hiccups
-  const past = new Date(now.getTime() - 15 * 60 * 1000);
+  // Look back 12 hours so all scans from today morning are captured even if bridge was started later
+  const past = new Date(now.getTime() - 12 * 60 * 60 * 1000);
   const startTime = getHikvisionTime(past);
   const endTime = getHikvisionTime(now);
 
@@ -166,7 +178,7 @@ async function pollDeviceEvents(dev) {
     AcsEventCond: {
       searchID: `bridge-${Date.now()}`,
       searchResultPosition: 0,
-      maxResults: 50,
+      maxResults: 100,
       major: 0,
       minor: 0,
       startTime,
@@ -189,15 +201,15 @@ async function pollDeviceEvents(dev) {
     const matches = data?.AcsEvent?.InfoList || [];
 
     for (const item of matches) {
-      const serial = item.serialNo || item.serial || `${item.employeeNoString}-${item.time}`;
-      const dedupeKey = `${dev.host}:${serial}`;
-      if (isDuplicate(dedupeKey)) continue;
-
       const employeeNo = item.employeeNoString || item.cardNo;
       if (!employeeNo) continue;
 
+      const timeStr = normalizeDeviceTime(item.time);
+      const serial = item.serialNo || item.serial || `${employeeNo}-${timeStr}`;
+      const dedupeKey = `${dev.host}:${serial}`;
+      if (isDuplicate(dedupeKey)) continue;
+
       const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
-      const timeStr = item.time || new Date().toISOString();
 
       console.log(`\n⚡ [SCAN DETECTED] ${dev.host} -> Member ID: ${employeeNo} at ${timeStr} (${verifyMode})`);
       console.log(`   Forwarding to Render: ${WEBHOOK_URL}...`);
@@ -262,11 +274,20 @@ async function listenAlertStream(dev) {
           const ev = parsed.AccessControllerEvent || parsed;
           const employeeNo = ev.employeeNoString || ev.cardNo;
           if (employeeNo) {
-            const serial = ev.serialNo || `${employeeNo}-${ev.time}`;
+            const timeStr = normalizeDeviceTime(ev.time);
+            const serial = ev.serialNo || `${employeeNo}-${timeStr}`;
             if (!isDuplicate(`${dev.host}:${serial}`)) {
-              console.log(`\n⚡ [STREAM PUNCH] ${dev.host} -> Member ID: ${employeeNo} at ${ev.time || 'now'}`);
-              forwardEventToRender(parsed).then((r) => {
+              console.log(`\n⚡ [STREAM PUNCH] ${dev.host} -> Member ID: ${employeeNo} at ${timeStr}`);
+              forwardEventToRender({
+                AccessControllerEvent: {
+                  ...ev,
+                  employeeNoString: String(employeeNo),
+                  time: timeStr,
+                  deviceId: dev.host,
+                },
+              }).then((r) => {
                 if (r.ok) console.log(`   ✅ [SYNCED TO CLOUD] Punch recorded instantly!`);
+                else console.warn(`   ⚠️ [SYNC FAILED] Status ${r.status || r.error}`);
               });
             }
           }

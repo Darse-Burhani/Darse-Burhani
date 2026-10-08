@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
+import { InstitutionalFooter } from "@/components/InstitutionalFooter";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
@@ -274,21 +275,40 @@ export function PortalShell({
         )}
         style={{ background: theme.sidebar, boxShadow: `0 0 50px ${theme.sidebarGlow}` }}
       >
-        <div className="h-[2px] w-full shrink-0" style={{ background: `linear-gradient(90deg, transparent, ${theme.goldAccent}, transparent)` }} />
+        <div className="h-[2px] w-full shrink-0" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
 
+        {/* Desktop Brand Header */}
         <div className={cn(
-          "h-16 flex items-center border-b border-white/10 relative z-10",
-          sidebarCollapsed ? "justify-center px-2" : "px-5 gap-3"
+          "h-16 flex items-center border-b border-white/10 relative z-10 shrink-0",
+          sidebarCollapsed ? "justify-center px-2" : "px-4 gap-3"
         )}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0" style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}>
-            <FatimiLogo size={26} variant="gold" />
-          </div>
-          {!sidebarCollapsed && (
-            <div className="overflow-hidden">
-              <span className="font-bold text-white text-lg leading-tight tracking-tight block">Darse Burhani</span>
-              <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.7)" }}>{subtitle}</p>
+          <Link
+            href={rootPath}
+            className={cn(
+              "flex items-center gap-3 group transition-transform duration-200 active:scale-95",
+              sidebarCollapsed && "justify-center"
+            )}
+            title="Darse Burhani Portal Home"
+          >
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-amber-400/40 shrink-0 transition-transform duration-300 group-hover:scale-105"
+              style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
+            >
+              <FatimiLogo size={24} variant="gold" glow={true} />
             </div>
-          )}
+            {!sidebarCollapsed && (
+              <div className="overflow-hidden min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-display font-bold text-white text-base tracking-tight leading-none block group-hover:text-amber-300 transition-colors">
+                    Darse Burhani
+                  </span>
+                </div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/80 leading-tight mt-1 truncate">
+                  {subtitle || "Al-Jamea tus-Saifiyah"}
+                </p>
+              </div>
+            )}
+          </Link>
         </div>
 
         {/* Desktop Navigation with Collapsible Category Accordions */}
@@ -329,7 +349,7 @@ export function PortalShell({
                           className={cn(
                             "group flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200",
                             active
-                              ? "bg-white/20 text-white shadow-sm ring-1 ring-white/20"
+                              ? "bg-white/20 text-white shadow-sm ring-1 ring-white/20 font-bold"
                               : "text-white/80 hover:bg-white/10 hover:text-white",
                             sidebarCollapsed && "justify-center px-2"
                           )}
@@ -358,7 +378,7 @@ export function PortalShell({
                           {active && !sidebarCollapsed && !item.shortcut && !item.badge && (
                             <span
                               className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ background: theme.goldAccent, boxShadow: `0 0 8px ${theme.ambientGlow}` }}
+                              style={{ background: GOLD, boxShadow: `0 0 8px ${GOLD}` }}
                             />
                           )}
                         </Link>
@@ -377,13 +397,13 @@ export function PortalShell({
             href={settingsHref}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-white/80 hover:bg-white/10 hover:text-white",
-              isActive(settingsHref) && "bg-white/20 text-white shadow-sm ring-1 ring-white/20",
+              isActive(settingsHref) && "bg-white/20 text-white shadow-sm ring-1 ring-white/20 font-bold",
               sidebarCollapsed && "justify-center px-2"
             )}
             title={sidebarCollapsed ? "Settings" : undefined}
           >
             <Settings
-              className="w-5 h-5 shrink-0 opacity-90"
+              className="w-4 h-4 shrink-0 opacity-90"
               style={isActive(settingsHref) ? { color: theme.activeIcon } : undefined}
             />
             {!sidebarCollapsed && <span>Settings</span>}
@@ -392,17 +412,17 @@ export function PortalShell({
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 hover:bg-white/10 hover:text-white transition-colors font-medium",
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/75 hover:bg-white/10 hover:text-white transition-colors font-medium cursor-pointer",
               sidebarCollapsed && "justify-center px-2"
             )}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="w-5 h-5 shrink-0" />
+              <ChevronRight className="w-4 h-4 shrink-0" />
             ) : (
               <>
-                <ChevronLeft className="w-5 h-5 shrink-0" />
-                <span className="text-sm">Collapse</span>
+                <ChevronLeft className="w-4 h-4 shrink-0" />
+                <span className="text-xs font-semibold">Collapse</span>
               </>
             )}
           </button>
@@ -426,24 +446,30 @@ export function PortalShell({
             <div className="h-[2px] w-full shrink-0" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
 
             {/* Header */}
-            <div className="h-16 flex items-center justify-between px-5 border-b border-white/10 relative z-10 shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="h-16 flex items-center justify-between px-4 sm:px-5 border-b border-white/10 relative z-10 shrink-0">
+              <Link
+                href={rootPath}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 min-w-0 flex-1"
+              >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-amber-400/40 shrink-0"
                   style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_DARK})` }}
                 >
-                  <FatimiLogo size={24} variant="gold" />
+                  <FatimiLogo size={22} variant="gold" />
                 </div>
-                <div>
-                  <span className="font-bold text-white text-base leading-tight block">Darse Burhani</span>
-                  <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: "rgba(212,175,55,0.85)" }}>
-                    {subtitle}
+                <div className="min-w-0">
+                  <span className="font-display font-bold text-white text-base tracking-tight leading-tight block truncate">
+                    Darse Burhani
+                  </span>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/85 leading-tight truncate">
+                    {subtitle || "Al-Jamea tus-Saifiyah"}
                   </p>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-transform shrink-0 cursor-pointer"
                 aria-label="Close menu"
               >
                 <X className="w-4 h-4" />
@@ -621,22 +647,34 @@ export function PortalShell({
         sidebarCollapsed && "lg:ml-[76px]"
       )}>
         {/* Top Header Bar */}
-        <header className={cn("sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b", theme.border)}>
+        <header className={cn("sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b shadow-2xs", theme.border)}>
           {/* Gold accent line at top */}
           <div className="h-[2px] w-full" style={{ background: theme.headerLine }} />
 
           {/* ── Desktop Header (lg and up) ── */}
           <div className="h-16 hidden lg:flex items-center justify-between px-6">
-            {/* Left: Section title + search */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center fatimi-gold-accent shadow-sm shrink-0">
+            {/* Left: Section title + breadcrumb badge */}
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shadow-xs ring-1 ring-amber-400/30 shrink-0"
+                  style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
+                >
                   {activeItem?.icon ? <activeItem.icon className="w-4 h-4 text-white" /> : <Activity className="w-4 h-4 text-white" />}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-display font-bold text-gray-900 text-base truncate">{sectionTitle}</h2>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-display font-bold text-slate-900 text-base tracking-tight leading-tight truncate">
+                      {sectionTitle}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-800 border border-emerald-200/80 shrink-0">
+                      {roleLabel}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Command Palette Trigger */}
               {searchPlaceholder && (
                 <button
                   type="button"
@@ -646,37 +684,57 @@ export function PortalShell({
                     );
                   }}
                   className={cn(
-                    "flex items-center justify-between gap-3 rounded-xl px-3.5 py-2 w-64 border transition-all text-left group shadow-2xs bg-white/70",
+                    "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2 w-72 border transition-all text-left group shadow-2xs bg-slate-50/80 hover:bg-white hover:border-amber-400/40 cursor-pointer ml-2",
                     theme.border
                   )}
-                  title="Search or jump anywhere (Cmd+K / Ctrl+K)"
+                  title="Quick jump (⌘K / Ctrl+K)"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <Search
-                      className="w-3.5 h-3.5 group-hover:scale-110 transition-transform shrink-0"
-                      style={{ color: theme.breadcrumb }}
+                      className="w-4 h-4 text-emerald-700 group-hover:scale-110 transition-transform shrink-0"
                     />
-                    <span className="text-xs text-gray-500 truncate">{searchPlaceholder}</span>
+                    <span className="text-xs text-slate-500 font-medium truncate">{searchPlaceholder}</span>
                   </div>
-                  <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-gray-600 border border-gray-200 shadow-2xs shrink-0">
+                  <kbd className="px-1.5 py-0.5 rounded-lg bg-white text-[10px] font-mono font-bold text-slate-600 border border-slate-200 shadow-2xs shrink-0">
                     ⌘K
                   </kbd>
                 </button>
               )}
             </div>
 
-            {/* Right: notifications + profile */}
-            <div className="flex items-center gap-2">
+            {/* Right: Live IST Clock + Biometric Status + Notifications + Profile */}
+            <div className="flex items-center gap-3">
+              {/* Live IST Clock */}
+              {istTime && (
+                <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200/70 text-xs font-mono font-medium">
+                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{istTime}</span>
+                  <span className="text-[10px] text-slate-400 font-sans uppercase font-bold">IST</span>
+                </div>
+              )}
+
+              {/* Biometric Status Pill */}
+              <div
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[11px] font-bold"
+                title="Hikvision Biometric Terminals Active"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                </span>
+                <span>Scanners Live</span>
+              </div>
+
               <NotificationBell />
 
               {/* Profile Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className={cn("flex items-center gap-3 p-1.5 rounded-xl transition-colors", theme.hoverBg)}
+                  className={cn("flex items-center gap-2.5 p-1.5 rounded-2xl transition-all hover:bg-slate-100/80 border border-transparent hover:border-slate-200 cursor-pointer", theme.hoverBg)}
                 >
                   <Avatar
-                    className="w-9 h-9 ring-2 ring-white shadow-sm cursor-zoom-in"
+                    className="w-9 h-9 ring-2 ring-amber-400/40 shadow-xs cursor-zoom-in"
                     onClick={(e) => {
                       if (session?.user?.avatarUrl || session?.user?.role === "ADMIN") {
                         e.stopPropagation();
@@ -690,54 +748,54 @@ export function PortalShell({
                         alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User profile"}
                       />
                     )}
-                    <AvatarFallback className="text-white text-sm" style={avatarFallbackGradient}>
+                    <AvatarFallback className="text-white text-xs font-bold" style={avatarFallbackGradient}>
                       {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900 leading-tight">
+                  <div className="text-left hidden md:block">
+                    <p className="text-xs font-bold text-slate-900 leading-tight">
                       {session?.user?.firstName} {session?.user?.lastName}
                     </p>
-                    <p className="text-xs text-gray-500">{roleLabel}</p>
+                    <p className="text-[10px] text-slate-500 font-medium capitalize">{role.toLowerCase()}</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
 
                 {profileMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
-                    <div className={cn("absolute right-0 mt-2 w-56 bg-white rounded-xl border shadow-xl z-50 py-1.5 animate-fade-in overflow-hidden", theme.border)}>
+                    <div className={cn("absolute right-0 mt-2 w-60 bg-white rounded-2xl border shadow-xl z-50 py-1.5 animate-fade-in overflow-hidden", theme.border)}>
                       <div className="h-[2px] w-full" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
-                      <div className={cn("px-4 py-3 border-b", theme.border)}>
-                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5" style={{ color: theme.breadcrumb }} />
+                      <div className={cn("px-4 py-3 border-b bg-slate-50/50", theme.border)}>
+                        <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5 truncate">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                           {session?.user?.firstName} {session?.user?.lastName}
                         </p>
-                        <p className="text-xs text-gray-500 mt-0.5">{session?.user?.email}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{session?.user?.email}</p>
                       </div>
-                      <div className="px-2 py-1">
+                      <div className="px-2 py-1.5 space-y-0.5">
                         {profileLinks.map((link) => (
                           <Link
                             key={link.href}
                             href={link.href}
-                            className={cn("flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg transition-colors", theme.hoverBg)}
+                            className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <link.icon className="w-4 h-4" style={{ color: theme.breadcrumb }} />
+                            <link.icon className="w-4 h-4 text-emerald-700" />
                             {link.label}
                           </Link>
                         ))}
                         <Link
                           href={settingsHref}
-                          className={cn("flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg transition-colors", theme.hoverBg)}
+                          className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                           onClick={() => setProfileMenuOpen(false)}
                         >
-                          <Settings className="w-4 h-4" style={{ color: theme.breadcrumb }} />
+                          <Settings className="w-4 h-4 text-emerald-700" />
                           Settings
                         </Link>
                         <button
                           onClick={() => signOut({ callbackUrl: "/login" })}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full rounded-lg transition-colors"
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 w-full rounded-xl transition-colors cursor-pointer"
                         >
                           <LogOut className="w-4 h-4" />
                           Sign out
@@ -751,55 +809,55 @@ export function PortalShell({
           </div>
 
           {/* ── Mobile Premium App Header (below lg) ── */}
-          <div className="h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-emerald-950/10 shadow-xs">
-            {/* Left: Fatimi crest + Active page indicator + Live Clock */}
+          <div className="h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl">
+            {/* Left: Brand / Menu Trigger & Section Title */}
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-md ring-1 ring-amber-400/40 active:scale-95 transition-transform"
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ring-1 ring-amber-400/40 active:scale-95 transition-transform cursor-pointer"
                 style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
                 aria-label="Open navigation drawer"
               >
-                <FatimiLogo size={22} variant="gold" />
+                <FatimiLogo size={22} variant="gold" glow={true} />
               </button>
 
               <div className="flex flex-col min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-900 border border-amber-400/30 truncate">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/60 truncate">
                     {roleLabel}
                   </span>
                   {istTime && (
-                    <span className="text-[10px] text-emerald-800 font-mono font-semibold flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/60">
+                    <span className="hidden xs:inline-flex text-[9px] text-slate-600 font-mono font-semibold items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200/60">
                       <Clock className="w-2.5 h-2.5 text-emerald-600" />
                       {istTime}
                     </span>
                   )}
                 </div>
-                <h2 className="font-display font-bold text-gray-900 text-sm leading-tight truncate mt-0.5">
+                <h2 className="font-display font-bold text-slate-900 text-sm leading-tight truncate mt-0.5">
                   {sectionTitle}
                 </h2>
               </div>
             </div>
 
-            {/* Right: Quick Biometric status, search, notifications, profile */}
+            {/* Right: Quick Search, Notifications, Profile */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Live Biometric Pulse Indicator */}
+              {/* Live Biometric Pulse Dot */}
               <button
                 onClick={() => setQuickCommandOpen(!quickCommandOpen)}
-                className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 active:scale-95 transition-all text-[10px] font-bold"
+                className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 active:scale-95 transition-all text-[10px] font-bold cursor-pointer"
                 title="Hikvision Terminals Online"
               >
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                 </span>
-                <span className="hidden xs:inline">Live</span>
+                <span className="hidden sm:inline">Live</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleOpenSearch}
-                className="w-9 h-9 rounded-2xl flex items-center justify-center text-gray-700 hover:text-gray-950 bg-gray-100/90 hover:bg-gray-200/90 active:scale-90 transition-all cursor-pointer"
+                className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 active:scale-90 transition-all cursor-pointer"
                 aria-label="Quick search"
               >
                 <Search className="w-4 h-4 text-emerald-800" />
@@ -829,7 +887,7 @@ export function PortalShell({
                         alt={`${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || "User profile"}
                       />
                     )}
-                    <AvatarFallback className="text-white text-xs font-semibold" style={avatarFallbackGradient}>
+                    <AvatarFallback className="text-white text-xs font-bold" style={avatarFallbackGradient}>
                       {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
                     </AvatarFallback>
                   </Avatar>
@@ -838,38 +896,38 @@ export function PortalShell({
                 {profileMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
-                    <div className={cn("absolute right-0 mt-2 w-56 bg-white rounded-3xl border shadow-2xl z-50 py-2 animate-fade-in overflow-hidden", theme.border)}>
+                    <div className={cn("absolute right-0 mt-2 w-56 bg-white rounded-2xl border shadow-2xl z-50 py-2 animate-fade-in overflow-hidden", theme.border)}>
                       <div className="h-[2px] w-full" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
-                      <div className={cn("px-4 py-3 border-b", theme.border)}>
-                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5" style={{ color: theme.breadcrumb }} />
+                      <div className={cn("px-4 py-3 border-b bg-slate-50/50", theme.border)}>
+                        <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5 truncate">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                           {session?.user?.firstName} {session?.user?.lastName}
                         </p>
-                        <p className="text-xs text-gray-500 mt-0.5">{session?.user?.email}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate">{session?.user?.email}</p>
                       </div>
-                      <div className="px-2 py-1">
+                      <div className="px-2 py-1 space-y-0.5">
                         {profileLinks.map((link) => (
                           <Link
                             key={link.href}
                             href={link.href}
-                            className={cn("flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg transition-colors", theme.hoverBg)}
+                            className={cn("flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <link.icon className="w-4 h-4" style={{ color: theme.breadcrumb }} />
+                            <link.icon className="w-4 h-4 text-emerald-700" />
                             {link.label}
                           </Link>
                         ))}
                         <Link
                           href={settingsHref}
-                          className={cn("flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg transition-colors", theme.hoverBg)}
+                          className={cn("flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                           onClick={() => setProfileMenuOpen(false)}
                         >
-                          <Settings className="w-4 h-4" style={{ color: theme.breadcrumb }} />
+                          <Settings className="w-4 h-4 text-emerald-700" />
                           Settings
                         </Link>
                         <button
                           onClick={() => signOut({ callbackUrl: "/login" })}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full rounded-lg transition-colors"
+                          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 w-full rounded-xl transition-colors cursor-pointer"
                         >
                           <LogOut className="w-4 h-4" />
                           Sign out
@@ -905,6 +963,10 @@ export function PortalShell({
             <div className="relative z-10 min-w-0">
               <Outlet />
             </div>
+          </div>
+          {/* Institutional Footer */}
+          <div className="relative z-10 mt-8">
+            <InstitutionalFooter variant="minimal" />
           </div>
         </main>
 

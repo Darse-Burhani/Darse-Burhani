@@ -121,6 +121,8 @@ async function fetchAllTodayEvents(dev) {
   let position = 0;
   const pageSize = 50;
   const allEvents = [];
+  const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const todayIso = nowIST; // YYYY-MM-DD in IST
 
   while (true) {
     const acsPayload = JSON.stringify({
@@ -130,8 +132,8 @@ async function fetchAllTodayEvents(dev) {
         maxResults: pageSize,
         major: 0,
         minor: 0,
-        startTime: "2026-09-21T00:00:00+05:30",
-        endTime: "2026-09-21T23:59:59+05:30",
+        startTime: `${todayIso}T00:00:00+05:30`,
+        endTime: `${todayIso}T23:59:59+05:30`,
       }
     });
 
@@ -235,6 +237,26 @@ async function processScan(empNo, scanDate, host, verifyMode) {
         checkInTime: scanDate,
       }
     });
+
+    // Also forward to Render Webhook API so Render server live cache, stats & SSE are immediately refreshed
+    try {
+      const renderUrl = (process.env.RENDER_URL || 'https://darse-burhani.onrender.com').replace(/\/+$/, '');
+      const pushPayload = {
+        fingerprint: empNo,
+        timestamp: scanDate.toISOString(),
+        deviceId: `hikvision:${host}`,
+        verifyMode: verifyMode || "FACIAL",
+      };
+      await fetch(`${renderUrl}/api/hikvision/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pushPayload),
+      });
+      console.log(`     🌐 Pushed to Render Cloud Webhook: ${empNo} (${timeStr})`);
+    } catch (pushErr) {
+      console.warn(`     ⚠️ Render push notice: ${pushErr.message}`);
+    }
+
     return true;
   }
 
@@ -267,8 +289,28 @@ async function processScan(empNo, scanDate, host, verifyMode) {
       },
       update: {
         checkInTime: scanDate,
-      }
+      },
     });
+
+    // Also forward to Render Webhook API so Render server live cache, stats & SSE are immediately refreshed
+    try {
+      const renderUrl = (process.env.RENDER_URL || 'https://darse-burhani.onrender.com').replace(/\/+$/, '');
+      const pushPayload = {
+        fingerprint: empNo,
+        timestamp: scanDate.toISOString(),
+        deviceId: `hikvision:${host}`,
+        verifyMode: verifyMode || "FACIAL",
+      };
+      await fetch(`${renderUrl}/api/hikvision/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pushPayload),
+      });
+      console.log(`     🌐 Pushed to Render Cloud Webhook: ${empNo} (${timeStr})`);
+    } catch (pushErr) {
+      console.warn(`     ⚠️ Render push notice: ${pushErr.message}`);
+    }
+
     return true;
   }
 
