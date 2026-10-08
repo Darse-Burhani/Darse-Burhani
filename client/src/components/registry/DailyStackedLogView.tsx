@@ -52,25 +52,6 @@ interface DailyStackedLogViewProps {
 
 type TabType = "ALL" | "PRESENT" | "LATE" | "MEDICAL" | "ON_LEAVE" | "ABSENT" | "NOT_MARKED";
 
-const sourceBadgeConfig: Record<
-  string,
-  { label: string; icon: React.ElementType; color: string; badgeBg: string }
-> = {
-  SCAN: { label: "Card Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black" },
-  BIOMETRIC: { label: "Card Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black" },
-  MANUAL: { label: "Manual Roll-Call", icon: UserCheck, color: "text-blue-700", badgeBg: "bg-blue-50 text-blue-800 border-blue-300 font-black" },
-  AUTO_ABSENT: { label: "Auto Absent", icon: Bot, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200 font-bold" },
-  MEDICAL_LEAVE: { label: "Medical", icon: Stethoscope, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200 font-bold" },
-  LEAVE_APPROVED: { label: "Leave", icon: FileCheck2, color: "text-amber-700", badgeBg: "bg-amber-50 text-amber-800 border-amber-200 font-bold" },
-};
-
-function getRecordMethodBadge(r: AttendanceLogRecordItem) {
-  if (r.source === "SCAN" || r.source === "BIOMETRIC") {
-    return sourceBadgeConfig.SCAN;
-  }
-  return sourceBadgeConfig[r.source] || sourceBadgeConfig.MANUAL;
-}
-
 function formatPreciseScanTime(isoTime?: string | null) {
   if (!isoTime) return null;
   const d = new Date(isoTime);
@@ -179,18 +160,13 @@ function AttendanceTableView({
               <th scope="col" className="px-3 py-3 font-mono">{isFaculty ? "Employee ID" : "ITS / ID"}</th>
               <th scope="col" className="px-3 py-3">{isFaculty ? "Department / Roles" : "Grade & Section"}</th>
               <th scope="col" className="px-3 py-3">Check-in Time</th>
-              <th scope="col" className="px-3 py-3">Event / Window</th>
               <th scope="col" className="px-3 py-3 text-center">Status</th>
-              <th scope="col" className="px-3 py-3 text-center">Verification</th>
               <th scope="col" className="px-4 py-3">Notes / Leave Reason</th>
               <th scope="col" className="px-3 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 font-medium">
             {records.map((r, i) => {
-              const cfg = sourceBadgeConfig[r.source] || sourceBadgeConfig.SCAN;
-              const SourceIcon = cfg.icon;
-
               return (
                 <tr
                   key={r.id || r.memberId || i}
@@ -258,31 +234,6 @@ function AttendanceTableView({
                     })()}
                   </td>
 
-                  {/* Event Window */}
-                  <td className="px-3 py-2.5 text-gray-700">
-                    {r.scheduledEvent ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-gray-900">{r.scheduledEvent.name}</span>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] font-mono text-gray-500">{r.scheduledEvent.timeWindow}</span>
-                          {r.scheduledEvent.audience && (
-                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
-                              r.scheduledEvent.audience === "FACULTY"
-                                ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                : r.scheduledEvent.audience === "BOTH"
-                                ? "bg-teal-50 text-teal-700 border border-teal-200"
-                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            }`}>
-                              {r.scheduledEvent.audience === "FACULTY" ? "Faculty" : r.scheduledEvent.audience === "BOTH" ? "Both" : "Talabat"}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 font-normal text-[11px]">—</span>
-                    )}
-                  </td>
-
                   {/* Status Chip */}
                   <td className="px-3 py-2.5 text-center">
                     <span
@@ -309,22 +260,8 @@ function AttendanceTableView({
                     </span>
                   </td>
 
-                  {/* Source / Method */}
-                  <td className="px-3 py-2.5 text-center">
-                    {(() => {
-                      const methodBadge = getRecordMethodBadge(r);
-                      const MethodIcon = methodBadge.icon;
-                      return (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] border ${methodBadge.badgeBg}`}>
-                          <MethodIcon className="w-3 h-3 shrink-0" />
-                          {methodBadge.label}
-                        </span>
-                      );
-                    })()}
-                  </td>
-
                   {/* Notes / Leave Reason */}
-                  <td className="px-4 py-2.5 text-gray-600 max-w-[220px] truncate">
+                  <td className="px-4 py-2.5 text-gray-600 max-w-[260px] truncate">
                     {r.remarks ? (
                       <span className="italic text-gray-800 font-medium">“{r.remarks}”</span>
                     ) : (
@@ -439,55 +376,20 @@ function AttendanceGridView({
                   </span>
                 </div>
 
-                <div className="space-y-1.5 pt-1 border-t border-gray-100">
-                  {r.scheduledEvent && (
-                    <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-gray-200/60">
-                      <span className="text-gray-500 font-semibold">Event Window</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-black text-[10px] border ${isFaculty ? "bg-indigo-50 text-indigo-900 border-indigo-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
-                          <Sparkles className={`w-2.5 h-2.5 ${isFaculty ? "text-indigo-600" : "text-emerald-600"}`} />
-                          {r.scheduledEvent.name}
-                        </span>
-                        {r.scheduledEvent.audience && (
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
-                            r.scheduledEvent.audience === "FACULTY"
-                              ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                              : r.scheduledEvent.audience === "BOTH"
-                              ? "bg-teal-100 text-teal-800 border border-teal-200"
-                              : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          }`}>
-                            {r.scheduledEvent.audience === "FACULTY" ? "Faculty" : r.scheduledEvent.audience === "BOTH" ? "Both" : "Talabat"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {(() => {
-                    const methodBadge = getRecordMethodBadge(r);
-                    const MethodIcon = methodBadge.icon;
-                    return (
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-gray-500 font-semibold">Method / Source</span>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[10px] border ${methodBadge.badgeBg}`}>
-                          <MethodIcon className="w-3 h-3 shrink-0" />
-                          {methodBadge.label}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                <div className="space-y-2 pt-1 border-t border-gray-100">
                   {(() => {
                     const formatted = formatPreciseScanTime(r.checkInTime);
                     if (!formatted) {
                       return (
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-semibold">Scan Timestamp</span>
+                          <span className="text-gray-500 font-semibold">Check-in Time</span>
                           <span className="font-medium text-gray-400">— not scanned</span>
                         </div>
                       );
                     }
                     return (
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-gray-500 font-semibold">Scan Timestamp</span>
+                        <span className="text-gray-500 font-semibold">Check-in Time</span>
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono font-bold text-gray-900 tabular-nums">
                             {formatted.timeStr} IST
