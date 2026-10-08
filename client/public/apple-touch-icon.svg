@@ -1,28 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="100%" height="100%">
   <defs>
-    <linearGradient id="dbGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fbbf24" />
+    <!-- Royal Fatimi 3D Gold Gradient -->
+    <linearGradient id="dbAppleGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" />
+      <stop offset="25%" stop-color="#fde047" />
       <stop offset="50%" stop-color="#d4af37" />
-      <stop offset="100%" stop-color="#b8860b" />
+      <stop offset="85%" stop-color="#b8860b" />
+      <stop offset="100%" stop-color="#78350f" />
     </linearGradient>
-    <radialGradient id="dbEmeraldGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#059669" stop-opacity="0.95" />
-      <stop offset="100%" stop-color="#022c22" stop-opacity="1" />
+    <linearGradient id="dbAppleBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#92400e" />
+    </linearGradient>
+    <!-- Deep Imperial Emerald Background -->
+    <radialGradient id="dbAppleEmerald" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#065f46" />
+      <stop offset="45%" stop-color="#022c22" />
+      <stop offset="80%" stop-color="#011a14" />
+      <stop offset="100%" stop-color="#01120e" />
     </radialGradient>
+    <filter id="dbAppleShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.7" />
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#d4af37" flood-opacity="0.35" />
+    </filter>
   </defs>
 
-  <!-- Background Shield with rounded corners -->
-  <rect width="180" height="180" rx="42" fill="url(#dbEmeraldGlow)" stroke="#d4af37" stroke-width="3" />
+  <!-- 3D Beveled Shield Base -->
+  <rect x="8" y="8" width="164" height="164" rx="44" fill="url(#dbAppleEmerald)" stroke="url(#dbAppleBorder)" stroke-width="4" filter="url(#dbAppleShadow)" />
+  
+  <!-- Inset Bevel Ring -->
+  <rect x="14" y="14" width="152" height="152" rx="38" fill="none" stroke="#fde047" stroke-width="1.2" opacity="0.4" />
 
-  <!-- Outer Diamond -->
-  <path d="M90 24L156 90L90 156L24 90Z" fill="none" stroke="url(#dbGold)" stroke-width="3" opacity="0.6" />
+  <!-- 8-Pointed Star (Rub-el-Hizb) -->
+  <path
+    d="M90 24 L107 52 L141 52 L127 80 L158 90 L127 100 L141 128 L107 128 L90 156 L73 128 L39 128 L53 100 L22 90 L53 80 L39 52 L73 52 Z"
+    fill="none"
+    stroke="url(#dbAppleGold)"
+    stroke-width="3.5"
+    stroke-linejoin="round"
+  />
 
-  <!-- 8-Pointed Star (Rub el Hizb) -->
-  <path d="M90 34L104 76L146 90L104 104L90 146L76 104L34 90L76 76Z" fill="none" stroke="url(#dbGold)" stroke-width="4.5" />
+  <!-- Interlocking Rotated Diamond & Square -->
+  <rect x="48" y="48" width="84" height="84" transform="rotate(45 90 90)" fill="none" stroke="url(#dbAppleGold)" stroke-width="2.2" opacity="0.75" />
+  <rect x="48" y="48" width="84" height="84" fill="none" stroke="url(#dbAppleGold)" stroke-width="2.2" opacity="0.75" />
 
-  <!-- Central Core Star -->
-  <path d="M90 56L99 81L124 90L99 99L90 124L81 99L56 90L81 81Z" fill="url(#dbGold)" />
+  <!-- Inner Concentric Ring -->
+  <circle cx="90" cy="90" r="28" fill="none" stroke="url(#dbAppleGold)" stroke-width="2.8" />
+  <circle cx="90" cy="90" r="22" fill="#022c22" stroke="url(#dbAppleBorder)" stroke-width="1.5" />
 
-  <!-- Core Jewel -->
-  <circle cx="90" cy="90" r="8" fill="#ffffff" opacity="0.95" />
+  <!-- Core Starburst -->
+  <path
+    d="M90 68 L96 84 L112 90 L96 96 L90 112 L84 96 L68 90 L84 84 Z"
+    fill="url(#dbAppleGold)"
+  />
+
+  <!-- Brilliant Center Jewel -->
+  <circle cx="90" cy="90" r="5" fill="#ffffff" />
+  <circle cx="90" cy="90" r="2.8" fill="#d4af37" />
+
+  <!-- Cardinal Accents -->
+  <circle cx="90" cy="28" r="2.8" fill="#fde047" />
+  <circle cx="152" cy="90" r="2.8" fill="#fde047" />
+  <circle cx="90" cy="152" r="2.8" fill="#fde047" />
+  <circle cx="28" cy="90" r="2.8" fill="#fde047" />
 </svg>

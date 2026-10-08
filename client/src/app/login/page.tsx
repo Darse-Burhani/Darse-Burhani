@@ -551,27 +551,43 @@ export default function LoginPage() {
 
               <div className="relative">
                 {/* ENLARGED LOGO & BRAND HEADER */}
-                <div className="inline-flex items-center rounded-2xl bg-white p-3 pr-6 shadow-[0_12px_36px_rgba(0,0,0,0.38)] ring-2 ring-white/80 transition-transform duration-200 hover:scale-[1.02]">
-                  {!logoFailed ? (
-                    <img
-                      src="/logo.png"
-                      alt="Darse Burhani logo"
-                      onError={() => setLogoFailed(true)}
-                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-contain shrink-0 p-1"
-                      draggable={false}
-                      loading="eager"
-                    />
-                  ) : (
-                    <span className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-xl bg-emerald-900 text-3xl font-serif font-extrabold text-amber-300 shrink-0">
-                      DB
-                    </span>
-                  )}
+                <div
+                  className="inline-flex items-center rounded-2xl p-3 pr-6 shadow-[0_16px_40px_rgba(0,0,0,0.45)] ring-1 ring-amber-400/40 backdrop-blur-xl transition-transform duration-200 hover:scale-[1.02]"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(2,44,34,0.85) 0%, rgba(6,78,59,0.75) 50%, rgba(1,26,20,0.9) 100%)",
+                    border: "1px solid rgba(254,240,138,0.3)",
+                  }}
+                >
+                  <div
+                    className="relative flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl p-2 shadow-md ring-1 ring-amber-400/50"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 35% 30%, #065f46 0%, #022c22 70%, #01140e 100%)",
+                      boxShadow: "inset 0 1px 2px rgba(254,240,138,0.5), 0 4px 12px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {!logoFailed ? (
+                      <img
+                        src="/logo.png"
+                        alt="Darse Burhani logo"
+                        onError={() => setLogoFailed(true)}
+                        className="h-full w-full object-contain filter brightness-[1.08] drop-shadow-[0_2px_8px_rgba(212,175,55,0.6)]"
+                        draggable={false}
+                        loading="eager"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center rounded-xl bg-emerald-900 text-3xl font-serif font-extrabold text-amber-300">
+                        DB
+                      </span>
+                    )}
+                  </div>
                   <div className="ml-4 flex flex-col justify-center">
-                    <span className="font-serif text-[26px] sm:text-[32px] font-extrabold tracking-tight text-[#0b2e23] leading-none">
-                      Darse Burhani <span className="text-emerald-800 text-[22px] sm:text-[26px] font-bold">(Nisab)</span>
+                    <span className="font-serif text-[26px] sm:text-[32px] font-extrabold tracking-tight text-white leading-none drop-shadow-sm">
+                      Darse Burhani <span className="text-amber-400 text-[22px] sm:text-[26px] font-bold">(Nisab)</span>
                     </span>
-                    <span className="mt-2 text-[12px] sm:text-[13px] font-extrabold uppercase tracking-[0.2em] text-emerald-800 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shadow-xs" />
+                    <span className="mt-2 text-[12px] sm:text-[13px] font-extrabold uppercase tracking-[0.2em] text-amber-300/90 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fde047]" />
                       Mahad al Zahra
                     </span>
                   </div>

@@ -51,7 +51,7 @@
     <link rel="preload" href="/logo.png" as="image" type="image/png" />
 
     <style>
-      /* Pre-boot instant splash screen style (Replaced seamlessly when React mounts) */
+      /* Pre-boot instant 3D splash screen style (Replaced seamlessly when React mounts) */
       #db-preboot-splash {
         position: fixed;
         inset: 0;
@@ -60,68 +60,104 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle at center, #022c22 0%, #011a14 70%, #01120e 100%);
+        background: radial-gradient(circle at 50% 45%, #022c22 0%, #011d16 55%, #010f0c 100%);
         color: #ffffff;
         font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
         overflow: hidden;
+        perspective: 1200px;
       }
       .db-splash-glow {
         position: absolute;
-        width: 320px;
-        height: 320px;
+        width: 450px;
+        height: 450px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(212, 175, 55, 0.22) 0%, rgba(4, 120, 87, 0.15) 50%, transparent 75%);
-        filter: blur(28px);
+        background: radial-gradient(circle, rgba(212, 175, 55, 0.28) 0%, rgba(5, 150, 105, 0.18) 50%, transparent 75%);
+        filter: blur(40px);
         animation: dbPulse 2.8s ease-in-out infinite alternate;
+      }
+      .db-splash-stage {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform-style: preserve-3d;
       }
       .db-splash-halo {
         position: relative;
-        width: 96px;
-        height: 96px;
-        border-radius: 50%;
+        width: 140px;
+        height: 140px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 0 35px rgba(212, 175, 55, 0.35);
+        transform-style: preserve-3d;
       }
-      .db-splash-halo::before {
-        content: '';
+      .db-splash-ring-1 {
         position: absolute;
-        inset: -6px;
+        width: 180px;
+        height: 180px;
         border-radius: 50%;
-        border: 2px dashed rgba(212, 175, 55, 0.5);
-        animation: dbRotate 12s linear infinite;
+        border: 2px dashed rgba(212, 175, 55, 0.45);
+        transform: rotateX(68deg) rotateY(-18deg);
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.25);
+        animation: dbRotateRing 10s linear infinite;
+      }
+      .db-splash-ring-2 {
+        position: absolute;
+        width: 155px;
+        height: 155px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(52, 211, 153, 0.35);
+        transform: rotateX(-62deg) rotateY(24deg);
+        animation: dbCounterRotateRing 14s linear infinite;
+      }
+      .db-splash-medallion {
+        position: relative;
+        z-index: 20;
+        width: 110px;
+        height: 110px;
+        border-radius: 28px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, #065f46 0%, #022c22 60%, #01140e 100%);
+        border: 2px solid rgba(254, 240, 138, 0.45);
+        box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.85), 0 0 30px rgba(212, 175, 55, 0.4), inset 0 2px 4px rgba(254, 240, 138, 0.7);
+        transform: translateZ(30px);
+        animation: dbFloat 3s ease-in-out infinite alternate;
       }
       .db-splash-logo {
-        width: 80px;
-        height: 80px;
+        width: 100%;
+        height: 100%;
         object-fit: contain;
-        filter: drop-shadow(0 4px 14px rgba(212, 175, 55, 0.45));
-        animation: dbBreathe 2.4s ease-in-out infinite;
+        filter: brightness(1.08) drop-shadow(0 6px 16px rgba(212, 175, 55, 0.65));
       }
       .db-splash-title {
         margin-top: 24px;
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 800;
         letter-spacing: -0.02em;
-        background: linear-gradient(135deg, #ffffff 0%, #fde047 50%, #d4af37 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #fef08a 40%, #d4af37 75%, #b45309 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        text-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
       }
       .db-splash-sub {
-        margin-top: 4px;
+        margin-top: 5px;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: rgba(212, 175, 55, 0.85);
+        letter-spacing: 0.25em;
+        color: rgba(253, 224, 71, 0.9);
       }
       .db-splash-bar-track {
         margin-top: 24px;
-        width: 140px;
-        height: 3px;
+        width: 180px;
+        height: 5px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(52, 211, 153, 0.25);
         overflow: hidden;
         position: relative;
       }
@@ -130,16 +166,21 @@
         height: 100%;
         width: 45%;
         border-radius: 999px;
-        background: linear-gradient(90deg, #d4af37, #fef08a, #10b981);
-        animation: dbBar 1.2s ease-in-out infinite;
+        background: linear-gradient(90deg, #d4af37, #fef08a, #34d399);
+        box-shadow: 0 0 12px rgba(212, 175, 55, 0.9);
+        animation: dbBar 1.3s ease-in-out infinite;
       }
-      @keyframes dbRotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+      @keyframes dbRotateRing {
+        from { transform: rotateX(68deg) rotateY(-18deg) rotateZ(0deg); }
+        to { transform: rotateX(68deg) rotateY(-18deg) rotateZ(360deg); }
       }
-      @keyframes dbBreathe {
-        0%, 100% { transform: scale(1); opacity: 0.95; }
-        50% { transform: scale(1.06); opacity: 1; }
+      @keyframes dbCounterRotateRing {
+        from { transform: rotateX(-62deg) rotateY(24deg) rotateZ(0deg); }
+        to { transform: rotateX(-62deg) rotateY(24deg) rotateZ(-360deg); }
+      }
+      @keyframes dbFloat {
+        0% { transform: translateY(-3px) translateZ(30px); }
+        100% { transform: translateY(3px) translateZ(30px); }
       }
       @keyframes dbPulse {
         from { transform: scale(0.9); opacity: 0.6; }
@@ -157,13 +198,19 @@
       <!-- Instant preboot display until React bundle executes -->
       <div id="db-preboot-splash">
         <div class="db-splash-glow"></div>
-        <div class="db-splash-halo">
-          <img src="/logo.png" alt="Darse Burhani Logo" class="db-splash-logo" />
-        </div>
-        <div class="db-splash-title">Darse Burhani (Nisab)</div>
-        <div class="db-splash-sub">Mahad al Zahra</div>
-        <div class="db-splash-bar-track">
-          <div class="db-splash-bar-thumb"></div>
+        <div class="db-splash-stage">
+          <div class="db-splash-halo">
+            <div class="db-splash-ring-1"></div>
+            <div class="db-splash-ring-2"></div>
+            <div class="db-splash-medallion">
+              <img src="/logo.png" alt="Darse Burhani Emblem" class="db-splash-logo" />
+            </div>
+          </div>
+          <div class="db-splash-title">Darse Burhani (Nisab)</div>
+          <div class="db-splash-sub">Mahad al Zahra</div>
+          <div class="db-splash-bar-track">
+            <div class="db-splash-bar-thumb"></div>
+          </div>
         </div>
       </div>
     </div>
