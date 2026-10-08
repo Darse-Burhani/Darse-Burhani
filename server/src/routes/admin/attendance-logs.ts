@@ -15,13 +15,23 @@ import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIS
 
 const router = Router();
 
-// Match check-in timestamp to scheduled scan event (unified model: a scan
-// belongs to an event when inside EITHER its Talabat timer or faculty timer)
+// Match check-in timestamp to scheduled scan event strictly for the member's specific role
 function matchScheduledEvent(
   checkInTime: Date | string | null | undefined,
-  windows: Array<{ id: string; name: string; startTime: string; endTime: string; lateEndTime?: string | null; enabled: boolean; facultyStartTime?: string | null; facultyEndTime?: string | null; facultyLateEndTime?: string | null; facultyEnabled?: boolean }>,
+  windows: Array<{
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    lateEndTime?: string | null;
+    enabled: boolean;
+    facultyStartTime?: string | null;
+    facultyEndTime?: string | null;
+    facultyLateEndTime?: string | null;
+    facultyEnabled?: boolean;
+  }>,
   isFaculty: boolean
-): { id: string; name: string; timeWindow: string } | null {
+): { id: string; name: string; timeWindow: string; audience: string } | null {
   if (!checkInTime) return null;
   const d = new Date(checkInTime);
   if (Number.isNaN(d.getTime())) return null;
@@ -29,12 +39,12 @@ function matchScheduledEvent(
   // Convert to IST minutes
   const istMinutes = (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
 
+  // Strictly evaluate windows for THIS member's role only
   const inWindow = windows.filter((w) => {
     if (!w.enabled) return false;
-    const primary = eventRangeForRole(w, isFaculty ? "TEACHER" : "STUDENT");
-    if (primary && primary.enabled && istMinutes >= primary.startMin && istMinutes <= primary.lateMin) return true;
-    const secondary = eventRangeForRole(w, isFaculty ? "STUDENT" : "TEACHER");
-    return Boolean(secondary && secondary.enabled && istMinutes >= secondary.startMin && istMinutes <= secondary.lateMin);
+    const range = eventRangeForRole(w as any, isFaculty ? "TEACHER" : "STUDENT");
+    if (!range || !range.enabled) return false;
+    return istMinutes >= range.startMin && istMinutes <= range.lateMin;
   });
 
   if (inWindow.length === 0) {
@@ -42,19 +52,29 @@ function matchScheduledEvent(
       id: "general",
       name: "General Session",
       timeWindow: "Standard Hours",
+      audience: isFaculty ? "FACULTY" : "STUDENT",
     };
   }
 
-  const matched =
-    inWindow.find((w) => {
-      if (hasFacultyTimer(w as any) || isLegacyFacultyRow(w as any)) return true;
-      return !isFaculty;
-    }) || inWindow[0];
+  const matched = inWindow[0];
+  const ww = matched as any;
+  const isTilawat = /tilawat/i.test(matched.name);
+  const eventAudience = isTilawat
+    ? "FACULTY"
+    : isLegacyFacultyRow(ww)
+    ? "FACULTY"
+    : hasFacultyTimer(ww)
+    ? "BOTH"
+    : "STUDENT";
 
   return {
     id: matched.id,
     name: matched.name,
-    timeWindow: `${matched.startTime} - ${matched.lateEndTime ?? matched.endTime}`,
+    timeWindow:
+      isFaculty && ww.facultyStartTime
+        ? `${ww.facultyStartTime} - ${ww.facultyLateEndTime || ww.facultyEndTime}`
+        : `${matched.startTime} - ${matched.lateEndTime || matched.endTime}`,
+    audience: eventAudience,
   };
 }
 
@@ -73,7 +93,13 @@ router.get("/events", requireAuth, async (req, res) => {
       const isTilawatDua = /tilawat/i.test(w.name);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
-      const audience = isTilawatDua ? "FACULTY" : legacyFaculty ? "FACULTY" : unifiedFaculty ? "BOTH" : "ALL_STUDENTS";
+      const audience: "FACULTY" | "BOTH" | "STUDENT" = isTilawatDua
+        ? "FACULTY"
+        : legacyFaculty
+        ? "FACULTY"
+        : unifiedFaculty
+        ? "BOTH"
+        : "STUDENT";
 
       const studentRange = eventRangeForRole(ww, "STUDENT");
       const facultyRange = eventRangeForRole(ww, "TEACHER");
@@ -141,12 +167,34 @@ router.get("/", requireAuth, async (req, res) => {
       orderBy: { startTime: "asc" },
     });
 
+    const selectedWindow = eventWindowId && eventWindowId !== "ALL" ? windows.find((w) => w.id === eventWindowId) : null;
     const isTilawatFilter = Boolean(
       eventWindowId &&
-      (eventWindowId === "default" || windows.some((w) => w.id === eventWindowId && /tilawat/i.test(w.name)))
+      (eventWindowId === "default" || (selectedWindow && /tilawat/i.test(selectedWindow.name)))
+    );
+    const isFacultyOnlyWindow = Boolean(
+      isTilawatFilter ||
+      (selectedWindow && (isLegacyFacultyRow(selectedWindow as any) || ((selectedWindow as any).facultyEnabled && !selectedWindow.enabled)))
+    );
+    const isStudentOnlyWindow = Boolean(
+      selectedWindow && !isFacultyOnlyWindow && !hasFacultyTimer(selectedWindow as any)
+    );
+    const isBothWindow = Boolean(
+      selectedWindow && !isFacultyOnlyWindow && hasFacultyTimer(selectedWindow as any)
     );
 
-    // 1. Fetch Students (unless Tilawat Dua is active which is Faculty-only)
+    // Strict effective audience resolution
+    let effectiveAudience = audience;
+    if (isFacultyOnlyWindow) {
+      effectiveAudience = "FACULTY";
+    } else if (isStudentOnlyWindow) {
+      effectiveAudience = "STUDENT";
+    }
+
+    const shouldFetchStudents = !isFacultyOnlyWindow && (effectiveAudience === "STUDENT" || effectiveAudience === "ALL");
+    const shouldFetchFaculty = isFacultyOnlyWindow || effectiveAudience === "FACULTY" || effectiveAudience === "ALL";
+
+    // 1. Fetch Students (unless window is Faculty-only)
     const studentWhere: any = {
       user: { isActive: true },
     };
@@ -170,7 +218,7 @@ router.get("/", requireAuth, async (req, res) => {
     }
 
     let studentRecords: any[] = [];
-    if (!isTilawatFilter && (audience === "STUDENT" || audience === "ALL")) {
+    if (shouldFetchStudents) {
       const students = await prisma.studentProfile.findMany({
         where: studentWhere,
         include: {
@@ -284,7 +332,7 @@ router.get("/", requireAuth, async (req, res) => {
 
     // 2. Fetch Faculty / Teachers (includes Tilawat Dua scanning)
     let facultyRecords: any[] = [];
-    if (isTilawatFilter || audience === "FACULTY" || audience === "ALL") {
+    if (shouldFetchFaculty) {
       const teacherWhere: any = {
         user: { isActive: true },
       };
@@ -353,12 +401,16 @@ router.get("/", requireAuth, async (req, res) => {
       });
     }
 
-    // For Tilawat Dua, show faculty scanning attendance only
-    if (isTilawatFilter) {
+    // For Tilawat Dua or Faculty-only windows, show faculty scanning attendance only
+    if (isTilawatFilter || isFacultyOnlyWindow) {
       facultyRecords = facultyRecords.filter((r) => r.source === "SCAN" || r.status !== "NOT_MARKED" || !logType || logType === "ALL" || logType === "HIKVISION");
     }
 
-    const allRecords = isTilawatFilter ? facultyRecords : [...studentRecords, ...facultyRecords];
+    const allRecords = isFacultyOnlyWindow
+      ? facultyRecords
+      : isStudentOnlyWindow
+      ? studentRecords
+      : [...studentRecords, ...facultyRecords];
 
     // Strict Segregation: Scanned Card Logs (Hikvision) vs Manual Classroom Logs
     const isHikScan = (r: (typeof allRecords)[0]) => (r.source === "SCAN" || r.source === "BIOMETRIC") && Boolean(r.checkInTime);
@@ -378,7 +430,16 @@ router.get("/", requireAuth, async (req, res) => {
 
     // 3. Filter by Event Window if specified
     if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
-      filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId || (isTilawatFilter && r.role === "FACULTY"));
+      if (logType === "HIKVISION") {
+        filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId);
+      } else {
+        filteredRecords = filteredRecords.filter((r) => {
+          if (r.scheduledEvent?.id === eventWindowId) return true;
+          if (isFacultyOnlyWindow) return r.role === "FACULTY";
+          if (isStudentOnlyWindow) return r.role === "STUDENT";
+          return true;
+        });
+      }
     }
 
     // Filter by Status
@@ -453,10 +514,13 @@ router.get("/", requireAuth, async (req, res) => {
         hikvisionSummary,
         manualSummary,
         eventLiveCounts,
-        audience: isTilawatFilter ? "FACULTY" : audience,
+        audience: effectiveAudience,
         logType,
         isTeacherView: isTeacher,
         isTilawatDua: isTilawatFilter,
+        isFacultyOnly: isFacultyOnlyWindow,
+        isStudentOnly: isStudentOnlyWindow,
+        selectedEventAudience: isFacultyOnlyWindow ? "FACULTY" : isStudentOnlyWindow ? "STUDENT" : isBothWindow ? "BOTH" : null,
         filters: {
           grades: distinctGrades,
           sections: distinctSections,

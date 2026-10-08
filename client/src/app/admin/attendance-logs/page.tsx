@@ -403,10 +403,36 @@ export default function AdminAttendanceLogsPage() {
   });
 
   const totalLiveCount = data?.summary.total ?? 0;
+  const activeEvent = events.find((e) => e.id === selectedEventId);
+  const isFacultyOnlyEvent = Boolean(
+    selectedEventId !== "ALL" && (
+      (data as any)?.isFacultyOnly ||
+      (data as any)?.isTilawatDua ||
+      (activeEvent && (activeEvent.audience === "FACULTY" || /tilawat/i.test(activeEvent.name)))
+    )
+  );
+  const isStudentOnlyEvent = Boolean(
+    selectedEventId !== "ALL" && (
+      (data as any)?.isStudentOnly ||
+      (activeEvent && (activeEvent.audience === "ALL_STUDENTS" || activeEvent.audience === "STUDENT"))
+    )
+  );
   const isTilawatSelected = Boolean(
     data?.isTilawatDua ||
-    events.find((e) => e.id === selectedEventId && /tilawat/i.test(e.name))
+    (activeEvent && /tilawat/i.test(activeEvent.name))
   );
+
+  const handleSelectEvent = (eventId: string) => {
+    setSelectedEventId(eventId);
+    if (eventId === "ALL") return;
+    const ev = events.find((e) => e.id === eventId);
+    if (!ev) return;
+    if (ev.audience === "FACULTY" || /tilawat/i.test(ev.name)) {
+      setAudience("FACULTY");
+    } else if (ev.audience === "ALL_STUDENTS" || ev.audience === "STUDENT") {
+      setAudience("STUDENT");
+    }
+  };
 
   return (
     <div className="p-3 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
@@ -628,7 +654,30 @@ export default function AdminAttendanceLogsPage() {
             {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
           </div>
 
-          {!isTilawatSelected && (
+          {/* Strict Audience Display / Selector */}
+          {isFacultyOnlyEvent ? (
+            <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold flex items-center gap-2 shadow-xs">
+              <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span>{activeEvent?.name || "Faculty Window"}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded font-black bg-indigo-600 text-white uppercase tracking-wider">Faculty Only</span>
+              {data?.facultySummary && (
+                <span className="ml-1 px-2 py-0.5 rounded bg-white text-indigo-800 border border-indigo-200 text-[10px] font-black">
+                  {data.facultySummary.total} Staff
+                </span>
+              )}
+            </div>
+          ) : isStudentOnlyEvent ? (
+            <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold flex items-center gap-2 shadow-xs">
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>{activeEvent?.name || "Talabat Window"}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded font-black bg-emerald-600 text-white uppercase tracking-wider">Talabat Only</span>
+              {data?.talabatSummary && (
+                <span className="ml-1 px-2 py-0.5 rounded bg-white text-emerald-800 border border-emerald-200 text-[10px] font-black">
+                  {data.talabatSummary.total} Talabat
+                </span>
+              )}
+            </div>
+          ) : (
             <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
               <button
                 type="button"
@@ -659,19 +708,13 @@ export default function AdminAttendanceLogsPage() {
               </button>
             </div>
           )}
-
-          {isTilawatSelected && (
-            <div className="px-3.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>Tilawat al-Dua — Showing Faculty Scanning Only</span>
-            </div>
-          )}
         </div>
 
+        {/* Scheduled Event Buttons with Strict Audience Badges */}
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setSelectedEventId("ALL")}
+            onClick={() => handleSelectEvent("ALL")}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${selectedEventId === "ALL" ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-white"}`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -682,16 +725,37 @@ export default function AdminAttendanceLogsPage() {
             const isSelected = selectedEventId === ev.id;
             const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
             const isTilawat = /tilawat/i.test(ev.name);
+            const isFacultyEvent = ev.audience === "FACULTY" || isTilawat;
+            const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
+            const isBothEvent = ev.audience === "BOTH";
+
             return (
               <button
                 key={ev.id}
                 type="button"
-                onClick={() => setSelectedEventId(ev.id)}
+                onClick={() => handleSelectEvent(ev.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300"}`}
               >
-                <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isTilawat ? "text-amber-500" : "text-emerald-600"}`} />
+                <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isFacultyEvent ? "text-indigo-500" : "text-emerald-600"}`} />
                 <span>{ev.name}</span>
-                {isTilawat && <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold">Faculty Only</span>}
+
+                {/* Strict Audience Badge */}
+                {isFacultyEvent && (
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-indigo-300 text-indigo-950" : "bg-indigo-100 text-indigo-900 border border-indigo-200"}`}>
+                    Faculty Only
+                  </span>
+                )}
+                {isStudentEvent && (
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-emerald-300 text-emerald-950" : "bg-emerald-100 text-emerald-900 border border-emerald-200"}`}>
+                    Talabat Only
+                  </span>
+                )}
+                {isBothEvent && (
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-teal-300 text-teal-950" : "bg-teal-100 text-teal-900 border border-teal-200"}`}>
+                    Both
+                  </span>
+                )}
+
                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/15 text-emerald-100" : "bg-gray-100 text-gray-600"}`}>{ev.timeDisplay}</span>
                 {liveCount !== null && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? "bg-amber-400 text-emerald-950" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{liveCount}</span>

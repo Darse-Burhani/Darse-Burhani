@@ -54,7 +54,7 @@ export interface ScheduledEventWindow {
   endTime: string;
   lateEndTime?: string | null;
   enabled: boolean;
-  audience: "ALL_STUDENTS" | "FACULTY" | "ALL";
+  audience: "ALL_STUDENTS" | "STUDENT" | "FACULTY" | "BOTH" | "ALL";
   status: "ACTIVE" | "UPCOMING" | "CLOSED";
   timeDisplay: string;
   // Faculty timer of the same unified event (present when the event carries
@@ -95,6 +95,7 @@ export interface AttendanceLogRecordItem {
     id: string;
     name: string;
     timeWindow: string;
+    audience?: "STUDENT" | "FACULTY" | "BOTH" | string;
   } | null;
 }
 

@@ -585,7 +585,23 @@ export function DailyStackedLogView({
 
                         {/* Event Window */}
                         <td className="px-3 py-2.5 text-gray-700">
-                          {r.scheduledEvent?.name || "Morning Arrival"}
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-bold text-gray-900">{r.scheduledEvent?.name || "General Session"}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-mono text-gray-500">{r.scheduledEvent?.timeWindow || "Standard Hours"}</span>
+                              {r.scheduledEvent?.audience && (
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
+                                  r.scheduledEvent.audience === "FACULTY"
+                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                    : r.scheduledEvent.audience === "BOTH"
+                                    ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                }`}>
+                                  {r.scheduledEvent.audience === "FACULTY" ? "Faculty" : r.scheduledEvent.audience === "BOTH" ? "Both" : "Talabat"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         {/* Status Chip */}
@@ -724,16 +740,25 @@ export function DailyStackedLogView({
                         {r.scheduledEvent && (
                           <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-gray-200/60">
                             <span className="text-gray-500 font-semibold">Event Window</span>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-black text-[10px] border ${isFaculty ? "bg-indigo-50 text-indigo-900 border-indigo-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
-                              <Sparkles className={`w-2.5 h-2.5 ${isFaculty ? "text-indigo-600" : "text-emerald-600"}`} />
-                              {r.scheduledEvent.name}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-black text-[10px] border ${isFaculty ? "bg-indigo-50 text-indigo-900 border-indigo-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
+                                <Sparkles className={`w-2.5 h-2.5 ${isFaculty ? "text-indigo-600" : "text-emerald-600"}`} />
+                                {r.scheduledEvent.name}
+                              </span>
+                              {r.scheduledEvent.audience && (
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
+                                  r.scheduledEvent.audience === "FACULTY"
+                                    ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                                    : r.scheduledEvent.audience === "BOTH"
+                                    ? "bg-teal-100 text-teal-800 border border-teal-200"
+                                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                }`}>
+                                  {r.scheduledEvent.audience === "FACULTY" ? "Faculty" : r.scheduledEvent.audience === "BOTH" ? "Both" : "Talabat"}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-semibold">Scheduled Window</span>
-                          <span className="font-bold text-gray-800">{r.scheduledEvent?.name || "Morning Arrival"}</span>
-                        </div>
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-gray-500 font-semibold">Method / Source</span>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[10px] border ${cfg.badgeBg || "bg-gray-100 text-gray-800 border-gray-200"}`}>
