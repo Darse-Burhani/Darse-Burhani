@@ -18,9 +18,11 @@ import {
   Users,
   Shield,
   Heart,
+  UserCheck,
+  Building2,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   getAssignments,
@@ -39,10 +41,10 @@ import {
 
 const SKILL_OPTIONS = [
   { value: "", label: "No skill link" },
-  { value: "criticalThinking", label: "Critical Thinking" },
-  { value: "collaboration", label: "Collaboration" },
-  { value: "leadership", label: "Leadership" },
-  { value: "resilience", label: "Resilience" },
+  { value: "criticalThinking", label: "Critical Thinking (Fikr & Tahqeeq)" },
+  { value: "collaboration", label: "Collaboration (Ta'awun)" },
+  { value: "leadership", label: "Leadership (Qiyadah)" },
+  { value: "resilience", label: "Resilience (Sabr & Istiqaamat)" },
 ];
 
 const SKILL_ICONS: Record<string, React.ElementType> = {
@@ -63,6 +65,9 @@ export default function AdminAssignmentsPage() {
   // Create/edit form
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AssignmentItem | null>(null);
+  const [audienceType, setAudienceType] = useState<"CLASS" | "STUDENT">("CLASS");
+  const [targetStudent, setTargetStudent] = useState<AssignmentStudentOption | null>(null);
+  const [studentSearchInput, setStudentSearchInput] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
@@ -137,28 +142,41 @@ export default function AdminAssignmentsPage() {
   }, [tab, skillFilter]);
 
   useEffect(() => {
-    if (selectedId) fetchGrades(selectedId);
-    else setGrades([]);
-    setPickedStudent(null);
+    if (selectedId) {
+      fetchGrades(selectedId);
+      const curr = assignments.find((a) => a.id === selectedId);
+      if (curr?.targetStudent) {
+        setPickedStudent(curr.targetStudent);
+      } else {
+        setPickedStudent(null);
+      }
+    } else {
+      setGrades([]);
+      setPickedStudent(null);
+    }
     setMarks("");
     setFeedback("");
     setGradeError(null);
-  }, [selectedId]);
+  }, [selectedId, assignments]);
 
-  // Student search (debounced lightly)
+  // Student search for form and grading (debounced)
   useEffect(() => {
+    const q = (studentSearchInput || studentQuery).trim();
     const t = setTimeout(async () => {
       try {
-        setStudentOptions(await getAssignmentStudents(studentQuery.trim() || undefined));
+        setStudentOptions(await getAssignmentStudents(q || undefined));
       } catch {
         setStudentOptions([]);
       }
-    }, 250);
+    }, 200);
     return () => clearTimeout(t);
-  }, [studentQuery, formOpen, selectedId]);
+  }, [studentSearchInput, studentQuery, formOpen, selectedId]);
 
   const openCreate = () => {
     setEditing(null);
+    setAudienceType("CLASS");
+    setTargetStudent(null);
+    setStudentSearchInput("");
     setTitle("");
     setDescription("");
     setSubject("");
@@ -173,6 +191,14 @@ export default function AdminAssignmentsPage() {
 
   const openEdit = (a: AssignmentItem) => {
     setEditing(a);
+    if (a.targetStudentId && a.targetStudent) {
+      setAudienceType("STUDENT");
+      setTargetStudent(a.targetStudent);
+    } else {
+      setAudienceType("CLASS");
+      setTargetStudent(null);
+    }
+    setStudentSearchInput("");
     setTitle(a.title);
     setDescription(a.description || "");
     setSubject(a.subject || "");
@@ -191,6 +217,11 @@ export default function AdminAssignmentsPage() {
       setFormError("Title is required.");
       return;
     }
+    if (audienceType === "STUDENT" && !targetStudent) {
+      setFormError("Please select a specific talib for this individual assignment.");
+      return;
+    }
+
     setSaving(true);
     setFormError(null);
     try {
@@ -201,8 +232,9 @@ export default function AdminAssignmentsPage() {
         skillCategory: skillCategory || undefined,
         maxMarks: Number(maxMarks) || 100,
         dueDate: dueDate || undefined,
-        grade: grade.trim() || undefined,
-        section: section.trim() || undefined,
+        grade: audienceType === "STUDENT" ? targetStudent?.grade || grade.trim() || undefined : grade.trim() || undefined,
+        section: audienceType === "STUDENT" ? targetStudent?.section || section.trim() || undefined : section.trim() || undefined,
+        targetStudentId: audienceType === "STUDENT" && targetStudent ? targetStudent.id : null,
       };
       if (editing) await updateAssignment(editing.id, payload);
       else await createAssignment(payload);
@@ -216,7 +248,7 @@ export default function AdminAssignmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this assignment and all its marks?")) return;
+    if (!confirm("Delete this assignment and all its awarded marks?")) return;
     try {
       await deleteAssignment(id);
       if (selectedId === id) setSelectedId(null);
@@ -245,7 +277,9 @@ export default function AdminAssignmentsPage() {
         marks: m,
         feedback: feedback.trim() || undefined,
       });
-      setPickedStudent(null);
+      if (!selected.targetStudentId) {
+        setPickedStudent(null);
+      }
       setMarks("");
       setFeedback("");
       setStudentQuery("");
@@ -263,10 +297,10 @@ export default function AdminAssignmentsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 font-display text-2xl font-extrabold text-slate-900">
-            <ClipboardList size={22} className="text-emerald-700" /> Assignments
+            <ClipboardList size={22} className="text-emerald-700" /> Academic & Skill Assignments
           </h1>
           <p className="mt-0.5 text-[13px] text-slate-500">
-            Post work for talabat, award marks, and review skill-test scores.
+            Assign class-wide or specific individual talabat tasks, award marks, and review skill metrics.
           </p>
         </div>
         <div className="flex gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5">
@@ -279,7 +313,7 @@ export default function AdminAssignmentsPage() {
                 tab === t ? "bg-emerald-700 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
               }`}
             >
-              {t === "assignments" ? "Assignments" : "Skill test scores"}
+              {t === "assignments" ? "Assignments" : "Skill test scores (15–20 yrs)"}
             </button>
           ))}
         </div>
@@ -296,7 +330,7 @@ export default function AdminAssignmentsPage() {
           {/* Left: list + create */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-[14px] font-extrabold text-slate-800">All assignments ({assignments.length})</h2>
+              <h2 className="text-[14px] font-extrabold text-slate-800">Assignments ({assignments.length})</h2>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -309,7 +343,7 @@ export default function AdminAssignmentsPage() {
                 <button
                   type="button"
                   onClick={openCreate}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-[12.5px] font-bold text-white hover:bg-emerald-800"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-[12.5px] font-bold text-white hover:bg-emerald-800 shadow-sm"
                 >
                   <Plus size={15} /> New assignment
                 </button>
@@ -322,38 +356,55 @@ export default function AdminAssignmentsPage() {
                 ))}
               </div>
             ) : assignments.length === 0 ? (
-              <Card className="rounded-2xl">
+              <Card className="rounded-2xl border border-dashed border-slate-200">
                 <CardContent className="p-8 text-center text-[13px] text-slate-500">
-                  No assignments yet — tap “New assignment” to post the first one.
+                  No assignments yet — click “New assignment” to post the first one.
                 </CardContent>
               </Card>
             ) : (
               assignments.map((a) => {
                 const active = a.id === selectedId;
+                const isTargeted = Boolean(a.targetStudentId);
                 return (
                   <button
                     key={a.id}
                     type="button"
                     onClick={() => setSelectedId(active ? null : a.id)}
                     className={`w-full rounded-2xl border p-4 text-left transition ${
-                      active ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/20" : "border-slate-200 bg-white hover:border-slate-300"
+                      active
+                        ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/20"
+                        : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          {isTargeted ? (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/90 px-2 py-0.5 text-[11px] font-extrabold text-amber-900 border border-amber-300">
+                              <UserCheck size={11} /> Specific Talib: {a.targetStudent?.name || "Targeted Student"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                              <Building2 size={11} /> Class: Gr {a.grade || "All"}{a.section ? `-${a.section}` : ""}
+                            </span>
+                          )}
+                          {a.subject && (
+                            <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                              {a.subject}
+                            </span>
+                          )}
+                        </div>
                         <p className="truncate text-[14.5px] font-extrabold text-slate-900">{a.title}</p>
                         <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11.5px] text-slate-500">
-                          {a.subject && <span className="font-bold text-slate-600">{a.subject}</span>}
-                          <span>Max {a.maxMarks}</span>
-                          {a.grade && <span>Gr {a.grade}{a.section ? `-${a.section}` : ""}</span>}
+                          <span>Max {a.maxMarks} marks</span>
                           {a.dueDate && <span>Due {new Date(a.dueDate).toLocaleDateString("en-US", { day: "numeric", month: "short" })}</span>}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
                         {a.gradedCount || 0} graded
                       </span>
                     </div>
-                    <div className="mt-2 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-2.5 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() => openEdit(a)}
@@ -382,15 +433,28 @@ export default function AdminAssignmentsPage() {
                 <CardContent className="p-10 text-center">
                   <GraduationCap size={28} className="mx-auto text-slate-300" />
                   <p className="mt-2 text-[13.5px] font-bold text-slate-700">Select an assignment to award marks</p>
-                  <p className="mt-1 text-[12px] text-slate-500">Search any talabat by name or ITS, enter marks out of {100}, add feedback.</p>
+                  <p className="mt-1 text-[12px] text-slate-500">Search any assigned talabat, enter marks, and add constructive feedback.</p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-                <h3 className="text-[14px] font-extrabold text-slate-900">
-                  Grading: {selected.title}
-                  <span className="ml-2 text-[12px] font-bold text-slate-400">/ {selected.maxMarks} marks</span>
-                </h3>
+                <div className="border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    {selected.targetStudent ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-900">
+                        <UserCheck size={11} /> Individual Assignment
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                        <Building2 size={11} /> Class Assignment (Gr {selected.grade || "All"}{selected.section ? `-${selected.section}` : ""})
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="mt-1 text-[15px] font-extrabold text-slate-900">
+                    Grading: {selected.title}
+                    <span className="ml-2 text-[12px] font-bold text-slate-400">/ {selected.maxMarks} marks</span>
+                  </h3>
+                </div>
 
                 <form onSubmit={handleSaveGrade} className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3.5">
                   {gradeError && (
@@ -400,21 +464,26 @@ export default function AdminAssignmentsPage() {
                   )}
                   <div className="relative">
                     <label htmlFor="grade-student-search" className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Find talabat (name / ITS)
+                      {selected.targetStudent ? "Assigned Talib" : "Find Talib (name / ITS)"}
                     </label>
                     <div className="relative">
                       <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         id="grade-student-search"
-                        value={pickedStudent ? `${pickedStudent.name} · ${pickedStudent.its}` : studentQuery}
+                        readOnly={Boolean(selected.targetStudent)}
+                        value={pickedStudent ? `${pickedStudent.name} (${pickedStudent.its || "No ITS"} · Gr ${pickedStudent.grade}${pickedStudent.section})` : studentQuery}
                         onChange={(e) => {
-                          setPickedStudent(null);
-                          setStudentQuery(e.target.value);
+                          if (!selected.targetStudent) {
+                            setPickedStudent(null);
+                            setStudentQuery(e.target.value);
+                          }
                         }}
-                        placeholder="Type to search…"
-                        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-8 text-[13.5px] focus:border-emerald-600 focus:outline-none"
+                        placeholder="Type talib name or ITS to search…"
+                        className={`w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-8 text-[13.5px] focus:border-emerald-600 focus:outline-none ${
+                          selected.targetStudent ? "bg-amber-50/60 font-bold text-amber-950" : ""
+                        }`}
                       />
-                      {pickedStudent && (
+                      {pickedStudent && !selected.targetStudent && (
                         <button
                           type="button"
                           onClick={() => {
@@ -427,7 +496,7 @@ export default function AdminAssignmentsPage() {
                         </button>
                       )}
                     </div>
-                    {!pickedStudent && studentQuery.trim() && studentOptions.length > 0 && (
+                    {!pickedStudent && !selected.targetStudent && studentQuery.trim() && studentOptions.length > 0 && (
                       <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                         {studentOptions.slice(0, 8).map((s) => (
                           <button
@@ -456,6 +525,7 @@ export default function AdminAssignmentsPage() {
                         step="0.5"
                         value={marks}
                         onChange={(e) => setMarks(e.target.value)}
+                        placeholder="e.g. 85"
                         className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[14px] font-bold focus:border-emerald-600 focus:outline-none"
                       />
                     </div>
@@ -468,7 +538,7 @@ export default function AdminAssignmentsPage() {
                         value={feedback}
                         onChange={(e) => setFeedback(e.target.value)}
                         maxLength={300}
-                        placeholder="Well done…"
+                        placeholder="Clear analysis, good effort…"
                         className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none"
                       />
                     </div>
@@ -476,14 +546,14 @@ export default function AdminAssignmentsPage() {
                   <button
                     type="submit"
                     disabled={gradeSaving || !pickedStudent}
-                    className="w-full rounded-xl bg-emerald-700 py-2.5 text-[13px] font-bold text-white hover:bg-emerald-800 disabled:opacity-40"
+                    className="w-full rounded-xl bg-emerald-700 py-2.5 text-[13px] font-bold text-white hover:bg-emerald-800 disabled:opacity-40 shadow-sm"
                   >
                     {gradeSaving ? "Saving…" : pickedStudent ? `Save marks for ${pickedStudent.name.split(" ")[0]}` : "Pick a student first"}
                   </button>
                 </form>
 
                 <div>
-                  <h4 className="mb-2 text-[12.5px] font-extrabold text-slate-700">Graded so far ({grades.length})</h4>
+                  <h4 className="mb-2 text-[12.5px] font-extrabold text-slate-700">Graded Talabat ({grades.length})</h4>
                   {gradesLoading ? (
                     <div className="flex items-center gap-2 text-[13px] text-slate-400">
                       <Loader2 size={15} className="animate-spin" /> Loading marks…
@@ -501,7 +571,7 @@ export default function AdminAssignmentsPage() {
                             <div className="min-w-0">
                               <p className="truncate text-[13px] font-bold text-slate-900">{g.studentName}</p>
                               <p className="font-mono text-[11px] text-slate-500">{g.its} · Gr {g.grade}{g.section}</p>
-                              {g.feedback && <p className="mt-0.5 line-clamp-1 text-[11.5px] italic text-slate-500">“{g.feedback}”</p>}
+                              {g.feedback && <p className="mt-0.5 line-clamp-1 text-[11.5px] italic text-slate-600">“{g.feedback}”</p>}
                             </div>
                             <div className="shrink-0 text-right">
                               <p className="text-[14px] font-black text-emerald-800">{g.marks}<span className="text-[11px] text-slate-400">/{selected.maxMarks}</span></p>
@@ -527,7 +597,7 @@ export default function AdminAssignmentsPage() {
               onClick={() => setSkillFilter("")}
               className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold ${!skillFilter ? "bg-emerald-700 text-white" : "border border-slate-200 bg-white text-slate-500"}`}
             >
-              All skills
+              All skills (Age 15–20)
             </button>
             {Object.keys(SKILL_ICONS).map((s) => (
               <button
@@ -548,7 +618,7 @@ export default function AdminAssignmentsPage() {
               <Loader2 size={16} className="animate-spin" /> Loading test scores…
             </div>
           ) : attempts.length === 0 ? (
-            <Card className="rounded-2xl">
+            <Card className="rounded-2xl border border-dashed">
               <CardContent className="p-8 text-center text-[13px] text-slate-500">
                 No Q&A attempts yet. Scores appear here once talabat take skill tests.
               </CardContent>
@@ -556,11 +626,11 @@ export default function AdminAssignmentsPage() {
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {attempts.map((a) => (
-                <div key={a.id} className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div key={a.id} className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xs">
                   <div className="min-w-0">
                     <p className="truncate text-[13px] font-bold text-slate-900">{a.studentName}</p>
                     <p className="text-[11.5px] text-slate-500">
-                      {{ criticalThinking: "Critical Thinking", collaboration: "Collaboration", leadership: "Leadership", resilience: "Resilience" }[a.skill] || a.skill} · {a.correctAnswers}/{a.totalQuestions} · {new Date(a.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                      {{ criticalThinking: "Critical Thinking", collaboration: "Collaboration", leadership: "Leadership", resilience: "Resilience" }[a.skill] || a.skill} · {a.correctAnswers}/{a.totalQuestions} correct · {new Date(a.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
                     </p>
                   </div>
                   <Badge className={`shrink-0 text-[13px] font-black ${a.score >= 60 ? "bg-emerald-50 text-emerald-800 border-emerald-200" : a.score >= 40 ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-rose-50 text-rose-800 border-rose-200"}`}>
@@ -573,7 +643,7 @@ export default function AdminAssignmentsPage() {
         </div>
       )}
 
-      {/* ── Create/Edit modal ── */}
+      {/* ── Create/Edit modal with Class / Specific Talib targeting ── */}
       <AnimatePresence>
         {formOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
@@ -583,39 +653,133 @@ export default function AdminAssignmentsPage() {
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-emerald-900 px-5 py-4 text-white rounded-t-3xl">
-                <h3 className="text-[15px] font-extrabold">{editing ? "Edit assignment" : "New assignment"}</h3>
+              <div className="flex items-center justify-between border-b border-emerald-800 bg-emerald-900 px-5 py-4 text-white rounded-t-3xl">
+                <h3 className="text-[15px] font-extrabold">{editing ? "Edit Assignment" : "New Assignment"}</h3>
                 <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg p-1.5 text-emerald-200 hover:bg-white/10 hover:text-white">
                   <X size={18} />
                 </button>
               </div>
-              <form onSubmit={handleSaveAssignment} className="space-y-3.5 p-5">
+              <form onSubmit={handleSaveAssignment} className="space-y-4 p-5">
                 {formError && (
                   <p className="flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] font-medium text-rose-800">
                     <AlertCircle size={14} className="mt-0.5 shrink-0" /> {formError}
                   </p>
                 )}
+
+                {/* Assignment Target Audience selector */}
+                <div>
+                  <label className="mb-1.5 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">
+                    Assignment Target Audience *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAudienceType("CLASS");
+                        setTargetStudent(null);
+                      }}
+                      className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-[13px] font-bold transition ${
+                        audienceType === "CLASS"
+                          ? "border-emerald-700 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-700/20"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Building2 size={16} /> Whole Class
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAudienceType("STUDENT")}
+                      className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-[13px] font-bold transition ${
+                        audienceType === "STUDENT"
+                          ? "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-600/20"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <UserCheck size={16} /> Specific Talib
+                    </button>
+                  </div>
+                </div>
+
+                {/* If Specific Talib, show student picker */}
+                {audienceType === "STUDENT" && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-2">
+                    <label htmlFor="target-student-picker" className="block text-[11.5px] font-bold uppercase tracking-wider text-amber-900">
+                      Select Specific Talib *
+                    </label>
+                    <div className="relative">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        id="target-student-picker"
+                        value={targetStudent ? `${targetStudent.name} (${targetStudent.its} · Gr ${targetStudent.grade}${targetStudent.section})` : studentSearchInput}
+                        onChange={(e) => {
+                          setTargetStudent(null);
+                          setStudentSearchInput(e.target.value);
+                        }}
+                        placeholder="Search talib by name or ITS…"
+                        className="w-full rounded-xl border border-amber-300 bg-white py-2 pl-9 pr-8 text-[13.5px] font-semibold focus:border-amber-600 focus:outline-none"
+                      />
+                      {targetStudent && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTargetStudent(null);
+                            setStudentSearchInput("");
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    {!targetStudent && studentSearchInput.trim() && studentOptions.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-md">
+                        {studentOptions.slice(0, 6).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setTargetStudent(s);
+                              setGrade(s.grade);
+                              setSection(s.section);
+                              setStudentSearchInput("");
+                            }}
+                            className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-amber-50"
+                          >
+                            <span className="font-bold text-slate-800">{s.name}</span>
+                            <span className="font-mono text-[11.5px] text-slate-500">{s.its} · Gr {s.grade}{s.section}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {targetStudent && (
+                      <p className="text-[12px] font-semibold text-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 size={13} /> Selected: {targetStudent.name} (Will only reflect to this talib)
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label htmlFor="asg-title" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Title *</label>
                   <input id="asg-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
-                    placeholder="e.g. Surah Mulk revision test"
+                    placeholder="e.g. Surah Al-Mulk Revision / Comparative Monograph"
                     className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[14px] font-semibold focus:border-emerald-600 focus:outline-none" />
                 </div>
                 <div>
-                  <label htmlFor="asg-desc" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Instructions</label>
+                  <label htmlFor="asg-desc" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Instructions / Description</label>
                   <textarea id="asg-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={2000}
-                    placeholder="What should talabat prepare / submit?"
+                    placeholder="Provide detailed instructions or rubrics for the talabat…"
                     className="w-full resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="asg-subject" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Subject</label>
                     <input id="asg-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={60}
-                      placeholder="e.g. Hifz, Maths"
+                      placeholder="e.g. Hifz, Lisan ud-Dawat"
                       className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
                   </div>
                   <div>
-                    <label htmlFor="asg-skill" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Skill link</label>
+                    <label htmlFor="asg-skill" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Skill Domain</label>
                     <select id="asg-skill" value={skillCategory} onChange={(e) => setSkillCategory(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none">
                       {SKILL_OPTIONS.map((o) => (
@@ -626,33 +790,38 @@ export default function AdminAssignmentsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="asg-max" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Max marks</label>
+                    <label htmlFor="asg-max" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Max Marks</label>
                     <input id="asg-max" type="number" min={1} max={1000} value={maxMarks} onChange={(e) => setMaxMarks(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] font-bold focus:border-emerald-600 focus:outline-none" />
                   </div>
                   <div>
-                    <label htmlFor="asg-due" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Due date</label>
+                    <label htmlFor="asg-due" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Due Date</label>
                     <input id="asg-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="asg-grade" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Grade (blank = all)</label>
-                    <input id="asg-grade" value={grade} onChange={(e) => setGrade(e.target.value)} maxLength={20} placeholder="e.g. 5"
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
+
+                {/* Class & Section (shown if whole class) */}
+                {audienceType === "CLASS" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="asg-grade" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Grade / Darajah (blank = all)</label>
+                      <input id="asg-grade" value={grade} onChange={(e) => setGrade(e.target.value)} maxLength={20} placeholder="e.g. 5"
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label htmlFor="asg-section" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Section (blank = all)</label>
+                      <input id="asg-section" value={section} onChange={(e) => setSection(e.target.value)} maxLength={10} placeholder="e.g. A"
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="asg-section" className="mb-1 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Section (blank = all)</label>
-                    <input id="asg-section" value={section} onChange={(e) => setSection(e.target.value)} maxLength={10} placeholder="e.g. A"
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-[13.5px] focus:border-emerald-600 focus:outline-none" />
-                  </div>
-                </div>
+                )}
+
                 <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
                   <button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-[13px] font-bold text-slate-600 hover:bg-slate-50">
                     Cancel
                   </button>
-                  <button type="submit" disabled={saving} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2.5 text-[13px] font-bold text-white hover:bg-emerald-800 disabled:opacity-50">
+                  <button type="submit" disabled={saving} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2.5 text-[13px] font-bold text-white hover:bg-emerald-800 disabled:opacity-50 shadow-sm">
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                     {saving ? "Saving…" : editing ? "Save changes" : "Post assignment"}
                   </button>
@@ -662,7 +831,6 @@ export default function AdminAssignmentsPage() {
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

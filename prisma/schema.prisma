@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -287,6 +288,10 @@ model StudentProfile {
   dailyEvaluations           HifzDailyEvaluation[]   @relation("StudentDailyEvaluations")
   ikhtebaarTargets           HifzIkhtebaarTarget[]   @relation("StudentIkhtebaarTargets")
   medicalExemptions          MedicalExemption[]
+  targetedAssignments        Assignment[]            @relation("StudentTargetedAssignments")
+  assignmentGrades           AssignmentGrade[]
+  skillAssessmentAttempts    SkillAssessmentAttempt[]
+  hobbies                    StudentHobby[]
 
   @@index([userId])
   @@index([grade, section])
@@ -722,70 +727,6 @@ model SkillTreePoint {
   @@map("skill_tree_points")
 }
 
-model Assignment {
-  id            String    @id @default(cuid())
-  title         String
-  description   String?
-  subject       String?
-  skillCategory String?
-  maxMarks      Int       @default(100)
-  dueDate       DateTime?
-  grade         String?
-  section       String?
-  createdById   String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  grades AssignmentGrade[]
-
-  @@index([grade, section])
-  @@index([createdById])
-  @@map("assignments")
-}
-
-model AssignmentGrade {
-  id           String   @id @default(cuid())
-  assignmentId String
-  studentId    String
-  marks        Float
-  feedback     String?
-  gradedById   String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-
-  @@unique([assignmentId, studentId])
-  @@index([studentId])
-  @@index([assignmentId])
-  @@map("assignment_grades")
-}
-
-model SkillAssessmentAttempt {
-  id             String   @id @default(cuid())
-  studentId      String
-  skill          String
-  score          Int
-  totalQuestions Int
-  correctAnswers Int
-  createdAt      DateTime @default(now())
-
-  @@index([studentId, skill])
-  @@index([createdAt])
-  @@map("skill_assessment_attempts")
-}
-
-model StudentHobby {
-  id        String   @id @default(cuid())
-  studentId String
-  name      String
-  category  String?
-  level     String?
-  createdAt DateTime @default(now())
-
-  @@index([studentId])
-  @@map("student_hobbies")
-}
 
 model Notification {
   id        String   @id @default(cuid())
@@ -1297,5 +1238,81 @@ model MedicalExemption {
   @@index([personType, date])
   @@map("medical_exemptions")
 }
+
+// ====== Assignments & Student Portfolio ======
+
+model Assignment {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?   @db.Text
+  subject         String?
+  skillCategory   String?
+  maxMarks        Int       @default(100)
+  dueDate         DateTime?
+  grade           String?
+  section         String?
+  targetStudentId String?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  targetStudent   StudentProfile?   @relation("StudentTargetedAssignments", fields: [targetStudentId], references: [id], onDelete: SetNull)
+  grades          AssignmentGrade[]
+
+  @@index([grade, section])
+  @@index([createdById])
+  @@index([targetStudentId])
+  @@map("assignments")
+}
+
+model AssignmentGrade {
+  id           String   @id @default(cuid())
+  assignmentId String
+  studentId    String
+  marks        Float
+  feedback     String?  @db.Text
+  gradedById   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignment   Assignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId])
+  @@map("assignment_grades")
+}
+
+model SkillAssessmentAttempt {
+  id             String   @id @default(cuid())
+  studentId      String
+  skill          String
+  score          Int
+  totalQuestions Int
+  correctAnswers Int
+  createdAt      DateTime @default(now())
+
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, skill])
+  @@index([createdAt])
+  @@map("skill_assessment_attempts")
+}
+
+model StudentHobby {
+  id        String   @id @default(cuid())
+  studentId String
+  name      String
+  category  String?
+  level     String?
+  createdAt DateTime @default(now())
+
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("student_hobbies")
+}
+
 
 

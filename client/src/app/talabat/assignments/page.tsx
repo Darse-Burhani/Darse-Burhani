@@ -156,6 +156,11 @@ export default function TalabatAssignmentsPage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
+                          {a.isPersonalized && (
+                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[11px] font-extrabold shadow-xs">
+                              ⭐ Assigned Specifically to You
+                            </Badge>
+                          )}
                           {a.subject && (
                             <Badge variant="outline" className="text-[11px]">
                               <BookOpen size={11} className="mr-1" /> {a.subject}
@@ -166,7 +171,7 @@ export default function TalabatAssignmentsPage() {
                               {SKILL_LABELS[a.skillCategory]}
                             </Badge>
                           )}
-                          {(a.grade || a.section) && (
+                          {!a.isPersonalized && (a.grade || a.section) && (
                             <span className="text-[11px] font-semibold text-slate-400">
                               Grade {a.grade || "All"}{a.section ? `-${a.section}` : ""}
                             </span>

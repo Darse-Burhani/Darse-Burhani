@@ -5,8 +5,7 @@ import { requireMigratedTables, sendDbError } from "../lib/prisma-guards";
 
 const router = Router();
 
-// New tables (assignments, grades, skill attempts) need the latest migration.
-// Without it, callers get a clear 503 instead of an opaque 500.
+// Ensure required tables are available
 router.use(requireMigratedTables);
 
 const SKILL_CATEGORIES = ["criticalThinking", "collaboration", "leadership", "resilience"] as const;
@@ -16,16 +15,57 @@ function sanitizeSkill(skill: unknown): string | null {
   return (SKILL_CATEGORIES as readonly string[]).includes(skill) ? skill : null;
 }
 
-// GET /api/assignments — STUDENT: assignments + my grades; STAFF: all + grade counts
+// Helper: resolve teacher's assigned classes and enrolled student IDs
+async function getTeacherScope(userId: string) {
+  const teacher = await prisma.teacherProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!teacher) return null;
+
+  const classes = await prisma.class.findMany({
+    where: {
+      OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
+      isActive: true,
+    },
+    select: {
+      id: true,
+      grade: true,
+      section: true,
+      enrollments: {
+        where: { isActive: true },
+        select: { studentId: true },
+      },
+    },
+  });
+
+  const classIds = classes.map((c) => c.id);
+  const enrolledStudentIds = new Set<string>();
+  const classKeys = new Set<string>(); // "Grade-Section"
+  const grades = new Set<string>();
+
+  for (const c of classes) {
+    if (c.grade && c.section) classKeys.add(`${c.grade}-${c.section}`.toUpperCase());
+    if (c.grade) grades.add(c.grade.toUpperCase());
+    for (const e of c.enrollments) {
+      enrolledStudentIds.add(e.studentId);
+    }
+  }
+
+  return {
+    teacherId: teacher.id,
+    classIds,
+    enrolledStudentIds: Array.from(enrolledStudentIds),
+    classKeys,
+    grades: Array.from(grades),
+  };
+}
+
+// GET /api/assignments — STUDENT: my class + targeted assignments; TEACHER: my classes/talabat; ADMIN: all
 router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const role = session.user.role;
-
-    const assignments = await prisma.assignment.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
 
     if (role === "STUDENT") {
       const student = await prisma.studentProfile.findUnique({
@@ -34,11 +74,34 @@ router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => 
       });
       if (!student) return res.status(404).json({ success: false, error: "Student profile not found" });
 
-      const visible = assignments.filter(
-        (a) => (!a.grade || !student.grade || a.grade === student.grade) && (!a.section || !student.section || a.section === student.section)
-      );
+      const assignments = await prisma.assignment.findMany({
+        where: {
+          OR: [
+            // 1. Explicitly targeted to this specific talib
+            { targetStudentId: student.id },
+            // 2. Class-wide assignment matching student's grade and section (where targetStudentId is null)
+            {
+              targetStudentId: null,
+              ...(student.grade ? { OR: [{ grade: null }, { grade: student.grade }] } : {}),
+              ...(student.section ? { OR: [{ section: null }, { section: student.section }] } : {}),
+            },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+
+      // Filter in-memory to ensure strict section matching when grade/section are set
+      const visible = assignments.filter((a) => {
+        if (a.targetStudentId) return a.targetStudentId === student.id;
+        const gradeMatch = !a.grade || !student.grade || a.grade.toLowerCase() === student.grade.toLowerCase();
+        const sectionMatch = !a.section || !student.section || a.section.toLowerCase() === student.section.toLowerCase();
+        return gradeMatch && sectionMatch;
+      });
+
       const grades = await prisma.assignmentGrade.findMany({ where: { studentId: student.id } });
       const gradeMap = new Map(grades.map((g) => [g.assignmentId, g]));
+
       return res.json({
         success: true,
         data: visible.map((a) => ({
@@ -51,6 +114,8 @@ router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => 
           dueDate: a.dueDate?.toISOString() || null,
           grade: a.grade,
           section: a.section,
+          targetStudentId: a.targetStudentId,
+          isPersonalized: Boolean(a.targetStudentId),
           createdAt: a.createdAt.toISOString(),
           myGrade: gradeMap.has(a.id)
             ? {
@@ -63,11 +128,47 @@ router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => 
       });
     }
 
+    // TEACHER or ADMIN
+    let whereClause: Record<string, unknown> = {};
+
+    if (role === "TEACHER") {
+      const scope = await getTeacherScope(session.user.id);
+      if (scope) {
+        whereClause = {
+          OR: [
+            { createdById: session.user.id },
+            ...(scope.enrolledStudentIds.length > 0 ? [{ targetStudentId: { in: scope.enrolledStudentIds } }] : []),
+            ...(scope.grades.length > 0 ? [{ grade: { in: scope.grades } }] : []),
+          ],
+        };
+      } else {
+        whereClause = { createdById: session.user.id };
+      }
+    }
+
+    const assignments = await prisma.assignment.findMany({
+      where: whereClause,
+      include: {
+        targetStudent: {
+          select: {
+            id: true,
+            its: true,
+            grade: true,
+            section: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+
     const gradeCounts = await prisma.assignmentGrade.groupBy({
       by: ["assignmentId"],
       _count: true,
     });
     const countMap = new Map(gradeCounts.map((g) => [g.assignmentId, g._count]));
+
     return res.json({
       success: true,
       data: assignments.map((a) => ({
@@ -80,6 +181,16 @@ router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => 
         dueDate: a.dueDate?.toISOString() || null,
         grade: a.grade,
         section: a.section,
+        targetStudentId: a.targetStudentId,
+        targetStudent: a.targetStudent
+          ? {
+              id: a.targetStudent.id,
+              name: `${a.targetStudent.user.firstName} ${a.targetStudent.user.lastName}`.trim(),
+              its: a.targetStudent.its || "",
+              grade: a.targetStudent.grade || "",
+              section: a.targetStudent.section || "",
+            }
+          : null,
         createdAt: a.createdAt.toISOString(),
         gradedCount: countMap.get(a.id) || 0,
       })),
@@ -89,12 +200,29 @@ router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => 
   }
 });
 
-// GET /api/assignments/students — STAFF: minimal student directory for grading
-router.get("/students", requireRole("ADMIN"), async (req, res) => {
+// GET /api/assignments/students — STAFF / TEACHERS: fetch student roster for assignment targeting and grading
+router.get("/students", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    const session = req.auth!;
+    const role = session.user.role;
     const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+
+    let studentWhere: Record<string, unknown> = {
+      user: { isActive: true, deletedAt: null },
+    };
+
+    if (role === "TEACHER") {
+      const scope = await getTeacherScope(session.user.id);
+      if (scope) {
+        studentWhere = {
+          ...studentWhere,
+          id: { in: scope.enrolledStudentIds },
+        };
+      }
+    }
+
     const students = await prisma.studentProfile.findMany({
-      where: { user: { isActive: true, deletedAt: null } },
+      where: studentWhere,
       orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
       take: 500,
       select: {
@@ -105,6 +233,7 @@ router.get("/students", requireRole("ADMIN"), async (req, res) => {
         user: { select: { firstName: true, lastName: true } },
       },
     });
+
     const list = students.map((s) => ({
       id: s.id,
       name: `${s.user.firstName} ${s.user.lastName}`.trim(),
@@ -112,23 +241,44 @@ router.get("/students", requireRole("ADMIN"), async (req, res) => {
       grade: s.grade || "",
       section: s.section || "",
     }));
+
     const filtered = q
       ? list.filter((s) => `${s.name} ${s.its} ${s.grade}${s.section}`.toLowerCase().includes(q))
       : list;
+
     return res.json({ success: true, data: filtered });
   } catch (error) {
     return sendDbError(res, error, "[assignments] students error", "Failed to fetch students");
   }
 });
 
-// POST /api/assignments — STAFF create
-router.post("/", requireRole("ADMIN"), async (req, res) => {
+// POST /api/assignments — STAFF / TEACHERS create assignment
+router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
-    const { title, description, subject, skillCategory, maxMarks, dueDate, grade, section } = req.body as Record<string, unknown>;
+    const { title, description, subject, skillCategory, maxMarks, dueDate, grade, section, targetStudentId } = req.body as Record<string, unknown>;
+
     if (!title || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ success: false, error: "Assignment title is required" });
     }
+
+    let resolvedGrade = typeof grade === "string" ? grade.trim() || null : null;
+    let resolvedSection = typeof section === "string" ? section.trim() || null : null;
+    let resolvedTargetStudentId: string | null = null;
+
+    if (typeof targetStudentId === "string" && targetStudentId.trim()) {
+      const student = await prisma.studentProfile.findUnique({
+        where: { id: targetStudentId.trim() },
+        select: { id: true, grade: true, section: true },
+      });
+      if (!student) {
+        return res.status(404).json({ success: false, error: "Target student not found" });
+      }
+      resolvedTargetStudentId = student.id;
+      if (!resolvedGrade) resolvedGrade = student.grade;
+      if (!resolvedSection) resolvedSection = student.section;
+    }
+
     const max = Number(maxMarks);
     const assignment = await prisma.assignment.create({
       data: {
@@ -138,22 +288,40 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
         skillCategory: sanitizeSkill(skillCategory),
         maxMarks: Number.isFinite(max) && max > 0 ? Math.round(max) : 100,
         dueDate: dueDate ? new Date(dueDate as string) : null,
-        grade: typeof grade === "string" ? grade.trim() || null : null,
-        section: typeof section === "string" ? section.trim() || null : null,
+        grade: resolvedGrade,
+        section: resolvedSection,
+        targetStudentId: resolvedTargetStudentId,
         createdById: session.user.id,
       },
     });
+
     return res.status(201).json({ success: true, data: { id: assignment.id } });
   } catch (error) {
     return sendDbError(res, error, "[assignments] POST error", "Failed to create assignment");
   }
 });
 
-// PATCH /api/assignments/:id — STAFF update
-router.patch("/:id", requireRole("ADMIN"), async (req, res) => {
+// PATCH /api/assignments/:id — STAFF / TEACHERS update assignment
+router.patch("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    const { title, description, subject, skillCategory, maxMarks, dueDate, grade, section } = req.body as Record<string, unknown>;
+    const session = req.auth!;
+    const role = session.user.role;
+    const existing = await prisma.assignment.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ success: false, error: "Assignment not found" });
+
+    if (role === "TEACHER" && existing.createdById !== session.user.id) {
+      const scope = await getTeacherScope(session.user.id);
+      const isAllowed =
+        (existing.targetStudentId && scope?.enrolledStudentIds.includes(existing.targetStudentId)) ||
+        (existing.grade && scope?.grades.includes(existing.grade.toUpperCase()));
+      if (!isAllowed) {
+        return res.status(403).json({ success: false, error: "Unauthorized to edit this assignment" });
+      }
+    }
+
+    const { title, description, subject, skillCategory, maxMarks, dueDate, grade, section, targetStudentId } = req.body as Record<string, unknown>;
     const data: Record<string, unknown> = {};
+
     if (title !== undefined) {
       if (typeof title !== "string" || !title.trim()) {
         return res.status(400).json({ success: false, error: "Title cannot be empty" });
@@ -171,6 +339,9 @@ router.patch("/:id", requireRole("ADMIN"), async (req, res) => {
     if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate as string) : null;
     if (grade !== undefined) data.grade = typeof grade === "string" && grade.trim() ? grade.trim() : null;
     if (section !== undefined) data.section = typeof section === "string" && section.trim() ? section.trim() : null;
+    if (targetStudentId !== undefined) {
+      data.targetStudentId = typeof targetStudentId === "string" && targetStudentId.trim() ? targetStudentId.trim() : null;
+    }
 
     await prisma.assignment.update({ where: { id: req.params.id }, data: data as never });
     return res.json({ success: true });
@@ -179,9 +350,18 @@ router.patch("/:id", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// DELETE /api/assignments/:id — STAFF delete
-router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+// DELETE /api/assignments/:id — STAFF / TEACHERS delete assignment
+router.delete("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    const session = req.auth!;
+    const role = session.user.role;
+    const existing = await prisma.assignment.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ success: false, error: "Assignment not found" });
+
+    if (role === "TEACHER" && existing.createdById !== session.user.id) {
+      return res.status(403).json({ success: false, error: "You can only delete assignments created by you" });
+    }
+
     await prisma.assignment.delete({ where: { id: req.params.id } });
     return res.json({ success: true });
   } catch (error) {
@@ -189,8 +369,8 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// GET /api/assignments/:id/grades — STAFF: all grades for an assignment with student names
-router.get("/:id/grades", requireRole("ADMIN"), async (req, res) => {
+// GET /api/assignments/:id/grades — STAFF / TEACHERS view marks
+router.get("/:id/grades", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const grades = await prisma.assignmentGrade.findMany({
       where: { assignmentId: req.params.id },
@@ -230,8 +410,8 @@ router.get("/:id/grades", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// POST /api/assignments/:id/grades — STAFF: upsert a student's marks
-router.post("/:id/grades", requireRole("ADMIN"), async (req, res) => {
+// POST /api/assignments/:id/grades — STAFF / TEACHERS upsert student marks
+router.post("/:id/grades", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const assignment = await prisma.assignment.findUnique({ where: { id: req.params.id } });
@@ -267,8 +447,8 @@ router.post("/:id/grades", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// GET /api/assignments/skill-attempts/recent — STAFF: view skill Q&A attempts
-router.get("/skill-attempts/recent", requireRole("ADMIN"), async (req, res) => {
+// GET /api/assignments/skill-attempts/recent — STAFF / TEACHERS view skill Q&A attempts
+router.get("/skill-attempts/recent", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { studentId, skill } = req.query as { studentId?: string; skill?: string };
     const attempts = await prisma.skillAssessmentAttempt.findMany({

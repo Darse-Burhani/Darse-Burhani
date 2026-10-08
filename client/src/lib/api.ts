@@ -276,6 +276,15 @@ export interface AssignmentItem {
   dueDate?: string | null;
   grade?: string | null;
   section?: string | null;
+  targetStudentId?: string | null;
+  targetStudent?: {
+    id: string;
+    name: string;
+    its: string;
+    grade: string;
+    section: string;
+  } | null;
+  isPersonalized?: boolean;
   createdAt: string;
   gradedCount?: number;
   myGrade?: { marks: number; feedback?: string | null; updatedAt: string } | null;
@@ -306,6 +315,7 @@ export async function createAssignment(payload: {
   dueDate?: string;
   grade?: string;
   section?: string;
+  targetStudentId?: string | null;
 }): Promise<{ id: string }> {
   return request<{ id: string }>("/api/assignments", {
     method: "POST",
