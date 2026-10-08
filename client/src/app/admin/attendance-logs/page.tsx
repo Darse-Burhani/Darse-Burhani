@@ -218,11 +218,12 @@ export default function AdminAttendanceLogsPage() {
       setError(null);
       try {
         const effectiveLogType = isFaculty ? "MANUAL" : logType;
+        const effectiveEventWindowId = effectiveLogType !== "MANUAL" && selectedEventId !== "ALL" ? selectedEventId : undefined;
         const res = await getAttendanceLogs({
           date,
           grade: selectedGrade || undefined,
           section: selectedSection || undefined,
-          eventWindowId: selectedEventId !== "ALL" ? selectedEventId : undefined,
+          eventWindowId: effectiveEventWindowId,
           audience,
           logType: effectiveLogType,
         });
@@ -643,129 +644,176 @@ export default function AdminAttendanceLogsPage() {
         </div>
       )}
 
-      {/* ── Audience + Event Filter Bar — Live counts ── */}
-      <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-              <Clock className="w-3.5 h-3.5 text-emerald-700" />
+      {/* ── Subsystem-Specific Audience / Event Filter Bar ── */}
+      {logType === "MANUAL" ? (
+        /* Manual Classroom Register: NO scheduled biometric scan windows */
+        <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shadow-xs">
+              <ClipboardCheck className="w-4 h-4" />
             </div>
-            <span className="text-[11px] font-black tracking-[0.14em] uppercase text-gray-500">Event & Audience</span>
-            {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
+            <div>
+              <span className="text-[11px] font-black tracking-[0.14em] uppercase text-gray-500">Manual Classroom Register Audience</span>
+              <p className="text-[11px] text-gray-400 font-medium">Teacher roll-call registers and manual attendance overrides</p>
+            </div>
+            {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 ml-2"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
           </div>
 
-          {/* Strict Audience Display / Selector */}
-          {isFacultyOnlyEvent ? (
-            <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold flex items-center gap-2 shadow-xs">
-              <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span>{activeEvent?.name || "Faculty Window"}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded font-black bg-indigo-600 text-white uppercase tracking-wider">Faculty Only</span>
-              {data?.facultySummary && (
-                <span className="ml-1 px-2 py-0.5 rounded bg-white text-indigo-800 border border-indigo-200 text-[10px] font-black">
-                  {data.facultySummary.total} Staff
-                </span>
-              )}
-            </div>
-          ) : isStudentOnlyEvent ? (
-            <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold flex items-center gap-2 shadow-xs">
-              <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>{activeEvent?.name || "Talabat Window"}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded font-black bg-emerald-600 text-white uppercase tracking-wider">Talabat Only</span>
-              {data?.talabatSummary && (
-                <span className="ml-1 px-2 py-0.5 rounded bg-white text-emerald-800 border border-emerald-200 text-[10px] font-black">
-                  {data.talabatSummary.total} Talabat
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
-              <button
-                type="button"
-                onClick={() => setAudience("STUDENT")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-              >
-                <GraduationCap className="w-3.5 h-3.5" />
-                Talabat
-                {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAudience("FACULTY")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-              >
-                <Briefcase className="w-3.5 h-3.5" />
-                Faculty
-                {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAudience("ALL")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                All
-                {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
-              </button>
-            </div>
-          )}
+          <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setAudience("STUDENT")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              Talabat
+              {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAudience("FACULTY")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              Faculty
+              {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAudience("ALL")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              All
+              {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
+            </button>
+          </div>
         </div>
+      ) : (
+        /* Hikvision Biometric Scan Mode: Biometric Schedule Windows & Live Hardware Punches */
+        <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                <Fingerprint className="w-3.5 h-3.5 text-emerald-700" />
+              </div>
+              <span className="text-[11px] font-black tracking-[0.14em] uppercase text-gray-500">Hikvision Scan Window & Audience</span>
+              {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
+            </div>
 
-        {/* Scheduled Event Buttons with Strict Audience Badges */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleSelectEvent("ALL")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${selectedEventId === "ALL" ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-white"}`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            All Events
-            {data?.summary && <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${selectedEventId === "ALL" ? "bg-white/15 text-emerald-100" : "bg-white text-gray-600 border"}`}>{data.summary.total}</span>}
-          </button>
-          {events.map((ev) => {
-            const isSelected = selectedEventId === ev.id;
-            const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
-            const isTilawat = /tilawat/i.test(ev.name);
-            const isFacultyEvent = ev.audience === "FACULTY" || isTilawat;
-            const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
-            const isBothEvent = ev.audience === "BOTH";
-
-            return (
-              <button
-                key={ev.id}
-                type="button"
-                onClick={() => handleSelectEvent(ev.id)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300"}`}
-              >
-                <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isFacultyEvent ? "text-indigo-500" : "text-emerald-600"}`} />
-                <span>{ev.name}</span>
-
-                {/* Strict Audience Badge */}
-                {isFacultyEvent && (
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-indigo-300 text-indigo-950" : "bg-indigo-100 text-indigo-900 border border-indigo-200"}`}>
-                    Faculty Only
+            {/* Strict Audience Display / Selector */}
+            {isFacultyOnlyEvent ? (
+              <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold flex items-center gap-2 shadow-xs">
+                <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span>{activeEvent?.name || "Faculty Window"}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded font-black bg-indigo-600 text-white uppercase tracking-wider">Faculty Only</span>
+                {data?.facultySummary && (
+                  <span className="ml-1 px-2 py-0.5 rounded bg-white text-indigo-800 border border-indigo-200 text-[10px] font-black">
+                    {data.facultySummary.total} Staff
                   </span>
                 )}
-                {isStudentEvent && (
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-emerald-300 text-emerald-950" : "bg-emerald-100 text-emerald-900 border border-emerald-200"}`}>
-                    Talabat Only
+              </div>
+            ) : isStudentOnlyEvent ? (
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold flex items-center gap-2 shadow-xs">
+                <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{activeEvent?.name || "Talabat Window"}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded font-black bg-emerald-600 text-white uppercase tracking-wider">Talabat Only</span>
+                {data?.talabatSummary && (
+                  <span className="ml-1 px-2 py-0.5 rounded bg-white text-emerald-800 border border-emerald-200 text-[10px] font-black">
+                    {data.talabatSummary.total} Talabat
                   </span>
                 )}
-                {isBothEvent && (
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-teal-300 text-teal-950" : "bg-teal-100 text-teal-900 border border-teal-200"}`}>
-                    Both
-                  </span>
-                )}
+              </div>
+            ) : (
+              <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setAudience("STUDENT")}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  Talabat
+                  {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudience("FACULTY")}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  Faculty
+                  {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudience("ALL")}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  All
+                  {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
+                </button>
+              </div>
+            )}
+          </div>
 
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/15 text-emerald-100" : "bg-gray-100 text-gray-600"}`}>{ev.timeDisplay}</span>
-                {liveCount !== null && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? "bg-amber-400 text-emerald-950" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{liveCount}</span>
-                )}
-                {ev.status === "ACTIVE" && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow shadow-emerald-400/50" />}
-              </button>
-            );
-          })}
+          {/* Scheduled Biometric Scan Windows */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleSelectEvent("ALL")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${selectedEventId === "ALL" ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-white"}`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              All Windows
+              {data?.summary && <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${selectedEventId === "ALL" ? "bg-white/15 text-emerald-100" : "bg-white text-gray-600 border"}`}>{data.summary.total}</span>}
+            </button>
+            {events.map((ev) => {
+              const isSelected = selectedEventId === ev.id;
+              const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
+              const isTilawat = /tilawat/i.test(ev.name);
+              const isFacultyEvent = ev.audience === "FACULTY" || isTilawat;
+              const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
+              const isBothEvent = ev.audience === "BOTH";
+
+              return (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => handleSelectEvent(ev.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300"}`}
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isFacultyEvent ? "text-indigo-500" : "text-emerald-600"}`} />
+                  <span>{ev.name}</span>
+
+                  {/* Strict Audience Badge */}
+                  {isFacultyEvent && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-indigo-300 text-indigo-950" : "bg-indigo-100 text-indigo-900 border border-indigo-200"}`}>
+                      Faculty Only
+                    </span>
+                  )}
+                  {isStudentEvent && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-emerald-300 text-emerald-950" : "bg-emerald-100 text-emerald-900 border border-emerald-200"}`}>
+                      Talabat Only
+                    </span>
+                  )}
+                  {isBothEvent && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-teal-300 text-teal-950" : "bg-teal-100 text-teal-900 border border-teal-200"}`}>
+                      Both
+                    </span>
+                  )}
+
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/15 text-emerald-100" : "bg-gray-100 text-gray-600"}`}>{ev.timeDisplay}</span>
+                  {liveCount !== null && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? "bg-amber-400 text-emerald-950" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{liveCount}</span>
+                  )}
+                  {ev.status === "ACTIVE" && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow shadow-emerald-400/50" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── LocalStorage Archive: all-days stacked + Weekly individual reports ── */}
       <ArchiveWeeklyPanel archiveMonth={archiveMonth} setArchiveMonth={setArchiveMonth} archiveStats={archiveStats} setArchiveStats={setArchiveStats} />

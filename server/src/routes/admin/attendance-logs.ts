@@ -428,8 +428,8 @@ router.get("/", requireAuth, async (req, res) => {
       filteredRecords = manualRecords;
     }
 
-    // 3. Filter by Event Window if specified
-    if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
+    // 3. Filter by Event Window if specified (Strictly applied to Hikvision hardware scans or Combined view)
+    if (logType !== "MANUAL" && eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
       if (logType === "HIKVISION") {
         filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId);
       } else {
