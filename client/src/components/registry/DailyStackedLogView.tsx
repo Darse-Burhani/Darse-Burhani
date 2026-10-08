@@ -309,9 +309,6 @@ function AttendanceGridView({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
       {records.map((r) => {
-        const cfg = sourceBadgeConfig[r.source] || sourceBadgeConfig.SCAN;
-        const SourceIcon = cfg.icon;
-
         return (
           <motion.div
             key={r.id || r.memberId}
