@@ -28,6 +28,7 @@ import {
   getAttendanceLogs,
   getAttendanceLogEvents,
   getExportAttendanceLogsUrl,
+  pollHikvisionDevicesNow,
   AttendanceLogsResponse,
   ScheduledEventWindow,
 } from "@/lib/api";
@@ -197,6 +198,29 @@ export default function AdminAttendanceLogsPage() {
 
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [isSyncingHardware, setIsSyncingHardware] = useState(false);
+
+  const handleSyncHardwareNow = async () => {
+    setIsSyncingHardware(true);
+    try {
+      const res = await pollHikvisionDevicesNow();
+      toast({
+        title: "Hardware Terminals Synced",
+        description: res.message || `Pulled ${res.data?.totalFetched ?? 0} scans (${res.data?.totalProcessed ?? 0} processed).`,
+        variant: "success",
+      });
+      await fetchData(true);
+    } catch (err: any) {
+      toast({
+        title: "Hardware Sync Notice",
+        description: err?.message || "Failed to poll physical terminals",
+        variant: "warning",
+      });
+      await fetchData(true);
+    } finally {
+      setIsSyncingHardware(false);
+    }
+  };
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -302,7 +326,7 @@ export default function AdminAttendanceLogsPage() {
   const windowOpenRef = useRef(true);
   windowOpenRef.current = selectedWindowOpen;
 
-  // Live polling — every 4s when enabled, today only, window open only
+  // Live polling — high-precision 2s interval when enabled, today only, window open only
   useEffect(() => {
     if (!isLive) return;
     if (!selectedWindowOpen) return;
@@ -310,7 +334,7 @@ export default function AdminAttendanceLogsPage() {
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       fetchData(true);
-    }, 4000);
+    }, 2000);
     tickRef.current = id;
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current);
@@ -523,6 +547,19 @@ export default function AdminAttendanceLogsPage() {
                 </button>
               )}
             </div>
+
+            {logType !== "MANUAL" && (
+              <button
+                type="button"
+                onClick={handleSyncHardwareNow}
+                disabled={isSyncingHardware}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md cursor-pointer disabled:opacity-50 transition-all"
+                title="Pull and sync scans from all Hikvision biometric terminals immediately"
+              >
+                <Zap className={`w-3.5 h-3.5 fill-current ${isSyncingHardware ? "animate-spin text-slate-950" : ""}`} />
+                {isSyncingHardware ? "Syncing..." : "Sync Terminals"}
+              </button>
+            )}
 
             <button
               type="button"

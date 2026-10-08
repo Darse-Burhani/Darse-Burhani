@@ -898,7 +898,7 @@ function scheduleDevice(id: string, pollIntervalSeconds: number, host?: string):
   if (isCloudEnvironment() && (!host || isPrivateLanIp(host))) {
     return;
   }
-  const ms = Math.max(2000, (pollIntervalSeconds || 15) * 1000);
+  const ms = Math.max(2000, (pollIntervalSeconds || 3) * 1000);
   const timer = setInterval(() => {
     pollDevice(id).catch(() => {});
   }, ms);

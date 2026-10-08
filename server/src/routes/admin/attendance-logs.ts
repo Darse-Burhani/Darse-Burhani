@@ -12,6 +12,7 @@ import {
   queueAutoSheetSync,
 } from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent } from "../../lib/biometric";
+import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
 
 const router = Router();
 
@@ -333,6 +334,8 @@ router.get("/", requireAuth, async (req, res) => {
         }
 
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false) : null;
+        const biometricMethod = record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
+        const verificationMethod = record?.verificationMethod || (hasBiometricScan ? "BIOMETRIC" : "MANUAL");
 
         return {
           id: registry?.id || record?.id || `virtual-student-${s.id}`,
@@ -346,6 +349,8 @@ router.get("/", requireAuth, async (req, res) => {
           designationOrClass: s.classEnrollments[0]?.class?.name || `Grade ${s.grade}-${s.section}`,
           status: effectiveStatus,
           source: effectiveSource,
+          verificationMethod,
+          biometricMethod,
           checkInTime,
           checkOutTime,
           remarks,
@@ -404,6 +409,8 @@ router.get("/", requireAuth, async (req, res) => {
           }
         }
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true) : null;
+        const biometricMethod = rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
+        const verificationMethod = rec?.verificationMethod || (source === "SCAN" ? "BIOMETRIC" : "MANUAL");
 
         return {
           id: rec?.id || `virtual-faculty-${t.id}`,
@@ -417,6 +424,8 @@ router.get("/", requireAuth, async (req, res) => {
           designationOrClass: `${t.department || "Faculty"} • ${t.subjects?.join(", ") || "Staff"}`,
           status,
           source,
+          verificationMethod,
+          biometricMethod,
           checkInTime,
           checkOutTime,
           remarks,
@@ -556,7 +565,19 @@ router.get("/", requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error("[attendance-logs] GET error:", error);
-    return res.status(500).json({ success: false, error: "Failed to fetch attendance logs" });
+// POST /api/admin/attendance-logs/poll-now — Instant sync & pull hardware biometric scans
+router.post("/poll-now", requireAuth, async (_req, res) => {
+  try {
+    const todayStart = getStartOfTodayIST();
+    const result = await pullAllDevicesScansForRange(todayStart, new Date());
+    return res.json({
+      success: true,
+      message: `Pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("[attendance-logs] /poll-now error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to poll hardware devices" });
   }
 });
 

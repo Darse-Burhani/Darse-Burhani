@@ -64,6 +64,59 @@ const sourceBadgeConfig: Record<
   LEAVE_APPROVED: { label: "Leave", icon: FileCheck2, color: "text-amber-700", badgeBg: "bg-amber-50 text-amber-800 border-amber-200 font-bold" },
 };
 
+function getRecordMethodBadge(r: AttendanceLogRecordItem) {
+  if (r.biometricMethod === "FACIAL") {
+    return {
+      label: "Face Recognized",
+      icon: Sparkles,
+      color: "text-indigo-700",
+      badgeBg: "bg-indigo-50 text-indigo-800 border-indigo-300 font-black",
+    };
+  }
+  if (r.biometricMethod === "FINGERPRINT") {
+    return {
+      label: "Fingerprint Scanned",
+      icon: Fingerprint,
+      color: "text-emerald-700",
+      badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black",
+    };
+  }
+  if (r.biometricMethod === "CARD") {
+    return {
+      label: "RFID Card Scanned",
+      icon: Zap,
+      color: "text-purple-700",
+      badgeBg: "bg-purple-50 text-purple-800 border-purple-300 font-black",
+    };
+  }
+  if (r.source === "SCAN" || r.source === "BIOMETRIC") {
+    return {
+      label: "Hikvision Scanned",
+      icon: Zap,
+      color: "text-emerald-700",
+      badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black",
+    };
+  }
+  return sourceBadgeConfig[r.source] || sourceBadgeConfig.MANUAL;
+}
+
+function formatPreciseScanTime(isoTime?: string | null) {
+  if (!isoTime) return null;
+  const d = new Date(isoTime);
+  if (Number.isNaN(d.getTime())) return null;
+  const timeStr = d.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+  const now = Date.now();
+  const diffMs = now - d.getTime();
+  const isRecent = diffMs >= 0 && diffMs < 5 * 60 * 1000;
+  return { timeStr, isRecent };
+}
+
 // Animated number with live pulse
 function LiveNumber({ value, pulsing }: { value: number; pulsing?: boolean }) {
   return (
@@ -216,19 +269,22 @@ function AttendanceTableView({
 
                   {/* Check-in Time */}
                   <td className="px-3 py-2.5 font-mono text-gray-900 tabular-nums">
-                    {r.checkInTime ? (
-                      <span className="font-bold text-emerald-700">
-                        {new Date(r.checkInTime).toLocaleTimeString("en-IN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                          hour12: true,
-                          timeZone: "Asia/Kolkata",
-                        })} IST
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 font-normal">— not scanned</span>
-                    )}
+                    {(() => {
+                      const formatted = formatPreciseScanTime(r.checkInTime);
+                      if (!formatted) return <span className="text-gray-400 font-normal">— not scanned</span>;
+                      return (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            {formatted.timeStr} IST
+                          </span>
+                          {formatted.isRecent && (
+                            <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                              Live
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Event Window */}
@@ -284,10 +340,16 @@ function AttendanceTableView({
 
                   {/* Source / Method */}
                   <td className="px-3 py-2.5 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] border ${cfg.badgeBg || "bg-gray-100 text-gray-800 border-gray-200"}`}>
-                      <SourceIcon className="w-3 h-3" />
-                      {cfg.label}
-                    </span>
+                    {(() => {
+                      const methodBadge = getRecordMethodBadge(r);
+                      const MethodIcon = methodBadge.icon;
+                      return (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[10px] border ${methodBadge.badgeBg}`}>
+                          <MethodIcon className="w-3 h-3 shrink-0" />
+                          {methodBadge.label}
+                        </span>
+                      );
+                    })()}
                   </td>
 
                   {/* Notes / Leave Reason */}
@@ -429,26 +491,45 @@ function AttendanceGridView({
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-gray-500 font-semibold">Method / Source</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[10px] border ${cfg.badgeBg || "bg-gray-100 text-gray-800 border-gray-200"}`}>
-                      <SourceIcon className="w-3 h-3" />
-                      {cfg.label}
-                    </span>
-                  </div>
-                  {r.checkInTime ? (
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-500 font-semibold">Scan Timestamp</span>
-                      <span className="font-mono font-bold text-gray-900 tabular-nums">
-                        {new Date(r.checkInTime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} IST
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-500 font-semibold">Scan Timestamp</span>
-                      <span className="font-medium text-gray-400">— not scanned</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const methodBadge = getRecordMethodBadge(r);
+                    const MethodIcon = methodBadge.icon;
+                    return (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-500 font-semibold">Method / Source</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[10px] border ${methodBadge.badgeBg}`}>
+                          <MethodIcon className="w-3 h-3 shrink-0" />
+                          {methodBadge.label}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {(() => {
+                    const formatted = formatPreciseScanTime(r.checkInTime);
+                    if (!formatted) {
+                      return (
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-500 font-semibold">Scan Timestamp</span>
+                          <span className="font-medium text-gray-400">— not scanned</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-500 font-semibold">Scan Timestamp</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-gray-900 tabular-nums">
+                            {formatted.timeStr} IST
+                          </span>
+                          {formatted.isRecent && (
+                            <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                              Live
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {r.remarks && (
                     <div className="text-[11px] text-gray-700 italic bg-white/80 p-1.5 rounded-lg border border-gray-200/60 line-clamp-2">
                       “{r.remarks}”

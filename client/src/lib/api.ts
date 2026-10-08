@@ -79,6 +79,8 @@ export interface AttendanceLogRecordItem {
   className?: string;
   status: "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "ON_LEAVE" | "NOT_MARKED";
   source: "SCAN" | "MANUAL" | "AUTO_ABSENT" | "MEDICAL_LEAVE" | "LEAVE_APPROVED" | "BIOMETRIC";
+  verificationMethod?: string | null;
+  biometricMethod?: "FACIAL" | "FINGERPRINT" | "CARD" | "BIOMETRIC" | string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
   remarks?: string | null;
@@ -695,6 +697,28 @@ export async function overrideAttendanceLog(payload: {
 }
 
 export const overrideAttendanceRegistry = overrideAttendanceLog;
+
+export async function pollHikvisionDevicesNow(): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    totalFetched: number;
+    totalProcessed: number;
+    devices: Array<{
+      id: string;
+      name: string;
+      host: string;
+      success: boolean;
+      scansFetched: number;
+      scansProcessed: number;
+      error?: string;
+    }>;
+  };
+}> {
+  return request<any>("/api/admin/attendance-logs/poll-now", {
+    method: "POST",
+  });
+}
 
 // ── Google Sheet daily attendance log sync ──
 
