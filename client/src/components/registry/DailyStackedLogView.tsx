@@ -24,6 +24,8 @@ import {
   AlertTriangle,
   Table as TableIcon,
   LayoutGrid,
+  Fingerprint,
+  ClipboardCheck,
 } from "lucide-react";
 import { AttendanceLogRecordItem, AttendanceLogsSummary } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +47,7 @@ interface DailyStackedLogViewProps {
   audience: "STUDENT" | "FACULTY" | "ALL";
   livePulse?: boolean;
   lastUpdatedAt?: string | null;
+  logType?: "HIKVISION" | "MANUAL" | "ALL";
 }
 
 type TabType = "ALL" | "PRESENT" | "LATE" | "MEDICAL" | "ON_LEAVE" | "ABSENT" | "NOT_MARKED";
@@ -53,12 +56,12 @@ const sourceBadgeConfig: Record<
   string,
   { label: string; icon: React.ElementType; color: string; badgeBg: string }
 > = {
-  SCAN: { label: "Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-  BIOMETRIC: { label: "Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-  MANUAL: { label: "Manual", icon: UserCheck, color: "text-blue-700", badgeBg: "bg-blue-50 text-blue-800 border-blue-200" },
-  AUTO_ABSENT: { label: "Auto Absent", icon: Bot, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200" },
-  MEDICAL_LEAVE: { label: "Medical", icon: Stethoscope, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200" },
-  LEAVE_APPROVED: { label: "Leave", icon: FileCheck2, color: "text-amber-700", badgeBg: "bg-amber-50 text-amber-800 border-amber-200" },
+  SCAN: { label: "Card Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black" },
+  BIOMETRIC: { label: "Card Scanned", icon: Zap, color: "text-emerald-700", badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black" },
+  MANUAL: { label: "Manual Roll-Call", icon: UserCheck, color: "text-blue-700", badgeBg: "bg-blue-50 text-blue-800 border-blue-300 font-black" },
+  AUTO_ABSENT: { label: "Auto Absent", icon: Bot, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200 font-bold" },
+  MEDICAL_LEAVE: { label: "Medical", icon: Stethoscope, color: "text-rose-700", badgeBg: "bg-rose-50 text-rose-800 border-rose-200 font-bold" },
+  LEAVE_APPROVED: { label: "Leave", icon: FileCheck2, color: "text-amber-700", badgeBg: "bg-amber-50 text-amber-800 border-amber-200 font-bold" },
 };
 
 // Animated number with live pulse
@@ -145,6 +148,7 @@ export function DailyStackedLogView({
   audience,
   livePulse,
   lastUpdatedAt,
+  logType = "ALL",
 }: DailyStackedLogViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [search, setSearch] = useState("");
@@ -193,6 +197,51 @@ export function DailyStackedLogView({
 
   return (
     <div className="space-y-4">
+      {/* ── Strict Subsystem Mode Notification Banner ── */}
+      {logType === "HIKVISION" && (
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-teal-950/80 to-emerald-900/90 border border-emerald-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
+              <Zap className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
+                Hikvision Hardware Card Scan Stream
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">Strict</span>
+              </p>
+              <p className="text-[11px] text-emerald-100/70">
+                Displaying only RFID card swipes and terminal punches verified against scheduled scan windows.
+              </p>
+            </div>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-black/30 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+            <Fingerprint className="w-3.5 h-3.5" /> Terminal Hardware Sync
+          </span>
+        </div>
+      )}
+
+      {logType === "MANUAL" && (
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-950/90 via-indigo-950/80 to-blue-900/90 border border-blue-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+              <UserCheck className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="text-xs font-black text-blue-200 uppercase tracking-wider flex items-center gap-1.5">
+                Manual Classroom Attendance Register
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black bg-blue-400/20 text-blue-300 border border-blue-400/30">Faculty</span>
+              </p>
+              <p className="text-[11px] text-blue-100/70">
+                Displaying teacher roll-call entries, manual status overrides, medical exemptions, and approved leaves.
+              </p>
+            </div>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-blue-300 bg-black/30 px-3 py-1.5 rounded-xl border border-blue-500/20">
+            <ClipboardCheck className="w-3.5 h-3.5" /> Classroom Register
+          </span>
+        </div>
+      )}
+
       {/* Live Audience Split — shows proper Talabat vs Faculty numbers when ALL */}
       {audience === "ALL" && talabatSummary && facultySummary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -208,7 +257,7 @@ export function DailyStackedLogView({
             </div>
             <div className="text-right">
               <div className="text-lg font-black text-emerald-900 tabular-nums">{talabatSummary.total}</div>
-              <div className="text-[10px] font-bold text-emerald-700">roster</div>
+              <div className="text-[10px] font-bold text-emerald-700">{logType === "HIKVISION" ? "scans" : "roster"}</div>
             </div>
           </div>
           <div className="rounded-[16px] border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-3 flex items-center justify-between">
@@ -223,7 +272,7 @@ export function DailyStackedLogView({
             </div>
             <div className="text-right">
               <div className="text-lg font-black text-indigo-900 tabular-nums">{facultySummary.total}</div>
-              <div className="text-[10px] font-bold text-indigo-700">staff</div>
+              <div className="text-[10px] font-bold text-indigo-700">{logType === "HIKVISION" ? "scans" : "staff"}</div>
             </div>
           </div>
         </div>
@@ -234,9 +283,9 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "ALL"}
           onClick={() => setActiveTab("ALL")}
-          label="Total Live"
+          label={logType === "HIKVISION" ? "Total Scans" : logType === "MANUAL" ? "Total Manual" : "Total Live"}
           value={summary.total}
-          sub={`${pct(summary.present + summary.late)}% marked • live`}
+          sub={logType === "HIKVISION" ? `${summary.total} card punches` : `${pct(summary.present + summary.late)}% marked • live`}
           icon={Layers}
           activeClass="bg-gray-900 text-white border-gray-900 shadow-lg"
           inactiveClass="bg-white text-gray-900 border-gray-200 hover:border-gray-300 hover:shadow-sm"
@@ -245,7 +294,7 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "PRESENT"}
           onClick={() => setActiveTab("PRESENT")}
-          label="Present"
+          label={logType === "HIKVISION" ? "On-Time Scans" : "Present"}
           value={summary.present}
           sub={`${pct(summary.present)}% on-time`}
           icon={CheckCircle2}
@@ -256,7 +305,7 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "LATE"}
           onClick={() => setActiveTab("LATE")}
-          label="Late"
+          label={logType === "HIKVISION" ? "Grace Window" : "Late"}
           value={summary.late}
           sub="Grace window"
           icon={Clock}
@@ -280,7 +329,7 @@ export function DailyStackedLogView({
           onClick={() => setActiveTab("NOT_MARKED")}
           label="Not Marked"
           value={summary.notMarked}
-          sub="Pending scan"
+          sub={logType === "HIKVISION" ? "Unscanned" : "Pending entry"}
           icon={Timer}
           activeClass="bg-slate-700 text-white border-slate-700 shadow-lg"
           inactiveClass="bg-white text-slate-700 border-gray-200 hover:border-slate-200"
@@ -312,15 +361,21 @@ export function DailyStackedLogView({
 
       {/* Source breakdown + live stamp */}
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
-          <Zap className="w-3 h-3" /> Scanned: {summary.sources.scanned}
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 font-bold">
-          <UserCheck className="w-3 h-3" /> Manual: {summary.sources.manual}
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-800 font-bold">
-          <Bot className="w-3 h-3" /> Auto: {summary.sources.autoAbsent}
-        </span>
+        {logType !== "MANUAL" && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+            <Zap className="w-3 h-3" /> Card Scans: {summary.sources.scanned}
+          </span>
+        )}
+        {logType !== "HIKVISION" && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 font-bold">
+            <UserCheck className="w-3 h-3" /> Manual Roll-Calls: {summary.sources.manual}
+          </span>
+        )}
+        {summary.sources.autoAbsent > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-800 font-bold">
+            <Bot className="w-3 h-3" /> Auto: {summary.sources.autoAbsent}
+          </span>
+        )}
         {lastUpdatedAt && (
           <span className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-900 text-white font-semibold">
             <Activity className={`w-3 h-3 ${livePulse ? "animate-pulse text-emerald-400" : "text-gray-400"}`} />
@@ -419,8 +474,20 @@ export function DailyStackedLogView({
             <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center mb-3">
               <AlertTriangle className="w-6 h-6 text-gray-400" />
             </div>
-            <div className="text-xs font-bold text-gray-700">No matching records — try another filter</div>
-            <div className="text-[11px] text-gray-400 mt-1">Live stream is active; new scans appear instantly when they arrive.</div>
+            <div className="text-xs font-bold text-gray-700">
+              {logType === "HIKVISION"
+                ? "No card scans recorded for this schedule window yet"
+                : logType === "MANUAL"
+                ? "No manual classroom roll-call entries recorded yet"
+                : "No matching records — try another filter"}
+            </div>
+            <div className="text-[11px] text-gray-400 mt-1 max-w-md">
+              {logType === "HIKVISION"
+                ? "RFID card punches and biometric scans from Hikvision terminals will stream in real-time as members tap their cards."
+                : logType === "MANUAL"
+                ? "Classroom teachers can mark manual attendance or record attendance using the 'Record Manual' button."
+                : "Live stream is active; new scans appear instantly when they arrive."}
+            </div>
           </motion.div>
         ) : viewMode === "table" ? (
           /* ── Professional Spreadsheet Table View ── */

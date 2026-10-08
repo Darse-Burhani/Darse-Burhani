@@ -736,6 +736,7 @@ export default function AdminAttendanceLogsPage() {
           audience={audience}
           livePulse={livePulse}
           lastUpdatedAt={lastUpdatedAt}
+          logType={logType}
         />
       ) : null}
 

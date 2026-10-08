@@ -360,17 +360,25 @@ router.get("/", requireAuth, async (req, res) => {
 
     const allRecords = isTilawatFilter ? facultyRecords : [...studentRecords, ...facultyRecords];
 
-    // 3. Filter by Event Window if specified
+    // Strict Segregation: Scanned Card Logs (Hikvision) vs Manual Classroom Logs
+    const isHikScan = (r: (typeof allRecords)[0]) => (r.source === "SCAN" || r.source === "BIOMETRIC") && Boolean(r.checkInTime);
+    const isManualEntry = (r: (typeof allRecords)[0]) => r.source !== "SCAN" && r.source !== "BIOMETRIC";
+
+    const hikvisionRecords = allRecords.filter(isHikScan);
+    const manualRecords = allRecords.filter(isManualEntry);
+
     let filteredRecords = allRecords;
-    if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
-      filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId || (isTilawatFilter && r.role === "FACULTY"));
+
+    // Apply strict logType partition
+    if (logType === "HIKVISION") {
+      filteredRecords = hikvisionRecords;
+    } else if (logType === "MANUAL") {
+      filteredRecords = manualRecords;
     }
 
-    // Total Separation of Logs: Hikvision vs Manual
-    if (logType === "HIKVISION") {
-      filteredRecords = filteredRecords.filter((r) => r.source === "SCAN" || r.source === "BIOMETRIC");
-    } else if (logType === "MANUAL") {
-      filteredRecords = filteredRecords.filter((r) => r.source !== "SCAN" && r.source !== "BIOMETRIC");
+    // 3. Filter by Event Window if specified
+    if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
+      filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId || (isTilawatFilter && r.role === "FACULTY"));
     }
 
     // Filter by Status
@@ -410,16 +418,20 @@ router.get("/", requireAuth, async (req, res) => {
     const summary = countSummary(filteredRecords);
     const talabatSummary = countSummary(studentFiltered);
     const facultySummary = countSummary(facultyFiltered);
-    const overallSummary = countSummary(filteredRecords);
+    const overallSummary = countSummary(allRecords);
 
-    const hikvisionRecords = allRecords.filter((r) => r.source === "SCAN" || r.source === "BIOMETRIC");
-    const manualRecords = allRecords.filter((r) => r.source !== "SCAN" && r.source !== "BIOMETRIC");
     const hikvisionSummary = countSummary(hikvisionRecords);
     const manualSummary = countSummary(manualRecords);
 
-    // Per-event live counts
+    // Per-event live counts strictly aligned with active logType
     const eventLiveCounts: Record<string, number> = {};
-    for (const r of allRecords) {
+    const countSourceRecords = logType === "HIKVISION" 
+      ? hikvisionRecords 
+      : logType === "MANUAL" 
+      ? manualRecords 
+      : allRecords;
+
+    for (const r of countSourceRecords) {
       const eid = r.scheduledEvent?.id;
       if (eid) eventLiveCounts[eid] = (eventLiveCounts[eid] || 0) + 1;
     }
@@ -732,7 +744,7 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
     const end = normalizeDateToUTC(rawEnd);
     const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-    const { grade, section, audience } = req.query as Record<string, string | undefined>;
+    const { grade, section, audience, logType } = req.query as Record<string, string | undefined>;
     const wantStudents = !audience || audience === "ALL" || audience === "STUDENT";
     const wantFaculty = !audience || audience === "ALL" || audience === "FACULTY";
 
@@ -776,7 +788,7 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 
     const rows: string[] = [];
     // Title + meta rows with nice theme (visible when opened in Excel/Sheets)
-    rows.push(esc(`DARSE BURHANI — ATTENDANCE LOG (BIFURCATED) — ${titleRange}`));
+    rows.push(esc(`DARSE BURHANI — ATTENDANCE LOG (${logType || "ALL"}) — ${titleRange}`));
     rows.push(esc(`Generated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST | Range: ${dayKeys[0]} to ${dayKeys[dayKeys.length - 1]} | Talabat: ${students.length} | Faculty: ${teachers.length}`));
     rows.push(""); // blank
 
@@ -807,6 +819,11 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
             source = rawSrc === "BIOMETRIC" ? "SCAN" : rawSrc;
             remarks = (src as any).remarks || (src as any).justification || (src as any).notes || "";
           }
+
+          const isScan = (source === "SCAN" || source === "BIOMETRIC") && Boolean(checkIn);
+          if (logType === "HIKVISION" && !isScan) continue;
+          if (logType === "MANUAL" && isScan) continue;
+
           const name = `${s.user.firstName} ${s.user.lastName}`.trim();
           const itsVal = s.its || s.studentId;
           const gradeDept = s.section ? `Grade ${s.grade}-${s.section}` : `Grade ${s.grade || "--"}`;
@@ -827,6 +844,11 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
           const checkIn = rec?.checkInTime || null;
           const source = rec ? ((rec as any).verificationMethod === "AUTO_SYSTEM" ? "AUTO_ABSENT" : ((rec as any).verificationMethod || "SCAN")) : "--";
           const remarks = (rec as any)?.notes || "";
+
+          const isScan = (source === "SCAN" || source === "BIOMETRIC") && Boolean(checkIn);
+          if (logType === "HIKVISION" && !isScan) continue;
+          if (logType === "MANUAL" && isScan) continue;
+
           const name = `${t.user.firstName} ${t.user.lastName}`.trim();
           const empId = (t as any).employeeId || (t as any).its || t.id;
           const dept = (t as any).department || (t as any).roleTitle || "Faculty";
@@ -842,8 +864,9 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
     const csv = "\uFEFF" + rows.join("\r\n");
     const rangeLabel = dayKeys.length === 1 ? dayKeys[0] : `${dayKeys[0]}_to_${dayKeys[dayKeys.length - 1]}`;
     const audLabel = audience && audience !== "ALL" ? `-${audience.toLowerCase()}` : "-bifurcated";
+    const modeLabel = logType && logType !== "ALL" ? `-${logType.toLowerCase()}` : "";
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="attendance-logs${audLabel}-${rangeLabel}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="attendance-logs${modeLabel}${audLabel}-${rangeLabel}.csv"`);
     return res.send(csv);
   } catch (error) {
     console.error("[attendance-logs] Export error:", error);
