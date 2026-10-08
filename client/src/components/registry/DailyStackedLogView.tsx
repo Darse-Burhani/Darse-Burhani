@@ -65,37 +65,8 @@ const sourceBadgeConfig: Record<
 };
 
 function getRecordMethodBadge(r: AttendanceLogRecordItem) {
-  if (r.biometricMethod === "FACIAL") {
-    return {
-      label: "Face Recognized",
-      icon: Sparkles,
-      color: "text-indigo-700",
-      badgeBg: "bg-indigo-50 text-indigo-800 border-indigo-300 font-black",
-    };
-  }
-  if (r.biometricMethod === "FINGERPRINT") {
-    return {
-      label: "Fingerprint Scanned",
-      icon: Fingerprint,
-      color: "text-emerald-700",
-      badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black",
-    };
-  }
-  if (r.biometricMethod === "CARD") {
-    return {
-      label: "RFID Card Scanned",
-      icon: Zap,
-      color: "text-purple-700",
-      badgeBg: "bg-purple-50 text-purple-800 border-purple-300 font-black",
-    };
-  }
   if (r.source === "SCAN" || r.source === "BIOMETRIC") {
-    return {
-      label: "Hikvision Scanned",
-      icon: Zap,
-      color: "text-emerald-700",
-      badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-300 font-black",
-    };
+    return sourceBadgeConfig.SCAN;
   }
   return sourceBadgeConfig[r.source] || sourceBadgeConfig.MANUAL;
 }
