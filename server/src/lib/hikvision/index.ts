@@ -744,32 +744,9 @@ export async function pollDevice(
     const startOfToday = getStartOfTodayIST();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Strict Schedule Window Enforcement:
-    // When live polling (not an admin force test or explicit backfill date range),
-    // check if ANY hardware biometric schedule window is currently active/open today.
-    // When all schedule windows are OFF / closed for both Talabat and Faculty,
-    // do not pull scans from terminals or mark records.
-    if (!force && !customFrom) {
-      const [studentStatus, teacherStatus] = await Promise.all([
-        isRoleWindowOpen("STUDENT", new Date(), true),
-        isRoleWindowOpen("TEACHER", new Date(), true),
-      ]);
-
-      const anyWindowOpen = studentStatus.isOpen || teacherStatus.isOpen;
-      if (!anyWindowOpen) {
-        // Schedule window is OFF / closed — do NOT pull scans or record attendance.
-        await prisma.biometricDevice.update({
-          where: { id },
-          data: {
-            status: "ONLINE",
-            lastError: null,
-            lastPolledAt: new Date(),
-            lastSeenAt: new Date(),
-          },
-        }).catch(() => {});
-        return { scansFetched: 0, scansProcessed: 0 };
-      }
-    }
+    // Note: Scans are continuously pulled for today so that any event stored on
+    // the terminal (e.g. from the morning window) is reliably processed by
+    // processBiometricScan even if retrieved shortly after the window boundary.
 
     // Query lookback:
     // 1. If explicit customFrom is provided, use it.

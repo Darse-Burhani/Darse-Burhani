@@ -15,6 +15,7 @@
     "seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "hikvision:render": "node scripts/configure-render-push.mjs",
+    "hikvision:direct-cloud-push": "node scripts/configure-direct-cloud-push.mjs",
     "hikvision:tunnel": "node scripts/configure-tunnel-push.mjs",
     "hikvision:cloud-bridge": "node scripts/hikvision-cloud-bridge.mjs",
     "hikvision:sync": "node scripts/sync-today-scans.mjs",

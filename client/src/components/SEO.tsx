@@ -70,7 +70,7 @@ export const ROUTE_METADATA: Record<string, { title: string; description: string
   },
   "/talabat": {
     title: "Talabat Student Portal",
-    description: "Personal attendance ledger, Quran Hifz progress, library loans, badges, and skill achievements.",
+    description: "Personal attendance ledger, Quran Hifz progress, Maktabat book catalog, badges, and skill achievements.",
     noIndex: true,
   },
   "/parent": {
