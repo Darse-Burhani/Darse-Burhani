@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { InstitutionalFooter } from "@/components/InstitutionalFooter";
+import { SplashScreen } from "@/components/SplashScreen";
 
 export interface PortalConfig {
   role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
@@ -160,6 +161,7 @@ export default function LoginPage() {
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [transitionTarget, setTransitionTarget] = useState<{ path: string; portalName: string } | null>(null);
 
   // ITS Scanner State
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -475,7 +477,11 @@ export default function LoginPage() {
         STUDENT: "/talabat",
         PARENT: "/parent",
       };
-      setTimeout(() => navigate(rolePaths[role] || "/admin"), 400);
+      const targetPath = rolePaths[role] || "/admin";
+      setTransitionTarget({
+        path: targetPath,
+        portalName: portal.label,
+      });
     } catch {
       setError("Connection failed. Please check your network connection.");
     } finally {
@@ -1138,6 +1144,18 @@ export default function LoginPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── 3D SPLASH TRANSITION ON LOGIN ── */}
+      {transitionTarget && (
+        <SplashScreen
+          mode="login_transition"
+          minDurationMs={2000}
+          portalName={transitionTarget.portalName}
+          onFinish={() => {
+            navigate(transitionTarget.path);
+          }}
+        />
+      )}
     </>
   );
 }
