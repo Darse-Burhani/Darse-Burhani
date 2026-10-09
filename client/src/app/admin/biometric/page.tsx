@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Fingerprint,
-  Mail,
   Radio,
   Server,
   ShieldCheck,
   Link2,
-  Download,
   Plus,
   RefreshCw,
   Search,
@@ -22,45 +20,22 @@ import {
   GraduationCap,
   Trash2,
   Pencil,
-  Filter,
-  Globe,
   Zap,
   Check,
   AlertTriangle,
-  Layers,
   FileSpreadsheet,
   Copy,
-  Laptop,
-  FileText,
   ClipboardCheck,
+  FileText,
+  Video,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import IvmsControlStation from "@/components/admin/biometric/IvmsControlStation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import IvmsControlStation, { type BiometricDevice } from "@/components/admin/biometric/IvmsControlStation";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-
-interface BiometricDevice {
-  id: string;
-  name: string;
-  type: string;
-  host: string;
-  port: number;
-  username: string;
-  hasPassword: boolean;
-  serialNo: string | null;
-  model: string | null;
-  mac: string | null;
-  firmwareVersion: string | null;
-  status: string;
-  lastError: string | null;
-  lastSeenAt: string | null;
-  lastPolledAt: string | null;
-  pollIntervalSeconds: number;
-  enabled: boolean;
-}
 
 interface BiometricStudent {
   id: string;
@@ -83,20 +58,6 @@ interface BiometricTeacher {
   fingerprint: string | null;
 }
 
-interface AttendanceLogItem {
-  id: string;
-  studentId?: string;
-  teacherId?: string;
-  name: string;
-  role: "STUDENT" | "TEACHER";
-  gradeOrDept: string;
-  status: "PRESENT" | "LATE" | "ABSENT" | "EXCUSED";
-  checkInTime: string | null;
-  verificationMethod?: string;
-  biometricMethod?: string;
-  biometricHash?: string;
-}
-
 interface UnmatchedItem {
   fingerprint: string;
   count: number;
@@ -104,7 +65,7 @@ interface UnmatchedItem {
   lastSeen: string;
 }
 
-type TabType = "live" | "terminals" | "talabat" | "teachers" | "unmatched" | "logs" | "puller" | "cloud";
+type TabType = "live" | "terminals" | "talabat" | "teachers" | "unmatched";
 
 export default function BiometricAdminPage() {
   const [activeTab, setActiveTab] = useState<TabType>("live");
@@ -114,10 +75,8 @@ export default function BiometricAdminPage() {
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [students, setStudents] = useState<BiometricStudent[]>([]);
   const [teachers, setTeachers] = useState<BiometricTeacher[]>([]);
-  const [todayLogs, setTodayLogs] = useState<AttendanceLogItem[]>([]);
   const [unmatched, setUnmatched] = useState<UnmatchedItem[]>([]);
   const [webhookUrl, setWebhookUrl] = useState<string>("");
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
 
   // Stats
   const [statsMetrics, setStatsMetrics] = useState({
@@ -150,21 +109,17 @@ export default function BiometricAdminPage() {
 
   // Link Biometric ID Modal
   const [linkModalOpen, setLinkModalOpen] = useState(false);
-  const [linkTarget, setLinkTarget] = useState<{ id: string; name: string; role: "STUDENT" | "TEACHER"; currentId: string | null } | null>(null);
+  const [linkTarget, setLinkTarget] = useState<{
+    id: string;
+    name: string;
+    role: "STUDENT" | "TEACHER";
+    currentId: string | null;
+  } | null>(null);
   const [linkInputId, setLinkInputId] = useState("");
   const [savingLink, setSavingLink] = useState(false);
 
-  // Log Puller Tool State
-  const [pullTargetDevice, setPullTargetDevice] = useState<string>("ALL");
-  const [pullDateOption, setPullDateOption] = useState<"today" | "yesterday" | "last7" | "custom">("today");
-  const [pullCustomFrom, setPullCustomFrom] = useState(new Date().toISOString().split("T")[0]);
-  const [pullCustomTo, setPullCustomTo] = useState(new Date().toISOString().split("T")[0]);
-  const [pullingLogs, setPullingLogs] = useState(false);
-  const [pullResultSummary, setPullResultSummary] = useState<string | null>(null);
-
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [logFilterRole, setLogFilterRole] = useState<"ALL" | "STUDENT" | "TEACHER">("ALL");
 
   // Discovery
   const [discovering, setDiscovering] = useState(false);
@@ -173,11 +128,10 @@ export default function BiometricAdminPage() {
   // Refresh All Data
   const refreshAllData = useCallback(async () => {
     try {
-      const [devRes, stuRes, teaRes, logRes, unRes, statRes] = await Promise.all([
+      const [devRes, stuRes, teaRes, unRes, statRes] = await Promise.all([
         fetch("/api/biometric/devices").then((r) => r.json()).catch(() => ({ data: [] })),
         fetch("/api/biometric/students").then((r) => r.json()).catch(() => ({ data: [] })),
         fetch("/api/biometric/teachers").then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch(`/api/biometric/records/today?date=${new Date().toISOString().split("T")[0]}`).then((r) => r.json()).catch(() => ({ data: { records: [], teacherRecords: [] } })),
         fetch("/api/biometric/unmatched").then((r) => r.json()).catch(() => ({ data: [] })),
         fetch("/api/biometric/status").then((r) => r.json()).catch(() => ({ data: null })),
       ]);
@@ -188,54 +142,18 @@ export default function BiometricAdminPage() {
       setTeachers(teaRes.data || []);
       setUnmatched(unRes.data || []);
 
-      // Merge student & teacher logs for today.
-      // /api/biometric/records/today returns { students, teachers, all }
-      // (legacy shape: { records, teacherRecords }) — accept both so faculty
-      // scans are never silently dropped by a shape mismatch.
-      const rawStudents: any[] = logRes.data?.students || logRes.data?.rawStudents || logRes.data?.records || [];
-      const rawTeachers: any[] = logRes.data?.teachers || logRes.data?.rawTeachers || logRes.data?.teacherRecords || [];
-      const sLogs: AttendanceLogItem[] = rawStudents.map((r: any) => ({
-        id: r.id,
-        studentId: r.student?.studentId || r.personId,
-        name: r.student?.name || r.name || "Student",
-        role: "STUDENT",
-        gradeOrDept: r.student ? `Grade ${r.student?.grade || ""}-${r.student?.section || ""}` : (r.details || `Grade ${r.grade || ""}-${r.section || ""}`),
-        status: r.status,
-        checkInTime: r.checkInTime,
-        verificationMethod: r.verificationMethod,
-        biometricMethod: r.biometricMethod,
-        biometricHash: r.biometricHash,
-      }));
-
-      const tLogs: AttendanceLogItem[] = rawTeachers.map((r: any) => ({
-        id: r.id,
-        teacherId: r.teacher?.employeeId || r.personId,
-        name: r.teacher?.name || r.name || "Teacher",
-        role: "TEACHER",
-        gradeOrDept: r.teacher?.department || r.details || "Faculty",
-        status: r.status,
-        checkInTime: r.checkInTime,
-        verificationMethod: r.verificationMethod,
-        biometricMethod: r.biometricMethod,
-        biometricHash: r.biometricHash,
-      }));
-
-      setTodayLogs([...sLogs, ...tLogs]);
-
       const onlineCount = devList.filter((d: any) => d.status === "ONLINE").length;
       if (statRes.data) {
         setStatsMetrics({
-          scannedToday: statRes.data.scannedToday || sLogs.length,
+          scannedToday: statRes.data.scannedToday || 0,
           fingerprintCount: statRes.data.fingerprintCount || 0,
-          teacherScannedToday: statRes.data.teacherScannedToday || tLogs.length,
+          teacherScannedToday: statRes.data.teacherScannedToday || 0,
           teacherFingerprintCount: statRes.data.teacherFingerprintCount || 0,
           onlineDevices: onlineCount,
         });
       } else {
         setStatsMetrics((prev) => ({
           ...prev,
-          scannedToday: sLogs.length,
-          teacherScannedToday: tLogs.length,
           onlineDevices: onlineCount,
         }));
       }
@@ -250,7 +168,7 @@ export default function BiometricAdminPage() {
     refreshAllData();
   }, [refreshAllData]);
 
-  // Fetch Webhook URL
+  // Fetch Public Webhook URL
   useEffect(() => {
     fetch("/api/hikvision/status")
       .then((r) => r.json())
@@ -267,14 +185,6 @@ export default function BiometricAdminPage() {
         setWebhookUrl(`${origin}/api/hikvision/events`);
       });
   }, []);
-
-  const handleCopyWebhook = () => {
-    if (!webhookUrl) return;
-    navigator.clipboard.writeText(webhookUrl);
-    setCopiedWebhook(true);
-    toast.success("Webhook URL copied to clipboard!");
-    setTimeout(() => setCopiedWebhook(false), 2500);
-  };
 
   // Save / Add Device
   const handleSaveDevice = async (e: React.FormEvent) => {
@@ -296,7 +206,7 @@ export default function BiometricAdminPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(isEdit ? "Device updated successfully" : "Device registered successfully");
+        toast.success(isEdit ? "Terminal updated successfully" : "Terminal registered successfully");
         setDeviceFormOpen(false);
         refreshAllData();
       } else {
@@ -306,25 +216,6 @@ export default function BiometricAdminPage() {
       toast.error("Network error while saving device");
     } finally {
       setSavingDevice(false);
-    }
-  };
-
-  // Test Device Connection
-  const handleTestDevice = async (id: string, name: string) => {
-    toast.loading(`Testing connectivity to ${name}...`);
-    try {
-      const res = await fetch(`/api/biometric/devices/${id}/test`, { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Device verified online (Cloud Webhook ready)`);
-        refreshAllData();
-      } else {
-        toast.success(`Device registered in Cloud Webhook mode`);
-        refreshAllData();
-      }
-    } catch {
-      toast.success(`Device registered in Cloud Webhook mode`);
-      refreshAllData();
     }
   };
 
@@ -358,7 +249,7 @@ export default function BiometricAdminPage() {
       if (data.success) {
         toast.success(`Clock synchronized to Indian Standard Time (+05:30)`);
       } else {
-        toast.info(`Device is active in Cloud Webhook mode`);
+        toast.info(`Clock sync requested`);
       }
     } catch {
       toast.info(`Clock sync requested`);
@@ -397,7 +288,7 @@ export default function BiometricAdminPage() {
           toast.success(`Discovered ${data.data.length} Hikvision device(s)`);
         }
       } else {
-        toast.info("SADP broadcast completed.");
+        toast.info("SADP discovery completed.");
       }
     } catch {
       toast.error("Discovery failed");
@@ -426,7 +317,11 @@ export default function BiometricAdminPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Scan recorded: ${data.data?.name || testIdentifier} marked ${data.data?.type === "DUPLICATE" ? "VERIFIED" : "PRESENT"}`);
+        toast.success(
+          `Scan recorded: ${data.data?.name || testIdentifier} marked ${
+            data.data?.type === "DUPLICATE" ? "VERIFIED" : "PRESENT"
+          }`
+        );
         setTestPunchModalOpen(false);
         setTestIdentifier("");
         refreshAllData();
@@ -472,47 +367,6 @@ export default function BiometricAdminPage() {
     }
   };
 
-  // Pull Scans Tool
-  const handleExecutePull = async () => {
-    setPullingLogs(true);
-    setPullResultSummary(null);
-    try {
-      let fromDate = pullCustomFrom;
-      let toDate = pullCustomTo;
-      if (pullDateOption === "today") {
-        fromDate = new Date().toISOString().split("T")[0];
-        toDate = fromDate;
-      } else if (pullDateOption === "yesterday") {
-        const y = new Date(Date.now() - 86400000);
-        fromDate = y.toISOString().split("T")[0];
-        toDate = fromDate;
-      } else if (pullDateOption === "last7") {
-        const d7 = new Date(Date.now() - 7 * 86400000);
-        fromDate = d7.toISOString().split("T")[0];
-        toDate = new Date().toISOString().split("T")[0];
-      }
-
-      const url = pullTargetDevice === "ALL" ? "/api/biometric/pull-range" : `/api/biometric/devices/${pullTargetDevice}/pull-range`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromDate, toDate }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(data.message || "Historical scans pulled successfully");
-        setPullResultSummary(data.message);
-        refreshAllData();
-      } else {
-        toast.info(data.error || "Terminal is in Cloud Webhook mode (realtime push)");
-      }
-    } catch {
-      toast.info("Scans flow automatically via Cloud Webhook");
-    } finally {
-      setPullingLogs(false);
-    }
-  };
-
   // Filtered Students
   const filteredStudents = useMemo(() => {
     if (!searchQuery.trim()) return students;
@@ -539,19 +393,6 @@ export default function BiometricAdminPage() {
     );
   }, [teachers, searchQuery]);
 
-  // Filtered Today Logs
-  const filteredTodayLogs = useMemo(() => {
-    let list = todayLogs;
-    if (logFilterRole !== "ALL") {
-      list = list.filter((l) => l.role === logFilterRole);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((l) => l.name.toLowerCase().includes(q) || l.gradeOrDept.toLowerCase().includes(q));
-    }
-    return list;
-  }, [todayLogs, logFilterRole, searchQuery]);
-
   return (
     <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 lg:p-8 space-y-6">
       {/* ── Attendance Hub Navigation Tabs ── */}
@@ -563,23 +404,23 @@ export default function BiometricAdminPage() {
           { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
           { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-                  ]}
+        ]}
       />
 
-      {/* TOP HEADER & ADMIN HUB NAVIGATION */}
+      {/* ── TOP HEADER (CLEAN & AUTHORITATIVE) ── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-                <Fingerprint className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center shadow-md shadow-slate-950/20 border border-slate-800">
+                <Fingerprint className="w-5 h-5" />
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-gray-950">
-                  Biometric Operations Hub
+                  Biometric Control Center
                 </h1>
                 <p className="text-xs text-gray-500">
-                  Hikvision MinMoe Terminals • Talabat & Faculty Unified Realtime Attendance
+                  Hikvision MinMoe Terminals • Dual Live Feeds &amp; Real-time Scan Ingestion
                 </p>
               </div>
             </div>
@@ -619,31 +460,39 @@ export default function BiometricAdminPage() {
           </div>
         </div>
 
-        {/* TOP SUMMARY STAT METRICS */}
+        {/* ── TOP SUMMARY STAT METRICS ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="rounded-3xl border-gray-100 shadow-xs p-5 bg-white hover:shadow-sm transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Talabat Scans Today</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Talabat Enrolled</span>
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
                 <GraduationCap className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-gray-950">{statsMetrics.scannedToday}</div>
-            <div className="text-[11px] text-gray-500 mt-1 font-medium">
-              {students.length} Total Talabat Enrolled
+            <div className="text-2xl sm:text-3xl font-black text-gray-950">
+              {statsMetrics.fingerprintCount || students.filter((s) => s.enrolled).length}
+              <span className="text-xs text-gray-400 font-semibold ml-1.5">/ {students.length}</span>
+            </div>
+            <div className="text-[11px] text-emerald-600 mt-1 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              {statsMetrics.scannedToday} Verified Scans Today
             </div>
           </Card>
 
           <Card className="rounded-3xl border-gray-100 shadow-xs p-5 bg-white hover:shadow-sm transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Faculty Scans Today</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Faculty Enrolled</span>
               <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-gray-950">{statsMetrics.teacherScannedToday}</div>
-            <div className="text-[11px] text-gray-500 mt-1 font-medium">
-              {teachers.length} Faculty Members
+            <div className="text-2xl sm:text-3xl font-black text-gray-950">
+              {statsMetrics.teacherFingerprintCount || teachers.filter((t) => t.enrolled).length}
+              <span className="text-xs text-gray-400 font-semibold ml-1.5">/ {teachers.length}</span>
+            </div>
+            <div className="text-[11px] text-purple-600 mt-1 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block" />
+              {statsMetrics.teacherScannedToday} Faculty Scans Today
             </div>
           </Card>
 
@@ -659,20 +508,20 @@ export default function BiometricAdminPage() {
             </div>
             <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-              Cloud Push Active
+              Dual Hardware Connected
             </div>
           </Card>
 
           <Card className="rounded-3xl border-gray-100 shadow-xs p-5 bg-white hover:shadow-sm transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Cloud Webhook</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Cloud Push Gateway</span>
               <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                <Globe className="w-4 h-4" />
+                <Activity className="w-4 h-4" />
               </div>
             </div>
             <div className="text-sm font-extrabold text-emerald-700 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              Listening Outbound
+              Listening 24/7 (HTTPS 443)
             </div>
             <div className="text-[11px] text-gray-400 font-mono mt-1 truncate">
               /api/hikvision/events
@@ -680,17 +529,14 @@ export default function BiometricAdminPage() {
           </Card>
         </div>
 
-        {/* MODERN NAVIGATION TABS */}
+        {/* ── REDESIGNED SUB-NAVIGATION TABS (MATCHING SIDEBAR LUCIDE ICONS) ── */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none bg-white p-2 rounded-2xl border border-gray-100 shadow-xs">
           {[
-            { id: "live", label: "⚡ Live Punch Stream", icon: Radio, count: todayLogs.length },
-            { id: "terminals", label: "🖥️ MinMoe Terminals", icon: Server, count: devices.length },
-            { id: "talabat", label: "🎓 Talabat Roster", icon: GraduationCap, count: students.length },
-            { id: "teachers", label: "👨‍🏫 Faculty Roster", icon: Users, count: teachers.length },
-            { id: "unmatched", label: "⚠️ Unmatched Scans", icon: AlertTriangle, count: unmatched.length },
-            { id: "logs", label: "📊 Today's Attendance Logs", icon: FileSpreadsheet, count: todayLogs.length },
-            { id: "puller", label: "📥 Historical Query", icon: Layers },
-            { id: "cloud", label: "☁️ Webhook Integration Guide", icon: Globe },
+            { id: "live", label: "Live Terminal Feeds", icon: Video },
+            { id: "terminals", label: "MinMoe Terminals", icon: Server, count: devices.length },
+            { id: "talabat", label: "Talabat Roster", icon: GraduationCap, count: students.length },
+            { id: "teachers", label: "Faculty Roster", icon: Users, count: teachers.length },
+            { id: "unmatched", label: "Unmatched Scans", icon: AlertTriangle, count: unmatched.length },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -723,12 +569,16 @@ export default function BiometricAdminPage() {
         </div>
       </div>
 
-      {/* TAB 1: LIVE REALTIME FEED (MODERN STATION) */}
+      {/* ── TAB 1: DUAL LIVE FEED & REAL-TIME SCAN STREAM ── */}
       {activeTab === "live" && (
-        <IvmsControlStation devices={devices} onRefreshDevices={refreshAllData} />
+        <IvmsControlStation
+          devices={devices}
+          onRefreshDevices={refreshAllData}
+          onOpenTestPunch={() => setTestPunchModalOpen(true)}
+        />
       )}
 
-      {/* TAB 2: TERMINALS & DEVICES */}
+      {/* ── TAB 2: TERMINALS & HARDWARE CONFIGURATION ── */}
       {activeTab === "terminals" && (
         <div className="space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">
@@ -784,7 +634,10 @@ export default function BiometricAdminPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {discoveredDevices.map((d: any, idx) => (
-                  <div key={idx} className="bg-white p-3.5 rounded-2xl border border-sky-100 shadow-xs flex items-center justify-between">
+                  <div
+                    key={idx}
+                    className="bg-white p-3.5 rounded-2xl border border-sky-100 shadow-xs flex items-center justify-between"
+                  >
                     <div>
                       <div className="font-bold text-xs text-gray-900">{d.deviceDescription || "Hikvision Device"}</div>
                       <div className="font-mono text-xs text-sky-700 font-semibold">{d.ip}</div>
@@ -820,11 +673,19 @@ export default function BiometricAdminPage() {
             {devices.map((device) => {
               const isOnline = device.status === "ONLINE";
               return (
-                <Card key={device.id} className="rounded-3xl border-gray-100 shadow-xs bg-white p-5 space-y-4 hover:shadow-md transition-all">
+                <Card
+                  key={device.id}
+                  className="rounded-3xl border-gray-100 shadow-xs bg-white p-5 space-y-4 hover:shadow-md transition-all"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className={cn("w-2.5 h-2.5 rounded-full", isOnline ? "bg-emerald-500 animate-pulse" : "bg-gray-400")} />
+                        <span
+                          className={cn(
+                            "w-2.5 h-2.5 rounded-full",
+                            isOnline ? "bg-emerald-500 animate-pulse" : "bg-gray-400"
+                          )}
+                        />
                         <h3 className="font-extrabold text-sm text-gray-900">{device.name}</h3>
                       </div>
                       <div className="font-mono text-xs font-semibold text-gray-600 pl-4.5">
@@ -837,7 +698,7 @@ export default function BiometricAdminPage() {
                         isOnline ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-700"
                       )}
                     >
-                      {isOnline ? "ONLINE (Cloud Ready)" : "REGISTERED"}
+                      {isOnline ? "ONLINE (Cloud Push)" : "REGISTERED"}
                     </Badge>
                   </div>
 
@@ -851,15 +712,20 @@ export default function BiometricAdminPage() {
                       <span className="font-semibold text-gray-700">{device.firmwareVersion || "V3.2+"}</span>
                     </div>
                     <div>
-                      <span className="text-gray-400 text-[10px] block">Last Scan / Seen</span>
+                      <span className="text-gray-400 text-[10px] block">Last Seen</span>
                       <span className="font-medium text-gray-600">
                         {device.lastSeenAt
-                          ? new Date(device.lastSeenAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
-                          : "Connected"}
+                          ? new Date(device.lastSeenAt).toLocaleTimeString("en-IN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true,
+                              timeZone: "Asia/Kolkata",
+                            })
+                          : "Continuous"}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400 text-[10px] block">Push Webhook</span>
+                      <span className="text-gray-400 text-[10px] block">Live Stream</span>
                       <span className="font-semibold text-emerald-600">Enabled</span>
                     </div>
                   </div>
@@ -925,7 +791,7 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* TAB 3: TALABAT ROSTER */}
+      {/* ── TAB 3: TALABAT BIOMETRIC ROSTER ── */}
       {activeTab === "talabat" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">
@@ -972,7 +838,9 @@ export default function BiometricAdminPage() {
                         {s.name}
                       </td>
                       <td className="px-5 py-3.5 font-mono font-bold text-gray-700">{s.studentId}</td>
-                      <td className="px-5 py-3.5 text-gray-600">Grade {s.grade}-{s.section}</td>
+                      <td className="px-5 py-3.5 text-gray-600">
+                        Grade {s.grade}-{s.section}
+                      </td>
                       <td className="px-5 py-3.5">
                         <Badge
                           variant="outline"
@@ -992,7 +860,12 @@ export default function BiometricAdminPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            setLinkTarget({ id: s.id, name: s.name, role: "STUDENT", currentId: s.fingerprint || s.studentId });
+                            setLinkTarget({
+                              id: s.id,
+                              name: s.name,
+                              role: "STUDENT",
+                              currentId: s.fingerprint || s.studentId,
+                            });
                             setLinkInputId(s.fingerprint || s.studentId || "");
                             setLinkModalOpen(true);
                           }}
@@ -1011,7 +884,7 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* TAB 4: FACULTY ROSTER */}
+      {/* ── TAB 4: FACULTY BIOMETRIC ROSTER ── */}
       {activeTab === "teachers" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">
@@ -1078,7 +951,12 @@ export default function BiometricAdminPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            setLinkTarget({ id: t.id, name: t.name, role: "TEACHER", currentId: t.fingerprint || t.employeeId });
+                            setLinkTarget({
+                              id: t.id,
+                              name: t.name,
+                              role: "TEACHER",
+                              currentId: t.fingerprint || t.employeeId,
+                            });
                             setLinkInputId(t.fingerprint || t.employeeId || "");
                             setLinkModalOpen(true);
                           }}
@@ -1097,14 +975,14 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* TAB 5: UNMATCHED SCANS */}
+      {/* ── TAB 5: UNMATCHED SCANS ── */}
       {activeTab === "unmatched" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">
             <div>
               <h2 className="text-base font-bold text-gray-900">Unmatched Terminal Scans</h2>
               <p className="text-xs text-gray-500">
-                Punches received from the terminal where the Employee ID was not yet registered in the system.
+                Punches received from the terminal where the identifier was not yet registered in the system.
               </p>
             </div>
             {unmatched.length > 0 && (
@@ -1127,7 +1005,9 @@ export default function BiometricAdminPage() {
               <div className="p-12 text-center text-gray-500">
                 <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
                 <div className="text-sm font-bold text-gray-800">No Unmatched Scans</div>
-                <div className="text-xs text-gray-400 mt-1">All punches matched registered Talabat or Faculty members perfectly.</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  All punches matched registered Talabat or Faculty members perfectly.
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1145,7 +1025,9 @@ export default function BiometricAdminPage() {
                       <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
                         <td className="px-5 py-3.5 font-mono font-bold text-emerald-700 text-sm">{u.fingerprint}</td>
                         <td className="px-5 py-3.5 font-bold text-gray-700">{u.count} scans</td>
-                        <td className="px-5 py-3.5 text-gray-500">{new Date(u.lastSeen).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                        <td className="px-5 py-3.5 text-gray-500">
+                          {new Date(u.lastSeen).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })}
+                        </td>
                         <td className="px-5 py-3.5 text-right">
                           <Button
                             size="sm"
@@ -1168,271 +1050,7 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* TAB 6: TODAY'S LOGS */}
-      {activeTab === "logs" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-3xl border border-gray-100 shadow-xs">
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Today's Biometric Attendance Log</h2>
-              <p className="text-xs text-gray-500">Live verified check-ins captured today.</p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-2xl text-xs font-semibold text-gray-600">
-                {(["ALL", "STUDENT", "TEACHER"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setLogFilterRole(r)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl transition-all",
-                      logFilterRole === r ? "bg-white text-gray-900 shadow-xs" : "hover:text-gray-900"
-                    )}
-                  >
-                    {r === "ALL" ? "All" : r === "STUDENT" ? "Talabat" : "Faculty"}
-                  </button>
-                ))}
-              </div>
-
-              <a href={`/api/biometric/report?date=${new Date().toISOString().split("T")[0]}`} download>
-                <Button variant="outline" size="sm" className="rounded-2xl text-xs font-semibold h-10 px-4">
-                  <Download className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                  Download CSV
-                </Button>
-              </a>
-            </div>
-          </div>
-
-          <Card className="rounded-3xl border-gray-100 shadow-xs overflow-hidden bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-gray-50/80 border-b border-gray-100 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="px-5 py-3.5">Name</th>
-                    <th className="px-5 py-3.5">Role</th>
-                    <th className="px-5 py-3.5">Grade / Dept</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Check-in Time (IST)</th>
-                    <th className="px-5 py-3.5">Method</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 font-medium">
-                  {filteredTodayLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-5 py-3.5 font-bold text-gray-900">{log.name}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-full border-0",
-                            log.role === "STUDENT" ? "bg-emerald-50 text-emerald-800" : "bg-purple-50 text-purple-800"
-                          )}
-                        >
-                          {log.role === "STUDENT" ? "Talabat" : "Faculty"}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-3.5 text-gray-600">{log.gradeOrDept}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge
-                          className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-lg border-0",
-                            log.status === "PRESENT"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : log.status === "LATE"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-gray-100 text-gray-800"
-                          )}
-                        >
-                          {log.status}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-3.5 font-mono text-gray-700">
-                        {log.checkInTime
-                          ? new Date(log.checkInTime).toLocaleTimeString("en-IN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                              hour12: true,
-                              timeZone: "Asia/Kolkata",
-                            })
-                          : "--"}
-                      </td>
-                      <td className="px-5 py-3.5 font-mono text-gray-500">{log.biometricMethod || "FACIAL"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 7: HISTORICAL QUERY & PULLER */}
-      {activeTab === "puller" && (
-        <div className="space-y-6">
-          <Card className="rounded-3xl border-gray-100 shadow-xs p-6 bg-white space-y-5">
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Historical Scans Query & Puller</h2>
-              <p className="text-xs text-gray-500">
-                Retrieve historical attendance records stored on MinMoe terminals or query database archives.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1.5">Target Terminal</label>
-                <select
-                  value={pullTargetDevice}
-                  onChange={(e) => setPullTargetDevice(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-xs font-semibold bg-white"
-                >
-                  <option value="ALL">All Configured Terminals</option>
-                  {devices.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.host})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1.5">Date Range Preset</label>
-                <select
-                  value={pullDateOption}
-                  onChange={(e) => setPullDateOption(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-xs font-semibold bg-white"
-                >
-                  <option value="today">Today (IST)</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="last7">Last 7 Days</option>
-                  <option value="custom">Custom Date Range</option>
-                </select>
-              </div>
-
-              {pullDateOption === "custom" && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <label className="text-xs font-bold text-gray-700 block mb-1.5">From</label>
-                    <input
-                      type="date"
-                      value={pullCustomFrom}
-                      onChange={(e) => setPullCustomFrom(e.target.value)}
-                      className="w-full px-3 py-2 rounded-2xl border border-gray-200 text-xs font-medium"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-xs font-bold text-gray-700 block mb-1.5">To</label>
-                    <input
-                      type="date"
-                      value={pullCustomTo}
-                      onChange={(e) => setPullCustomTo(e.target.value)}
-                      className="w-full px-3 py-2 rounded-2xl border border-gray-200 text-xs font-medium"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                onClick={handleExecutePull}
-                disabled={pullingLogs}
-                className="rounded-2xl text-xs font-bold h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
-              >
-                <RefreshCw className={cn("w-4 h-4 mr-2", pullingLogs && "animate-spin")} />
-                {pullingLogs ? "Querying Scans..." : "Execute Query"}
-              </Button>
-
-              {pullResultSummary && (
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl">
-                  {pullResultSummary}
-                </span>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 8: CLOUD WEBHOOK DIRECT PUSH (NO PC BRIDGE NEEDED) */}
-      {activeTab === "cloud" && (
-        <div className="space-y-6">
-          <Card className="rounded-3xl border-gray-100 shadow-xs p-6 sm:p-8 bg-white space-y-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
-                <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                24/7 Direct Cloud Hardware Push (No PC Bridge Needed)
-              </div>
-              <h2 className="text-2xl font-black text-gray-950">
-                Hikvision MinMoe 24/7 Direct Cloud Architecture
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-600 max-w-3xl leading-relaxed">
-                Your physical Hikvision terminals (<span className="font-mono text-emerald-700 font-bold">192.168.0.4</span> &amp; <span className="font-mono text-emerald-700 font-bold">192.168.0.5</span>) are configured to push face and RFID punches <strong>directly over your school Wi-Fi/router</strong> to the cloud server on Render. <strong>The school PC can be completely turned OFF</strong> — scans will still be recorded 24/7 in real time.
-              </p>
-            </div>
-
-            <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                Active Live Cloud Webhook Endpoint
-              </div>
-              <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-4 rounded-2xl border border-white/10 flex-wrap">
-                <span className="font-mono text-sm sm:text-base text-emerald-300 font-bold select-all break-all">
-                  {webhookUrl || `${typeof window !== "undefined" ? window.location.origin : "https://darse-burhani.onrender.com"}/api/hikvision/events`}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={handleCopyWebhook}
-                  className="rounded-xl bg-white text-slate-900 hover:bg-emerald-50 font-bold text-xs h-9 px-4 cursor-pointer"
-                >
-                  {copiedWebhook ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-                  {copiedWebhook ? "Copied" : "Copy Endpoint"}
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Active Direct Push Architecture */}
-              <div className="space-y-3 p-6 rounded-2xl bg-emerald-50/70 border border-emerald-300 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-base text-emerald-950 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-emerald-600 fill-current" />
-                    Direct Cloud Push (Active 24/7)
-                  </h3>
-                  <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-600 text-white shadow-xs">
-                    Fully Automated
-                  </span>
-                </div>
-                <p className="text-xs text-emerald-900/90 leading-relaxed">
-                  The terminals communicate directly with the cloud over port 443 (HTTPS) via onboard ISAPI firmware. No local bridge daemon, background software, or PC running 24/7 is required.
-                </p>
-                <div className="bg-slate-900 text-slate-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto">
-                  node scripts/configure-render-push.mjs
-                </div>
-                <ul className="text-xs text-emerald-950 space-y-1.5 list-disc pl-4 font-medium">
-                  <li>Direct firmware HTTP host push slot #1 configured on all devices.</li>
-                  <li>Instant delivery on scan — zero PC dependency.</li>
-                  <li>Attendance logs automatically record device identity and timestamp.</li>
-                </ul>
-              </div>
-
-              {/* Hardware Fallback / Tunnel */}
-              <div className="space-y-3 p-6 rounded-2xl bg-slate-50 border border-slate-200">
-                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-slate-600" />
-                  Terminal Network Requirements
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  For 24/7 autonomous cloud push to function when the computer is turned off:
-                </p>
-                <ul className="text-xs text-slate-700 space-y-2 list-disc pl-4">
-                  <li><strong>Power:</strong> Keep MinMoe terminals connected to power adapter/UPS.</li>
-                  <li><strong>Internet Router:</strong> Ensure the school Wi-Fi / LAN switch has active internet access.</li>
-                  <li><strong>Gateway &amp; DNS:</strong> Terminals use standard router DNS (e.g., 8.8.8.8 or 192.168.0.1) to resolve the cloud hostname.</li>
-                </ul>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* MODAL: ADD / EDIT DEVICE */}
+      {/* ── MODAL: ADD / EDIT TERMINAL ── */}
       {deviceFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <motion.div
@@ -1444,7 +1062,10 @@ export default function BiometricAdminPage() {
               <h3 className="text-base font-bold text-gray-900">
                 {deviceForm.id ? "Edit Terminal" : "Register Hikvision Terminal"}
               </h3>
-              <button onClick={() => setDeviceFormOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm font-bold">
+              <button
+                onClick={() => setDeviceFormOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+              >
                 ✕
               </button>
             </div>
@@ -1529,7 +1150,7 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* MODAL: TEST PUNCH SIMULATOR */}
+      {/* ── MODAL: TEST PUNCH SIMULATOR ── */}
       {testPunchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <motion.div
@@ -1542,7 +1163,10 @@ export default function BiometricAdminPage() {
                 <Zap className="w-5 h-5 text-emerald-600" />
                 <h3 className="text-base font-bold text-gray-900">Simulate Biometric Scan</h3>
               </div>
-              <button onClick={() => setTestPunchModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm font-bold">
+              <button
+                onClick={() => setTestPunchModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+              >
                 ✕
               </button>
             </div>
@@ -1600,7 +1224,7 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* MODAL: LINK BIOMETRIC ID */}
+      {/* ── MODAL: LINK BIOMETRIC ID ── */}
       {linkModalOpen && linkTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <motion.div
@@ -1609,21 +1233,29 @@ export default function BiometricAdminPage() {
             className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="text-base font-bold text-gray-900">
-                Link Biometric ID for {linkTarget.name}
-              </h3>
-              <button onClick={() => setLinkModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm font-bold">
+              <div className="flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-gray-900">
+                  Link Biometric ID — {linkTarget.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setLinkModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+              >
                 ✕
               </button>
             </div>
 
             <p className="text-xs text-gray-500">
-              Specify the number stored in the Hikvision terminal (ITS Number, Student ID, or Employee ID).
+              Set the hardware identifier sent by the terminal when this member scans (usually their ITS number or Employee ID).
             </p>
 
             <form onSubmit={handleSaveLink} className="space-y-3.5 text-xs">
               <div>
-                <label className="font-bold text-gray-700 block mb-1">Biometric / ITS Identifier</label>
+                <label className="font-bold text-gray-700 block mb-1">
+                  Biometric Terminal Identifier
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. 30345678"
@@ -1647,7 +1279,7 @@ export default function BiometricAdminPage() {
                   disabled={savingLink}
                   className="rounded-2xl text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {savingLink ? "Saving..." : "Save ID"}
+                  {savingLink ? "Saving..." : "Save Biometric ID"}
                 </Button>
               </div>
             </form>

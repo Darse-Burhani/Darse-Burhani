@@ -23,6 +23,8 @@ node_modules/
 *.pem
 *.xlsx
 desktop.ini
+__pycache__/
+*.pyc
 
 # debug & logs
 npm-debug.log*
