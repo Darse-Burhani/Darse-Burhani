@@ -518,12 +518,21 @@ export default function IvmsControlStation({
         {/* BOTTOM METRIC STRIP */}
         <div className="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-3 gap-2 text-center text-xs">
           <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-800">
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Status</span>
-            <span className="font-bold text-emerald-400">{isOnline ? "Active Push" : "Ready"}</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono block">Mode</span>
+            <span className="font-bold text-emerald-400">ISAPI / Push</span>
           </div>
           <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-800">
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Protocol</span>
-            <span className="font-bold text-sky-400">HTTPS 443</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono block">Direct LAN</span>
+            <a
+              href={`http://${device.host}:${device.port}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-bold text-sky-400 hover:text-sky-300 inline-flex items-center gap-1 justify-center"
+              title="Open Terminal Web Admin GUI in new tab"
+            >
+              <span>{device.host}</span>
+              <ExternalLink className="w-2.5 h-2.5" />
+            </a>
           </div>
           <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-800">
             <span className="text-[10px] text-slate-400 uppercase font-mono block">Last Ping</span>

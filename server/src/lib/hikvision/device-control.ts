@@ -149,34 +149,23 @@ export async function rebootDevice(c: HikConnection): Promise<{ success: boolean
   return { success: true, message: "Reboot command sent. Device will restart in 10-20 seconds." };
 }
 
-// MinMoe DS-K1T341/342 best-effort snapshot endpoints ordered by reliability.
-// The top tier are raced in parallel to stay under Render's 30s proxy limit.
-const SNAPSHOT_TIER1: Array<{ path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string }> = [
+// MinMoe DS-K1T341/342 picture endpoints ordered by firmware support.
+const SNAPSHOT_ENDPOINTS: Array<{ path: string; method: "GET" }> = [
   { path: "/ISAPI/Streaming/channels/101/picture", method: "GET" },
-  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "GET" },
-  { path: "/ISAPI/System/Video/inputs/channels/1/capture", method: "GET" },
-];
-
-const SNAPSHOT_TIER2: Array<{ path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string }> = [
   { path: "/ISAPI/Streaming/channels/1/picture", method: "GET" },
   { path: "/ISAPI/Streaming/channels/102/picture", method: "GET" },
-  { path: "/ISAPI/AccessControl/SnapCameraPic", method: "GET" },
-  { path: "/ISAPI/AccessControl/SnapShot", method: "GET" },
-  { path: "/ISAPI/AccessControl/CaptureFaceData?format=json", method: "PUT", body: JSON.stringify({ CaptureFaceData: { captureType: "face" } }), ct: "application/json" },
-  { path: "/ISAPI/Streaming/channels/201/picture", method: "GET" },
+  { path: "/ISAPI/System/Video/inputs/channels/1/capture", method: "GET" },
 ];
 
 async function trySnapshotEndpoint(
   base: string,
-  ep: { path: string; method: "GET" | "POST" | "PUT"; body?: string; ct?: string },
+  ep: { path: string; method: "GET" },
   c: HikConnection,
   timeoutMs: number,
 ): Promise<{ contentType: string; data: Buffer } | null> {
   try {
     const res = await digestFetch(`${base}${ep.path}`, {
       method: ep.method,
-      headers: ep.ct ? { "Content-Type": ep.ct } : undefined,
-      body: ep.body,
       username: c.username,
       password: c.password,
       timeoutMs,
@@ -202,27 +191,19 @@ async function trySnapshotEndpoint(
 
 /**
  * Fetch Device Snapshot / Live Frame
- * Strategy: race Tier-1 endpoints (3s timeout) in parallel first.
- * If all fail, try Tier-2 sequentially with 2.5s each.
- * Total max wall time: ~3s + 12s = 15s — well under Render's 30s proxy limit.
+ * Fast-races top picture endpoints in parallel with 1500ms timeout for sub-second response.
  */
 export async function getDeviceSnapshot(c: HikConnection): Promise<{ contentType: string; data: Buffer }> {
   const base = baseUrl(c);
 
-  // Phase 1: Race top-3 endpoints in parallel (3s timeout each)
-  const tier1Results = await Promise.all(
-    SNAPSHOT_TIER1.map((ep) => trySnapshotEndpoint(base, ep, c, 3000)),
+  // Fast race valid endpoints in parallel (1.5s timeout)
+  const results = await Promise.all(
+    SNAPSHOT_ENDPOINTS.map((ep) => trySnapshotEndpoint(base, ep, c, 1500)),
   );
-  const tier1Winner = tier1Results.find((r) => r !== null);
-  if (tier1Winner) return tier1Winner;
+  const winner = results.find((r) => r !== null);
+  if (winner) return winner;
 
-  // Phase 2: Sequential fallback with 2.5s timeout each
-  for (const ep of SNAPSHOT_TIER2) {
-    const result = await trySnapshotEndpoint(base, ep, c, 2500);
-    if (result) return result;
-  }
-
-  throw new Error("Unable to capture snapshot from terminal camera (endpoint not supported or camera busy)");
+  throw new Error("Unable to capture optical snapshot from terminal camera (terminal in cloud push mode or camera busy)");
 }
 
 /**
