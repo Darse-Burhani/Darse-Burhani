@@ -110,7 +110,7 @@ export default function AdminUsersPage() {
     watan: "",
     residentCity: "",
     bloodGroup: "O+",
-    status: "STUDENT",
+    status: "SANAH",
     hafizYear: "",
     fatherName: "",
     motherName: "",
@@ -131,18 +131,32 @@ export default function AdminUsersPage() {
   };
 
   const loadAllUsers = useCallback(async () => {
-    let all: any[] = [];
-    let page = 1;
-    const pageSize = 50;
     try {
-      while (true) {
-        const res = await fetch(`/api/admin/users?page=${page}&pageSize=${pageSize}`);
-        const json = await res.json();
-        if (!json.success) break;
-        all = all.concat(json.data);
-        if (page >= json.totalPages) break;
-        page++;
+      const pageSize = 200;
+      const res = await fetch(`/api/admin/users?page=1&pageSize=${pageSize}`);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) {
+        setUsers([]);
+        return;
       }
+
+      let all = [...json.data];
+      const totalPages = json.totalPages || 1;
+
+      if (totalPages > 1) {
+        const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+        const results = await Promise.allSettled(
+          remainingPages.map((p) =>
+            fetch(`/api/admin/users?page=${p}&pageSize=${pageSize}`).then((r) => r.json()),
+          ),
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value?.success && Array.isArray(r.value.data)) {
+            all = all.concat(r.value.data);
+          }
+        }
+      }
+
       setUsers(all);
     } catch {
       // ignore

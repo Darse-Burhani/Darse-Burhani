@@ -54,23 +54,18 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
 
   const cleanNos = Array.from(new Set(candidateNos.map((n) => n?.trim()).filter(Boolean))) as string[];
 
-  // 1. Purge from all physical biometric terminals (ISAPI)
-  let hardwareStatus = { deletedFrom: [] as string[], errors: [] as Array<{ host: string; error: string }> };
-  try {
-    hardwareStatus = await deleteUserFromAllDevices(cleanNos);
-    console.log(`[hardware-purge] Removed user ${user.email} (${user.id}) tokens [${cleanNos.join(", ")}] from terminals:`, hardwareStatus);
-  } catch (err: any) {
-    console.warn(`[hardware-purge] Biometric hardware delete notice for ${userId}:`, err?.message);
-    hardwareStatus.errors.push({ host: "terminals", error: err?.message || String(err) });
-  }
-
-  // 2. Cascade hard delete from all DB tables in an atomic transaction
+  // 1. Cascade hard delete from all DB tables in an atomic transaction FIRST
   const studentId = user.studentProfile?.id;
   const teacherId = user.teacherProfile?.id;
 
   await prisma.$transaction(async (tx) => {
     // Clean up reviewer/assignee references on User
     await tx.leaveRequest.updateMany({ where: { reviewerId: userId }, data: { reviewerId: null } });
+    await tx.hifzMarhalaReport.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
+    await tx.hifzWeeklySlip.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
+    await tx.talabatProfile1447.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
+    await tx.assignmentGrade.updateMany({ where: { gradedById: userId }, data: { gradedById: null } });
+    await tx.hifzMarhalaAssignment.deleteMany({ where: { assignedById: userId } });
     await tx.procurementRequest.deleteMany({
       where: { requesterId: userId },
     });
@@ -89,7 +84,10 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.leaveRequest.deleteMany({ where: { studentId } });
       await tx.parentStudentLink.deleteMany({ where: { studentId } });
       await tx.hifzWeeklySlip.deleteMany({ where: { studentId } });
+      await tx.hifzDailyEvaluation.deleteMany({ where: { studentId } });
+      await tx.hifzIkhtebaarTarget.deleteMany({ where: { studentId } });
       await tx.hifzMarhalaReport.deleteMany({ where: { studentId } });
+      await tx.hifzPart.deleteMany({ where: { report: { studentId } } });
       await tx.hifzReport.deleteMany({ where: { studentId } });
       await tx.hifzMarhalaAssignment.deleteMany({
         where: { OR: [{ studentId }, { musaidStudentId: studentId }] },
@@ -97,10 +95,12 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.badgeProgress.deleteMany({ where: { studentId } });
       await tx.skillTreePoint.deleteMany({ where: { studentId } });
       await tx.skillAssessmentAttempt.deleteMany({ where: { studentId } });
+      await tx.assignment.updateMany({ where: { targetStudentId: studentId }, data: { targetStudentId: null } });
       await tx.assignmentGrade.deleteMany({ where: { studentId } });
       await tx.studentHobby.deleteMany({ where: { studentId } });
       await tx.walletTransaction.deleteMany({ where: { studentId } });
       await tx.medicalExemption.deleteMany({ where: { studentId } });
+      await tx.talabatProfile1447.deleteMany({ where: { studentId } });
       await tx.studentProfile.delete({ where: { id: studentId } });
     }
 
@@ -108,8 +108,10 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
     if (teacherId) {
       await tx.teacherPortalAssignment.deleteMany({ where: { teacherId } });
       await tx.teacherAttendanceRecord.deleteMany({ where: { teacherId } });
-      await tx.takhteetPlan.deleteMany({ where: { teacherId } });
       await tx.takhteetProgressLog.deleteMany({ where: { teacherId } });
+      await tx.takhteetPlan.deleteMany({ where: { teacherId } });
+      await tx.hifzDailyEvaluation.updateMany({ where: { facultyId: teacherId }, data: { facultyId: null } });
+      await tx.hifzPart.deleteMany({ where: { report: { teacherId } } });
       await tx.hifzReport.deleteMany({ where: { teacherId } });
       await tx.hifzMarhalaReport.deleteMany({ where: { facultyId: teacherId } });
       await tx.hifzWeeklySlip.deleteMany({ where: { facultyId: teacherId } });
@@ -148,6 +150,18 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
     // Finally delete the user root record
     await tx.user.delete({ where: { id: userId } });
   });
+
+  // 2. Non-blocking biometric terminal purge (fires concurrently, never delays HTTP response)
+  let hardwareStatus = { deletedFrom: [] as string[], errors: [] as Array<{ host: string; error: string }> };
+  if (cleanNos.length > 0) {
+    deleteUserFromAllDevices(cleanNos)
+      .then((res) => {
+        console.log(`[hardware-purge] Purged tokens [${cleanNos.join(", ")}] from terminals:`, res);
+      })
+      .catch((err) => {
+        console.warn(`[hardware-purge] Notice purging biometric terminals for ${userId}:`, err?.message || err);
+      });
+  }
 
   // 3. Purge schedule window scopes (remove id from applicableTeacherIds and exempt arrays)
   if (teacherId) {

@@ -623,6 +623,36 @@ export async function isRoleWindowOpen(
   };
 }
 
+/**
+ * Check if ANY hardware biometric scan window (Student or Faculty) is currently active,
+ * or opening within a pre-start buffer (default 5 mins) to accept scans.
+ */
+export async function isAnyHardwareWindowOpen(
+  when: Date = new Date(),
+  preBufferMinutes = 5,
+): Promise<{ isOpen: boolean; activeWindows: ScanWindowConfig[]; reason: string }> {
+  const [studentWindows, teacherWindows] = await Promise.all([
+    getRoleWindows("STUDENT", true),
+    getRoleWindows("TEACHER", true),
+  ]);
+
+  const allWindows = [...studentWindows, ...teacherWindows].filter((w) => w.enabled);
+  if (allWindows.length === 0) {
+    return { isOpen: false, activeWindows: [], reason: "No active hardware scan windows configured" };
+  }
+
+  const { scanMinutes } = getISTDetails(when);
+  const activeWindows = allWindows.filter(
+    (w) => scanMinutes >= Math.max(0, w.startMinutes - preBufferMinutes) && scanMinutes <= w.lateEndMinutes,
+  );
+
+  if (activeWindows.length > 0) {
+    return { isOpen: true, activeWindows, reason: `Active window(s): ${activeWindows.map((w) => w.name).join(", ")}` };
+  }
+
+  return { isOpen: false, activeWindows: [], reason: "All hardware scan windows are currently closed for today" };
+}
+
 const STUDENT_SELECT = {
   id: true,
   userId: true,
@@ -1005,30 +1035,17 @@ export async function processBiometricScan(
 
         teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
       } else {
-        if (facultyWindowStatus.isDisabled) {
-          return pushEvent({
-            type: "WINDOW_CLOSED",
-            fingerprint,
-            deviceId: deviceId ?? null,
-            role: "TEACHER",
-            teacher: teacherInfo,
-            message: `Faculty scanning is DISABLED by Admin schedule. Attendance not recorded.`,
-            verifyMode: method,
-          }, when, false);
-        }
-        const morningBoundary = 8 * 60 + 30; // 8:30 AM IST fallback
-        if (scanMinutes > morningBoundary) {
-          return pushEvent({
-            type: "WINDOW_CLOSED",
-            fingerprint,
-            deviceId: deviceId ?? null,
-            role: "TEACHER",
-            teacher: teacherInfo,
-            message: `Faculty scan window is CLOSED (Cutoff was 08:30 AM IST). Attendance not recorded.`,
-            verifyMode: method,
-          }, when, false);
-        }
-        teacherStatus = "PRESENT";
+        return pushEvent({
+          type: "WINDOW_CLOSED",
+          fingerprint,
+          deviceId: deviceId ?? null,
+          role: "TEACHER",
+          teacher: teacherInfo,
+          message: facultyWindowStatus.isDisabled
+            ? `Faculty scanning is DISABLED by Admin schedule. Attendance not recorded.`
+            : `Faculty scan window is CLOSED. Attendance not recorded.`,
+          verifyMode: method,
+        }, when, false);
       }
 
       // Check if faculty member is on active Medical Exemption today
@@ -1380,31 +1397,17 @@ export async function processBiometricScan(
 
     status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
   } else {
-    if (studentWindowStatus.isDisabled) {
-      return pushEvent({
-        type: "WINDOW_CLOSED",
-        fingerprint,
-        deviceId: deviceId ?? null,
-        role: "STUDENT",
-        student: studentInfo,
-        message: `Talabat scanning is DISABLED by Admin schedule. Attendance not recorded.`,
-        verifyMode: method,
-      }, when, false);
-    }
-    // Default morning threshold: 08:00 AM IST
-    const morningBoundary = 8 * 60; // 8:00 AM IST
-    if (scanMinutes > morningBoundary) {
-      return pushEvent({
-        type: "WINDOW_CLOSED",
-        fingerprint,
-        deviceId: deviceId ?? null,
-        role: "STUDENT",
-        student: studentInfo,
-        message: `Talabat scan window is CLOSED (Cutoff was 08:00 AM IST). Attendance not recorded.`,
-        verifyMode: method,
-      }, when, false);
-    }
-    status = "PRESENT";
+    return pushEvent({
+      type: "WINDOW_CLOSED",
+      fingerprint,
+      deviceId: deviceId ?? null,
+      role: "STUDENT",
+      student: studentInfo,
+      message: studentWindowStatus.isDisabled
+        ? `Talabat scanning is DISABLED by Admin schedule. Attendance not recorded.`
+        : `Talabat scan window is CLOSED. Attendance not recorded.`,
+      verifyMode: method,
+    }, when, false);
   }
 
   // Check if attendance is already recorded for this talabat today

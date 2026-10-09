@@ -336,151 +336,175 @@ router.post("/", requireAuth, async (req, res) => {
     let updatedStudentCount = 0;
 
     // ── A. TEACHER / FACULTY MANUAL ATTENDANCE ──
-    for (const item of teacherRecords) {
-      if (!item.id || !validStatuses.includes(item.status)) continue;
-
-      const checkIn = item.checkInTime ? new Date(item.checkInTime) : item.status === "PRESENT" || item.status === "LATE" ? new Date() : null;
-      const checkOut = item.checkOutTime ? new Date(item.checkOutTime) : null;
-      const note = item.remarks ? item.remarks.trim() : `Manual mark (${windowName}) by ${actorName}`;
-
-      const existing = await prisma.teacherAttendanceRecord.findUnique({
-        where: { teacherId_date: { teacherId: item.id, date: targetDate } },
-      });
-
-      await prisma.teacherAttendanceRecord.upsert({
-        where: { teacherId_date: { teacherId: item.id, date: targetDate } },
-        create: {
-          teacherId: item.id,
+    const validTeacherRecords = teacherRecords.filter((r) => r.id && validStatuses.includes(r.status));
+    if (validTeacherRecords.length > 0) {
+      const existingTeacherRecs = await prisma.teacherAttendanceRecord.findMany({
+        where: {
+          teacherId: { in: validTeacherRecords.map((t) => t.id) },
           date: targetDate,
-          status: item.status,
-          checkInTime: checkIn,
-          checkOutTime: checkOut,
-          verificationMethod: "MANUAL",
-          notes: note,
-        },
-        update: {
-          status: item.status,
-          checkInTime: checkIn,
-          checkOutTime: checkOut,
-          verificationMethod: "MANUAL",
-          notes: note,
         },
       });
+      const existingTeacherMap = new Map(existingTeacherRecs.map((r) => [r.teacherId, r]));
 
-      // Audit Trail Log
-      await prisma.attendanceAuditLog.create({
-        data: {
-          date: targetDate,
-          entityType: "TEACHER_RECORD",
-          entityId: item.id,
-          teacherId: item.id,
-          action: existing ? "OVERRIDE" : "CREATE",
-          oldStatus: existing?.status || null,
-          newStatus: item.status,
-          oldSource: existing?.verificationMethod || null,
-          newSource: "MANUAL",
-          actorId: session.user.id,
-          actorName,
-          actorRole: session.user.role,
-          reason: note,
-        },
-      }).catch(() => {});
+      await Promise.allSettled(
+        validTeacherRecords.map(async (item) => {
+          const checkIn = item.checkInTime
+            ? new Date(item.checkInTime)
+            : item.status === "PRESENT" || item.status === "LATE"
+            ? new Date()
+            : null;
+          const checkOut = item.checkOutTime ? new Date(item.checkOutTime) : null;
+          const note = item.remarks ? item.remarks.trim() : `Manual mark (${windowName}) by ${actorName}`;
+          const existing = existingTeacherMap.get(item.id);
 
-      updatedTeacherCount++;
+          await prisma.teacherAttendanceRecord.upsert({
+            where: { teacherId_date: { teacherId: item.id, date: targetDate } },
+            create: {
+              teacherId: item.id,
+              date: targetDate,
+              status: item.status,
+              checkInTime: checkIn,
+              checkOutTime: checkOut,
+              verificationMethod: "MANUAL",
+              notes: note,
+            },
+            update: {
+              status: item.status,
+              checkInTime: checkIn,
+              checkOutTime: checkOut,
+              verificationMethod: "MANUAL",
+              notes: note,
+            },
+          });
+
+          await prisma.attendanceAuditLog.create({
+            data: {
+              date: targetDate,
+              entityType: "TEACHER_RECORD",
+              entityId: item.id,
+              teacherId: item.id,
+              action: existing ? "OVERRIDE" : "CREATE",
+              oldStatus: existing?.status || null,
+              newStatus: item.status,
+              oldSource: existing?.verificationMethod || null,
+              newSource: "MANUAL",
+              actorId: session.user.id,
+              actorName,
+              actorRole: session.user.role,
+              reason: note,
+            },
+          }).catch(() => {});
+        }),
+      );
+      updatedTeacherCount = validTeacherRecords.length;
     }
 
     // ── B. STUDENT / TALABAT ATTENDANCE ──
-    const fallbackClass = await prisma.class.findFirst({ where: { isActive: true }, select: { id: true } });
+    const validStudentRecords = studentRecords.filter((r) => r.id && validStatuses.includes(r.status));
+    if (validStudentRecords.length > 0) {
+      const studentIds = validStudentRecords.map((s) => s.id);
+      const [fallbackClass, allEnrollments, existingRegistries] = await Promise.all([
+        prisma.class.findFirst({ where: { isActive: true }, select: { id: true } }),
+        prisma.classEnrollment.findMany({
+          where: { studentId: { in: studentIds }, isActive: true },
+          select: { studentId: true, classId: true },
+        }),
+        prisma.attendanceRegistry.findMany({
+          where: { studentId: { in: studentIds }, date: targetDate },
+        }),
+      ]);
 
-    for (const item of studentRecords) {
-      if (!item.id || !validStatuses.includes(item.status)) continue;
-
-      const checkIn = item.checkInTime ? new Date(item.checkInTime) : item.status === "PRESENT" || item.status === "LATE" ? new Date() : null;
-      const checkOut = item.checkOutTime ? new Date(item.checkOutTime) : null;
-      const note = item.remarks ? item.remarks.trim() : `Manual mark (${windowName}) by ${actorName}`;
-
-      // 1. Upsert AttendanceRegistry
-      const existingReg = await prisma.attendanceRegistry.findUnique({
-        where: { studentId_date: { studentId: item.id, date: targetDate } },
-      });
-
-      await prisma.attendanceRegistry.upsert({
-        where: { studentId_date: { studentId: item.id, date: targetDate } },
-        create: {
-          studentId: item.id,
-          date: targetDate,
-          status: item.status,
-          source: AttendanceSource.MANUAL,
-          checkInTime: checkIn,
-          checkOutTime: checkOut,
-          remarks: note,
-          recordedById: session.user.id,
-        },
-        update: {
-          status: item.status,
-          source: AttendanceSource.MANUAL,
-          checkInTime: checkIn,
-          checkOutTime: checkOut,
-          remarks: note,
-          recordedById: session.user.id,
-        },
-      });
-
-      // 2. Upsert AttendanceRecord for student's active classes
-      const enrollments = await prisma.classEnrollment.findMany({
-        where: { studentId: item.id, isActive: true },
-        select: { classId: true },
-      });
-
-      const classIdsToUpdate = enrollments.length > 0 ? enrollments.map((e) => e.classId) : fallbackClass ? [fallbackClass.id] : [];
-
-      for (const cid of classIdsToUpdate) {
-        await prisma.attendanceRecord.upsert({
-          where: { studentId_classId_date: { studentId: item.id, classId: cid, date: targetDate } },
-          create: {
-            studentId: item.id,
-            classId: cid,
-            date: targetDate,
-            status: item.status,
-            source: AttendanceSource.MANUAL,
-            verificationMethod: "MANUAL",
-            checkInTime: checkIn,
-            checkOutTime: checkOut,
-            justification: note,
-            recordedById: session.user.id,
-          },
-          update: {
-            status: item.status,
-            source: AttendanceSource.MANUAL,
-            verificationMethod: "MANUAL",
-            checkInTime: checkIn,
-            checkOutTime: checkOut,
-            justification: note,
-            recordedById: session.user.id,
-          },
-        });
+      const enrollmentMap = new Map<string, string[]>();
+      for (const en of allEnrollments) {
+        if (!enrollmentMap.has(en.studentId)) enrollmentMap.set(en.studentId, []);
+        enrollmentMap.get(en.studentId)!.push(en.classId);
       }
+      const registryMap = new Map(existingRegistries.map((r) => [r.studentId, r]));
 
-      // 3. Audit Trail
-      await prisma.attendanceAuditLog.create({
-        data: {
-          date: targetDate,
-          entityType: "STUDENT_REGISTRY",
-          entityId: item.id,
-          studentId: item.id,
-          action: existingReg ? "OVERRIDE" : "CREATE",
-          oldStatus: existingReg?.status || null,
-          newStatus: item.status,
-          oldSource: existingReg?.source || null,
-          newSource: "MANUAL",
-          actorId: session.user.id,
-          actorName,
-          actorRole: session.user.role,
-          reason: note,
-        },
-      }).catch(() => {});
+      await Promise.allSettled(
+        validStudentRecords.map(async (item) => {
+          const checkIn = item.checkInTime
+            ? new Date(item.checkInTime)
+            : item.status === "PRESENT" || item.status === "LATE"
+            ? new Date()
+            : null;
+          const checkOut = item.checkOutTime ? new Date(item.checkOutTime) : null;
+          const note = item.remarks ? item.remarks.trim() : `Manual mark (${windowName}) by ${actorName}`;
+          const existingReg = registryMap.get(item.id);
 
-      updatedStudentCount++;
+          // 1. Upsert AttendanceRegistry
+          await prisma.attendanceRegistry.upsert({
+            where: { studentId_date: { studentId: item.id, date: targetDate } },
+            create: {
+              studentId: item.id,
+              date: targetDate,
+              status: item.status,
+              source: AttendanceSource.MANUAL,
+              checkInTime: checkIn,
+              checkOutTime: checkOut,
+              remarks: note,
+              recordedById: session.user.id,
+            },
+            update: {
+              status: item.status,
+              source: AttendanceSource.MANUAL,
+              checkInTime: checkIn,
+              checkOutTime: checkOut,
+              remarks: note,
+              recordedById: session.user.id,
+            },
+          });
+
+          // 2. Upsert AttendanceRecord for student's active classes
+          const studentClasses = enrollmentMap.get(item.id) || (fallbackClass ? [fallbackClass.id] : []);
+          for (const cid of studentClasses) {
+            await prisma.attendanceRecord.upsert({
+              where: { studentId_classId_date: { studentId: item.id, classId: cid, date: targetDate } },
+              create: {
+                studentId: item.id,
+                classId: cid,
+                date: targetDate,
+                status: item.status,
+                source: AttendanceSource.MANUAL,
+                verificationMethod: "MANUAL",
+                checkInTime: checkIn,
+                checkOutTime: checkOut,
+                justification: note,
+                recordedById: session.user.id,
+              },
+              update: {
+                status: item.status,
+                source: AttendanceSource.MANUAL,
+                verificationMethod: "MANUAL",
+                checkInTime: checkIn,
+                checkOutTime: checkOut,
+                justification: note,
+                recordedById: session.user.id,
+              },
+            });
+          }
+
+          // 3. Audit Trail
+          await prisma.attendanceAuditLog.create({
+            data: {
+              date: targetDate,
+              entityType: "STUDENT_REGISTRY",
+              entityId: item.id,
+              studentId: item.id,
+              action: existingReg ? "OVERRIDE" : "CREATE",
+              oldStatus: existingReg?.status || null,
+              newStatus: item.status,
+              oldSource: existingReg?.source || null,
+              newSource: "MANUAL",
+              actorId: session.user.id,
+              actorName,
+              actorRole: session.user.role,
+              reason: note,
+            },
+          }).catch(() => {});
+        }),
+      );
+      updatedStudentCount = validStudentRecords.length;
     }
 
     const totalUpdated = updatedTeacherCount + updatedStudentCount;

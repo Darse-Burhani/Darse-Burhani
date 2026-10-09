@@ -170,9 +170,9 @@ export default function AdminAttendanceLogsPage() {
   const [date, setDate] = useState<string>(todayStr);
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
-  const [selectedEventId, setSelectedEventId] = useState<string>("ALL");
-  const [audience, setAudience] = useState<"STUDENT" | "FACULTY" | "ALL">("STUDENT");
-  const [logType, setLogType] = useState<"HIKVISION" | "MANUAL" | "ALL">(isFaculty ? "MANUAL" : "ALL");
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [audience, setAudience] = useState<"STUDENT" | "FACULTY">("STUDENT");
+  const [logType, setLogType] = useState<"HIKVISION" | "MANUAL">(isFaculty ? "MANUAL" : "HIKVISION");
 
   useEffect(() => {
     if (isFaculty) {
@@ -225,7 +225,16 @@ export default function AdminAttendanceLogsPage() {
   const fetchEvents = useCallback(async () => {
     try {
       const res = await getAttendanceLogEvents();
-      setEvents(res || []);
+      const eventList = res || [];
+      setEvents(eventList);
+      if (eventList.length > 0) {
+        setSelectedEventId((prev) => {
+          if (!prev || prev === "ALL" || !eventList.some((e) => e.id === prev)) {
+            return eventList[0].id;
+          }
+          return prev;
+        });
+      }
     } catch (err) {
       console.error("Failed to load schedule events:", err);
     }
@@ -242,7 +251,7 @@ export default function AdminAttendanceLogsPage() {
       setError(null);
       try {
         const effectiveLogType = isFaculty ? "MANUAL" : logType;
-        const effectiveEventWindowId = effectiveLogType !== "MANUAL" && selectedEventId !== "ALL" ? selectedEventId : undefined;
+        const effectiveEventWindowId = effectiveLogType !== "MANUAL" && selectedEventId && selectedEventId !== "ALL" ? selectedEventId : undefined;
         const res = await getAttendanceLogs({
           date,
           grade: selectedGrade || undefined,
@@ -256,16 +265,14 @@ export default function AdminAttendanceLogsPage() {
         setLivePulse(true);
         setTimeout(() => setLivePulse(false), 600);
 
-        // Persist all-days to localStorage
+        // Persist daily archive
         try {
-          const archiveAudience = "ALL";
-          const archiveRes = audience === "ALL" ? res : await getAttendanceLogs({ date, audience: archiveAudience as any, logType: "ALL" });
           saveDailyArchive(date, {
-            records: archiveRes.records,
-            summary: archiveRes.summary,
-            talabatSummary: (archiveRes as any).talabatSummary,
-            facultySummary: (archiveRes as any).facultySummary,
-            overallSummary: (archiveRes as any).overallSummary,
+            records: res.records,
+            summary: res.summary,
+            talabatSummary: (res as any).talabatSummary,
+            facultySummary: (res as any).facultySummary,
+            overallSummary: (res as any).overallSummary,
           } as any);
         } catch {}
       } catch (err: any) {
@@ -289,37 +296,24 @@ export default function AdminAttendanceLogsPage() {
   }, [fetchData]);
 
   // ── Window-aware live pull ──
-  // Auto-pull runs ONLY while the selected event window is open in IST.
-  // After the window time passes, polling + scan-triggered refetch stop and
-  // the finalized roster stays put. Final/manual events (auto-finalize,
-  // overrides, manual saves) always refetch so closing marks still land.
-  // The page re-renders every second (relative-time tick below), so this
-  // flips live the moment a window opens or closes. Fail-open while the
-  // event list hasn't loaded yet.
   const selectedWindowOpen = (() => {
     if (date !== todayStr) return false;
     if (events.length === 0) return true;
-    const list =
-      selectedEventId === "ALL"
-        ? events
-        : events.filter((e) => e.id === selectedEventId);
-    if (list.length === 0) return true;
-    return list.some((e) => {
-      const studentOpen = isWindowOpenNow(e);
-      const facultyTimer =
-        e.facultyStartTime && e.facultyEndTime
-          ? {
-              startTime: e.facultyStartTime,
-              endTime: e.facultyEndTime,
-              lateEndTime: e.facultyLateEndTime || e.facultyEndTime,
-              enabled: e.facultyEnabled ?? e.enabled,
-            }
-          : null;
-      const facultyOpen = facultyTimer ? isWindowOpenNow(facultyTimer) : studentOpen;
-      if (audience === "FACULTY") return facultyOpen;
-      if (audience === "ALL") return studentOpen || facultyOpen;
-      return studentOpen;
-    });
+    const targetEvent = events.find((e) => e.id === selectedEventId) || events[0];
+    if (!targetEvent) return true;
+    const studentOpen = isWindowOpenNow(targetEvent);
+    const facultyTimer =
+      targetEvent.facultyStartTime && targetEvent.facultyEndTime
+        ? {
+            startTime: targetEvent.facultyStartTime,
+            endTime: targetEvent.facultyEndTime,
+            lateEndTime: targetEvent.facultyLateEndTime || targetEvent.facultyEndTime,
+            enabled: targetEvent.facultyEnabled ?? targetEvent.enabled,
+          }
+        : null;
+    const facultyOpen = facultyTimer ? isWindowOpenNow(facultyTimer) : studentOpen;
+    if (audience === "FACULTY") return facultyOpen;
+    return studentOpen;
   })();
 
   // Live mirror of the window-open flag for the always-connected SSE handler.
@@ -341,9 +335,7 @@ export default function AdminAttendanceLogsPage() {
     };
   }, [isLive, selectedWindowOpen, fetchData]);
 
-  // SSE live trigger — stays connected all day while live; scan events
-  // refresh instantly only while the selected window is open, while
-  // finalize/override/manual-save events always refresh (even after close).
+  // SSE live trigger
   useEffect(() => {
     if (!isLive) return;
     const isToday = date === todayStr;
@@ -407,13 +399,6 @@ export default function AdminAttendanceLogsPage() {
   };
   const handleToday = () => setDate(todayStr);
 
-  const exportUrl = getExportAttendanceLogsUrl({
-    startDate: date,
-    endDate: date,
-    grade: selectedGrade || undefined,
-    section: selectedSection || undefined,
-    audience: "ALL",
-  });
   const exportTalabatUrl = getExportAttendanceLogsUrl({
     startDate: date,
     endDate: date,
@@ -430,15 +415,16 @@ export default function AdminAttendanceLogsPage() {
   const totalLiveCount = data?.summary.total ?? 0;
   const activeEvent = events.find((e) => e.id === selectedEventId);
   const isFacultyOnlyEvent = Boolean(
-    selectedEventId !== "ALL" && (
+    activeEvent && (
       (data as any)?.isFacultyOnly ||
-      (activeEvent && activeEvent.audience === "FACULTY")
+      activeEvent.audience === "FACULTY"
     )
   );
   const isStudentOnlyEvent = Boolean(
-    selectedEventId !== "ALL" && (
+    activeEvent && (
       (data as any)?.isStudentOnly ||
-      (activeEvent && (activeEvent.audience === "ALL_STUDENTS" || activeEvent.audience === "STUDENT"))
+      activeEvent.audience === "ALL_STUDENTS" ||
+      activeEvent.audience === "STUDENT"
     )
   );
   const isTilawatSelected = Boolean(
@@ -448,7 +434,6 @@ export default function AdminAttendanceLogsPage() {
 
   const handleSelectEvent = (eventId: string) => {
     setSelectedEventId(eventId);
-    if (eventId === "ALL") return;
     const ev = events.find((e) => e.id === eventId);
     if (!ev) return;
     if (ev.audience === "FACULTY") {
@@ -484,7 +469,7 @@ export default function AdminAttendanceLogsPage() {
                 <span className="inline-flex w-8 h-8 rounded-xl bg-white/10 border border-white/15 items-center justify-center">
                   {logType === "HIKVISION" ? <Fingerprint className="w-4 h-4 text-emerald-300" /> : <FileText className="w-4 h-4 text-emerald-300" />}
                 </span>
-                {isFaculty ? "Manual Attendance Logs" : logType === "HIKVISION" ? "Hikvision Biometric Scan Logs" : logType === "MANUAL" ? "Manual Classroom Attendance Logs" : "Attendance Logs & Verification"}
+                {isFaculty ? "Manual Attendance Logs" : logType === "HIKVISION" ? "Hikvision Biometric Scan Logs" : "Manual Classroom Attendance Logs"}
               </h1>
             </div>
             <p className="text-[12px] leading-relaxed text-emerald-100/80 max-w-2xl">
@@ -492,9 +477,7 @@ export default function AdminAttendanceLogsPage() {
                 ? "Faculty view — review student classroom roll-call entries, manual status marks, and excused absences."
                 : logType === "HIKVISION"
                 ? "Direct hardware scan logs from Hikvision terminals with punch timestamps and verification methods."
-                : logType === "MANUAL"
-                ? "Teacher roll-call registers, manual overrides, medical exemptions, and approved leaves."
-                : "Real-time daily attendance roster, biometric verification records, and automated cloud sync."}
+                : "Teacher roll-call registers, manual overrides, medical exemptions, and approved leaves."}
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/10 text-emerald-100 border border-white/15">
@@ -580,46 +563,39 @@ export default function AdminAttendanceLogsPage() {
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
             </button>
 
-            {/* CSV Download Group */}
-            <div className="flex items-center rounded-xl bg-white/10 p-1 border border-white/15 shadow-md">
-              <a
-                href={exportUrl}
-                download
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs shadow transition-all"
-                title="Download full bifurcated CSV (Talabat + Faculty)"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download CSV
-              </a>
+            {/* CSV Download Buttons: Talabat & Faculty */}
+            <div className="flex items-center gap-2">
               <a
                 href={exportTalabatUrl}
                 download
-                className="inline-flex items-center justify-center p-2 rounded-lg text-emerald-100 hover:bg-white/10 transition-colors ml-1"
-                title="Download Talabat (Students) CSV only"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs shadow-md transition-all cursor-pointer"
+                title="Download Talabat (Students) CSV"
               >
                 <GraduationCap className="w-4 h-4" />
+                <span>Talabat CSV</span>
               </a>
               <a
                 href={exportFacultyUrl}
                 download
-                className="inline-flex items-center justify-center p-2 rounded-lg text-emerald-100 hover:bg-white/10 transition-colors"
-                title="Download Faculty (Staff) CSV only"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-black text-xs shadow-md transition-all cursor-pointer"
+                title="Download Faculty (Staff) CSV"
               >
                 <Briefcase className="w-4 h-4" />
+                <span>Faculty CSV</span>
               </a>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Log Subsystem Switcher (Hikvision vs Manual Logs Separated Totally) ── */}
+      {/* ── Log Subsystem Switcher (Hikvision vs Manual Logs) ── */}
       {!isFaculty && (
         <div className="p-1.5 rounded-2xl bg-gray-100 border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 ml-2">Log Mode:</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
+          <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto">
             {/* Hikvision Biometric Log Pill */}
             <button
               type="button"
@@ -654,25 +630,6 @@ export default function AdminAttendanceLogsPage() {
               {data?.manualSummary && (
                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "MANUAL" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-800"}`}>
                   {data.manualSummary.total}
-                </span>
-              )}
-            </button>
-
-            {/* All Combined Logs Pill */}
-            <button
-              type="button"
-              onClick={() => setLogType("ALL")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
-                logType === "ALL"
-                  ? "bg-slate-900 text-white shadow-md font-black ring-2 ring-slate-700"
-                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
-              }`}
-            >
-              <Layers className={`w-3.5 h-3.5 ${logType === "ALL" ? "text-amber-300" : "text-gray-500"}`} />
-              <span>All Combined</span>
-              {data?.overallSummary && (
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "ALL" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-800"}`}>
-                  {data.overallSummary.total}
                 </span>
               )}
             </button>
@@ -713,15 +670,6 @@ export default function AdminAttendanceLogsPage() {
               <Briefcase className="w-3.5 h-3.5" />
               Faculty
               {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudience("ALL")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              All
-              {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
             </button>
           </div>
         </div>
@@ -780,30 +728,12 @@ export default function AdminAttendanceLogsPage() {
                   Faculty
                   {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setAudience("ALL")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  All
-                  {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/15 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
-                </button>
               </div>
             )}
           </div>
 
           {/* Scheduled Biometric Scan Windows */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleSelectEvent("ALL")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${selectedEventId === "ALL" ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-white"}`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              All Windows
-              {data?.summary && <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${selectedEventId === "ALL" ? "bg-white/15 text-emerald-100" : "bg-white text-gray-600 border"}`}>{data.summary.total}</span>}
-            </button>
             {events.map((ev) => {
               const isSelected = selectedEventId === ev.id;
               const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
@@ -897,7 +827,7 @@ export default function AdminAttendanceLogsPage() {
       <ManualAttendanceModal
         open={manualModalOpen}
         onOpenChange={setManualModalOpen}
-        initialScheduleId={selectedEventId !== "ALL" ? selectedEventId : undefined}
+        initialScheduleId={selectedEventId || undefined}
         initialDate={date}
         onSuccess={() => fetchData(true)}
       />

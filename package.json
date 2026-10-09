@@ -22,6 +22,7 @@
     "attendance-log:sheet": "npm run attendance-log:sheet -w server",
     "attendence-log:sheet": "npm run attendance-log:sheet -w server",
     "password:reset-faculty": "tsx scripts/reset-faculty-passwords.ts",
+    "seed:demo": "tsx scripts/seed-demo-credentials.ts",
     "db:backup": "tsx scripts/backup-supabase-to-local.ts",
     "db:restore": "tsx scripts/restore-local-db.ts"
   },

@@ -174,31 +174,33 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
       ),
     );
 
-    // Also sync AttendanceRegistry for each student so daily stats reflect class attendance
-    for (const r of records) {
-      if (!r.studentId) continue;
-      await prisma.attendanceRegistry.upsert({
-        where: { studentId_date: { studentId: r.studentId, date: day } },
-        create: {
-          studentId: r.studentId,
-          date: day,
-          status: sanitizeStatus(r.status),
-          source: AttendanceSource.MANUAL,
-          checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
-          checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
-          remarks: `Class attendance marked by Teacher`,
-          recordedById: session.user.id,
-        },
-        update: {
-          status: sanitizeStatus(r.status),
-          source: AttendanceSource.MANUAL,
-          checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
-          checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
-          remarks: `Class attendance marked by Teacher`,
-          recordedById: session.user.id,
-        },
-      }).catch(() => {});
-    }
+    // Also sync AttendanceRegistry for each student so daily stats reflect class attendance (parallelized)
+    const validRecords = records.filter((r: any) => Boolean(r?.studentId));
+    await Promise.allSettled(
+      validRecords.map((r: any) =>
+        prisma.attendanceRegistry.upsert({
+          where: { studentId_date: { studentId: r.studentId, date: day } },
+          create: {
+            studentId: r.studentId,
+            date: day,
+            status: sanitizeStatus(r.status),
+            source: AttendanceSource.MANUAL,
+            checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
+            checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
+            remarks: `Class attendance marked by Teacher`,
+            recordedById: session.user.id,
+          },
+          update: {
+            status: sanitizeStatus(r.status),
+            source: AttendanceSource.MANUAL,
+            checkInTime: r.checkInTime ? new Date(r.checkInTime) : null,
+            checkOutTime: r.checkOutTime ? new Date(r.checkOutTime) : null,
+            remarks: `Class attendance marked by Teacher`,
+            recordedById: session.user.id,
+          },
+        }),
+      ),
+    );
 
     // Broadcast SSE live event
     broadcastAttendanceEvent({

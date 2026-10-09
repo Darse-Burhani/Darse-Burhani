@@ -124,6 +124,10 @@ model User {
   reviewedWeeklySlips  HifzWeeklySlip[]     @relation("WeeklySlipReviewer")
   hifzAssignments      HifzMarhalaAssignment[] @relation("AdminHifzAssignments")
 
+  @@index([role])
+  @@index([deletedAt])
+  @@index([isActive])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -144,6 +148,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -158,6 +163,8 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([expires])
   @@map("sessions")
 }
 
@@ -215,6 +222,8 @@ model TeacherProfile {
   medicalExemptions          MedicalExemption[]
 
   @@index([userId])
+  @@index([its])
+  @@index([department])
   @@map("teacher_profiles")
 }
 
@@ -298,6 +307,8 @@ model StudentProfile {
   @@index([grade, section])
   @@index([currentPoints])
   @@index([its])
+  @@index([status])
+  @@index([darsId])
   @@map("student_profiles")
 }
 
@@ -329,6 +340,8 @@ model HifzMarhalaAssignment {
   @@index([musaidId])
   @@index([musaidStudentId])
   @@index([academicYear])
+  @@index([assignedById])
+  @@index([academicYear, marhala])
   @@map("hifz_marhala_assignments")
 }
 
@@ -367,9 +380,11 @@ model HifzMarhalaReport {
   reviewer  User?              @relation("HifzReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, academicYear, marhala])
+  @@index([studentId])
   @@index([facultyId])
   @@index([academicYear])
   @@index([status])
+  @@index([reviewedById])
   @@map("hifz_marhala_reports")
 }
 
@@ -417,9 +432,11 @@ model HifzWeeklySlip {
   reviewer User?          @relation("WeeklySlipReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, academicYear, weekNumber])
+  @@index([studentId])
   @@index([facultyId])
   @@index([academicYear, weekNumber])
   @@index([status])
+  @@index([reviewedById])
   @@map("hifz_weekly_slips")
 }
 
@@ -467,6 +484,7 @@ model HifzDailyEvaluation {
   faculty           TeacherProfile? @relation("FacultyDailyEvaluations", fields: [facultyId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, evaluationDate])
+  @@index([studentId, academicYear])
   @@index([facultyId])
   @@index([evaluationDate])
   @@index([academicYear])
@@ -523,6 +541,8 @@ model ParentProfile {
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   studentLinks   ParentStudentLink[]
 
+  @@index([its])
+  @@index([phone])
   @@map("parent_profiles")
 }
 
@@ -536,6 +556,7 @@ model ParentStudentLink {
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, studentId])
+  @@index([studentId])
   @@map("parent_student_links")
 }
 
@@ -555,7 +576,7 @@ model Class {
   // from the teaching teacher).
   masoolId String?
 
-  teacher         TeacherProfile    @relation(fields: [teacherId], references: [id])
+  teacher         TeacherProfile    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   masool          TeacherProfile?  @relation("ClassMasool", fields: [masoolId], references: [id], onDelete: SetNull)
   enrollments     ClassEnrollment[]
   attendanceRecords AttendanceRecord[]
@@ -565,6 +586,8 @@ model Class {
 
   @@index([teacherId, isActive])
   @@index([masoolId])
+  @@index([academicYear, isActive])
+  @@index([grade, section])
   @@map("classes")
 }
 
@@ -603,8 +626,8 @@ model AttendanceRecord {
   justifiedAt    DateTime?
   createdAt      DateTime         @default(now())
 
-  student StudentProfile @relation(fields: [studentId], references: [id])
-  class   Class          @relation(fields: [classId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, classId, date])
   @@index([classId, date])
@@ -612,6 +635,8 @@ model AttendanceRecord {
   @@index([classId, date, status])
   @@index([date])
   @@index([date, status])
+  @@index([recordedById])
+  @@index([justifiedById])
   @@map("attendance_records")
 }
 
@@ -635,6 +660,7 @@ model TeacherAttendanceRecord {
   @@index([teacherId])
   @@index([date])
   @@index([status])
+  @@index([verificationMethod])
   @@map("teacher_attendance_records")
 }
 
@@ -668,16 +694,17 @@ model PointLog {
   isUndone    Boolean    @default(false)
   createdAt   DateTime   @default(now())
 
-  student  StudentProfile  @relation(fields: [studentId], references: [id])
-  teacher  TeacherProfile  @relation(fields: [teacherId], references: [id])
-  class    Class?          @relation(fields: [classId], references: [id])
-  matrix   PointMatrix?    @relation(fields: [matrixId], references: [id])
+  student  StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher  TeacherProfile  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class    Class?          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  matrix   PointMatrix?    @relation(fields: [matrixId], references: [id], onDelete: SetNull)
 
   @@index([studentId])
   @@index([classId])
   @@index([createdAt])
   @@index([teacherId, createdAt])
   @@index([studentId, createdAt])
+  @@index([matrixId])
   @@map("point_logs")
 }
 
@@ -711,6 +738,7 @@ model BadgeProgress {
 
   @@unique([studentId, badgeId])
   @@index([studentId, isEarned])
+  @@index([badgeId])
   @@map("badge_progress")
 }
 
@@ -757,7 +785,7 @@ model WalletTransaction {
   referenceId String?
   createdAt   DateTime @default(now())
 
-  student StudentProfile @relation(fields: [studentId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@map("wallet_transactions")
@@ -779,6 +807,7 @@ model TimetableSlot {
 
   class Class? @relation(fields: [classId], references: [id], onDelete: Cascade)
 
+  @@index([classId])
   @@index([dayOfWeek])
   @@map("timetable_slots")
 }
@@ -827,6 +856,7 @@ model AcademicCalendarEvent {
   updatedAt   DateTime @updatedAt
 
   @@index([startDate, endDate])
+  @@index([createdBy])
   @@map("academic_calendar_events")
 }
 
@@ -844,7 +874,7 @@ model HifzReport {
   updatedAt     DateTime  @updatedAt
 
   student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  teacher TeacherProfile @relation(fields: [teacherId], references: [id])
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   parts   HifzPart[]
 
   @@unique([studentId, academicYear])
@@ -947,6 +977,7 @@ model TakhteetPlan {
   @@index([teacherId])
   @@index([classId])
   @@index([academicYear])
+  @@index([assignedById])
   @@map("takhteet_plans")
 }
 
@@ -964,6 +995,7 @@ model TakhteetProgressLog {
   teacher  TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@index([planId])
+  @@index([teacherId])
   @@map("takhteet_progress_logs")
 }
 
@@ -1064,6 +1096,7 @@ model BiometricDevice {
   updatedAt             DateTime  @updatedAt
 
   @@index([host])
+  @@index([status, enabled])
   @@map("biometric_devices")
 }
 
@@ -1120,6 +1153,7 @@ model ProcurementRequest {
   @@index([requesterId])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedToId])
   @@map("procurement_requests")
 }
 
@@ -1145,6 +1179,7 @@ model LeaveRequest {
   @@index([studentId])
   @@index([status])
   @@index([startDate, endDate])
+  @@index([reviewerId])
   @@map("leave_requests")
 }
 
@@ -1170,6 +1205,7 @@ model AttendanceRegistry {
   @@index([studentId])
   @@index([status])
   @@index([source])
+  @@index([leaveId])
   @@map("attendance_registries")
 }
 
@@ -1210,6 +1246,7 @@ model AttendanceAuditLog {
   @@index([date])
   @@index([studentId])
   @@index([teacherId])
+  @@index([actorId])
   @@index([entityType, entityId])
   @@index([action])
   @@map("attendance_audit_logs")
@@ -1236,6 +1273,7 @@ model MedicalExemption {
   @@index([date])
   @@index([studentId])
   @@index([teacherId])
+  @@index([assignedById])
   @@index([personType, date])
   @@map("medical_exemptions")
 }
@@ -1282,6 +1320,7 @@ model AssignmentGrade {
   @@unique([assignmentId, studentId])
   @@index([studentId])
   @@index([assignmentId])
+  @@index([gradedById])
   @@map("assignment_grades")
 }
 
@@ -1398,6 +1437,7 @@ model TalabatProfile1447 {
   student             StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
+  @@index([reviewedById])
   @@map("talabat_profiles_1447")
 }
 

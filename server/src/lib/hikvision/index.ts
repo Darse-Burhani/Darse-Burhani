@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import prisma from "../prisma";
-import { processBiometricScan, isRoleWindowOpen } from "../biometric";
+import { processBiometricScan, isRoleWindowOpen, isAnyHardwareWindowOpen } from "../biometric";
 import { digestFetch } from "./digest";
 import {
   getAcsEvents,
@@ -742,11 +742,32 @@ export async function pollDevice(
 
     const to = customTo ?? new Date();
     const startOfToday = getStartOfTodayIST();
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Note: Scans are continuously pulled for today so that any event stored on
-    // the terminal (e.g. from the morning window) is reliably processed by
-    // processBiometricScan even if retrieved shortly after the window boundary.
+    // ── Schedule Window Gate ──
+    // When performing regular automated background polling (!force && !customFrom),
+    // verify if ANY hardware biometric scan window (Student or Faculty) is open or opening in <= 5 mins.
+    // If all windows are closed, do NOT query ACS events from the terminal.
+    // Update the device heartbeat/status at most once every 60s and return immediately.
+    if (!force && !customFrom) {
+      const windowCheck = await isAnyHardwareWindowOpen(to, 5);
+      if (!windowCheck.isOpen) {
+        const now = Date.now();
+        const shouldHeartbeat = !device.lastPolledAt || (now - device.lastPolledAt.getTime() > 60_000);
+        if (shouldHeartbeat) {
+          await prisma.biometricDevice.update({
+            where: { id },
+            data: {
+              status: "ONLINE",
+              lastError: null,
+              lastPolledAt: new Date(),
+              lastSeenAt: new Date(),
+              lastEventCursor: to, // keep cursor advanced to avoid backlog accumulation
+            },
+          }).catch(() => {});
+        }
+        return { scansFetched: 0, scansProcessed: 0 };
+      }
+    }
 
     // Query lookback:
     // 1. If explicit customFrom is provided, use it.
@@ -1103,7 +1124,8 @@ export async function deployAllTeachersToDevice(deviceId: string): Promise<{
 }
 
 /**
- * Completely purge a user/student/teacher from all active Hikvision biometric terminals
+ * Completely purge a user/student/teacher from active Hikvision biometric terminals
+ * Executes concurrently with strict timeout to prevent gateway timeouts on cloud/LAN anomalies.
  */
 export async function deleteUserFromAllDevices(candidateEmployeeNos: (string | null | undefined)[]): Promise<{
   success: boolean;
@@ -1113,22 +1135,48 @@ export async function deleteUserFromAllDevices(candidateEmployeeNos: (string | n
   const cleanNos = Array.from(new Set(candidateEmployeeNos.map((s) => s?.trim()).filter(Boolean))) as string[];
   if (cleanNos.length === 0) return { success: true, deletedFrom: [], errors: [] };
 
+  const isCloud = Boolean(process.env.RENDER || process.env.VERCEL || (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true"));
+
   const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
   const deletedFrom: string[] = [];
   const errors: Array<{ host: string; error: string }> = [];
 
-  for (const dev of devices) {
+  // On cloud deployments with private LAN terminals, direct ISAPI purge is skipped (handled via Cloud Bridge sync)
+  const reachableDevices = devices.filter((dev) => {
+    const isPrivateIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|127\.)/.test(dev.host);
+    if (isCloud && isPrivateIp) {
+      return false;
+    }
+    return true;
+  });
+
+  if (reachableDevices.length === 0) {
+    return { success: true, deletedFrom: [], errors: [] };
+  }
+
+  const tasks: Promise<void>[] = [];
+
+  for (const dev of reachableDevices) {
     const conn = toConnection(dev);
     for (const empNo of cleanNos) {
-      try {
-        await deleteUserFromDevice(conn, empNo);
-        deletedFrom.push(`${dev.host}:${empNo}`);
-      } catch (err: any) {
-        // May already not exist on terminal
-        errors.push({ host: dev.host, error: err?.message || String(err) });
-      }
+      tasks.push(
+        (async () => {
+          try {
+            // Strict 2.5 second timeout per terminal purge call
+            await Promise.race([
+              deleteUserFromDevice(conn, empNo),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Terminal connection timeout")), 2500)),
+            ]);
+            deletedFrom.push(`${dev.host}:${empNo}`);
+          } catch (err: any) {
+            errors.push({ host: dev.host, error: err?.message || String(err) });
+          }
+        })()
+      );
     }
   }
+
+  await Promise.allSettled(tasks);
 
   return { success: true, deletedFrom, errors };
 }

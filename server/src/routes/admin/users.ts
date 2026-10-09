@@ -210,17 +210,24 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     }
 
     // Check Employee ID duplicate for teacher
-    if (role === "TEACHER" && employeeId) {
-      const cleanEmpId = employeeId.trim();
-      const existingTeacher = await prisma.teacherProfile.findUnique({
-        where: { employeeId: cleanEmpId },
+    if (role === "TEACHER" && (employeeId || its)) {
+      const cleanEmpId = (employeeId || its).trim();
+      const existingTeacher = await prisma.teacherProfile.findFirst({
+        where: {
+          OR: [{ employeeId: cleanEmpId }, { its: cleanEmpId }],
+        },
       });
       if (existingTeacher) {
-        return res.status(409).json({ success: false, error: `Teacher with Employee ID "${cleanEmpId}" already exists.` });
+        return res.status(409).json({ success: false, error: `Teacher with Employee ID / ITS "${cleanEmpId}" already exists.` });
       }
     }
 
     const passwordHash = await hash(password, 12);
+
+    // Sanitize enum and numeric types
+    const validStudentStatus = status === "HAFIZ" || status === "SANAH" ? status : null;
+    const parsedAge = age && !isNaN(parseInt(String(age), 10)) ? parseInt(String(age), 10) : null;
+    const parsedDob = dobGregorian && !isNaN(new Date(dobGregorian).getTime()) ? new Date(dobGregorian) : null;
 
     const user = await prisma.user.create({
       data: {
@@ -234,9 +241,14 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
         ...(role === "TEACHER" && {
           teacherProfile: {
             create: {
-              employeeId: employeeId?.trim() || `TCH-${Date.now()}`,
-              department: department || null,
-              subjects: subjects || [],
+              employeeId: employeeId?.trim() || its?.trim() || `TCH-${Date.now()}`,
+              its: its?.trim() || null,
+              department: department?.trim() || null,
+              subjects: Array.isArray(subjects) ? subjects : subjects ? [String(subjects)] : [],
+              khidmatMauze: body.khidmatMauze?.trim() || null,
+              mobile: phone?.trim() || mobileNumber?.trim() || null,
+              tEmail: cleanEmail,
+              roleTitle: body.roleTitle?.trim() || null,
             },
           },
         }),
@@ -244,32 +256,32 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
           studentProfile: {
             create: {
               studentId: its?.trim() || `STU-${Date.now()}`,
-              grade: grade || "1",
-              section: section || "A",
+              grade: String(grade || "1").trim(),
+              section: String(section || "A").trim(),
               its: its?.trim() || null,
               trNo: trNo?.trim() || null,
-              motherName: motherName || null,
-              fatherName: fatherName || null,
-              fatherOccupation: fatherOccupation || null,
-              age: age ? parseInt(age) : null,
-              status: status || null,
-              bloodGroup: bloodGroup || null,
-              dobGregorian: dobGregorian ? new Date(dobGregorian) : null,
-              dobHijri: dobHijri || null,
-              hafizYear: hafizYear || null,
-              nameAr: nameAr || null,
-              fatherEmail: fatherEmail || null,
-              motherEmail: motherEmail || null,
-              fatherPhone: fatherPhone || null,
-              motherPhone: motherPhone || null,
-              admissionYear: admissionYear || null,
-              currentYear: currentYear || null,
-              darsId: darsId || null,
-              externalSchooling: externalSchooling || null,
-              watan: watan || null,
-              residentCity: residentCity || null,
-              address: address || null,
-              mobileNumber: mobileNumber || null,
+              motherName: motherName?.trim() || null,
+              fatherName: fatherName?.trim() || null,
+              fatherOccupation: fatherOccupation?.trim() || null,
+              age: parsedAge,
+              status: validStudentStatus,
+              bloodGroup: bloodGroup?.trim() || null,
+              dobGregorian: parsedDob,
+              dobHijri: dobHijri?.trim() || null,
+              hafizYear: hafizYear?.trim() || null,
+              nameAr: nameAr?.trim() || null,
+              fatherEmail: fatherEmail?.trim() || null,
+              motherEmail: motherEmail?.trim() || null,
+              fatherPhone: fatherPhone?.trim() || null,
+              motherPhone: motherPhone?.trim() || null,
+              admissionYear: admissionYear?.trim() || null,
+              currentYear: currentYear?.trim() || null,
+              darsId: darsId?.trim() || null,
+              externalSchooling: externalSchooling?.trim() || null,
+              watan: watan?.trim() || null,
+              residentCity: residentCity?.trim() || null,
+              address: address?.trim() || null,
+              mobileNumber: mobileNumber?.trim() || null,
             },
           },
         }),
@@ -280,7 +292,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
               secondaryPhone: body.secondaryPhone?.trim() || null,
               occupation: body.occupation?.trim() || null,
               address: address?.trim() || null,
-              city: body.city?.trim() || null,
+              city: body.city?.trim() || residentCity?.trim() || null,
               watan: watan?.trim() || null,
               bloodGroup: bloodGroup?.trim() || null,
               its: its?.trim() || null,
