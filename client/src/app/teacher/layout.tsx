@@ -38,6 +38,7 @@ const rawNavItems = [
   // ── Overview & Academics ──
   { key: "dashboard", label: "Dashboard", href: "/teacher", icon: Activity, category: "Overview" },
   { key: "classes", label: "Classes", href: "/teacher/classes", icon: BookOpen, category: "Academics" },
+  { key: "classes", label: "Yearly Profile (1447 H)", href: "/teacher/talabat-profiles", icon: GraduationCap, category: "Academics" },
   { key: "timetable", label: "Timetable Matrix", href: "/teacher/timetable", icon: CalendarDays, category: "Academics" },
   { key: "quran", label: "Quran (Hifz)", href: "/teacher/hifz", icon: Sparkles, category: "Academics" },
   { key: "hifz-marhala", label: "Hifz Marhala", href: "/teacher/hifz-marhala", icon: GraduationCap, category: "Academics" },

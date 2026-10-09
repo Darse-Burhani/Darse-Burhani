@@ -292,6 +292,7 @@ model StudentProfile {
   assignmentGrades           AssignmentGrade[]
   skillAssessmentAttempts    SkillAssessmentAttempt[]
   hobbies                    StudentHobby[]
+  talabatProfile1447         TalabatProfile1447?
 
   @@index([userId])
   @@index([grade, section])
@@ -1313,6 +1314,93 @@ model StudentHobby {
   @@index([studentId])
   @@map("student_hobbies")
 }
+
+model TalabatProfile1447 {
+  id                  String    @id @default(cuid())
+  studentId           String    @unique
+  year                String    @default("1447 H")
+  status              String    @default("DRAFT") // DRAFT, SUBMITTED, REVIEWED
+
+  // Personal Details
+  studentPhotoUrl     String?
+  name                String?
+  itsNo               String?
+  idNo                String?
+  jamaat              String?
+  vatan               String?
+  nationality         String?   @default("Indian")
+  dob                 String?
+  age                 Int?
+
+  // Family Details
+  fatherPhotoUrl      String?
+  fatherName          String?
+  fatherOccupation    String?
+  motherPhotoUrl      String?
+  motherName          String?
+  motherOccupation    String?
+
+  // Academics Details
+  result1444          String?
+  result1445          String?
+  result1446          String?
+  result1447          String?
+  
+  // Hifz
+  hifzYear            String?
+  hifzTabaqa          String?
+
+  // Courses
+  course1             String?
+  course2             String?
+  course3             String?
+  course4             String?
+
+  // Activities & Cultural Programs (الاشتراك في البرامج العلمية والثقافية)
+  activities          String?   @db.Text
+  
+  // Other Exams (الامتحانات الأخرى)
+  otherExams          String?
+
+  // Self - Assessment
+  strengths           String[]  @default([])
+  weaknesses          String[]  @default([])
+
+  // About Myself
+  aboutMyself         String?   @db.Text
+
+  // Darajah Masul & Darse Burhani Masul Collective Remarks
+  behaviourRating     Int?
+  communicationRating Int?
+  dedicationRating    Int?
+  disciplineRating    Int?
+  
+  // Granular Remarks by Faculty Departments
+  masoolRemarks       String?   @db.Text // Legacy fallback / General notes
+  remarksMasool       String?   @db.Text // المسؤول عن الدرجة
+  remarksTahfeez      String?   @db.Text // عن التحفيظ
+  remarksTaleem       String?   @db.Text // عن التعليم
+  remarksTadeeb       String?   @db.Text // عن التأديب والرياضة والمنازل البرهانية
+  remarksTanzeem      String?   @db.Text // عن التنظيم
+  remarksSports       String?   @db.Text // عن خيمة الرياضة
+  remarksMaktabat     String?   @db.Text // المكتبة
+  remarksSkills       String?   @db.Text // عن الفن والمهارة
+  remarksOtherExams   String?   @db.Text // عن الامتحانات الأخرى
+  remarksCounselling  String?   @db.Text // Recommended Further Studies (Counselling)
+  counsellingNotes    String?   @db.Text // Siblings & Career Notes
+
+  reviewedById        String?
+  reviewedAt          DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  student             StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("talabat_profiles_1447")
+}
+
 
 
 

@@ -128,9 +128,16 @@ const navItems: PortalNavItem[] = [
 
   // ── Talabat & Community ──
   {
+    label: "Yearly Profile (1447 H)",
+    href: "/admin/talabat-profiles",
+    icon: GraduationCap,
+    badge: "Darajah 4",
+    category: "Community",
+  },
+  {
     label: "Talabat (Students)",
     href: "/admin/students",
-    icon: GraduationCap,
+    icon: Users,
     category: "Community",
   },
   {

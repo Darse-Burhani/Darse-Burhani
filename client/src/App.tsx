@@ -69,6 +69,7 @@ const TalabatHifz = lazy(() => import("@/app/talabat/hifz/page"));
 const TalabatHifzMarhala = lazy(() => import("@/app/talabat/hifz-marhala/page"));
 const TalabatLibrary = lazy(() => import("@/app/talabat/library/page"));
 const TalabatProfile = lazy(() => import("@/app/talabat/profile/page"));
+const TalabatProfile1447 = lazy(() => import("@/app/talabat/profile-1447/page"));
 const TalabatSettings = lazy(() => import("@/app/talabat/settings/page"));
 const TalabatSkillTree = lazy(() => import("@/app/talabat/skill-tree/page"));
 const TalabatAssignments = lazy(() => import("@/app/talabat/assignments/page"));
@@ -76,6 +77,8 @@ const TalabatHobbies = lazy(() => import("@/app/talabat/hobbies/page"));
 const AdminAssignments = lazy(() => import("@/app/admin/assignments/page"));
 const AdminHobbies = lazy(() => import("@/app/admin/hobbies/page"));
 const AdminSkills = lazy(() => import("@/app/admin/skills/page"));
+const AdminTalabatProfiles = lazy(() => import("@/app/admin/talabat-profiles/page"));
+const TeacherTalabatProfiles = lazy(() => import("@/app/teacher/talabat-profiles/page"));
 
 // ── Teacher Portal Pages ──
 const TeacherLayout = lazy(() => import("@/app/teacher/layout"));
@@ -266,6 +269,7 @@ export default function App() {
           <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
           <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
+          <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="students"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
         </Route>
 
@@ -287,6 +291,8 @@ export default function App() {
           <Route path="hifz-marhala" element={<ModuleLockGuard moduleKey="hifz" role="STUDENT" title="Hifz Marhala"><TalabatHifzMarhala /></ModuleLockGuard>} />
           <Route path="library" element={<ModuleLockGuard moduleKey="library" role="STUDENT" title="Library"><TalabatLibrary /></ModuleLockGuard>} />
           <Route path="profile" element={<ModuleLockGuard moduleKey="profile" role="STUDENT" title="My Profile"><TalabatProfile /></ModuleLockGuard>} />
+          <Route path="yearly-profile" element={<TalabatProfile1447 />} />
+          <Route path="profile-1447" element={<TalabatProfile1447 />} />
           <Route path="settings" element={<TalabatSettings />} />
           <Route path="skill-tree" element={<ModuleLockGuard moduleKey="skillTree" role="STUDENT" title="Skill Tree"><TalabatSkillTree /></ModuleLockGuard>} />
           <Route path="assignments" element={<ModuleLockGuard moduleKey="assignments" role="STUDENT" title="Assignments"><TalabatAssignments /></ModuleLockGuard>} />
@@ -304,6 +310,7 @@ export default function App() {
         >
           <Route index element={<TeacherDashboard />} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><TeacherClasses /></RequireAdminPageAccess>} />
+          <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="classes"><TeacherTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="attendance" element={<RequireAdminPageAccess pageKey="manual-attendance"><TeacherAttendance /></RequireAdminPageAccess>} />
           <Route path="manual-attendance" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="medical-duty" element={<RequireAdminPageAccess pageKey="medical-duty"><TeacherMedicalDuty /></RequireAdminPageAccess>} />

@@ -1350,27 +1350,27 @@ export default function BiometricAdminPage() {
         </div>
       )}
 
-      {/* TAB 8: CLOUD WEBHOOK & CLOUDFLARE TUNNEL GUIDE */}
+      {/* TAB 8: CLOUD WEBHOOK DIRECT PUSH (NO PC BRIDGE NEEDED) */}
       {activeTab === "cloud" && (
         <div className="space-y-6">
           <Card className="rounded-3xl border-gray-100 shadow-xs p-6 sm:p-8 bg-white space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
                 <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                Render & Cloud Hardware Architecture
+                24/7 Direct Cloud Hardware Push (No PC Bridge Needed)
               </div>
               <h2 className="text-2xl font-black text-gray-950">
-                Hikvision MinMoe Cloud & Tunnel Integration Guide
+                Hikvision MinMoe 24/7 Direct Cloud Architecture
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 max-w-3xl leading-relaxed">
-                When deployed on Render or cloud hosting, physical Hikvision terminals inside your school LAN cannot be polled directly via private IP (e.g. <span className="font-mono text-emerald-700 font-bold">192.168.0.4</span>). Use the <strong>Local Cloud Bridge Daemon</strong> or <strong>Cloudflare Tunnel</strong> below to stream all live face &amp; fingerprint punches to Render in real-time.
+                Your physical Hikvision terminals (<span className="font-mono text-emerald-700 font-bold">192.168.0.4</span> &amp; <span className="font-mono text-emerald-700 font-bold">192.168.0.5</span>) are configured to push face and RFID punches <strong>directly over your school Wi-Fi/router</strong> to the cloud server on Render. <strong>The school PC can be completely turned OFF</strong> — scans will still be recorded 24/7 in real time.
               </p>
             </div>
 
             <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4">
               <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
                 <Globe className="w-4 h-4" />
-                Your Live Cloud Webhook Endpoint
+                Active Live Cloud Webhook Endpoint
               </div>
               <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-4 rounded-2xl border border-white/10 flex-wrap">
                 <span className="font-mono text-sm sm:text-base text-emerald-300 font-bold select-all break-all">
@@ -1387,64 +1387,44 @@ export default function BiometricAdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Option 1: Local Cloud Bridge (Recommended) */}
-              <div className="space-y-3 p-5 rounded-2xl bg-emerald-50/60 border border-emerald-200">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Active Direct Push Architecture */}
+              <div className="space-y-3 p-6 rounded-2xl bg-emerald-50/70 border border-emerald-300 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-emerald-950 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-emerald-600" />
-                    Option 1: Local Cloud Bridge
+                  <h3 className="font-bold text-base text-emerald-950 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-emerald-600 fill-current" />
+                    Direct Cloud Push (Active 24/7)
                   </h3>
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-600 text-white">
-                    Recommended
+                  <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-600 text-white shadow-xs">
+                    Fully Automated
                   </span>
                 </div>
-                <p className="text-xs text-emerald-900/80">
-                  Zero router changes required. Runs on any school PC on the same Wi-Fi/LAN as your terminals.
+                <p className="text-xs text-emerald-900/90 leading-relaxed">
+                  The terminals communicate directly with the cloud over port 443 (HTTPS) via onboard ISAPI firmware. No local bridge daemon, background software, or PC running 24/7 is required.
                 </p>
                 <div className="bg-slate-900 text-slate-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto">
-                  npm run hikvision:cloud-bridge
+                  node scripts/configure-render-push.mjs
                 </div>
-                <ul className="text-xs text-emerald-950/80 space-y-1.5 list-disc pl-4">
-                  <li>Or double-click <span className="font-mono font-bold">scripts/start-hikvision-cloud-bridge.bat</span>.</li>
-                  <li>Subscribes to live ISAPI alertStream + 3s scan polling.</li>
-                  <li>Automatically buffers &amp; pushes punches to Render.</li>
+                <ul className="text-xs text-emerald-950 space-y-1.5 list-disc pl-4 font-medium">
+                  <li>Direct firmware HTTP host push slot #1 configured on all devices.</li>
+                  <li>Instant delivery on scan — zero PC dependency.</li>
+                  <li>Attendance logs automatically record device identity and timestamp.</li>
                 </ul>
               </div>
 
-              {/* Option 2: Cloudflare Tunnel */}
-              <div className="space-y-3 p-5 rounded-2xl bg-sky-50/60 border border-sky-200">
-                <h3 className="font-bold text-sm text-sky-950 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-sky-600" />
-                  Option 2: Cloudflare Tunnel
+              {/* Hardware Fallback / Tunnel */}
+              <div className="space-y-3 p-6 rounded-2xl bg-slate-50 border border-slate-200">
+                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-slate-600" />
+                  Terminal Network Requirements
                 </h3>
-                <p className="text-xs text-sky-900/80">
-                  Expose the local gateway or MinMoe terminals via Cloudflare edge daemon (<span className="font-mono font-semibold">cloudflared</span>).
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  For 24/7 autonomous cloud push to function when the computer is turned off:
                 </p>
-                <div className="bg-slate-900 text-slate-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto">
-                  cloudflared tunnel run
-                </div>
-                <ul className="text-xs text-sky-950/80 space-y-1.5 list-disc pl-4">
-                  <li>Preconfigured in <span className="font-mono font-bold">scripts/cloudflared-tunnel.yml</span>.</li>
-                  <li>Assign custom hostname (e.g. <span className="font-mono font-bold">tunnel.yourdomain.com</span>).</li>
-                  <li>Provides TLS termination for older terminal firmware.</li>
-                </ul>
-              </div>
-
-              {/* Option 3: MinMoe Direct HTTP Listening */}
-              <div className="space-y-3 p-5 rounded-2xl bg-amber-50/60 border border-amber-200">
-                <h3 className="font-bold text-sm text-amber-950 flex items-center gap-2">
-                  <Laptop className="w-4 h-4 text-amber-600" />
-                  Option 3: MinMoe Direct Push
-                </h3>
-                <p className="text-xs text-amber-900/80">
-                  Configure Hikvision device built-in HTTP Listening / Alarm Server directly in Web GUI.
-                </p>
-                <ul className="text-xs text-amber-950/80 space-y-1.5 list-disc pl-4">
-                  <li>Log in to terminal Web GUI (<span className="font-mono font-bold">http://192.168.0.4</span>).</li>
-                  <li>Go to <strong>Configuration &gt; Network &gt; Advanced &gt; HTTP Listening</strong>.</li>
-                  <li>Set <strong>Protocol</strong>: <span className="font-bold">HTTPS</span>, <strong>Port</strong>: <span className="font-bold">443</span>.</li>
-                  <li>Set <strong>URL Path</strong>: <span className="font-mono font-bold text-emerald-800">/api/hikvision/events</span>.</li>
+                <ul className="text-xs text-slate-700 space-y-2 list-disc pl-4">
+                  <li><strong>Power:</strong> Keep MinMoe terminals connected to power adapter/UPS.</li>
+                  <li><strong>Internet Router:</strong> Ensure the school Wi-Fi / LAN switch has active internet access.</li>
+                  <li><strong>Gateway &amp; DNS:</strong> Terminals use standard router DNS (e.g., 8.8.8.8 or 192.168.0.1) to resolve the cloud hostname.</li>
                 </ul>
               </div>
             </div>

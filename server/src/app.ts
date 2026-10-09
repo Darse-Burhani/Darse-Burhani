@@ -94,6 +94,7 @@ import talabatDashboardRoutes from "./routes/talabat/dashboard";
 import talabatHifzRoutes from "./routes/talabat/hifz";
 import talabatLeaveRoutes from "./routes/talabat/leave";
 import talabatHifzMarhalaRoutes from "./routes/talabat/hifz-marhala";
+import talabatProfile1447Routes from "./routes/talabat-profile";
 import assignmentsRoutes from "./routes/assignments";
 import hobbiesRoutes from "./routes/hobbies";
 import skillsRoutes from "./routes/skills";
@@ -278,6 +279,7 @@ export function createApp() {
   app.use("/api/teacher/hifz-weekly-slip", teacherHifzWeeklySlipRoutes);
 
   // ── Talabat (Student) routes ──
+  app.use("/api/talabat-profile", talabatProfile1447Routes);
   app.use("/api/talabat/skill-tree", talabatSkillTreeRoutes);
   app.use("/api/talabat/badges", talabatBadgesRoutes);
   app.use("/api/talabat/profile", talabatProfileRoutes);

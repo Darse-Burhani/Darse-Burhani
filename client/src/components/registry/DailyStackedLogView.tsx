@@ -159,14 +159,16 @@ function AttendanceTableView({
               <th scope="col" className="px-4 py-3">{isFaculty ? "Faculty Member" : "Talib (Student)"}</th>
               <th scope="col" className="px-3 py-3 font-mono">{isFaculty ? "Employee ID" : "ITS / ID"}</th>
               <th scope="col" className="px-3 py-3">{isFaculty ? "Department / Roles" : "Grade & Section"}</th>
-              <th scope="col" className="px-3 py-3">Check-in Time</th>
+              <th scope="col" className="px-3 py-3">Scan &amp; Check-in</th>
+              <th scope="col" className="px-3 py-3">Verification Mode</th>
               <th scope="col" className="px-3 py-3 text-center">Status</th>
-              <th scope="col" className="px-4 py-3">Notes / Leave Reason</th>
+              <th scope="col" className="px-4 py-3">Notes / Remarks</th>
               <th scope="col" className="px-3 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 font-medium">
             {records.map((r, i) => {
+              const isScanned = Boolean(r.source === "SCAN" || r.verificationMethod === "BIOMETRIC" || r.checkInTime);
               return (
                 <tr
                   key={r.id || r.memberId || i}
@@ -214,24 +216,48 @@ function AttendanceTableView({
                     {r.designationOrClass || "—"}
                   </td>
 
-                  {/* Check-in Time */}
+                  {/* Scan & Check-in Time */}
                   <td className="px-3 py-2.5 font-mono text-gray-900 tabular-nums">
                     {(() => {
                       const formatted = formatPreciseScanTime(r.checkInTime);
-                      if (!formatted) return <span className="text-gray-400 font-normal">— not scanned</span>;
-                      return (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                            {formatted.timeStr} IST
+                      if (!formatted) {
+                        return (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 font-normal">
+                            ⏳ Not Scanned
                           </span>
-                          {formatted.isRecent && (
-                            <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
-                              Live
+                        );
+                      }
+                      return (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-300 text-xs flex items-center gap-1">
+                              <Zap className="w-3 h-3 text-emerald-600 fill-current" />
+                              {formatted.timeStr} IST
                             </span>
-                          )}
+                            {formatted.isRecent && (
+                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                                Live
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })()}
+                  </td>
+
+                  {/* Verification Mode */}
+                  <td className="px-3 py-2.5 text-xs">
+                    {isScanned ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100/80 text-emerald-950 border border-emerald-300">
+                        <Fingerprint className="w-3 h-3 text-emerald-700" />
+                        MinMoe Device Scan
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                        <ClipboardCheck className="w-3 h-3 text-slate-400" />
+                        {r.source === "AUTO_ABSENT" ? "Auto-System" : "Manual / Unscanned"}
+                      </span>
+                    )}
                   </td>
 
                   {/* Status Chip */}
@@ -376,26 +402,37 @@ function AttendanceGridView({
                 <div className="space-y-2 pt-1 border-t border-gray-100">
                   {(() => {
                     const formatted = formatPreciseScanTime(r.checkInTime);
+                    const isScanned = Boolean(r.source === "SCAN" || r.verificationMethod === "BIOMETRIC" || r.checkInTime);
                     if (!formatted) {
                       return (
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-semibold">Check-in Time</span>
-                          <span className="font-medium text-gray-400">— not scanned</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500 font-semibold">Scan Status</span>
+                            <span className="font-medium text-gray-400">⏳ Not Scanned</span>
+                          </div>
                         </div>
                       );
                     }
                     return (
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-gray-500 font-semibold">Check-in Time</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-gray-900 tabular-nums">
-                            {formatted.timeStr} IST
-                          </span>
-                          {formatted.isRecent && (
-                            <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
-                              Live
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-500 font-semibold">Scan Time</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-gray-900 tabular-nums bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              ⚡ {formatted.timeStr} IST
                             </span>
-                          )}
+                            {formatted.isRecent && (
+                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                                Live
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-gray-400">Terminal Mode</span>
+                          <span className="font-bold text-emerald-800">
+                            {isScanned ? "MinMoe Device Punch" : "Manual Record"}
+                          </span>
                         </div>
                       </div>
                     );
