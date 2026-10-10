@@ -59,9 +59,7 @@ export type AttendanceStatus =
   | "PRESENT"
   | "LATE"
   | "ABSENT"
-  | "MEDICAL"
   | "ON_LEAVE"
-  | "EARLY_DEPARTURE"
   | "NOT_MARKED";
 
 interface ScheduledWindow {
@@ -169,24 +167,10 @@ const STATUS_CONFIG: {
     badgeClass: "bg-rose-500/15 text-rose-700 border-rose-300 font-bold",
   },
   {
-    key: "MEDICAL",
-    label: "Medical",
-    shortLabel: "Med",
-    hotkey: "4",
-    icon: Stethoscope,
-    bgActive: "bg-sky-600 text-white",
-    bgLight: "bg-sky-50 text-sky-800 hover:bg-sky-100/80 border-sky-200/80",
-    borderActive: "border-sky-600 ring-2 ring-sky-400/40 shadow-sky-500/20 shadow-md",
-    textActive: "text-white",
-    textLight: "text-sky-800",
-    glowColor: "rgba(2, 132, 199, 0.25)",
-    badgeClass: "bg-sky-500/15 text-sky-700 border-sky-300 font-bold",
-  },
-  {
     key: "ON_LEAVE",
-    label: "Excused",
+    label: "Leave",
     shortLabel: "Leave",
-    hotkey: "5",
+    hotkey: "4",
     icon: ShieldCheck,
     bgActive: "bg-purple-600 text-white",
     bgLight: "bg-purple-50 text-purple-800 hover:bg-purple-100/80 border-purple-200/80",
@@ -195,20 +179,6 @@ const STATUS_CONFIG: {
     textLight: "text-purple-800",
     glowColor: "rgba(147, 51, 234, 0.25)",
     badgeClass: "bg-purple-500/15 text-purple-700 border-purple-300 font-bold",
-  },
-  {
-    key: "EARLY_DEPARTURE",
-    label: "Early Dep.",
-    shortLabel: "Early",
-    hotkey: "6",
-    icon: AlertTriangle,
-    bgActive: "bg-orange-600 text-white",
-    bgLight: "bg-orange-50 text-orange-800 hover:bg-orange-100/80 border-orange-200/80",
-    borderActive: "border-orange-600 ring-2 ring-orange-400/40 shadow-orange-500/20 shadow-md",
-    textActive: "text-white",
-    textLight: "text-orange-800",
-    glowColor: "rgba(234, 88, 12, 0.25)",
-    badgeClass: "bg-orange-500/15 text-orange-700 border-orange-300 font-bold",
   },
 ];
 
@@ -237,26 +207,6 @@ export default function AdminManualAttendancePage() {
   const [loadingRoster, setLoadingRoster] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-
-  // Live IST Digital Clock
-  const [currentTimeStr, setCurrentTimeStr] = useState("");
-  useEffect(() => {
-    const updateTime = () => {
-      const d = new Date();
-      setCurrentTimeStr(
-        d.toLocaleTimeString("en-IN", {
-          timeZone: "Asia/Kolkata",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        })
-      );
-    };
-    updateTime();
-    const t = setInterval(updateTime, 1000);
-    return () => clearInterval(t);
-  }, []);
 
   // Load Schedules & Metadata
   const loadMetadata = useCallback(async () => {
@@ -350,20 +300,14 @@ export default function AdminManualAttendancePage() {
     };
   }, [activeWindow]);
 
-  // Status Change for candidate
+  // Status Change for candidate - purely marking status without time tracking
   const handleStatusChange = (memberId: string, newStatus: AttendanceStatus) => {
     setRoster((prev) =>
       prev.map((m) => {
         if (m.id !== memberId) return m;
-        const currentIso = new Date().toISOString();
-        const checkIn =
-          newStatus === "PRESENT" || newStatus === "LATE"
-            ? m.checkInTime || currentIso
-            : null;
         return {
           ...m,
           status: newStatus,
-          checkInTime: checkIn,
         };
       })
     );
@@ -400,7 +344,7 @@ export default function AdminManualAttendancePage() {
     });
   }, [roster, statusFilter, searchQuery]);
 
-  // Keyboard Hotkeys
+  // Keyboard Hotkeys: 1: Present, 2: Late, 3: Absent, 4: Leave
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -420,15 +364,13 @@ export default function AdminManualAttendancePage() {
       } else if (e.key === "ArrowUp" || e.key === "k") {
         e.preventDefault();
         setFocusedIndex((prev) => Math.max((prev ?? 0) - 1, 0));
-      } else if (["1", "2", "3", "4", "5", "6"].includes(e.key)) {
+      } else if (["1", "2", "3", "4"].includes(e.key)) {
         e.preventDefault();
         const map: Record<string, AttendanceStatus> = {
           "1": "PRESENT",
           "2": "LATE",
           "3": "ABSENT",
-          "4": "MEDICAL",
-          "5": "ON_LEAVE",
-          "6": "EARLY_DEPARTURE",
+          "4": "ON_LEAVE",
         };
         const status = map[e.key];
         const targetMember = filteredRoster[curr];
@@ -448,14 +390,12 @@ export default function AdminManualAttendancePage() {
   // Batch mark operations
   const handleBatchMarkAll = (status: AttendanceStatus) => {
     const idsToUpdate = new Set(filteredRoster.map((m) => m.id));
-    const nowIso = new Date().toISOString();
     setRoster((prev) =>
       prev.map((m) => {
         if (!idsToUpdate.has(m.id)) return m;
         return {
           ...m,
           status,
-          checkInTime: status === "PRESENT" || status === "LATE" ? m.checkInTime || nowIso : null,
         };
       })
     );
@@ -567,15 +507,13 @@ export default function AdminManualAttendancePage() {
     });
 
     const total = list.length;
-    let present = 0, late = 0, absent = 0, medical = 0, onLeave = 0, earlyDep = 0, unmarked = 0;
+    let present = 0, late = 0, absent = 0, onLeave = 0, unmarked = 0;
 
     for (const m of list) {
       if (m.status === "PRESENT") present++;
       else if (m.status === "LATE") late++;
       else if (m.status === "ABSENT") absent++;
-      else if (m.status === "MEDICAL") medical++;
       else if (m.status === "ON_LEAVE") onLeave++;
-      else if (m.status === "EARLY_DEPARTURE") earlyDep++;
       else unmarked++;
     }
 
@@ -583,7 +521,7 @@ export default function AdminManualAttendancePage() {
     const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
     const completionRate = total > 0 ? Math.round((marked / total) * 100) : 0;
 
-    return { total, present, late, absent, medical, onLeave, earlyDep, unmarked, marked, rate, completionRate };
+    return { total, present, late, absent, onLeave, unmarked, marked, rate, completionRate };
   }, [roster, targetType]);
 
   const audienceCounts = useMemo(() => {
@@ -638,7 +576,7 @@ export default function AdminManualAttendancePage() {
                   Manual Classroom Attendance — Talabat
                 </h1>
                 <p className="text-xs sm:text-sm text-emerald-100/90 font-medium mt-1">
-                  High-speed roll call for Talabat students with instant one-touch marking, tablet kiosk mode, and dual cloud database sync.
+                  High-speed roll call for Talabat students with instant one-touch marking (Present, Late, Absent, Leave) and cloud sync.
                 </p>
               </div>
             </div>
@@ -650,11 +588,6 @@ export default function AdminManualAttendancePage() {
                 Date: <strong>{date}</strong>
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md font-mono">
-                <Clock className="w-3.5 h-3.5 text-[#fde047]" />
-                IST: <strong>{currentTimeStr || "--:--"}</strong>
-              </span>
-
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md">
                 <CheckSquare className="w-3.5 h-3.5 text-emerald-300" />
                 Marked: <strong>{stats.marked} / {stats.total}</strong> ({stats.completionRate}%)
@@ -662,7 +595,7 @@ export default function AdminManualAttendancePage() {
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-400/20 text-emerald-200 border border-emerald-400/40 backdrop-blur-md">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Window Open for Marking Attendance
+                Window Active for Marking
               </span>
 
               {hasChanges && (
@@ -685,7 +618,7 @@ export default function AdminManualAttendancePage() {
               className="bg-white/10 text-white border-white/20 hover:bg-white/20 rounded-xl text-xs font-bold h-10 px-3.5 backdrop-blur-md"
             >
               <Keyboard className="w-4 h-4 mr-1.5 text-[#fde047]" />
-              Hotkeys (1-6)
+              Hotkeys (1-4)
             </Button>
 
             {/* Layout Mode Selector */}
@@ -798,13 +731,7 @@ export default function AdminManualAttendancePage() {
                 <kbd className="px-2 py-0.5 rounded bg-rose-900/80 border border-rose-600 font-mono font-bold text-rose-200">3</kbd> Absent
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-2 py-0.5 rounded bg-sky-900/80 border border-sky-600 font-mono font-bold text-sky-200">4</kbd> Medical
-              </span>
-              <span className="flex items-center gap-1.5">
-                <kbd className="px-2 py-0.5 rounded bg-purple-900/80 border border-purple-600 font-mono font-bold text-purple-200">5</kbd> Excused
-              </span>
-              <span className="flex items-center gap-1.5">
-                <kbd className="px-2 py-0.5 rounded bg-orange-900/80 border border-orange-600 font-mono font-bold text-orange-200">6</kbd> Early Dep
+                <kbd className="px-2 py-0.5 rounded bg-purple-900/80 border border-purple-600 font-mono font-bold text-purple-200">4</kbd> Leave
               </span>
             </div>
 
@@ -819,7 +746,7 @@ export default function AdminManualAttendancePage() {
         )}
       </AnimatePresence>
 
-      {/* ── Active Session Window Status Strip ── */}
+      {/* ── Active Session Window Status Strip (No timestamps shown) ── */}
       <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -833,7 +760,10 @@ export default function AdminManualAttendancePage() {
           <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
             <span className="text-gray-500 font-medium">Active Session:</span>
             <span className="font-extrabold text-slate-900">{activeWindow.name}</span>
-            <span className="text-emerald-700 font-medium">({activeWindow.startTime} - {activeWindow.endTime} IST) — Window Open</span>
+            <span className="text-emerald-700 font-semibold flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Marking Open
+            </span>
           </div>
         )}
       </div>
@@ -858,10 +788,10 @@ export default function AdminManualAttendancePage() {
               </div>
             </div>
 
-            {/* Schedule Window Selector */}
+            {/* Schedule Window Selector (Session Names Only - No Window Times) */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Timing Window
+                Attendance Session
               </label>
               <div className="relative">
                 <Clock className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -873,7 +803,7 @@ export default function AdminManualAttendancePage() {
                   <option value="">All Schedule Windows</option>
                   {scheduledWindows.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} ({w.startTime} - {w.endTime}) — Window Open
+                      {w.name}
                     </option>
                   ))}
                 </select>
@@ -931,9 +861,9 @@ export default function AdminManualAttendancePage() {
         </CardContent>
       </Card>
 
-      {/* ── Live Telemetry Cards & Metric Buttons ── */}
+      {/* ── Live Telemetry Cards & Metric Buttons (Present, Late, Absent, Leave, Pending) ── */}
       <div className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {/* Total Roster */}
           <button
             type="button"
@@ -994,21 +924,6 @@ export default function AdminManualAttendancePage() {
             <p className="text-xl font-black mt-1">{stats.absent}</p>
           </button>
 
-          {/* Medical */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter("MEDICAL")}
-            className={cn(
-              "p-3.5 rounded-2xl border text-left transition-all duration-150 relative overflow-hidden",
-              statusFilter === "MEDICAL"
-                ? "bg-sky-600 text-white border-sky-600 shadow-md ring-2 ring-sky-400/50"
-                : "bg-sky-50/60 text-sky-900 border-sky-200/80 hover:bg-sky-100/60 shadow-2xs"
-            )}
-          >
-            <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Medical</p>
-            <p className="text-xl font-black mt-1">{stats.medical}</p>
-          </button>
-
           {/* Excused / Leave */}
           <button
             type="button"
@@ -1020,23 +935,8 @@ export default function AdminManualAttendancePage() {
                 : "bg-purple-50/60 text-purple-900 border-purple-200/80 hover:bg-purple-100/60 shadow-2xs"
             )}
           >
-            <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Excused</p>
+            <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Leave</p>
             <p className="text-xl font-black mt-1">{stats.onLeave}</p>
-          </button>
-
-          {/* Early Departure */}
-          <button
-            type="button"
-            onClick={() => setStatusFilter("EARLY_DEPARTURE")}
-            className={cn(
-              "p-3.5 rounded-2xl border text-left transition-all duration-150 relative overflow-hidden",
-              statusFilter === "EARLY_DEPARTURE"
-                ? "bg-orange-600 text-white border-orange-600 shadow-md ring-2 ring-orange-400/50"
-                : "bg-orange-50/60 text-orange-900 border-orange-200/80 hover:bg-orange-100/60 shadow-2xs"
-            )}
-          >
-            <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Early Dep</p>
-            <p className="text-xl font-black mt-1">{stats.earlyDep}</p>
           </button>
 
           {/* Unmarked */}
@@ -1060,7 +960,7 @@ export default function AdminManualAttendancePage() {
           <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-2">
             <div className="flex flex-wrap items-center justify-between text-xs font-bold text-gray-700 gap-2">
               <div className="flex items-center gap-2">
-                <span>Realtime Attendance Rate: <strong className="text-emerald-700 font-mono text-sm">{stats.rate}%</strong></span>
+                <span>Attendance Rate: <strong className="text-emerald-700 font-mono text-sm">{stats.rate}%</strong></span>
                 <span className="text-gray-300">|</span>
                 <span className="text-gray-600">Register Completion: <strong className="text-indigo-700 font-mono">{stats.completionRate}%</strong></span>
               </div>
@@ -1072,9 +972,7 @@ export default function AdminManualAttendancePage() {
             <div className="w-full h-3 rounded-full bg-gray-100 overflow-hidden flex shadow-inner">
               <div style={{ width: `${(stats.present / stats.total) * 100}%` }} className="h-full bg-emerald-500 transition-all duration-300" title={`Present: ${stats.present}`} />
               <div style={{ width: `${(stats.late / stats.total) * 100}%` }} className="h-full bg-amber-400 transition-all duration-300" title={`Late: ${stats.late}`} />
-              <div style={{ width: `${(stats.medical / stats.total) * 100}%` }} className="h-full bg-sky-500 transition-all duration-300" title={`Medical: ${stats.medical}`} />
-              <div style={{ width: `${(stats.onLeave / stats.total) * 100}%` }} className="h-full bg-purple-500 transition-all duration-300" title={`Excused: ${stats.onLeave}`} />
-              <div style={{ width: `${(stats.earlyDep / stats.total) * 100}%` }} className="h-full bg-orange-500 transition-all duration-300" title={`Early: ${stats.earlyDep}`} />
+              <div style={{ width: `${(stats.onLeave / stats.total) * 100}%` }} className="h-full bg-purple-500 transition-all duration-300" title={`Leave: ${stats.onLeave}`} />
               <div style={{ width: `${(stats.absent / stats.total) * 100}%` }} className="h-full bg-rose-500 transition-all duration-300" title={`Absent: ${stats.absent}`} />
             </div>
           </div>
@@ -1323,10 +1221,10 @@ export default function AdminManualAttendancePage() {
                   </div>
                 </div>
 
-                {/* Status Selection Strip with Number Hotkeys */}
+                {/* Status Selection Strip with Number Hotkeys (4 Statuses: Present, Late, Absent, Leave) */}
                 <div className={cn(
-                  "grid grid-cols-3 sm:grid-cols-6 gap-1.5 mt-4",
-                  viewLayout === "kiosk" && "gap-2"
+                  "grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4",
+                  viewLayout === "kiosk" && "gap-2.5"
                 )}>
                   {STATUS_CONFIG.map((btn) => {
                     const isSelected = member.status === btn.key;
@@ -1342,16 +1240,16 @@ export default function AdminManualAttendancePage() {
                         }}
                         className={cn(
                           "flex flex-col items-center justify-center p-2 rounded-2xl text-[11px] font-extrabold border transition-all duration-150 select-none active:scale-95 relative",
-                          viewLayout === "kiosk" ? "py-3 text-xs" : "py-2",
+                          viewLayout === "kiosk" ? "py-3 text-xs" : "py-2.5",
                           isSelected
                             ? cn(btn.bgActive, btn.borderActive)
                             : cn(btn.bgLight, "border")
                         )}
                       >
-                        <span className="absolute top-1 right-1 text-[8px] opacity-40 font-mono font-bold">
+                        <span className="absolute top-1 right-1.5 text-[9px] opacity-50 font-mono font-bold">
                           {btn.hotkey}
                         </span>
-                        <Icon className={cn("w-3.5 h-3.5 mb-1 shrink-0", isSelected ? "text-white" : "opacity-80")} />
+                        <Icon className={cn("w-4 h-4 mb-1 shrink-0", isSelected ? "text-white" : "opacity-80")} />
                         <span className="leading-tight">{btn.label}</span>
                       </button>
                     );
@@ -1362,7 +1260,7 @@ export default function AdminManualAttendancePage() {
                 <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Add attendance note / medical reason..."
+                    placeholder="Add attendance note / reason..."
                     value={member.remarks || ""}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => handleRemarksChange(member.id, e.target.value)}

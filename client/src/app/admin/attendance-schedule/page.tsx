@@ -26,6 +26,11 @@ import {
   Users,
   Shield,
   Layers,
+  Search,
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  SlidersHorizontal,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -38,6 +43,7 @@ import {
   sendDesktopNotification,
 } from "@/lib/notification-sound";
 import { GoogleSheetSyncCard } from "@/components/admin/attendance/GoogleSheetSyncCard";
+import { cn } from "@/lib/utils";
 
 interface ScanWindow {
   id: string;
@@ -209,6 +215,19 @@ export default function AdminAttendanceSchedulePage() {
     applicableTeacherIds: [] as string[],
   });
 
+  const [modalTab, setModalTab] = useState<"basics" | "timing" | "scope">("basics");
+  const [classFilterQuery, setClassFilterQuery] = useState("");
+  const [teacherFilterQuery, setTeacherFilterQuery] = useState("");
+
+  const addMinutesToTime = (timeStr: string, minsToAdd: number) => {
+    if (!timeStr) return "08:00";
+    const [h, m] = timeStr.split(":").map(Number);
+    const total = (h || 0) * 60 + (m || 0) + minsToAdd;
+    const newH = Math.floor(total / 60) % 24;
+    const newM = total % 60;
+    return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+  };
+
   const [savingWindow, setSavingWindow] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -364,6 +383,9 @@ export default function AdminAttendanceSchedulePage() {
         applicableTeacherIds: [],
       });
     }
+    setModalTab("basics");
+    setClassFilterQuery("");
+    setTeacherFilterQuery("");
     setWindowModalOpen(true);
   };
 
@@ -875,394 +897,857 @@ export default function AdminAttendanceSchedulePage() {
         )}
       </div>
 
-      {/* ── MODAL: Create / Edit Attendance Window ── */}
+      {/* ── MODAL: Create / Edit Attendance Window (Redesigned) ── */}
       <AnimatePresence>
         {windowModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              className="w-full max-w-xl max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+              exit={{ opacity: 0, scale: 0.94, y: 12 }}
+              transition={{ type: "spring", stiffness: 350, damping: 26 }}
+              className="w-full max-w-3xl max-h-[92vh] bg-white rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.45)] border border-emerald-500/30 flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-gradient-to-r from-emerald-50/50 via-white to-gray-50">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-300 shadow-2xs">
-                    <Clock className="w-4 h-4" />
+              {/* 1. Modal Hero Header */}
+              <div className="relative overflow-hidden p-5 sm:p-6 bg-gradient-to-r from-[#021f18] via-[#05372b] to-[#01140f] text-white shrink-0 border-b border-[#d4af37]/30">
+                <div className="pointer-events-none absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-[#d4af37]/15 blur-2xl" />
+                <div className="pointer-events-none absolute -left-10 -top-10 w-40 h-40 rounded-full bg-emerald-500/15 blur-2xl" />
+
+                <div className="relative z-10 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#d4af37]/30 to-emerald-400/20 border border-[#d4af37]/50 flex items-center justify-center text-[#fde047] shadow-inner shrink-0">
+                      <Clock className="w-5 h-5 stroke-[2.2]" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg sm:text-xl font-black text-white font-display tracking-tight">
+                          {editingWindow ? "Edit Attendance Schedule" : "Create Attendance Schedule"}
+                        </h3>
+                        <Badge className="bg-[#d4af37]/20 text-[#fff4be] border-[#d4af37]/40 text-[10px] font-black uppercase tracking-wider">
+                          Schedule Engine
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-emerald-100/80 font-medium mt-0.5">
+                        Configure timing shifts, hardware gates, and classroom roll-call scopes with live synchronization.
+                      </p>
+                    </div>
                   </div>
-                  <span>{editingWindow ? "Edit Attendance Schedule" : "Add Attendance Schedule"}</span>
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setWindowModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors active:scale-90"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWindowModalOpen(false)}
+                    className="text-emerald-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors active:scale-90 shrink-0"
+                    aria-label="Close modal"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* 2. Stepped Tab Navigation Strip */}
+                <div className="relative z-10 grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setModalTab("basics")}
+                    className={cn(
+                      "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
+                      modalTab === "basics"
+                        ? "bg-[#d4af37] text-slate-950 font-black shadow-md scale-[1.02]"
+                        : "bg-white/10 text-emerald-100 hover:bg-white/15"
+                    )}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px] font-mono">1</span>
+                    <span className="truncate">Identity &amp; Channel</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalTab("timing")}
+                    className={cn(
+                      "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
+                      modalTab === "timing"
+                        ? "bg-[#d4af37] text-slate-950 font-black shadow-md scale-[1.02]"
+                        : "bg-white/10 text-emerald-100 hover:bg-white/15"
+                    )}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px] font-mono">2</span>
+                    <span className="truncate">Timing &amp; Grace</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalTab("scope")}
+                    className={cn(
+                      "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
+                      modalTab === "scope"
+                        ? "bg-[#d4af37] text-slate-950 font-black shadow-md scale-[1.02]"
+                        : "bg-white/10 text-emerald-100 hover:bg-white/15"
+                    )}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px] font-mono">3</span>
+                    <span className="truncate">Audience Scope</span>
+                  </button>
+                </div>
               </div>
 
+              {/* 3. Modal Form Body */}
               <form onSubmit={saveWindow} className="flex flex-col flex-1 overflow-hidden">
-                <div className="p-5 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1.5">
-                      Attendance Session Name:
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Morning Tilawat, Dua Session, Faculty Check-In"
-                      value={windowForm.name}
-                      onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
-                    />
-                  </div>
+                <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
 
-                  {/* 1. Target Scanning Audience Toggle */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1.5">
-                      Target Audience / Scanning Scope:
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setWindowForm({ ...windowForm, audience: "STUDENT" })}
-                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
-                          windowForm.audience === "STUDENT"
-                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-900">
-                          <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Talabat Only</span>
+                  {/* ──────────────── TAB 1: IDENTITY & CHANNEL ──────────────── */}
+                  {modalTab === "basics" && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 8 }}
+                      className="space-y-5"
+                    >
+                      {/* Quick Presets / Templates */}
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50/80 via-emerald-50/60 to-white border border-amber-200/80 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            Quick Template Presets
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-medium">Click to prefill timing &amp; options</span>
                         </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Students only</span>
-                      </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setWindowForm({ ...windowForm, audience: "TEACHER" })}
-                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
-                          windowForm.audience === "TEACHER"
-                            ? "bg-blue-50 border-blue-500 text-blue-950 ring-2 ring-blue-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900">
-                          <Shield className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Faculty Only</span>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            {
+                              label: "Morning Tilawat",
+                              type: "BOTH" as const,
+                              aud: "BOTH" as const,
+                              start: "07:30",
+                              end: "08:30",
+                              late: "09:00",
+                              grace: 10,
+                            },
+                            {
+                              label: "Classroom Roll Call",
+                              type: "MANUAL" as const,
+                              aud: "STUDENT" as const,
+                              start: "08:30",
+                              end: "09:15",
+                              late: "09:30",
+                              grace: 5,
+                            },
+                            {
+                              label: "Dua Session",
+                              type: "BOTH" as const,
+                              aud: "BOTH" as const,
+                              start: "12:45",
+                              end: "13:30",
+                              late: "13:45",
+                              grace: 10,
+                            },
+                            {
+                              label: "Faculty Morning Shift",
+                              type: "HIKVISION" as const,
+                              aud: "TEACHER" as const,
+                              start: "07:15",
+                              end: "08:00",
+                              late: "08:30",
+                              grace: 15,
+                            },
+                          ].map((tmpl) => (
+                            <button
+                              key={tmpl.label}
+                              type="button"
+                              onClick={() => {
+                                setWindowForm({
+                                  ...windowForm,
+                                  name: tmpl.label,
+                                  windowType: tmpl.type,
+                                  audience: tmpl.aud,
+                                  startTime: tmpl.start,
+                                  endTime: tmpl.end,
+                                  lateEndTime: tmpl.late,
+                                  graceMinutes: tmpl.grace,
+                                });
+                                toast({
+                                  title: `Applied Template: ${tmpl.label}`,
+                                  description: `Timing set to ${tmpl.start} - ${tmpl.end}`,
+                                  variant: "default",
+                                });
+                              }}
+                              className="px-2.5 py-1 rounded-xl bg-white text-xs font-bold text-gray-800 border border-gray-200 hover:border-emerald-500 hover:text-emerald-900 hover:bg-emerald-50 transition-all shadow-2xs active:scale-95"
+                            >
+                              + {tmpl.label}
+                            </button>
+                          ))}
                         </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Teachers &amp; staff only</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setWindowForm({ ...windowForm, audience: "BOTH" })}
-                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
-                          windowForm.audience === "BOTH"
-                            ? "bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-purple-900">
-                          <Zap className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Dual (Both)</span>
-                        </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Both Talabat &amp; Faculty</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. Attendance Subsystem Mode */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1.5">
-                      Subsystem Channel:
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setWindowForm({ ...windowForm, windowType: "HIKVISION" })}
-                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
-                          windowForm.windowType === "HIKVISION"
-                            ? "bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-purple-900">
-                          <Radio className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Hikvision Hardware Gate</span>
-                        </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Device facial scans &amp; punch terminals</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setWindowForm({ ...windowForm, windowType: "MANUAL" })}
-                        className={`p-2.5 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
-                          windowForm.windowType === "MANUAL"
-                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/30 shadow-xs"
-                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-900">
-                          <ClipboardCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Manual Classroom Roll Call</span>
-                        </div>
-                        <span className="text-[10px] text-gray-500 leading-tight">Teacher manual attendance register</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Timeline Preview inside Modal */}
-                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-1">
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Live Timing Preview</span>
-                    <ScheduleTimelineBar
-                      startTime={windowForm.startTime}
-                      endTime={windowForm.endTime}
-                      lateEndTime={windowForm.lateEndTime}
-                      accent={windowForm.audience === "TEACHER" ? "blue" : windowForm.audience === "BOTH" ? "purple" : "emerald"}
-                    />
-                  </div>
-
-                  {/* Primary Timing (Talabat / Shared) */}
-                  <div className="space-y-3 p-3.5 bg-gray-50/70 rounded-2xl border border-gray-200">
-                    <p className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>{windowForm.audience === "TEACHER" ? "Faculty Shift Timing" : "Primary Attendance Window"}</span>
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-700 block mb-1">On-Time From (24h):</label>
-                        <input
-                          type="time"
-                          required
-                          value={windowForm.startTime}
-                          onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
-                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
                       </div>
 
+                      {/* Schedule Session Name */}
                       <div>
-                        <label className="text-[11px] font-bold text-gray-700 block mb-1">On-Time To (24h):</label>
-                        <input
-                          type="time"
-                          required
-                          value={windowForm.endTime}
-                          onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
-                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-700 block mb-1">Late Till (24h, optional):</label>
-                        <input
-                          type="time"
-                          value={windowForm.lateEndTime || ""}
-                          onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
-                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                          placeholder="e.g. 09:00"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-700 block mb-1">Grace Period (Min):</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="180"
-                          required
-                          value={windowForm.graceMinutes}
-                          onChange={(e) =>
-                            setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
-                          }
-                          className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Optional Custom Faculty Shift for Dual Mode */}
-                  {windowForm.audience === "BOTH" && (
-                    <div className="space-y-3 p-3.5 bg-purple-50/50 rounded-2xl border border-purple-200">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5 cursor-pointer">
-                          <Shield className="w-3.5 h-3.5 text-purple-700" />
-                          <span>Separate Timing for Faculty?</span>
+                        <label className="text-xs font-black uppercase tracking-wider text-gray-700 block mb-1.5">
+                          Schedule Name <span className="text-rose-500">*</span>
                         </label>
                         <input
-                          type="checkbox"
-                          checked={windowForm.useCustomFacultyTime}
-                          onChange={(e) =>
-                            setWindowForm({ ...windowForm, useCustomFacultyTime: e.target.checked })
-                          }
-                          className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                          type="text"
+                          required
+                          placeholder="e.g. Morning Tilawat, Dua Session, Classroom Roll Call..."
+                          value={windowForm.name}
+                          onChange={(e) => setWindowForm({ ...windowForm, name: e.target.value })}
+                          className="w-full h-11 px-4 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none shadow-2xs"
                         />
                       </div>
 
-                      {windowForm.useCustomFacultyTime && (
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-100">
+                      {/* Subsystem Channel Selection */}
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-gray-700 block mb-1.5">
+                          Subsystem Channel &amp; Mode
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setWindowForm({ ...windowForm, windowType: "HIKVISION" })}
+                            className={cn(
+                              "p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2",
+                              windowForm.windowType === "HIKVISION"
+                                ? "bg-purple-50/80 border-purple-500 text-purple-950 ring-2 ring-purple-400/40 shadow-sm"
+                                : "bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="p-2 rounded-xl bg-purple-100 text-purple-800">
+                                <Radio className="w-4 h-4" />
+                              </span>
+                              <Badge variant="outline" className="text-[9px] font-bold border-purple-300 text-purple-800 bg-purple-50">
+                                Hardware
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-xs text-purple-950">Hikvision Gate</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">Biometric facial scanners &amp; turnstiles</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setWindowForm({ ...windowForm, windowType: "MANUAL" })}
+                            className={cn(
+                              "p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2",
+                              windowForm.windowType === "MANUAL"
+                                ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/40 shadow-sm"
+                                : "bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                                <ClipboardCheck className="w-4 h-4" />
+                              </span>
+                              <Badge variant="outline" className="text-[9px] font-bold border-emerald-300 text-emerald-800 bg-emerald-50">
+                                Roll Call
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-xs text-emerald-950">Manual Register</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">Teacher one-touch classroom attendance</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setWindowForm({ ...windowForm, windowType: "BOTH" })}
+                            className={cn(
+                              "p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2",
+                              windowForm.windowType === "BOTH"
+                                ? "bg-amber-50/80 border-amber-500 text-amber-950 ring-2 ring-amber-400/40 shadow-sm"
+                                : "bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="p-2 rounded-xl bg-amber-100 text-amber-800">
+                                <Layers className="w-4 h-4" />
+                              </span>
+                              <Badge variant="outline" className="text-[9px] font-bold border-amber-300 text-amber-800 bg-amber-50">
+                                Unified
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-xs text-amber-950">Unified Dual</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">Hardware terminal + classroom roll call</p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Target Audience Scope */}
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-gray-700 block mb-1.5">
+                          Target Audience Scope
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setWindowForm({ ...windowForm, audience: "STUDENT" })}
+                            className={cn(
+                              "p-3 rounded-2xl border text-left transition-all flex items-center gap-3",
+                              windowForm.audience === "STUDENT"
+                                ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400/30 shadow-2xs"
+                                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                            )}
+                          >
+                            <span className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                              <GraduationCap className="w-4 h-4" />
+                            </span>
+                            <div>
+                              <p className="font-bold text-xs text-emerald-950">Talabat Only</p>
+                              <p className="text-[10px] text-gray-500">Students roster only</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setWindowForm({ ...windowForm, audience: "TEACHER" })}
+                            className={cn(
+                              "p-3 rounded-2xl border text-left transition-all flex items-center gap-3",
+                              windowForm.audience === "TEACHER"
+                                ? "bg-blue-50 border-blue-500 text-blue-950 ring-2 ring-blue-400/30 shadow-2xs"
+                                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                            )}
+                          >
+                            <span className="p-2 rounded-xl bg-blue-100 text-blue-800">
+                              <Shield className="w-4 h-4" />
+                            </span>
+                            <div>
+                              <p className="font-bold text-xs text-blue-950">Faculty Only</p>
+                              <p className="text-[10px] text-gray-500">Teachers &amp; staff only</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setWindowForm({ ...windowForm, audience: "BOTH" })}
+                            className={cn(
+                              "p-3 rounded-2xl border text-left transition-all flex items-center gap-3",
+                              windowForm.audience === "BOTH"
+                                ? "bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-400/30 shadow-2xs"
+                                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                            )}
+                          >
+                            <span className="p-2 rounded-xl bg-purple-100 text-purple-800">
+                              <Zap className="w-4 h-4" />
+                            </span>
+                            <div>
+                              <p className="font-bold text-xs text-purple-950">Dual (Both)</p>
+                              <p className="text-[10px] text-gray-500">Talabat &amp; Faculty</p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Active Status Switch */}
+                      <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-gray-900">Schedule Active &amp; Operational</p>
+                          <p className="text-[11px] text-gray-500">When enabled, attendance marks and facial punches are actively registered for this window.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setWindowForm({ ...windowForm, enabled: !windowForm.enabled })}
+                          className={cn(
+                            "w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0",
+                            windowForm.enabled ? "bg-emerald-600" : "bg-gray-300"
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out",
+                              windowForm.enabled ? "translate-x-5" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ──────────────── TAB 2: SMART TIMING & SHIFTS ──────────────── */}
+                  {modalTab === "timing" && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 8 }}
+                      className="space-y-5"
+                    >
+                      {/* Notice for Manual Roll-Call */}
+                      {windowForm.windowType === "MANUAL" && (
+                        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                          <p className="text-xs text-emerald-950 font-medium">
+                            <strong>Manual Roll Call Register:</strong> Teachers record direct attendance (Present, Late, Absent, Leave) without gate time enforcement or lockout.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Primary Timing Panel */}
+                      <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                            {windowForm.audience === "TEACHER" ? "Faculty Shift Window" : "Primary Attendance Window"}
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-mono font-bold">24-Hour Format</span>
+                        </div>
+
+                        {/* On-Time From & To */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty From:</label>
+                            <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                              On-Time Window From:
+                            </label>
                             <input
                               type="time"
-                              value={windowForm.facultyStartTime}
-                              onChange={(e) =>
-                                setWindowForm({ ...windowForm, facultyStartTime: e.target.value })
-                              }
-                              className="w-full h-9 px-2 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                              required
+                              value={windowForm.startTime}
+                              onChange={(e) => setWindowForm({ ...windowForm, startTime: e.target.value })}
+                              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold font-mono text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                             />
                           </div>
+
                           <div>
-                            <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty To:</label>
+                            <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                              On-Time Window To:
+                            </label>
                             <input
                               type="time"
-                              value={windowForm.facultyEndTime}
-                              onChange={(e) =>
-                                setWindowForm({ ...windowForm, facultyEndTime: e.target.value })
-                              }
-                              className="w-full h-9 px-2 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                              required
+                              value={windowForm.endTime}
+                              onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
+                              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold font-mono text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                             />
                           </div>
+                        </div>
+
+                        {/* Late Cutoff & Grace Minutes */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-200/80">
                           <div>
-                            <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty Late:</label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[11px] font-bold text-gray-700">Late Cutoff Till:</label>
+                              <div className="flex items-center gap-1">
+                                {[15, 30, 45].map((m) => (
+                                  <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() =>
+                                      setWindowForm({
+                                        ...windowForm,
+                                        lateEndTime: addMinutesToTime(windowForm.endTime, m),
+                                      })
+                                    }
+                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                                  >
+                                    +{m}m
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                             <input
                               type="time"
-                              value={windowForm.facultyLateEndTime}
-                              onChange={(e) =>
-                                setWindowForm({ ...windowForm, facultyLateEndTime: e.target.value })
-                              }
-                              className="w-full h-9 px-2 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                              value={windowForm.lateEndTime || ""}
+                              onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
+                              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold font-mono text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                              placeholder="e.g. 09:00"
                             />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[11px] font-bold text-gray-700">Grace Period (Minutes):</label>
+                              <div className="flex items-center gap-1">
+                                {[0, 5, 10, 15].map((g) => (
+                                  <button
+                                    key={g}
+                                    type="button"
+                                    onClick={() => setWindowForm({ ...windowForm, graceMinutes: g })}
+                                    className={cn(
+                                      "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all",
+                                      windowForm.graceMinutes === g
+                                        ? "bg-emerald-700 text-white"
+                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    )}
+                                  >
+                                    {g}m
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              max="180"
+                              required
+                              value={windowForm.graceMinutes}
+                              onChange={(e) =>
+                                setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
+                              }
+                              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Interactive Visual Timeline Bar */}
+                      <div className="p-4 rounded-2xl bg-white border border-gray-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">Live Visual Timeline</span>
+                          <span className="text-[11px] font-mono font-bold text-emerald-800">
+                            {windowForm.startTime} → {windowForm.lateEndTime || windowForm.endTime}
+                          </span>
+                        </div>
+                        <ScheduleTimelineBar
+                          startTime={windowForm.startTime}
+                          endTime={windowForm.endTime}
+                          lateEndTime={windowForm.lateEndTime}
+                          accent={windowForm.audience === "TEACHER" ? "blue" : windowForm.audience === "BOTH" ? "purple" : "emerald"}
+                        />
+                      </div>
+
+                      {/* Optional Faculty Shift for Dual Mode */}
+                      {windowForm.audience === "BOTH" && (
+                        <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5 cursor-pointer">
+                              <Shield className="w-3.5 h-3.5 text-purple-700" />
+                              <span>Separate Timing for Faculty Members?</span>
+                            </label>
+                            <input
+                              type="checkbox"
+                              checked={windowForm.useCustomFacultyTime}
+                              onChange={(e) =>
+                                setWindowForm({ ...windowForm, useCustomFacultyTime: e.target.checked })
+                              }
+                              className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                            />
+                          </div>
+
+                          {windowForm.useCustomFacultyTime && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-purple-200/80">
+                              <div>
+                                <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty From:</label>
+                                <input
+                                  type="time"
+                                  value={windowForm.facultyStartTime}
+                                  onChange={(e) =>
+                                    setWindowForm({ ...windowForm, facultyStartTime: e.target.value })
+                                  }
+                                  className="w-full h-10 px-3 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty To:</label>
+                                <input
+                                  type="time"
+                                  value={windowForm.facultyEndTime}
+                                  onChange={(e) =>
+                                    setWindowForm({ ...windowForm, facultyEndTime: e.target.value })
+                                  }
+                                  className="w-full h-10 px-3 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-purple-900 block mb-1">Faculty Late Cutoff:</label>
+                                <input
+                                  type="time"
+                                  value={windowForm.facultyLateEndTime}
+                                  onChange={(e) =>
+                                    setWindowForm({ ...windowForm, facultyLateEndTime: e.target.value })
+                                  }
+                                  className="w-full h-10 px-3 rounded-xl border border-purple-200 text-xs font-mono font-bold text-gray-900 bg-white"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* ──────────────── TAB 3: AUDIENCE SCOPE ──────────────── */}
+                  {modalTab === "scope" && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 8 }}
+                      className="space-y-5"
+                    >
+                      {/* Talabat Class Scope */}
+                      {(windowForm.audience === "STUDENT" || windowForm.audience === "BOTH") && (
+                        <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <GraduationCap className="w-4 h-4 text-emerald-700" />
+                              <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                                Talabat Class Scope
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] font-bold bg-white text-emerald-800 border-emerald-300">
+                                {windowForm.applicableClassIds.length === 0
+                                  ? "All Classes (Default)"
+                                  : `${windowForm.applicableClassIds.length} Selected`}
+                              </Badge>
+
+                              {windowForm.applicableClassIds.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableClassIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:underline"
+                                >
+                                  Clear Selection
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWindowForm({ ...windowForm, applicableClassIds: classes.map((c) => c.id) })
+                                  }
+                                  className="text-[10px] font-bold text-emerald-700 hover:underline"
+                                >
+                                  Select Specific
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Filter classes by name, grade, section..."
+                              value={classFilterQuery}
+                              onChange={(e) => setClassFilterQuery(e.target.value)}
+                              className="w-full h-8 pl-8 pr-3 rounded-xl border border-emerald-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+
+                          <div className="max-h-44 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-emerald-100 shadow-inner custom-scrollbar">
+                            {classes
+                              .filter((c) => {
+                                if (!classFilterQuery.trim()) return true;
+                                const q = classFilterQuery.toLowerCase();
+                                return (
+                                  c.name.toLowerCase().includes(q) ||
+                                  c.grade.toLowerCase().includes(q) ||
+                                  c.section.toLowerCase().includes(q)
+                                );
+                              })
+                              .map((c) => {
+                                const isChecked = windowForm.applicableClassIds.includes(c.id);
+                                return (
+                                  <label
+                                    key={c.id}
+                                    className={cn(
+                                      "flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-all border",
+                                      isChecked
+                                        ? "bg-emerald-50 border-emerald-400 text-emerald-950 font-bold"
+                                        : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) =>
+                                          setWindowForm({
+                                            ...windowForm,
+                                            applicableClassIds: e.target.checked
+                                              ? [...windowForm.applicableClassIds, c.id]
+                                              : windowForm.applicableClassIds.filter((id) => id !== c.id),
+                                          })
+                                        }
+                                        className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
+                                      />
+                                      <span>{c.name}</span>
+                                    </div>
+                                    <Badge variant="outline" className="text-[9px] font-mono text-gray-500">
+                                      Grade {c.grade}-{c.section}
+                                    </Badge>
+                                  </label>
+                                );
+                              })}
                           </div>
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* Class Scope (for Talabat and Dual) */}
-                  {(windowForm.audience === "STUDENT" || windowForm.audience === "BOTH") && (
-                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                          <GraduationCap className="w-4 h-4 text-emerald-700" />
-                          <span>Talabat Class Attendance Scope</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setWindowForm({ ...windowForm, applicableClassIds: [] })}
-                          className="text-[11px] font-bold text-emerald-700 hover:underline active:scale-95"
-                        >
-                          Select All (Default)
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-emerald-900 leading-snug">
-                        Choose which classes must attend this session.
-                        <strong> Empty = applies to all classes.</strong>
-                      </p>
-                      <div className="max-h-32 overflow-y-auto space-y-1 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-inner custom-scrollbar">
-                        {classes.map((c) => (
-                          <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50/80 rounded-lg px-2 py-1 text-xs text-gray-800">
+                      {/* Faculty Staff Scope */}
+                      {(windowForm.audience === "TEACHER" || windowForm.audience === "BOTH") && (
+                        <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <Shield className="w-4 h-4 text-blue-700" />
+                              <span className="text-xs font-black uppercase tracking-wider text-blue-950">
+                                Faculty Member Scope
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] font-bold bg-white text-blue-800 border-blue-300">
+                                {windowForm.applicableTeacherIds.length === 0
+                                  ? "All Faculty (Default)"
+                                  : `${windowForm.applicableTeacherIds.length} Selected`}
+                              </Badge>
+
+                              {windowForm.applicableTeacherIds.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:underline"
+                                >
+                                  Clear Selection
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWindowForm({ ...windowForm, applicableTeacherIds: teachers.map((t) => t.id) })
+                                  }
+                                  className="text-[10px] font-bold text-blue-700 hover:underline"
+                                >
+                                  Select Specific
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
-                              type="checkbox"
-                              checked={windowForm.applicableClassIds.includes(c.id)}
-                              onChange={(e) =>
-                                setWindowForm({
-                                  ...windowForm,
-                                  applicableClassIds: e.target.checked
-                                    ? [...windowForm.applicableClassIds, c.id]
-                                    : windowForm.applicableClassIds.filter((id) => id !== c.id),
-                                })
-                              }
-                              className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                              type="text"
+                              placeholder="Filter faculty by name, department, email..."
+                              value={teacherFilterQuery}
+                              onChange={(e) => setTeacherFilterQuery(e.target.value)}
+                              className="w-full h-8 pl-8 pr-3 rounded-xl border border-blue-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
                             />
-                            <span className="font-semibold">{c.name}</span>
-                            <span className="text-[10px] text-gray-500">Grade {c.grade}-{c.section}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                          </div>
 
-                  {/* Teacher Scope (for Faculty and Dual) */}
-                  {(windowForm.audience === "TEACHER" || windowForm.audience === "BOTH") && (
-                    <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
-                          <Shield className="w-4 h-4 text-blue-700" />
-                          <span>Faculty Member Scope</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
-                          className="text-[11px] font-bold text-blue-700 hover:underline active:scale-95"
-                        >
-                          Select All Faculty (Default)
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-blue-900 leading-snug">
-                        Choose which teachers/staff are expected.
-                        <strong> Empty = applies to all faculty members.</strong>
-                      </p>
-                      <div className="max-h-32 overflow-y-auto space-y-1 bg-white p-2.5 rounded-xl border border-blue-100 shadow-inner custom-scrollbar">
-                        {teachers.length === 0 ? (
-                          <p className="text-xs text-gray-400 p-2">All active faculty included by default.</p>
-                        ) : (
-                          teachers.map((t) => (
-                            <label key={t.id} className="flex items-center gap-2 cursor-pointer hover:bg-blue-50/80 rounded-lg px-2 py-1 text-xs text-gray-800">
-                              <input
-                                type="checkbox"
-                                checked={windowForm.applicableTeacherIds.includes(t.id)}
-                                onChange={(e) =>
-                                  setWindowForm({
-                                    ...windowForm,
-                                    applicableTeacherIds: e.target.checked
-                                      ? [...windowForm.applicableTeacherIds, t.id]
-                                      : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
-                                  })
-                                }
-                                className="rounded border-blue-400 text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className="font-semibold">{t.name}</span>
-                              <span className="text-[10px] text-gray-500 font-mono">({t.department || t.email})</span>
-                            </label>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                          <div className="max-h-44 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-blue-100 shadow-inner custom-scrollbar">
+                            {teachers.length === 0 ? (
+                              <p className="text-xs text-gray-400 p-2">All active faculty included by default.</p>
+                            ) : (
+                              teachers
+                                .filter((t) => {
+                                  if (!teacherFilterQuery.trim()) return true;
+                                  const q = teacherFilterQuery.toLowerCase();
+                                  return (
+                                    t.name.toLowerCase().includes(q) ||
+                                    t.email?.toLowerCase().includes(q) ||
+                                    t.department?.toLowerCase().includes(q)
+                                  );
+                                })
+                                .map((t) => {
+                                  const isChecked = windowForm.applicableTeacherIds.includes(t.id);
+                                  return (
+                                    <label
+                                      key={t.id}
+                                      className={cn(
+                                        "flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-all border",
+                                        isChecked
+                                          ? "bg-blue-50 border-blue-400 text-blue-950 font-bold"
+                                          : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) =>
+                                            setWindowForm({
+                                              ...windowForm,
+                                              applicableTeacherIds: e.target.checked
+                                                ? [...windowForm.applicableTeacherIds, t.id]
+                                                : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
+                                            })
+                                          }
+                                          className="rounded border-blue-400 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                                        />
+                                        <span className="truncate">{t.name}</span>
+                                      </div>
+                                      <Badge variant="outline" className="text-[9px] font-mono text-gray-500 shrink-0">
+                                        {t.department || "Faculty"}
+                                      </Badge>
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
                   )}
                 </div>
 
-                <div className="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setWindowModalOpen(false)}
-                    disabled={savingWindow}
-                    className="rounded-xl border-gray-200 text-xs font-bold"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={savingWindow}
-                    className="bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-800/20"
-                  >
-                    {savingWindow ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                        <span>{editingWindow ? "Update Schedule" : "Create Schedule"}</span>
-                      </>
+                {/* 4. Modal Footer Action Dock */}
+                <div className="p-4 sm:p-5 border-t border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                  {/* Live Summary Pill */}
+                  <div className="flex items-center gap-2 text-xs text-gray-600 truncate">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="font-extrabold text-gray-900 truncate">{windowForm.name || "Untitled Schedule"}</span>
+                    <span className="text-gray-400">|</span>
+                    <span className="font-mono text-gray-700">{windowForm.startTime} - {windowForm.endTime}</span>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setWindowModalOpen(false)}
+                      disabled={savingWindow}
+                      className="rounded-xl border-gray-200 text-xs font-bold h-9 px-3.5"
+                    >
+                      Cancel
+                    </Button>
+
+                    {modalTab !== "basics" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          if (modalTab === "scope") setModalTab("timing");
+                          else if (modalTab === "timing") setModalTab("basics");
+                        }}
+                        className="rounded-xl border-gray-200 text-xs font-bold h-9 px-3.5 flex items-center gap-1"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        Back
+                      </Button>
                     )}
-                  </Button>
+
+                    {modalTab !== "scope" && (
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          if (modalTab === "basics") setModalTab("timing");
+                          else if (modalTab === "timing") setModalTab("scope");
+                        }}
+                        className="rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold h-9 px-3.5 flex items-center gap-1"
+                      >
+                        Next
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+
+                    <Button
+                      type="submit"
+                      disabled={savingWindow}
+                      className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl text-xs font-black h-9 px-5 shadow-md shadow-emerald-700/25 flex items-center gap-1.5 active:scale-95 transition-all"
+                    >
+                      {savingWindow ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{editingWindow ? "Update Schedule" : "Create Schedule"}</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </motion.div>

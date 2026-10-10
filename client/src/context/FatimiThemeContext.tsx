@@ -40,21 +40,21 @@ export const GREEN_THEME: FatimiThemeConfig = {
     primary: "#064e3b",
     secondary: "#022c22",
     gold: "#10b981",
-    surface: "#fbfdfc",
+    surface: "#ffffff",
   },
   sidebarGradient: "linear-gradient(180deg, #011f18 0%, #022c22 55%, #064e3b 100%)",
-  contentGradient: "linear-gradient(180deg, #fbfdfc 0%, #ffffff 100%)",
+  contentGradient: "#f8fafc",
   cardHeroGradient: "linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%)",
   headerLine: "linear-gradient(90deg, #022c22, #10b981, #022c22)",
   goldAccent: "#10b981",
   primaryColor: "#064e3b",
   secondaryColor: "#022c22",
-  accentGlow: "rgba(16, 185, 129, 0.2)",
-  badgeClass: "bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold",
+  accentGlow: "rgba(16, 185, 129, 0.15)",
+  badgeClass: "bg-emerald-50 text-emerald-950 border border-emerald-300 font-bold",
   btnPrimaryClass:
-    "bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#059669] hover:from-[#047857] hover:to-[#064e3b] text-white font-semibold shadow-sm",
-  borderTint: "border-emerald-200",
-  lightBgTint: "bg-emerald-50/40",
+    "bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#059669] hover:from-[#047857] hover:to-[#064e3b] text-white font-bold shadow-sm",
+  borderTint: "border-slate-200",
+  lightBgTint: "bg-emerald-50/50",
 };
 
 export const FATIMI_THEMES: Record<string, FatimiThemeConfig> = {

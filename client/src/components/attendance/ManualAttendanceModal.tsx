@@ -32,9 +32,7 @@ export type AttendanceStatus =
   | "PRESENT"
   | "LATE"
   | "ABSENT"
-  | "MEDICAL"
-  | "ON_LEAVE"
-  | "EARLY_DEPARTURE";
+  | "ON_LEAVE";
 
 interface ScheduledWindow {
   id: string;
@@ -77,26 +75,12 @@ const STATUS_CONFIG: Record<
     activeClass: "bg-rose-600 text-white border-rose-600 shadow-sm",
     badge: "bg-rose-100 text-rose-800 border-rose-200",
   },
-  MEDICAL: {
-    label: "Medical",
-    icon: Stethoscope,
-    color: "text-sky-700 bg-sky-50 border-sky-200",
-    activeClass: "bg-sky-600 text-white border-sky-600 shadow-sm",
-    badge: "bg-sky-100 text-sky-800 border-sky-200",
-  },
   ON_LEAVE: {
-    label: "On Leave",
+    label: "Leave",
     icon: ShieldCheck,
     color: "text-purple-700 bg-purple-50 border-purple-200",
     activeClass: "bg-purple-600 text-white border-purple-600 shadow-sm",
     badge: "bg-purple-100 text-purple-800 border-purple-200",
-  },
-  EARLY_DEPARTURE: {
-    label: "Early Dep.",
-    icon: AlertTriangle,
-    color: "text-orange-700 bg-orange-50 border-orange-200",
-    activeClass: "bg-orange-600 text-white border-orange-600 shadow-sm",
-    badge: "bg-orange-100 text-orange-800 border-orange-200",
   },
 };
 
@@ -170,22 +154,10 @@ export function ManualAttendanceModal({
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`);
       const json = await res.json();
       if (json.success && json.data) {
-        const toISTTime = (iso: string | null): string => {
-          if (!iso) return activeWindow?.startTime || "08:00";
-          const d = new Date(iso);
-          if (Number.isNaN(d.getTime())) return activeWindow?.startTime || "08:00";
-          return d.toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-            timeZone: "Asia/Kolkata",
-          });
-        };
         setRoster(
           (json.data.roster || []).map((r: any) => ({
             ...r,
             currentStatus: r.status === "NOT_MARKED" ? "PRESENT" : r.status,
-            currentTime: toISTTime(r.checkInTime),
             customRemarks: r.remarks || "",
           }))
         );
@@ -195,7 +167,7 @@ export function ManualAttendanceModal({
     } finally {
       setLoadingRoster(false);
     }
-  }, [open, selectedScheduleId, selectedGrade, selectedSection, date, activeWindow]);
+  }, [open, selectedScheduleId, selectedGrade, selectedSection, date]);
 
   useEffect(() => {
     if (open && (selectedScheduleId || scheduledWindows.length > 0)) {
@@ -204,15 +176,14 @@ export function ManualAttendanceModal({
   }, [open, selectedScheduleId, selectedGrade, selectedSection, date, fetchRoster, scheduledWindows.length]);
 
   const statusCounts = useMemo(() => {
-    let present = 0, late = 0, absent = 0, medical = 0, onLeave = 0;
+    let present = 0, late = 0, absent = 0, onLeave = 0;
     for (const r of roster) {
       if (r.currentStatus === "PRESENT") present++;
       else if (r.currentStatus === "LATE") late++;
       else if (r.currentStatus === "ABSENT") absent++;
-      else if (r.currentStatus === "MEDICAL") medical++;
       else if (r.currentStatus === "ON_LEAVE") onLeave++;
     }
-    return { present, late, absent, medical, onLeave, total: roster.length };
+    return { present, late, absent, onLeave, total: roster.length };
   }, [roster]);
 
   const filteredRoster = useMemo(() => {
@@ -301,7 +272,7 @@ export function ManualAttendanceModal({
     }
   };
 
-  const statuses: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT", "MEDICAL", "ON_LEAVE"];
+  const statuses: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT", "ON_LEAVE"];
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
@@ -317,7 +288,7 @@ export function ManualAttendanceModal({
             <div>
               <p className="text-xl font-black text-gray-900 tracking-tight">Record Manual Attendance — Talabat</p>
               <p className="text-xs text-gray-500 font-medium">
-                Mark manual attendance for <strong>Talabat students</strong> with instant window status.
+                Mark manual roll-call for <strong>Talabat students</strong> (Present, Late, Absent, Leave).
               </p>
             </div>
           </ModalTitle>
@@ -330,7 +301,7 @@ export function ManualAttendanceModal({
               <div className="flex-1 min-w-0">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em] flex items-center gap-1.5 mb-1.5">
                   <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                  Attendance Window
+                  Attendance Session
                 </label>
                 <select
                   value={selectedScheduleId}
@@ -339,7 +310,7 @@ export function ManualAttendanceModal({
                 >
                   {scheduledWindows.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} ({w.startTime} - {w.endTime}) — Window Open
+                      {w.name}
                     </option>
                   ))}
                 </select>
@@ -348,7 +319,7 @@ export function ManualAttendanceModal({
               <div className="shrink-0 flex items-end">
                 <div className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                  <span>Window Open for Marking Attendance</span>
+                  <span>Window Active for Marking</span>
                 </div>
               </div>
             </div>
@@ -402,14 +373,11 @@ export function ManualAttendanceModal({
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                   {statusCounts.present} Present
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
-                  {statusCounts.absent} Absent
-                </span>
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                   {statusCounts.late} Late
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">
-                  {statusCounts.medical} Medical
+                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                  {statusCounts.absent} Absent
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
                   {statusCounts.onLeave} Leave
@@ -442,19 +410,19 @@ export function ManualAttendanceModal({
               </button>
               <button
                 type="button"
+                onClick={() => markAllStatus("LATE")}
+                className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-bold transition-colors flex items-center gap-1"
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                All Late
+              </button>
+              <button
+                type="button"
                 onClick={() => markAllStatus("ABSENT")}
                 className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 text-xs font-bold transition-colors flex items-center gap-1"
               >
                 <XCircle className="w-3.5 h-3.5 text-rose-600" />
                 All Absent
-              </button>
-              <button
-                type="button"
-                onClick={() => markAllStatus("MEDICAL")}
-                className="px-2.5 py-1.5 rounded-lg border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 text-xs font-bold transition-colors flex items-center gap-1"
-              >
-                <Stethoscope className="w-3.5 h-3.5 text-sky-600" />
-                All Medical
               </button>
               <button
                 type="button"

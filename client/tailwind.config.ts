@@ -58,6 +58,43 @@ const config: Config = {
           border: "#a7f3d0",
           accent: "#059669",
         },
+        // ── 60-30-10 DESIGN RULE SYSTEM TOKENS ──
+        rule: {
+          // 60% Dominant Background & Base Surfaces
+          bg: {
+            canvas: "#f8fafc",
+            surface: "#ffffff",
+            subtle: "#f1f5f9",
+            muted: "#e2e8f0",
+          },
+          // 30% Secondary Structure & Content Typography
+          text: {
+            primary: "#0f172a",
+            body: "#334155",
+            secondary: "#475569",
+            muted: "#64748b",
+            inverted: "#ffffff",
+          },
+          border: {
+            DEFAULT: "#e2e8f0",
+            strong: "#cbd5e1",
+            subtle: "#f1f5f9",
+          },
+          // 10% Intentional Accent & Focal Highlight (Important Text & Actions)
+          highlight: {
+            DEFAULT: "#059669",
+            hover: "#047857",
+            dark: "#064e3b",
+            light: "#ecfdf5",
+            border: "#a7f3d0",
+            gold: "#d97706",
+            "gold-light": "#fef3c7",
+            "gold-border": "#fde68a",
+            critical: "#e11d48",
+            "critical-light": "#ffe4e6",
+            "critical-border": "#fecdd3",
+          },
+        },
         glass: {
           light: "rgba(255, 255, 255, 0.7)",
           DEFAULT: "rgba(255, 255, 255, 0.25)",
@@ -80,6 +117,10 @@ const config: Config = {
         "2xl": "1rem",
         "3xl": "1.5rem",
         "4xl": "2rem",
+      },
+      transitionTimingFunction: {
+        spring: "cubic-bezier(0.16, 1, 0.3, 1)",
+        smooth: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
       boxShadow: {
         soft: "0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)",

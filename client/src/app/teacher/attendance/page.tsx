@@ -40,7 +40,7 @@ import {
   type WindowTimes,
 } from "@/lib/attendance-window";
 
-type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "ON_LEAVE";
+type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "ON_LEAVE";
 
 const STATUSES: {
   key: AttendanceStatus;
@@ -79,31 +79,13 @@ const STATUSES: {
     dot: "bg-red-400",
   },
   {
-    key: "MEDICAL",
-    label: "Medical",
-    hotkey: "4",
-    icon: Stethoscope,
-    idle: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300",
-    active: "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300 ring-offset-1",
-    dot: "bg-blue-400",
-  },
-  {
     key: "ON_LEAVE",
-    label: "Excused",
-    hotkey: "5",
+    label: "Leave",
+    hotkey: "4",
     icon: ShieldCheck,
     idle: "bg-white text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300",
     active: "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-300 ring-offset-1",
     dot: "bg-purple-400",
-  },
-  {
-    key: "EARLY_DEPARTURE",
-    label: "Early Dep.",
-    hotkey: "6",
-    icon: AlertTriangle,
-    idle: "bg-white text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300",
-    active: "bg-orange-500 text-white border-orange-500 ring-2 ring-orange-300 ring-offset-1",
-    dot: "bg-orange-400",
   },
 ];
 
@@ -111,9 +93,7 @@ const STATUS_DOT: Record<AttendanceStatus, string> = {
   PRESENT: "bg-emerald-400",
   LATE: "bg-amber-400",
   ABSENT: "bg-red-400",
-  MEDICAL: "bg-blue-400",
   ON_LEAVE: "bg-purple-400",
-  EARLY_DEPARTURE: "bg-orange-400",
 };
 
 interface RosterStudent {
@@ -395,7 +375,7 @@ export default function TeacherAttendancePage() {
     setRoster((prev) =>
       prev.map((s) => {
         if (s.profileId !== profileId) return s;
-        const order: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT", "EARLY_DEPARTURE"];
+        const order: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT", "ON_LEAVE"];
         const next = order[(order.indexOf(s.status) + 1) % order.length];
         return { ...s, status: next };
       }),
@@ -429,9 +409,7 @@ export default function TeacherAttendancePage() {
       PRESENT: 0,
       LATE: 0,
       ABSENT: 0,
-      MEDICAL: 0,
       ON_LEAVE: 0,
-      EARLY_DEPARTURE: 0,
     };
     roster.forEach((s) => {
       if (counts[s.status] !== undefined) {
@@ -572,7 +550,7 @@ export default function TeacherAttendancePage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-6 grid grid-cols-3 sm:grid-cols-6 gap-2"
+              className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2.5"
             >
               {STATUSES.map((cfg) => (
                 <div
@@ -895,21 +873,6 @@ export default function TeacherAttendancePage() {
                             </button>
                           );
                         })}
-
-                        {/* Check-in time */}
-                        <div className="flex items-center gap-1.5 ml-1">
-                          <Clock className="w-3.5 h-3.5 text-gray-400" />
-                          <label htmlFor={`check-in-${s.profileId}`} className="sr-only">Check-in time</label>
-                          <input
-                            type="time"
-                            id={`check-in-${s.profileId}`}
-                            name="checkInTime"
-                            value={s.checkInTime}
-                            disabled={s.status === "ABSENT" || saving}
-                            onChange={(e) => setCheckIn(s.profileId, e.target.value)}
-                            className="h-8 w-28 rounded-xl border border-gray-200 bg-gray-50 px-2 text-[11px] font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 disabled:opacity-40 transition-colors"
-                          />
-                        </div>
                       </div>
                     </motion.div>
                   ))

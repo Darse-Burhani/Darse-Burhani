@@ -19,6 +19,12 @@ const badgeVariants = cva(
           "border-amber-200/80 bg-amber-50 text-amber-900 shadow-[0_1px_2px_rgba(217,119,6,0.06)]",
         outline:
           "border-slate-300/80 bg-white text-slate-700 shadow-2xs",
+        important:
+          "border-emerald-300 bg-emerald-50 text-emerald-950 font-bold shadow-xs",
+        importantGold:
+          "border-amber-300 bg-amber-50 text-amber-950 font-bold shadow-xs",
+        importantCritical:
+          "border-rose-300 bg-rose-50 text-rose-950 font-bold shadow-xs",
         bronze: "border-amber-700/30 tier-bronze",
         silver: "border-slate-400/30 tier-silver",
         gold: "border-amber-500/40 tier-gold shadow-[0_1px_4px_rgba(217,119,6,0.15)]",

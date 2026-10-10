@@ -42,26 +42,65 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
+    /* ═══════════════════════════════════════════════════════════════
+       THE 60-30-10 COLOR HARMONY SYSTEM
+       60% Dominant Background & Surfaces (Base Canvas, Negative Space)
+       30% Secondary Structure & Content (Typography, Borders, Forms)
+       10% Intentional Highlight & Accent (Important Text & Focal Points)
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ── 60% Dominant Background & Surfaces ── */
+    --bg-canvas: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-card: #ffffff;
+    --border-subtle: #e2e8f0;
+    --border-default: #cbd5e1;
+
+    /* ── 30% Structure & Content Typography ── */
+    --text-primary: #0f172a;
+    --text-body: #334155;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-inverted: #ffffff;
+
+    /* ── 10% Intentional Accent & Focal Highlight (Important Text) ── */
+    --highlight-accent: #059669;
+    --highlight-accent-hover: #047857;
+    --highlight-accent-dark: #064e3b;
+    --highlight-accent-light: #ecfdf5;
+    --highlight-accent-border: #a7f3d0;
+    --highlight-ring: rgba(5, 150, 105, 0.4);
+
+    --highlight-gold: #d97706;
+    --highlight-gold-light: #fef3c7;
+    --highlight-gold-border: #fde68a;
+
+    --highlight-critical: #e11d48;
+    --highlight-critical-light: #ffe4e6;
+    --highlight-critical-border: #fecdd3;
+
+    /* Shadcn / Radix token mappings calibrated to 60-30-10 */
+    --background: 210 40% 98%;     /* #f8fafc (60% canvas) */
+    --foreground: 222.2 84% 4.9%;  /* #0f172a (30% primary text) */
+    --card: 0 0% 100%;             /* #ffffff (60% surface) */
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 239 84% 67%;
+    --primary: 161 94% 30%;        /* #059669 (10% highlight) */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 152 76% 96%;
+    --accent-foreground: 160 84% 16%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 239 84% 67%;
-    --radius: 1.25rem;
+    --ring: 161 94% 30%;
+    --radius: 1.125rem;
 
     /* ── Distinct 2026 Typography Tiers ── */
     --font-heading: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', system-ui, -apple-system, sans-serif;
@@ -77,7 +116,7 @@
 
 @layer base {
   * {
-    @apply border-gray-200;
+    border-color: var(--border-subtle, #e2e8f0);
   }
 
   html {
@@ -91,7 +130,8 @@
   }
 
   body {
-    @apply bg-gray-50 text-slate-900 antialiased;
+    background-color: var(--bg-canvas, #f8fafc);
+    color: var(--text-body, #334155);
     font-family: var(--font-body);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "salt", "calt", "kern";
     font-optical-sizing: auto;
@@ -101,23 +141,28 @@
     width: 100%;
     max-width: 100vw;
     position: relative;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
-    @apply bg-emerald-200/80 text-emerald-950;
+    background-color: rgba(16, 185, 129, 0.22);
+    color: #064e3b;
   }
 
-  /* Placeholder text must meet 4.5:1 on white inputs app-wide */
+  /* Placeholder text meets WCAG AA 4.5:1 on white inputs app-wide */
   input::placeholder,
   textarea::placeholder {
-    color: #64748b;
+    color: var(--text-muted, #64748b);
     font-family: var(--font-info);
     opacity: 0.9;
   }
 
-  /* Focus ring — emerald to match brand */
+  /* Focus ring — 10% intentional accent */
   *:focus-visible {
-    @apply outline-none ring-2 ring-emerald-600/80 ring-offset-2 ring-offset-white transition-all duration-200;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-surface, #ffffff), 0 0 0 4px var(--highlight-accent, #059669);
+    transition: box-shadow 0.2s ease;
   }
 
   /* ── Tier 1: Headings & Display Typography ── */
@@ -337,55 +382,218 @@
     @apply text-slate-600 dark:text-slate-300 mt-1.5 text-sm sm:text-base font-normal leading-relaxed;
   }
 
-  /* ====== 2026 Executive Typography & Contrast Layout System ====== */
-  .text-page-title {
-    @apply font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight;
-    letter-spacing: -0.03em;
-    line-height: 1.2;
+  /* ═══════════════════════════════════════════════════════════════════
+     THE 60-30-10 DESIGN RULE SUITE
+     60% Canvas & Surface | 30% Content Typography | 10% Important Text Highlight
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* ── 60% Dominant Background & Surface Foundations ── */
+  .rule-canvas {
+    background-color: var(--bg-canvas, #f8fafc) !important;
   }
 
+  .rule-surface {
+    background-color: var(--bg-surface, #ffffff) !important;
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  }
+
+  .rule-card {
+    background-color: var(--bg-surface, #ffffff) !important;
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    border-radius: 1.125rem;
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .rule-card:hover {
+    border-color: rgba(5, 150, 105, 0.35);
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(5, 150, 105, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .rule-subtle {
+    background-color: var(--bg-subtle, #f1f5f9) !important;
+    border: 1px solid var(--border-subtle, #e2e8f0);
+  }
+
+  /* ── 30% Secondary Structure & Content Typography ── */
+  .rule-text-primary,
+  .text-page-title {
+    font-family: var(--font-heading) !important;
+    font-weight: 800 !important;
+    color: var(--text-primary, #0f172a) !important;
+    letter-spacing: -0.028em !important;
+    line-height: 1.2 !important;
+  }
+
+  .rule-text-header,
   .text-section-title {
-    @apply font-heading text-lg sm:text-xl font-bold text-slate-900 tracking-tight;
-    letter-spacing: -0.02em;
+    font-family: var(--font-heading) !important;
+    font-weight: 750 !important;
+    color: var(--text-primary, #0f172a) !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .rule-text-body,
+  .text-contrast-body {
+    font-family: var(--font-body) !important;
+    color: var(--text-body, #334155) !important;
+    line-height: 1.62 !important;
+    font-size: 0.9375rem !important;
+  }
+
+  .rule-text-muted,
+  .text-contrast-muted {
+    font-family: var(--font-info) !important;
+    color: var(--text-muted, #64748b) !important;
+    font-weight: 500 !important;
+    font-size: 0.8125rem !important;
   }
 
   .text-kicker {
-    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-emerald-800 inline-flex items-center gap-1.5;
-    letter-spacing: 0.08em;
+    font-family: var(--font-heading) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: var(--highlight-accent-dark, #064e3b) !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 
   .text-kicker-gold {
-    @apply font-heading text-[11px] font-bold uppercase tracking-widest text-amber-800 inline-flex items-center gap-1.5;
-    letter-spacing: 0.08em;
+    font-family: var(--font-heading) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #92400e !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 
-  .text-contrast-body {
-    @apply font-body text-[14.5px] text-slate-700 leading-relaxed;
+  /* ── 10% Intentional Accent & Focal Highlight (Important Text) ── */
+  .highlight-important {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.1875rem 0.625rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 750 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    color: #064e3b !important;
+    background-color: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    box-shadow: 0 1px 2px 0 rgba(6, 78, 59, 0.05) !important;
+    letter-spacing: -0.01em !important;
   }
 
-  .text-contrast-muted {
-    @apply font-info text-xs sm:text-sm text-slate-600 font-medium;
+  .highlight-important-text {
+    color: #047857 !important;
+    font-weight: 750 !important;
+    text-decoration: underline !important;
+    text-decoration-color: rgba(5, 150, 105, 0.45) !important;
+    text-underline-offset: 3.5px !important;
   }
 
+  .highlight-important-gold {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.1875rem 0.625rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 750 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    color: #78350f !important;
+    background-color: #fef3c7 !important;
+    border: 1px solid #fde68a !important;
+    box-shadow: 0 1px 2px 0 rgba(120, 53, 15, 0.05) !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .highlight-important-critical {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.1875rem 0.625rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 750 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    color: #9f1239 !important;
+    background-color: #ffe4e6 !important;
+    border: 1px solid #fecdd3 !important;
+    box-shadow: 0 1px 2px 0 rgba(159, 18, 57, 0.05) !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .highlight-important-blue {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.1875rem 0.625rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 750 !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    color: #0c4a6e !important;
+    background-color: #e0f2fe !important;
+    border: 1px solid #bae6fd !important;
+    box-shadow: 0 1px 2px 0 rgba(12, 74, 110, 0.05) !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .highlight-marker {
+    background: linear-gradient(120deg, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0.18) 100%) !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 38% !important;
+    background-position: 0 88% !important;
+    font-weight: 700 !important;
+    color: #064e3b !important;
+    padding: 0 0.2rem !important;
+    border-radius: 2px !important;
+  }
+
+  .highlight-marker-gold {
+    background: linear-gradient(120deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%) !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 38% !important;
+    background-position: 0 88% !important;
+    font-weight: 700 !important;
+    color: #78350f !important;
+    padding: 0 0.2rem !important;
+    border-radius: 2px !important;
+  }
+
+  .highlight-stat,
   .text-stat-value {
-    @apply font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight;
-    font-feature-settings: "tnum" 1, "zero" 1;
+    font-family: var(--font-mono) !important;
+    font-weight: 850 !important;
+    color: #064e3b !important;
+    letter-spacing: -0.03em !important;
+    font-variant-numeric: tabular-nums !important;
+    font-feature-settings: "tnum" 1, "zero" 1 !important;
   }
 
   .text-highlight-emerald {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-emerald-950 bg-emerald-100/80 border border-emerald-300/80 shadow-xs;
+    @apply highlight-important;
   }
 
   .text-highlight-gold {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-amber-950 bg-amber-100/80 border border-amber-300/80 shadow-xs;
+    @apply highlight-important-gold;
   }
 
   .text-highlight-blue {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-sky-950 bg-sky-100/80 border border-sky-300/80 shadow-xs;
+    @apply highlight-important-blue;
   }
 
   .text-highlight-rose {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold text-rose-950 bg-rose-100/80 border border-rose-300/80 shadow-xs;
+    @apply highlight-important-critical;
   }
 
   .text-highlight-purple {
@@ -403,23 +611,23 @@
   }
 
   .portal-card-base {
-    @apply rounded-2xl sm:rounded-3xl border border-slate-200/85 bg-white p-4 sm:p-6 shadow-xs transition-all duration-200;
+    @apply rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-xs transition-all duration-200;
   }
 
   .portal-card-interactive {
-    @apply portal-card-base hover:shadow-md hover:border-emerald-200/90 active:scale-[0.995];
+    @apply portal-card-base hover:shadow-md hover:border-emerald-300/80 active:scale-[0.995];
   }
 
   .portal-stat-card {
-    @apply relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/85 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200 hover:shadow-md;
+    @apply relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200 hover:shadow-md;
   }
 
   .portal-header-group {
-    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-100;
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 border-b border-slate-200/80;
   }
 
   .portal-table-wrapper {
-    @apply overflow-x-auto rounded-2xl border border-slate-200/85 bg-white shadow-xs;
+    @apply overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-xs;
   }
 }
 
