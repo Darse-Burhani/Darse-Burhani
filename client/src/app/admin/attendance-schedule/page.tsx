@@ -99,11 +99,13 @@ function ScheduleTimelineBar({
   endTime,
   lateEndTime,
   accent = "emerald",
+  isManual = false,
 }: {
   startTime: string;
   endTime: string;
   lateEndTime?: string | null;
   accent?: "emerald" | "indigo" | "purple" | "blue";
+  isManual?: boolean;
 }) {
   const parseMin = (t: string) => {
     if (!t) return 0;
@@ -113,18 +115,18 @@ function ScheduleTimelineBar({
 
   const sMin = parseMin(startTime);
   const eMin = parseMin(endTime);
-  const lMin = lateEndTime ? parseMin(lateEndTime) : eMin;
+  const lMin = !isManual && lateEndTime ? parseMin(lateEndTime) : eMin;
 
   const onTimeDur = Math.max(0, eMin - sMin);
-  const lateDur = Math.max(0, lMin - eMin);
-  const totalSpan = Math.max(1, onTimeDur + lateDur);
+  const lateDur = isManual ? 0 : Math.max(0, lMin - eMin);
+  const totalSpan = Math.max(1, isManual ? eMin - sMin : onTimeDur + lateDur);
 
-  const onTimePct = Math.round((onTimeDur / totalSpan) * 100);
-  const latePct = Math.round((lateDur / totalSpan) * 100);
+  const onTimePct = isManual ? 100 : Math.round((onTimeDur / totalSpan) * 100);
+  const latePct = isManual ? 0 : Math.round((lateDur / totalSpan) * 100);
 
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const isCurrentlyActive = nowMin >= sMin && nowMin <= lMin;
+  const isCurrentlyActive = nowMin >= sMin && nowMin <= (isManual ? eMin : lMin);
 
   const gradientClass =
     accent === "purple"
@@ -152,8 +154,8 @@ function ScheduleTimelineBar({
           />
           {startTime}
         </span>
-        <span className="flex items-center gap-1 font-mono text-amber-700">
-          {lateEndTime || endTime}
+        <span className="flex items-center gap-1 font-mono text-gray-700">
+          {isManual ? endTime : lateEndTime || endTime}
         </span>
       </div>
 
@@ -161,9 +163,9 @@ function ScheduleTimelineBar({
         <div
           style={{ width: `${onTimePct}%` }}
           className={`h-full ${gradientClass} transition-all duration-500`}
-          title={`On-Time: ${onTimeDur} min`}
+          title={isManual ? `Live Marking Window: ${totalSpan} min` : `On-Time: ${onTimeDur} min`}
         />
-        {lateDur > 0 && (
+        {!isManual && lateDur > 0 && (
           <div
             style={{ width: `${latePct}%` }}
             className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
@@ -172,12 +174,12 @@ function ScheduleTimelineBar({
         )}
       </div>
 
-      <div className="flex items-center justify-between text-[9px] text-gray-400 font-medium">
-        <span>{onTimeDur}m On-Time Window</span>
-        {lateDur > 0 && <span className="text-amber-700 font-bold">{lateDur}m Late Grace</span>}
+      <div className="flex items-center justify-between text-[9px] text-gray-500 font-medium">
+        <span>{isManual ? `${totalSpan}m Live Marking Window` : `${onTimeDur}m On-Time Window`}</span>
+        {!isManual && lateDur > 0 && <span className="text-amber-700 font-bold">{lateDur}m Late Grace</span>}
         {isCurrentlyActive && (
           <span className="text-emerald-700 font-black animate-pulse flex items-center gap-0.5">
-            ● Active Now
+            ● Live Now
           </span>
         )}
       </div>
@@ -404,13 +406,14 @@ export default function AdminAttendanceSchedulePage() {
         : "/api/admin/attendance/schedule/windows";
       const method = editingWindow ? "PUT" : "POST";
 
+      const isManual = windowForm.windowType === "MANUAL";
       const payload: Record<string, any> = {
         name: windowForm.name.trim(),
         windowType: windowForm.windowType,
         startTime: windowForm.startTime,
         endTime: windowForm.endTime,
-        lateEndTime: windowForm.lateEndTime || windowForm.endTime,
-        graceMinutes: windowForm.graceMinutes,
+        lateEndTime: isManual ? windowForm.endTime : (windowForm.lateEndTime || windowForm.endTime),
+        graceMinutes: isManual ? 0 : windowForm.graceMinutes,
         enabled: windowForm.enabled,
       };
 
@@ -424,20 +427,20 @@ export default function AdminAttendanceSchedulePage() {
         payload.applicableClassIds = [];
         payload.facultyStartTime = windowForm.startTime;
         payload.facultyEndTime = windowForm.endTime;
-        payload.facultyLateEndTime = windowForm.lateEndTime || windowForm.endTime;
+        payload.facultyLateEndTime = isManual ? windowForm.endTime : (windowForm.lateEndTime || windowForm.endTime);
         payload.applicableTeacherIds = windowForm.applicableTeacherIds;
       } else {
         // BOTH (Talabat & Faculty)
         payload.applicableClassIds = windowForm.applicableClassIds;
         payload.applicableTeacherIds = windowForm.applicableTeacherIds;
-        if (windowForm.useCustomFacultyTime) {
+        if (!isManual && windowForm.useCustomFacultyTime) {
           payload.facultyStartTime = windowForm.facultyStartTime;
           payload.facultyEndTime = windowForm.facultyEndTime;
           payload.facultyLateEndTime = windowForm.facultyLateEndTime || windowForm.facultyEndTime;
         } else {
           payload.facultyStartTime = windowForm.startTime;
           payload.facultyEndTime = windowForm.endTime;
-          payload.facultyLateEndTime = windowForm.lateEndTime || windowForm.endTime;
+          payload.facultyLateEndTime = isManual ? windowForm.endTime : (windowForm.lateEndTime || windowForm.endTime);
         }
       }
 
@@ -803,12 +806,16 @@ export default function AdminAttendanceSchedulePage() {
                         </div>
                         <div>
                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                            {isFaculty ? "Faculty Timing" : "Student Timing"}
+                            {w.windowType === "MANUAL"
+                              ? "Live Marking Window"
+                              : isFaculty
+                              ? "Faculty Timing"
+                              : "Student Timing"}
                           </p>
                           <p className="text-sm font-black text-gray-900 font-mono">
                             {w.startTime} &rarr; {w.endTime}
                           </p>
-                          {w.lateEndTime && w.lateEndTime !== w.endTime && (
+                          {w.windowType !== "MANUAL" && w.lateEndTime && w.lateEndTime !== w.endTime && (
                             <p className="text-xs font-bold text-amber-700 font-mono">
                               Late Cutoff: {w.lateEndTime}
                             </p>
@@ -819,13 +826,13 @@ export default function AdminAttendanceSchedulePage() {
                       <div className="text-right">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Span</p>
                         <span className="inline-block px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-800 font-mono">
-                          {w.durationMinutes}m
+                          {w.durationMinutes}m {w.windowType === "MANUAL" ? "Live" : ""}
                         </span>
                       </div>
                     </div>
 
-                    {/* Faculty Timing details if Dual */}
-                    {isDual && w.facultyStartTime && (
+                    {/* Faculty Timing details if Dual and not manual */}
+                    {w.windowType !== "MANUAL" && isDual && w.facultyStartTime && (
                       <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-100 flex items-center justify-between text-xs">
                         <span className="font-bold text-purple-900 flex items-center gap-1.5">
                           <Shield className="w-3.5 h-3.5 text-purple-600" />
@@ -844,6 +851,7 @@ export default function AdminAttendanceSchedulePage() {
                       endTime={w.endTime}
                       lateEndTime={w.lateEndTime}
                       accent={accentColor}
+                      isManual={w.windowType === "MANUAL"}
                     />
 
                     {/* Grace Period & Live Status */}
@@ -851,7 +859,13 @@ export default function AdminAttendanceSchedulePage() {
                       <div className="flex items-center gap-1.5 text-gray-600">
                         <Timer className="w-4 h-4 text-emerald-600" />
                         <span>
-                          Grace: <strong>{w.graceMinutes} min</strong>
+                          {w.windowType === "MANUAL" ? (
+                            <strong className="text-emerald-800">Live Marking Window</strong>
+                          ) : (
+                            <>
+                              Grace: <strong>{w.graceMinutes} min</strong>
+                            </>
+                          )}
                         </span>
                       </div>
 
@@ -1276,7 +1290,7 @@ export default function AdminAttendanceSchedulePage() {
                         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                           <p className="text-xs text-emerald-950 font-medium">
-                            <strong>Manual Roll Call Register:</strong> Teachers record direct attendance (Present, Late, Absent, Leave) without gate time enforcement or lockout.
+                            <strong>Live Attendance Window:</strong> Mark live attendance between opening and closing time.
                           </p>
                         </div>
                       )}
@@ -1286,16 +1300,20 @@ export default function AdminAttendanceSchedulePage() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5 text-emerald-700" />
-                            {windowForm.audience === "TEACHER" ? "Faculty Shift Window" : "Primary Attendance Window"}
+                            {windowForm.windowType === "MANUAL"
+                              ? "Live Marking Window"
+                              : windowForm.audience === "TEACHER"
+                              ? "Faculty Shift Window"
+                              : "Primary Attendance Window"}
                           </span>
                           <span className="text-[10px] text-gray-500 font-mono font-bold">24-Hour Format</span>
                         </div>
 
-                        {/* On-Time From & To */}
+                        {/* Timing From & To */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <label className="text-[11px] font-bold text-gray-700 block mb-1">
-                              On-Time Window From:
+                              {windowForm.windowType === "MANUAL" ? "Live Marking Opens (From):" : "On-Time Window From:"}
                             </label>
                             <input
                               type="time"
@@ -1308,84 +1326,98 @@ export default function AdminAttendanceSchedulePage() {
 
                           <div>
                             <label className="text-[11px] font-bold text-gray-700 block mb-1">
-                              On-Time Window To:
+                              {windowForm.windowType === "MANUAL" ? "Live Marking Closes (To):" : "On-Time Window To:"}
                             </label>
                             <input
                               type="time"
                               required
                               value={windowForm.endTime}
-                              onChange={(e) => setWindowForm({ ...windowForm, endTime: e.target.value })}
+                              onChange={(e) => {
+                                const newEnd = e.target.value;
+                                if (windowForm.windowType === "MANUAL") {
+                                  setWindowForm({
+                                    ...windowForm,
+                                    endTime: newEnd,
+                                    lateEndTime: newEnd,
+                                    graceMinutes: 0,
+                                  });
+                                } else {
+                                  setWindowForm({ ...windowForm, endTime: newEnd });
+                                }
+                              }}
                               className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold font-mono text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                             />
                           </div>
                         </div>
 
-                        {/* Late Cutoff & Grace Minutes */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-200/80">
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-[11px] font-bold text-gray-700">Late Cutoff Till:</label>
-                              <div className="flex items-center gap-1">
-                                {[15, 30, 45].map((m) => (
-                                  <button
-                                    key={m}
-                                    type="button"
-                                    onClick={() =>
-                                      setWindowForm({
-                                        ...windowForm,
-                                        lateEndTime: addMinutesToTime(windowForm.endTime, m),
-                                      })
-                                    }
-                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
-                                  >
-                                    +{m}m
-                                  </button>
-                                ))}
+                        {/* Late Cutoff & Grace Minutes ONLY for non-manual */}
+                        {windowForm.windowType !== "MANUAL" && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-200/80">
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="text-[11px] font-bold text-gray-700">Late Cutoff Till:</label>
+                                <div className="flex items-center gap-1">
+                                  {[15, 30, 45].map((m) => (
+                                    <button
+                                      key={m}
+                                      type="button"
+                                      onClick={() =>
+                                        setWindowForm({
+                                          ...windowForm,
+                                          lateEndTime: addMinutesToTime(windowForm.endTime, m),
+                                        })
+                                      }
+                                      className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                                    >
+                                      +{m}m
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
+                              <input
+                                type="time"
+                                value={windowForm.lateEndTime || ""}
+                                onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
+                                className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold font-mono text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                                placeholder="e.g. 09:00"
+                              />
                             </div>
-                            <input
-                              type="time"
-                              value={windowForm.lateEndTime || ""}
-                              onChange={(e) => setWindowForm({ ...windowForm, lateEndTime: e.target.value })}
-                              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold font-mono text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                              placeholder="e.g. 09:00"
-                            />
-                          </div>
 
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-[11px] font-bold text-gray-700">Grace Period (Minutes):</label>
-                              <div className="flex items-center gap-1">
-                                {[0, 5, 10, 15].map((g) => (
-                                  <button
-                                    key={g}
-                                    type="button"
-                                    onClick={() => setWindowForm({ ...windowForm, graceMinutes: g })}
-                                    className={cn(
-                                      "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all",
-                                      windowForm.graceMinutes === g
-                                        ? "bg-emerald-700 text-white"
-                                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                    )}
-                                  >
-                                    {g}m
-                                  </button>
-                                ))}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="text-[11px] font-bold text-gray-700">Grace Period (Minutes):</label>
+                                <div className="flex items-center gap-1">
+                                  {[0, 5, 10, 15].map((g) => (
+                                    <button
+                                      key={g}
+                                      type="button"
+                                      onClick={() => setWindowForm({ ...windowForm, graceMinutes: g })}
+                                      className={cn(
+                                        "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all",
+                                        windowForm.graceMinutes === g
+                                          ? "bg-emerald-700 text-white"
+                                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                      )}
+                                    >
+                                      {g}m
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
+                              <input
+                                type="number"
+                                min="0"
+                                max="180"
+                                required
+                                value={windowForm.graceMinutes}
+                                onChange={(e) =>
+                                  setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
+                                }
+                                className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                              />
                             </div>
-                            <input
-                              type="number"
-                              min="0"
-                              max="180"
-                              required
-                              value={windowForm.graceMinutes}
-                              onChange={(e) =>
-                                setWindowForm({ ...windowForm, graceMinutes: Number(e.target.value) })
-                              }
-                              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 bg-white text-xs font-bold text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                            />
                           </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Interactive Visual Timeline Bar */}
@@ -1393,14 +1425,15 @@ export default function AdminAttendanceSchedulePage() {
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">Live Visual Timeline</span>
                           <span className="text-[11px] font-mono font-bold text-emerald-800">
-                            {windowForm.startTime} → {windowForm.lateEndTime || windowForm.endTime}
+                            {windowForm.startTime} → {windowForm.windowType === "MANUAL" ? windowForm.endTime : (windowForm.lateEndTime || windowForm.endTime)}
                           </span>
                         </div>
                         <ScheduleTimelineBar
                           startTime={windowForm.startTime}
                           endTime={windowForm.endTime}
-                          lateEndTime={windowForm.lateEndTime}
+                          lateEndTime={windowForm.windowType === "MANUAL" ? windowForm.endTime : windowForm.lateEndTime}
                           accent={windowForm.audience === "TEACHER" ? "blue" : windowForm.audience === "BOTH" ? "purple" : "emerald"}
+                          isManual={windowForm.windowType === "MANUAL"}
                         />
                       </div>
 

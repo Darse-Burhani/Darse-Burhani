@@ -46,8 +46,11 @@ import {
   LayoutGrid,
   Table as TableIcon,
   HelpCircle,
+  FileSpreadsheet,
+  ExternalLink,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
+import { GoogleSheetSyncCard } from "@/components/admin/attendance/GoogleSheetSyncCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -217,11 +220,18 @@ export default function AdminManualAttendancePage() {
       });
       const data = await res.json();
       if (data.success && data.data) {
-        setScheduledWindows(data.data.scheduledWindows || []);
+        // Strictly allow only manual schedule events; never show HIKVISION hardware events
+        const manualWindows = ((data.data.scheduledWindows || []) as ScheduledWindow[]).filter(
+          (w) =>
+            (w.windowType === "MANUAL" || (!w.windowType && w.id.startsWith("manual_"))) &&
+            !w.id.startsWith("hik_") &&
+            w.id !== "default"
+        );
+        setScheduledWindows(manualWindows);
         setClasses(data.data.classes || []);
         setGrades(data.data.grades || []);
         setSections(data.data.sections || []);
-        if (data.data.scheduledWindows?.length > 0 && !selectedScheduleId) {
+        if (manualWindows.length > 0 && !selectedScheduleId) {
           setSelectedScheduleId("");
         }
       }
@@ -465,7 +475,7 @@ export default function AdminManualAttendancePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scheduleId: selectedScheduleId || undefined,
+          scheduleId: selectedScheduleId || activeWindow?.id || undefined,
           date,
           targetType,
           records: payloadRecords,
@@ -746,6 +756,9 @@ export default function AdminManualAttendancePage() {
         )}
       </AnimatePresence>
 
+      {/* ── Dynamic Google Sheet Live Sync Interface ── */}
+      <GoogleSheetSyncCard targetDate={date} />
+
       {/* ── Active Session Window Status Strip (No timestamps shown) ── */}
       <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -758,11 +771,11 @@ export default function AdminManualAttendancePage() {
 
         {activeWindow && (
           <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
-            <span className="text-gray-500 font-medium">Active Session:</span>
+            <span className="text-gray-500 font-medium">Manual Event:</span>
             <span className="font-extrabold text-slate-900">{activeWindow.name}</span>
             <span className="text-emerald-700 font-semibold flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Marking Open
+              Live Marking Active
             </span>
           </div>
         )}
@@ -788,10 +801,10 @@ export default function AdminManualAttendancePage() {
               </div>
             </div>
 
-            {/* Schedule Window Selector (Session Names Only - No Window Times) */}
+            {/* Manual Event Selector (Session Names Only - No Window Times) */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Attendance Session
+                Manual Schedule Event
               </label>
               <div className="relative">
                 <Clock className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -800,7 +813,9 @@ export default function AdminManualAttendancePage() {
                   onChange={(e) => setSelectedScheduleId(e.target.value)}
                   className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none shadow-2xs"
                 >
-                  <option value="">All Schedule Windows</option>
+                  <option value="">
+                    {scheduledWindows.length > 0 ? "All Manual Events" : "No Manual Events Scheduled"}
+                  </option>
                   {scheduledWindows.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.name}

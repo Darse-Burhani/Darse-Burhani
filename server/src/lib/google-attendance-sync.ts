@@ -330,29 +330,57 @@ function matchEvent(
   checkIn: Date | string | null | undefined,
   windows: ScanWindowRow[],
   faculty: boolean,
+  notesOrRemarks?: string | null,
 ): string {
-  if (!checkIn) return "--";
-  const d = new Date(checkIn);
-  if (Number.isNaN(d.getTime())) return "--";
-  const t = istMinutesOf(d);
-  const hit = windows.filter((w) => {
-    if (!w.enabled) return false;
-    const p = eventRangeForRole(w as never, faculty ? "TEACHER" : "STUDENT") as {
-      enabled: boolean;
-      startMin: number;
-      lateMin: number;
-    } | null;
-    if (p && p.enabled && t >= p.startMin && t <= p.lateMin) return true;
-    const s = eventRangeForRole(w as never, faculty ? "STUDENT" : "TEACHER") as {
-      enabled: boolean;
-      startMin: number;
-      lateMin: number;
-    } | null;
-    return Boolean(s && s.enabled && t >= s.startMin && t <= s.lateMin);
-  });
-  if (hit.length === 0) return "Unscheduled";
-  hit.sort((a, b) => a.startTime.localeCompare(b.startTime));
-  return hit[0].name;
+  // 1. If notes or remarks mention a specific manual event name, prioritize it
+  if (notesOrRemarks) {
+    const manualMatch = notesOrRemarks.match(/Manual mark \(([^)]+)\)/i);
+    if (manualMatch && manualMatch[1] && manualMatch[1] !== "Scheduled Event") {
+      return manualMatch[1].trim();
+    }
+    // Also check if any scan window name is mentioned in the notes
+    for (const w of windows) {
+      if (w.name && notesOrRemarks.toLowerCase().includes(w.name.toLowerCase())) {
+        return w.name;
+      }
+    }
+  }
+
+  // 2. If checkIn exists, match by IST time
+  if (checkIn) {
+    const d = new Date(checkIn);
+    if (!Number.isNaN(d.getTime())) {
+      const t = istMinutesOf(d);
+      const hit = windows.filter((w) => {
+        if (!w.enabled) return false;
+        const p = eventRangeForRole(w as never, faculty ? "TEACHER" : "STUDENT") as {
+          enabled: boolean;
+          startMin: number;
+          lateMin: number;
+        } | null;
+        if (p && p.enabled && t >= p.startMin && t <= p.lateMin) return true;
+        const s = eventRangeForRole(w as never, faculty ? "STUDENT" : "TEACHER") as {
+          enabled: boolean;
+          startMin: number;
+          lateMin: number;
+        } | null;
+        return Boolean(s && s.enabled && t >= s.startMin && t <= s.lateMin);
+      });
+      if (hit.length > 0) {
+        hit.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        return hit[0].name;
+      }
+    }
+  }
+
+  // 3. Fallback for manual marks
+  if (notesOrRemarks && /manual/i.test(notesOrRemarks)) {
+    const manualWindow = windows.find((w) => (w as any).windowType === "MANUAL" || w.id.startsWith("manual_"));
+    if (manualWindow) return manualWindow.name;
+    return "Manual Roll Call";
+  }
+
+  return checkIn ? "Unscheduled" : "--";
 }
 
 function fmtTimeIST(v: Date | string | null | undefined): string {
@@ -504,9 +532,14 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     orderBy: [{ grade: "asc" }, { section: "asc" }, { studentId: "asc" }],
   });
 
-  const studentRecords = await prisma.attendanceRecord.findMany({
-    where: { date: { gte: dayStart, lt: dayEnd } },
-  });
+  const [studentRecords, studentRegistries] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+    }),
+    prisma.attendanceRegistry.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+    }),
+  ]);
 
   const rawTeachers = await prisma.teacherProfile.findMany({
     where: {
@@ -521,6 +554,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
   });
 
   const sMap = new Map(studentRecords.map((r) => [r.studentId, r]));
+  const regMap = new Map(studentRegistries.map((r) => [r.studentId, r]));
   const tMap = new Map(teacherRecords.map((r) => [r.teacherId, r]));
 
   // Ensure full roster (all active members) appear cleanly on Google Sheet
@@ -582,11 +616,14 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
   const talabatDataRows: string[][] = [];
   for (const s of students) {
     const att = sMap.get(s.id);
+    const reg = regMap.get(s.id);
+    const effectiveAtt = att || reg;
     const activeLeave = sLeaveMap.get(s.id);
     const activeMed = sMedMap.get(s.id);
     const fullName = `${s.user.firstName} ${s.user.lastName}`.trim();
+    const notes = att?.justification || reg?.remarks || null;
 
-    let status = (att?.status as string | undefined) ?? "ABSENT";
+    let status = (att?.status || reg?.status || "ABSENT") as string;
     let source = "NOT_MARKED";
     let reason = "—";
 
@@ -602,10 +639,10 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       sLeave++;
     } else if (status === "PRESENT") {
       sP++;
-      source = att ? String((att as { source?: string }).source || "SCAN") : "SCAN";
+      source = effectiveAtt ? String((effectiveAtt as { source?: string }).source || "SCAN") : "SCAN";
     } else if (status === "LATE") {
       sL++;
-      source = att ? String((att as { source?: string }).source || "SCAN") : "SCAN";
+      source = effectiveAtt ? String((effectiveAtt as { source?: string }).source || "SCAN") : "SCAN";
     } else if (status === "ON_LEAVE" || status === "MEDICAL") {
       sLeave++;
       source = "EXCUSED";
@@ -616,6 +653,8 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       source = "UNSCANNED";
     }
 
+    const eventName = matchEvent(effectiveAtt?.checkInTime, scanWindows, false, notes);
+
     talabatDataRows.push([
       getPhotoFormula(fullName, s.user.avatarUrl, false),
       fullName,
@@ -623,8 +662,8 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       (s as { its?: string | null }).its || s.studentId,
       s.section ? `Grade ${s.grade}-${s.section}` : `Grade ${s.grade || "--"}`,
       formattedDate,
-      att ? fmtTimeIST(att.checkInTime) : "--",
-      att ? matchEvent(att.checkInTime, scanWindows, false) : "--",
+      effectiveAtt ? fmtTimeIST(effectiveAtt.checkInTime) : "--",
+      effectiveAtt ? eventName : "--",
       status,
       source,
       reason,
@@ -636,6 +675,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     const att = tMap.get(t.id);
     const activeMed = tMedMap.get(t.id);
     const fullName = `${t.user.firstName} ${t.user.lastName}`.trim();
+    const teacherNotes = (att as { notes?: string })?.notes || null;
 
     let status = (att?.status as string | undefined) ?? "ABSENT";
     let source = "NOT_MARKED";
@@ -655,12 +695,14 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
     } else if (status === "ON_LEAVE" || status === "MEDICAL") {
       tLeave++;
       source = "EXCUSED";
-      reason = status === "MEDICAL" ? "Medical Leave" : ((att as { notes?: string })?.notes || "On Holiday / Leave");
+      reason = status === "MEDICAL" ? "Medical Leave" : (teacherNotes || "On Holiday / Leave");
     } else {
       status = "ABSENT";
       tA++;
       source = "UNSCANNED";
     }
+
+    const eventName = matchEvent(att?.checkInTime, scanWindows, true, teacherNotes);
 
     facultyDataRows.push([
       getPhotoFormula(fullName, t.photoUrl || t.user.avatarUrl, true),
@@ -670,7 +712,7 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       t.department || "Faculty",
       formattedDate,
       att ? fmtTimeIST(att.checkInTime) : "--",
-      att ? matchEvent(att.checkInTime, scanWindows, true) : "--",
+      att ? eventName : "--",
       status,
       source,
       reason,

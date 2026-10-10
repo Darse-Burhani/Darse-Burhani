@@ -19,10 +19,15 @@ import { toast } from "@/components/ui/toast";
 
 interface GoogleSheetSyncCardProps {
   onSyncComplete?: (result: SheetSyncResult) => void;
+  targetDate?: string;
   className?: string;
 }
 
-export function GoogleSheetSyncCard({ onSyncComplete, className = "" }: GoogleSheetSyncCardProps) {
+export function GoogleSheetSyncCard({
+  onSyncComplete,
+  targetDate,
+  className = "",
+}: GoogleSheetSyncCardProps) {
   const [status, setStatus] = useState<SheetSyncStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -47,7 +52,7 @@ export function GoogleSheetSyncCard({ onSyncComplete, className = "" }: GoogleSh
   const handleSync = async () => {
     try {
       setSyncing(true);
-      const res = await syncAttendanceSheet();
+      const res = await syncAttendanceSheet(targetDate);
       setLastSyncResult(res.data);
       toast.success(res.message || "Attendance synced to Google Sheet successfully!");
       if (onSyncComplete) onSyncComplete(res.data);
@@ -136,7 +141,7 @@ export function GoogleSheetSyncCard({ onSyncComplete, className = "" }: GoogleSh
             ) : (
               <>
                 <RefreshCw className="h-4 w-4" />
-                <span>Sync Today Now</span>
+                <span>{targetDate ? `Sync Sheet (${targetDate})` : "Sync Today Now"}</span>
               </>
             )}
           </button>

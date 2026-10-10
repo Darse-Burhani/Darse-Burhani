@@ -60,10 +60,11 @@ router.get("/schedules", requireAuth, async (req, res) => {
       };
     });
 
+    // Filter strictly for manual events only (no HIKVISION hardware events)
     const manualOnly = scheduledWindows.filter(
-      (w) => w.windowType === "MANUAL" || w.windowType === "BOTH"
+      (w) => w.windowType === "MANUAL" || (!w.windowType && w.id.startsWith("manual_"))
     );
-    const finalScheduledWindows = manualOnly.length > 0 ? manualOnly : scheduledWindows;
+    const finalScheduledWindows = manualOnly;
 
     const grades = Array.from(new Set(classes.map((c) => c.grade).filter(Boolean))).sort();
     const sections = Array.from(new Set(classes.map((c) => c.section).filter(Boolean))).sort();
@@ -299,10 +300,22 @@ router.post("/", requireAuth, async (req, res) => {
     const validStatuses = Object.values(AttendanceStatus);
     const actorName = `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.email;
 
-    let windowName = "Scheduled Event";
+    let windowName = "Manual Roll Call";
     if (scheduleId) {
       const win = await prisma.biometricScanWindow.findUnique({ where: { id: scheduleId } });
       if (win) windowName = win.name;
+    } else {
+      const defaultManual = await prisma.biometricScanWindow.findFirst({
+        where: {
+          OR: [
+            { id: { startsWith: "manual_" } },
+            { exemptStudentIds: { has: "TYPE_MANUAL" } },
+          ],
+          enabled: true,
+        },
+        orderBy: { startTime: "asc" },
+      });
+      if (defaultManual) windowName = defaultManual.name;
     }
 
     // Split records by type if targetType === ALL or records have targetType attached
