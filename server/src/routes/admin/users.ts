@@ -46,6 +46,7 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
           createdAt: true,
           teacherProfile: {
             select: {
+              id: true,
               employeeId: true,
               its: true,
               department: true,
@@ -63,6 +64,7 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
           },
           studentProfile: {
             select: {
+              id: true,
               studentId: true,
               grade: true,
               section: true,
@@ -84,6 +86,7 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
           },
           parentProfile: {
             select: {
+              id: true,
               phone: true,
               secondaryPhone: true,
               occupation: true,
@@ -538,6 +541,58 @@ router.post("/reset-password", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("Admin user reset password error:", error);
     return res.status(500).json({ success: false, error: "Failed to reset password" });
+  }
+});
+
+// POST /api/admin/users/cleanup-orphaned
+// Purges any orphaned profiles, dangling ghost records, or inactive/deleted users not in current count
+router.post("/cleanup-orphaned", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const allUsers = await prisma.user.findMany({ select: { id: true, role: true, deletedAt: true } });
+    const userIds = new Set(allUsers.map((u) => u.id));
+    const activeTeacherUserIds = new Set(allUsers.filter((u) => u.role === "TEACHER" && !u.deletedAt).map((u) => u.id));
+
+    // 1. Orphaned TeacherProfiles
+    const allTeacherProfiles = await prisma.teacherProfile.findMany({ select: { id: true, userId: true, employeeId: true } });
+    const orphanedTeachers = allTeacherProfiles.filter((tp) => !userIds.has(tp.userId) || !activeTeacherUserIds.has(tp.userId));
+
+    let deletedTeacherCount = 0;
+    for (const otp of orphanedTeachers) {
+      await prisma.teacherPortalAssignment.deleteMany({ where: { teacherId: otp.id } }).catch(() => {});
+      await prisma.teacherAttendanceRecord.deleteMany({ where: { teacherId: otp.id } }).catch(() => {});
+      await prisma.medicalExemption.deleteMany({ where: { teacherId: otp.id } }).catch(() => {});
+      await prisma.pointLog.deleteMany({ where: { teacherId: otp.id } }).catch(() => {});
+      await prisma.attendanceAuditLog.deleteMany({ where: { teacherId: otp.id } }).catch(() => {});
+      await prisma.teacherProfile.delete({ where: { id: otp.id } }).catch(() => {});
+      deletedTeacherCount++;
+    }
+
+    // 2. Ghost users with deletedAt
+    const softDeletedUsers = allUsers.filter((u) => u.deletedAt !== null);
+    let deletedUserCount = 0;
+    for (const sdu of softDeletedUsers) {
+      await completelyDeleteUser(sdu.id).catch(() => {});
+      deletedUserCount++;
+    }
+
+    // Invalidate all caches
+    cache.invalidateTag("user");
+    cache.invalidateTag("teacherprofile");
+    cache.invalidateTag("studentprofile");
+    cache.invalidateTag("dashboard");
+    cache.invalidateTag("stats");
+
+    return res.json({
+      success: true,
+      message: `Cleaned up ${deletedTeacherCount} orphaned faculty profile(s) and purged ${deletedUserCount} soft-deleted user(s).`,
+      data: {
+        purgedTeachers: deletedTeacherCount,
+        purgedUsers: deletedUserCount,
+      },
+    });
+  } catch (error: any) {
+    console.error("Cleanup orphaned users error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to cleanup orphaned profiles" });
   }
 });
 

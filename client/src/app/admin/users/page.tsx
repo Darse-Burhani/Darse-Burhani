@@ -48,7 +48,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
-import { getInitials } from "@/lib/utils";
+import { getInitials, cn } from "@/lib/utils";
 
 export default function AdminUsersPage() {
   const pathname = usePathname();
@@ -442,16 +442,45 @@ export default function AdminUsersPage() {
     }
   };
 
+  const [cleaningOrphaned, setCleaningOrphaned] = useState(false);
+
   const handleDeleteProfile = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this profile? This will immediately terminate all active sessions and archive access.")) return;
-    const res = await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      toast({ title: "Action failed", description: data.error || "Failed to delete profile", variant: "destructive" });
-      return;
+    if (!confirm("Are you sure you want to delete this profile? This will immediately terminate all active sessions and purge records.")) return;
+    try {
+      const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast({ title: "Action failed", description: data.error || "Failed to delete profile", variant: "destructive" });
+        return;
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== id && u.teacherProfile?.id !== id && u.studentProfile?.id !== id && u.parentProfile?.id !== id));
+      toast({ title: "Profile Deleted", description: "The profile has been removed from active directory.", variant: "default" });
+      await loadAllUsers();
+    } catch (err: any) {
+      toast({ title: "Delete Error", description: err?.message || "Failed to delete profile", variant: "destructive" });
     }
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    toast({ title: "Profile Deleted", description: "The profile has been removed from active directory.", variant: "default" });
+  };
+
+  const handleCleanupOrphaned = async () => {
+    setCleaningOrphaned(true);
+    try {
+      const res = await fetch("/api/admin/users/cleanup-orphaned", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: "Directory Cleaned & Counts Synced",
+          description: data.message || "Orphaned faculty and ghost profiles removed.",
+          variant: "success",
+        });
+        await loadAllUsers();
+      } else {
+        toast({ title: "Directory Notice", description: data.error || "No ghost profiles found", variant: "default" });
+      }
+    } catch (err: any) {
+      toast({ title: "Cleanup Error", description: err?.message || "Failed to clean directory", variant: "destructive" });
+    } finally {
+      setCleaningOrphaned(false);
+    }
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -543,6 +572,16 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                onClick={handleCleanupOrphaned}
+                disabled={cleaningOrphaned}
+                className="bg-white/10 hover:bg-white/20 text-white border-white/25 font-semibold px-4 py-2.5 rounded-xl transition-all text-xs flex items-center gap-1.5 backdrop-blur-sm"
+                title="Remove unlinked or ghost faculty and refresh current count"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5 text-emerald-300", cleaningOrphaned && "animate-spin")} />
+                {cleaningOrphaned ? "Syncing..." : "Sync Directory Counts"}
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleClearAllAvatars}

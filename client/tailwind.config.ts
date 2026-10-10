@@ -8,18 +8,19 @@ const config: Config = {
         // Brand scale — emerald-based so every `darse-burhani-*` utility
         // renders on-theme (deep emerald + champagne gold). Canonical shell
         // is PortalShell; NavigationBar reuses these same tokens.
+        // Brand scale — vibrant emerald-based palette with radiant jewel undertones
         "darse-burhani": {
           50: "#ecfdf5",
           100: "#d1fae5",
           200: "#a7f3d0",
           300: "#6ee7b7",
           400: "#34d399",
-          500: "#059669",
-          600: "#047857",
-          700: "#065f46",
-          800: "#064e3b",
-          900: "#022c22",
-          950: "#01140f",
+          500: "#10b981", // Bright vibrant emerald
+          600: "#059669",
+          700: "#047857",
+          800: "#065f46",
+          900: "#064e3b",
+          950: "#022c22",
         },
         admin: {
           primary: "#6366f1",
@@ -27,6 +28,7 @@ const config: Config = {
           accent: "#a5b4fc",
           light: "#eef2ff",
           dark: "#4338ca",
+          vibrant: "#4f46e5",
         },
         teacher: {
           primary: "#f59e0b",
@@ -34,6 +36,7 @@ const config: Config = {
           accent: "#fde68a",
           light: "#fffbeb",
           dark: "#d97706",
+          vibrant: "#eab308",
         },
         student: {
           primary: "#10b981",
@@ -41,6 +44,7 @@ const config: Config = {
           accent: "#6ee7b7",
           light: "#ecfdf5",
           dark: "#059669",
+          vibrant: "#00f090",
         },
         parent: {
           primary: "#ec4899",
@@ -48,15 +52,32 @@ const config: Config = {
           accent: "#f9a8d4",
           light: "#fdf2f8",
           dark: "#db2777",
+          vibrant: "#f43f5e",
         },
         fatimi: {
           deep: "#047857",
           "deep-dark": "#064e3b",
           gold: "#d4af37",
+          "gold-bright": "#facc15",
+          "gold-light": "#fef08a",
           "gold-dark": "#b8860b",
           bg: "#f0fdf4",
           border: "#a7f3d0",
-          accent: "#059669",
+          accent: "#10b981",
+          obsidian: "#031b14",
+          emerald: "#059669",
+          luminous: "#34d399",
+        },
+        // Premium luminous jewel tokens
+        luminous: {
+          emerald: "#10b981",
+          gold: "#f59e0b",
+          amber: "#fbbf24",
+          cyan: "#06b6d4",
+          sky: "#0ea5e9",
+          indigo: "#6366f1",
+          rose: "#f43f5e",
+          purple: "#a855f7",
         },
         // ── 60-30-10 DESIGN RULE SYSTEM TOKENS ──
         rule: {
@@ -66,6 +87,8 @@ const config: Config = {
             surface: "#ffffff",
             subtle: "#f1f5f9",
             muted: "#e2e8f0",
+            darkCanvas: "#031b14",
+            darkSurface: "#052e23",
           },
           // 30% Secondary Structure & Content Typography
           text: {
@@ -74,31 +97,36 @@ const config: Config = {
             secondary: "#475569",
             muted: "#64748b",
             inverted: "#ffffff",
+            lightGold: "#fef08a",
           },
           border: {
             DEFAULT: "#e2e8f0",
             strong: "#cbd5e1",
             subtle: "#f1f5f9",
+            gold: "#d4af37",
           },
           // 10% Intentional Accent & Focal Highlight (Important Text & Actions)
           highlight: {
-            DEFAULT: "#059669",
-            hover: "#047857",
+            DEFAULT: "#10b981",
+            bright: "#34d399",
+            hover: "#059669",
             dark: "#064e3b",
             light: "#ecfdf5",
             border: "#a7f3d0",
-            gold: "#d97706",
+            gold: "#f59e0b",
+            "gold-bright": "#facc15",
             "gold-light": "#fef3c7",
             "gold-border": "#fde68a",
-            critical: "#e11d48",
+            critical: "#f43f5e",
             "critical-light": "#ffe4e6",
             "critical-border": "#fecdd3",
           },
         },
         glass: {
-          light: "rgba(255, 255, 255, 0.7)",
-          DEFAULT: "rgba(255, 255, 255, 0.25)",
-          dark: "rgba(255, 255, 255, 0.1)",
+          light: "rgba(255, 255, 255, 0.75)",
+          DEFAULT: "rgba(255, 255, 255, 0.3)",
+          dark: "rgba(2, 44, 34, 0.7)",
+          card: "rgba(255, 255, 255, 0.85)",
         },
       },
       fontFamily: {

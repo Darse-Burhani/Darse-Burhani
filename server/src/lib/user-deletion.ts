@@ -243,6 +243,8 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.class.updateMany({ where: { masoolId: teacherId }, data: { masoolId: null } });
 
       // Clean up classes taught by this teacher
+      await tx.pointLog.deleteMany({ where: { class: { teacherId } } });
+      await tx.takhteetPlan.deleteMany({ where: { class: { teacherId } } });
       await tx.attendanceRecord.deleteMany({ where: { class: { teacherId } } });
       await tx.classEnrollment.deleteMany({ where: { class: { teacherId } } });
       await tx.timetableSlot.deleteMany({ where: { class: { teacherId } } });

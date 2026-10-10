@@ -224,10 +224,7 @@ export default function AdminManualAttendancePage() {
     lastSyncedDate: string | null;
   } | null>(null);
   const [loadingSheetStatus, setLoadingSheetStatus] = useState(false);
-  const [creatingSheet, setCreatingSheet] = useState(false);
   const [syncingSheet, setSyncingSheet] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [customSheetInput, setCustomSheetInput] = useState("");
 
   const loadSheetStatus = useCallback(async () => {
     try {
@@ -247,43 +244,6 @@ export default function AdminManualAttendancePage() {
   useEffect(() => {
     loadSheetStatus();
   }, [loadSheetStatus]);
-
-  const handleCreateNewSheet = async () => {
-    setCreatingSheet(true);
-    try {
-      const res = await fetch("/api/attendance/manual/create-sheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `Darse Burhani — Manual Classroom Register (${new Date().getFullYear()})`,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: "New Google Sheet Created!",
-          description: `Spreadsheet created and linked successfully. ID: ${json.data.spreadsheetId}`,
-          variant: "success",
-        });
-        await loadSheetStatus();
-        await handleSyncSheet();
-      } else {
-        toast({
-          title: "Creation Notice",
-          description: json.error || "Failed to create new Google Sheet",
-          variant: "destructive",
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: "Creation Error",
-        description: err?.message || "Failed to create Google Sheet",
-        variant: "destructive",
-      });
-    } finally {
-      setCreatingSheet(false);
-    }
-  };
 
   const handleSyncSheet = async () => {
     setSyncingSheet(true);
@@ -316,32 +276,6 @@ export default function AdminManualAttendancePage() {
       });
     } finally {
       setSyncingSheet(false);
-    }
-  };
-
-  const handleLinkSheet = async () => {
-    if (!customSheetInput.trim()) return;
-    try {
-      const res = await fetch("/api/attendance/manual/link-sheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spreadsheetId: customSheetInput.trim() }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: "Google Sheet Linked",
-          description: "Manual attendance sheet linked successfully.",
-          variant: "success",
-        });
-        setShowLinkModal(false);
-        setCustomSheetInput("");
-        await loadSheetStatus();
-      } else {
-        toast({ title: "Link Failed", description: json.error || "Failed to link sheet", variant: "destructive" });
-      }
-    } catch (err: any) {
-      toast({ title: "Link Error", description: err?.message || "Failed to link sheet", variant: "destructive" });
     }
   };
 
@@ -756,27 +690,6 @@ export default function AdminManualAttendancePage() {
             >
               <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", syncingSheet && "animate-spin")} />
               {syncingSheet ? "Syncing..." : "Sync to Google Sheet"}
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleCreateNewSheet}
-              disabled={creatingSheet}
-              className="bg-[#d4af37] hover:bg-[#c29d2b] text-slate-950 font-black text-xs h-10 px-4 rounded-xl shadow-md cursor-pointer transition-all"
-            >
-              <FileSpreadsheet className="w-4 h-4 mr-1.5 text-slate-950" />
-              {creatingSheet ? "Creating..." : "Create New Google Sheet"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowLinkModal(true)}
-              className="bg-white/5 border-white/20 text-emerald-100 hover:bg-white/10 text-xs h-10 px-3.5 rounded-xl cursor-pointer"
-            >
-              Link Existing Sheet
             </Button>
           </div>
         </div>
@@ -1562,50 +1475,6 @@ export default function AdminManualAttendancePage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ── Link Existing Google Sheet Modal ── */}
-      {showLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-emerald-500/30 text-white shadow-2xl">
-            <h3 className="text-base font-black text-white flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-[#fde047]" /> Link Manual Attendance Google Sheet
-            </h3>
-            <p className="mt-1.5 text-xs text-gray-300 leading-relaxed">
-              Paste the Google Spreadsheet URL or Spreadsheet ID to use specifically for manual classroom attendance.
-            </p>
-
-            <div className="mt-4 space-y-3">
-              <input
-                type="text"
-                placeholder="https://docs.google.com/spreadsheets/d/... or Sheet ID"
-                value={customSheetInput}
-                onChange={(e) => setCustomSheetInput(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowLinkModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleLinkSheet}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4"
-              >
-                Save &amp; Link Sheet
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -807,6 +807,68 @@ export async function syncAttendanceSheet(date?: string): Promise<{ message: str
   });
 }
 
+export interface MonthlyAttendanceStudentItem {
+  sNo: number;
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  its: string;
+  studentId: string;
+  grade: string;
+  section: string;
+  gradeDisplay: string;
+  present: number;
+  late: number;
+  leave: number;
+  absent: number;
+  total: number;
+  rate: number;
+  tier: string;
+}
+
+export interface MonthlyAttendanceFacultyItem {
+  sNo: number;
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  employeeId: string;
+  its?: string;
+  department: string;
+  khidmatMauze: string;
+  present: number;
+  late: number;
+  absent: number;
+  total: number;
+  rate: number;
+  compliance: string;
+}
+
+export interface MonthlyAttendanceViewResponse {
+  success: boolean;
+  monthKey: string;
+  monthName: string;
+  totalWorkingDays: number;
+  talabatCount: number;
+  facultyCount: number;
+  talabatAvgRate: number;
+  facultyAvgRate: number;
+  overallRate: number;
+  talabat: MonthlyAttendanceStudentItem[];
+  faculty: MonthlyAttendanceFacultyItem[];
+}
+
+export async function getMonthlyAttendanceView(month?: string): Promise<MonthlyAttendanceViewResponse> {
+  const q = month ? `?month=${encodeURIComponent(month)}` : "";
+  return request<MonthlyAttendanceViewResponse>(`/api/admin/attendance-logs/monthly-view${q}`);
+}
+
+export async function syncMonthlyAttendanceSheet(month?: string): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; url: string } }> {
+  return request<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; url: string } }>("/api/admin/attendance-logs/sync-monthly-sheet", {
+    method: "POST",
+    body: JSON.stringify({ month }),
+  });
+}
+
 export async function getStudentAuditTimeline(studentId: string): Promise<StudentAuditHistory> {
   return request<StudentAuditHistory>(`/api/admin/attendance-registry/student/${studentId}`);
 }
@@ -826,4 +888,5 @@ export function getExportAttendanceLogsUrl(params?: {
   if (params?.audience) query.set("audience", params.audience);
   return `/api/admin/attendance-logs/export?${query.toString()}`;
 }
+
 

@@ -1181,12 +1181,338 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
     `(Talabat ${data.talabatCount}, Faculty ${data.facultyCount})`,
   );
 
+  // Also update the Monthly Master Sheet tab so the new month has a proper catchy display table
+  syncMonthlyAttendanceToSheet(data.dateKey.slice(0, 7)).catch((err) => {
+    console.warn("[google-sheet-sync] monthly sheet sync notice:", (err as Error)?.message || err);
+  });
+
   return {
     spreadsheetId,
     tabTitle: tab,
     rowsSynced: data.talabatCount + data.facultyCount,
     url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
     stats: data.stats,
+  };
+}
+
+/**
+ * Builds and syncs a high-end Monthly Attendance Register tab with catchy display tables,
+ * executive KPI summary cards, and bifurcated Talabat & Faculty monthly percentages.
+ */
+export async function syncMonthlyAttendanceToSheet(targetMonth?: string): Promise<{
+  spreadsheetId: string;
+  tabTitle: string;
+  url: string;
+}> {
+  const { sheets, spreadsheetId } = getWriteClient();
+  const now = new Date();
+  const monthKey = targetMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [yearStr, monthStr] = monthKey.split("-");
+  const year = parseInt(yearStr, 10);
+  const monthNum = parseInt(monthStr, 10);
+
+  const monthStartDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+  const monthEndDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59));
+  const monthName = monthStartDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  const tabTitle = `Monthly - ${monthName}`;
+
+  const daySheetId = await ensureTab(sheets, spreadsheetId, tabTitle);
+
+  // Fetch all active Talabat and Faculty with monthly attendance
+  const [students, teachers, studentRecords, teacherRecords] = await Promise.all([
+    prisma.studentProfile.findMany({
+      where: { user: { isActive: true, deletedAt: null } },
+      include: { user: { select: { firstName: true, lastName: true } } },
+      orderBy: [{ grade: "asc" }, { section: "asc" }],
+    }),
+    prisma.teacherProfile.findMany({
+      where: { user: { isActive: true, deletedAt: null } },
+      include: { user: { select: { firstName: true, lastName: true } } },
+      orderBy: { employeeId: "asc" },
+    }),
+    prisma.attendanceRecord.findMany({
+      where: { date: { gte: monthStartDate, lte: monthEndDate } },
+      select: { studentId: true, status: true },
+    }),
+    prisma.teacherAttendanceRecord.findMany({
+      where: { date: { gte: monthStartDate, lte: monthEndDate } },
+      select: { teacherId: true, status: true },
+    }),
+  ]);
+
+  // Aggregate student stats
+  const studentStatsMap = new Map<string, { present: number; late: number; leave: number; absent: number }>();
+  for (const r of studentRecords) {
+    if (!studentStatsMap.has(r.studentId)) {
+      studentStatsMap.set(r.studentId, { present: 0, late: 0, leave: 0, absent: 0 });
+    }
+    const s = studentStatsMap.get(r.studentId)!;
+    if (r.status === "PRESENT") s.present++;
+    else if (r.status === "LATE") s.late++;
+    else if (r.status === "ON_LEAVE" || r.status === "MEDICAL") s.leave++;
+    else if (r.status === "ABSENT") s.absent++;
+  }
+
+  // Aggregate teacher stats
+  const teacherStatsMap = new Map<string, { present: number; late: number; absent: number }>();
+  for (const tr of teacherRecords) {
+    if (!teacherStatsMap.has(tr.teacherId)) {
+      teacherStatsMap.set(tr.teacherId, { present: 0, late: 0, absent: 0 });
+    }
+    const t = teacherStatsMap.get(tr.teacherId)!;
+    if (tr.status === "PRESENT") t.present++;
+    else if (tr.status === "LATE") t.late++;
+    else if (tr.status === "ABSENT") t.absent++;
+  }
+
+  // Build matrix
+  const allValues: string[][] = [];
+
+  // ROW 1: Banner Header
+  allValues.push([`DARSE BURHANI OFFICIAL MONTHLY ATTENDANCE REGISTER — ${monthName.toUpperCase()}`, "", "", "", "", "", "", "", "", "", "", ""]);
+  // ROW 2: Subtitle
+  allValues.push([`Monthly Biometric Scanning & Classroom Roll-Call Matrix • Generated ${new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST`, "", "", "", "", "", "", "", "", "", "", ""]);
+
+  // Calculate overall metrics
+  let totalStudentAttended = 0;
+  let totalStudentExpected = 0;
+  const talabatRows: string[][] = students.map((st) => {
+    const s = studentStatsMap.get(st.id) || { present: 0, late: 0, leave: 0, absent: 0 };
+    const total = s.present + s.late + s.leave + s.absent;
+    const attended = s.present + s.late;
+    totalStudentAttended += attended;
+    totalStudentExpected += total;
+    const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+    const tier = pct >= 90 ? "MUMTAZ 🌟" : pct >= 80 ? "JAYYID JIDDAN" : pct >= 70 ? "JAYYID" : "NEEDS ATTENTION";
+    return [
+      `${st.user.firstName} ${st.user.lastName}`.trim(),
+      st.its || "—",
+      st.studentId,
+      st.grade || "—",
+      st.section || "—",
+      String(s.present),
+      String(s.late),
+      String(s.leave),
+      String(s.absent),
+      String(total),
+      `${pct}%`,
+      tier,
+    ];
+  });
+
+  let totalTeacherAttended = 0;
+  let totalTeacherExpected = 0;
+  const facultyRows: string[][] = teachers.map((tc) => {
+    const t = teacherStatsMap.get(tc.id) || { present: 0, late: 0, absent: 0 };
+    const total = t.present + t.late + t.absent;
+    const attended = t.present + t.late;
+    totalTeacherAttended += attended;
+    totalTeacherExpected += total;
+    const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+    const compliance = pct >= 85 ? "EXCELLENT" : pct >= 75 ? "GOOD" : "ATTENTION";
+    return [
+      `${tc.user.firstName} ${tc.user.lastName}`.trim(),
+      tc.employeeId || tc.its || "—",
+      tc.department || "Attalimiyah",
+      tc.khidmatMauze || "PAKHTI",
+      String(t.present),
+      String(t.late),
+      String(t.absent),
+      String(total),
+      `${pct}%`,
+      compliance,
+      "",
+      "",
+    ];
+  });
+
+  const talabatTurnout = totalStudentExpected > 0 ? Math.round((totalStudentAttended / totalStudentExpected) * 100) : 0;
+  const facultyTurnout = totalTeacherExpected > 0 ? Math.round((totalTeacherAttended / totalTeacherExpected) * 100) : 0;
+
+  // ROW 3: KPI Header Titles
+  allValues.push([
+    "TALABAT MONTHLY TURNOUT", "", "", "",
+    "FACULTY MONTHLY TURNOUT", "", "", "",
+    "INSTITUTIONAL PERFORMANCE", "", "", "",
+  ]);
+
+  // ROW 4: KPI Values
+  allValues.push([
+    `Students: ${students.length}  |  Monthly Rate: ${talabatTurnout}%`, "", "", "",
+    `Faculty: ${teachers.length}  |  Monthly Rate: ${facultyTurnout}%`, "", "", "",
+    `Month: ${monthName}  |  Turnout Status: ${talabatTurnout >= 80 ? "EXCELLENT" : "OPERATIONAL"}`, "", "", "",
+  ]);
+
+  // ROW 5: Spacer
+  allValues.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+
+  // ROW 6: Talabat Section Header
+  const talabatSectionRowIndex = allValues.length;
+  allValues.push([`🎓 TALABAT (STUDENTS) MONTHLY ATTENDANCE REGISTER — ${students.length} Students (${talabatTurnout}% Monthly Turnout)`, "", "", "", "", "", "", "", "", "", "", ""]);
+
+  // ROW 7: Talabat Columns Header
+  const talabatHeaderRowIndex = allValues.length;
+  allValues.push([
+    "Full Name",
+    "ITS Number",
+    "Student ID",
+    "Grade",
+    "Section",
+    "Present Days",
+    "Late Days",
+    "Leave / Medical",
+    "Absent Days",
+    "Total Sessions",
+    "Monthly Rate %",
+    "Performance Tier",
+  ]);
+
+  allValues.push(...talabatRows);
+
+  // Spacer
+  allValues.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+
+  // Faculty Section Header
+  const facultySectionRowIndex = allValues.length;
+  allValues.push([`👨‍🏫 FACULTY (TEACHERS & STAFF) MONTHLY ATTENDANCE REGISTER — ${teachers.length} Members (${facultyTurnout}% Monthly Turnout)`, "", "", "", "", "", "", "", "", "", "", ""]);
+
+  // Faculty Columns Header
+  const facultyHeaderRowIndex = allValues.length;
+  allValues.push([
+    "Full Name",
+    "Employee / ITS",
+    "Department",
+    "Khidmat Mauze",
+    "Present Days",
+    "Late Days",
+    "Absent Days",
+    "Total Sessions",
+    "Monthly Rate %",
+    "Compliance Status",
+    "",
+    "",
+  ]);
+
+  allValues.push(...facultyRows);
+
+  // Write values
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `'${tabTitle}'!A1:L${Math.max(allValues.length + 50, 400)}`,
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tabTitle}'!A1:L${allValues.length}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: allValues },
+  });
+
+  // Apply Rich Emerald & Gold Google Sheets Formatting
+  if (daySheetId !== undefined) {
+    try {
+      const requests: Array<Record<string, unknown>> = [
+        // Freeze Top 7 Rows
+        {
+          updateSheetProperties: {
+            properties: { sheetId: daySheetId, gridProperties: { frozenRowCount: 7 } },
+            fields: "gridProperties.frozenRowCount",
+          },
+        },
+        // Auto column widths
+        ...[180, 110, 110, 75, 75, 95, 95, 110, 95, 110, 115, 150].map((pixelSize, idx) => ({
+          updateDimensionProperties: {
+            range: { sheetId: daySheetId, dimension: "COLUMNS", startIndex: idx, endIndex: idx + 1 },
+            properties: { pixelSize },
+            fields: "pixelSize",
+          },
+        })),
+        // Merge Title
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 4 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 8 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 8, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 4 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 8 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 8, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: talabatSectionRowIndex, endRowIndex: talabatSectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId: daySheetId, startRowIndex: facultySectionRowIndex, endRowIndex: facultySectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        // Banner Style
+        {
+          repeatCell: {
+            range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.015, green: 0.184, blue: 0.141 },
+                textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 13 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // Talabat Section Style
+        {
+          repeatCell: {
+            range: { sheetId: daySheetId, startRowIndex: talabatSectionRowIndex, endRowIndex: talabatSectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.024, green: 0.306, blue: 0.231 },
+                textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 11 },
+                horizontalAlignment: "LEFT",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // Talabat Columns Header Style
+        {
+          repeatCell: {
+            range: { sheetId: daySheetId, startRowIndex: talabatHeaderRowIndex, endRowIndex: talabatHeaderRowIndex + 1, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 },
+                textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10 },
+                verticalAlignment: "MIDDLE",
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)",
+          },
+        },
+        // Faculty Section Style
+        {
+          repeatCell: {
+            range: { sheetId: daySheetId, startRowIndex: facultySectionRowIndex, endRowIndex: facultySectionRowIndex + 1, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.118, green: 0.106, blue: 0.294 },
+                textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 11 },
+                horizontalAlignment: "LEFT",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+      ];
+
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests },
+      });
+    } catch (styleErr) {
+      console.warn("[google-sheet-sync] monthly formatting notice:", (styleErr as Error)?.message || styleErr);
+    }
+  }
+
+  return {
+    spreadsheetId,
+    tabTitle,
+    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
   };
 }
 

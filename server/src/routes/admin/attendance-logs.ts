@@ -7,6 +7,7 @@ import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } f
 import {
   sheetSyncStatus,
   syncDailyAttendanceToSheet,
+  syncMonthlyAttendanceToSheet,
   testSheetConnection,
   saveSheetConfiguration,
   queueAutoSheetSync,
@@ -839,6 +840,161 @@ router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("[attendance-logs] sync-sheet error:", error);
     return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-monthly-sheet — Push monthly summary register to Google Sheet
+router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const rawMonth = typeof req.body?.month === "string" ? req.body.month.trim() : undefined;
+    const result = await syncMonthlyAttendanceToSheet(rawMonth);
+    return res.json({ success: true, message: `Synced monthly register to tab '${result.tabTitle}'`, data: result });
+  } catch (error) {
+    console.error("[attendance-logs] sync-monthly-sheet error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync monthly Google Sheet" });
+  }
+});
+
+// GET /api/admin/attendance-logs/monthly-view — Catchy display table for monthly attendance register
+router.get("/monthly-view", requireAuth, async (req, res) => {
+  try {
+    const rawMonth = typeof req.query?.month === "string" ? req.query.month.trim() : "";
+    const now = new Date();
+    const monthKey = rawMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const [yearStr, monthStr] = monthKey.split("-");
+    const year = parseInt(yearStr, 10);
+    const monthNum = parseInt(monthStr, 10);
+
+    const monthStartDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+    const monthEndDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59));
+    const monthName = monthStartDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+
+    const [students, teachers, studentRecords, studentRegistries, teacherRecords] = await Promise.all([
+      prisma.studentProfile.findMany({
+        where: { user: { isActive: true, deletedAt: null } },
+        include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+        orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+      }),
+      prisma.teacherProfile.findMany({
+        where: { user: { isActive: true, deletedAt: null } },
+        include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+        orderBy: [{ department: "asc" }, { employeeId: "asc" }],
+      }),
+      prisma.attendanceRecord.findMany({
+        where: { date: { gte: monthStartDate, lte: monthEndDate } },
+        select: { studentId: true, status: true, date: true },
+      }),
+      prisma.attendanceRegistry.findMany({
+        where: { date: { gte: monthStartDate, lte: monthEndDate } },
+        select: { studentId: true, status: true, date: true },
+      }),
+      prisma.teacherAttendanceRecord.findMany({
+        where: { date: { gte: monthStartDate, lte: monthEndDate } },
+        select: { teacherId: true, status: true, date: true },
+      }),
+    ]);
+
+    const daySet = new Set<string>();
+    studentRecords.forEach((r) => daySet.add(r.date.toISOString().slice(0, 10)));
+    studentRegistries.forEach((r) => daySet.add(r.date.toISOString().slice(0, 10)));
+    teacherRecords.forEach((r) => daySet.add(r.date.toISOString().slice(0, 10)));
+    const totalWorkingDays = Math.max(daySet.size, 1);
+
+    const studentStatsMap = new Map<string, { present: number; late: number; leave: number; absent: number }>();
+    for (const r of studentRecords) {
+      if (!studentStatsMap.has(r.studentId)) {
+        studentStatsMap.set(r.studentId, { present: 0, late: 0, leave: 0, absent: 0 });
+      }
+      const s = studentStatsMap.get(r.studentId)!;
+      if (r.status === "PRESENT") s.present++;
+      else if (r.status === "LATE") s.late++;
+      else if (r.status === "ON_LEAVE" || r.status === "MEDICAL") s.leave++;
+      else if (r.status === "ABSENT") s.absent++;
+    }
+
+    const talabatList = students.map((st, idx) => {
+      const s = studentStatsMap.get(st.id) || { present: 0, late: 0, leave: 0, absent: 0 };
+      const attended = s.present + s.late;
+      const totalSessions = s.present + s.late + s.leave + s.absent;
+      const effectiveTotal = Math.max(totalSessions, totalWorkingDays);
+      const rate = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : 0;
+      const tier = rate >= 90 ? "MUMTAZ 🌟" : rate >= 80 ? "JAYYID JIDDAN" : rate >= 70 ? "JAYYID" : "MAQBOOL";
+      return {
+        sNo: idx + 1,
+        id: st.id,
+        name: `${st.user.firstName} ${st.user.lastName}`.trim(),
+        avatarUrl: st.user.avatarUrl,
+        its: st.its || st.studentId,
+        studentId: st.studentId,
+        grade: st.grade,
+        section: st.section,
+        gradeDisplay: st.section ? `Grade ${st.grade}-${st.section}` : `Grade ${st.grade || "--"}`,
+        present: s.present,
+        late: s.late,
+        leave: s.leave,
+        absent: s.absent,
+        total: effectiveTotal,
+        rate,
+        tier,
+      };
+    });
+
+    const teacherStatsMap = new Map<string, { present: number; late: number; absent: number }>();
+    for (const tr of teacherRecords) {
+      if (!teacherStatsMap.has(tr.teacherId)) {
+        teacherStatsMap.set(tr.teacherId, { present: 0, late: 0, absent: 0 });
+      }
+      const t = teacherStatsMap.get(tr.teacherId)!;
+      if (tr.status === "PRESENT") t.present++;
+      else if (tr.status === "LATE") t.late++;
+      else if (tr.status === "ABSENT") t.absent++;
+    }
+
+    const facultyList = teachers.map((tc, idx) => {
+      const t = teacherStatsMap.get(tc.id) || { present: 0, late: 0, absent: 0 };
+      const attended = t.present + t.late;
+      const totalSessions = t.present + t.late + t.absent;
+      const effectiveTotal = Math.max(totalSessions, totalWorkingDays);
+      const rate = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : 0;
+      const compliance = rate >= 85 ? "EXCELLENT" : rate >= 75 ? "GOOD" : "ATTENTION";
+      return {
+        sNo: idx + 1,
+        id: tc.id,
+        name: `${tc.user.firstName} ${tc.user.lastName}`.trim(),
+        avatarUrl: tc.user.avatarUrl,
+        employeeId: tc.employeeId || tc.its || "—",
+        its: tc.its,
+        department: tc.department || "Faculty",
+        khidmatMauze: tc.khidmatMauze || "PAKHTI",
+        present: t.present,
+        late: t.late,
+        absent: t.absent,
+        total: effectiveTotal,
+        rate,
+        compliance,
+      };
+    });
+
+    const talabatAvgRate = talabatList.length > 0 ? Math.round(talabatList.reduce((acc, c) => acc + c.rate, 0) / talabatList.length) : 0;
+    const facultyAvgRate = facultyList.length > 0 ? Math.round(facultyList.reduce((acc, c) => acc + c.rate, 0) / facultyList.length) : 0;
+    const overallRate = Math.round((talabatAvgRate + facultyAvgRate) / 2);
+
+    return res.json({
+      success: true,
+      monthKey,
+      monthName,
+      totalWorkingDays,
+      talabatCount: talabatList.length,
+      facultyCount: facultyList.length,
+      talabatAvgRate,
+      facultyAvgRate,
+      overallRate,
+      talabat: talabatList,
+      faculty: facultyList,
+    });
+  } catch (error) {
+    console.error("[attendance-logs] monthly-view error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to load monthly attendance view" });
   }
 });
 

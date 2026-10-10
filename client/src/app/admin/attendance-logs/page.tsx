@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   Zap,
   UserCheck,
+  FileSpreadsheet,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -33,6 +34,7 @@ import {
   ScheduledEventWindow,
 } from "@/lib/api";
 import { DailyStackedLogView } from "@/components/registry/DailyStackedLogView";
+import { MonthlySheetView } from "@/components/registry/MonthlySheetView";
 import { DayDetailDrawer } from "@/components/registry/DayDetailDrawer";
 import { ManualAttendanceModal } from "@/components/attendance/ManualAttendanceModal";
 import { toast } from "@/components/ui/toast";
@@ -173,6 +175,7 @@ export default function AdminAttendanceLogsPage() {
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [audience, setAudience] = useState<"STUDENT" | "FACULTY" | "ALL">("ALL");
   const [logType, setLogType] = useState<"HIKVISION" | "MANUAL" | "ALL">(isFaculty ? "MANUAL" : "ALL");
+  const [mainViewMode, setMainViewMode] = useState<"DAILY" | "MONTHLY_SHEET">("DAILY");
 
   useEffect(() => {
     if (isFaculty) {
@@ -451,8 +454,57 @@ export default function AdminAttendanceLogsPage() {
         />
       )}
 
-      {/* ── Premium Streamlined Header ── */}
-      <div className="relative overflow-hidden rounded-[20px] border border-emerald-100 bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 p-5 sm:p-6 shadow-lg">
+      {/* ── Main View Switcher: Daily Attendance vs Monthly Sheets Register ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-2 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMainViewMode("DAILY")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              mainViewMode === "DAILY"
+                ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md ring-2 ring-emerald-500/40"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`}
+          >
+            <Layers className="w-4 h-4 text-emerald-300" />
+            <span>Daily Live Attendance</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMainViewMode("MONTHLY_SHEET")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              mainViewMode === "MONTHLY_SHEET"
+                ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-slate-950 shadow-md ring-2 ring-amber-400/50"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-950" />
+            <span>Monthly Sheets Register</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-black ${
+                mainViewMode === "MONTHLY_SHEET"
+                  ? "bg-slate-950 text-amber-300"
+                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
+              }`}
+            >
+              New Month &bull; Grid
+            </span>
+          </button>
+        </div>
+
+        <div className="hidden md:flex items-center gap-2 pr-3 text-[11px] font-bold text-slate-400">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>Biometric Gateway &bull; Auto Monthly Google Sheets Sync</span>
+        </div>
+      </div>
+
+      {mainViewMode === "MONTHLY_SHEET" ? (
+        <MonthlySheetView initialMonth={archiveMonth} />
+      ) : (
+        <>
+          {/* ── Premium Streamlined Header ── */}
+          <div className="relative overflow-hidden rounded-[20px] border border-emerald-100 bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 p-5 sm:p-6 shadow-lg">
         <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "22px 22px" }} />
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-1.5 min-w-0">
@@ -797,6 +849,8 @@ export default function AdminAttendanceLogsPage() {
           logType={logType}
         />
       ) : null}
+      </>
+      )}
 
       <DayDetailDrawer
         studentId={activeStudentId}
