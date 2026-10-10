@@ -2,7 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { completelyDeleteUser } from "../../lib/user-deletion";
-import { apiCacheMiddleware } from "../../lib/cache";
+import { apiCacheMiddleware, cache } from "../../lib/cache";
 import bcrypt from "bcryptjs";
 const { hash } = bcrypt;
 
@@ -318,6 +318,9 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       // Non-critical notification failure
     }
 
+    cache.invalidateTag("user");
+    cache.invalidateTag("dashboard");
+
     return res.status(201).json({ success: true, data: { id: user.id, email: user.email } });
   } catch (error: any) {
     console.error("User create error:", error);
@@ -405,6 +408,9 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
       }
     }
 
+    cache.invalidateTag("user");
+    cache.invalidateTag("dashboard");
+
     return res.json({ success: true, data: user });
   } catch (error) {
     console.error("User update error:", error);
@@ -426,6 +432,7 @@ router.post("/clear-avatars", requireRole("ADMIN"), async (req, res) => {
         where: { userId },
         data: { photoUrl: null },
       });
+      cache.invalidateTag("user");
       return res.json({ success: true, message: "User profile image cleared successfully" });
     }
 
@@ -443,6 +450,10 @@ router.post("/clear-avatars", requireRole("ADMIN"), async (req, res) => {
         data: { photoUrl: null },
       }),
     ]);
+
+    cache.invalidateTag("user");
+    cache.invalidateTag("teacherprofile");
+    cache.invalidateTag("studentprofile");
 
     return res.json({
       success: true,
@@ -463,6 +474,8 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
     }
 
     const result = await completelyDeleteUser(id);
+    cache.invalidateTag("user");
+    cache.invalidateTag("dashboard");
     return res.json({
       success: true,
       message: "User profile completely purged from database and biometric terminals.",
@@ -482,6 +495,8 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
     }
 
     const result = await completelyDeleteUser(id);
+    cache.invalidateTag("user");
+    cache.invalidateTag("dashboard");
     return res.json({
       success: true,
       message: "User profile completely purged from database and biometric terminals.",

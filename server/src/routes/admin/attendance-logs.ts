@@ -19,20 +19,10 @@ const router = Router();
 // Match check-in timestamp to scheduled scan event strictly for the member's specific role
 function matchScheduledEvent(
   checkInTime: Date | string | null | undefined,
-  windows: Array<{
-    id: string;
-    name: string;
-    startTime: string;
-    endTime: string;
-    lateEndTime?: string | null;
-    enabled: boolean;
-    facultyStartTime?: string | null;
-    facultyEndTime?: string | null;
-    facultyLateEndTime?: string | null;
-    facultyEnabled?: boolean;
-  }>,
-  isFaculty: boolean
-): { id: string; name: string; timeWindow: string; audience: string } | null {
+  windows: Array<any>,
+  isFaculty: boolean,
+  isManualScan: boolean = false
+): { id: string; name: string; timeWindow: string; audience: string; windowType: string } | null {
   if (!checkInTime) return null;
   const d = new Date(checkInTime);
   if (Number.isNaN(d.getTime())) return null;
@@ -40,13 +30,15 @@ function matchScheduledEvent(
   // Convert to IST minutes
   const istMinutes = (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
 
-  // Strictly evaluate genuine biometric scan windows for THIS member's role only
+  // Evaluate scheduled windows for THIS member's role
   const inWindow = windows.filter((w) => {
     if (!w.enabled) return false;
     const ww = w as any;
-    // Exclude manual register windows
-    if (ww.id?.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name)) {
-      return false;
+    const isManualWin = ww.id?.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name);
+    if (isManualScan) {
+      if (!isManualWin) return false;
+    } else {
+      if (isManualWin) return false;
     }
     // Students must NEVER match faculty-only windows
     if (!isFaculty && isLegacyFacultyRow(ww)) {
@@ -61,13 +53,21 @@ function matchScheduledEvent(
     return istMinutes >= range.startMin && istMinutes <= range.lateMin;
   });
 
-  if (inWindow.length === 0) {
+  const targetList = inWindow.length > 0 ? inWindow : windows.filter((w) => {
+    if (!w.enabled) return false;
+    const range = eventRangeForRole(w, isFaculty ? "TEACHER" : "STUDENT");
+    if (!range || !range.enabled) return false;
+    return istMinutes >= range.startMin && istMinutes <= range.lateMin;
+  });
+
+  if (targetList.length === 0) {
     return null;
   }
 
-  const matched = inWindow[0];
+  const matched = targetList[0];
   const ww = matched as any;
   const isTilawat = /tilawat/i.test(matched.name);
+  const isManualWin = ww.id?.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(matched.name);
   const eventAudience = isTilawat
     ? "BOTH"
     : isLegacyFacultyRow(ww)
@@ -79,6 +79,7 @@ function matchScheduledEvent(
   return {
     id: matched.id,
     name: matched.name,
+    windowType: isManualWin ? "MANUAL" : "HIKVISION",
     timeWindow:
       isFaculty && ww.facultyStartTime
         ? `${ww.facultyStartTime} - ${ww.facultyLateEndTime || ww.facultyEndTime}`
@@ -87,19 +88,10 @@ function matchScheduledEvent(
   };
 }
 
-// GET /api/admin/attendance-logs/events — Get available scheduled biometric scan windows for toggling
+// GET /api/admin/attendance-logs/events — Get available scheduled scan & manual windows for toggling
 router.get("/events", requireAuth, async (req, res) => {
   try {
     const windows = await prisma.biometricScanWindow.findMany({
-      where: {
-        NOT: {
-          OR: [
-            { id: { startsWith: "manual_" } },
-            { exemptStudentIds: { has: "TYPE_MANUAL" } },
-            { name: { contains: "[manual]", mode: "insensitive" } },
-          ],
-        },
-      },
       orderBy: { startTime: "asc" },
     });
 
@@ -108,6 +100,7 @@ router.get("/events", requireAuth, async (req, res) => {
 
     const events = windows.map((w) => {
       const ww = w as any;
+      const isManual = w.id.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name);
       const isTilawatDua = /tilawat/i.test(w.name);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
@@ -143,6 +136,7 @@ router.get("/events", requireAuth, async (req, res) => {
       return {
         id: w.id,
         name: w.name,
+        windowType: isManual ? "MANUAL" : "HIKVISION",
         startTime: w.startTime,
         endTime: w.endTime,
         lateEndTime: (w as any).lateEndTime || w.endTime,
@@ -173,24 +167,15 @@ router.get("/", requireAuth, async (req, res) => {
     const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    let { grade, section, status, source, search, eventWindowId, audience = "STUDENT", logType = "ALL" } = req.query as Record<string, string>;
+    let { grade, section, status, source, search, eventWindowId, audience = "ALL", logType = "ALL" } = req.query as Record<string, string>;
 
     // If teacher/faculty is accessing the portal, enforce MANUAL attendance log only
     if (isTeacher) {
       logType = "MANUAL";
     }
 
-    // Fetch scheduled windows for biometric event matching (excluding manual schedule windows)
+    // Fetch scheduled windows for biometric and manual event matching
     const windows = await prisma.biometricScanWindow.findMany({
-      where: {
-        NOT: {
-          OR: [
-            { id: { startsWith: "manual_" } },
-            { exemptStudentIds: { has: "TYPE_MANUAL" } },
-            { name: { contains: "[manual]", mode: "insensitive" } },
-          ],
-        },
-      },
       orderBy: { startTime: "asc" },
     });
 
@@ -206,20 +191,17 @@ router.get("/", requireAuth, async (req, res) => {
     const isStudentOnlyWindow = Boolean(
       selectedWindow && !isFacultyOnlyWindow && !isTilawatFilter && !hasFacultyTimer(selectedWindow as any)
     );
-    const isBothWindow = Boolean(
-      selectedWindow && (isTilawatFilter || (!isFacultyOnlyWindow && hasFacultyTimer(selectedWindow as any)))
-    );
 
-    // Strict effective audience resolution
-    let effectiveAudience = audience;
-    if (isFacultyOnlyWindow) {
+    // Effective audience resolution: Default to ALL unless explicitly filtered
+    let effectiveAudience = audience || "ALL";
+    if (audience !== "ALL" && isFacultyOnlyWindow) {
       effectiveAudience = "FACULTY";
-    } else if (isStudentOnlyWindow) {
+    } else if (audience !== "ALL" && isStudentOnlyWindow) {
       effectiveAudience = "STUDENT";
     }
 
-    const shouldFetchStudents = !isFacultyOnlyWindow && (effectiveAudience === "STUDENT" || effectiveAudience === "ALL");
-    const shouldFetchFaculty = isFacultyOnlyWindow || effectiveAudience === "FACULTY" || effectiveAudience === "ALL";
+    const shouldFetchStudents = effectiveAudience === "STUDENT" || effectiveAudience === "ALL";
+    const shouldFetchFaculty = effectiveAudience === "FACULTY" || effectiveAudience === "ALL";
 
     // 1. Fetch Students (unless window is Faculty-only)
     const studentWhere: any = {
@@ -447,34 +429,46 @@ router.get("/", requireAuth, async (req, res) => {
       ? studentRecords
       : [...studentRecords, ...facultyRecords];
 
-    // Strict Segregation: Scanned Card Logs (Hikvision) vs Manual Classroom Logs
+    // Hikvision vs Manual segregation with full roster visibility
     const isHikScan = (r: (typeof allRecords)[0]) => (r.source === "SCAN" || r.source === "BIOMETRIC") && Boolean(r.checkInTime);
     const isManualEntry = (r: (typeof allRecords)[0]) => r.source !== "SCAN" && r.source !== "BIOMETRIC";
 
-    const hikvisionRecords = allRecords.filter(isHikScan);
-    const manualRecords = allRecords.filter(isManualEntry);
+    const hikvisionPunched = allRecords.filter(isHikScan);
+    const manualMarked = allRecords.filter(isManualEntry);
+    const hikvisionRecords = hikvisionPunched;
+    const manualRecords = manualMarked;
 
     let filteredRecords = allRecords;
 
-    // Apply strict logType partition
+    // In HIKVISION mode, ensure all applicable members for biometric scanning are shown
     if (logType === "HIKVISION") {
-      filteredRecords = hikvisionRecords;
+      filteredRecords = allRecords.map((r) => {
+        // If they haven't scanned on hardware, keep them visible with NOT_MARKED status
+        if (r.source !== "SCAN" && r.source !== "BIOMETRIC") {
+          return {
+            ...r,
+            verificationMethod: "BIOMETRIC",
+            source: r.status === "NOT_MARKED" ? "BIOMETRIC" : r.source,
+          };
+        }
+        return r;
+      });
     } else if (logType === "MANUAL") {
-      filteredRecords = manualRecords;
+      // In MANUAL mode, ensure all applicable members for manual registers are shown
+      filteredRecords = allRecords;
     }
 
-    // 3. Filter by Event Window if specified (Strictly applied to Hikvision hardware scans or Combined view)
-    if (logType !== "MANUAL" && eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
-      if (logType === "HIKVISION") {
-        filteredRecords = filteredRecords.filter((r) => r.scheduledEvent?.id === eventWindowId);
-      } else {
-        filteredRecords = filteredRecords.filter((r) => {
-          if (r.scheduledEvent?.id === eventWindowId) return true;
-          if (isFacultyOnlyWindow) return r.role === "FACULTY";
-          if (isStudentOnlyWindow) return r.role === "STUDENT";
-          return true;
-        });
-      }
+    // 3. Filter by Event Window if specified
+    if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
+      filteredRecords = filteredRecords.filter((r) => {
+        // If matched directly to this scheduled window
+        if (r.scheduledEvent?.id === eventWindowId) return true;
+        // If full roster is being viewed for an event window, include applicable members
+        if (isFacultyOnlyWindow) return r.role === "FACULTY";
+        if (isStudentOnlyWindow) return r.role === "STUDENT";
+        // For Tilawat / Both windows, include all active students & faculty
+        return true;
+      });
     }
 
     // Filter by Status

@@ -211,6 +211,140 @@ export default function AdminManualAttendancePage() {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Dedicated Google Sheet for Manual Attendance State
+  const [sheetStatus, setSheetStatus] = useState<{
+    configured: boolean;
+    isDedicated: boolean;
+    spreadsheetId: string | null;
+    maskedSpreadsheetId: string | null;
+    serviceAccountEmail: string | null;
+    fullServiceAccountEmail: string | null;
+    url: string | null;
+    lastSyncedAt: string | null;
+    lastSyncedDate: string | null;
+  } | null>(null);
+  const [loadingSheetStatus, setLoadingSheetStatus] = useState(false);
+  const [creatingSheet, setCreatingSheet] = useState(false);
+  const [syncingSheet, setSyncingSheet] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [customSheetInput, setCustomSheetInput] = useState("");
+
+  const loadSheetStatus = useCallback(async () => {
+    try {
+      setLoadingSheetStatus(true);
+      const res = await fetch("/api/attendance/manual/sheet-status");
+      const json = await res.json();
+      if (json.success) {
+        setSheetStatus(json.data);
+      }
+    } catch (e) {
+      console.warn("Failed to fetch manual sheet status:", e);
+    } finally {
+      setLoadingSheetStatus(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSheetStatus();
+  }, [loadSheetStatus]);
+
+  const handleCreateNewSheet = async () => {
+    setCreatingSheet(true);
+    try {
+      const res = await fetch("/api/attendance/manual/create-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Darse Burhani — Manual Classroom Register (${new Date().getFullYear()})`,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "New Google Sheet Created!",
+          description: `Spreadsheet created and linked successfully. ID: ${json.data.spreadsheetId}`,
+          variant: "success",
+        });
+        await loadSheetStatus();
+        await handleSyncSheet();
+      } else {
+        toast({
+          title: "Creation Notice",
+          description: json.error || "Failed to create new Google Sheet",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Creation Error",
+        description: err?.message || "Failed to create Google Sheet",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingSheet(false);
+    }
+  };
+
+  const handleSyncSheet = async () => {
+    setSyncingSheet(true);
+    try {
+      const res = await fetch("/api/attendance/manual/sync-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "Manual Attendance Synced to Google Sheet",
+          description: json.message || "Roll-call records pushed to Google Sheet.",
+          variant: "success",
+        });
+        await loadSheetStatus();
+      } else {
+        toast({
+          title: "Sheet Sync Notice",
+          description: json.error || "Failed to push to Google Sheet",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Sync Error",
+        description: err?.message || "Failed to sync to Google Sheet",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingSheet(false);
+    }
+  };
+
+  const handleLinkSheet = async () => {
+    if (!customSheetInput.trim()) return;
+    try {
+      const res = await fetch("/api/attendance/manual/link-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spreadsheetId: customSheetInput.trim() }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "Google Sheet Linked",
+          description: "Manual attendance sheet linked successfully.",
+          variant: "success",
+        });
+        setShowLinkModal(false);
+        setCustomSheetInput("");
+        await loadSheetStatus();
+      } else {
+        toast({ title: "Link Failed", description: json.error || "Failed to link sheet", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Link Error", description: err?.message || "Failed to link sheet", variant: "destructive" });
+    }
+  };
+
   // Load Schedules & Metadata
   const loadMetadata = useCallback(async () => {
     try {
@@ -557,6 +691,96 @@ export default function AdminManualAttendancePage() {
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
         ]}
       />
+
+      {/* ── Dedicated Google Sheet for Manual Attendance Cockpit ── */}
+      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/40 bg-gradient-to-br from-[#021f18] via-[#05372b] to-[#04241b] p-5 sm:p-6 text-white shadow-xl shadow-emerald-950/30">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#d4af37]/50 bg-[#d4af37]/15 text-[#fde047] shadow-inner">
+              <FileSpreadsheet className="h-6 w-6" />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-white font-display">
+                  Dedicated Google Sheet — Manual Attendance
+                </h2>
+                {loadingSheetStatus ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 px-2.5 py-0.5 text-xs text-slate-300">
+                    <Loader2 className="h-3 w-3 animate-spin text-emerald-400" /> Checking...
+                  </span>
+                ) : sheetStatus?.spreadsheetId ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/50 bg-emerald-500/20 px-3 py-0.5 text-xs font-bold text-emerald-200">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    {sheetStatus.isDedicated ? "Dedicated Manual Google Sheet Active" : "Linked to Attendance Sheet"}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/40 px-2.5 py-0.5 text-xs font-bold">
+                    No Google Sheet Configured
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs sm:text-sm text-emerald-100/80 max-w-2xl font-medium leading-relaxed">
+                Dedicated Google Spreadsheet specifically for manual classroom roll-calls. Generates organized daily tabs (<span className="font-mono text-[#fde047]">Manual - YYYY-MM-DD</span>) with complete student and faculty statuses.
+                {sheetStatus?.lastSyncedAt && (
+                  <span className="ml-1 text-emerald-300 font-semibold">
+                    · Last synced: {new Date(sheetStatus.lastSyncedAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {sheetStatus?.url && (
+              <a
+                href={sheetStatus.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                title="Open spreadsheet in Google Sheets"
+              >
+                <ExternalLink className="w-4 h-4 text-emerald-300" />
+                <span>Open Google Sheet</span>
+              </a>
+            )}
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSyncSheet}
+              disabled={syncingSheet}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs h-10 px-4 rounded-xl shadow-md cursor-pointer transition-all"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", syncingSheet && "animate-spin")} />
+              {syncingSheet ? "Syncing..." : "Sync to Google Sheet"}
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreateNewSheet}
+              disabled={creatingSheet}
+              className="bg-[#d4af37] hover:bg-[#c29d2b] text-slate-950 font-black text-xs h-10 px-4 rounded-xl shadow-md cursor-pointer transition-all"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-1.5 text-slate-950" />
+              {creatingSheet ? "Creating..." : "Create New Google Sheet"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLinkModal(true)}
+              className="bg-white/5 border-white/20 text-emerald-100 hover:bg-white/10 text-xs h-10 px-3.5 rounded-xl cursor-pointer"
+            >
+              Link Existing Sheet
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* ── Dynamic Hero Cockpit (Fatimi Luxury Emerald & Obsidian Theme) ── */}
       <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/40 bg-gradient-to-br from-[#021f18] via-[#05372b] to-[#01140f] p-6 sm:p-8 shadow-[0_16px_40px_rgba(2,31,24,0.45)] text-white">
@@ -1338,6 +1562,50 @@ export default function AdminManualAttendancePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Link Existing Google Sheet Modal ── */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-emerald-500/30 text-white shadow-2xl">
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-[#fde047]" /> Link Manual Attendance Google Sheet
+            </h3>
+            <p className="mt-1.5 text-xs text-gray-300 leading-relaxed">
+              Paste the Google Spreadsheet URL or Spreadsheet ID to use specifically for manual classroom attendance.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <input
+                type="text"
+                placeholder="https://docs.google.com/spreadsheets/d/... or Sheet ID"
+                value={customSheetInput}
+                onChange={(e) => setCustomSheetInput(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowLinkModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleLinkSheet}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4"
+              >
+                Save &amp; Link Sheet
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,13 @@ import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { broadcastAttendanceEvent, getWindowType } from "../lib/biometric";
-import { queueAutoSheetSync } from "../lib/google-attendance-sync";
+import {
+  queueAutoSheetSync,
+  manualSheetSyncStatus,
+  createManualSpreadsheet,
+  syncManualAttendanceToSheet,
+  extractSpreadsheetId,
+} from "../lib/google-attendance-sync";
 
 const router = Router();
 
@@ -543,6 +549,84 @@ router.post("/", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Manual attendance recording error:", error);
     return res.status(500).json({ success: false, error: "Failed to record manual attendance" });
+  }
+});
+
+// GET /api/attendance/manual/sheet-status — Status of the dedicated manual attendance Google Sheet
+router.get("/sheet-status", requireAuth, async (req, res) => {
+  try {
+    const status = manualSheetSyncStatus();
+    return res.json({ success: true, data: status });
+  } catch (error) {
+    console.error("Manual sheet status error:", error);
+    return res.status(500).json({ success: false, error: "Failed to retrieve manual sheet status" });
+  }
+});
+
+// POST /api/attendance/manual/create-sheet — Programmatically create a new Google Sheet for manual roll calls
+router.post("/create-sheet", requireAuth, async (req, res) => {
+  try {
+    const { title } = req.body || {};
+    const result = await createManualSpreadsheet(title);
+    return res.json({
+      success: true,
+      message: `New Google Sheet created successfully: "${result.title}"`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Create manual sheet error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to create new Google Sheet",
+    });
+  }
+});
+
+// POST /api/attendance/manual/link-sheet — Link an existing Google Sheet URL/ID specifically for manual attendance
+router.post("/link-sheet", requireAuth, async (req, res) => {
+  try {
+    const { spreadsheetId } = req.body || {};
+    const cleanId = extractSpreadsheetId(spreadsheetId || "");
+    if (!cleanId) {
+      return res.status(400).json({ success: false, error: "Valid Google Sheet ID or URL is required" });
+    }
+
+    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = cleanId;
+    return res.json({
+      success: true,
+      message: "Manual attendance Google Sheet linked successfully",
+      data: {
+        spreadsheetId: cleanId,
+        url: `https://docs.google.com/spreadsheets/d/${cleanId}`,
+      },
+    });
+  } catch (error: any) {
+    console.error("Link manual sheet error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to link Google Sheet" });
+  }
+});
+
+// POST /api/attendance/manual/sync-sheet — Sync manual attendance for a date to the dedicated Google Sheet
+router.post("/sync-sheet", requireAuth, async (req, res) => {
+  try {
+    const rawDate = typeof req.body?.date === "string" ? req.body.date.trim() : "";
+    const targetDate = rawDate ? new Date(`${rawDate}T00:00:00Z`) : new Date();
+    if (Number.isNaN(targetDate.getTime())) {
+      return res.status(400).json({ success: false, error: "Invalid date (expected YYYY-MM-DD)" });
+    }
+
+    const result = await syncManualAttendanceToSheet(targetDate);
+    return res.json({
+      success: true,
+      message: `Synced ${result.rowsSynced} manual roll-call records to tab "${result.tabTitle}"`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Manual sheet sync error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to sync manual attendance to Google Sheet",
+    });
   }
 });
 

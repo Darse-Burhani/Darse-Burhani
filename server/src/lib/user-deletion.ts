@@ -19,8 +19,14 @@ export interface CompleteDeleteResult {
  * face, card, and employee records from physical hardware memory.
  */
 export async function completelyDeleteUser(userId: string): Promise<CompleteDeleteResult> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+  const cleanId = userId?.trim();
+  if (!cleanId) {
+    throw new Error("User identifier is required");
+  }
+
+  // 1. Resilient lookup: handle User.id, StudentProfile.id/studentId/its, TeacherProfile.id/employeeId/its, ParentProfile.id, or email
+  let user = await prisma.user.findUnique({
+    where: { id: cleanId },
     include: {
       studentProfile: true,
       teacherProfile: true,
@@ -29,11 +35,101 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
   });
 
   if (!user) {
-    throw new Error(`User with ID ${userId} not found`);
+    // Check if cleanId belongs to a student profile
+    const student = await prisma.studentProfile.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { userId: cleanId },
+          { studentId: cleanId },
+          { its: cleanId },
+        ],
+      },
+      include: {
+        user: {
+          include: {
+            studentProfile: true,
+            teacherProfile: true,
+            parentProfile: true,
+          },
+        },
+      },
+    });
+    if (student?.user) {
+      user = student.user;
+    }
   }
 
-  if (user.role === "ADMIN") {
-    throw new Error("Master ADMIN account cannot be deleted for system safety");
+  if (!user) {
+    // Check if cleanId belongs to a teacher profile
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { userId: cleanId },
+          { employeeId: cleanId },
+          { its: cleanId },
+        ],
+      },
+      include: {
+        user: {
+          include: {
+            studentProfile: true,
+            teacherProfile: true,
+            parentProfile: true,
+          },
+        },
+      },
+    });
+    if (teacher?.user) {
+      user = teacher.user;
+    }
+  }
+
+  if (!user) {
+    // Check parent profile or email
+    const parent = await prisma.parentProfile.findFirst({
+      where: { OR: [{ id: cleanId }, { userId: cleanId }] },
+      include: {
+        user: {
+          include: {
+            studentProfile: true,
+            teacherProfile: true,
+            parentProfile: true,
+          },
+        },
+      },
+    });
+    if (parent?.user) {
+      user = parent.user;
+    }
+  }
+
+  if (!user && cleanId.includes("@")) {
+    user = await prisma.user.findUnique({
+      where: { email: cleanId.toLowerCase() },
+      include: {
+        studentProfile: true,
+        teacherProfile: true,
+        parentProfile: true,
+      },
+    });
+  }
+
+  if (!user) {
+    throw new Error(`User or profile with identifier "${cleanId}" not found`);
+  }
+
+  const resolvedUserId = user.id;
+
+  // Protect only the master system administrator, not normal admin users
+  const MASTER_ADMINS = [
+    "admin@darseburhani.edu",
+    "master@darseburhani.edu",
+    "superadmin@darseburhani.edu",
+  ];
+  if (MASTER_ADMINS.includes(user.email.toLowerCase())) {
+    throw new Error("Master system administrator account cannot be deleted for security and system stability.");
   }
 
   // Collect all biometric identification tokens associated with this user
@@ -60,22 +156,44 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
 
   await prisma.$transaction(async (tx) => {
     // Clean up reviewer/assignee references on User
-    await tx.leaveRequest.updateMany({ where: { reviewerId: userId }, data: { reviewerId: null } });
-    await tx.hifzMarhalaReport.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
-    await tx.hifzWeeklySlip.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
-    await tx.talabatProfile1447.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
-    await tx.assignmentGrade.updateMany({ where: { gradedById: userId }, data: { gradedById: null } });
-    await tx.hifzMarhalaAssignment.deleteMany({ where: { assignedById: userId } });
+    await tx.leaveRequest.updateMany({ where: { reviewerId: resolvedUserId }, data: { reviewerId: null } });
+    await tx.hifzMarhalaReport.updateMany({ where: { reviewedById: resolvedUserId }, data: { reviewedById: null } });
+    await tx.hifzWeeklySlip.updateMany({ where: { reviewedById: resolvedUserId }, data: { reviewedById: null } });
+    await tx.talabatProfile1447.updateMany({ where: { reviewedById: resolvedUserId }, data: { reviewedById: null } });
+    await tx.assignmentGrade.updateMany({ where: { gradedById: resolvedUserId }, data: { gradedById: null } });
+    await tx.hifzMarhalaAssignment.deleteMany({ where: { assignedById: resolvedUserId } });
     await tx.procurementRequest.deleteMany({
-      where: { requesterId: userId },
+      where: { requesterId: resolvedUserId },
     });
     await tx.procurementRequest.updateMany({
-      where: { assignedToId: userId },
+      where: { assignedToId: resolvedUserId },
       data: { assignedToId: null },
     });
 
+    // Clean up attendance actor / assignment references
+    await tx.medicalExemption.deleteMany({ where: { assignedById: resolvedUserId } });
+    await tx.attendanceRecord.updateMany({ where: { justifiedById: resolvedUserId }, data: { justifiedById: null } });
+    await tx.attendanceRecord.updateMany({ where: { recordedById: resolvedUserId }, data: { recordedById: "system" } });
+    await tx.attendanceRegistry.updateMany({ where: { recordedById: resolvedUserId }, data: { recordedById: null } });
+    await tx.attendanceAuditLog.updateMany({ where: { actorId: resolvedUserId }, data: { actorId: null } });
+    await tx.attendanceDayLock.updateMany({ where: { lockedById: resolvedUserId }, data: { lockedById: null } });
+    await tx.user.updateMany({ where: { deletedById: resolvedUserId }, data: { deletedById: null } });
+
     // Delete student-related dependencies
     if (studentId) {
+      // Library book loans
+      const studentTokens = [
+        studentId,
+        user.studentProfile?.studentId,
+        user.studentProfile?.its,
+      ].filter(Boolean) as string[];
+
+      await tx.bookLoan.deleteMany({
+        where: {
+          studentId: { in: studentTokens },
+        },
+      });
+
       await tx.attendanceRecord.deleteMany({ where: { studentId } });
       await tx.attendanceRegistry.deleteMany({ where: { studentId } });
       await tx.attendanceAuditLog.deleteMany({ where: { studentId } });
@@ -143,12 +261,12 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
     }
 
     // Sessions, accounts, and notifications
-    await tx.session.deleteMany({ where: { userId } });
-    await tx.account.deleteMany({ where: { userId } });
-    await tx.notification.deleteMany({ where: { userId } });
+    await tx.session.deleteMany({ where: { userId: resolvedUserId } });
+    await tx.account.deleteMany({ where: { userId: resolvedUserId } });
+    await tx.notification.deleteMany({ where: { userId: resolvedUserId } });
 
     // Finally delete the user root record
-    await tx.user.delete({ where: { id: userId } });
+    await tx.user.delete({ where: { id: resolvedUserId } });
   });
 
   // 2. Non-blocking biometric terminal purge (fires concurrently, never delays HTTP response)
@@ -189,9 +307,22 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
     }
   }
 
+  try {
+    const { cache } = await import("./cache");
+    cache.invalidateTag("user");
+    cache.invalidateTag("studentprofile");
+    cache.invalidateTag("teacherprofile");
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("dashboard");
+    cache.invalidateTag("stats");
+    cache.invalidateTag("attendanceRecord");
+  } catch (err) {
+    // Non-fatal
+  }
+
   return {
     success: true,
-    userId,
+    userId: resolvedUserId,
     role: user.role,
     deletedBiometricIds: cleanNos,
     hardwareStatus,

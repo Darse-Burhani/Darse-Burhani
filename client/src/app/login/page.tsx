@@ -213,12 +213,6 @@ export default function LoginPage() {
     setError("");
   };
 
-  const handleFillDemo = (role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT", loginIdentifier: string) => {
-    setSelectedRole(role);
-    setEmail(loginIdentifier);
-    setPassword("Password@123");
-    setError("");
-  };
 
   const stopCameraStream = useCallback(() => {
     if (scanLoopRef.current) {
@@ -888,60 +882,6 @@ export default function LoginPage() {
                   🔒 256-bit Encrypted Institutional Session · Auto-expires after 2 hours
                 </p>
 
-                {/* ── Reviewer Demo Credentials Quick-Fill ── */}
-                <div className="mt-3 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-emerald-50/40 to-amber-50/70 p-3 sm:p-3.5 text-slate-800 shadow-xs">
-                  <div className="flex items-center justify-between gap-2 border-b border-amber-200/60 pb-2">
-                    <span className="flex items-center gap-1.5 text-[12px] font-extrabold text-amber-900">
-                      <Shield size={14} className="text-amber-700" />
-                      Reviewer Demo Access (1-Click Auto-Fill)
-                    </span>
-                    <span className="rounded-md bg-amber-200/80 px-2 py-0.5 font-mono text-[10.5px] font-extrabold text-amber-950 shadow-2xs">
-                      Password: Password@123
-                    </span>
-                  </div>
-                  <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <button
-                      type="button"
-                      onClick={() => handleFillDemo("STUDENT", "50400002")}
-                      className="group flex flex-col items-start rounded-xl border border-amber-300/80 bg-white/95 p-2 text-left shadow-2xs transition hover:border-amber-500 hover:bg-amber-50 hover:shadow-xs active:scale-95 cursor-pointer"
-                    >
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 flex items-center gap-1">
-                        <BookOpen size={11} className="text-amber-600" /> Talabat
-                      </span>
-                      <span className="font-mono text-[12px] font-bold text-slate-900 group-hover:text-amber-900">50400002</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFillDemo("PARENT", "50400003")}
-                      className="group flex flex-col items-start rounded-xl border border-violet-300/80 bg-white/95 p-2 text-left shadow-2xs transition hover:border-violet-500 hover:bg-violet-50 hover:shadow-xs active:scale-95 cursor-pointer"
-                    >
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-violet-800 flex items-center gap-1">
-                        <Users size={11} className="text-violet-600" /> Parent
-                      </span>
-                      <span className="font-mono text-[12px] font-bold text-slate-900 group-hover:text-violet-900">50400003</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFillDemo("TEACHER", "faculty.demo@darseburhani.edu")}
-                      className="group flex flex-col items-start rounded-xl border border-sky-300/80 bg-white/95 p-2 text-left shadow-2xs transition hover:border-sky-500 hover:bg-sky-50 hover:shadow-xs active:scale-95 cursor-pointer"
-                    >
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-800 flex items-center gap-1">
-                        <GraduationCap size={11} className="text-sky-600" /> Faculty
-                      </span>
-                      <span className="font-mono text-[11px] font-bold text-slate-900 group-hover:text-sky-900 truncate w-full">50400001</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFillDemo("ADMIN", "admin.demo@darseburhani.edu")}
-                      className="group flex flex-col items-start rounded-xl border border-emerald-300/80 bg-white/95 p-2 text-left shadow-2xs transition hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-xs active:scale-95 cursor-pointer"
-                    >
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
-                        <Shield size={11} className="text-emerald-600" /> Admin
-                      </span>
-                      <span className="font-mono text-[11px] font-bold text-slate-900 group-hover:text-emerald-900 truncate w-full">admin.demo</span>
-                    </button>
-                  </div>
-                </div>
               </form>
             </div>
           </div>

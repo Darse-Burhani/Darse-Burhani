@@ -171,8 +171,8 @@ export default function AdminAttendanceLogsPage() {
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [audience, setAudience] = useState<"STUDENT" | "FACULTY">("STUDENT");
-  const [logType, setLogType] = useState<"HIKVISION" | "MANUAL">(isFaculty ? "MANUAL" : "HIKVISION");
+  const [audience, setAudience] = useState<"STUDENT" | "FACULTY" | "ALL">("ALL");
+  const [logType, setLogType] = useState<"HIKVISION" | "MANUAL" | "ALL">(isFaculty ? "MANUAL" : "ALL");
 
   useEffect(() => {
     if (isFaculty) {
@@ -227,14 +227,6 @@ export default function AdminAttendanceLogsPage() {
       const res = await getAttendanceLogEvents();
       const eventList = res || [];
       setEvents(eventList);
-      if (eventList.length > 0) {
-        setSelectedEventId((prev) => {
-          if (!prev || prev === "ALL" || !eventList.some((e) => e.id === prev)) {
-            return eventList[0].id;
-          }
-          return prev;
-        });
-      }
     } catch (err) {
       console.error("Failed to load schedule events:", err);
     }
@@ -588,26 +580,45 @@ export default function AdminAttendanceLogsPage() {
         </div>
       </div>
 
-      {/* ── Log Subsystem Switcher (Hikvision vs Manual Logs) ── */}
+      {/* ── Log Subsystem Switcher (All vs Hikvision vs Manual Logs) ── */}
       {!isFaculty && (
         <div className="p-1.5 rounded-2xl bg-gray-100 border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 ml-2">Log Mode:</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto">
+          <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
+            {/* All Logs Pill */}
+            <button
+              type="button"
+              onClick={() => setLogType("ALL")}
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+                logType === "ALL"
+                  ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md font-black ring-2 ring-slate-700/40"
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              <Layers className={`w-3.5 h-3.5 ${logType === "ALL" ? "text-amber-300" : "text-gray-600"}`} />
+              <span>All Logs</span>
+              {data?.overallSummary && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "ALL" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-800"}`}>
+                  {data.overallSummary.total}
+                </span>
+              )}
+            </button>
+
             {/* Hikvision Biometric Log Pill */}
             <button
               type="button"
               onClick={() => setLogType("HIKVISION")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
                 logType === "HIKVISION"
                   ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md font-black ring-2 ring-emerald-500/40"
                   : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
               }`}
             >
               <Fingerprint className={`w-3.5 h-3.5 ${logType === "HIKVISION" ? "text-emerald-200" : "text-emerald-600"}`} />
-              <span>Hikvision Biometric Log</span>
+              <span>Hikvision Scans</span>
               {data?.hikvisionSummary && (
                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "HIKVISION" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>
                   {data.hikvisionSummary.total}
@@ -619,14 +630,14 @@ export default function AdminAttendanceLogsPage() {
             <button
               type="button"
               onClick={() => setLogType("MANUAL")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
                 logType === "MANUAL"
                   ? "bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md font-black ring-2 ring-blue-500/40"
                   : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
               }`}
             >
               <ClipboardCheck className={`w-3.5 h-3.5 ${logType === "MANUAL" ? "text-blue-200" : "text-blue-600"}`} />
-              <span>Manual Attendance Log</span>
+              <span>Manual Register</span>
               {data?.manualSummary && (
                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${logType === "MANUAL" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-800"}`}>
                   {data.manualSummary.total}
@@ -637,148 +648,118 @@ export default function AdminAttendanceLogsPage() {
         </div>
       )}
 
-      {/* ── Subsystem-Specific Audience / Event Filter Bar ── */}
-      {logType === "MANUAL" ? (
-        /* Manual Classroom Register: NO scheduled biometric scan windows */
-        <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shadow-xs">
-              <ClipboardCheck className="w-4 h-4" />
+      {/* ── Audience Selector & Event Filter Bar ── */}
+      <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+              <Users className="w-3.5 h-3.5 text-emerald-700" />
             </div>
             <div>
-              <span className="text-[11px] font-black tracking-[0.14em] uppercase text-gray-500">Manual Classroom Register Audience</span>
-              <p className="text-[11px] text-gray-400 font-medium">Teacher roll-call registers and manual attendance overrides</p>
+              <span className="text-[11px] font-black tracking-[0.14em] uppercase text-gray-500">Roster Audience &amp; Events</span>
+              <p className="text-[10.5px] text-gray-400 font-medium">All active Talabat &amp; Faculty applicable for scanning and roll-call</p>
             </div>
-            {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 ml-2"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
+            {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 ml-2"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
           </div>
 
+          {/* Unified 3-way Audience Selector */}
           <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
             <button
               type="button"
+              onClick={() => setAudience("ALL")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "ALL" ? "bg-slate-900 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              <Users className="w-3.5 h-3.5 text-amber-300" />
+              All Members
+              {data?.overallSummary && <span className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-black ${audience === "ALL" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.overallSummary.total}</span>}
+            </button>
+            <button
+              type="button"
               onClick={() => setAudience("STUDENT")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
             >
               <GraduationCap className="w-3.5 h-3.5" />
               Talabat
-              {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
+              {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
             </button>
             <button
               type="button"
               onClick={() => setAudience("FACULTY")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
             >
               <Briefcase className="w-3.5 h-3.5" />
               Faculty
-              {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
+              {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
             </button>
           </div>
         </div>
-      ) : (
-        /* Hikvision Biometric Scan Mode: Biometric Schedule Windows & Live Hardware Punches */
-        <div className="p-3.5 rounded-[18px] bg-white border border-gray-200 shadow-sm space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-                <Fingerprint className="w-3.5 h-3.5 text-emerald-700" />
-              </div>
-              <span className="text-[11px] font-black tracking-[0.14em] uppercase text-gray-500">Hikvision Scan Window & Audience</span>
-              {refreshing && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Loader2 className="w-3 h-3 animate-spin" /> syncing…</span>}
-            </div>
 
-            {/* Strict Audience Display / Selector */}
-            {isFacultyOnlyEvent ? (
-              <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 text-xs font-bold flex items-center gap-2 shadow-xs">
-                <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                <span>{activeEvent?.name || "Faculty Window"}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded font-black bg-indigo-600 text-white uppercase tracking-wider">Faculty Only</span>
-                {data?.facultySummary && (
-                  <span className="ml-1 px-2 py-0.5 rounded bg-white text-indigo-800 border border-indigo-200 text-[10px] font-black">
-                    {data.facultySummary.total} Staff
+        {/* Scheduled Scan & Manual Event Filter Buttons */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-gray-100">
+          {/* All Events Button */}
+          <button
+            type="button"
+            onClick={() => setSelectedEventId("")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${!selectedEventId || selectedEventId === "ALL" ? "bg-slate-900 text-white shadow ring-2 ring-slate-800/20" : "bg-white text-gray-700 border border-gray-200 hover:border-slate-400"}`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>All Scheduled Events</span>
+          </button>
+
+          {events.map((ev) => {
+            const isSelected = selectedEventId === ev.id;
+            const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
+            const isFacultyEvent = ev.audience === "FACULTY";
+            const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
+            const isBothEvent = ev.audience === "BOTH";
+            const isManualEvent = (ev as any).windowType === "MANUAL";
+
+            return (
+              <button
+                key={ev.id}
+                type="button"
+                onClick={() => handleSelectEvent(ev.id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300"}`}
+              >
+                {isManualEvent ? (
+                  <ClipboardCheck className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : "text-blue-600"}`} />
+                ) : (
+                  <Fingerprint className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isFacultyEvent ? "text-indigo-500" : "text-emerald-600"}`} />
+                )}
+                <span>{ev.name}</span>
+
+                {/* Subsystem & Audience Badges */}
+                {isManualEvent && (
+                  <span className={`text-[8.5px] px-1 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-blue-300 text-blue-950" : "bg-blue-50 text-blue-800 border border-blue-200"}`}>
+                    Manual
                   </span>
                 )}
-              </div>
-            ) : isStudentOnlyEvent ? (
-              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold flex items-center gap-2 shadow-xs">
-                <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>{activeEvent?.name || "Talabat Window"}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded font-black bg-emerald-600 text-white uppercase tracking-wider">Talabat Only</span>
-                {data?.talabatSummary && (
-                  <span className="ml-1 px-2 py-0.5 rounded bg-white text-emerald-800 border border-emerald-200 text-[10px] font-black">
-                    {data.talabatSummary.total} Talabat
+                {isFacultyEvent && (
+                  <span className={`text-[8.5px] px-1 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-indigo-300 text-indigo-950" : "bg-indigo-100 text-indigo-900 border border-indigo-200"}`}>
+                    Faculty
                   </span>
                 )}
-              </div>
-            ) : (
-              <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setAudience("STUDENT")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "STUDENT" ? "bg-emerald-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-                >
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  Talabat
-                  {data?.talabatSummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "STUDENT" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.talabatSummary.total}</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAudience("FACULTY")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${audience === "FACULTY" ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:text-gray-900"}`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  Faculty
-                  {data?.facultySummary && <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-black ${audience === "FACULTY" ? "bg-white/20 text-white" : "bg-white text-gray-700 border"}`}>{data.facultySummary.total}</span>}
-                </button>
-              </div>
-            )}
-          </div>
+                {isStudentEvent && (
+                  <span className={`text-[8.5px] px-1 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-emerald-300 text-emerald-950" : "bg-emerald-100 text-emerald-900 border border-emerald-200"}`}>
+                    Talabat
+                  </span>
+                )}
+                {isBothEvent && (
+                  <span className={`text-[8.5px] px-1 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-teal-300 text-teal-950" : "bg-teal-100 text-teal-900 border border-teal-200"}`}>
+                    Both
+                  </span>
+                )}
 
-          {/* Scheduled Biometric Scan Windows */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {events.map((ev) => {
-              const isSelected = selectedEventId === ev.id;
-              const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
-              const isFacultyEvent = ev.audience === "FACULTY";
-              const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
-              const isBothEvent = ev.audience === "BOTH";
-
-              return (
-                <button
-                  key={ev.id}
-                  type="button"
-                  onClick={() => handleSelectEvent(ev.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected ? "bg-emerald-700 text-white shadow ring-2 ring-emerald-500/20" : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300"}`}
-                >
-                  <Sparkles className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : isFacultyEvent ? "text-indigo-500" : "text-emerald-600"}`} />
-                  <span>{ev.name}</span>
-
-                  {/* Strict Audience Badge */}
-                  {isFacultyEvent && (
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-indigo-300 text-indigo-950" : "bg-indigo-100 text-indigo-900 border border-indigo-200"}`}>
-                      Faculty Only
-                    </span>
-                  )}
-                  {isStudentEvent && (
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-emerald-300 text-emerald-950" : "bg-emerald-100 text-emerald-900 border border-emerald-200"}`}>
-                      Talabat Only
-                    </span>
-                  )}
-                  {isBothEvent && (
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${isSelected ? "bg-teal-300 text-teal-950" : "bg-teal-100 text-teal-900 border border-teal-200"}`}>
-                      Both
-                    </span>
-                  )}
-
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/15 text-emerald-100" : "bg-gray-100 text-gray-600"}`}>{ev.timeDisplay}</span>
-                  {liveCount !== null && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? "bg-amber-400 text-emerald-950" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{liveCount}</span>
-                  )}
-                  {ev.status === "ACTIVE" && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow shadow-emerald-400/50" />}
-                </button>
-              );
-            })}
-          </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/15 text-emerald-100" : "bg-gray-100 text-gray-600"}`}>{ev.timeDisplay}</span>
+                {liveCount !== null && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? "bg-amber-400 text-emerald-950" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{liveCount}</span>
+                )}
+                {ev.status === "ACTIVE" && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow shadow-emerald-400/50" />}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* ── LocalStorage Archive: all-days stacked + Weekly individual reports ── */}
       <ArchiveWeeklyPanel archiveMonth={archiveMonth} setArchiveMonth={setArchiveMonth} archiveStats={archiveStats} setArchiveStats={setArchiveStats} />

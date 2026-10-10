@@ -1212,3 +1212,392 @@ export async function runDailySheetSyncJob(targetDate?: Date): Promise<{
     return { skipped: true, reason: (err as Error)?.message || "push failed" };
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// DEDICATED MANUAL ATTENDANCE GOOGLE SHEET SUPPORT
+// ════════════════════════════════════════════════════════════════════════════
+
+export function getManualAttendanceSpreadsheetId(): string {
+  const raw = (
+    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID ||
+    process.env.GOOGLE_MANUAL_SHEET_ID ||
+    process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID ||
+    ""
+  ).trim();
+  return extractSpreadsheetId(raw);
+}
+
+let lastManualSyncedAtIso: string | null = null;
+let lastManualSyncedDateKey: string | null = null;
+
+export function manualSheetSyncStatus() {
+  const id = getManualAttendanceSpreadsheetId();
+  const creds = getServiceAccountCreds();
+  let saEmail: string | null = null;
+  if (creds) {
+    if ("email" in creds) saEmail = creds.email;
+    else if ("json" in creds) {
+      try {
+        saEmail = JSON.parse(creds.json).client_email || null;
+      } catch {
+        saEmail = null;
+      }
+    }
+  }
+
+  const isDedicated = Boolean(
+    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID ||
+    process.env.GOOGLE_MANUAL_SHEET_ID
+  );
+
+  return {
+    configured: Boolean(id && creds),
+    isDedicated,
+    spreadsheetId: id || null,
+    maskedSpreadsheetId: id ? `${id.slice(0, 6)}…${id.slice(-4)}` : null,
+    serviceAccountEmail: saEmail ? `${saEmail.slice(0, 6)}…@${saEmail.split("@")[1] || "gserviceaccount.com"}` : null,
+    fullServiceAccountEmail: saEmail,
+    url: id ? `https://docs.google.com/spreadsheets/d/${id}` : null,
+    lastSyncedAt: lastManualSyncedAtIso,
+    lastSyncedDate: lastManualSyncedDateKey,
+  };
+}
+
+/**
+ * Creates a brand new Google Spreadsheet specifically for Manual Attendance
+ * via Google Drive / Sheets API, sets up initial tabs and styling, and returns its URL.
+ */
+export async function createManualSpreadsheet(customTitle?: string): Promise<{
+  success: boolean;
+  spreadsheetId: string;
+  url: string;
+  title: string;
+  serviceAccountEmail: string;
+}> {
+  const creds = getServiceAccountCreds();
+  if (!creds) {
+    throw new Error(
+      "Google Service Account credentials missing. Please configure Service Account JSON or Email + Private Key in Attendance Settings."
+    );
+  }
+
+  let auth: unknown;
+  let saEmail = "";
+  if ("json" in creds) {
+    const parsed = JSON.parse(creds.json);
+    saEmail = parsed.client_email || "";
+    auth = new google.auth.JWT({
+      email: parsed.client_email,
+      key: parsed.private_key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
+    });
+  } else {
+    saEmail = creds.email;
+    auth = new google.auth.JWT({
+      email: creds.email,
+      key: creds.key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
+    });
+  }
+
+  const client = google.sheets({ version: "v4", auth: auth as never });
+  const title = customTitle?.trim() || `Darse Burhani — Manual Attendance Register (${new Date().getFullYear()})`;
+
+  const res = await client.spreadsheets.create({
+    requestBody: {
+      properties: {
+        title,
+      },
+      sheets: [
+        {
+          properties: {
+            title: "Manual Summary",
+            gridProperties: { rowCount: 100, columnCount: 15 },
+          },
+        },
+        {
+          properties: {
+            title: "Manual Register",
+            gridProperties: { rowCount: 500, columnCount: 12 },
+          },
+        },
+      ],
+    },
+  });
+
+  const spreadsheetId = res.data.spreadsheetId;
+  if (!spreadsheetId) {
+    throw new Error("Failed to create Google Spreadsheet: empty spreadsheetId returned from Google");
+  }
+
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+
+  // Persist as dedicated manual spreadsheet in process.env and .env file
+  process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = spreadsheetId;
+  try {
+    const rootDir = process.cwd();
+    const envPath = path.resolve(rootDir, ".env");
+    let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+    const reg = new RegExp(`^GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID=.*$`, "m");
+    if (reg.test(content)) {
+      content = content.replace(reg, `GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID="${spreadsheetId}"`);
+    } else {
+      content = content.trimEnd() + `\nGOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID="${spreadsheetId}"\n`;
+    }
+    fs.writeFileSync(envPath, content, "utf8");
+  } catch (err) {
+    console.warn("[google-sheet-sync] Warning updating .env with manual spreadsheet ID:", err);
+  }
+
+  return {
+    success: true,
+    spreadsheetId,
+    url: sheetUrl,
+    title,
+    serviceAccountEmail: saEmail,
+  };
+}
+
+/**
+ * Synchronizes manual roll call records for a given date directly to the dedicated manual spreadsheet.
+ */
+export async function syncManualAttendanceToSheet(
+  targetDate: Date = new Date(),
+  customSpreadsheetId?: string
+): Promise<{
+  spreadsheetId: string;
+  tabTitle: string;
+  rowsSynced: number;
+  url: string;
+  stats: any;
+}> {
+  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getManualAttendanceSpreadsheetId());
+  if (!spreadsheetId) {
+    throw new Error("No Google Spreadsheet configured for manual attendance. Please create or link a sheet first.");
+  }
+
+  const creds = getServiceAccountCreds();
+  if (!creds) {
+    throw new Error("Google Service Account credentials missing. Please set credentials in settings.");
+  }
+
+  let auth: unknown;
+  if ("json" in creds) {
+    const parsed = JSON.parse(creds.json);
+    auth = new google.auth.JWT({
+      email: parsed.client_email,
+      key: parsed.private_key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+  } else {
+    auth = new google.auth.JWT({
+      email: creds.email,
+      key: creds.key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+  }
+
+  const sheets = google.sheets({ version: "v4", auth: auth as never });
+
+  // Date range for the requested day
+  const dateKey = targetDate.toISOString().slice(0, 10);
+  const dayStart = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), 0, 0, 0));
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  // Fetch all students with their manual registries / records
+  const [students, teachers] = await Promise.all([
+    prisma.studentProfile.findMany({
+      where: { user: { isActive: true } },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+        classEnrollments: {
+          where: { isActive: true },
+          include: { class: { select: { name: true, grade: true, section: true } } },
+          take: 1,
+        },
+        attendanceRegistries: {
+          where: { date: { gte: dayStart, lt: dayEnd } },
+          include: { leave: true },
+          take: 1,
+        },
+        attendanceRecords: {
+          where: { date: { gte: dayStart, lt: dayEnd } },
+          orderBy: [{ checkInTime: "desc" }],
+        },
+      },
+      orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+    }),
+    prisma.teacherProfile.findMany({
+      where: { user: { isActive: true } },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+        attendanceRecords: {
+          where: { date: { gte: dayStart, lt: dayEnd } },
+          orderBy: [{ checkInTime: "desc" }],
+        },
+      },
+      orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
+    }),
+  ]);
+
+  const fmtIST = (d?: Date | null) =>
+    d
+      ? new Date(d).toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        })
+      : "--";
+
+  const rows: Array<Array<string | number>> = [];
+  const tabTitle = `Manual - ${dateKey}`;
+
+  // Title Banner
+  rows.push([`DARSE BURHANI — MANUAL CLASSROOM ATTENDANCE REGISTER (${dateKey})`]);
+  rows.push([`Generated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST | Total Active Members: ${students.length + teachers.length}`]);
+  rows.push([]);
+
+  // Header
+  const HEADER = [
+    "S.No",
+    "ITS / Employee ID",
+    "Full Name",
+    "Role",
+    "Grade & Section / Dept",
+    "Attendance Status",
+    "Record Source",
+    "Check-In (IST)",
+    "Check-Out (IST)",
+    "Teacher / Recorded By",
+    "Remarks / Reason",
+  ];
+
+  rows.push(["─── TALABAT (STUDENTS) MANUAL REGISTER ───"]);
+  rows.push(HEADER);
+
+  let studentPresent = 0;
+  let studentLate = 0;
+  let studentAbsent = 0;
+  let studentMedical = 0;
+  let studentLeave = 0;
+
+  students.forEach((s, idx) => {
+    const reg = s.attendanceRegistries[0];
+    const rec = s.attendanceRecords[0];
+
+    const status = reg?.status || rec?.status || "NOT_MARKED";
+    const checkIn = reg?.checkInTime || rec?.checkInTime;
+    const checkOut = reg?.checkOutTime || rec?.checkOutTime;
+    const remarks = reg?.remarks || rec?.justification || (reg?.leave ? `Leave: ${reg.leave.type}` : "");
+    const recordedBy = reg?.recordedById || rec?.recordedById || "Teacher";
+
+    if (status === "PRESENT") studentPresent++;
+    else if (status === "LATE") studentLate++;
+    else if (status === "ABSENT") studentAbsent++;
+    else if (status === "MEDICAL") studentMedical++;
+    else if (status === "ON_LEAVE") studentLeave++;
+
+    rows.push([
+      idx + 1,
+      s.its || s.studentId,
+      `${s.user.firstName} ${s.user.lastName}`.trim(),
+      "Student",
+      s.classEnrollments[0]?.class?.name || `Grade ${s.grade}-${s.section}`,
+      status,
+      reg ? "MANUAL_REGISTRY" : rec?.source || "NOT_MARKED",
+      fmtIST(checkIn),
+      fmtIST(checkOut),
+      recordedBy,
+      remarks,
+    ]);
+  });
+
+  rows.push([]);
+  rows.push(["─── FACULTY & STAFF MANUAL REGISTER ───"]);
+  rows.push(HEADER);
+
+  let teacherPresent = 0;
+  let teacherLate = 0;
+  let teacherAbsent = 0;
+
+  teachers.forEach((t, idx) => {
+    const rec = t.attendanceRecords[0];
+    const status = rec?.status || "NOT_MARKED";
+    const checkIn = rec?.checkInTime;
+    const checkOut = rec?.checkOutTime;
+    const remarks = rec?.notes || "";
+
+    if (status === "PRESENT") teacherPresent++;
+    else if (status === "LATE") teacherLate++;
+    else if (status === "ABSENT") teacherAbsent++;
+
+    rows.push([
+      idx + 1,
+      t.employeeId || t.its || "--",
+      `${t.user.firstName} ${t.user.lastName}`.trim(),
+      "Faculty",
+      t.department || "Faculty",
+      status,
+      rec?.verificationMethod || "MANUAL",
+      fmtIST(checkIn),
+      fmtIST(checkOut),
+      "Admin / Self",
+      remarks,
+    ]);
+  });
+
+  // Ensure tab exists
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const existingSheet = (meta.data.sheets || []).find((s) => s.properties?.title === tabTitle);
+
+  if (!existingSheet) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: tabTitle,
+                gridProperties: { rowCount: Math.max(rows.length + 50, 200), columnCount: 15 },
+              },
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  // Clear and write rows
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `${tabTitle}!A1:Z${rows.length + 100}`,
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${tabTitle}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: rows,
+    },
+  });
+
+  lastManualSyncedAtIso = new Date().toISOString();
+  lastManualSyncedDateKey = dateKey;
+
+  const totalSynced = students.length + teachers.length;
+
+  return {
+    spreadsheetId,
+    tabTitle,
+    rowsSynced: totalSynced,
+    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+    stats: {
+      students: { total: students.length, present: studentPresent, late: studentLate, absent: studentAbsent, medical: studentMedical, leave: studentLeave },
+      faculty: { total: teachers.length, present: teacherPresent, late: teacherLate, absent: teacherAbsent },
+    },
+  };
+}
