@@ -50,6 +50,7 @@ export interface AdminLeaveStats {
 export interface ScheduledEventWindow {
   id: string;
   name: string;
+  windowType?: "HIKVISION" | "MANUAL" | "BOTH";
   startTime: string;
   endTime: string;
   lateEndTime?: string | null;

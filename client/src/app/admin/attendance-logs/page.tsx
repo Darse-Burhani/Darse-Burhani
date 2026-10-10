@@ -246,7 +246,7 @@ export default function AdminAttendanceLogsPage() {
       setError(null);
       try {
         const effectiveLogType = isFaculty ? "MANUAL" : logType;
-        const effectiveEventWindowId = effectiveLogType !== "MANUAL" && selectedEventId && selectedEventId !== "ALL" ? selectedEventId : undefined;
+        const effectiveEventWindowId = selectedEventId && selectedEventId !== "ALL" ? selectedEventId : undefined;
         const res = await getAttendanceLogs({
           date,
           grade: selectedGrade || undefined,
@@ -438,6 +438,34 @@ export default function AdminAttendanceLogsPage() {
     }
   };
 
+  const filteredEvents = events.filter((ev) => {
+    const isManual = ev.windowType === "MANUAL" || ev.id.startsWith("manual_") || /\[manual\]/i.test(ev.name);
+    const isBoth = ev.windowType === "BOTH" || /\[both\]/i.test(ev.name);
+    if (logType === "HIKVISION") {
+      return !isManual || isBoth;
+    }
+    if (logType === "MANUAL") {
+      return isManual || isBoth;
+    }
+    return true; // "ALL" shows all events
+  });
+
+  const handleLogTypeChange = (newLogType: "HIKVISION" | "MANUAL" | "ALL") => {
+    setLogType(newLogType);
+    if (selectedEventId && selectedEventId !== "ALL") {
+      const targetEvent = events.find((e) => e.id === selectedEventId);
+      if (targetEvent) {
+        const isManual = targetEvent.windowType === "MANUAL" || targetEvent.id.startsWith("manual_") || /\[manual\]/i.test(targetEvent.name);
+        const isBoth = targetEvent.windowType === "BOTH" || /\[both\]/i.test(targetEvent.name);
+        if (newLogType === "HIKVISION" && isManual && !isBoth) {
+          setSelectedEventId("");
+        } else if (newLogType === "MANUAL" && !isManual && !isBoth) {
+          setSelectedEventId("");
+        }
+      }
+    }
+  };
+
   return (
     <div className="p-3 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5">
       {/* ── Attendance Hub Navigation Tabs (Admin Only) ── */}
@@ -511,9 +539,21 @@ export default function AdminAttendanceLogsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-[18px] sm:text-[22px] font-black tracking-tight text-white flex items-center gap-2">
                 <span className="inline-flex w-8 h-8 rounded-xl bg-white/10 border border-white/15 items-center justify-center">
-                  {logType === "HIKVISION" ? <Fingerprint className="w-4 h-4 text-emerald-300" /> : <FileText className="w-4 h-4 text-emerald-300" />}
+                  {logType === "HIKVISION" ? (
+                    <Fingerprint className="w-4 h-4 text-emerald-300" />
+                  ) : logType === "MANUAL" ? (
+                    <ClipboardCheck className="w-4 h-4 text-blue-300" />
+                  ) : (
+                    <Layers className="w-4 h-4 text-emerald-300" />
+                  )}
                 </span>
-                {isFaculty ? "Manual Attendance Logs" : logType === "HIKVISION" ? "Hikvision Biometric Scan Logs" : "Manual Classroom Attendance Logs"}
+                {isFaculty
+                  ? "Manual Attendance Logs"
+                  : logType === "HIKVISION"
+                  ? "Hikvision Biometric Scan Logs"
+                  : logType === "MANUAL"
+                  ? "Manual Classroom Attendance Logs"
+                  : "All Attendance Logs (Biometric & Manual)"}
               </h1>
             </div>
             <p className="text-[12px] leading-relaxed text-emerald-100/80 max-w-2xl">
@@ -521,7 +561,9 @@ export default function AdminAttendanceLogsPage() {
                 ? "Faculty view — review student classroom roll-call entries, manual status marks, and excused absences."
                 : logType === "HIKVISION"
                 ? "Direct hardware scan logs from Hikvision terminals with punch timestamps and verification methods."
-                : "Teacher roll-call registers, manual overrides, medical exemptions, and approved leaves."}
+                : logType === "MANUAL"
+                ? "Teacher roll-call registers, manual overrides, medical exemptions, and approved leaves."
+                : "Combined attendance stream — hardware biometric card punches, manual teacher registers, and excused leaves."}
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/10 text-emerald-100 border border-white/15">
@@ -643,7 +685,7 @@ export default function AdminAttendanceLogsPage() {
             {/* All Logs Pill */}
             <button
               type="button"
-              onClick={() => setLogType("ALL")}
+              onClick={() => handleLogTypeChange("ALL")}
               className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
                 logType === "ALL"
                   ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md font-black ring-2 ring-slate-700/40"
@@ -662,7 +704,7 @@ export default function AdminAttendanceLogsPage() {
             {/* Hikvision Biometric Log Pill */}
             <button
               type="button"
-              onClick={() => setLogType("HIKVISION")}
+              onClick={() => handleLogTypeChange("HIKVISION")}
               className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
                 logType === "HIKVISION"
                   ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md font-black ring-2 ring-emerald-500/40"
@@ -681,7 +723,7 @@ export default function AdminAttendanceLogsPage() {
             {/* Manual Attendance Log Pill */}
             <button
               type="button"
-              onClick={() => setLogType("MANUAL")}
+              onClick={() => handleLogTypeChange("MANUAL")}
               className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
                 logType === "MANUAL"
                   ? "bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md font-black ring-2 ring-blue-500/40"
@@ -758,13 +800,13 @@ export default function AdminAttendanceLogsPage() {
             <span>All Scheduled Events</span>
           </button>
 
-          {events.map((ev) => {
+          {filteredEvents.map((ev) => {
             const isSelected = selectedEventId === ev.id;
             const liveCount = (data?.eventLiveCounts as any)?.[ev.id] ?? null;
             const isFacultyEvent = ev.audience === "FACULTY";
             const isStudentEvent = ev.audience === "STUDENT" || ev.audience === "ALL_STUDENTS";
             const isBothEvent = ev.audience === "BOTH";
-            const isManualEvent = (ev as any).windowType === "MANUAL";
+            const isManualEvent = (ev as any).windowType === "MANUAL" || ev.id.startsWith("manual_") || /\[manual\]/i.test(ev.name);
 
             return (
               <button
@@ -810,6 +852,11 @@ export default function AdminAttendanceLogsPage() {
               </button>
             );
           })}
+          {filteredEvents.length === 0 && (
+            <span className="text-xs text-gray-400 italic px-2 py-1">
+              No {logType === "HIKVISION" ? "Hikvision scan" : "manual register"} events configured in Timing &amp; Schedule.
+            </span>
+          )}
         </div>
       </div>
 

@@ -12,7 +12,7 @@ import {
   saveSheetConfiguration,
   queueAutoSheetSync,
 } from "../../lib/google-attendance-sync";
-import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent } from "../../lib/biometric";
+import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
 
 const router = Router();
@@ -35,9 +35,12 @@ function matchScheduledEvent(
   const inWindow = windows.filter((w) => {
     if (!w.enabled) return false;
     const ww = w as any;
-    const isManualWin = ww.id?.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name);
+    const windowType = getWindowType(ww);
+    const isManualWin = windowType === "MANUAL";
+    const isBothWin = windowType === "BOTH";
+
     if (isManualScan) {
-      if (!isManualWin) return false;
+      if (!isManualWin && !isBothWin) return false;
     } else {
       if (isManualWin) return false;
     }
@@ -54,21 +57,14 @@ function matchScheduledEvent(
     return istMinutes >= range.startMin && istMinutes <= range.lateMin;
   });
 
-  const targetList = inWindow.length > 0 ? inWindow : windows.filter((w) => {
-    if (!w.enabled) return false;
-    const range = eventRangeForRole(w, isFaculty ? "TEACHER" : "STUDENT");
-    if (!range || !range.enabled) return false;
-    return istMinutes >= range.startMin && istMinutes <= range.lateMin;
-  });
-
-  if (targetList.length === 0) {
+  if (inWindow.length === 0) {
     return null;
   }
 
-  const matched = targetList[0];
+  const matched = inWindow[0];
   const ww = matched as any;
+  const windowType = getWindowType(ww);
   const isTilawat = /tilawat/i.test(matched.name);
-  const isManualWin = ww.id?.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(matched.name);
   const eventAudience = isTilawat
     ? "BOTH"
     : isLegacyFacultyRow(ww)
@@ -80,7 +76,7 @@ function matchScheduledEvent(
   return {
     id: matched.id,
     name: matched.name,
-    windowType: isManualWin ? "MANUAL" : "HIKVISION",
+    windowType,
     timeWindow:
       isFaculty && ww.facultyStartTime
         ? `${ww.facultyStartTime} - ${ww.facultyLateEndTime || ww.facultyEndTime}`
@@ -101,7 +97,8 @@ router.get("/events", requireAuth, async (req, res) => {
 
     const events = windows.map((w) => {
       const ww = w as any;
-      const isManual = w.id.startsWith("manual_") || ww.exemptStudentIds?.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name);
+      const windowType = getWindowType(ww);
+      const isManual = windowType === "MANUAL";
       const isTilawatDua = /tilawat/i.test(w.name);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
@@ -137,7 +134,7 @@ router.get("/events", requireAuth, async (req, res) => {
       return {
         id: w.id,
         name: w.name,
-        windowType: isManual ? "MANUAL" : "HIKVISION",
+        windowType,
         startTime: w.startTime,
         endTime: w.endTime,
         lateEndTime: (w as any).lateEndTime || w.endTime,
@@ -191,6 +188,9 @@ router.get("/", requireAuth, async (req, res) => {
     );
     const isStudentOnlyWindow = Boolean(
       selectedWindow && !isFacultyOnlyWindow && !isTilawatFilter && !hasFacultyTimer(selectedWindow as any)
+    );
+    const isBothWindow = Boolean(
+      selectedWindow && (isTilawatFilter || hasFacultyTimer(selectedWindow as any) || (!isFacultyOnlyWindow && !isStudentOnlyWindow))
     );
 
     // Effective audience resolution: Default to ALL unless explicitly filtered
@@ -316,7 +316,8 @@ router.get("/", requireAuth, async (req, res) => {
           }
         }
 
-        const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false) : null;
+        const isManualScan = !hasBiometricScan;
+        const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false, isManualScan) : null;
         const biometricMethod = record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
         const verificationMethod = record?.verificationMethod || (hasBiometricScan ? "BIOMETRIC" : "MANUAL");
 
@@ -391,7 +392,8 @@ router.get("/", requireAuth, async (req, res) => {
             source = "MANUAL";
           }
         }
-        const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true) : null;
+        const isManualScan = source !== "SCAN" && source !== "BIOMETRIC";
+        const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true, isManualScan) : null;
         const biometricMethod = rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
         const verificationMethod = rec?.verificationMethod || (source === "SCAN" ? "BIOMETRIC" : "MANUAL");
 
@@ -464,7 +466,17 @@ router.get("/", requireAuth, async (req, res) => {
       filteredRecords = filteredRecords.filter((r) => {
         // If matched directly to this scheduled window
         if (r.scheduledEvent?.id === eventWindowId) return true;
-        // If full roster is being viewed for an event window, include applicable members
+        // If member matched a DIFFERENT scheduled window, they do not belong to this window
+        if (r.scheduledEvent && r.scheduledEvent.id !== eventWindowId) return false;
+        // If member already has a verified check-in for incompatible mode:
+        const selectedWinType = selectedWindow ? getWindowType(selectedWindow as any) : null;
+        if (selectedWinType === "MANUAL" && (r.source === "SCAN" || r.source === "BIOMETRIC")) {
+          return false;
+        }
+        if (selectedWinType === "HIKVISION" && (r.source === "MANUAL" && r.status !== "NOT_MARKED")) {
+          return false;
+        }
+        // If full roster is being viewed for an event window, include applicable unscanned members
         if (isFacultyOnlyWindow) return r.role === "FACULTY";
         if (isStudentOnlyWindow) return r.role === "STUDENT";
         // For Tilawat / Both windows, include all active students & faculty
