@@ -15,6 +15,7 @@ import {
   getWhitelistedIpsList,
   banIp,
   unbanIp,
+  clearAllBannedIps,
   whitelistIp,
   removeWhitelistIp,
 } from "../../lib/waf";
@@ -385,6 +386,31 @@ router.post("/banned-ips/unban", (req, res) => {
   } catch (err) {
     console.error("Error unbanning IP:", err);
     res.status(500).json({ success: false, error: "Failed to unban IP" });
+  }
+});
+
+router.post("/banned-ips/clear-all", (req, res) => {
+  try {
+    clearAllBannedIps();
+
+    const adminUser = (req as any).auth?.user;
+    logAuditEvent({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      userName: `${adminUser?.firstName} ${adminUser?.lastName}`,
+      userRole: "ADMIN",
+      action: "ALL_IPS_UNBANNED",
+      category: "SECURITY",
+      severity: "INFO",
+      status: "SUCCESS",
+      ipAddress: getClientIp(req),
+      details: { reason: "Admin manually cleared all perimeter IP bans" },
+    });
+
+    res.json({ success: true, message: "All IP bans have been successfully cleared." });
+  } catch (err) {
+    console.error("Error clearing banned IPs:", err);
+    res.status(500).json({ success: false, error: "Failed to clear banned IPs" });
   }
 });
 

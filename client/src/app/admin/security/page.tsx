@@ -287,6 +287,27 @@ export default function AdminSecurityPage() {
     }
   };
 
+  const handleClearAllBans = async () => {
+    if (!confirm("Are you sure you want to clear all active IP bans?")) return;
+    try {
+      setWafActionLoading(true);
+      const res = await fetch("/api/admin/security/banned-ips/clear-all", {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ title: "Bans Cleared", description: "All IP bans have been removed." });
+        setBannedIps([]);
+      } else {
+        toast({ title: "Error", description: json.error || "Failed to clear bans", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setWafActionLoading(false);
+    }
+  };
+
   const handleManualBan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!banInputIp.trim()) return;
@@ -837,9 +858,22 @@ export default function AdminSecurityPage() {
                       IPs automatically quarantined by the threat engine or manually blacklisted by administrators
                     </CardDescription>
                   </div>
-                  <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 font-mono text-xs">
-                    {bannedIps.length} Active Ban{bannedIps.length !== 1 ? "s" : ""}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 font-mono text-xs">
+                      {bannedIps.length} Active Ban{bannedIps.length !== 1 ? "s" : ""}
+                    </Badge>
+                    {bannedIps.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleClearAllBans}
+                        disabled={wafActionLoading}
+                        className="text-xs h-6 px-2 text-rose-700 border-rose-200 hover:bg-rose-50"
+                      >
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">

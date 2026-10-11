@@ -12,6 +12,7 @@ const hash = (s: string, salt: number | string): Promise<string> => getBcrypt().
 import prisma from "./lib/prisma";
 import { logAuditEvent, getClientIp, getSecurityPolicies } from "./lib/security";
 import { createMfaChallenge, verifyMfaChallenge } from "./lib/mfa";
+import { unbanIp } from "./lib/waf";
 
 export type Role = "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
 
@@ -393,6 +394,7 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
   });
 
   setSessionCookie(res, signSession(sessionUser));
+  unbanIp(getClientIp(req));
   res.json({ success: true, data: { user: sessionUser } });
 }
 
@@ -532,6 +534,7 @@ export async function verify2FaHandler(req: Request, res: Response): Promise<voi
     });
 
     setSessionCookie(res, signSession(sessionUser));
+    unbanIp(getClientIp(req));
     res.json({ success: true, data: { user: sessionUser } });
   } catch (error) {
     console.error("2FA verification error:", error);

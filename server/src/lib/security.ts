@@ -181,15 +181,18 @@ export function createRateLimiter(
 ): RequestHandler {
   return (req: Request, res: Response, next: NextFunction): void => {
     const ip = getClientIp(req);
-    const isDev = process.env.NODE_ENV !== "production";
-    const isLocalhost =
-      ip === "127.0.0.1" ||
-      ip === "::1" ||
-      ip === "::ffff:127.0.0.1" ||
-      ip === "localhost";
+    const cleanIp = ip.replace(/^::ffff:/, "").trim();
+    const isLocalOrPrivate =
+      cleanIp === "127.0.0.1" ||
+      cleanIp === "::1" ||
+      cleanIp === "localhost" ||
+      cleanIp === "0.0.0.0" ||
+      cleanIp.startsWith("10.") ||
+      cleanIp.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp);
 
-    // In local development, bypass rate limits to avoid interfering with Vite HMR, session checks, and tests
-    if (isDev && isLocalhost) {
+    // In local development, bypass rate limits for local/private IPs to avoid interfering with Vite HMR, session checks, and tests
+    if (isDev && isLocalOrPrivate) {
       return next();
     }
 

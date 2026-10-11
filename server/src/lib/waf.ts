@@ -54,8 +54,38 @@ const ipThreatScores = new Map<string, { score: number; violations: number; last
 const bannedIps = new Map<string, BannedIpInfo>();
 
 // Explicit Manual Whitelist & Blacklist
-const manualWhitelist = new Set<string>(["127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost"]);
+const manualWhitelist = new Set<string>(["127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost", "0.0.0.0"]);
 const manualBlacklist = new Set<string>();
+
+/**
+ * Checks whether an IP address belongs to loopback, local network, or RFC 1918 private subnets.
+ * These addresses are safe from automatic perimeter blacklisting.
+ */
+export function isPrivateOrLocalIp(ip: string): boolean {
+  if (!ip) return true;
+  const clean = ip.replace(/^::ffff:/, "").trim();
+  if (
+    clean === "127.0.0.1" ||
+    clean === "::1" ||
+    clean === "localhost" ||
+    clean === "0.0.0.0"
+  ) {
+    return true;
+  }
+  // RFC 1918 IPv4 ranges
+  if (
+    clean.startsWith("10.") ||
+    clean.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(clean)
+  ) {
+    return true;
+  }
+  // IPv6 link-local and unique local
+  if (clean.toLowerCase().startsWith("fe80:") || clean.toLowerCase().startsWith("fc00:") || clean.toLowerCase().startsWith("fd00:")) {
+    return true;
+  }
+  return false;
+}
 
 // Global WAF Counters
 let totalRequestsChecked = 0;
@@ -92,19 +122,38 @@ if (typeof setInterval !== "undefined") {
   if (cleanupTimer.unref) cleanupTimer.unref();
 }
 
+// ── Sensitive Credential Keys (Never inspected for generic pattern matching) ──
+const SENSITIVE_CREDENTIAL_KEYS = new Set([
+  "password",
+  "passwordhash",
+  "currentpassword",
+  "newpassword",
+  "confirmpassword",
+  "oldpassword",
+  "plainpassword",
+  "token",
+  "refreshtoken",
+  "accesstoken",
+  "secret",
+  "biometrichash",
+  "biometricsecret",
+  "privatekey",
+  "apikey",
+]);
+
 // ── High-Precision Detection Rules ──
 
 // 1. SQL Injection Patterns
 const SQLI_PATTERNS: Array<{ regex: RegExp; name: string; score: number }> = [
   { regex: /(\bUNION\b\s+(?:ALL\s+)?\bSELECT\b)/i, name: "UNION_SELECT_INJECTION", score: 100 },
   { regex: /(?:\b(?:SELECT|UPDATE|INSERT|DELETE|DROP|ALTER|CREATE|TRUNCATE)\b\s+.*\bFROM\b\s+[\w\.\"\`]+)/i, name: "SQL_SUBQUERY_INJECTION", score: 90 },
-  { regex: /(\bOR\b\s+['"\d\w]+\s*=\s*['"\d\w]+)/i, name: "SQL_TAUTOLOGY_OR_INJECTION", score: 80 },
-  { regex: /(\bAND\b\s+['"\d\w]+\s*=\s*['"\d\w]+)/i, name: "SQL_TAUTOLOGY_AND_INJECTION", score: 70 },
+  { regex: /(?:\bOR\b\s+(['"]?\w+['"]?)\s*=\s*\1\b|'\s*OR\s+'[^']+'\s*=\s*'[^']+|'\s*OR\s+1\s*=\s*1)/i, name: "SQL_TAUTOLOGY_OR_INJECTION", score: 80 },
+  { regex: /(?:\bAND\b\s+(['"]?\w+['"]?)\s*=\s*\1\b|'\s*AND\s+'[^']+'\s*=\s*'[^']+|'\s*AND\s+1\s*=\s*1)/i, name: "SQL_TAUTOLOGY_AND_INJECTION", score: 70 },
   { regex: /(?:\b(?:SLEEP|BENCHMARK|PG_SLEEP|WAITFOR\s+DELAY)\s*\(\s*\d+\s*\))/i, name: "SQL_TIME_BASED_INJECTION", score: 100 },
   { regex: /(?:;\s*(?:DROP|ALTER|TRUNCATE|DELETE|EXEC|EXECUTE|XP_CMDSHELL)\b)/i, name: "SQL_STACKED_QUERY_ATTACK", score: 100 },
   { regex: /(?:\b(?:INFORMATION_SCHEMA|SYS\.TABLES|SYSOBJECTS|ALL_TAB_COLUMNS)\b)/i, name: "SQL_SCHEMA_PROBE", score: 85 },
   { regex: /(?:\bCHAR\s*\(\s*\d+\s*(?:,\s*\d+\s*)*\))/i, name: "SQL_CHAR_ENCODING_BYPASS", score: 80 },
-  { regex: /(?:--\s*$|\/\*[\s\S]*?\*\/|#\s*$)/m, name: "SQL_COMMENT_EVASION", score: 60 },
+  { regex: /(?:(?:'|"|;|\b(?:SELECT|UNION|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|FROM|WHERE)\b)\s*(?:--|\/\*))/i, name: "SQL_COMMENT_EVASION", score: 60 },
   { regex: /(?:\bEXEC\s*\(\s*@|\bEXECUTE\s+IMMEDIATE\b)/i, name: "SQL_EXEC_PROC_INJECTION", score: 95 },
 ];
 
@@ -126,9 +175,9 @@ const XSS_PATTERNS: Array<{ regex: RegExp; name: string; score: number }> = [
 
 // 3. Command Injection & Remote Code Execution (RCE)
 const COMMAND_INJECTION_PATTERNS: Array<{ regex: RegExp; name: string; score: number }> = [
-  { regex: /(?:[;&|`]\s*(?:ls|cat|nc|netcat|wget|curl|bash|sh|zsh|powershell|cmd\.exe|whoami|id|uname|dir|type|ping|traceroute)\b)/i, name: "SHELL_COMMAND_CHAINING", score: 100 },
-  { regex: /(?:\$\(\s*(?:ls|cat|nc|wget|curl|bash|sh|whoami|id|uname|hostname)\s*\))/i, name: "SUBSHELL_COMMAND_INJECTION", score: 100 },
-  { regex: /(?:`\s*(?:ls|cat|nc|wget|curl|bash|sh|whoami|id|uname)\s*`)/i, name: "BACKTICK_COMMAND_INJECTION", score: 100 },
+  { regex: /(?:(?:;|\|\||&&|`)\s*(?:ls|netcat|nc\s+|wget\s+|curl\s+|bash|zsh|powershell|cmd\.exe|whoami|uname)\b)/i, name: "SHELL_COMMAND_CHAINING", score: 100 },
+  { regex: /(?:\$\(\s*(?:ls|cat|nc|netcat|wget|curl|bash|sh|whoami|id|uname|hostname)\s*\))/i, name: "SUBSHELL_COMMAND_INJECTION", score: 100 },
+  { regex: /(?:`\s*(?:ls|cat|nc|netcat|wget|curl|bash|sh|whoami|id|uname)\s*`)/i, name: "BACKTICK_COMMAND_INJECTION", score: 100 },
   { regex: /(?:powershell(?:\.exe)?\s+(?:-[eE]n?c?o?d?e?d?C?o?m?m?a?n?d?|-c\b|-w\s+hidden))/i, name: "POWERSHELL_PAYLOAD_EXECUTION", score: 100 },
   { regex: /(?:bash\s+-i\s+>&|\/dev\/tcp\/\d+\.\d+\.\d+\.\d+\/\d+)/i, name: "REVERSE_SHELL_PAYLOAD", score: 100 },
   { regex: /(?:php:\/\/(?:input|filter|memory)|data:\/\/text\/plain)/i, name: "PHP_WRAPPER_EXPLOITATION", score: 90 },
@@ -289,6 +338,12 @@ function inspectPayloadRecursively(
       const keyInspection = inspectString(key, `${location}.key`);
       if (keyInspection) return keyInspection;
 
+      // Skip inspecting sensitive credentials (passwords, tokens, secrets)
+      const normalizedKey = key.toLowerCase().replace(/[-_]/g, "");
+      if (SENSITIVE_CREDENTIAL_KEYS.has(normalizedKey)) {
+        continue;
+      }
+
       // Check value
       const valInspection = inspectPayloadRecursively(obj[key], `${location}.${key}`, depth + 1);
       if (valInspection) return valInspection;
@@ -336,8 +391,13 @@ export function recordAttackViolation(
   current.lastSeen = Date.now();
   ipThreatScores.set(ip, current);
 
-  // Auto-ban IP if score reaches threshold (>= 100) and not whitelisted
-  if (current.score >= 100 && !manualWhitelist.has(ip)) {
+  // Auto-ban IP if score reaches threshold (>= 100) and not whitelisted, private, or in dev mode
+  if (
+    current.score >= 100 &&
+    !manualWhitelist.has(ip) &&
+    !isPrivateOrLocalIp(ip) &&
+    process.env.NODE_ENV === "production"
+  ) {
     const banDuration = 60 * 60 * 1000; // 1 hour auto-ban
     bannedIps.set(ip, {
       ip,
@@ -371,8 +431,13 @@ export function recordAttackViolation(
 }
 
 export function isIpBanned(ip: string): boolean {
+  if (!ip) return false;
+  if (isPrivateOrLocalIp(ip)) return false;
   if (manualWhitelist.has(ip)) return false;
   if (manualBlacklist.has(ip)) return true;
+
+  // Never enforce bans in development or testing environments
+  if (process.env.NODE_ENV !== "production") return false;
 
   const info = bannedIps.get(ip);
   if (!info) return false;
@@ -403,6 +468,12 @@ export function unbanIp(ip: string): void {
   bannedIps.delete(ip);
   manualBlacklist.delete(ip);
   ipThreatScores.delete(ip);
+}
+
+export function clearAllBannedIps(): void {
+  bannedIps.clear();
+  manualBlacklist.clear();
+  ipThreatScores.clear();
 }
 
 export function whitelistIp(ip: string): void {
@@ -450,13 +521,24 @@ export function webApplicationFirewallMiddleware(): RequestHandler {
 
     // 1. IP Ban Enforcement
     if (isIpBanned(ip)) {
-      const banInfo = bannedIps.get(ip);
-      res.status(403).json({
-        success: false,
-        error: "Access Denied: Your IP address has been temporarily blocked by the Security Wall due to malicious activity.",
-        details: banInfo ? { reason: banInfo.reason, expiresAt: new Date(banInfo.expiresAt).toISOString() } : undefined,
-      });
-      return;
+      // Exemption: Authentication and health probe routes are allowed so users & admins
+      // can authenticate with valid credentials and automatically clear bans.
+      const path = req.path || (req.originalUrl || "").split("?")[0] || "";
+      const isAuthRoute =
+        path === "/api/auth/login" ||
+        path === "/api/auth/session" ||
+        path === "/api/auth/logout" ||
+        path === "/api/health";
+
+      if (!isAuthRoute) {
+        const banInfo = bannedIps.get(ip);
+        res.status(403).json({
+          success: false,
+          error: "Access Denied: Your IP address has been temporarily blocked by the Security Wall due to malicious activity.",
+          details: banInfo ? { reason: banInfo.reason, expiresAt: new Date(banInfo.expiresAt).toISOString() } : undefined,
+        });
+        return;
+      }
     }
 
     // 2. Malicious Bot & Vulnerability Scanner Blocking
@@ -473,7 +555,8 @@ export function webApplicationFirewallMiddleware(): RequestHandler {
     }
 
     // 3. Inspect URL Path & Decoded Path for Traversal or Exploitation
-    const rawPath = req.originalUrl || req.path || "";
+    // Note: Only inspect the pathname, NOT query parameters (which are parsed in req.query and checked in step 4)
+    const rawPath = req.path || (req.originalUrl || "").split("?")[0] || "";
     let decodedPath = rawPath;
     try {
       decodedPath = decodeURIComponent(rawPath);
