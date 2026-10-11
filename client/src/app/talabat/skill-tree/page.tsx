@@ -64,7 +64,7 @@ export default function TalabatSkillTreePage() {
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<AttemptRecord[]>([]);
 
-  // Age selection state (Junior 7-10, Middle 11-14, Senior 15-18+)
+  // Age selection state (Middle 11-14, Senior 15-18+)
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroupId>("middle");
 
   // Quiz Modal State
@@ -88,16 +88,14 @@ export default function TalabatSkillTreePage() {
       const h = await fetch("/api/talabat/skill-tree/history").then((x) => x.json());
       if (h.success) setHistory(h.data);
 
-      // Auto-detect student grade/age to set initial age group if possible
+      // Auto-detect student grade/age to set initial age group (Middle or Senior)
       const p = await fetch("/api/talabat/profile").then((x) => x.json()).catch(() => null);
       if (p?.grade) {
         const g = String(p.grade).trim().toLowerCase();
-        if (["1", "2", "3", "4", "darajah 1", "darajah 2", "darajah 3", "darajah 4"].some((prefix) => g.includes(prefix))) {
-          setSelectedAgeGroup("junior");
-        } else if (["5", "6", "7", "8", "darajah 5", "darajah 6", "darajah 7", "darajah 8"].some((prefix) => g.includes(prefix))) {
-          setSelectedAgeGroup("middle");
-        } else {
+        if (["9", "10", "11", "12", "senior", "advanced"].some((prefix) => g.includes(prefix))) {
           setSelectedAgeGroup("senior");
+        } else {
+          setSelectedAgeGroup("middle");
         }
       }
     } catch {

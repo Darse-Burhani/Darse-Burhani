@@ -36,7 +36,7 @@ router.get("/me", requireAuth, async (req, res) => {
     return res.json({
       success: true,
       isGrade4: false,
-      message: "The 1447 H Talabat Profile (توجيه الطالب) is only available for Darajah 4 students.",
+      message: "The 1447 H Talabat Profile (توجيه الطالب) is only available for eligible 1447 H students.",
     });
   }
 
@@ -120,7 +120,7 @@ router.put("/me", requireAuth, async (req, res) => {
 
   const sp = user.studentProfile;
   if (!isGrade4(sp.grade) && session.user.role !== "ADMIN") {
-    return res.status(403).json({ success: false, error: "Only Darajah 4 Talabat can fill this form." });
+    return res.status(403).json({ success: false, error: "Only eligible 1447 H Talabat can fill this form." });
   }
 
   const body = req.body || {};

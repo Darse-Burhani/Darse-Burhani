@@ -38,22 +38,10 @@ export interface SkillTopicMeta {
 
 export const AGE_GROUPS: AgeGroupMeta[] = [
   {
-    id: "junior",
-    label: "Junior",
-    ageRange: "Age 7 – 10",
-    grades: "Darajah 1 – 4 (Primary)",
-    tagline: "Foundational Scenarios & Everyday Habits",
-    description: "Engaging classroom, family, and playground situations that nurture honest thinking, kindness, and patience.",
-    color: "text-emerald-700",
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-300",
-    badgeBg: "bg-emerald-100 text-emerald-800",
-  },
-  {
     id: "middle",
     label: "Middle",
     ageRange: "Age 11 – 14",
-    grades: "Darajah 5 – 8 (Intermediate)",
+    grades: "Classes 5 – 8 (Intermediate)",
     tagline: "Applied Problem Solving & Peer Realities",
     description: "Real-world school projects, peer dynamics, Hifz routines, and balancing responsibilities with sportsmanship.",
     color: "text-blue-700",
@@ -65,7 +53,7 @@ export const AGE_GROUPS: AgeGroupMeta[] = [
     id: "senior",
     label: "Senior",
     ageRange: "Age 15 – 18+",
-    grades: "Darajah 9 – 12+ (Advanced)",
+    grades: "Classes 9 – 12+ (Advanced)",
     tagline: "Scholarly Rigor, Leadership Ethics & Resilience",
     description: "High-stakes decision-making, analytical methodologies, mentoring peers, and mature long-term perseverance.",
     color: "text-purple-700",
@@ -147,7 +135,7 @@ export const SKILL_META: Record<string, { label: string; blurb: string }> = {
 
 export const SKILL_QUESTIONS_BY_AGE: Record<AgeGroupId, Record<string, SkillQuestion[]>> = {
   // ────────────────────────────────────────────────────────────────────────
-  // 1. JUNIOR GROUP (AGES 7 – 10 / PRIMARY / DARAJAH 1–4)
+  // 1. JUNIOR GROUP (AGES 7 – 10 / PRIMARY CLASSES 1–4)
   // ────────────────────────────────────────────────────────────────────────
   junior: {
     criticalThinking: [
@@ -325,7 +313,7 @@ export const SKILL_QUESTIONS_BY_AGE: Record<AgeGroupId, Record<string, SkillQues
         topic: "Leadership",
         subtopic: "Helping Younger Students",
         ageGroup: "junior",
-        q: "You see a younger student in Darajah 1 crying in the hallway because they lost their water bottle. How do you act like a leader?",
+        q: "You see a younger student in primary class crying in the hallway because they lost their water bottle. How do you act like a leader?",
         options: [
           "Ignore them because they are not in your grade",
           "Kneel down, speak kindly, and help them walk to the teacher's desk or lost-and-found",
@@ -461,7 +449,7 @@ export const SKILL_QUESTIONS_BY_AGE: Record<AgeGroupId, Record<string, SkillQues
   },
 
   // ────────────────────────────────────────────────────────────────────────
-  // 2. MIDDLE GROUP (AGES 11 – 14 / MIDDLE SCHOOL / DARAJAH 5–8)
+  // 2. MIDDLE GROUP (AGES 11 – 14 / MIDDLE SCHOOL / CLASSES 5–8)
   // ────────────────────────────────────────────────────────────────────────
   middle: {
     criticalThinking: [
@@ -775,7 +763,7 @@ export const SKILL_QUESTIONS_BY_AGE: Record<AgeGroupId, Record<string, SkillQues
   },
 
   // ────────────────────────────────────────────────────────────────────────
-  // 3. SENIOR GROUP (AGES 15 – 18+ / HIGH SCHOOL & COLLEGE / DARAJAH 9+)
+  // 3. SENIOR GROUP (AGES 15 – 18+ / HIGH SCHOOL & COLLEGE / CLASSES 9+)
   // ────────────────────────────────────────────────────────────────────────
   senior: {
     criticalThinking: [

@@ -156,7 +156,7 @@ export default function TalabatProfile1447Page() {
         setNotification({
           type: "success",
           text: submitStatus === "SUBMITTED"
-            ? "🎉 Profile submitted successfully to Darajah Masul & Administrators!"
+            ? "🎉 Profile submitted successfully to Administration & Teachers!"
             : "💾 Profile draft saved.",
         });
       } else {
@@ -230,12 +230,12 @@ export default function TalabatProfile1447Page() {
         <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-4">
           <GraduationCap className="w-7 h-7" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Darajah 4 Exclusive Profile Form</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Yearly Profile Form (1447 H)</h2>
         <p className="text-slate-600 text-sm leading-relaxed mb-6">
-          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is exclusively designed and designated for students of <strong>Darajah 4</strong>.
+          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is designated for graduating academic year students.
         </p>
         <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-500 border border-slate-200">
-          Your current registered Darajah is not Darajah 4. If you believe this is an error, please contact your administration or Darajah Masul.
+          Your current registered level is not assigned to this profile. If you believe this is an error, please contact your administration.
         </div>
       </div>
     );
@@ -255,7 +255,7 @@ export default function TalabatProfile1447Page() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur">
-                Darajah 4 Only
+                Academic Year 1447 H
               </span>
               <span className="text-xs font-semibold text-white/90">
                 Further Education: توجيه الطالب
@@ -862,13 +862,13 @@ export default function TalabatProfile1447Page() {
             </div>
           </div>
 
-          {/* ── Section 6: Darajah Masul Remarks (Read-Only for Student) ── */}
+          {/* ── Section 6: Faculty & Administration Remarks (Read-Only for Student) ── */}
           {(formData.behaviourRating || formData.masoolRemarks) && (
             <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 border border-blue-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-2 border-b border-blue-200 pb-3 mb-4">
                 <ShieldCheck className="w-5 h-5 text-blue-700" />
                 <h2 className="text-lg font-bold text-slate-900">
-                  Darajah Masul &amp; Darse Burhani Masul Remarks
+                  Administration &amp; Darse Burhani Masul Remarks
                 </h2>
               </div>
 

@@ -82,17 +82,12 @@ export interface TalabatProfileData {
 interface Props {
   data: TalabatProfileData;
   showPrintButton?: boolean;
-  defaultMode?: "edited" | "full";
 }
 
 export function TalabatProfileDocument({
   data,
   showPrintButton = true,
-  defaultMode = "edited",
 }: Props) {
-  // Default to showing only what has been edited, as requested
-  const [viewMode, setViewMode] = useState<"edited" | "full">(defaultMode);
-
   const handlePrint = () => {
     window.print();
   };
@@ -132,8 +127,8 @@ export function TalabatProfileDocument({
   const remarkCategories = [
     {
       key: "remarksMasool",
-      labelEn: "Darajah Masul Remarks",
-      labelAr: "المسؤول عن الدرجة",
+      labelEn: "Class Masul Remarks",
+      labelAr: "المسؤول عن الفصل",
       value: data.remarksMasool || data.masoolRemarks,
     },
     {
@@ -237,51 +232,21 @@ export function TalabatProfileDocument({
 
   return (
     <div className="talabat-profile-root w-full flex flex-col items-center">
-      {/* ── Top Bar (Toggle & Print Controls - Hidden on Print) ── */}
+      {/* ── Top Bar (Print Controls - Hidden on Print) ── */}
       <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-        {/* Mode Selector */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-          <button
-            type="button"
-            onClick={() => setViewMode("edited")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === "edited"
-                ? "bg-[#961212] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
+        {/* Status Indicator */}
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-[#961212] text-white shadow-xs">
             <FileCheck2 className="w-3.5 h-3.5" />
-            Edited Details Only
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("full")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === "full"
-                ? "bg-[#961212] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Full Institutional Form
-          </button>
+            Official Profile Document Preview
+          </span>
+          <span className="hidden sm:inline-flex text-xs text-slate-500 font-medium">
+            (Displaying submitted &amp; verified sections only)
+          </span>
         </div>
 
-        {/* View Status Note & Print Button */}
+        {/* Print Button */}
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                viewMode === "edited" ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-              }`}
-            />
-            <span>
-              {viewMode === "edited"
-                ? "Displaying only fields edited by student/faculty"
-                : "Displaying complete blank institutional template"}
-            </span>
-          </div>
-
           {showPrintButton && (
             <button
               onClick={handlePrint}
@@ -298,37 +263,36 @@ export function TalabatProfileDocument({
       {/* ── Document Container ── */}
       <div className="printable-document flex flex-col gap-8 w-full max-w-[210mm]">
         {/* ════════════════════════════════════════════════════════════
-            DOCUMENT VIEW: EDITED ONLY (DEFAULT)
+            DOCUMENT VIEW: EDITED SECTIONS ONLY
         ════════════════════════════════════════════════════════════ */}
-        {viewMode === "edited" ? (
-          <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
-            <div>
-              {/* ── Top Header ── */}
-              <div className="flex items-start justify-between border-b pb-4 mb-4 relative">
-                {/* Emblem / Logo */}
-                <div className="flex items-center gap-3">
-                  <img
-                    src="/logo.png"
-                    alt="Darse Burhani Logo"
-                    className="w-16 h-16 object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                </div>
+        <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
+          <div>
+            {/* ── Top Header ── */}
+            <div className="flex items-start justify-between border-b pb-4 mb-4 relative">
+              {/* Emblem / Logo */}
+              <div className="flex items-center gap-3">
+                <img
+                  src="/logo.png"
+                  alt="Darse Burhani Logo"
+                  className="w-16 h-16 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+              </div>
 
-                {/* Institution & Title */}
-                <div className="text-center flex-1 px-2">
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
-                    Darse Burhani
-                  </h1>
-                  <h2 className="text-base sm:text-lg font-extrabold text-[#961212] tracking-wider mt-0.5">
-                    TALABAT PROFILE – {data.year || "1447 H"}
-                  </h2>
-                  <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
-                    Darajah 4 (الدرجة الرابعة) • Yearly Profile Submission
-                  </div>
+              {/* Institution & Title */}
+              <div className="text-center flex-1 px-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
+                  Darse Burhani
+                </h1>
+                <h2 className="text-base sm:text-lg font-extrabold text-[#961212] tracking-wider mt-0.5">
+                  TALABAT PROFILE – {data.year || "1447 H"}
+                </h2>
+                <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                  Academic Year 1447 H • Yearly Profile Submission
                 </div>
+              </div>
 
                 {/* Right: Further Education Banner & Status Badge */}
                 <div className="text-right flex flex-col items-end">
@@ -369,7 +333,7 @@ export function TalabatProfileDocument({
                   <GraduationCap className="w-12 h-12 text-slate-400 mx-auto mb-3" />
                   <h3 className="font-bold text-slate-800 text-base">No Profile Information Edited Yet</h3>
                   <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
-                    This Darajah 4 student has not yet entered or submitted details for the 1447 H Yearly Profile.
+                    This student has not yet entered or submitted details for the 1447 H Yearly Profile.
                     Once edited by the student or faculty, the submitted fields will appear here.
                   </p>
                 </div>
@@ -667,11 +631,11 @@ export function TalabatProfileDocument({
                 </div>
               )}
 
-              {/* ── 6. DARAJAH MASUL & FACULTY EVALUATION (Only if reviewed/edited) ── */}
+              {/* ── 6. ADMINISTRATION & FACULTY EVALUATION (Only if reviewed/edited) ── */}
               {hasFacultyEvaluation && (
                 <div className="mb-4 mt-6">
                   <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    DARAJAH MASUL &amp; DARSE BURHANI MASUL COLLECTIVE EVALUATION
+                    ADMINISTRATION &amp; DARSE BURHANI MASUL COLLECTIVE EVALUATION
                   </div>
 
                   {/* 4 Ratings Table (Only if ratings assigned) */}
@@ -760,387 +724,6 @@ export function TalabatProfileDocument({
               </div>
             </div>
           </div>
-        ) : (
-          /* ════════════════════════════════════════════════════════════
-             FULL INSTITUTIONAL FORM (FOR BLANK TEMPLATE PRINTING)
-          ════════════════════════════════════════════════════════════ */
-          <div className="space-y-8">
-            {/* Page 1 */}
-            <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-8 sm:p-10 min-h-[297mm] flex flex-col justify-between box-border">
-              <div>
-                {/* Top Header */}
-                <div className="flex items-start justify-between border-b pb-4 mb-5 relative">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="/logo.png"
-                      alt="Darse Burhani Logo"
-                      className="w-16 h-16 object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                  </div>
-                  <div className="text-center flex-1 px-2">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
-                      Darse Burhani
-                    </h1>
-                    <h2 className="text-lg sm:text-xl font-extrabold text-[#961212] tracking-wider mt-1">
-                      TALABAT PROFILE – {data.year || "1447 H"}
-                    </h2>
-                  </div>
-                  <div className="text-right flex flex-col items-end">
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <span className="block text-xs font-bold text-[#b31b1b]">Further</span>
-                        <span className="block text-xs font-bold text-[#b31b1b]">Education:</span>
-                      </div>
-                      <span className="text-base font-bold text-[#b31b1b] font-alkanz dir-rtl" dir="rtl">
-                        توجيه الطالب
-                      </span>
-                    </div>
-                    <div className="mt-2 text-xs font-semibold text-slate-600 border border-slate-300 rounded px-2 py-0.5">
-                      1
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 1: PERSONAL DETAILS */}
-                <div className="mb-5">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    PERSONAL DETAILS
-                  </div>
-                  <div className="border-x border-b border-slate-800 flex flex-row">
-                    <div className="w-28 sm:w-32 min-h-[120px] p-2 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
-                      {data.studentPhotoUrl ? (
-                        <img
-                          src={data.studentPhotoUrl}
-                          alt={data.name || "Student"}
-                          className="w-full h-28 object-cover rounded shadow-xs border border-slate-200"
-                        />
-                      ) : (
-                        <div className="w-full h-28 bg-slate-100 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                          <span>Student</span>
-                          <span>Photo</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 grid grid-cols-12 text-xs divide-y divide-slate-800">
-                      <div className="col-span-12 flex items-center">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Name:</div>
-                        <div className="flex-1 p-1.5 font-bold text-slate-900">{data.name || "—"}</div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ITS No.:</div>
-                        <div className="flex-1 p-1.5 font-bold">{data.itsNo || "—"}</div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 flex items-center">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ID No.:</div>
-                        <div className="flex-1 p-1.5 font-bold">{data.idNo || "—"}</div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Jamaat:</div>
-                        <div className="flex-1 p-1.5">{data.jamaat || "—"}</div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 flex items-center">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Vatan:</div>
-                        <div className="flex-1 p-1.5">{data.vatan || "—"}</div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Nationality:</div>
-                        <div className="flex-1 p-1.5">{data.nationality || "Indian"}</div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 flex items-center">
-                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">DOB (Age):</div>
-                        <div className="flex-1 p-1.5 font-bold">
-                          {data.age ? `${data.dob ? data.dob + " (" : ""}${data.age}${data.dob ? ")" : " Years"}` : data.dob || "—"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 2: FAMILY DETAILS */}
-                <div className="mb-5">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    FAMILY DETAILS
-                  </div>
-                  <div className="border-x border-b border-slate-800 flex flex-col divide-y divide-slate-800">
-                    <div className="flex flex-row items-center">
-                      <div className="w-28 sm:w-32 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
-                        {data.fatherPhotoUrl ? (
-                          <img
-                            src={data.fatherPhotoUrl}
-                            alt="Father"
-                            className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-slate-100 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                            <span>Father</span>
-                            <span>Photo</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
-                        <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
-                          <span className="font-semibold text-slate-600 text-[11px]">Father Name:</span>
-                          <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.fatherName || "—"}</span>
-                        </div>
-                        <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
-                          <span className="font-semibold text-slate-600 text-[11px]">Father Occupation:</span>
-                          <span className="font-medium text-slate-900 text-xs">{data.fatherOccupation || "—"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-row items-center">
-                      <div className="w-28 sm:w-32 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
-                        {data.motherPhotoUrl ? (
-                          <img
-                            src={data.motherPhotoUrl}
-                            alt="Mother"
-                            className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-slate-100 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                            <span>Mother</span>
-                            <span>Photo</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
-                        <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
-                          <span className="font-semibold text-slate-600 text-[11px]">Mother Name:</span>
-                          <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.motherName || "—"}</span>
-                        </div>
-                        <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
-                          <span className="font-semibold text-slate-600 text-[11px]">Mother Occupation:</span>
-                          <span className="font-medium text-slate-900 text-xs">{data.motherOccupation || "Homemaker"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 3: ACADEMICS DETAILS */}
-                <div className="mb-5">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    ACADEMICS DETAILS
-                  </div>
-                  <div className="border-x border-b border-slate-800 grid grid-cols-12 text-xs divide-x divide-slate-800">
-                    <div className="col-span-3 flex flex-col">
-                      <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
-                        نتائج الامتحان السنوي
-                      </div>
-                      <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
-                        <div className="p-1 font-medium bg-slate-50">1444 H</div>
-                        <div className="p-1 font-bold">{data.result1444 || "—"}</div>
-                        <div className="p-1 font-medium bg-slate-50">1445 H</div>
-                        <div className="p-1 font-bold">{data.result1445 || "—"}</div>
-                        <div className="p-1 font-medium bg-slate-50">1446 H</div>
-                        <div className="p-1 font-bold">{data.result1446 || "—"}</div>
-                        <div className="p-1 font-medium bg-slate-50">1447 H</div>
-                        <div className="p-1 font-bold">{data.result1447 || "—"}</div>
-                      </div>
-                    </div>
-
-                    <div className="col-span-2 flex flex-col">
-                      <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
-                        نتائج الحفظ
-                      </div>
-                      <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
-                        <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Hifz</div>
-                        <div className="p-1 font-bold flex items-center justify-center">{data.hifzYear || "—"}</div>
-                        <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Tabaqa</div>
-                        <div className="p-1 font-bold font-alkanz flex items-center justify-center text-xs" dir="rtl">
-                          {data.hifzTabaqa || "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-span-3 flex flex-col">
-                      <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">Courses</div>
-                      <div className="flex flex-col divide-y divide-slate-800 flex-1">
-                        <div className="flex items-center px-1.5 py-1 text-[11px]">
-                          <span className="font-semibold mr-1">1.</span>
-                          <span className="font-medium truncate">{data.course1 || "—"}</span>
-                        </div>
-                        <div className="flex items-center px-1.5 py-1 text-[11px]">
-                          <span className="font-semibold mr-1">2.</span>
-                          <span className="font-medium truncate">{data.course2 || "—"}</span>
-                        </div>
-                        <div className="flex items-center px-1.5 py-1 text-[11px]">
-                          <span className="font-semibold mr-1">3.</span>
-                          <span className="font-medium truncate">{data.course3 || "—"}</span>
-                        </div>
-                        <div className="flex items-center px-1.5 py-1 text-[11px]">
-                          <span className="font-semibold mr-1">4.</span>
-                          <span className="font-medium truncate">{data.course4 || "—"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-span-4 flex flex-col justify-between">
-                      <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-[11px]" dir="rtl">
-                        الاشتراك في البرامج العلمية والثقافية
-                      </div>
-                      <div className="p-2 text-[11px] leading-relaxed font-alkanz text-right flex-1" dir="rtl">
-                        {data.activities || "—"}
-                      </div>
-                      <div className="border-t border-slate-800 grid grid-cols-12 text-center divide-x divide-slate-800 bg-slate-50">
-                        <div className="col-span-6 p-1 font-alkanz font-bold text-[10px]" dir="rtl">
-                          الامتحانات الأخرى
-                        </div>
-                        <div className="col-span-6 p-1 font-bold text-[10px] bg-white">
-                          {data.otherExams || "—"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 4: SELF – ASSESSMENT */}
-                <div>
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    SELF – ASSESSMENT
-                  </div>
-                  <div className="border-x border-b border-slate-800 grid grid-cols-2 divide-x divide-slate-800 text-xs">
-                    <div className="flex flex-col">
-                      <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">My Strengths</div>
-                      <div className="p-2 flex flex-col gap-1 min-h-[80px]">
-                        {(data.strengths || ["", "", ""]).slice(0, 3).map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-1.5 text-[11px]">
-                            <span className="font-bold text-slate-700">{idx + 1}.</span>
-                            <span className="text-slate-900">{item || "—"}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">My Weaknesses</div>
-                      <div className="p-2 flex flex-col gap-1 min-h-[80px]">
-                        {(data.weaknesses || ["", "", ""]).slice(0, 3).map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-1.5 text-[11px]">
-                            <span className="text-slate-400">•</span>
-                            <span className="text-slate-900">{item || "—"}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Page 2 */}
-            <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-8 sm:p-10 min-h-[297mm] flex flex-col justify-between box-border">
-              <div>
-                <div className="flex items-start justify-between border-b pb-4 mb-5 relative">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="/logo.png"
-                      alt="Darse Burhani Logo"
-                      className="w-16 h-16 object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                  </div>
-                  <div className="text-center flex-1 px-2">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
-                      Darse Burhani
-                    </h1>
-                    <h2 className="text-lg sm:text-xl font-extrabold text-[#961212] tracking-wider mt-1">
-                      TALABAT PROFILE – {data.year || "1447 H"}
-                    </h2>
-                  </div>
-                  <div className="text-right flex flex-col items-end justify-start">
-                    <div className="text-xs font-semibold text-slate-600 border border-slate-300 rounded px-2 py-0.5">
-                      2
-                    </div>
-                  </div>
-                </div>
-
-                {/* About Myself */}
-                <div className="mb-5">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    About Myself
-                  </div>
-                  <div className="border-x border-b border-slate-800 p-3 min-h-[60px] text-xs leading-relaxed text-slate-900">
-                    {data.aboutMyself || "—"}
-                  </div>
-                </div>
-
-                {/* Collective Remarks */}
-                <div className="mb-4">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs uppercase tracking-wider text-slate-900">
-                    DARAJAH MASUL &amp; DARSE BURHANI MASUL COLLECTIVE REMARKS
-                  </div>
-                  <div className="border-x border-b border-slate-800 grid grid-cols-4 divide-x divide-slate-800 text-center">
-                    <div className="flex flex-col">
-                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Behaviour</div>
-                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
-                        {data.behaviourRating ? `${data.behaviourRating}` : "—"}
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Communication</div>
-                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
-                        {data.communicationRating ? `${data.communicationRating}` : "—"}
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Dedication</div>
-                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
-                        {data.dedicationRating ? `${data.dedicationRating}` : "—"}
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Discipline</div>
-                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
-                        {data.disciplineRating ? `${data.disciplineRating}` : "—"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-x border-b border-slate-800 mt-[-1px]">
-                    <div className="bg-slate-50 border-b border-slate-800 p-1 text-center font-alkanz font-bold text-xs text-slate-800" dir="rtl">
-                      ملاحظات عامة:
-                    </div>
-                    <div className="divide-y divide-slate-800 text-xs">
-                      {remarkCategories.map((cat) => (
-                        <div key={cat.key} className="grid grid-cols-12 min-h-[38px]">
-                          <div
-                            className={`col-span-10 p-2 leading-relaxed text-right border-r border-slate-800 flex items-center justify-end ${
-                              isArabicText(cat.value) ? "font-alkanz text-[13px] dir-rtl" : "text-xs"
-                            }`}
-                            dir={isArabicText(cat.value) ? "rtl" : "ltr"}
-                          >
-                            {cat.value || "—"}
-                          </div>
-                          <div className="col-span-2 p-1.5 flex items-center justify-center text-center bg-slate-50/50">
-                            <span className="font-alkanz text-[11px] font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                              {cat.labelAr}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-slate-800 rounded-sm p-3 bg-white mt-4 min-h-[60px]">
-                  <div className="text-[11px] font-serif leading-relaxed text-slate-800 whitespace-pre-wrap">
-                    {data.counsellingNotes || "—"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Print Specific Styles ── */}

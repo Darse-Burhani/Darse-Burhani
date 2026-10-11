@@ -227,7 +227,7 @@ export default function AdminTalabatProfilesPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full">
-                Darajah 4 Profiles
+                Yearly Profiles (1447 H)
               </span>
               <span className="text-xs text-white/80 font-alkanz">Yearly Profile – توجيه الطالب (1447 H)</span>
             </div>
@@ -235,7 +235,7 @@ export default function AdminTalabatProfilesPage() {
               Talabat Profile Master Hub (توجيه الطالب)
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              Complete institutional oversight of Darajah 4 profiles, 10-department remarks (Al-Kanz font), ratings, and official PDF printouts.
+              Complete institutional oversight of 1447 H profiles, 10-department remarks (Al-Kanz font), ratings, and official PDF printouts.
             </p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function AdminTalabatProfilesPage() {
             {totalStudents}
           </div>
           <div>
-            <span className="block text-xs font-semibold text-slate-500">Total Darajah 4</span>
+            <span className="block text-xs font-semibold text-slate-500">Total Profiles</span>
             <span className="text-sm font-bold text-slate-900">Talabat</span>
           </div>
         </div>
@@ -331,7 +331,7 @@ export default function AdminTalabatProfilesPage() {
           </div>
         ) : filteredStudents.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-sm">
-            No Darajah 4 student profiles match your search criteria.
+            No student profiles match your search criteria.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -363,7 +363,7 @@ export default function AdminTalabatProfilesPage() {
                         )}
                         <div>
                           <div className="font-bold text-slate-900">{s.name}</div>
-                          <div className="text-xs text-slate-500">ID: {s.idNo} • Darajah {s.grade}</div>
+                          <div className="text-xs text-slate-500">ID: {s.idNo} • Class {s.grade}</div>
                         </div>
                       </div>
                     </td>
@@ -629,7 +629,7 @@ export default function AdminTalabatProfilesPage() {
                           Faculty Remarks Evaluation Form
                         </div>
                         <h4 className="text-lg font-bold text-slate-900 mt-1">
-                          Darajah Masul &amp; Darse Burhani Masul Collective Remarks
+                          Administration &amp; Darse Burhani Masul Collective Remarks
                         </h4>
                         <p className="text-xs text-slate-500">
                           Type in Arabic (Al-Kanz font) or English for each specific institutional category below.
@@ -765,7 +765,7 @@ export default function AdminTalabatProfilesPage() {
                         {/* 1. المسؤول عن الدرجة */}
                         <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">1. Darajah Masul Remarks</span>
+                            <span className="text-xs font-bold text-slate-800">1. Class Masul Remarks</span>
                             <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">المسؤول عن الدرجة</span>
                           </div>
                           <textarea
