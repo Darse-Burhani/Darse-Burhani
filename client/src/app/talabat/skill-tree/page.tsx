@@ -15,20 +15,40 @@ import {
   AlertCircle,
   History,
   RefreshCw,
+  BookOpen,
+  Filter,
+  HelpCircle,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  GraduationCap,
+  Layers,
+  Award,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/student/PageHeader";
-import { SKILL_QUESTIONS, SKILL_META } from "@/lib/skill-questions";
+import {
+  SKILL_QUESTIONS_BY_AGE,
+  SKILL_TOPICS,
+  SKILL_META,
+  AGE_GROUPS,
+  type AgeGroupId,
+  type SkillQuestion,
+  getQuestionsForSkillAndAge,
+} from "@/lib/skill-questions";
 import { submitSkillAttempt } from "@/lib/api";
 
-const skillCategories = [
-  { key: "criticalThinking", icon: Brain, color: "text-purple-600", bg: "bg-purple-100", barGradient: "from-purple-500 to-purple-400", glowColor: "shadow-purple-200" },
-  { key: "collaboration", icon: Users, color: "text-blue-600", bg: "bg-blue-100", barGradient: "from-blue-500 to-blue-400", glowColor: "shadow-blue-200" },
-  { key: "leadership", icon: Shield, color: "text-amber-600", bg: "bg-amber-100", barGradient: "from-amber-500 to-[#d4af37]", glowColor: "shadow-amber-200" },
-  { key: "resilience", icon: Heart, color: "text-rose-600", bg: "bg-rose-100", barGradient: "from-rose-500 to-rose-400", glowColor: "shadow-rose-200" },
-];
+const skillCategoryIcons: Record<string, React.ElementType> = {
+  criticalThinking: Brain,
+  collaboration: Users,
+  leadership: Shield,
+  resilience: Heart,
+};
+
+const skillCategoryOrder = ["criticalThinking", "collaboration", "leadership", "resilience"] as const;
 
 interface AttemptRecord {
   id: string;
@@ -44,12 +64,21 @@ export default function TalabatSkillTreePage() {
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<AttemptRecord[]>([]);
 
+  // Age selection state (Junior 7-10, Middle 11-14, Senior 15-18+)
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroupId>("middle");
+
+  // Quiz Modal State
   const [quizSkill, setQuizSkill] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [result, setResult] = useState<{ correct: number; total: number; pct: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // Question Bank Explorer State
+  const [showExplorer, setShowExplorer] = useState(false);
+  const [explorerTopic, setExplorerTopic] = useState<string>("ALL");
+  const [expandedExplanation, setExpandedExplanation] = useState<string | null>(null);
 
   const fetchSkills = async () => {
     setLoading(true);
@@ -58,6 +87,19 @@ export default function TalabatSkillTreePage() {
       if (r.success) setSkills(r.data);
       const h = await fetch("/api/talabat/skill-tree/history").then((x) => x.json());
       if (h.success) setHistory(h.data);
+
+      // Auto-detect student grade/age to set initial age group if possible
+      const p = await fetch("/api/talabat/profile").then((x) => x.json()).catch(() => null);
+      if (p?.grade) {
+        const g = String(p.grade).trim().toLowerCase();
+        if (["1", "2", "3", "4", "darajah 1", "darajah 2", "darajah 3", "darajah 4"].some((prefix) => g.includes(prefix))) {
+          setSelectedAgeGroup("junior");
+        } else if (["5", "6", "7", "8", "darajah 5", "darajah 6", "darajah 7", "darajah 8"].some((prefix) => g.includes(prefix))) {
+          setSelectedAgeGroup("middle");
+        } else {
+          setSelectedAgeGroup("senior");
+        }
+      }
     } catch {
     } finally {
       setLoading(false);
@@ -68,10 +110,24 @@ export default function TalabatSkillTreePage() {
     fetchSkills();
   }, []);
 
-  const questions = useMemo(
-    () => (quizSkill ? SKILL_QUESTIONS[quizSkill] || [] : []),
-    [quizSkill]
-  );
+  // Age-aware questions for the active quiz
+  const questions: SkillQuestion[] = useMemo(() => {
+    if (!quizSkill) return [];
+    return getQuestionsForSkillAndAge(quizSkill, selectedAgeGroup);
+  }, [quizSkill, selectedAgeGroup]);
+
+  // Questions for the Explorer section
+  const explorerQuestions: SkillQuestion[] = useMemo(() => {
+    const group = SKILL_QUESTIONS_BY_AGE[selectedAgeGroup] || SKILL_QUESTIONS_BY_AGE.senior;
+    if (explorerTopic === "ALL") {
+      return Object.values(group).flat();
+    }
+    return group[explorerTopic] || [];
+  }, [selectedAgeGroup, explorerTopic]);
+
+  const activeAgeMeta = useMemo(() => {
+    return AGE_GROUPS.find((ag) => ag.id === selectedAgeGroup) || AGE_GROUPS[1];
+  }, [selectedAgeGroup]);
 
   const openQuiz = (skill: string) => {
     setQuizSkill(skill);
@@ -97,7 +153,11 @@ export default function TalabatSkillTreePage() {
     questions.forEach((q, i) => {
       if (answers[i] === q.answer) correct += 1;
     });
-    setResult({ correct, total: questions.length, pct: Math.round((correct / questions.length) * 100) });
+    setResult({
+      correct,
+      total: questions.length,
+      pct: Math.round((correct / questions.length) * 100),
+    });
   };
 
   const handleSave = async () => {
@@ -127,264 +187,670 @@ export default function TalabatSkillTreePage() {
     }
   };
 
-  const meta = quizSkill ? SKILL_META[quizSkill] : null;
+  const activeQuizTopicMeta = quizSkill ? SKILL_TOPICS[quizSkill] : null;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* ── Page Header ── */}
       <PageHeader
         icon={Sparkles}
-        title="Skill Tree"
-        subtitle="Test yourself with a quick Q&A — your score becomes your skill %"
+        title="Skill Tree & Assessment Hub"
+        subtitle="Topic-wise and age-adapted Q&A evaluations — sharpen your abilities and build your skill percentages."
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchSkills}
-            className="border-white/25 bg-white/10 text-white hover:bg-white/20"
-          >
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExplorer(!showExplorer)}
+              className="border-white/25 bg-white/10 text-white hover:bg-white/20 font-semibold"
+            >
+              <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+              {showExplorer ? "Hide Question Bank" : "Explore Question Bank"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchSkills}
+              className="border-white/25 bg-white/10 text-white hover:bg-white/20"
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
+            </Button>
+          </div>
         }
       />
 
-      {loading ? (
-        <div className="grid sm:grid-cols-2 gap-6">{Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="fatimi-card animate-pulse">
-            <div className="fatimi-card-header" />
-            <CardContent className="p-6"><div className="w-full h-32 bg-gray-200 rounded" /></CardContent>
-          </Card>
-        ))}</div>
-      ) : skills ? (
-        <>
-          <div className="grid sm:grid-cols-2 gap-6">
-            {skillCategories.map((skill, i) => {
-              const value = skills[skill.key] || 0;
-              const level = Math.floor(value / 10);
-              return (
-                <div key={skill.key} className="animate-fade-in" style={{ animationDelay: `${i * 100}ms` }}>
-                  <Card className="fatimi-card hover:shadow-lg transition-shadow">
-                    <div className="fatimi-card-header" />
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-3 rounded-xl ${skill.bg} shadow-lg ${skill.glowColor}`}>
-                            <skill.icon className={`w-6 h-6 ${skill.color}`} />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{SKILL_META[skill.key]?.label}</h3>
-                            <p className="text-sm text-gray-500">Level {level}</p>
-                          </div>
+      {/* ════════════════════════════════════════════════════════════
+          AGE GROUP SELECTION BAR (TOPIC & AGE WISE ARCHITECTURE)
+      ════════════════════════════════════════════════════════════ */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Age-Adapted Curriculum
+              </span>
+              <span className="text-xs text-slate-500 font-medium">Select Student Age Group</span>
+            </div>
+            <h2 className="text-lg font-extrabold text-slate-900 mt-0.5">
+              Choose Age Group to Display Questions &amp; Tests
+            </h2>
+          </div>
+          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl self-start sm:self-auto">
+            Active: <strong className="text-emerald-800">{activeAgeMeta.label} ({activeAgeMeta.ageRange})</strong>
+          </span>
+        </div>
+
+        {/* Age Group Cards / Tabs */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {AGE_GROUPS.map((ag) => {
+            const isSelected = selectedAgeGroup === ag.id;
+            return (
+              <button
+                key={ag.id}
+                type="button"
+                onClick={() => {
+                  setSelectedAgeGroup(ag.id);
+                  if (quizSkill) {
+                    setAnswers({});
+                    setResult(null);
+                  }
+                }}
+                className={`relative p-4 rounded-2xl text-left transition-all border-2 cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? "border-emerald-600 bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/30 shadow-md ring-2 ring-emerald-600/10"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={`text-xs font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${ag.badgeBg}`}>
+                      {ag.ageRange}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      {ag.grades}
+                    </span>
+                  </div>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    {ag.label} Tier
+                  </h3>
+                  <p className="text-xs font-semibold text-emerald-800 mt-0.5">
+                    {ag.tagline}
+                  </p>
+                  <p className="text-[11.5px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
+                    {ag.description}
+                  </p>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="font-medium text-slate-600">
+                    5 questions per topic (20 total)
+                  </span>
+                  {isSelected && (
+                    <span className="flex items-center gap-1 font-bold text-emerald-700">
+                      <Check className="w-3.5 h-3.5" /> Selected
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════
+          OPTIONAL INTERACTIVE QUESTION BANK EXPLORER
+      ════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showExplorer && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-7 shadow-xl space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-lg font-bold text-white">
+                      Curriculum Question Bank Explorer
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Browse and review questions categorized by topic for <strong>{activeAgeMeta.label} ({activeAgeMeta.ageRange})</strong>
+                  </p>
+                </div>
+
+                {/* Topic Filter Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setExplorerTopic("ALL")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      explorerTopic === "ALL"
+                        ? "bg-emerald-500 text-slate-950 shadow-sm"
+                        : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    All Topics ({Object.values(SKILL_QUESTIONS_BY_AGE[selectedAgeGroup] || {}).flat().length})
+                  </button>
+                  {skillCategoryOrder.map((key) => {
+                    const meta = SKILL_TOPICS[key];
+                    const count = (SKILL_QUESTIONS_BY_AGE[selectedAgeGroup]?.[key] || []).length;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setExplorerTopic(key)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          explorerTopic === key
+                            ? "bg-emerald-500 text-slate-950 shadow-sm"
+                            : "bg-white/10 text-white hover:bg-white/20"
+                        }`}
+                      >
+                        {meta.label} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Questions List for Selected Age Group & Topic */}
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {explorerQuestions.map((q, idx) => {
+                  const isExp = expandedExplanation === q.id;
+                  return (
+                    <div
+                      key={q.id || idx}
+                      className="bg-white/5 border border-white/10 rounded-2xl p-4 text-xs transition hover:bg-white/10"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                            #{idx + 1}
+                          </span>
+                          <span className="font-bold text-white text-[13px]">{q.topic}</span>
+                          <span className="text-[11px] text-amber-300 font-serif dir-rtl" dir="rtl">
+                            • {q.subtopic}
+                          </span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">{value}<span className="text-sm text-gray-500">%</span></p>
-                        </div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-white/10 px-2 py-0.5 rounded-full">
+                          {activeAgeMeta.label} ({activeAgeMeta.ageRange})
+                        </span>
                       </div>
-                      <div className="w-full bg-emerald-100/60 rounded-full h-4 overflow-hidden">
-                        <div
-                          className={`h-4 rounded-full bg-gradient-to-r ${skill.barGradient} animate-progress`}
-                          style={{ width: `${value}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between mt-2">
-                        <span className="text-[10px] text-gray-500">0</span>
-                        <span className="text-[10px] text-gray-500">100</span>
-                      </div>
-                      <div className="flex gap-1 mt-3">
-                        {Array.from({ length: 10 }).map((_, j) => (
+
+                      <p className="text-[13px] text-slate-200 font-medium leading-relaxed mb-3">
+                        {q.q}
+                      </p>
+
+                      {/* Options Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300 mb-3">
+                        {q.options.map((opt, optIdx) => (
                           <div
-                            key={j}
-                            className="flex-1 h-1.5 rounded-full transition-all duration-300"
-                            style={{
-                              background: j < level
-                                ? j === level - 1
-                                  ? "linear-gradient(90deg, #059669, #d4af37)"
-                                  : "#059669"
-                                : "#e5e7eb"
-                            }}
-                          />
+                            key={optIdx}
+                            className={`p-2 rounded-xl border flex items-start gap-2 ${
+                              optIdx === q.answer
+                                ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300 font-semibold"
+                                : "bg-black/20 border-white/5"
+                            }`}
+                          >
+                            <span className="font-mono font-bold text-[10px] text-slate-400 mt-0.5">
+                              {["A", "B", "C", "D"][optIdx]}.
+                            </span>
+                            <span className="flex-1">{opt}</span>
+                            {optIdx === q.answer && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            )}
+                          </div>
                         ))}
                       </div>
+
+                      {/* Explanation Dropdown */}
+                      <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedExplanation(isExp ? null : q.id)}
+                          className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                        >
+                          {isExp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {isExp ? "Hide Educational Pedagogy" : "View Pedagogical Explanation"}
+                        </button>
+                        <span className="text-[10px] text-slate-400">
+                          Correct Answer: Option {["A", "B", "C", "D"][q.answer]}
+                        </span>
+                      </div>
+
+                      {isExp && (
+                        <div className="mt-2.5 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-200 text-[11.5px] leading-relaxed">
+                          <strong>Learning Objective:</strong> {q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ════════════════════════════════════════════════════════════
+          4 CORE SKILL CATEGORY CARDS (TOPIC-WISE ASSESSMENT)
+      ════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900">
+              Assessed Skills — Topic-Wise Dashboard
+            </h2>
+            <p className="text-xs text-slate-500">
+              Questions below are currently customized for <strong>{activeAgeMeta.label} ({activeAgeMeta.ageRange})</strong>
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-44 animate-pulse rounded-2xl bg-white border border-slate-200 p-6" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {skillCategoryOrder.map((key) => {
+              const meta = SKILL_TOPICS[key];
+              const Icon = skillCategoryIcons[key] || Brain;
+              const currentScore = skills ? skills[key] || 0 : 0;
+              const questionsForThisSkill = SKILL_QUESTIONS_BY_AGE[selectedAgeGroup]?.[key] || [];
+
+              return (
+                <Card
+                  key={key}
+                  className="rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between bg-white"
+                >
+                  <CardContent className="p-5 sm:p-6 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-11 h-11 rounded-2xl ${meta.bgLight} flex items-center justify-center ${meta.textColor} shadow-xs`}>
+                          <Icon className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-extrabold text-base text-slate-900">{meta.label}</h3>
+                            <span className="text-xs font-bold text-[#961212] font-alkanz dir-rtl" dir="rtl">
+                              {meta.arabicLabel}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 line-clamp-1">{meta.blurb}</p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xl font-extrabold text-slate-900 font-mono">
+                          {currentScore}%
+                        </span>
+                        <span className="block text-[10px] uppercase font-bold text-slate-400">
+                          Current Score
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div>
+                      <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${meta.barGradient} transition-all duration-500`}
+                          style={{ width: `${Math.min(100, Math.max(0, currentScore))}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                        <span>Score Level</span>
+                        <span>
+                          {currentScore >= 80 ? "Mastery" : currentScore >= 60 ? "Proficient" : currentScore >= 40 ? "Developing" : "Beginner"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Age Tailored Action Bar */}
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full ${activeAgeMeta.badgeBg.split(" ")[0]}`} />
+                        {activeAgeMeta.label} Test ({questionsForThisSkill.length} Qs)
+                      </span>
+
                       <Button
                         size="sm"
-                        onClick={() => openQuiz(skill.key)}
-                        className="mt-4 w-full bg-emerald-700 hover:bg-emerald-800 font-bold text-xs h-9 rounded-xl"
+                        onClick={() => openQuiz(key)}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-xs cursor-pointer"
                       >
-                        <ClipboardCheck className="w-4 h-4 mr-1.5" /> Take {SKILL_META[skill.key]?.label} Q&A test
+                        <ClipboardCheck className="w-3.5 h-3.5 mr-1.5" />
+                        Take Q&amp;A Test
                       </Button>
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
+        )}
+      </div>
 
-          {/* Recent attempts */}
-          <div className="mt-8">
-            <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-slate-900 mb-3">
-              <History size={16} className="text-emerald-700" /> My recent test scores
-            </h2>
-            {history.length === 0 ? (
-              <Card className="rounded-2xl">
-                <CardContent className="p-6 text-center text-[13px] text-slate-500">
-                  No tests taken yet — open any skill card and tap the Q&A test button.
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {history.slice(0, 6).map((h) => (
-                  <div key={h.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                    <div>
-                      <p className="text-[13px] font-bold text-slate-900">{SKILL_META[h.skill]?.label || h.skill}</p>
-                      <p className="text-[11.5px] text-slate-400">
-                        {h.correctAnswers}/{h.totalQuestions} correct · {new Date(h.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
-                      </p>
-                    </div>
-                    <Badge className={`text-[13px] font-black ${h.score >= 60 ? "bg-emerald-50 text-emerald-800 border-emerald-200" : h.score >= 40 ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-rose-50 text-rose-800 border-rose-200"}`}>
-                      {h.score}%
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <Card className="fatimi-card"><CardContent className="p-12 text-center text-gray-500">No skill data yet. Take a Q&A test to build your skills!</CardContent></Card>
-      )}
-
-      {/* ── Quiz modal ── */}
-      <AnimatePresence>
-        {quizSkill && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl"
-            >
-              <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-emerald-900 px-5 py-4 text-white rounded-t-3xl z-10">
+      {/* ── Recent Attempts History ── */}
+      <div className="mt-8">
+        <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-slate-900 mb-3">
+          <History size={16} className="text-emerald-700" /> My Recent Assessment Scores
+        </h2>
+        {history.length === 0 ? (
+          <Card className="rounded-2xl border border-slate-200">
+            <CardContent className="p-6 text-center text-xs text-slate-500">
+              No tests taken yet. Tap <strong>Take Q&amp;A Test</strong> on any skill card above to begin your assessment.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {history.slice(0, 6).map((h) => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-2xs"
+              >
                 <div>
-                  <h3 className="text-[15px] font-extrabold">{meta?.label} — Q&A test</h3>
-                  <p className="text-[12px] text-emerald-200">
-                    {result ? "Your result" : `${answeredCount}/${questions.length} answered`} · {questions.length} questions
+                  <p className="text-[13px] font-bold text-slate-900">
+                    {SKILL_TOPICS[h.skill]?.label || h.skill}
+                  </p>
+                  <p className="text-[11.5px] text-slate-400">
+                    {h.correctAnswers}/{h.totalQuestions} correct ·{" "}
+                    {new Date(h.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
                 </div>
-                <button type="button" onClick={closeQuiz} className="rounded-lg p-1.5 text-emerald-200 hover:bg-white/10 hover:text-white">
-                  <X size={18} />
-                </button>
+                <Badge
+                  className={`text-[13px] font-black ${
+                    h.score >= 60
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      : h.score >= 40
+                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                      : "bg-rose-50 text-rose-800 border-rose-200"
+                  }`}
+                >
+                  {h.score}%
+                </Badge>
               </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-              <div className="space-y-4 p-5">
-                {!result ? (
-                  <>
-                    {questions.map((q, qi) => (
-                      <div key={qi} className="rounded-2xl border border-slate-200 p-4">
-                        <p className="text-[13.5px] font-bold text-slate-900">
-                          <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-black text-emerald-800">
-                            {qi + 1}
-                          </span>
-                          {q.q}
-                        </p>
-                        <div className="mt-2.5 space-y-1.5">
-                          {q.options.map((opt, oi) => {
-                            const active = answers[qi] === oi;
-                            return (
-                              <button
-                                key={oi}
-                                type="button"
-                                onClick={() => setAnswers((p) => ({ ...p, [qi]: oi }))}
-                                className={`w-full rounded-xl border px-3 py-2 text-left text-[13px] transition active:scale-[0.99] ${
-                                  active
-                                    ? "border-emerald-600 bg-emerald-50 font-bold text-emerald-900 ring-2 ring-emerald-600/20"
-                                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                                }`}
-                              >
-                                <span className="mr-2 font-mono text-[11px] font-bold text-slate-400">
-                                  {["A", "B", "C", "D"][oi]}
-                                </span>
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={handleCheck}
-                      disabled={answeredCount < questions.length}
-                      className="w-full rounded-xl bg-emerald-700 py-3 text-[14px] font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {answeredCount < questions.length
-                        ? `Answer all questions (${answeredCount}/${questions.length})`
-                        : "See my score"}
-                    </button>
-                  </>
-                ) : (
-                  <div className="py-2 text-center">
-                    <motion.div
-                      initial={{ scale: 0.7, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className={`mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 text-3xl font-black ${
-                        result.pct >= 60 ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : result.pct >= 40 ? "border-amber-500 bg-amber-50 text-amber-700"
-                        : "border-rose-400 bg-rose-50 text-rose-600"
-                      }`}
-                    >
-                      {result.pct}%
-                    </motion.div>
-                    <p className="mt-3 text-[15px] font-extrabold text-slate-900">
-                      You scored {result.correct} out of {result.total}
-                    </p>
-                    <p className="mx-auto mt-1 max-w-[40ch] text-[13px] text-slate-500">
-                      {result.pct >= 80
-                        ? "Outstanding! You truly live this skill."
-                        : result.pct >= 60
-                        ? "Well done! A little polish and you'll be excellent."
-                        : result.pct >= 40
-                        ? "Fair start — retake the test after practising."
-                        : "Don't give up — try again and watch your % grow."}
-                    </p>
+      {/* ════════════════════════════════════════════════════════════
+          QUIZ MODAL (TOPIC-WISE & AGE-WISE QUESTION ENGINE)
+      ════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {quizSkill && activeQuizTopicMeta && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-4 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl my-auto"
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 z-10 bg-gradient-to-r from-emerald-900 to-slate-900 px-6 py-4 text-white rounded-t-3xl border-b border-emerald-800/40">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-emerald-200">
+                        {activeAgeMeta.label} ({activeAgeMeta.ageRange})
+                      </span>
+                      <span className="text-xs text-amber-300 font-serif dir-rtl" dir="rtl">
+                        {activeQuizTopicMeta.arabicLabel}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-extrabold mt-0.5">
+                      {activeQuizTopicMeta.label} — Assessment
+                    </h3>
+                  </div>
 
-                    {saveError && (
-                      <div className="mx-auto mt-3 flex max-w-md items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-800">
-                        <AlertCircle size={15} className="mt-0.5 shrink-0" /> {saveError}
-                      </div>
-                    )}
-                    {saved ? (
-                      <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] font-bold text-emerald-800">
-                        <CheckCircle2 size={15} /> Score saved — your Skill Tree is updated!
-                      </p>
-                    ) : (
+                  <button
+                    type="button"
+                    onClick={closeQuiz}
+                    className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Sub-bar with In-Quiz Age Switcher */}
+                <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-300 text-[11px]">Age Tier:</span>
+                    {AGE_GROUPS.map((ag) => (
                       <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="mx-auto mt-4 flex items-center gap-1.5 rounded-xl bg-emerald-700 px-6 py-2.5 text-[13.5px] font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
-                      >
-                        {saving && <Loader2 size={15} className="animate-spin" />}
-                        {saving ? "Saving…" : "Save my score"}
-                      </button>
-                    )}
-                    <div className="mt-3 flex justify-center gap-2">
-                      <button
+                        key={ag.id}
                         type="button"
                         onClick={() => {
+                          setSelectedAgeGroup(ag.id);
                           setAnswers({});
                           setResult(null);
-                          setSaved(false);
                         }}
-                        className="rounded-xl border border-slate-200 px-4 py-2 text-[12.5px] font-bold text-slate-600 hover:bg-slate-50"
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all ${
+                          selectedAgeGroup === ag.id
+                            ? "bg-white text-emerald-950"
+                            : "bg-white/10 text-white hover:bg-white/20"
+                        }`}
                       >
-                        Retake test
+                        {ag.label}
                       </button>
-                      <button
+                    ))}
+                  </div>
+
+                  <div className="text-emerald-200 font-medium">
+                    {result ? "Result Complete" : `${answeredCount}/${questions.length} answered`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 space-y-5">
+                {!result ? (
+                  <>
+                    <div className="space-y-4">
+                      {questions.map((q, qi) => (
+                        <div
+                          key={q.id || qi}
+                          className="rounded-2xl border border-slate-200/90 p-4 sm:p-5 bg-white shadow-2xs space-y-3"
+                        >
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 text-xs font-black text-white">
+                                {qi + 1}
+                              </span>
+                              <span className="text-xs font-bold text-slate-900">{q.topic}</span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                              {q.subtopic}
+                            </span>
+                          </div>
+
+                          <p className="text-[13.5px] font-bold text-slate-900 leading-relaxed">
+                            {q.q}
+                          </p>
+
+                          {/* 4 Options */}
+                          <div className="space-y-2">
+                            {q.options.map((opt, oi) => {
+                              const active = answers[qi] === oi;
+                              return (
+                                <button
+                                  key={oi}
+                                  type="button"
+                                  onClick={() => setAnswers((prev) => ({ ...prev, [qi]: oi }))}
+                                  className={`w-full rounded-xl border px-3.5 py-2.5 text-left text-xs sm:text-[13px] leading-relaxed transition-all cursor-pointer flex items-start gap-2.5 ${
+                                    active
+                                      ? "border-emerald-600 bg-emerald-50/80 font-bold text-emerald-950 ring-2 ring-emerald-600/20 shadow-xs"
+                                      : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-bold mt-0.5 ${
+                                      active
+                                        ? "bg-emerald-700 text-white"
+                                        : "bg-slate-100 text-slate-500"
+                                    }`}
+                                  >
+                                    {["A", "B", "C", "D"][oi]}
+                                  </span>
+                                  <span className="flex-1">{opt}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2">
+                      <Button
                         type="button"
-                        onClick={closeQuiz}
-                        className="rounded-xl bg-slate-900 px-4 py-2 text-[12.5px] font-bold text-white hover:bg-slate-700"
+                        onClick={handleCheck}
+                        disabled={answeredCount < questions.length}
+                        className="w-full h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-sm font-bold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Back to Skill Tree
-                      </button>
+                        {answeredCount < questions.length
+                          ? `Answer all questions (${answeredCount}/${questions.length}) to see score`
+                          : "Calculate My Score"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  /* ── Result & Pedagogy Breakdown ── */
+                  <div className="py-2 space-y-6">
+                    <div className="text-center">
+                      <motion.div
+                        initial={{ scale: 0.7, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className={`mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 text-3xl font-black ${
+                          result.pct >= 60
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : result.pct >= 40
+                            ? "border-amber-500 bg-amber-50 text-amber-700"
+                            : "border-rose-400 bg-rose-50 text-rose-600"
+                        }`}
+                      >
+                        {result.pct}%
+                      </motion.div>
+                      <h4 className="mt-3 text-lg font-extrabold text-slate-900">
+                        You scored {result.correct} out of {result.total}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                        {result.pct >= 80
+                          ? "Outstanding mastery! You exemplify thoughtful, ethical decision-making."
+                          : result.pct >= 60
+                          ? "Very good performance! Review the explanations below to master the nuances."
+                          : "Good effort! Read the answer rationales below and try again to improve your score."}
+                      </p>
+                    </div>
+
+                    {/* Question by Question Review */}
+                    <div className="space-y-3">
+                      <h5 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
+                        Detailed Answer Explanations:
+                      </h5>
+                      {questions.map((q, idx) => {
+                        const isCorrect = answers[idx] === q.answer;
+                        return (
+                          <div
+                            key={idx}
+                            className={`p-4 rounded-2xl border text-xs space-y-2 ${
+                              isCorrect
+                                ? "bg-emerald-50/50 border-emerald-200"
+                                : "bg-rose-50/40 border-rose-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                                Question {idx + 1}
+                                {isCorrect ? (
+                                  <span className="text-emerald-700 font-bold flex items-center gap-0.5 text-[11px]">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Correct
+                                  </span>
+                                ) : (
+                                  <span className="text-rose-600 font-bold flex items-center gap-0.5 text-[11px]">
+                                    <AlertCircle className="w-3.5 h-3.5" /> Review
+                                  </span>
+                                )}
+                              </span>
+                              <span className="text-[11px] font-semibold text-slate-500">
+                                {q.subtopic}
+                              </span>
+                            </div>
+
+                            <p className="text-slate-800 font-medium">{q.q}</p>
+
+                            <div className="text-[11.5px] space-y-1">
+                              {!isCorrect && (
+                                <p className="text-rose-700">
+                                  <strong>Your Answer:</strong> Option {["A", "B", "C", "D"][answers[idx]]} ({q.options[answers[idx]]})
+                                </p>
+                              )}
+                              <p className="text-emerald-800">
+                                <strong>Ideal Answer:</strong> Option {["A", "B", "C", "D"][q.answer]} ({q.options[q.answer]})
+                              </p>
+                              <div className="p-2.5 bg-white/80 rounded-xl border border-slate-200 text-slate-700 leading-relaxed mt-1">
+                                <strong>Why:</strong> {q.explanation}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      {saveError && (
+                        <div className="text-xs text-rose-600 font-medium flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" /> {saveError}
+                        </div>
+                      )}
+                      {saved ? (
+                        <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                          <CheckCircle2 className="w-4 h-4" /> Score saved to your profile!
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={saving}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-10 px-6 rounded-xl shadow-xs"
+                        >
+                          {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
+                          {saving ? "Saving..." : "Save Score to My Skill Tree"}
+                        </Button>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAnswers({});
+                            setResult(null);
+                            setSaved(false);
+                          }}
+                          className="text-xs font-semibold h-10 rounded-xl"
+                        >
+                          Retake Test
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={closeQuiz}
+                          className="text-xs font-bold h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+                        >
+                          Done
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}

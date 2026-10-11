@@ -480,7 +480,7 @@ export default function AdminTalabatProfilesPage() {
                       modalViewTab === "document" ? "bg-[#961212] text-white" : "text-slate-300 hover:text-white"
                     }`}
                   >
-                    👁️ 2-Page Print View
+                    👁️ Document &amp; Print View
                   </button>
                 </div>
 

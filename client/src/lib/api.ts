@@ -856,10 +856,22 @@ export interface MonthlyAttendanceViewResponse {
   overallRate: number;
   talabat: MonthlyAttendanceStudentItem[];
   faculty: MonthlyAttendanceFacultyItem[];
+  hijri?: {
+    year: number;
+    month: number;
+    monthName: string;
+    monthNameAr: string;
+    isJumadaAlUla: boolean;
+    isRabiAlAkhir: boolean;
+    status: string;
+  };
 }
 
-export async function getMonthlyAttendanceView(month?: string): Promise<MonthlyAttendanceViewResponse> {
-  const q = month ? `?month=${encodeURIComponent(month)}` : "";
+export async function getMonthlyAttendanceView(month?: string, hijriMonth?: number): Promise<MonthlyAttendanceViewResponse> {
+  const params = new URLSearchParams();
+  if (month) params.set("month", month);
+  if (hijriMonth) params.set("hijriMonth", String(hijriMonth));
+  const q = params.toString() ? `?${params.toString()}` : "";
   return request<MonthlyAttendanceViewResponse>(`/api/admin/attendance-logs/monthly-view${q}`);
 }
 

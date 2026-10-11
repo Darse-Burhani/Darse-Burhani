@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldCheck,
+  Moon,
 } from "lucide-react";
 import {
   getMonthlyAttendanceView,
@@ -27,6 +28,7 @@ import {
   MonthlyAttendanceFacultyItem,
 } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
+import { getHijriFromDate, HIJRI_1448_MILESTONES } from "@/lib/fatimi-calendar";
 
 interface MonthlySheetViewProps {
   initialMonth?: string;
@@ -40,6 +42,12 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
   }, []);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(initialMonth || currentMonthStr);
+
+  const currentHijri = useMemo(() => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const midDate = new Date(Date.UTC(y || 2026, (m || 1) - 1, 15));
+    return getHijriFromDate(midDate);
+  }, [selectedMonth]);
   const [data, setData] = useState<MonthlyAttendanceViewResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
@@ -187,18 +195,61 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
               <FileSpreadsheet className="w-3.5 h-3.5 text-amber-400" />
               <span>Official Monthly Register &bull; Google Sheets Grid</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-              Monthly Attendance Register
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2 flex-wrap">
+              <span>Monthly Attendance Register</span>
               <span className="text-amber-400 text-lg font-bold">({data?.monthName || selectedMonth})</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 border border-emerald-400/40 text-emerald-300">
+                <Moon className="w-3.5 h-3.5 text-amber-300" />
+                <span>{currentHijri.monthName} {currentHijri.year}H</span>
+                <span className="text-emerald-400 font-arabic text-xs">({currentHijri.monthNameAr})</span>
+                {currentHijri.isJumadaAlUla ? (
+                  <span className="ml-1 px-1.5 py-0.2 rounded text-[9px] bg-emerald-500 text-white font-black">
+                    New Active Month 🌟
+                  </span>
+                ) : currentHijri.isRabiAlAkhir ? (
+                  <span className="ml-1 px-1.5 py-0.2 rounded text-[9px] bg-amber-400 text-slate-950 font-bold">
+                    Concluded
+                  </span>
+                ) : null}
+              </span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
               High-accuracy attendance performance metrics bifurcated across Talabat and Faculty.
-              Displaying monthly registers with automatic transition for upcoming months.
+              Displaying monthly registers stacked by Fatimi Hijri months with transition from Rabīʿ al-Ākhir to Jumādā al-Ūlā.
             </p>
           </div>
 
           {/* Month Selector & Sheet Sync Actions */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Fatimi Hijri Quick-Switch Pills */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-emerald-700/50 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setSelectedMonth("2026-10")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedMonth === "2026-10"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-emerald-950 shadow-md ring-1 ring-emerald-300"
+                    : "text-emerald-300 hover:text-white hover:bg-slate-800"
+                }`}
+                title="Switch to Jumādā al-Ūlā 1448 H (New Month)"
+              >
+                <Moon className="w-3 h-3 text-emerald-950" />
+                <span>Jumādā al-Ūlā 🌟</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedMonth("2026-09")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedMonth === "2026-09"
+                    ? "bg-amber-400 text-slate-950 shadow-md ring-1 ring-amber-300"
+                    : "text-amber-300 hover:text-white hover:bg-slate-800"
+                }`}
+                title="Switch to Rabīʿ al-Ākhir 1448 H (Ended)"
+              >
+                <span>Rabīʿ al-Ākhir</span>
+              </button>
+            </div>
+
             <div className="flex items-center rounded-xl bg-slate-900 border border-emerald-700/50 p-1 shadow-inner">
               <button
                 type="button"
@@ -218,7 +269,7 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
                 type="button"
                 onClick={handleNextMonth}
                 className="px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold transition-all"
-                title="Next Month (From Monday)"
+                title="Next Month"
               >
                 Next &rarr;
               </button>
@@ -255,7 +306,7 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
         </div>
 
         {/* ── KPI Metric Cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-6">
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
             <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
               <span>Working Days</span>
@@ -303,6 +354,28 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
             </p>
             <p className="text-[11px] text-slate-400 mt-1">
               Overall rate: {data?.overallRate ?? 0}%
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            <div className="flex items-center justify-between text-emerald-300 text-xs font-bold">
+              <span>Fatimi Hijri Month</span>
+              <Moon className="w-4 h-4 text-emerald-400" />
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-emerald-300 mt-2 truncate">
+              {currentHijri.monthNameShort}
+            </p>
+            <p className="text-[11px] text-slate-300 mt-1 flex items-center gap-1 flex-wrap">
+              <span>{currentHijri.year}H</span>
+              {currentHijri.isJumadaAlUla ? (
+                <span className="px-1.5 py-0.2 rounded text-[8px] bg-emerald-500 text-white font-black uppercase">
+                  New Month 🌟
+                </span>
+              ) : currentHijri.isRabiAlAkhir ? (
+                <span className="px-1.5 py-0.2 rounded text-[8px] bg-amber-500 text-slate-950 font-bold uppercase">
+                  Concluded
+                </span>
+              ) : null}
             </p>
           </div>
         </div>

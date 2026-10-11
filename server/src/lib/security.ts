@@ -193,7 +193,10 @@ export function createRateLimiter(
       return next();
     }
 
-    const key = `${endpointKey}:${ip}`;
+    // Key by authenticated user ID if available, otherwise fallback to IP
+    const userId = (req as any).auth?.user?.id || (req as any).session?.user?.id;
+    const clientIdentifier = userId ? `user_${userId}` : ip;
+    const key = `${endpointKey}:${clientIdentifier}`;
     const now = Date.now();
 
     let record = rateLimitMap.get(key);
@@ -261,9 +264,10 @@ export function createRateLimiter(
 }
 
 /**
- * Global rate limiter to smooth load traffic across all incoming API requests (600 req/min/IP).
+ * Global rate limiter to smooth load traffic across all incoming API requests (Default: 15,000 req/min for 5000+ users).
  */
-export const globalApiRateLimiter = createRateLimiter(60000, 600, "global_api");
+const globalRateLimitMax = Number(process.env.RATE_LIMIT_GLOBAL_MAX || 15000);
+export const globalApiRateLimiter = createRateLimiter(60000, globalRateLimitMax, "global_api");
 
 /**
  * Deep sanitization helper against prototype pollution, NULL bytes, and malicious injection keys.

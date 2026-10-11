@@ -22,7 +22,7 @@ process.on("unhandledRejection", (reason, promise) => {
 // Determine concurrency: In production cluster across available CPU cores (or WEB_CONCURRENCY)
 const isDev = process.env.NODE_ENV !== "production" || process.env.DEV === "true";
 const numCpus = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
-const concurrency = Number(process.env.WEB_CONCURRENCY || (isDev ? 1 : Math.min(numCpus, 4)));
+const concurrency = Number(process.env.WEB_CONCURRENCY || (isDev ? 1 : Math.max(1, numCpus)));
 const useClustering = !isDev && concurrency > 1;
 
 if (useClustering && cluster.isPrimary) {

@@ -1,0 +1,114 @@
+version: "3.8"
+
+# ==============================================================================
+# DARSE BURHANI — 5,000 CONCURRENT USERS MULTI-INSTANCE LOAD BALANCER STACK
+# Architecture: Nginx Load Balancer (Port 80/443) -> 4x Node.js Replicas
+# ==============================================================================
+
+services:
+  # ── Layer 1: Nginx High-Concurrency Load Balancer ──
+  load_balancer:
+    image: nginx:alpine
+    container_name: darse-load-balancer
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.docker.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend_app_1
+      - backend_app_2
+      - backend_app_3
+      - backend_app_4
+    networks:
+      - darse_network
+
+  # ── Layer 2: Scaled Node.js Application Backends (4 Replicas) ──
+  backend_app_1:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: darse-backend-1
+    restart: always
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - WEB_CONCURRENCY=2
+      - DATABASE_CONNECTION_LIMIT=20
+    env_file:
+      - ../../.env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - darse_network
+
+  backend_app_2:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: darse-backend-2
+    restart: always
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - WEB_CONCURRENCY=2
+      - DATABASE_CONNECTION_LIMIT=20
+    env_file:
+      - ../../.env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - darse_network
+
+  backend_app_3:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: darse-backend-3
+    restart: always
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - WEB_CONCURRENCY=2
+      - DATABASE_CONNECTION_LIMIT=20
+    env_file:
+      - ../../.env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - darse_network
+
+  backend_app_4:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: darse-backend-4
+    restart: always
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - WEB_CONCURRENCY=2
+      - DATABASE_CONNECTION_LIMIT=20
+    env_file:
+      - ../../.env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - darse_network
+
+networks:
+  darse_network:
+    driver: bridge

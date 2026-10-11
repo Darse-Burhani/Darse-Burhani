@@ -202,6 +202,8 @@ export default function App() {
 
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/fatimi-calendar" element={<RequireCalendarAccess><FatimiCalendarPage /></RequireCalendarAccess>} />
+        <Route path="/calendar" element={<Navigate to="/fatimi-calendar" replace />} />
+        <Route path="/library" element={<Navigate to="/admin/library" replace />} />
         <Route path="/library/tv" element={<LibraryTvPage />} />
         <Route
           path="/notifications"
@@ -270,6 +272,8 @@ export default function App() {
           <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="students"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
+          <Route path="profile-1447" element={<Navigate to="/admin/talabat-profiles" replace />} />
+          <Route path="yearly-profile" element={<Navigate to="/admin/talabat-profiles" replace />} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
         </Route>
 
@@ -285,6 +289,9 @@ export default function App() {
           <Route index element={<TalabatDashboard />} />
           <Route path="attendance" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Attendance"><TalabatAttendance /></ModuleLockGuard>} />
           <Route path="leave-request" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Leave Records"><TalabatLeaveRequest /></ModuleLockGuard>} />
+          <Route path="leave" element={<Navigate to="/talabat/leave-request" replace />} />
+          <Route path="leaves" element={<Navigate to="/talabat/leave-request" replace />} />
+          <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="scans" element={<ModuleLockGuard moduleKey="scans" role="STUDENT" title="My Scans"><TalabatScans /></ModuleLockGuard>} />
           <Route path="badges" element={<ModuleLockGuard moduleKey="badges" role="STUDENT" title="Badges"><TalabatBadges /></ModuleLockGuard>} />
           <Route path="hifz" element={<ModuleLockGuard moduleKey="hifz" role="STUDENT" title="Hifz Journey"><TalabatHifz /></ModuleLockGuard>} />
@@ -311,11 +318,17 @@ export default function App() {
           <Route index element={<TeacherDashboard />} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><TeacherClasses /></RequireAdminPageAccess>} />
           <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="classes"><TeacherTalabatProfiles /></RequireAdminPageAccess>} />
+          <Route path="profile-1447" element={<Navigate to="/teacher/talabat-profiles" replace />} />
+          <Route path="yearly-profile" element={<Navigate to="/teacher/talabat-profiles" replace />} />
           <Route path="attendance" element={<RequireAdminPageAccess pageKey="manual-attendance"><TeacherAttendance /></RequireAdminPageAccess>} />
           <Route path="manual-attendance" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="medical-duty" element={<RequireAdminPageAccess pageKey="medical-duty"><TeacherMedicalDuty /></RequireAdminPageAccess>} />
           <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><TeacherLeave /></RequireAdminPageAccess>} />
+          <Route path="leave-request" element={<Navigate to="/teacher/leave" replace />} />
+          <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
+          <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifz /></RequireAdminPageAccess>} />
+          <Route path="hifz-reports" element={<Navigate to="/teacher/hifz" replace />} />
           <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
           <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
@@ -372,6 +385,8 @@ export default function App() {
         >
           <Route index element={<ParentDashboard />} />
           <Route path="activity" element={<ParentActivity />} />
+          <Route path="attendance" element={<Navigate to="/parent/activity" replace />} />
+          <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="hifz" element={<ParentHifz />} />
           <Route path="settings" element={<ParentSettings />} />
         </Route>

@@ -26,10 +26,13 @@ import {
   LayoutGrid,
   Fingerprint,
   ClipboardCheck,
+  Moon,
+  CalendarDays,
 } from "lucide-react";
 import { AttendanceLogRecordItem, AttendanceLogsSummary } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
+import { getHijriFromDate, HIJRI_1448_MILESTONES } from "@/lib/fatimi-calendar";
 
 interface DailyStackedLogViewProps {
   records: AttendanceLogRecordItem[];
@@ -41,6 +44,7 @@ interface DailyStackedLogViewProps {
   availableSections: string[];
   selectedGrade: string;
   selectedSection: string;
+  selectedDate?: string;
   onGradeChange: (grade: string) => void;
   onSectionChange: (section: string) => void;
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
@@ -142,10 +146,12 @@ function AttendanceTableView({
   records,
   role,
   onMemberClick,
+  selectedDate,
 }: {
   records: AttendanceLogRecordItem[];
   role: "STUDENT" | "FACULTY";
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
+  selectedDate?: string;
 }) {
   const isFaculty = role === "FACULTY";
 
@@ -169,6 +175,7 @@ function AttendanceTableView({
           <tbody className="divide-y divide-gray-100 font-medium">
             {records.map((r, i) => {
               const isScanned = Boolean(r.source === "SCAN" || r.verificationMethod === "BIOMETRIC" || r.checkInTime);
+              const hijri = getHijriFromDate(r.checkInTime || selectedDate);
               return (
                 <tr
                   key={r.id || r.memberId || i}
@@ -220,25 +227,50 @@ function AttendanceTableView({
                   <td className="px-3 py-2.5 font-mono text-gray-900 tabular-nums">
                     {(() => {
                       const formatted = formatPreciseScanTime(r.checkInTime);
-                      if (!formatted) {
-                        return (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 font-normal">
-                            ⏳ Not Scanned
-                          </span>
-                        );
-                      }
                       return (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-300 text-xs flex items-center gap-1">
-                              <Zap className="w-3 h-3 text-emerald-600 fill-current" />
-                              {formatted.timeStr} IST
-                            </span>
-                            {formatted.isRecent && (
-                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
-                                Live
+                        <div className="flex flex-col gap-1">
+                          {formatted ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-300 text-xs flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-emerald-600 fill-current" />
+                                {formatted.timeStr} IST
                               </span>
-                            )}
+                              {formatted.isRecent && (
+                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
+                                  Live
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 font-normal">
+                              ⏳ Not Scanned
+                            </span>
+                          )}
+
+                          {/* Hijri Month & Date Stacking Tag */}
+                          <div className="flex items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black border tracking-wide ${
+                                hijri.isJumadaAlUla
+                                  ? "bg-emerald-100/90 text-emerald-950 border-emerald-300 shadow-2xs"
+                                  : hijri.isRabiAlAkhir
+                                  ? "bg-amber-100/80 text-amber-950 border-amber-300"
+                                  : "bg-slate-100 text-slate-800 border-slate-200"
+                              }`}
+                              title={hijri.formatted}
+                            >
+                              <Moon className="w-2.5 h-2.5 text-emerald-700 shrink-0" />
+                              <span>{hijri.day} {hijri.monthNameShort}</span>
+                              {hijri.isJumadaAlUla ? (
+                                <span className="ml-0.5 px-1 py-0.2 rounded text-[8px] bg-emerald-600 text-white font-black uppercase">
+                                  New 🌟
+                                </span>
+                              ) : hijri.isRabiAlAkhir ? (
+                                <span className="ml-0.5 px-1 py-0.2 rounded text-[8px] bg-amber-600 text-white font-bold uppercase">
+                                  Ended
+                                </span>
+                              ) : null}
+                            </span>
                           </div>
                         </div>
                       );
@@ -325,16 +357,19 @@ function AttendanceGridView({
   records,
   role,
   onMemberClick,
+  selectedDate,
 }: {
   records: AttendanceLogRecordItem[];
   role: "STUDENT" | "FACULTY";
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
+  selectedDate?: string;
 }) {
   const isFaculty = role === "FACULTY";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
       {records.map((r) => {
+        const hijri = getHijriFromDate(r.checkInTime || selectedDate);
         return (
           <motion.div
             key={r.id || r.memberId}
@@ -434,6 +469,29 @@ function AttendanceGridView({
                             {isScanned ? "MinMoe Device Punch" : "Manual Record"}
                           </span>
                         </div>
+
+                        {/* Hijri Month & Date Stacking */}
+                        <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-gray-100/80">
+                          <span className="text-gray-400 flex items-center gap-1 font-semibold">
+                            <Moon className="w-2.5 h-2.5 text-emerald-600" /> Hijri Day
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-black ${
+                              hijri.isJumadaAlUla
+                                ? "bg-emerald-100 text-emerald-950 border border-emerald-300"
+                                : hijri.isRabiAlAkhir
+                                ? "bg-amber-100 text-amber-950 border border-amber-300"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            <span>{hijri.day} {hijri.monthNameShort}</span>
+                            {hijri.isJumadaAlUla && (
+                              <span className="px-1 py-0.2 rounded text-[7.5px] bg-emerald-600 text-white uppercase font-extrabold">
+                                New 🌟
+                              </span>
+                            )}
+                          </span>
+                        </div>
                       </div>
                     );
                   })()}
@@ -487,6 +545,7 @@ function AttendanceSectionBlock({
   viewMode,
   onMemberClick,
   logType,
+  selectedDate,
 }: {
   role: "STUDENT" | "FACULTY";
   title: string;
@@ -496,6 +555,7 @@ function AttendanceSectionBlock({
   viewMode: "table" | "grid";
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
   logType?: "HIKVISION" | "MANUAL" | "ALL";
+  selectedDate?: string;
 }) {
   const isFaculty = role === "FACULTY";
   const presentCount = records.filter((r) => r.status === "PRESENT" || r.status === "LATE").length;
@@ -553,9 +613,9 @@ function AttendanceSectionBlock({
           </div>
         </div>
       ) : viewMode === "table" ? (
-        <AttendanceTableView records={records} role={role} onMemberClick={onMemberClick} />
+        <AttendanceTableView records={records} role={role} onMemberClick={onMemberClick} selectedDate={selectedDate} />
       ) : (
-        <AttendanceGridView records={records} role={role} onMemberClick={onMemberClick} />
+        <AttendanceGridView records={records} role={role} onMemberClick={onMemberClick} selectedDate={selectedDate} />
       )}
     </div>
   );
@@ -571,6 +631,7 @@ export function DailyStackedLogView({
   availableSections,
   selectedGrade,
   selectedSection,
+  selectedDate,
   onGradeChange,
   onSectionChange,
   onMemberClick,
@@ -580,10 +641,22 @@ export function DailyStackedLogView({
   logType = "ALL",
 }: DailyStackedLogViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
+  const [hijriTier, setHijriTier] = useState<"ALL" | "JUMADA_ULA" | "RABI_AKHIR">("ALL");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [prevSummary, setPrevSummary] = useState<AttendanceLogsSummary | null>(null);
   const [changedKeys, setChangedKeys] = useState<Set<string>>(new Set());
+
+  const currentDayHijri = useMemo(() => getHijriFromDate(selectedDate || new Date()), [selectedDate]);
+
+  const jumadaRecordsCount = useMemo(
+    () => records.filter((r) => getHijriFromDate(r.checkInTime || selectedDate).isJumadaAlUla).length,
+    [records, selectedDate]
+  );
+  const rabiRecordsCount = useMemo(
+    () => records.filter((r) => getHijriFromDate(r.checkInTime || selectedDate).isRabiAlAkhir).length,
+    [records, selectedDate]
+  );
 
   // Detect which numbers changed for pulse animation
   useEffect(() => {
@@ -611,6 +684,12 @@ export function DailyStackedLogView({
       if (activeTab === "ON_LEAVE" && r.status !== "ON_LEAVE") return false;
       if (activeTab === "ABSENT" && r.status !== "ABSENT") return false;
       if (activeTab === "NOT_MARKED" && r.status !== "NOT_MARKED") return false;
+
+      // Hijri month stacking filter
+      const rHijri = getHijriFromDate(r.checkInTime || selectedDate);
+      if (hijriTier === "JUMADA_ULA" && !rHijri.isJumadaAlUla) return false;
+      if (hijriTier === "RABI_AKHIR" && !rHijri.isRabiAlAkhir) return false;
+
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const matchesName = r.name.toLowerCase().includes(q);
@@ -620,7 +699,7 @@ export function DailyStackedLogView({
       }
       return true;
     });
-  }, [records, activeTab, search]);
+  }, [records, activeTab, hijriTier, selectedDate, search]);
 
   const talabatRecords = useMemo(() => filteredRecords.filter((r) => r.role === "STUDENT"), [filteredRecords]);
   const facultyRecords = useMemo(() => filteredRecords.filter((r) => r.role === "FACULTY"), [filteredRecords]);
@@ -629,6 +708,86 @@ export function DailyStackedLogView({
 
   return (
     <div className="space-y-4">
+      {/* ── Fatimi Hijri Month Stacking & Transition Banner ── */}
+      <div className="p-4 rounded-[22px] bg-gradient-to-r from-slate-950 via-emerald-950 to-teal-950 border border-emerald-500/40 text-white relative overflow-hidden shadow-lg">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-52 h-52 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black uppercase tracking-wider">
+                <Moon className="w-3.5 h-3.5 text-amber-300" />
+                <span>Fatimi Hijri Stacking Display</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-sm">
+                <Sparkles className="w-3 h-3" />
+                Rabīʿ al-Ākhir Ended &bull; Jumādā al-Ūlā Active
+              </span>
+            </div>
+
+            <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight flex-wrap">
+              <span>Date:</span>
+              <span className="text-amber-300 font-serif">{currentDayHijri.formatted}</span>
+              <span className="text-emerald-400 font-arabic text-sm">({currentDayHijri.formattedAr})</span>
+            </h3>
+
+            <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+              Rabīʿ al-Ākhir has ended. New Talabat and Faculty attendance scans are automatically registered under <strong className="text-emerald-300">Jumādā al-Ūlā 1448 H</strong>. Use the stacking filters to view new records versus past concluded logs.
+            </p>
+          </div>
+
+          {/* Hijri Month Stacking Switcher Pills */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0 bg-slate-900/90 p-1.5 rounded-2xl border border-emerald-500/30">
+            <button
+              type="button"
+              onClick={() => setHijriTier("ALL")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                hijriTier === "ALL"
+                  ? "bg-white text-slate-950 font-black shadow-md"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800"
+              }`}
+            >
+              <span>All Scans</span>
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-slate-200/40 text-current">
+                {records.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHijriTier("JUMADA_ULA")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                hijriTier === "JUMADA_ULA"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-emerald-950 font-black shadow-md ring-2 ring-emerald-400/50"
+                  : "text-emerald-300 hover:text-white hover:bg-emerald-950/60 border border-emerald-500/30"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Jumādā al-Ūlā (New 🌟)</span>
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-black bg-emerald-900/40 text-current">
+                {jumadaRecordsCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHijriTier("RABI_AKHIR")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                hijriTier === "RABI_AKHIR"
+                  ? "bg-amber-400 text-amber-950 font-black shadow-md ring-2 ring-amber-300/50"
+                  : "text-amber-300 hover:text-white hover:bg-amber-950/40 border border-amber-500/30"
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Rabīʿ al-Ākhir (Ended)</span>
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-900/40 text-current">
+                {rabiRecordsCount}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
       {/* ── Strict Subsystem Mode Notification Banner ── */}
       {logType === "HIKVISION" && (
         <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-teal-950/80 to-emerald-900/90 border border-emerald-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
@@ -883,6 +1042,7 @@ export function DailyStackedLogView({
             viewMode={viewMode}
             onMemberClick={onMemberClick}
             logType={logType}
+            selectedDate={selectedDate}
           />
         )}
 
@@ -897,6 +1057,7 @@ export function DailyStackedLogView({
             viewMode={viewMode}
             onMemberClick={onMemberClick}
             logType={logType}
+            selectedDate={selectedDate}
           />
         )}
       </div>

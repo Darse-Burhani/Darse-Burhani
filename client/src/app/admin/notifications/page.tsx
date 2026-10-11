@@ -154,7 +154,7 @@ const PREMADE_TEMPLATES: NotificationTemplate[] = [
     type: "LIBRARY",
     title: "New Books Added to Darse Burhani Library",
     body: "Over 40 new authentic texts and historical volumes have arrived on Shelf B. Check them out at the library desk today.",
-    link: "/library",
+    link: "/talabat/library",
     targetType: "STUDENTS",
   },
 ];
@@ -164,7 +164,7 @@ const QUICK_LINKS = [
   { label: "Parent Activity", url: "/parent/activity" },
   { label: "Fatimi Calendar", url: "/fatimi-calendar" },
   { label: "Teacher Takhteet", url: "/teacher/takhteet" },
-  { label: "Library Catalog", url: "/library" },
+  { label: "Library Catalog", url: "/admin/library" },
 ];
 
 const COMMUNICATION_TABS = [

@@ -28,13 +28,14 @@ function getPooledDatabaseUrl(): string | undefined {
     const [base, queryStr] = url.split("?");
     const params = new URLSearchParams(queryStr || "");
 
+    const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || "25", 10);
     const currentLimit = parseInt(params.get("connection_limit") || "0", 10);
-    if (!params.has("connection_limit") || currentLimit < 10) {
-      params.set("connection_limit", "15");
+    if (!params.has("connection_limit") || currentLimit < targetLimit) {
+      params.set("connection_limit", String(targetLimit));
     }
     const currentTimeout = parseInt(params.get("pool_timeout") || "0", 10);
-    if (!params.has("pool_timeout") || currentTimeout < 15) {
-      params.set("pool_timeout", "20");
+    if (!params.has("pool_timeout") || currentTimeout < 30) {
+      params.set("pool_timeout", "30");
     }
     if (!params.has("prepared_statement_cache_size")) {
       params.set("prepared_statement_cache_size", "500");

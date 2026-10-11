@@ -1,5 +1,21 @@
-import React from "react";
-import { Printer, CheckCircle2, Award, Star } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Printer,
+  CheckCircle2,
+  Award,
+  Star,
+  FileCheck2,
+  FileText,
+  User,
+  Users,
+  GraduationCap,
+  Sparkles,
+  BookOpen,
+  Calendar,
+  Layers,
+  HeartHandshake,
+  Check,
+} from "lucide-react";
 
 export interface TalabatProfileData {
   id?: string;
@@ -47,7 +63,7 @@ export interface TalabatProfileData {
   communicationRating?: number | null;
   dedicationRating?: number | null;
   disciplineRating?: number | null;
-  
+
   // 10 Granular Remarks Categories
   masoolRemarks?: string | null;
   remarksMasool?: string | null;      // المسؤول عن الدرجة
@@ -66,15 +82,27 @@ export interface TalabatProfileData {
 interface Props {
   data: TalabatProfileData;
   showPrintButton?: boolean;
+  defaultMode?: "edited" | "full";
 }
 
-export function TalabatProfileDocument({ data, showPrintButton = true }: Props) {
+export function TalabatProfileDocument({
+  data,
+  showPrintButton = true,
+  defaultMode = "edited",
+}: Props) {
+  // Default to showing only what has been edited, as requested
+  const [viewMode, setViewMode] = useState<"edited" | "full">(defaultMode);
+
   const handlePrint = () => {
     window.print();
   };
 
-  const strengths = Array.isArray(data.strengths) && data.strengths.length > 0 ? data.strengths : ["", "", ""];
-  const weaknesses = Array.isArray(data.weaknesses) && data.weaknesses.length > 0 ? data.weaknesses : ["", "", ""];
+  // Helper to detect if a value is non-empty
+  const isFilled = (val?: string | number | null): boolean => {
+    if (val === null || val === undefined) return false;
+    const str = String(val).trim();
+    return str.length > 0 && str !== "—" && str !== "-" && str !== "null" && str !== "undefined";
+  };
 
   // Helper to detect if text is predominantly Arabic/Lisan al-Dawat
   const isArabicText = (text?: string | null) => {
@@ -83,611 +111,1036 @@ export function TalabatProfileDocument({ data, showPrintButton = true }: Props) 
     return arabicRegex.test(text);
   };
 
+  // Filter actual strengths & weaknesses
+  const editedStrengths = (data.strengths || []).map((s) => String(s || "").trim()).filter((s) => isFilled(s));
+  const editedWeaknesses = (data.weaknesses || []).map((w) => String(w || "").trim()).filter((w) => isFilled(w));
+
+  // Academic Results filtering
+  const editedResults = [
+    { year: "1444 H", val: data.result1444 },
+    { year: "1445 H", val: data.result1445 },
+    { year: "1446 H", val: data.result1446 },
+    { year: "1447 H", val: data.result1447 },
+  ].filter((r) => isFilled(r.val));
+
+  // Courses filtering
+  const editedCourses = [data.course1, data.course2, data.course3, data.course4]
+    .map((c) => String(c || "").trim())
+    .filter((c) => isFilled(c));
+
+  // Category remarks list
+  const remarkCategories = [
+    {
+      key: "remarksMasool",
+      labelEn: "Darajah Masul Remarks",
+      labelAr: "المسؤول عن الدرجة",
+      value: data.remarksMasool || data.masoolRemarks,
+    },
+    {
+      key: "remarksTahfeez",
+      labelEn: "Tahfeez-ul-Qur'an",
+      labelAr: "عن التحفيظ",
+      value: data.remarksTahfeez,
+    },
+    {
+      key: "remarksTaleem",
+      labelEn: "Academic Progress & Ta'leem",
+      labelAr: "عن التعليم",
+      value: data.remarksTaleem,
+    },
+    {
+      key: "remarksTadeeb",
+      labelEn: "Ta'deeb & Manazil al-Burhaniyah",
+      labelAr: "عن التأديب والرياضة والمنازل البرهانية",
+      value: data.remarksTadeeb,
+    },
+    {
+      key: "remarksTanzeem",
+      labelEn: "Tanzeem & Punctuality",
+      labelAr: "عن التنظيم",
+      value: data.remarksTanzeem,
+    },
+    {
+      key: "remarksSports",
+      labelEn: "Sports & Athletics",
+      labelAr: "عن خيمة الرياضة",
+      value: data.remarksSports,
+    },
+    {
+      key: "remarksMaktabat",
+      labelEn: "Maktabat & Library Utilization",
+      labelAr: "المكتبة",
+      value: data.remarksMaktabat,
+    },
+    {
+      key: "remarksSkills",
+      labelEn: "Art, IT & Special Skills",
+      labelAr: "عن الفن والمهارة",
+      value: data.remarksSkills,
+    },
+    {
+      key: "remarksOtherExams",
+      labelEn: "External Board Exams",
+      labelAr: "عن الامتحانات الأخرى",
+      value: data.remarksOtherExams,
+    },
+    {
+      key: "remarksCounselling",
+      labelEn: "Recommended Further Studies",
+      labelAr: "توجيه الطالب (Counselling)",
+      value: data.remarksCounselling,
+    },
+  ];
+
+  const editedRemarks = remarkCategories.filter((cat) => isFilled(cat.value));
+
+  // Determine section presence in "edited" mode
+  const hasPersonalDetails =
+    isFilled(data.name) ||
+    isFilled(data.itsNo) ||
+    isFilled(data.idNo) ||
+    isFilled(data.jamaat) ||
+    isFilled(data.vatan) ||
+    isFilled(data.nationality) ||
+    isFilled(data.dob) ||
+    isFilled(data.age) ||
+    isFilled(data.studentPhotoUrl);
+
+  const hasFatherDetails = isFilled(data.fatherName) || isFilled(data.fatherOccupation) || isFilled(data.fatherPhotoUrl);
+  const hasMotherDetails = isFilled(data.motherName) || isFilled(data.motherOccupation) || isFilled(data.motherPhotoUrl);
+  const hasFamilyDetails = hasFatherDetails || hasMotherDetails;
+
+  const hasHifz = isFilled(data.hifzYear) || isFilled(data.hifzTabaqa);
+  const hasActivities = isFilled(data.activities);
+  const hasOtherExams = isFilled(data.otherExams);
+  const hasAcademicsDetails = editedResults.length > 0 || hasHifz || editedCourses.length > 0 || hasActivities || hasOtherExams;
+
+  const hasSelfAssessment = editedStrengths.length > 0 || editedWeaknesses.length > 0;
+  const hasAboutMyself = isFilled(data.aboutMyself);
+
+  const hasRatings =
+    data.behaviourRating != null ||
+    data.communicationRating != null ||
+    data.dedicationRating != null ||
+    data.disciplineRating != null;
+
+  const hasCounsellingNotes = isFilled(data.counsellingNotes);
+  const hasFacultyEvaluation = hasRatings || editedRemarks.length > 0 || hasCounsellingNotes;
+
+  const hasAnyEditedData =
+    hasPersonalDetails ||
+    hasFamilyDetails ||
+    hasAcademicsDetails ||
+    hasSelfAssessment ||
+    hasAboutMyself ||
+    hasFacultyEvaluation;
+
   return (
     <div className="talabat-profile-root w-full flex flex-col items-center">
-      {showPrintButton && (
-        <div className="no-print mb-6 flex items-center justify-end w-full max-w-[210mm] gap-3">
+      {/* ── Top Bar (Toggle & Print Controls - Hidden on Print) ── */}
+      <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+        {/* Mode Selector */}
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
           <button
-            onClick={handlePrint}
             type="button"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-md font-medium text-sm transition-all cursor-pointer"
+            onClick={() => setViewMode("edited")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "edited"
+                ? "bg-[#961212] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
           >
-            <Printer className="w-4 h-4" />
-            Print / Export Official PDF
+            <FileCheck2 className="w-3.5 h-3.5" />
+            Edited Details Only
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("full")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "full"
+                ? "bg-[#961212] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            Full Institutional Form
           </button>
         </div>
-      )}
+
+        {/* View Status Note & Print Button */}
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                viewMode === "edited" ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+              }`}
+            />
+            <span>
+              {viewMode === "edited"
+                ? "Displaying only fields edited by student/faculty"
+                : "Displaying complete blank institutional template"}
+            </span>
+          </div>
+
+          {showPrintButton && (
+            <button
+              onClick={handlePrint}
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm font-semibold text-xs transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              Print / Export PDF
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* ── Document Container ── */}
-      <div className="printable-document flex flex-col gap-10 w-full max-w-[210mm]">
+      <div className="printable-document flex flex-col gap-8 w-full max-w-[210mm]">
         {/* ════════════════════════════════════════════════════════════
-            PAGE 1
+            DOCUMENT VIEW: EDITED ONLY (DEFAULT)
         ════════════════════════════════════════════════════════════ */}
-        <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-8 sm:p-10 min-h-[297mm] flex flex-col justify-between relative box-border">
-          <div>
-            {/* ── Top Header ── */}
-            <div className="flex items-start justify-between border-b pb-4 mb-5 relative">
-              {/* Top Left: Logo / Emblem */}
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="Darse Burhani Logo"
-                  className="w-16 h-16 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-              </div>
+        {viewMode === "edited" ? (
+          <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
+            <div>
+              {/* ── Top Header ── */}
+              <div className="flex items-start justify-between border-b pb-4 mb-4 relative">
+                {/* Emblem / Logo */}
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo.png"
+                    alt="Darse Burhani Logo"
+                    className="w-16 h-16 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
 
-              {/* Center: Institution & Profile Title */}
-              <div className="text-center flex-1 px-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
-                  Darse Burhani
-                </h1>
-                <h2 className="text-lg sm:text-xl font-extrabold text-[#961212] tracking-wider mt-1">
-                  TALABAT PROFILE – {data.year || "1447 H"}
-                </h2>
-              </div>
-
-              {/* Top Right: Further Education Banner & Page Number */}
-              <div className="text-right flex flex-col items-end">
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <span className="block text-xs font-bold text-[#b31b1b]">Further</span>
-                    <span className="block text-xs font-bold text-[#b31b1b]">Education:</span>
+                {/* Institution & Title */}
+                <div className="text-center flex-1 px-2">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
+                    Darse Burhani
+                  </h1>
+                  <h2 className="text-base sm:text-lg font-extrabold text-[#961212] tracking-wider mt-0.5">
+                    TALABAT PROFILE – {data.year || "1447 H"}
+                  </h2>
+                  <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                    Darajah 4 (الدرجة الرابعة) • Yearly Profile Submission
                   </div>
-                  <span className="text-base font-bold text-[#b31b1b] font-alkanz dir-rtl" dir="rtl">
-                    توجيه الطالب
-                  </span>
                 </div>
-                <div className="mt-2 text-xs font-semibold text-slate-600 border border-slate-300 rounded px-2 py-0.5">
-                  1
-                </div>
-              </div>
-            </div>
 
-            {/* ── Section 1: PERSONAL DETAILS ── */}
-            <div className="mb-5">
-              <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
-                PERSONAL DETAILS
+                {/* Right: Further Education Banner & Status Badge */}
+                <div className="text-right flex flex-col items-end">
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <span className="block text-[11px] font-bold text-[#b31b1b]">Further</span>
+                      <span className="block text-[11px] font-bold text-[#b31b1b]">Education:</span>
+                    </div>
+                    <span className="text-base font-bold text-[#b31b1b] font-alkanz dir-rtl" dir="rtl">
+                      توجيه الطالب
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        data.status === "SUBMITTED"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                          : data.status === "REVIEWED"
+                          ? "bg-blue-50 text-blue-800 border-blue-300"
+                          : "bg-amber-50 text-amber-800 border-amber-300"
+                      }`}
+                    >
+                      {data.status === "REVIEWED"
+                        ? "Reviewed"
+                        : data.status === "SUBMITTED"
+                        ? "Submitted"
+                        : data.status === "DRAFT"
+                        ? "Draft"
+                        : "Profile"}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="border-x border-b border-slate-800 flex flex-row">
-                {/* Photo Cell */}
-                <div className="w-28 sm:w-32 min-h-[120px] p-2 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
-                  {data.studentPhotoUrl ? (
-                    <img
-                      src={data.studentPhotoUrl}
-                      alt={data.name || "Student"}
-                      className="w-full h-28 object-cover rounded shadow-sm border border-slate-200"
-                    />
-                  ) : (
-                    <div className="w-full h-28 bg-slate-200 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                      <span>Student</span>
-                      <span>Photo</span>
+
+              {/* ── Empty State: Nothing edited yet ── */}
+              {!hasAnyEditedData && (
+                <div className="p-12 text-center bg-slate-50 border border-dashed border-slate-300 rounded-xl my-8">
+                  <GraduationCap className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                  <h3 className="font-bold text-slate-800 text-base">No Profile Information Edited Yet</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+                    This Darajah 4 student has not yet entered or submitted details for the 1447 H Yearly Profile.
+                    Once edited by the student or faculty, the submitted fields will appear here.
+                  </p>
+                </div>
+              )}
+
+              {/* ── 1. PERSONAL DETAILS (Only if edited) ── */}
+              {hasPersonalDetails && (
+                <div className="mb-4">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    PERSONAL DETAILS
+                  </div>
+                  <div className="border-x border-b border-slate-800 flex flex-row">
+                    {/* Photo Cell (Only if uploaded) */}
+                    {isFilled(data.studentPhotoUrl) && (
+                      <div className="w-28 sm:w-32 min-h-[110px] p-2 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                        <img
+                          src={data.studentPhotoUrl!}
+                          alt={data.name || "Student"}
+                          className="w-full h-28 object-cover rounded shadow-xs border border-slate-200"
+                        />
+                      </div>
+                    )}
+
+                    {/* Info Fields Grid */}
+                    <div className="flex-1 grid grid-cols-12 text-xs divide-y divide-slate-800">
+                      {isFilled(data.name) && (
+                        <div className="col-span-12 flex items-center">
+                          <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Name:</div>
+                          <div className="flex-1 p-1.5 font-bold text-slate-900">{data.name}</div>
+                        </div>
+                      )}
+
+                      {(isFilled(data.itsNo) || isFilled(data.idNo)) && (
+                        <>
+                          {isFilled(data.itsNo) && (
+                            <div className={`${isFilled(data.idNo) ? "col-span-12 sm:col-span-6 border-r-0 sm:border-r" : "col-span-12"} flex items-center border-slate-800`}>
+                              <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ITS No.:</div>
+                              <div className="flex-1 p-1.5 font-bold font-mono">{data.itsNo}</div>
+                            </div>
+                          )}
+                          {isFilled(data.idNo) && (
+                            <div className={`${isFilled(data.itsNo) ? "col-span-12 sm:col-span-6" : "col-span-12"} flex items-center border-slate-800`}>
+                              <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ID No.:</div>
+                              <div className="flex-1 p-1.5 font-bold font-mono">{data.idNo}</div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {(isFilled(data.jamaat) || isFilled(data.vatan)) && (
+                        <>
+                          {isFilled(data.jamaat) && (
+                            <div className={`${isFilled(data.vatan) ? "col-span-12 sm:col-span-6 border-r-0 sm:border-r" : "col-span-12"} flex items-center border-slate-800`}>
+                              <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Jamaat:</div>
+                              <div className="flex-1 p-1.5 font-medium">{data.jamaat}</div>
+                            </div>
+                          )}
+                          {isFilled(data.vatan) && (
+                            <div className={`${isFilled(data.jamaat) ? "col-span-12 sm:col-span-6" : "col-span-12"} flex items-center border-slate-800`}>
+                              <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Vatan:</div>
+                              <div className="flex-1 p-1.5 font-medium">{data.vatan}</div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {(isFilled(data.nationality) || isFilled(data.dob) || isFilled(data.age)) && (
+                        <>
+                          {isFilled(data.nationality) && (
+                            <div className={`${(isFilled(data.dob) || isFilled(data.age)) ? "col-span-12 sm:col-span-6 border-r-0 sm:border-r" : "col-span-12"} flex items-center border-slate-800`}>
+                              <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Nationality:</div>
+                              <div className="flex-1 p-1.5">{data.nationality}</div>
+                            </div>
+                          )}
+                          {(isFilled(data.dob) || isFilled(data.age)) && (
+                            <div className={`${isFilled(data.nationality) ? "col-span-12 sm:col-span-6" : "col-span-12"} flex items-center border-slate-800`}>
+                              <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">DOB (Age):</div>
+                              <div className="flex-1 p-1.5 font-semibold">
+                                {data.dob ? data.dob : ""}
+                                {data.age ? `${data.dob ? " (" : ""}${data.age} Yrs${data.dob ? ")" : ""}` : ""}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── 2. FAMILY DETAILS (Only if edited) ── */}
+              {hasFamilyDetails && (
+                <div className="mb-4">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    FAMILY DETAILS
+                  </div>
+                  <div className="border-x border-b border-slate-800 flex flex-col divide-y divide-slate-800">
+                    {/* Father Row (Only if entered) */}
+                    {hasFatherDetails && (
+                      <div className="flex flex-row items-center">
+                        {isFilled(data.fatherPhotoUrl) && (
+                          <div className="w-24 sm:w-28 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                            <img
+                              src={data.fatherPhotoUrl!}
+                              alt="Father"
+                              className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+                          <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
+                            <span className="font-semibold text-slate-600 text-[11px]">Father Name:</span>
+                            <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.fatherName || "—"}</span>
+                          </div>
+                          <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
+                            <span className="font-semibold text-slate-600 text-[11px]">Father Occupation:</span>
+                            <span className="font-medium text-slate-900 text-xs">{data.fatherOccupation || "—"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mother Row (Only if entered) */}
+                    {hasMotherDetails && (
+                      <div className="flex flex-row items-center">
+                        {isFilled(data.motherPhotoUrl) && (
+                          <div className="w-24 sm:w-28 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                            <img
+                              src={data.motherPhotoUrl!}
+                              alt="Mother"
+                              className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+                          <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
+                            <span className="font-semibold text-slate-600 text-[11px]">Mother Name:</span>
+                            <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.motherName || "—"}</span>
+                          </div>
+                          <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
+                            <span className="font-semibold text-slate-600 text-[11px]">Mother Occupation:</span>
+                            <span className="font-medium text-slate-900 text-xs">{data.motherOccupation || "Homemaker"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── 3. ACADEMICS DETAILS (Only if edited) ── */}
+              {hasAcademicsDetails && (
+                <div className="mb-4">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    ACADEMICS DETAILS
+                  </div>
+                  <div className="border-x border-b border-slate-800 grid grid-cols-12 text-xs divide-x divide-slate-800">
+                    {/* Exam Results (Only if scores entered) */}
+                    {editedResults.length > 0 && (
+                      <div className="col-span-12 sm:col-span-4 flex flex-col">
+                        <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
+                          نتائج الامتحان السنوي
+                        </div>
+                        <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
+                          {editedResults.map((r) => (
+                            <React.Fragment key={r.year}>
+                              <div className="p-1 font-medium bg-slate-50">{r.year}</div>
+                              <div className="p-1 font-bold">{r.val}</div>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hifz (Only if entered) */}
+                    {hasHifz && (
+                      <div className="col-span-12 sm:col-span-3 flex flex-col">
+                        <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
+                          نتائج الحفظ
+                        </div>
+                        <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
+                          {isFilled(data.hifzYear) && (
+                            <>
+                              <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Hifz</div>
+                              <div className="p-1 font-bold flex items-center justify-center">{data.hifzYear}</div>
+                            </>
+                          )}
+                          {isFilled(data.hifzTabaqa) && (
+                            <>
+                              <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Tabaqa</div>
+                              <div className="p-1 font-bold font-alkanz flex items-center justify-center text-xs" dir="rtl">
+                                {data.hifzTabaqa}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Courses (Only if entered) */}
+                    {editedCourses.length > 0 && (
+                      <div className="col-span-12 sm:col-span-5 flex flex-col">
+                        <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">Courses Taken</div>
+                        <div className="flex flex-col divide-y divide-slate-800 flex-1">
+                          {editedCourses.map((c, idx) => (
+                            <div key={idx} className="flex items-center px-2 py-1 text-[11px]">
+                              <span className="font-semibold mr-1.5 text-slate-600">{idx + 1}.</span>
+                              <span className="font-medium">{c}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Activities & Other Exams (Full width row if present) */}
+                    {(hasActivities || hasOtherExams) && (
+                      <div className="col-span-12 border-t border-slate-800 flex flex-col divide-y divide-slate-800">
+                        {hasActivities && (
+                          <div className="p-2 bg-white">
+                            <div className="text-[11px] font-bold font-alkanz text-[#961212] mb-1 dir-rtl" dir="rtl">
+                              الاشتراك في البرامج العلمية والثقافية:
+                            </div>
+                            <div className="text-xs leading-relaxed font-alkanz dir-rtl text-right text-slate-800" dir="rtl">
+                              {data.activities}
+                            </div>
+                          </div>
+                        )}
+                        {hasOtherExams && (
+                          <div className="p-2 bg-slate-50/50 flex items-center justify-between">
+                            <span className="font-alkanz font-bold text-xs text-[#961212] dir-rtl" dir="rtl">
+                              الامتحانات الأخرى:
+                            </span>
+                            <span className="font-bold text-xs text-slate-900">{data.otherExams}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── 4. SELF – ASSESSMENT (Only if edited) ── */}
+              {hasSelfAssessment && (
+                <div className="mb-4">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    SELF – ASSESSMENT
+                  </div>
+                  <div className="border-x border-b border-slate-800 grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-800 text-xs">
+                    {/* Strengths */}
+                    {editedStrengths.length > 0 && (
+                      <div className="flex flex-col">
+                        <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50 text-emerald-900">
+                          My Strengths
+                        </div>
+                        <div className="p-2.5 flex flex-col gap-1.5">
+                          {editedStrengths.map((item, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 text-[11px]">
+                              <span className="font-bold text-emerald-700">{idx + 1}.</span>
+                              <span className="text-slate-900">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Weaknesses */}
+                    {editedWeaknesses.length > 0 && (
+                      <div className="flex flex-col">
+                        <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50 text-rose-900">
+                          My Weaknesses
+                        </div>
+                        <div className="p-2.5 flex flex-col gap-1.5">
+                          {editedWeaknesses.map((item, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 text-[11px]">
+                              <span className="text-rose-500 font-bold">•</span>
+                              <span className="text-slate-900">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── 5. ABOUT MYSELF (Only if edited) ── */}
+              {hasAboutMyself && (
+                <div className="mb-4">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    About Myself (Hobbies, Interests &amp; Skills)
+                  </div>
+                  <div className="border-x border-b border-slate-800 p-3 text-xs leading-relaxed text-slate-900 font-medium">
+                    {data.aboutMyself}
+                  </div>
+                </div>
+              )}
+
+              {/* ── 6. DARAJAH MASUL & FACULTY EVALUATION (Only if reviewed/edited) ── */}
+              {hasFacultyEvaluation && (
+                <div className="mb-4 mt-6">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    DARAJAH MASUL &amp; DARSE BURHANI MASUL COLLECTIVE EVALUATION
+                  </div>
+
+                  {/* 4 Ratings Table (Only if ratings assigned) */}
+                  {hasRatings && (
+                    <div className="border-x border-b border-slate-800 grid grid-cols-4 divide-x divide-slate-800 text-center">
+                      <div className="flex flex-col">
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Behaviour</div>
+                        <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                          {data.behaviourRating ? `${data.behaviourRating} / 5` : "—"}
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Communication</div>
+                        <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                          {data.communicationRating ? `${data.communicationRating} / 5` : "—"}
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Dedication</div>
+                        <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                          {data.dedicationRating ? `${data.dedicationRating} / 5` : "—"}
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Discipline</div>
+                        <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                          {data.disciplineRating ? `${data.disciplineRating} / 5` : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Edited Department Remarks (Only categories that have text) */}
+                  {editedRemarks.length > 0 && (
+                    <div className="border-x border-b border-slate-800 mt-[-1px]">
+                      <div className="bg-slate-50 border-b border-slate-800 p-1 text-center font-alkanz font-bold text-xs text-slate-800" dir="rtl">
+                        ملاحظات المسؤولين:
+                      </div>
+                      <div className="divide-y divide-slate-800 text-xs">
+                        {editedRemarks.map((cat) => (
+                          <div key={cat.key} className="grid grid-cols-12 min-h-[38px]">
+                            <div
+                              className={`col-span-9 sm:col-span-10 p-2.5 leading-relaxed text-right border-r border-slate-800 flex items-center justify-end ${
+                                isArabicText(cat.value) ? "font-alkanz text-[13px] dir-rtl" : "text-xs"
+                              }`}
+                              dir={isArabicText(cat.value) ? "rtl" : "ltr"}
+                            >
+                              {cat.value}
+                            </div>
+                            <div className="col-span-3 sm:col-span-2 p-2 flex flex-col items-center justify-center text-center bg-slate-50/60">
+                              <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
+                                {cat.labelAr}
+                              </span>
+                              <span className="text-[9px] text-slate-500 font-sans mt-0.5">{cat.labelEn}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sibling & Counselling Notes Box (Only if entered) */}
+                  {hasCounsellingNotes && (
+                    <div className="border border-slate-800 rounded-xs p-3 bg-white mt-3">
+                      <div className="text-[10px] font-bold text-[#961212] uppercase tracking-wider mb-1">
+                        Sibling Details &amp; Career Counselling Guidance Notes:
+                      </div>
+                      <div className="text-xs font-serif leading-relaxed text-slate-800 whitespace-pre-wrap">
+                        {data.counsellingNotes}
+                      </div>
                     </div>
                   )}
                 </div>
+              )}
+            </div>
 
-                {/* Info Fields Grid */}
-                <div className="flex-1 grid grid-cols-12 text-xs divide-y divide-slate-800">
-                  {/* Name (Full Width) */}
-                  <div className="col-span-12 flex items-center">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Name:</div>
-                    <div className="flex-1 p-1.5 font-bold text-slate-900">{data.name || "—"}</div>
+            {/* Official Document Footer */}
+            <div className="pt-4 mt-6 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+              <div>Darse Burhani Official Institutional Document • 1447 H</div>
+              <div className="font-alkanz dir-rtl text-xs text-[#961212]" dir="rtl">
+                الحمد لله على ما أنعم والشكر له على ما ألهم
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ════════════════════════════════════════════════════════════
+             FULL INSTITUTIONAL FORM (FOR BLANK TEMPLATE PRINTING)
+          ════════════════════════════════════════════════════════════ */
+          <div className="space-y-8">
+            {/* Page 1 */}
+            <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-8 sm:p-10 min-h-[297mm] flex flex-col justify-between box-border">
+              <div>
+                {/* Top Header */}
+                <div className="flex items-start justify-between border-b pb-4 mb-5 relative">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/logo.png"
+                      alt="Darse Burhani Logo"
+                      className="w-16 h-16 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
                   </div>
+                  <div className="text-center flex-1 px-2">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
+                      Darse Burhani
+                    </h1>
+                    <h2 className="text-lg sm:text-xl font-extrabold text-[#961212] tracking-wider mt-1">
+                      TALABAT PROFILE – {data.year || "1447 H"}
+                    </h2>
+                  </div>
+                  <div className="text-right flex flex-col items-end">
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <span className="block text-xs font-bold text-[#b31b1b]">Further</span>
+                        <span className="block text-xs font-bold text-[#b31b1b]">Education:</span>
+                      </div>
+                      <span className="text-base font-bold text-[#b31b1b] font-alkanz dir-rtl" dir="rtl">
+                        توجيه الطالب
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs font-semibold text-slate-600 border border-slate-300 rounded px-2 py-0.5">
+                      1
+                    </div>
+                  </div>
+                </div>
 
-                  {/* ITS & ID No */}
-                  <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ITS No.:</div>
-                    <div className="flex-1 p-1.5 font-bold">{data.itsNo || "—"}</div>
+                {/* Section 1: PERSONAL DETAILS */}
+                <div className="mb-5">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    PERSONAL DETAILS
                   </div>
-                  <div className="col-span-12 sm:col-span-6 flex items-center">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ID No.:</div>
-                    <div className="flex-1 p-1.5 font-bold">{data.idNo || "—"}</div>
+                  <div className="border-x border-b border-slate-800 flex flex-row">
+                    <div className="w-28 sm:w-32 min-h-[120px] p-2 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                      {data.studentPhotoUrl ? (
+                        <img
+                          src={data.studentPhotoUrl}
+                          alt={data.name || "Student"}
+                          className="w-full h-28 object-cover rounded shadow-xs border border-slate-200"
+                        />
+                      ) : (
+                        <div className="w-full h-28 bg-slate-100 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
+                          <span>Student</span>
+                          <span>Photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 grid grid-cols-12 text-xs divide-y divide-slate-800">
+                      <div className="col-span-12 flex items-center">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Name:</div>
+                        <div className="flex-1 p-1.5 font-bold text-slate-900">{data.name || "—"}</div>
+                      </div>
+                      <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ITS No.:</div>
+                        <div className="flex-1 p-1.5 font-bold">{data.itsNo || "—"}</div>
+                      </div>
+                      <div className="col-span-12 sm:col-span-6 flex items-center">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">ID No.:</div>
+                        <div className="flex-1 p-1.5 font-bold">{data.idNo || "—"}</div>
+                      </div>
+                      <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Jamaat:</div>
+                        <div className="flex-1 p-1.5">{data.jamaat || "—"}</div>
+                      </div>
+                      <div className="col-span-12 sm:col-span-6 flex items-center">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Vatan:</div>
+                        <div className="flex-1 p-1.5">{data.vatan || "—"}</div>
+                      </div>
+                      <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Nationality:</div>
+                        <div className="flex-1 p-1.5">{data.nationality || "Indian"}</div>
+                      </div>
+                      <div className="col-span-12 sm:col-span-6 flex items-center">
+                        <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">DOB (Age):</div>
+                        <div className="flex-1 p-1.5 font-bold">
+                          {data.age ? `${data.dob ? data.dob + " (" : ""}${data.age}${data.dob ? ")" : " Years"}` : data.dob || "—"}
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                </div>
 
-                  {/* Jamaat & Vatan */}
-                  <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Jamaat:</div>
-                    <div className="flex-1 p-1.5">{data.jamaat || "—"}</div>
+                {/* Section 2: FAMILY DETAILS */}
+                <div className="mb-5">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    FAMILY DETAILS
                   </div>
-                  <div className="col-span-12 sm:col-span-6 flex items-center">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Vatan:</div>
-                    <div className="flex-1 p-1.5">{data.vatan || "—"}</div>
-                  </div>
+                  <div className="border-x border-b border-slate-800 flex flex-col divide-y divide-slate-800">
+                    <div className="flex flex-row items-center">
+                      <div className="w-28 sm:w-32 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                        {data.fatherPhotoUrl ? (
+                          <img
+                            src={data.fatherPhotoUrl}
+                            alt="Father"
+                            className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-slate-100 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
+                            <span>Father</span>
+                            <span>Photo</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+                        <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
+                          <span className="font-semibold text-slate-600 text-[11px]">Father Name:</span>
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.fatherName || "—"}</span>
+                        </div>
+                        <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
+                          <span className="font-semibold text-slate-600 text-[11px]">Father Occupation:</span>
+                          <span className="font-medium text-slate-900 text-xs">{data.fatherOccupation || "—"}</span>
+                        </div>
+                      </div>
+                    </div>
 
-                  {/* Nationality & DOB (Age) */}
-                  <div className="col-span-12 sm:col-span-6 flex items-center border-r-0 sm:border-r border-slate-800">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Nationality:</div>
-                    <div className="flex-1 p-1.5">{data.nationality || "Indian"}</div>
+                    <div className="flex flex-row items-center">
+                      <div className="w-28 sm:w-32 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                        {data.motherPhotoUrl ? (
+                          <img
+                            src={data.motherPhotoUrl}
+                            alt="Mother"
+                            className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-slate-100 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
+                            <span>Mother</span>
+                            <span>Photo</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+                        <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
+                          <span className="font-semibold text-slate-600 text-[11px]">Mother Name:</span>
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.motherName || "—"}</span>
+                        </div>
+                        <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
+                          <span className="font-semibold text-slate-600 text-[11px]">Mother Occupation:</span>
+                          <span className="font-medium text-slate-900 text-xs">{data.motherOccupation || "Homemaker"}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="col-span-12 sm:col-span-6 flex items-center">
-                    <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">DOB (Age):</div>
-                    <div className="flex-1 p-1.5 font-bold">
-                      {data.age ? `${data.dob ? data.dob + " (" : ""}${data.age}${data.dob ? ")" : " Years"}` : data.dob || "—"}
+                </div>
+
+                {/* Section 3: ACADEMICS DETAILS */}
+                <div className="mb-5">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    ACADEMICS DETAILS
+                  </div>
+                  <div className="border-x border-b border-slate-800 grid grid-cols-12 text-xs divide-x divide-slate-800">
+                    <div className="col-span-3 flex flex-col">
+                      <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
+                        نتائج الامتحان السنوي
+                      </div>
+                      <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
+                        <div className="p-1 font-medium bg-slate-50">1444 H</div>
+                        <div className="p-1 font-bold">{data.result1444 || "—"}</div>
+                        <div className="p-1 font-medium bg-slate-50">1445 H</div>
+                        <div className="p-1 font-bold">{data.result1445 || "—"}</div>
+                        <div className="p-1 font-medium bg-slate-50">1446 H</div>
+                        <div className="p-1 font-bold">{data.result1446 || "—"}</div>
+                        <div className="p-1 font-medium bg-slate-50">1447 H</div>
+                        <div className="p-1 font-bold">{data.result1447 || "—"}</div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 flex flex-col">
+                      <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
+                        نتائج الحفظ
+                      </div>
+                      <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
+                        <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Hifz</div>
+                        <div className="p-1 font-bold flex items-center justify-center">{data.hifzYear || "—"}</div>
+                        <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Tabaqa</div>
+                        <div className="p-1 font-bold font-alkanz flex items-center justify-center text-xs" dir="rtl">
+                          {data.hifzTabaqa || "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 flex flex-col">
+                      <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">Courses</div>
+                      <div className="flex flex-col divide-y divide-slate-800 flex-1">
+                        <div className="flex items-center px-1.5 py-1 text-[11px]">
+                          <span className="font-semibold mr-1">1.</span>
+                          <span className="font-medium truncate">{data.course1 || "—"}</span>
+                        </div>
+                        <div className="flex items-center px-1.5 py-1 text-[11px]">
+                          <span className="font-semibold mr-1">2.</span>
+                          <span className="font-medium truncate">{data.course2 || "—"}</span>
+                        </div>
+                        <div className="flex items-center px-1.5 py-1 text-[11px]">
+                          <span className="font-semibold mr-1">3.</span>
+                          <span className="font-medium truncate">{data.course3 || "—"}</span>
+                        </div>
+                        <div className="flex items-center px-1.5 py-1 text-[11px]">
+                          <span className="font-semibold mr-1">4.</span>
+                          <span className="font-medium truncate">{data.course4 || "—"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-4 flex flex-col justify-between">
+                      <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-[11px]" dir="rtl">
+                        الاشتراك في البرامج العلمية والثقافية
+                      </div>
+                      <div className="p-2 text-[11px] leading-relaxed font-alkanz text-right flex-1" dir="rtl">
+                        {data.activities || "—"}
+                      </div>
+                      <div className="border-t border-slate-800 grid grid-cols-12 text-center divide-x divide-slate-800 bg-slate-50">
+                        <div className="col-span-6 p-1 font-alkanz font-bold text-[10px]" dir="rtl">
+                          الامتحانات الأخرى
+                        </div>
+                        <div className="col-span-6 p-1 font-bold text-[10px] bg-white">
+                          {data.otherExams || "—"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: SELF – ASSESSMENT */}
+                <div>
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    SELF – ASSESSMENT
+                  </div>
+                  <div className="border-x border-b border-slate-800 grid grid-cols-2 divide-x divide-slate-800 text-xs">
+                    <div className="flex flex-col">
+                      <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">My Strengths</div>
+                      <div className="p-2 flex flex-col gap-1 min-h-[80px]">
+                        {(data.strengths || ["", "", ""]).slice(0, 3).map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-1.5 text-[11px]">
+                            <span className="font-bold text-slate-700">{idx + 1}.</span>
+                            <span className="text-slate-900">{item || "—"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">My Weaknesses</div>
+                      <div className="p-2 flex flex-col gap-1 min-h-[80px]">
+                        {(data.weaknesses || ["", "", ""]).slice(0, 3).map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-1.5 text-[11px]">
+                            <span className="text-slate-400">•</span>
+                            <span className="text-slate-900">{item || "—"}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── Section 2: FAMILY DETAILS ── */}
-            <div className="mb-5">
-              <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
-                FAMILY DETAILS
-              </div>
-              <div className="border-x border-b border-slate-800 flex flex-col divide-y divide-slate-800">
-                {/* Father Row */}
-                <div className="flex flex-row items-center">
-                  <div className="w-28 sm:w-32 h-24 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
-                    {data.fatherPhotoUrl ? (
-                      <img
-                        src={data.fatherPhotoUrl}
-                        alt="Father"
-                        className="w-full h-full object-cover rounded shadow-sm border border-slate-200"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-200 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                        <span>Father</span>
-                        <span>Photo</span>
+            {/* Page 2 */}
+            <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-8 sm:p-10 min-h-[297mm] flex flex-col justify-between box-border">
+              <div>
+                <div className="flex items-start justify-between border-b pb-4 mb-5 relative">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/logo.png"
+                      alt="Darse Burhani Logo"
+                      className="w-16 h-16 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                  <div className="text-center flex-1 px-2">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
+                      Darse Burhani
+                    </h1>
+                    <h2 className="text-lg sm:text-xl font-extrabold text-[#961212] tracking-wider mt-1">
+                      TALABAT PROFILE – {data.year || "1447 H"}
+                    </h2>
+                  </div>
+                  <div className="text-right flex flex-col items-end justify-start">
+                    <div className="text-xs font-semibold text-slate-600 border border-slate-300 rounded px-2 py-0.5">
+                      2
+                    </div>
+                  </div>
+                </div>
+
+                {/* About Myself */}
+                <div className="mb-5">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    About Myself
+                  </div>
+                  <div className="border-x border-b border-slate-800 p-3 min-h-[60px] text-xs leading-relaxed text-slate-900">
+                    {data.aboutMyself || "—"}
+                  </div>
+                </div>
+
+                {/* Collective Remarks */}
+                <div className="mb-4">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs uppercase tracking-wider text-slate-900">
+                    DARAJAH MASUL &amp; DARSE BURHANI MASUL COLLECTIVE REMARKS
+                  </div>
+                  <div className="border-x border-b border-slate-800 grid grid-cols-4 divide-x divide-slate-800 text-center">
+                    <div className="flex flex-col">
+                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Behaviour</div>
+                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        {data.behaviourRating ? `${data.behaviourRating}` : "—"}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
-                    <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
-                      <span className="font-semibold text-slate-600 text-[11px]">Father Name:</span>
-                      <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.fatherName || "—"}</span>
                     </div>
-                    <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
-                      <span className="font-semibold text-slate-600 text-[11px]">Father Occupation:</span>
-                      <span className="font-semibold text-slate-900 text-xs">{data.fatherOccupation || "—"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mother Row */}
-                <div className="flex flex-row items-center">
-                  <div className="w-28 sm:w-32 h-24 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
-                    {data.motherPhotoUrl ? (
-                      <img
-                        src={data.motherPhotoUrl}
-                        alt="Mother"
-                        className="w-full h-full object-cover rounded shadow-sm border border-slate-200"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-200 border border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                        <span>Mother</span>
-                        <span>Photo</span>
+                    <div className="flex flex-col">
+                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Communication</div>
+                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        {data.communicationRating ? `${data.communicationRating}` : "—"}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
-                    <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
-                      <span className="font-semibold text-slate-600 text-[11px]">Mother Name:</span>
-                      <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.motherName || "—"}</span>
                     </div>
-                    <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
-                      <span className="font-semibold text-slate-600 text-[11px]">Mother Occupation:</span>
-                      <span className="font-semibold text-slate-900 text-xs">{data.motherOccupation || "Homemaker"}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 3: ACADEMICS DETAILS ── */}
-            <div className="mb-5">
-              <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
-                ACADEMICS DETAILS
-              </div>
-              <div className="border-x border-b border-slate-800 grid grid-cols-12 text-xs divide-x divide-slate-800">
-                {/* 1. Exam Results Table (Col 1-3) */}
-                <div className="col-span-3 flex flex-col">
-                  <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
-                    نتائج الامتحان السنوي
-                  </div>
-                  <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
-                    <div className="p-1 font-medium bg-slate-50">1444 H</div>
-                    <div className="p-1 font-bold">{data.result1444 || "—"}</div>
-                    <div className="p-1 font-medium bg-slate-50">1445 H</div>
-                    <div className="p-1 font-bold">{data.result1445 || "—"}</div>
-                    <div className="p-1 font-medium bg-slate-50">1446 H</div>
-                    <div className="p-1 font-bold">{data.result1446 || "—"}</div>
-                    <div className="p-1 font-medium bg-slate-50">1447 H</div>
-                    <div className="p-1 font-bold">{data.result1447 || "—"}</div>
-                  </div>
-                </div>
-
-                {/* 2. Hifz Results Table (Col 4-5) */}
-                <div className="col-span-2 flex flex-col">
-                  <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-xs" dir="rtl">
-                    نتائج الحفظ
-                  </div>
-                  <div className="grid grid-cols-2 text-center divide-x divide-slate-800 divide-y divide-slate-800 flex-1">
-                    <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Hifz</div>
-                    <div className="p-1 font-bold flex items-center justify-center">{data.hifzYear || "—"}</div>
-                    <div className="p-1 font-medium bg-slate-50 flex items-center justify-center">Tabaqa</div>
-                    <div className="p-1 font-bold font-alkanz flex items-center justify-center text-xs" dir="rtl">
-                      {data.hifzTabaqa || "—"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Courses (Col 6-8) */}
-                <div className="col-span-3 flex flex-col">
-                  <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">Courses</div>
-                  <div className="flex flex-col divide-y divide-slate-800 flex-1">
-                    <div className="flex items-center px-1.5 py-1 text-[11px]">
-                      <span className="font-semibold mr-1">1.</span>
-                      <span className="font-medium truncate">{data.course1 || "—"}</span>
-                    </div>
-                    <div className="flex items-center px-1.5 py-1 text-[11px]">
-                      <span className="font-semibold mr-1">2.</span>
-                      <span className="font-medium truncate">{data.course2 || "—"}</span>
-                    </div>
-                    <div className="flex items-center px-1.5 py-1 text-[11px]">
-                      <span className="font-semibold mr-1">3.</span>
-                      <span className="font-medium truncate">{data.course3 || "—"}</span>
-                    </div>
-                    <div className="flex items-center px-1.5 py-1 text-[11px]">
-                      <span className="font-semibold mr-1">4.</span>
-                      <span className="font-medium truncate">{data.course4 || "—"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Activities & Other Exams (Col 9-12) */}
-                <div className="col-span-4 flex flex-col justify-between">
-                  <div className="border-b border-slate-800 p-1 text-center font-bold font-alkanz dir-rtl bg-slate-50 text-[11px]" dir="rtl">
-                    الاشتراك في البرامج العلمية والثقافية
-                  </div>
-                  <div className="p-2 text-[11px] leading-relaxed font-alkanz text-right flex-1" dir="rtl">
-                    {data.activities || "—"}
-                  </div>
-                  <div className="border-t border-slate-800 grid grid-cols-12 text-center divide-x divide-slate-800 bg-slate-50">
-                    <div className="col-span-6 p-1 font-alkanz font-bold text-[10px] sm:text-xs" dir="rtl">
-                      الامتحانات الأخرى
-                    </div>
-                    <div className="col-span-6 p-1 font-bold text-[10px] sm:text-xs bg-white">
-                      {data.otherExams || "—"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 4: SELF - ASSESSMENT ── */}
-            <div>
-              <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
-                SELF – ASSESSMENT
-              </div>
-              <div className="border-x border-b border-slate-800 grid grid-cols-2 divide-x divide-slate-800 text-xs">
-                {/* Strengths */}
-                <div className="flex flex-col">
-                  <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">My Strengths</div>
-                  <div className="p-2 flex flex-col gap-1.5 min-h-[90px]">
-                    {strengths.map((item, idx) => (
-                      <div key={idx} className="flex items-start gap-1.5 text-[11px]">
-                        <span className="font-bold text-slate-700">{idx + 1}.</span>
-                        <span className="text-slate-900">{item || "—"}</span>
+                    <div className="flex flex-col">
+                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Dedication</div>
+                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        {data.dedicationRating ? `${data.dedicationRating}` : "—"}
                       </div>
-                    ))}
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Discipline</div>
+                      <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
+                      <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        {data.disciplineRating ? `${data.disciplineRating}` : "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-x border-b border-slate-800 mt-[-1px]">
+                    <div className="bg-slate-50 border-b border-slate-800 p-1 text-center font-alkanz font-bold text-xs text-slate-800" dir="rtl">
+                      ملاحظات عامة:
+                    </div>
+                    <div className="divide-y divide-slate-800 text-xs">
+                      {remarkCategories.map((cat) => (
+                        <div key={cat.key} className="grid grid-cols-12 min-h-[38px]">
+                          <div
+                            className={`col-span-10 p-2 leading-relaxed text-right border-r border-slate-800 flex items-center justify-end ${
+                              isArabicText(cat.value) ? "font-alkanz text-[13px] dir-rtl" : "text-xs"
+                            }`}
+                            dir={isArabicText(cat.value) ? "rtl" : "ltr"}
+                          >
+                            {cat.value || "—"}
+                          </div>
+                          <div className="col-span-2 p-1.5 flex items-center justify-center text-center bg-slate-50/50">
+                            <span className="font-alkanz text-[11px] font-bold text-[#b31b1b] dir-rtl" dir="rtl">
+                              {cat.labelAr}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Weaknesses */}
-                <div className="flex flex-col">
-                  <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50">My Weaknesses</div>
-                  <div className="p-2 flex flex-col gap-1.5 min-h-[90px]">
-                    {weaknesses.map((item, idx) => (
-                      <div key={idx} className="flex items-start gap-1.5 text-[11px]">
-                        <span className="text-slate-400">•</span>
-                        <span className="text-slate-900">{item || "—"}</span>
-                      </div>
-                    ))}
+                <div className="border border-slate-800 rounded-sm p-3 bg-white mt-4 min-h-[60px]">
+                  <div className="text-[11px] font-serif leading-relaxed text-slate-800 whitespace-pre-wrap">
+                    {data.counsellingNotes || "—"}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* ════════════════════════════════════════════════════════════
-            PAGE 2 (EXACT REPLICA OF INSTITUTIONAL EVALUATION)
-        ════════════════════════════════════════════════════════════ */}
-        <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-8 sm:p-10 min-h-[297mm] flex flex-col justify-between relative box-border">
-          <div>
-            {/* ── Top Header ── */}
-            <div className="flex items-start justify-between border-b pb-4 mb-5 relative">
-              {/* Top Left: Logo / Emblem */}
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="Darse Burhani Logo"
-                  className="w-16 h-16 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-              </div>
-
-              {/* Center: Institution & Profile Title */}
-              <div className="text-center flex-1 px-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
-                  Darse Burhani
-                </h1>
-                <h2 className="text-lg sm:text-xl font-extrabold text-[#961212] tracking-wider mt-1">
-                  TALABAT PROFILE – {data.year || "1447 H"}
-                </h2>
-              </div>
-
-              {/* Top Right: Page Number */}
-              <div className="text-right flex flex-col items-end justify-start">
-                <div className="text-xs font-semibold text-slate-600 border border-slate-300 rounded px-2 py-0.5">
-                  2
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 5: ABOUT MYSELF ── */}
-            <div className="mb-5">
-              <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
-                About Myself
-              </div>
-              <div className="border-x border-b border-slate-800 p-3 min-h-[60px] text-xs leading-relaxed text-slate-900 font-medium">
-                {data.aboutMyself || "Hobbies - Reading Books, Learning new things. Interest - Computers, Dawat ni akhbar. Skills - Good in computers, can adapt to work with everyone."}
-              </div>
-            </div>
-
-            {/* ── Section 6: DARAJAH MASUL & DARSE BURHANI MASUL COLLECTIVE REMARKS ── */}
-            <div className="mb-4">
-              <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
-                DARAJAH MASUL &amp; DARSE BURHANI MASUL COLLECTIVE REMARKS
-              </div>
-
-              {/* 4 Ratings Table */}
-              <div className="border-x border-b border-slate-800 grid grid-cols-4 divide-x divide-slate-800 text-center">
-                {/* 1. Behaviour */}
-                <div className="flex flex-col">
-                  <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Skills/Traits</div>
-                  <div className="border-b border-slate-800 p-1 font-extrabold text-xs sm:text-sm text-slate-900">Behaviour</div>
-                  <div className="p-1 text-[9px] text-slate-600 border-b border-slate-800 min-h-[32px] flex items-center justify-center leading-tight">
-                    [Cooperates with faculty and peers, maintains a positive attitude]
-                  </div>
-                  <div className="p-1 font-bold text-[11px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                  <div className="p-1.5 font-extrabold text-base sm:text-lg text-emerald-800 flex items-center justify-center">
-                    {data.behaviourRating || 5}
-                  </div>
-                </div>
-
-                {/* 2. Communication */}
-                <div className="flex flex-col">
-                  <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Skills/Traits</div>
-                  <div className="border-b border-slate-800 p-1 font-extrabold text-xs sm:text-sm text-slate-900">Communication</div>
-                  <div className="p-1 text-[9px] text-slate-600 border-b border-slate-800 min-h-[32px] flex items-center justify-center leading-tight">
-                    [Conveys ideas effectively, fosters clear and polite conversations]
-                  </div>
-                  <div className="p-1 font-bold text-[11px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                  <div className="p-1.5 font-extrabold text-base sm:text-lg text-emerald-800 flex items-center justify-center">
-                    {data.communicationRating || 4}
-                  </div>
-                </div>
-
-                {/* 3. Dedication */}
-                <div className="flex flex-col">
-                  <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Skills/Traits</div>
-                  <div className="border-b border-slate-800 p-1 font-extrabold text-xs sm:text-sm text-slate-900">Dedication</div>
-                  <div className="p-1 text-[9px] text-slate-600 border-b border-slate-800 min-h-[32px] flex items-center justify-center leading-tight">
-                    [Demonstrates strong commitment to tasks, classes, or assigned work]
-                  </div>
-                  <div className="p-1 font-bold text-[11px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                  <div className="p-1.5 font-extrabold text-base sm:text-lg text-emerald-800 flex items-center justify-center">
-                    {data.dedicationRating || 5}
-                  </div>
-                </div>
-
-                {/* 4. Discipline */}
-                <div className="flex flex-col">
-                  <div className="border-b border-slate-800 p-1 font-bold text-xs bg-slate-50">Skills/Traits</div>
-                  <div className="border-b border-slate-800 p-1 font-extrabold text-xs sm:text-sm text-slate-900">Discipline</div>
-                  <div className="p-1 text-[9px] text-slate-600 border-b border-slate-800 min-h-[32px] flex items-center justify-center leading-tight">
-                    [Follows and practices rules and punctuality in all activities]
-                  </div>
-                  <div className="p-1 font-bold text-[11px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                  <div className="p-1.5 font-extrabold text-base sm:text-lg text-emerald-800 flex items-center justify-center">
-                    {data.disciplineRating || 5}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── 10 Granular Category Rows Table ── */}
-              <div className="border-x border-b border-slate-800 mt-[-1px]">
-                <div className="bg-slate-50 border-b border-slate-800 p-1 text-center font-alkanz font-bold text-xs text-slate-800" dir="rtl">
-                  ملاحظات عامة:
-                </div>
-
-                <div className="divide-y divide-slate-800 text-xs">
-                  {/* 1. المسؤول عن الدرجة */}
-                  <div className="grid grid-cols-12 min-h-[44px]">
-                    <div
-                      className={`col-span-10 p-2.5 leading-relaxed text-right border-r border-slate-800 flex items-center justify-end ${
-                        isArabicText(data.remarksMasool || data.masoolRemarks) ? "font-alkanz text-[13px] dir-rtl" : "text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksMasool || data.masoolRemarks) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksMasool || data.masoolRemarks || "طالب ما بهتر معاشرة ني خوبي چھے، برامج علمية ما ساهمة فعالة كيدي چھے، بعض برامج ما leading كيدي چھے، ناهنا طلبة ني مدد كرواني عادة چھے، حلقة ما attentive رھے چھے، اخلاقي جانب گھني بهتر چھے."}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        المسؤول عن الدرجة
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 2. عن التحفيظ */}
-                  <div className="grid grid-cols-12 min-h-[38px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksTahfeez) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-center text-center text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksTahfeez) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksTahfeez || "He has good character and makes sincere efforts for Tahfeez-ul-Qur'an. He is consistent in Hifz and serves with enthusiasm."}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        عن التحفيظ
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 3. عن التعليم */}
-                  <div className="grid grid-cols-12 min-h-[50px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed text-right border-r border-slate-800 flex items-center justify-end ${
-                        isArabicText(data.remarksTaleem) ? "font-alkanz text-[13px] dir-rtl" : "text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksTaleem) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksTaleem || "طالب علم نو تعليمي مستوى ممتاز چھے، حلقة ما برابر دهيان سي پرھے چھے، سوالو كرے چھے انے توجيه مطابق ذمة داري سي عمل كرے چھے، تمام برامج علمية ما ساهمة فعالة كيدي چھے، معرض علمي، روضة الأدب الفاطمي انے مسابقة حفظ القصائد الشريفة ما يوتانا حزب ني بهتر قيادة كيدي چھے. أ تمام خوبيو نے اهنو حسن الخلق انے حسن المعاشرة مزين كرے چھے."}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        عن التعليم
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 4. عن التأديب والرياضة والمنازل البرهانية */}
-                  <div className="grid grid-cols-12 min-h-[36px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksTadeeb) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-center text-center text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksTadeeb) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksTadeeb || "focused person in every aspects and always follow norms."}
-                    </div>
-                    <div className="col-span-2 p-1.5 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-[10px] font-bold text-[#b31b1b] leading-tight dir-rtl" dir="rtl">
-                        عن التأديب والرياضة والمنازل البرهانية
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 5. عن التنظيم */}
-                  <div className="grid grid-cols-12 min-h-[36px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed text-right border-r border-slate-800 flex items-center justify-end ${
-                        isArabicText(data.remarksTanzeem) ? "font-alkanz text-[13px] dir-rtl" : "text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksTanzeem) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksTanzeem || "تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے آداب الكلام بهتر چھے ."}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        عن التنظيم
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 6. عن خيمة الرياضة */}
-                  <div className="grid grid-cols-12 min-h-[36px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksSports) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-center text-center text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksSports) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksSports || "The student has not participated in any sports activities during this academic year."}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        عن خيمة الرياضة
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 7. المكتبة */}
-                  <div className="grid grid-cols-12 min-h-[36px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksMaktabat) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-center text-center text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksMaktabat) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksMaktabat || "The student had issued 9 books from the Maktabat and demonstrated consistent library usage throughout the year."}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        المكتبة
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 8. عن الفن والمهارة */}
-                  <div className="grid grid-cols-12 min-h-[36px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksSkills) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-end text-right text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksSkills) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksSkills || "IT Skills, Coding Skills"}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        عن الفن والمهارة
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 9. عن الامتحانات الأخرى */}
-                  <div className="grid grid-cols-12 min-h-[36px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksOtherExams) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-end text-right text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksOtherExams) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksOtherExams || "10th done From MP BOARD Board 12th not done"}
-                    </div>
-                    <div className="col-span-2 p-2 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
-                        عن الامتحانات الأخرى
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 10. Recommended Further Studies (Counselling) */}
-                  <div className="grid grid-cols-12 min-h-[44px]">
-                    <div
-                      className={`col-span-10 p-2 leading-relaxed border-r border-slate-800 flex items-center ${
-                        isArabicText(data.remarksCounselling) ? "justify-end text-right font-alkanz text-[13px] dir-rtl" : "justify-center text-center text-xs"
-                      }`}
-                      dir={isArabicText(data.remarksCounselling) ? "rtl" : "ltr"}
-                    >
-                      {data.remarksCounselling || "A note regarding the student's career counselling is provided below along with the counselor's remarks."}
-                    </div>
-                    <div className="col-span-2 p-1.5 flex items-center justify-center text-center bg-slate-50/50">
-                      <span className="text-[10px] font-bold text-[#b31b1b] leading-tight text-center">
-                        Recommended Further Studies (Counselling)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Section 7: SIBLING DETAILS & COUNSELLING NOTES BOX ── */}
-            <div className="border border-slate-800 rounded-sm p-3 bg-white mt-4 min-h-[80px]">
-              <div className="text-[11px] font-serif leading-relaxed text-slate-800 whitespace-pre-wrap">
-                {data.counsellingNotes || "Elder Sister (Married)\nYounger Brother\nAbba - Software Engineering\n18 yrs, Ratlam"}
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ── Print Specific Styles ── */}
@@ -725,15 +1178,11 @@ export function TalabatProfileDocument({ data, showPrintButton = true }: Props) 
           .doc-page {
             border: 1.5px solid #000 !important;
             box-shadow: none !important;
-            page-break-after: always !important;
-            break-after: page !important;
             margin-bottom: 0 !important;
-            min-height: 275mm !important;
-            padding: 16mm 10mm !important;
-          }
-          .doc-page:last-child {
-            page-break-after: auto !important;
-            break-after: auto !important;
+            min-height: auto !important;
+            padding: 10mm 8mm !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}</style>

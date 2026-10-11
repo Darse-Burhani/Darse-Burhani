@@ -130,7 +130,7 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
             sendDesktopNotification({
               title: `🎓 Campus Arrival: ${displayChildName}`,
               body: `${displayChildName} has scanned in at ${ev.gate || "Main Entrance MinMoe"} (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}).`,
-              link: "/parent/attendance",
+              link: "/parent/activity",
               soundType: "arrival",
               tag: `arrival-${studentId}-${Date.now()}`,
               silent: !soundEnabled,

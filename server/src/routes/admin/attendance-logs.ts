@@ -14,6 +14,7 @@ import {
 } from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
+import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri } from "../../lib/fatimi-calendar";
 
 const router = Router();
 
@@ -867,19 +868,57 @@ router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// GET /api/admin/attendance-logs/monthly-view — Catchy display table for monthly attendance register
+// GET /api/admin/attendance-logs/monthly-view — Catchy display table for monthly attendance register (Gregorian & Hijri aware)
 router.get("/monthly-view", requireAuth, async (req, res) => {
   try {
     const rawMonth = typeof req.query?.month === "string" ? req.query.month.trim() : "";
-    const now = new Date();
-    const monthKey = rawMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const [yearStr, monthStr] = monthKey.split("-");
-    const year = parseInt(yearStr, 10);
-    const monthNum = parseInt(monthStr, 10);
+    const rawHijriMonth = typeof req.query?.hijriMonth === "string" ? parseInt(req.query.hijriMonth, 10) : 0;
+    const rawHijriYear = typeof req.query?.hijriYear === "string" ? parseInt(req.query.hijriYear, 10) : 1448;
 
-    const monthStartDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
-    const monthEndDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59));
-    const monthName = monthStartDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+    let monthStartDate: Date;
+    let monthEndDate: Date;
+    let monthName: string;
+    let monthKey: string;
+    let hijriMeta: any;
+
+    if (rawHijriMonth >= 1 && rawHijriMonth <= 12) {
+      const hInfo = getHijriMonthInfo(rawHijriYear, rawHijriMonth);
+      monthStartDate = new Date(Date.UTC(hInfo.gregorianStart.year, hInfo.gregorianStart.month - 1, hInfo.gregorianStart.day, 0, 0, 0));
+      monthEndDate = new Date(Date.UTC(hInfo.gregorianEnd.year, hInfo.gregorianEnd.month - 1, hInfo.gregorianEnd.day, 23, 59, 59));
+      monthKey = `H${rawHijriYear}-${String(rawHijriMonth).padStart(2, "0")}`;
+      monthName = `${hInfo.monthName} ${rawHijriYear}H (${hInfo.monthNameAr})`;
+      hijriMeta = {
+        year: rawHijriYear,
+        month: rawHijriMonth,
+        monthName: hInfo.monthName,
+        monthNameAr: hInfo.monthNameAr,
+        isJumadaAlUla: rawHijriMonth === 5,
+        isRabiAlAkhir: rawHijriMonth === 4,
+        status: rawHijriMonth === 5 ? "ACTIVE_NEW_RECORDS" : rawHijriMonth === 4 ? "ENDED" : "HISTORICAL",
+      };
+    } else {
+      const now = new Date();
+      monthKey = rawMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const [yearStr, monthStr] = monthKey.split("-");
+      const year = parseInt(yearStr, 10);
+      const monthNum = parseInt(monthStr, 10);
+
+      monthStartDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+      monthEndDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59));
+      monthName = monthStartDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+
+      const midJd = gregorianToJulianDay(year, monthNum, 15);
+      const hMid = julianDayToHijri(midJd);
+      hijriMeta = {
+        year: hMid.year,
+        month: hMid.month,
+        monthName: HIJRI_MONTHS[hMid.month - 1]?.en || "",
+        monthNameAr: HIJRI_MONTHS[hMid.month - 1]?.ar || "",
+        isJumadaAlUla: hMid.month === 5,
+        isRabiAlAkhir: hMid.month === 4,
+        status: hMid.month === 5 ? "ACTIVE_NEW_RECORDS" : hMid.month === 4 ? "ENDED" : "HISTORICAL",
+      };
+    }
 
     const [students, teachers, studentRecords, studentRegistries, teacherRecords] = await Promise.all([
       prisma.studentProfile.findMany({
@@ -1003,6 +1042,7 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
       overallRate,
       talabat: talabatList,
       faculty: facultyList,
+      hijri: hijriMeta,
     });
   } catch (error) {
     console.error("[attendance-logs] monthly-view error:", error);

@@ -18,12 +18,22 @@ import {
   History,
   Award,
   GraduationCap,
+  BookOpen,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { getSkillsRecords, type TalabatSkillRecord } from "@/lib/api";
+import {
+  AGE_GROUPS,
+  SKILL_TOPICS,
+  SKILL_QUESTIONS_BY_AGE,
+  type AgeGroupId,
+  type SkillQuestion,
+} from "@/lib/skill-questions";
 
 const SKILL_ORDER = ["criticalThinking", "collaboration", "leadership", "resilience"] as const;
 const SKILL_LABELS: Record<string, string> = {
@@ -52,6 +62,11 @@ export default function AdminSkillsPage() {
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Question bank modal state
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [bankAgeGroup, setBankAgeGroup] = useState<AgeGroupId>("middle");
+  const [bankTopic, setBankTopic] = useState<string>("ALL");
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -101,13 +116,24 @@ export default function AdminSkillsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-      <div>
-        <h1 className="flex items-center gap-2 font-display text-2xl font-extrabold text-slate-900">
-          <Sparkles size={22} className="text-emerald-700" /> Talabat Skills Records
-        </h1>
-        <p className="mt-0.5 text-[13px] text-slate-500">
-          Every talabat's skill-tree %, Q&A test scores, assignment marks and hobbies — in one place.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 font-display text-2xl font-extrabold text-slate-900">
+            <Sparkles size={22} className="text-emerald-700" /> Talabat Skills Records
+          </h1>
+          <p className="mt-0.5 text-[13px] text-slate-500">
+            Every talabat's skill-tree %, Q&A test scores, assignment marks and hobbies — in one place.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowQuestionBank(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-bold text-xs shadow-xs transition-all cursor-pointer self-start sm:self-auto"
+        >
+          <BookOpen size={15} />
+          Question Bank (Topic &amp; Age Wise)
+        </button>
       </div>
 
       {/* Stats */}
@@ -363,6 +389,175 @@ export default function AdminSkillsPage() {
           })}
         </div>
       )}
+
+      {/* ════════════════════════════════════════════════════════════
+          ADMIN QUESTION BANK INSPECTOR (TOPIC & AGE WISE)
+      ════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showQuestionBank && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 15 }}
+              className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl my-auto"
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 z-10 bg-slate-900 text-white p-5 sm:px-6 rounded-t-3xl border-b border-slate-800 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                      Curriculum Bank
+                    </span>
+                    <span className="text-xs text-slate-400">Topic-Wise &amp; Age-Group Adapted</span>
+                  </div>
+                  <h3 className="text-lg font-extrabold text-white mt-1">
+                    Skills Q&amp;A Curriculum Repository
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowQuestionBank(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-6">
+                {/* ── 1. Age Group Selection Bar ── */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                    1. Select Student Age Group / Educational Tier:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {AGE_GROUPS.map((ag) => {
+                      const isSelected = bankAgeGroup === ag.id;
+                      return (
+                        <button
+                          key={ag.id}
+                          type="button"
+                          onClick={() => setBankAgeGroup(ag.id)}
+                          className={`p-3.5 rounded-2xl text-left transition-all border-2 cursor-pointer ${
+                            isSelected
+                              ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-600/10"
+                              : "border-slate-200 hover:border-slate-300 bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${ag.badgeBg}`}>
+                              {ag.ageRange}
+                            </span>
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-700" />}
+                          </div>
+                          <p className="font-extrabold text-sm text-slate-900">{ag.label} Tier</p>
+                          <p className="text-[11.5px] text-slate-500 mt-0.5">{ag.grades}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── 2. Topic Filter Tabs ── */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                    2. Filter by Skill Topic:
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setBankTopic("ALL")}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        bankTopic === "ALL"
+                          ? "bg-emerald-700 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      All Topics ({Object.values(SKILL_QUESTIONS_BY_AGE[bankAgeGroup] || {}).flat().length})
+                    </button>
+                    {SKILL_ORDER.map((k) => {
+                      const meta = SKILL_TOPICS[k];
+                      const count = (SKILL_QUESTIONS_BY_AGE[bankAgeGroup]?.[k] || []).length;
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setBankTopic(k)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            bankTopic === k
+                              ? "bg-emerald-700 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          {meta.label} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── 3. Question Cards Display ── */}
+                <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1">
+                  {(bankTopic === "ALL"
+                    ? Object.values(SKILL_QUESTIONS_BY_AGE[bankAgeGroup] || {}).flat()
+                    : SKILL_QUESTIONS_BY_AGE[bankAgeGroup]?.[bankTopic] || []
+                  ).map((q, idx) => (
+                    <div
+                      key={q.id || idx}
+                      className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs space-y-2.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                            #{idx + 1}
+                          </span>
+                          <span className="font-bold text-slate-900 text-xs">{q.topic}</span>
+                          <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            {q.subtopic}
+                          </span>
+                        </div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                          {AGE_GROUPS.find((ag) => ag.id === bankAgeGroup)?.label} Tier
+                        </span>
+                      </div>
+
+                      <p className="text-[13px] font-bold text-slate-900 leading-relaxed">
+                        {q.q}
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px]">
+                        {q.options.map((opt, oi) => (
+                          <div
+                            key={oi}
+                            className={`p-2.5 rounded-xl border flex items-start gap-2 ${
+                              oi === q.answer
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-semibold"
+                                : "bg-slate-50/60 border-slate-200 text-slate-600"
+                            }`}
+                          >
+                            <span className="font-mono font-bold text-[10px] text-slate-500 mt-0.5">
+                              {["A", "B", "C", "D"][oi]}.
+                            </span>
+                            <span className="flex-1">{opt}</span>
+                            {oi === q.answer && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 bg-emerald-50/30 -mx-4 -mb-4 p-3 rounded-b-2xl text-[11px] text-emerald-900 leading-relaxed">
+                        <strong>Educational Pedagogy / Objective:</strong> {q.explanation}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
