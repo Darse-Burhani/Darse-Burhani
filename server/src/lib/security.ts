@@ -179,90 +179,96 @@ export function createRateLimiter(
   endpointKey: string = "general",
   options?: RateLimiterOptions
 ): RequestHandler {
+  const isDev = process.env.NODE_ENV !== "production";
   return (req: Request, res: Response, next: NextFunction): void => {
-    const ip = getClientIp(req);
-    const cleanIp = ip.replace(/^::ffff:/, "").trim();
-    const isLocalOrPrivate =
-      cleanIp === "127.0.0.1" ||
-      cleanIp === "::1" ||
-      cleanIp === "localhost" ||
-      cleanIp === "0.0.0.0" ||
-      cleanIp.startsWith("10.") ||
-      cleanIp.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp);
+    try {
+      const ip = getClientIp(req);
+      const cleanIp = ip.replace(/^::ffff:/, "").trim();
+      const isLocalOrPrivate =
+        cleanIp === "127.0.0.1" ||
+        cleanIp === "::1" ||
+        cleanIp === "localhost" ||
+        cleanIp === "0.0.0.0" ||
+        cleanIp.startsWith("10.") ||
+        cleanIp.startsWith("192.168.") ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp);
 
-    // In local development, bypass rate limits for local/private IPs to avoid interfering with Vite HMR, session checks, and tests
-    if (isDev && isLocalOrPrivate) {
-      return next();
-    }
-
-    // Key by authenticated user ID if available, otherwise fallback to IP
-    const userId = (req as any).auth?.user?.id || (req as any).session?.user?.id;
-    const clientIdentifier = userId ? `user_${userId}` : ip;
-    const key = `${endpointKey}:${clientIdentifier}`;
-    const now = Date.now();
-
-    let record = rateLimitMap.get(key);
-
-    if (!record) {
-      record = { count: 1, firstRequestTime: now };
-      rateLimitMap.set(key, record);
-      return next();
-    }
-
-    // If the window has expired, reset counter and release any lock
-    if (now - record.firstRequestTime > windowMs) {
-      record.count = 1;
-      record.firstRequestTime = now;
-      record.lockedUntil = undefined;
-      return next();
-    }
-
-    // If an explicit lockout is currently active
-    if (record.lockedUntil && now < record.lockedUntil) {
-      const waitSeconds = Math.max(1, Math.ceil((record.lockedUntil - now) / 1000));
-      res.setHeader("Retry-After", waitSeconds);
-      res.status(429).json({
-        success: false,
-        error: `Too many attempts. Temporarily locked. Try again in ${waitSeconds} seconds.`,
-      });
-      return;
-    }
-
-    record.count++;
-
-    const effectiveMax = isDev ? maxRequests * 5 : maxRequests;
-
-    if (record.count > effectiveMax) {
-      const waitSeconds = options?.isAuthLockout
-        ? securityPolicies.lockoutDurationMinutes * 60
-        : Math.max(1, Math.ceil((record.firstRequestTime + windowMs - now) / 1000));
-
-      if (options?.isAuthLockout) {
-        record.lockedUntil = now + waitSeconds * 1000;
+      // In local development, bypass rate limits for local/private IPs to avoid interfering with Vite HMR, session checks, and tests
+      if (isDev && isLocalOrPrivate) {
+        return next();
       }
 
-      logAuditEvent({
-        action: "RATE_LIMIT_EXCEEDED",
-        category: "SECURITY",
-        severity: options?.isAuthLockout ? "CRITICAL" : "WARN",
-        status: "BLOCKED",
-        ipAddress: ip,
-        userAgent: req.headers["user-agent"],
-        details: { endpoint: req.originalUrl, count: record.count, waitSeconds },
-      });
+      // Key by authenticated user ID if available, otherwise fallback to IP
+      const userId = (req as any).auth?.user?.id || (req as any).session?.user?.id;
+      const clientIdentifier = userId ? `user_${userId}` : ip;
+      const key = `${endpointKey}:${clientIdentifier}`;
+      const now = Date.now();
 
-      res.setHeader("Retry-After", waitSeconds);
-      res.status(429).json({
-        success: false,
-        error: options?.isAuthLockout
-          ? `Too many attempts. Temporarily locked for ${securityPolicies.lockoutDurationMinutes} minutes.`
-          : `Rate limit exceeded. Try again in ${waitSeconds} seconds.`,
-      });
-      return;
+      let record = rateLimitMap.get(key);
+
+      if (!record) {
+        record = { count: 1, firstRequestTime: now };
+        rateLimitMap.set(key, record);
+        return next();
+      }
+
+      // If the window has expired, reset counter and release any lock
+      if (now - record.firstRequestTime > windowMs) {
+        record.count = 1;
+        record.firstRequestTime = now;
+        record.lockedUntil = undefined;
+        return next();
+      }
+
+      // If an explicit lockout is currently active
+      if (record.lockedUntil && now < record.lockedUntil) {
+        const waitSeconds = Math.max(1, Math.ceil((record.lockedUntil - now) / 1000));
+        res.setHeader("Retry-After", waitSeconds);
+        res.status(429).json({
+          success: false,
+          error: `Too many attempts. Temporarily locked. Try again in ${waitSeconds} seconds.`,
+        });
+        return;
+      }
+
+      record.count++;
+
+      const effectiveMax = isDev ? maxRequests * 5 : maxRequests;
+
+      if (record.count > effectiveMax) {
+        const waitSeconds = options?.isAuthLockout
+          ? securityPolicies.lockoutDurationMinutes * 60
+          : Math.max(1, Math.ceil((record.firstRequestTime + windowMs - now) / 1000));
+
+        if (options?.isAuthLockout) {
+          record.lockedUntil = now + waitSeconds * 1000;
+        }
+
+        logAuditEvent({
+          action: "RATE_LIMIT_EXCEEDED",
+          category: "SECURITY",
+          severity: options?.isAuthLockout ? "CRITICAL" : "WARN",
+          status: "BLOCKED",
+          ipAddress: ip,
+          userAgent: req.headers["user-agent"],
+          details: { endpoint: req.originalUrl, count: record.count, waitSeconds },
+        });
+
+        res.setHeader("Retry-After", waitSeconds);
+        res.status(429).json({
+          success: false,
+          error: options?.isAuthLockout
+            ? `Too many attempts. Temporarily locked for ${securityPolicies.lockoutDurationMinutes} minutes.`
+            : `Rate limit exceeded. Try again in ${waitSeconds} seconds.`,
+        });
+        return;
+      }
+
+      next();
+    } catch (limiterErr) {
+      console.warn("[rate-limiter] error during check, failing open:", limiterErr);
+      next();
     }
-
-    next();
   };
 }
 

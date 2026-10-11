@@ -184,69 +184,80 @@ export function apiCacheMiddleware(options: {
   const { ttlMs = 30_000, tags = [], keyGenerator } = options;
 
   return (req: any, res: any, next: any) => {
-    // Only cache GET requests
-    if (req.method !== "GET") {
-      return next();
-    }
-
-    // Skip caching if request has no-cache or bypass headers
-    if (req.headers["x-skip-cache"] === "1" || req.headers["cache-control"] === "no-cache") {
-      return next();
-    }
-
-    const sessionUser = req.auth?.user || req.user || req.session?.user || getSessionUser(req);
-    const userId = sessionUser?.id || "public";
-    const cacheKey = keyGenerator
-      ? keyGenerator(req)
-      : `api:${req.baseUrl || ""}${req.path}:${JSON.stringify(req.query)}:${userId}`;
-
-    const cached = cache.get<{ body: any; etag: string; timestamp: number }>(cacheKey);
-
-    if (cached) {
-      // Check conditional If-None-Match
-      const ifNoneMatch = req.headers["if-none-match"];
-      if (ifNoneMatch && ifNoneMatch === cached.etag) {
-        res.setHeader("X-Cache", "HIT-304");
-        return res.status(304).end();
+    try {
+      // Only cache GET requests
+      if (req.method !== "GET") {
+        return next();
       }
 
-      res.setHeader("X-Cache", "HIT");
-      res.setHeader("ETag", cached.etag);
-      res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
-      return res.json(cached.body);
-    }
+      // Skip caching if request has no-cache or bypass headers
+      if (req.headers["x-skip-cache"] === "1" || req.headers["cache-control"] === "no-cache") {
+        return next();
+      }
 
-    // Intercept res.json to store in memory cache
-    const originalJson = res.json.bind(res);
-    res.json = (body: any) => {
-      // Only cache successful 200 responses
-      if (res.statusCode >= 200 && res.statusCode < 300 && body !== undefined) {
-        try {
-          const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
-          // Fast simple hash for ETag
-          let hash = 0;
-          for (let i = 0; i < bodyStr.length; i++) {
-            hash = (hash << 5) - hash + bodyStr.charCodeAt(i);
-            hash |= 0;
-          }
-          const etag = `W/"${Math.abs(hash).toString(36)}-${bodyStr.length.toString(36)}"`;
+      let userId = "public";
+      try {
+        const sessionUser = req.auth?.user || req.user || req.session?.user || getSessionUser(req);
+        if (sessionUser?.id) userId = sessionUser.id;
+      } catch {
+        // Ignore session extraction failure
+      }
 
-          cache.set(
-            cacheKey,
-            { body, etag, timestamp: Date.now() },
-            { ttl: ttlMs, tags }
-          );
+      const cacheKey = keyGenerator
+        ? keyGenerator(req)
+        : `api:${req.baseUrl || ""}${req.path}:${JSON.stringify(req.query)}:${userId}`;
 
-          res.setHeader("X-Cache", "MISS");
-          res.setHeader("ETag", etag);
-          res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
-        } catch {
-          // Fallback gracefully on serialization error
+      const cached = cache.get<{ body: any; etag: string; timestamp: number }>(cacheKey);
+
+      if (cached) {
+        // Check conditional If-None-Match
+        const ifNoneMatch = req.headers["if-none-match"];
+        if (ifNoneMatch && ifNoneMatch === cached.etag) {
+          res.setHeader("X-Cache", "HIT-304");
+          return res.status(304).end();
         }
-      }
-      return originalJson(body);
-    };
 
-    next();
+        res.setHeader("X-Cache", "HIT");
+        res.setHeader("ETag", cached.etag);
+        res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
+        return res.json(cached.body);
+      }
+
+      // Intercept res.json to store in memory cache
+      const originalJson = res.json.bind(res);
+      res.json = (body: any) => {
+        // Only cache successful 200 responses
+        if (res.statusCode >= 200 && res.statusCode < 300 && body !== undefined) {
+          try {
+            const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
+            // Fast simple hash for ETag
+            let hash = 0;
+            for (let i = 0; i < bodyStr.length; i++) {
+              hash = (hash << 5) - hash + bodyStr.charCodeAt(i);
+              hash |= 0;
+            }
+            const etag = `W/"${Math.abs(hash).toString(36)}-${bodyStr.length.toString(36)}"`;
+
+            cache.set(
+              cacheKey,
+              { body, etag, timestamp: Date.now() },
+              { ttl: ttlMs, tags }
+            );
+
+            res.setHeader("X-Cache", "MISS");
+            res.setHeader("ETag", etag);
+            res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
+          } catch {
+            // Fallback gracefully on serialization error
+          }
+        }
+        return originalJson(body);
+      };
+
+      next();
+    } catch (cacheErr) {
+      console.warn("[cache] apiCacheMiddleware error, proceeding without cache:", cacheErr);
+      next();
+    }
   };
 }

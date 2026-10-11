@@ -516,113 +516,119 @@ export function getWhitelistedIpsList(): string[] {
 
 export function webApplicationFirewallMiddleware(): RequestHandler {
   return (req: Request, res: Response, next: NextFunction): void => {
-    totalRequestsChecked++;
-    const ip = getClientIp(req);
-
-    // 1. IP Ban Enforcement
-    if (isIpBanned(ip)) {
-      // Exemption: Authentication and health probe routes are allowed so users & admins
-      // can authenticate with valid credentials and automatically clear bans.
-      const path = req.path || (req.originalUrl || "").split("?")[0] || "";
-      const isAuthRoute =
-        path === "/api/auth/login" ||
-        path === "/api/auth/session" ||
-        path === "/api/auth/logout" ||
-        path === "/api/health";
-
-      if (!isAuthRoute) {
-        const banInfo = bannedIps.get(ip);
-        res.status(403).json({
-          success: false,
-          error: "Access Denied: Your IP address has been temporarily blocked by the Security Wall due to malicious activity.",
-          details: banInfo ? { reason: banInfo.reason, expiresAt: new Date(banInfo.expiresAt).toISOString() } : undefined,
-        });
-        return;
-      }
-    }
-
-    // 2. Malicious Bot & Vulnerability Scanner Blocking
-    const userAgent = (req.headers["user-agent"] || "").toLowerCase();
-    for (const tool of MALICIOUS_USER_AGENTS) {
-      if (userAgent.includes(tool)) {
-        recordAttackViolation(ip, req, "MALICIOUS_BOT", `SCANNER_TOOL_DETECTED: ${tool}`, userAgent, 90);
-        res.status(403).json({
-          success: false,
-          error: "Access Denied: Automated security scanning tool blocked by Security Wall.",
-        });
-        return;
-      }
-    }
-
-    // 3. Inspect URL Path & Decoded Path for Traversal or Exploitation
-    // Note: Only inspect the pathname, NOT query parameters (which are parsed in req.query and checked in step 4)
-    const rawPath = req.path || (req.originalUrl || "").split("?")[0] || "";
-    let decodedPath = rawPath;
     try {
-      decodedPath = decodeURIComponent(rawPath);
-    } catch {
-      // Malformed URI encoding
-      recordAttackViolation(ip, req, "SUSPICIOUS_PAYLOAD", "MALFORMED_URI_ENCODING", rawPath, 50);
-      res.status(400).json({ success: false, error: "Invalid URI encoding detected" });
-      return;
-    }
+      totalRequestsChecked++;
+      const ip = getClientIp(req);
 
-    const pathThreat = inspectString(decodedPath, "URL_PATH");
-    if (pathThreat && pathThreat.detected) {
-      recordAttackViolation(ip, req, pathThreat.category!, pathThreat.rule!, pathThreat.matchedValue!, pathThreat.score);
-      res.status(403).json({
-        success: false,
-        error: "Malicious request signature blocked by Security Wall.",
-        rule: pathThreat.rule,
-      });
-      return;
-    }
+      // 1. IP Ban Enforcement
+      if (isIpBanned(ip)) {
+        // Exemption: Authentication and health probe routes are allowed so users & admins
+        // can authenticate with valid credentials and automatically clear bans.
+        const path = req.path || (req.originalUrl || "").split("?")[0] || "";
+        const isAuthRoute =
+          path === "/api/auth/login" ||
+          path === "/api/auth/session" ||
+          path === "/api/auth/logout" ||
+          path === "/api/health";
 
-    // 4. Inspect Query Parameters
-    if (req.query && typeof req.query === "object") {
-      const queryThreat = inspectPayloadRecursively(req.query, "QUERY_PARAMS");
-      if (queryThreat && queryThreat.detected) {
-        recordAttackViolation(ip, req, queryThreat.category!, queryThreat.rule!, queryThreat.matchedValue!, queryThreat.score);
-        res.status(403).json({
-          success: false,
-          error: "Malicious input parameter blocked by Security Wall.",
-          rule: queryThreat.rule,
-        });
-        return;
-      }
-    }
-
-    // 5. Inspect Request Body (JSON, Form Data, Text)
-    if (req.body && typeof req.body === "object" && !(req.body instanceof Buffer)) {
-      const bodyThreat = inspectPayloadRecursively(req.body, "REQUEST_BODY");
-      if (bodyThreat && bodyThreat.detected) {
-        recordAttackViolation(ip, req, bodyThreat.category!, bodyThreat.rule!, bodyThreat.matchedValue!, bodyThreat.score);
-        res.status(403).json({
-          success: false,
-          error: "Malicious payload detected and blocked by Security Wall.",
-          rule: bodyThreat.rule,
-        });
-        return;
-      }
-    }
-
-    // 6. Inspect Sensitive Headers for Injection
-    const headersToInspect = ["x-forwarded-host", "x-host", "referer"];
-    for (const hdr of headersToInspect) {
-      const val = req.headers[hdr];
-      if (typeof val === "string") {
-        const hdrThreat = inspectString(val, `HEADER_${hdr}`);
-        if (hdrThreat && hdrThreat.detected) {
-          recordAttackViolation(ip, req, hdrThreat.category!, hdrThreat.rule!, hdrThreat.matchedValue!, hdrThreat.score);
+        if (!isAuthRoute) {
+          const banInfo = bannedIps.get(ip);
           res.status(403).json({
             success: false,
-            error: "Security Wall detected illegal header payload.",
+            error: "Access Denied: Your IP address has been temporarily blocked by the Security Wall due to malicious activity.",
+            details: banInfo ? { reason: banInfo.reason, expiresAt: new Date(banInfo.expiresAt).toISOString() } : undefined,
           });
           return;
         }
       }
-    }
 
-    next();
+      // 2. Malicious Bot & Vulnerability Scanner Blocking
+      const rawUa = req.headers["user-agent"];
+      const userAgent = (Array.isArray(rawUa) ? rawUa[0] : (typeof rawUa === "string" ? rawUa : "")).toLowerCase();
+      for (const tool of MALICIOUS_USER_AGENTS) {
+        if (userAgent.includes(tool)) {
+          recordAttackViolation(ip, req, "MALICIOUS_BOT", `SCANNER_TOOL_DETECTED: ${tool}`, userAgent, 90);
+          res.status(403).json({
+            success: false,
+            error: "Access Denied: Automated security scanning tool blocked by Security Wall.",
+          });
+          return;
+        }
+      }
+
+      // 3. Inspect URL Path & Decoded Path for Traversal or Exploitation
+      // Note: Only inspect the pathname, NOT query parameters (which are parsed in req.query and checked in step 4)
+      const rawPath = req.path || (req.originalUrl || "").split("?")[0] || "";
+      let decodedPath = rawPath;
+      try {
+        decodedPath = decodeURIComponent(rawPath);
+      } catch {
+        // Malformed URI encoding
+        recordAttackViolation(ip, req, "SUSPICIOUS_PAYLOAD", "MALFORMED_URI_ENCODING", rawPath, 50);
+        res.status(400).json({ success: false, error: "Invalid URI encoding detected" });
+        return;
+      }
+
+      const pathThreat = inspectString(decodedPath, "URL_PATH");
+      if (pathThreat && pathThreat.detected) {
+        recordAttackViolation(ip, req, pathThreat.category!, pathThreat.rule!, pathThreat.matchedValue!, pathThreat.score);
+        res.status(403).json({
+          success: false,
+          error: "Malicious request signature blocked by Security Wall.",
+          rule: pathThreat.rule,
+        });
+        return;
+      }
+
+      // 4. Inspect Query Parameters
+      if (req.query && typeof req.query === "object") {
+        const queryThreat = inspectPayloadRecursively(req.query, "QUERY_PARAMS");
+        if (queryThreat && queryThreat.detected) {
+          recordAttackViolation(ip, req, queryThreat.category!, queryThreat.rule!, queryThreat.matchedValue!, queryThreat.score);
+          res.status(403).json({
+            success: false,
+            error: "Malicious input parameter blocked by Security Wall.",
+            rule: queryThreat.rule,
+          });
+          return;
+        }
+      }
+
+      // 5. Inspect Request Body (JSON, Form Data, Text)
+      if (req.body && typeof req.body === "object" && !(req.body instanceof Buffer)) {
+        const bodyThreat = inspectPayloadRecursively(req.body, "REQUEST_BODY");
+        if (bodyThreat && bodyThreat.detected) {
+          recordAttackViolation(ip, req, bodyThreat.category!, bodyThreat.rule!, bodyThreat.matchedValue!, bodyThreat.score);
+          res.status(403).json({
+            success: false,
+            error: "Malicious payload detected and blocked by Security Wall.",
+            rule: bodyThreat.rule,
+          });
+          return;
+        }
+      }
+
+      // 6. Inspect Sensitive Headers for Injection
+      const headersToInspect = ["x-forwarded-host", "x-host", "referer"];
+      for (const hdr of headersToInspect) {
+        const val = req.headers[hdr];
+        if (typeof val === "string") {
+          const hdrThreat = inspectString(val, `HEADER_${hdr}`);
+          if (hdrThreat && hdrThreat.detected) {
+            recordAttackViolation(ip, req, hdrThreat.category!, hdrThreat.rule!, hdrThreat.matchedValue!, hdrThreat.score);
+            res.status(403).json({
+              success: false,
+              error: "Security Wall detected illegal header payload.",
+            });
+            return;
+          }
+        }
+      }
+
+      next();
+    } catch (wafErr) {
+      console.warn("[WAF] Internal inspection error, failing open to prevent denial of service:", wafErr);
+      next();
+    }
   };
 }
