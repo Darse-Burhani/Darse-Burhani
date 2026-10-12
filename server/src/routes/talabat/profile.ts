@@ -140,11 +140,29 @@ router.put("/", requireAuth, async (req, res) => {
     if (body.mobileNumber !== undefined) updateData.mobileNumber = body.mobileNumber || null;
   }
 
-  // Identifiers Region (Only if explicitly open or Admin)
-  const canEditIdentifiers = isAdmin || talabatPerms.identifiers?.isOpen === true;
+  // Identifiers Region
+  const canEditIdentifiers = isAdmin || talabatPerms.identifiers?.isOpen !== false;
   if (canEditIdentifiers) {
     if (body.its !== undefined) updateData.its = body.its || null;
     if (body.trNo !== undefined) updateData.trNo = body.trNo || null;
+  }
+
+  // Parents Details & Contact Region
+  const canEditParents = isAdmin || talabatPerms.parents?.isOpen !== false;
+  if (canEditParents) {
+    if (body.fatherName !== undefined) updateData.fatherName = body.fatherName || null;
+    if (body.motherName !== undefined) updateData.motherName = body.motherName || null;
+    if (body.fatherPhone !== undefined) updateData.fatherPhone = body.fatherPhone || null;
+    if (body.motherPhone !== undefined) updateData.motherPhone = body.motherPhone || null;
+    if (body.fatherEmail !== undefined) updateData.fatherEmail = body.fatherEmail || null;
+    if (body.motherEmail !== undefined) updateData.motherEmail = body.motherEmail || null;
+    if (body.fatherOccupation !== undefined) updateData.fatherOccupation = body.fatherOccupation || null;
+  }
+
+  if (isAdmin) {
+    if (body.firstName !== undefined && body.firstName.trim()) userUpdateData.firstName = body.firstName.trim();
+    if (body.lastName !== undefined && body.lastName.trim()) userUpdateData.lastName = body.lastName.trim();
+    if (body.email !== undefined && body.email.trim()) userUpdateData.email = body.email.trim();
   }
 
   if (Object.keys(userUpdateData).length > 0) {

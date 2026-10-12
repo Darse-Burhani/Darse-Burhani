@@ -92,6 +92,23 @@ export default function TalabatProfilePage() {
     section: "",
   });
 
+  const isAdmin = user?.role === "ADMIN";
+
+  // Master switch from admin: false = whole profile read-only for students.
+  const masterLocked = !isAdmin && (permissions as Record<string, any>).masterEnabled === false;
+
+  const isPhotoOpen = isAdmin || (!masterLocked && permissions.photo?.isOpen !== false);
+  const isPersonalOpen = isAdmin || (!masterLocked && permissions.personal?.isOpen !== false);
+  const isAcademicOpen = isAdmin || (!masterLocked && permissions.academic?.isOpen !== false);
+  const isContactOpen = isAdmin || (!masterLocked && permissions.contact?.isOpen !== false);
+  const isIdentifiersOpen = isAdmin || (!masterLocked && permissions.identifiers?.isOpen !== false);
+
+  const isPhotoVisible = isAdmin || (permissions.photo?.isVisible !== false && permissions.photo?.isVisibleToStudent !== false);
+  const isPersonalVisible = isAdmin || (permissions.personal?.isVisible !== false && permissions.personal?.isVisibleToStudent !== false);
+  const isAcademicVisible = isAdmin || (permissions.academic?.isVisible !== false && permissions.academic?.isVisibleToStudent !== false);
+  const isContactVisible = isAdmin || (permissions.contact?.isVisible !== false && permissions.contact?.isVisibleToStudent !== false);
+  const isIdentifiersVisible = isAdmin || (permissions.identifiers?.isVisible !== false && permissions.identifiers?.isVisibleToStudent !== false);
+
   useEffect(() => {
     fetchProfile();
     fetchPermissions();
@@ -113,10 +130,12 @@ export default function TalabatProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch("/api/talabat/profile");
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const res = await fetch(`/api/talabat/profile${search}`);
       if (res.ok) {
-        const data = await res.json();
-        setAvatarUrl(data.avatarUrl || user?.avatarUrl || "");
+        const json = await res.json();
+        const data = json.data || json;
+        setAvatarUrl(data.avatarUrl || (!search ? user?.avatarUrl : "") || "");
         setProfile({
           age: data.age?.toString() || "",
           status: data.status || "",
@@ -147,14 +166,15 @@ export default function TalabatProfilePage() {
   };
 
   const handleSave = async () => {
-    if (masterLocked) {
+    if (!isAdmin && masterLocked) {
       toast({ title: "Profile Editing Locked", description: "Admin has locked talabat profile updates.", variant: "destructive" });
       return;
     }
     setLoading(true);
     setSaved(false);
     try {
-      const res = await fetch("/api/talabat/profile", {
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const res = await fetch(`/api/talabat/profile${search}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,21 +285,6 @@ export default function TalabatProfilePage() {
     toast({ title: "Photo Removed", description: "Click Save Profile to confirm removal.", variant: "warning" });
   };
 
-  // Master switch from admin: false = whole profile read-only (nothing editable).
-  const masterLocked = (permissions as Record<string, any>).masterEnabled === false;
-
-  const isPhotoOpen = !masterLocked && permissions.photo?.isOpen !== false;
-  const isPersonalOpen = !masterLocked && permissions.personal?.isOpen !== false;
-  const isAcademicOpen = !masterLocked && permissions.academic?.isOpen !== false;
-  const isContactOpen = !masterLocked && permissions.contact?.isOpen !== false;
-  const isIdentifiersOpen = !masterLocked && permissions.identifiers?.isOpen === true;
-
-  const isPhotoVisible = permissions.photo?.isVisible !== false && permissions.photo?.isVisibleToStudent !== false;
-  const isPersonalVisible = permissions.personal?.isVisible !== false && permissions.personal?.isVisibleToStudent !== false;
-  const isAcademicVisible = permissions.academic?.isVisible !== false && permissions.academic?.isVisibleToStudent !== false;
-  const isContactVisible = permissions.contact?.isVisible !== false && permissions.contact?.isVisibleToStudent !== false;
-  const isIdentifiersVisible = permissions.identifiers?.isVisible !== false && permissions.identifiers?.isVisibleToStudent !== false;
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header Banner */}
@@ -289,7 +294,14 @@ export default function TalabatProfilePage() {
         subtitle="Manage your personal and academic profile information"
       />
 
-      {masterLocked && (
+      {isAdmin && (
+        <div className="mb-6 flex items-center gap-2.5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-sm font-semibold text-emerald-900" role="status">
+          <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+          Administrator Mode: You are editing this student&apos;s profile with full administrative permissions.
+        </div>
+      )}
+
+      {!isAdmin && masterLocked && (
         <div className="mb-6 flex items-center gap-2.5 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-sm font-semibold text-amber-900" role="alert">
           <Lock className="w-4 h-4 text-amber-700 shrink-0" />
           Profile editing is locked by admin — all sections are read-only.

@@ -162,7 +162,10 @@ export default function TeacherProfilePage() {
     }
   };
 
+  const isAdmin = session?.user?.role === "ADMIN";
+
   const isEditable = (key: string): boolean => {
+    if (isAdmin) return true;
     if (!permissions.masterEnabled) return false;
     if (permissions.items[key]) {
       return permissions.items[key].isOpen;
@@ -171,6 +174,7 @@ export default function TeacherProfilePage() {
   };
 
   const isVisible = (key: string): boolean => {
+    if (isAdmin) return true;
     if (permissions.masterVisible === false) return false;
     if (permissions.items && permissions.items[key]) {
       return permissions.items[key].isVisible !== false;
@@ -235,7 +239,7 @@ export default function TeacherProfilePage() {
   // Submit Profile Changes
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!permissions.masterEnabled) {
+    if (!isAdmin && !permissions.masterEnabled) {
       toast({
         title: "Profile Editing Locked",
         description: "Admin has locked teacher profile updates.",
@@ -246,7 +250,8 @@ export default function TeacherProfilePage() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/teacher/profile", {
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const res = await fetch(`/api/teacher/profile${search}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -342,7 +347,12 @@ export default function TeacherProfilePage() {
           </div>
         </div>
 
-        {!permissions.masterEnabled ? (
+        {isAdmin ? (
+          <Badge className="bg-emerald-100 text-emerald-900 border-emerald-400 px-3 py-1 text-xs flex items-center gap-1.5 self-start sm:self-auto font-bold shadow-xs">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+            Administrator Edit Mode
+          </Badge>
+        ) : !permissions.masterEnabled ? (
           <Badge className="bg-amber-100 text-amber-900 border-amber-300 px-3 py-1 text-xs flex items-center gap-1.5 self-start sm:self-auto">
             <Lock className="w-3.5 h-3.5 text-amber-700" />
             Profile Editing Locked by Admin

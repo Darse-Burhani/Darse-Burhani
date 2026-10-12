@@ -388,7 +388,7 @@ export default function AdminUsersPage() {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      phone: user.teacherProfile?.mobile || user.parentProfile?.phone || "",
+      phone: user.teacherProfile?.mobile || user.parentProfile?.phone || user.studentProfile?.mobileNumber || user.studentProfile?.fatherPhone || "",
       watan: user.studentProfile?.watan || user.parentProfile?.watan || "",
       grade: user.studentProfile?.grade || "",
       section: user.studentProfile?.section || "",
@@ -411,6 +411,10 @@ export default function AdminUsersPage() {
           email: editForm.email,
           phone: editForm.phone,
           watan: editForm.watan,
+          grade: editForm.grade,
+          section: editForm.section,
+          department: editForm.department,
+          khidmatMauze: editForm.khidmatMauze,
           avatarUrl: editAvatarUrl,
         }),
       });
@@ -426,8 +430,23 @@ export default function AdminUsersPage() {
                   email: editForm.email,
                   avatarUrl: editAvatarUrl,
                   teacherProfile: u.teacherProfile
-                    ? { ...u.teacherProfile, photoUrl: editAvatarUrl }
+                    ? {
+                        ...u.teacherProfile,
+                        photoUrl: editAvatarUrl,
+                        department: editForm.department,
+                        khidmatMauze: editForm.khidmatMauze,
+                        mobile: editForm.phone,
+                      }
                     : u.teacherProfile,
+                  studentProfile: u.studentProfile
+                    ? {
+                        ...u.studentProfile,
+                        watan: editForm.watan,
+                        grade: editForm.grade,
+                        section: editForm.section,
+                        mobileNumber: editForm.phone,
+                      }
+                    : u.studentProfile,
                 }
               : u
           )
@@ -1787,13 +1806,22 @@ function TalabatCard({
           >
             <QrCode className="w-3 h-3" /> Pass Slip
           </button>
-          <span className="text-gray-300">•</span>
           <button
             onClick={onViewDetails}
             className="text-[11px] text-emerald-700 hover:text-emerald-900 font-bold hover:underline flex items-center gap-1"
           >
-            <Info className="w-3 h-3" /> Profile
+            <Info className="w-3 h-3" /> Details
           </button>
+          <span className="text-gray-300">•</span>
+          <a
+            href={`/talabat/profile?userId=${user.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-emerald-700 hover:text-emerald-900 font-bold hover:underline flex items-center gap-1"
+            title="Edit Full Student Profile"
+          >
+            <ExternalLink className="w-3 h-3" /> Profile
+          </a>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {onResetPassword && (

@@ -96,7 +96,7 @@ router.put("/", requireAuth, async (req, res) => {
     const isAdmin = session.user.role === "ADMIN";
 
     const queryTeacherId = (req.query.teacherId as string) || req.body.teacherProfileId || undefined;
-    const queryUserId = (req.query.userId as string) || req.body.userId || undefined;
+    const queryUserId = (req.query.userId as string) || (req.query.id as string) || req.body.userId || req.body.id || undefined;
 
     let targetWhere: any = { id: session.user.id };
     if (isAdmin && (queryTeacherId || queryUserId)) {

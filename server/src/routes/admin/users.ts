@@ -367,7 +367,7 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
       data: userData,
     });
 
-    // Update portfolioEnabled and photoUrl on teacher profile if provided
+    // Update teacher profile if user is TEACHER
     if (user.role === "TEACHER") {
       const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: id } });
       if (teacherProfile) {
@@ -375,11 +375,38 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
         if (portfolioEnabled !== undefined) teacherData.portfolioEnabled = portfolioEnabled;
         if (avatarUrl !== undefined) teacherData.photoUrl = avatarUrl || null;
         if (body.photoUrl !== undefined) teacherData.photoUrl = body.photoUrl || null;
+        if (body.department !== undefined) teacherData.department = body.department?.trim() || null;
+        if (body.khidmatMauze !== undefined) teacherData.khidmatMauze = body.khidmatMauze?.trim() || null;
+        if (body.phone !== undefined) teacherData.mobile = body.phone?.trim() || null;
+        if (body.mobile !== undefined) teacherData.mobile = body.mobile?.trim() || null;
 
         if (Object.keys(teacherData).length > 0) {
           await prisma.teacherProfile.update({
             where: { id: teacherProfile.id },
             data: teacherData,
+          });
+        }
+      }
+    }
+
+    // Update student profile if user is STUDENT
+    if (user.role === "STUDENT") {
+      const studentProfile = await prisma.studentProfile.findUnique({ where: { userId: id } });
+      if (studentProfile) {
+        const studentData: Record<string, any> = {};
+        if (body.watan !== undefined) studentData.watan = body.watan?.trim() || null;
+        if (body.grade !== undefined) studentData.grade = String(body.grade).trim();
+        if (body.section !== undefined) studentData.section = String(body.section).trim();
+        if (body.phone !== undefined) {
+          studentData.mobileNumber = body.phone?.trim() || null;
+          studentData.fatherPhone = body.phone?.trim() || null;
+        }
+        if (body.mobileNumber !== undefined) studentData.mobileNumber = body.mobileNumber?.trim() || null;
+
+        if (Object.keys(studentData).length > 0) {
+          await prisma.studentProfile.update({
+            where: { id: studentProfile.id },
+            data: studentData,
           });
         }
       }
