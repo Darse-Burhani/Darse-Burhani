@@ -15,8 +15,8 @@
 
 // ── Hijri Calendar Constants ──
 
-/** Hijri epoch: 1 Muharram 1 AH = July 16, 622 CE (Julian) */
-const HIJRI_EPOCH_JULIAN_DAY = 1948439.5; // Julian Day Number for July 16, 622 CE
+/** Hijri epoch: Fatimi astronomical (Misri) epoch: 1 Muharram 1 AH = July 15, 622 CE (Julian Day 1948438) */
+export const HIJRI_EPOCH_JULIAN_DAY = 1948438;
 
 /** Month names in Arabic with English transliteration and honorific suffixes */
 export const HIJRI_MONTHS = [
@@ -156,18 +156,23 @@ export function hijriToJulianDay(year: number, month: number, day: number): numb
 
 /**
  * Convert Julian Day Number to Gregorian date.
- * Uses the standard algorithm.
+ * Uses the standard algorithm with Gregorian calendar reform adjustment.
  */
 export function julianDayToGregorian(jd: number): { year: number; month: number; day: number } {
-  const a = Math.floor(jd + 0.5);
-  const b = a + 1524;
-  const c = Math.floor((b - 122.1) / 365.25);
-  const d = Math.floor(365.25 * c);
-  const e = Math.floor((b - d) / 30.6001);
+  const Z = Math.floor(jd + 0.5);
+  let A = Z;
+  if (Z >= 2299161) {
+    const alpha = Math.floor((Z - 1867216.25) / 36524.25);
+    A = Z + 1 + alpha - Math.floor(alpha / 4);
+  }
+  const B = A + 1524;
+  const C = Math.floor((B - 122.1) / 365.25);
+  const D = Math.floor(365.25 * C);
+  const E = Math.floor((B - D) / 30.6001);
 
-  const day = b - d - Math.floor(30.6001 * e);
-  const month = e < 14 ? e - 1 : e - 13;
-  const year = month > 2 ? c - 4716 : c - 4715;
+  const day = B - D - Math.floor(30.6001 * E);
+  const month = E < 14 ? E - 1 : E - 13;
+  const year = month > 2 ? C - 4716 : C - 4715;
 
   return { year, month, day };
 }
@@ -176,7 +181,7 @@ export function julianDayToGregorian(jd: number): { year: number; month: number;
  * Convert Julian Day Number to Hijri date.
  */
 export function julianDayToHijri(jd: number): { year: number; month: number; day: number } {
-  const days = Math.floor(jd) - Math.floor(HIJRI_EPOCH_JULIAN_DAY);
+  const days = Math.floor(jd) - HIJRI_EPOCH_JULIAN_DAY;
 
   if (days < 0) {
     return { year: 1, month: 1, day: 1 };
@@ -254,8 +259,17 @@ export interface MonthEvent {
  * Get today's date in both Hijri and Gregorian.
  */
 export function getTodayHijri(): HijriDateInfo {
-  const now = new Date();
-  const jd = gregorianToJulianDay(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date());
+  const year = Number(parts.find((p) => p.type === "year")?.value || new Date().getFullYear());
+  const month = Number(parts.find((p) => p.type === "month")?.value || new Date().getMonth() + 1);
+  const day = Number(parts.find((p) => p.type === "day")?.value || new Date().getDate());
+
+  const jd = gregorianToJulianDay(year, month, day);
   const hijri = julianDayToHijri(jd);
   return formatHijriDate(hijri.year, hijri.month, hijri.day);
 }

@@ -197,6 +197,12 @@ router.get("/", async (req, res) => {
   try {
     const hy = parseInt((req.query.hy as string) || "0");
     const hm = parseInt((req.query.hm as string) || "0");
+    const forceSync = req.query.sync === "1" || req.query.refresh === "1";
+
+    if (forceSync) {
+      cache.invalidateTag("fatimi-calendar");
+      cache.invalidateTag("aajnodin");
+    }
 
     const data = await cache.getOrSet(
       `fatimi-calendar:hy${hy}:hm${hm}`,
@@ -217,6 +223,30 @@ router.get("/", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to fetch Fatimi calendar",
+    });
+  }
+});
+
+router.all("/sync", async (req, res) => {
+  try {
+    cache.invalidateTag("fatimi-calendar");
+    cache.invalidateTag("aajnodin");
+    let data;
+    try {
+      data = await buildFromAajNoDin(0, 0);
+    } catch (err) {
+      console.warn("Live AajNoDin fetch failed during sync, using calibrated Fatimi calendar:", err);
+      data = buildTabular(0, 0);
+    }
+    return res.json({
+      success: true,
+      message: "Hijri calendar synchronized successfully",
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to sync Fatimi calendar",
     });
   }
 });

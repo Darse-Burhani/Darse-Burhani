@@ -252,8 +252,24 @@ async function fetchHtml(gdate: string): Promise<string> {
   return res.text();
 }
 
+function getISTDateParts(d: Date = new Date()): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(d);
+  return {
+    year: Number(parts.find((p) => p.type === "year")?.value || d.getFullYear()),
+    month: Number(parts.find((p) => p.type === "month")?.value || d.getMonth() + 1),
+    day: Number(parts.find((p) => p.type === "day")?.value || d.getDate()),
+  };
+}
+
 function buildTodayFromHeader(parsed: { day: number; month: number; year: number }): AajNoDinToday {
   const now = new Date();
+  const ist = getISTDateParts(now);
+  const istDate = new Date(ist.year, ist.month - 1, ist.day);
   const monthMeta = HIJRI_MONTHS[parsed.month - 1];
   return {
     day: parsed.day,
@@ -262,9 +278,9 @@ function buildTodayFromHeader(parsed: { day: number; month: number; year: number
     monthName: monthMeta?.en || "",
     monthNameAr: monthMeta?.ar || "",
     monthNameShort: monthMeta?.short || "",
-    dayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
-    dayOfWeekAr: DAY_NAMES_AR[now.getDay()] || "",
-    gregorian: { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() },
+    dayOfWeek: istDate.toLocaleDateString("en-US", { weekday: "long" }),
+    dayOfWeekAr: DAY_NAMES_AR[istDate.getDay()] || "",
+    gregorian: { year: ist.year, month: ist.month, day: ist.day },
   };
 }
 
@@ -367,8 +383,8 @@ export async function getToday(): Promise<AajNoDinToday> {
   return cache.getOrSet<AajNoDinToday>(
     key,
     async () => {
-      const now = new Date();
-      const gdate = formatGreg({ year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() });
+      const ist = getISTDateParts(new Date());
+      const gdate = formatGreg(ist);
       const page = await loadMonthPage(gdate);
 
       // Prime the current month cache — the today page already contains it.

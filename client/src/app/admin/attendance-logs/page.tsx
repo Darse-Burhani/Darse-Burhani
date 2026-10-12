@@ -630,9 +630,9 @@ export default function AdminAttendanceLogsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setDate("2026-09-29")}
+                onClick={() => setDate("2026-10-10")}
                 className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all cursor-pointer ${
-                  date === "2026-09-29" || currentDateHijri.isRabiAlAkhir
+                  date === "2026-10-10" || currentDateHijri.isRabiAlAkhir
                     ? "bg-amber-400 text-slate-950 shadow-xs"
                     : "text-amber-200 hover:text-white"
                 }`}

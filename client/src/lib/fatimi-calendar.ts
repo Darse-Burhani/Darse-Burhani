@@ -19,7 +19,7 @@
  *   Month 12: Dhu al-Hijjah (29 days common / 30 leap)
  */
 
-export const HIJRI_EPOCH_JULIAN_DAY = 1948439.5;
+export const HIJRI_EPOCH_JULIAN_DAY = 1948438; // Fatimi astronomical (Misri) epoch: July 15, 622 CE (Julian day 1948438)
 
 export interface HijriMonthMeta {
   index: number;
@@ -81,15 +81,20 @@ export function hijriToJulianDay(year: number, month: number, day: number): numb
 }
 
 export function julianDayToGregorian(jd: number): { year: number; month: number; day: number } {
-  const a = Math.floor(jd + 0.5);
-  const b = a + 1524;
-  const c = Math.floor((b - 122.1) / 365.25);
-  const d = Math.floor(365.25 * c);
-  const e = Math.floor((b - d) / 30.6001);
+  const Z = Math.floor(jd + 0.5);
+  let A = Z;
+  if (Z >= 2299161) {
+    const alpha = Math.floor((Z - 1867216.25) / 36524.25);
+    A = Z + 1 + alpha - Math.floor(alpha / 4);
+  }
+  const B = A + 1524;
+  const C = Math.floor((B - 122.1) / 365.25);
+  const D = Math.floor(365.25 * C);
+  const E = Math.floor((B - D) / 30.6001);
 
-  const day = b - d - Math.floor(30.6001 * e);
-  const month = e < 14 ? e - 1 : e - 13;
-  const year = month > 2 ? c - 4716 : c - 4715;
+  const day = B - D - Math.floor(30.6001 * E);
+  const month = E < 14 ? E - 1 : E - 13;
+  const year = month > 2 ? C - 4716 : C - 4715;
 
   return { year, month, day };
 }
@@ -103,7 +108,7 @@ export function gregorianToJulianDay(year: number, month: number, day: number): 
 }
 
 export function julianDayToHijri(jd: number): { year: number; month: number; day: number } {
-  const days = Math.floor(jd) - Math.floor(HIJRI_EPOCH_JULIAN_DAY);
+  const days = Math.floor(jd) - HIJRI_EPOCH_JULIAN_DAY;
 
   if (days < 0) {
     return { year: 1, month: 1, day: 1 };
@@ -152,26 +157,30 @@ export interface HijriDateDetails {
  * Convert any Gregorian date string ("YYYY-MM-DD" or ISO) or Date to full Fatimi Hijri details.
  */
 export function getHijriFromDate(inputDate?: Date | string | null): HijriDateDetails {
-  let d: Date;
-  if (!inputDate) {
-    d = new Date();
-  } else if (typeof inputDate === "string") {
-    // If YYYY-MM-DD, parse parts to avoid timezone skew
-    if (/^\d{4}-\d{2}-\d{2}/.test(inputDate)) {
-      const [y, m, day] = inputDate.slice(0, 10).split("-").map(Number);
-      d = new Date(Date.UTC(y, m - 1, day, 12, 0, 0));
-    } else {
-      d = new Date(inputDate);
-    }
+  let year: number;
+  let month: number;
+  let day: number;
+
+  if (typeof inputDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(inputDate)) {
+    const parts = inputDate.slice(0, 10).split("-").map(Number);
+    year = parts[0];
+    month = parts[1];
+    day = parts[2];
   } else {
-    d = inputDate;
+    const targetDate = inputDate instanceof Date && !Number.isNaN(inputDate.getTime()) ? inputDate : new Date();
+    // Parse in Indian Standard Time (Asia/Kolkata) to avoid UTC midnight backward shift
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(targetDate);
+    year = Number(parts.find((p) => p.type === "year")?.value || targetDate.getFullYear());
+    month = Number(parts.find((p) => p.type === "month")?.value || targetDate.getMonth() + 1);
+    day = Number(parts.find((p) => p.type === "day")?.value || targetDate.getDate());
   }
 
-  if (Number.isNaN(d.getTime())) {
-    d = new Date();
-  }
-
-  const jd = gregorianToJulianDay(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  const jd = gregorianToJulianDay(year, month, day);
   const hijri = julianDayToHijri(jd);
   const mMeta = HIJRI_MONTHS[hijri.month - 1] || HIJRI_MONTHS[0];
 
@@ -185,7 +194,7 @@ export function getHijriFromDate(inputDate?: Date | string | null): HijriDateDet
     : "OTHER";
 
   const pad = (n: number) => String(n).padStart(2, "0");
-  const gregorianStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  const gregorianStr = `${year}-${pad(month)}-${pad(day)}`;
 
   return {
     year: hijri.year,
@@ -246,7 +255,7 @@ export const HIJRI_1448_MILESTONES = {
     nameAr: "ربيع الآخر",
     status: "ENDED" as const,
     label: "Rabīʿ al-Ākhir (Concluded Records)",
-    range: getHijriMonthGregorianRange(1448, 4), // 2026-09-01 to 2026-09-29
+    range: getHijriMonthGregorianRange(1448, 4), // 2026-09-12 to 2026-10-10
   },
   JUMADA_AL_ULA: {
     year: 1448,
@@ -255,6 +264,7 @@ export const HIJRI_1448_MILESTONES = {
     nameAr: "جمادى الأولى",
     status: "ACTIVE_NEW_RECORDS" as const,
     label: "Jumādā al-Ūlā (Active / New Records 🌟)",
-    range: getHijriMonthGregorianRange(1448, 5), // 2026-09-30 to 2026-10-29
+    range: getHijriMonthGregorianRange(1448, 5), // 2026-10-11 to 2026-11-09
   },
 };
+

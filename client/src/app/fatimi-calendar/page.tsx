@@ -22,6 +22,7 @@ import {
   ListChecks,
   CalendarRange,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,13 +104,15 @@ export default function FatimiCalendarPage() {
   const [hm, setHm] = useState(0);
   const [selectedDay, setSelectedDay] = useState<any>(null);
   const [yearPickerOpen, setYearPickerOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
-  const fetchCalendar = useCallback(async () => {
+  const fetchCalendar = useCallback(async (forceSync = false) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (hy > 0) params.set("hy", String(hy));
       if (hm > 0) params.set("hm", String(hm));
+      if (forceSync) params.set("sync", "1");
       const res = await fetch(`/api/fatimi-calendar?${params}`);
       const json = await res.json();
       if (json.success) setData(json.data);
@@ -117,6 +120,23 @@ export default function FatimiCalendarPage() {
       setLoading(false);
     }
   }, [hy, hm]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/fatimi-calendar/sync", { method: "POST" });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setData(json.data);
+      } else {
+        await fetchCalendar(true);
+      }
+    } catch {
+      await fetchCalendar(true);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     fetchCalendar();
@@ -220,6 +240,16 @@ export default function FatimiCalendarPage() {
                 className="bg-white/20 text-white hover:bg-white/30 backdrop-blur"
               >
                 <Star className="w-4 h-4 mr-1" /> Today
+              </Button>
+              <Button
+                onClick={handleSync}
+                disabled={syncing}
+                size="sm"
+                className="bg-white/20 text-white hover:bg-white/30 backdrop-blur cursor-pointer"
+                title="Synchronize Hijri calendar with authoritative AajNoDin data"
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-1", syncing && "animate-spin")} />
+                {syncing ? "Syncing..." : "Sync Hijri"}
               </Button>
             </div>
           </div>
