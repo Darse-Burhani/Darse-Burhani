@@ -29,6 +29,9 @@ export default function TalabatProfile1447Page() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isGrade4, setIsGrade4] = useState<boolean | null>(null);
+  const [isParent, setIsParent] = useState<boolean>(false);
+  const [studentInfo, setStudentInfo] = useState<{ id: string; name: string; grade: string; section?: string; its?: string } | null>(null);
+  const [availableChildren, setAvailableChildren] = useState<Array<{ id: string; name: string; grade: string; isGrade4: boolean }>>([]);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -73,15 +76,20 @@ export default function TalabatProfile1447Page() {
   });
 
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProfile();
+    const qId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("studentId") : null;
+    if (qId) setSelectedChildId(qId);
+    fetchProfile(qId || undefined);
   }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (targetStudentId?: string) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/talabat-profile/me");
+      const effectiveId = targetStudentId || selectedChildId;
+      const url = effectiveId ? `/api/talabat-profile/me?studentId=${effectiveId}` : "/api/talabat-profile/me";
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!data.success) {
@@ -91,6 +99,13 @@ export default function TalabatProfile1447Page() {
       }
 
       setIsGrade4(data.isGrade4);
+      if (data.isParent) setIsParent(true);
+      if (data.studentInfo) {
+        setStudentInfo(data.studentInfo);
+        if (data.studentInfo.id) setSelectedChildId(data.studentInfo.id);
+      }
+      if (data.availableChildren) setAvailableChildren(data.availableChildren);
+
       if (data.isGrade4 && data.profile) {
         setFormData({
           ...data.profile,
@@ -109,9 +124,127 @@ export default function TalabatProfile1447Page() {
     }
   };
 
+  const renderPhotoUploadField = (
+    field: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl",
+    label: string,
+    subtitle: string,
+    inputId: string
+  ) => {
+    const photoUrl = formData[field];
+    const isUploading = uploadingField === field;
+
+    return (
+      <div className="flex flex-col items-center w-full max-w-[240px]">
+        <div className="flex items-center justify-between w-full mb-1.5 px-0.5">
+          <span className="text-xs font-bold text-slate-800">{label}</span>
+          {photoUrl ? (
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1 shadow-2xs">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Saved
+            </span>
+          ) : (
+            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+              Required
+            </span>
+          )}
+        </div>
+
+        <div className="w-full h-44 border-2 border-dashed border-slate-300 hover:border-[#961212] rounded-2xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/80 hover:bg-slate-100/90 transition-all group shadow-2xs">
+          {photoUrl ? (
+            <div className="relative w-full h-full">
+              <img
+                src={photoUrl}
+                alt={label}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+              />
+              {/* Overlay with Change / Remove actions on hover/focus */}
+              <div className="absolute inset-0 bg-slate-900/65 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                <label
+                  htmlFor={inputId}
+                  className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow hover:bg-slate-100 cursor-pointer transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#961212]" />
+                  Change Photo
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePhoto(field)}
+                  className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow hover:bg-rose-700 cursor-pointer transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label
+              htmlFor={inputId}
+              className="w-full h-full flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none"
+            >
+              <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-[#961212] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-700 group-hover:text-[#961212] transition-colors leading-tight">
+                {subtitle}
+              </span>
+              <span className="text-[10px] text-slate-500 mt-0.5">Click or tap to upload</span>
+              <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs group-hover:bg-[#961212] group-hover:text-white transition-all">
+                <Upload className="w-3 h-3" />
+                Select Photo
+              </span>
+            </label>
+          )}
+
+          {/* Loading Spinner Overlay */}
+          {isUploading && (
+            <div className="absolute inset-0 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center z-20">
+              <div className="w-7 h-7 border-3 border-[#961212] border-t-transparent rounded-full animate-spin mb-1.5"></div>
+              <span className="text-xs font-bold text-slate-800">Uploading &amp; saving...</span>
+              <span className="text-[10px] text-slate-500">Please wait</span>
+            </div>
+          )}
+
+          {/* Hidden File Input with specific ID */}
+          <input
+            id={inputId}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/avif,image/jfif,image/*"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, field)}
+            disabled={isUploading}
+          />
+        </div>
+
+        {/* Visible buttons for touchscreens / quick access when photo is present */}
+        {photoUrl && (
+          <div className="flex items-center justify-between w-full mt-2 gap-2">
+            <label
+              htmlFor={inputId}
+              className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-semibold text-center cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1"
+            >
+              <Upload className="w-3 h-3 text-[#961212]" /> Change
+            </label>
+            <button
+              type="button"
+              onClick={() => handleRemovePhoto(field)}
+              className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold cursor-pointer border border-rose-200 transition-colors flex items-center justify-center gap-1"
+            >
+              <Trash2 className="w-3 h-3" /> Remove
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl") => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset input value so re-selecting the exact same file fires onChange reliably
+    e.target.value = "";
 
     const fd = new FormData();
     fd.append("file", file);
@@ -124,15 +257,59 @@ export default function TalabatProfile1447Page() {
       });
       const data = await res.json();
       if (data.success && data.url) {
-        setFormData((prev) => ({ ...prev, [fieldName]: data.url }));
-        setNotification({ type: "success", text: "Photo uploaded successfully!" });
+        const updated = { ...formData, [fieldName]: data.url };
+        setFormData(updated);
+
+        // Auto-save photo into database draft immediately so it is never lost
+        await fetch("/api/talabat-profile/me", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...updated,
+            studentId: selectedChildId || studentInfo?.id,
+            status: formData.status || "DRAFT",
+          }),
+        }).catch(() => {});
+
+        const label =
+          fieldName === "fatherPhotoUrl"
+            ? "Father photo"
+            : fieldName === "motherPhotoUrl"
+            ? "Mother photo"
+            : "Student photo";
+        setNotification({ type: "success", text: `✓ ${label} uploaded and saved successfully!` });
       } else {
-        setNotification({ type: "error", text: data.error || "Upload failed" });
+        setNotification({ type: "error", text: data.error || "Upload failed. Please check file format and size." });
       }
     } catch (err: any) {
       setNotification({ type: "error", text: err.message || "Upload error" });
     } finally {
       setUploadingField(null);
+    }
+  };
+
+  const handleRemovePhoto = async (fieldName: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl") => {
+    const updated = { ...formData, [fieldName]: "" };
+    setFormData(updated);
+    try {
+      await fetch("/api/talabat-profile/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...updated,
+          studentId: selectedChildId || studentInfo?.id,
+          status: formData.status || "DRAFT",
+        }),
+      });
+      const label =
+        fieldName === "fatherPhotoUrl"
+          ? "Father photo"
+          : fieldName === "motherPhotoUrl"
+          ? "Mother photo"
+          : "Student photo";
+      setNotification({ type: "success", text: `${label} removed.` });
+    } catch {
+      setNotification({ type: "error", text: "Failed to remove photo." });
     }
   };
 
@@ -146,6 +323,7 @@ export default function TalabatProfile1447Page() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          studentId: selectedChildId || studentInfo?.id,
           status: submitStatus,
         }),
       });
@@ -309,6 +487,47 @@ export default function TalabatProfile1447Page() {
         </div>
       </div>
 
+      {/* ── Parent Mode Banner (if logged in as parent) ── */}
+      {isParent && (
+        <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-950">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full">
+                  Parent Access Mode
+                </span>
+                <span className="text-xs font-bold text-slate-800">
+                  {studentInfo?.name || "Student"} • Grade {studentInfo?.grade || "Rabea"}
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/80 mt-0.5">
+                You are submitting this form as the parent. All photos and details are directly saved and reflected to the school administration.
+              </p>
+            </div>
+          </div>
+
+          {availableChildren.length > 1 && (
+            <div className="flex items-center gap-2 bg-white/80 p-2 rounded-xl border border-amber-200 shrink-0">
+              <span className="text-xs font-semibold text-slate-700">Select Child:</span>
+              <select
+                value={studentInfo?.id || ""}
+                onChange={(e) => fetchProfile(e.target.value)}
+                className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#961212]"
+              >
+                {availableChildren.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.grade}) {c.isGrade4 ? "• Rabea" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Notification Banner ── */}
       {notification && (
         <div
@@ -355,34 +574,13 @@ export default function TalabatProfile1447Page() {
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
               {/* Photo Upload */}
-              <div className="md:col-span-3 flex flex-col items-center">
-                <span className="text-xs font-semibold text-slate-700 mb-2">Student Photo</span>
-                <div className="w-32 h-40 border-2 border-dashed border-slate-300 rounded-xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all group">
-                  {formData.studentPhotoUrl ? (
-                    <img
-                      src={formData.studentPhotoUrl}
-                      alt="Student"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-center p-2 text-slate-400">
-                      <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
-                      <span className="text-[10px]">Click to upload passport photo</span>
-                    </div>
-                  )}
-
-                  <label className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-xs font-semibold">
-                    <Upload className="w-4 h-4 mb-1" />
-                    {uploadingField === "studentPhotoUrl" ? "Uploading..." : "Change Photo"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleFileUpload(e, "studentPhotoUrl")}
-                      disabled={uploadingField !== null}
-                    />
-                  </label>
-                </div>
+              <div className="md:col-span-3 flex justify-center">
+                {renderPhotoUploadField(
+                  "studentPhotoUrl",
+                  "Student Passport Photo",
+                  "Upload Student Photo",
+                  "upload-student-photo"
+                )}
               </div>
 
               {/* Personal Fields */}
@@ -487,39 +685,23 @@ export default function TalabatProfile1447Page() {
               <h2 className="text-lg font-bold text-slate-900">2. Family Details</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
               {/* Father Details */}
-              <div className="flex flex-col sm:flex-row gap-4 items-center">
-                <div className="w-28 h-32 border-2 border-dashed border-slate-300 rounded-xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all group shrink-0">
-                  {formData.fatherPhotoUrl ? (
-                    <img
-                      src={formData.fatherPhotoUrl}
-                      alt="Father"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-center p-2 text-slate-400">
-                      <ImageIcon className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                      <span className="text-[10px]">Father Photo</span>
-                    </div>
+              <div className="flex flex-col sm:flex-row gap-5 items-start">
+                <div className="w-full sm:w-auto shrink-0 flex justify-center">
+                  {renderPhotoUploadField(
+                    "fatherPhotoUrl",
+                    "Father's Photo",
+                    "Upload Father Photo",
+                    "upload-father-photo"
                   )}
-
-                  <label className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-xs font-semibold">
-                    <Upload className="w-3.5 h-3.5 mb-1" />
-                    Upload
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleFileUpload(e, "fatherPhotoUrl")}
-                      disabled={uploadingField !== null}
-                    />
-                  </label>
                 </div>
 
-                <div className="flex-1 w-full space-y-3">
+                <div className="flex-1 w-full space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Father Name</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Father's Full Name
+                    </label>
                     <input
                       type="text"
                       value={formData.fatherName || ""}
@@ -529,7 +711,9 @@ export default function TalabatProfile1447Page() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Father Occupation</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Father's Occupation / Khidmat
+                    </label>
                     <input
                       type="text"
                       value={formData.fatherOccupation || ""}
@@ -542,37 +726,21 @@ export default function TalabatProfile1447Page() {
               </div>
 
               {/* Mother Details */}
-              <div className="flex flex-col sm:flex-row gap-4 items-center pt-6 md:pt-0 md:pl-6">
-                <div className="w-28 h-32 border-2 border-dashed border-slate-300 rounded-xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all group shrink-0">
-                  {formData.motherPhotoUrl ? (
-                    <img
-                      src={formData.motherPhotoUrl}
-                      alt="Mother"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-center p-2 text-slate-400">
-                      <ImageIcon className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                      <span className="text-[10px]">Mother Photo</span>
-                    </div>
+              <div className="flex flex-col sm:flex-row gap-5 items-start pt-6 md:pt-0 md:pl-8">
+                <div className="w-full sm:w-auto shrink-0 flex justify-center">
+                  {renderPhotoUploadField(
+                    "motherPhotoUrl",
+                    "Mother's Photo",
+                    "Upload Mother Photo",
+                    "upload-mother-photo"
                   )}
-
-                  <label className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-xs font-semibold">
-                    <Upload className="w-3.5 h-3.5 mb-1" />
-                    Upload
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleFileUpload(e, "motherPhotoUrl")}
-                      disabled={uploadingField !== null}
-                    />
-                  </label>
                 </div>
 
-                <div className="flex-1 w-full space-y-3">
+                <div className="flex-1 w-full space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Mother Name</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mother's Full Name
+                    </label>
                     <input
                       type="text"
                       value={formData.motherName || ""}
@@ -582,7 +750,9 @@ export default function TalabatProfile1447Page() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Mother Occupation</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mother's Occupation
+                    </label>
                     <input
                       type="text"
                       value={formData.motherOccupation || "Homemaker"}

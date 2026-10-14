@@ -388,6 +388,8 @@ export default function App() {
           <Route path="attendance" element={<Navigate to="/parent/activity" replace />} />
           <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="hifz" element={<ParentHifz />} />
+          <Route path="yearly-profile" element={<TalabatProfile1447 />} />
+          <Route path="profile-1447" element={<TalabatProfile1447 />} />
           <Route path="settings" element={<ParentSettings />} />
         </Route>
 

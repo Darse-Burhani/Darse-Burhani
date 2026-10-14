@@ -21,6 +21,8 @@ import {
   ChevronUp,
   User,
   Heart,
+  Camera,
+  ZoomIn,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
@@ -35,6 +37,12 @@ interface StudentListItem {
   section: string;
   status: string;
   hasProfile: boolean;
+  studentPhotoUrl?: string | null;
+  fatherPhotoUrl?: string | null;
+  motherPhotoUrl?: string | null;
+  hasStudentPhoto?: boolean;
+  hasFatherPhoto?: boolean;
+  hasMotherPhoto?: boolean;
   ratings?: {
     behaviour?: number | null;
     communication?: number | null;
@@ -56,6 +64,9 @@ export default function TeacherTalabatProfilesPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [activeProfile, setActiveProfile] = useState<TalabatProfileData | null>(null);
   const [reviewerName, setReviewerName] = useState<string | null>(null);
+
+  // Lightbox Preview State
+  const [lightboxImg, setLightboxImg] = useState<{ url: string; title: string } | null>(null);
 
   // Remarks Form State inside modal
   const [behaviourRating, setBehaviourRating] = useState<number>(5);

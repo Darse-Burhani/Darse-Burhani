@@ -51,6 +51,23 @@ const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.E
   { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
 ];
 
+const isRabeaGrade = (grade?: string | null) => {
+  if (!grade) return false;
+  const g = grade.trim().toLowerCase();
+  return (
+    g === "4" ||
+    g === "iv" ||
+    g === "4th" ||
+    g.includes("rabea") ||
+    g.includes("rabi'a") ||
+    g.includes("الرابعة") ||
+    g.includes("رابعة") ||
+    g.includes("grade 4") ||
+    g.includes("class 4") ||
+    g.includes("darajah 4")
+  );
+};
+
 export default function ParentDashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -330,6 +347,48 @@ export default function ParentDashboard() {
               })}
             </div>
           </div>
+
+          {/* ═══ Rabea (Grade 4) Yearly Profile Notice & Link ═══ */}
+          {selectedChild && isRabeaGrade(selectedChild.grade) && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/10 via-amber-100/30 to-amber-500/10 p-4 sm:p-5 shadow-sm"
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-400 text-amber-800 shadow-inner">
+                    <GraduationCap className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-[#961212] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                        Yearly Profile 1447 H
+                      </span>
+                      <span className="text-xs font-bold text-amber-900 font-alkanz">
+                        توجيه الطالب – الدرجة الرابعة
+                      </span>
+                    </div>
+                    <h3 className="mt-0.5 text-sm sm:text-base font-extrabold text-slate-900">
+                      Submit Parents Photo &amp; Yearly Profile for {selectedChild.firstName}
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      Upload Father &amp; Mother photos, update personal &amp; academic records, and submit for school administration review.
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/parent/yearly-profile?studentId=${selectedChild.id || selectedChild.studentProfileId}`}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#961212] hover:bg-[#b31b1b] px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg cursor-pointer"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>Open Yearly Form</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </motion.div>
+          )}
 
           {/* ═══ Navigation Tabs ═══ */}
           <div className="sticky top-0 z-20 bg-slate-50/80 backdrop-blur-md py-2">

@@ -19,6 +19,12 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  Camera,
+  Upload,
+  User,
+  ZoomIn,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
@@ -33,6 +39,12 @@ interface StudentListItem {
   section: string;
   status: string;
   hasProfile: boolean;
+  studentPhotoUrl?: string | null;
+  fatherPhotoUrl?: string | null;
+  motherPhotoUrl?: string | null;
+  hasStudentPhoto?: boolean;
+  hasFatherPhoto?: boolean;
+  hasMotherPhoto?: boolean;
   ratings?: {
     behaviour?: number | null;
     communication?: number | null;
@@ -54,6 +66,10 @@ export default function AdminTalabatProfilesPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [activeProfile, setActiveProfile] = useState<TalabatProfileData | null>(null);
   const [reviewerName, setReviewerName] = useState<string | null>(null);
+
+  // Lightbox & Admin photo upload state
+  const [lightboxImg, setLightboxImg] = useState<{ url: string; title: string } | null>(null);
+  const [uploadingAdminPhoto, setUploadingAdminPhoto] = useState<string | null>(null);
 
   // Remarks Form State inside modal
   const [behaviourRating, setBehaviourRating] = useState<number>(5);
@@ -198,6 +214,53 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
+  const handleAdminPhotoUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    photoField: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedStudentId) return;
+    e.target.value = "";
+
+    try {
+      setUploadingAdminPhoto(photoField);
+      setFeedbackMsg(null);
+
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const uploadData = await uploadRes.json();
+
+      if (uploadData.success && uploadData.url) {
+        const updateRes = await fetch(`/api/talabat-profile/admin/profile/${selectedStudentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [photoField]: uploadData.url }),
+        });
+        const updateData = await updateRes.json();
+
+        if (updateData.success) {
+          setActiveProfile((prev) => (prev ? { ...prev, [photoField]: uploadData.url } : null));
+          const label = photoField === "fatherPhotoUrl" ? "Father" : photoField === "motherPhotoUrl" ? "Mother" : "Student";
+          setFeedbackMsg({ type: "success", text: `${label} photo updated and saved successfully!` });
+          fetchList();
+        } else {
+          setFeedbackMsg({ type: "error", text: updateData.error || "Failed to update profile photo" });
+        }
+      } else {
+        setFeedbackMsg({ type: "error", text: uploadData.error || "Upload failed" });
+      }
+    } catch (err: any) {
+      setFeedbackMsg({ type: "error", text: err.message || "Network error during upload" });
+    } finally {
+      setUploadingAdminPhoto(null);
+    }
+  };
+
   const filteredStudents = students.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -208,6 +271,8 @@ export default function AdminTalabatProfilesPage() {
     if (statusFilter === "SUBMITTED") return matchesSearch && s.status === "SUBMITTED";
     if (statusFilter === "REVIEWED") return matchesSearch && s.status === "REVIEWED";
     if (statusFilter === "PENDING") return matchesSearch && (s.status === "DRAFT" || s.status === "NOT_STARTED");
+    if (statusFilter === "MISSING_PARENT_PHOTOS") return matchesSearch && (!s.hasFatherPhoto || !s.hasMotherPhoto);
+    if (statusFilter === "PHOTOS_COMPLETE") return matchesSearch && !!(s.hasFatherPhoto && s.hasMotherPhoto && s.hasStudentPhoto);
     return matchesSearch;
   });
 
@@ -215,6 +280,7 @@ export default function AdminTalabatProfilesPage() {
   const submittedCount = students.filter((s) => s.status === "SUBMITTED").length;
   const reviewedCount = students.filter((s) => s.status === "REVIEWED").length;
   const pendingCount = students.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
+  const missingPhotosCount = students.filter((s) => !s.hasFatherPhoto || !s.hasMotherPhoto).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -235,14 +301,14 @@ export default function AdminTalabatProfilesPage() {
               Talabat Profile Master Hub (توجيه الطالب)
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              Complete institutional oversight of 1447 H profiles, 10-department remarks (Al-Kanz font), ratings, and official PDF printouts.
+              Complete institutional oversight of 1447 H profiles, parents photos verification, 10-department remarks, and official PDF printouts.
             </p>
           </div>
         </div>
       </div>
 
       {/* ── Stat Summary Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
           <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-base">
             {totalStudents}
@@ -282,11 +348,25 @@ export default function AdminTalabatProfilesPage() {
             <span className="text-sm font-bold text-amber-700">Draft / Incomplete</span>
           </div>
         </div>
+
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-base ${
+            missingPhotosCount > 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+          }`}>
+            {missingPhotosCount}
+          </div>
+          <div>
+            <span className="block text-xs font-semibold text-slate-500">Missing Photos</span>
+            <span className={`text-sm font-bold ${missingPhotosCount > 0 ? "text-rose-700" : "text-emerald-700"}`}>
+              {missingPhotosCount > 0 ? "Parent Photos Due" : "All Photos Uploaded"}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* ── Search & Filter Controls ── */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full sm:w-80">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center">
+        <div className="relative w-full lg:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
@@ -297,15 +377,17 @@ export default function AdminTalabatProfilesPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
           <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0">
             <Filter className="w-3.5 h-3.5" /> Filter:
           </span>
           {[
             { key: "ALL", label: "All" },
-            { key: "SUBMITTED", label: "Submitted" },
-            { key: "REVIEWED", label: "Reviewed" },
-            { key: "PENDING", label: "Pending" },
+            { key: "SUBMITTED", label: `Submitted (${submittedCount})` },
+            { key: "REVIEWED", label: `Reviewed (${reviewedCount})` },
+            { key: "PENDING", label: `Pending (${pendingCount})` },
+            { key: "MISSING_PARENT_PHOTOS", label: `Missing Parent Photos (${missingPhotosCount})` },
+            { key: "PHOTOS_COMPLETE", label: "All Photos Ready" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -341,6 +423,7 @@ export default function AdminTalabatProfilesPage() {
                   <th className="py-3.5 px-4">Talib Name &amp; ID</th>
                   <th className="py-3.5 px-4">ITS No.</th>
                   <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4">Photos Status</th>
                   <th className="py-3.5 px-4">Masul Ratings</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
@@ -350,9 +433,9 @@ export default function AdminTalabatProfilesPage() {
                   <tr key={s.studentId} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        {s.avatarUrl ? (
+                        {s.avatarUrl || s.studentPhotoUrl ? (
                           <img
-                            src={s.avatarUrl}
+                            src={s.studentPhotoUrl || s.avatarUrl!}
                             alt={s.name}
                             className="w-10 h-10 rounded-full object-cover border border-slate-200"
                           />
@@ -385,6 +468,95 @@ export default function AdminTalabatProfilesPage() {
                         }`} />
                         {s.status === "REVIEWED" ? "Reviewed" : s.status === "SUBMITTED" ? "Submitted" : s.status === "DRAFT" ? "Draft Saved" : "Not Started"}
                       </span>
+                    </td>
+
+                    {/* Photos Status Column */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        {/* Student Photo */}
+                        <div
+                          className="relative cursor-pointer group"
+                          title={s.studentPhotoUrl ? "Talib Photo Uploaded (Click to view)" : "Talib Photo Missing"}
+                          onClick={() => s.studentPhotoUrl && setLightboxImg({ url: s.studentPhotoUrl, title: `${s.name} (Student)` })}
+                        >
+                          {s.studentPhotoUrl ? (
+                            <img
+                              src={s.studentPhotoUrl}
+                              alt="Talib"
+                              className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-2xs group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                              <User className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
+                              s.studentPhotoUrl ? "bg-emerald-500" : "bg-slate-300"
+                            }`}
+                          />
+                        </div>
+
+                        {/* Father Photo */}
+                        <div
+                          className="relative cursor-pointer group"
+                          title={s.fatherPhotoUrl ? "Father Photo Uploaded (Click to view)" : "Father Photo Missing"}
+                          onClick={() => s.fatherPhotoUrl && setLightboxImg({ url: s.fatherPhotoUrl, title: `${s.name}'s Father` })}
+                        >
+                          {s.fatherPhotoUrl ? (
+                            <img
+                              src={s.fatherPhotoUrl}
+                              alt="Father"
+                              className="w-7 h-7 rounded-full object-cover border-2 border-blue-500 shadow-2xs group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-amber-50 border border-dashed border-amber-300 flex items-center justify-center text-[10px] text-amber-700 font-bold">
+                              👨
+                            </div>
+                          )}
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
+                              s.fatherPhotoUrl ? "bg-emerald-500" : "bg-amber-500"
+                            }`}
+                          />
+                        </div>
+
+                        {/* Mother Photo */}
+                        <div
+                          className="relative cursor-pointer group"
+                          title={s.motherPhotoUrl ? "Mother Photo Uploaded (Click to view)" : "Mother Photo Missing"}
+                          onClick={() => s.motherPhotoUrl && setLightboxImg({ url: s.motherPhotoUrl, title: `${s.name}'s Mother` })}
+                        >
+                          {s.motherPhotoUrl ? (
+                            <img
+                              src={s.motherPhotoUrl}
+                              alt="Mother"
+                              className="w-7 h-7 rounded-full object-cover border-2 border-purple-500 shadow-2xs group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-amber-50 border border-dashed border-amber-300 flex items-center justify-center text-[10px] text-amber-700 font-bold">
+                              👩
+                            </div>
+                          )}
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
+                              s.motherPhotoUrl ? "bg-emerald-500" : "bg-amber-500"
+                            }`}
+                          />
+                        </div>
+
+                        <span className="text-[11px] text-slate-400 font-medium ml-1">
+                          {s.hasFatherPhoto && s.hasMotherPhoto ? (
+                            <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
+                              <CheckCircle2 className="w-3 h-3" /> Both Parents
+                            </span>
+                          ) : s.hasFatherPhoto || s.hasMotherPhoto ? (
+                            <span className="text-amber-600 font-medium">1/2 Parents</span>
+                          ) : (
+                            <span className="text-rose-600 font-medium">Missing</span>
+                          )}
+                        </span>
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -533,47 +705,256 @@ export default function AdminTalabatProfilesPage() {
 
                       {showStudentDetailsAbove && (
                         <div className="p-5 space-y-4 text-xs bg-white">
-                          {/* Basic Profile Grid */}
-                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 pb-4 border-b border-slate-100">
-                            <div className="sm:col-span-2 flex justify-center sm:justify-start">
-                              {activeProfile.studentPhotoUrl ? (
-                                <img
-                                  src={activeProfile.studentPhotoUrl}
-                                  alt={activeProfile.name || "Student"}
-                                  className="w-20 h-24 object-cover rounded-lg border border-slate-300 shadow-xs"
-                                />
-                              ) : (
-                                <div className="w-20 h-24 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 border border-slate-200">
-                                  No Photo
-                                </div>
-                              )}
+                          {/* ── 3-Photo Identity Showcase (Student, Father, Mother) ── */}
+                          <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pb-2 border-b border-slate-200">
+                              <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                                <Camera className="w-4 h-4 text-[#961212]" />
+                                Student &amp; Family Photos (صور الطالب والوالدين)
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                Click photo to zoom • Admin can upload or replace photos directly
+                              </span>
                             </div>
 
-                            <div className="sm:col-span-10 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                              <div>
-                                <span className="text-slate-500 block text-[11px]">Full Name:</span>
-                                <span className="font-bold text-slate-900">{activeProfile.name || "—"}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              {/* 1. Student Card */}
+                              <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center text-center shadow-2xs">
+                                <div className="flex items-center justify-between w-full mb-2">
+                                  <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
+                                    <User className="w-3 h-3 text-[#961212]" /> Talib / Student
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                      activeProfile.studentPhotoUrl
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : "bg-slate-100 text-slate-500"
+                                    }`}
+                                  >
+                                    {activeProfile.studentPhotoUrl ? "Uploaded" : "Missing"}
+                                  </span>
+                                </div>
+
+                                <div
+                                  className="w-24 h-32 rounded-lg overflow-hidden border border-slate-300 relative bg-slate-100 flex items-center justify-center cursor-pointer group shadow-2xs mb-2"
+                                  onClick={() =>
+                                    activeProfile.studentPhotoUrl &&
+                                    setLightboxImg({
+                                      url: activeProfile.studentPhotoUrl,
+                                      title: `${activeProfile.name || "Student"} - Photo`,
+                                    })
+                                  }
+                                >
+                                  {activeProfile.studentPhotoUrl ? (
+                                    <>
+                                      <img
+                                        src={activeProfile.studentPhotoUrl}
+                                        alt="Student"
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                        <ZoomIn className="w-5 h-5" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-center p-2 text-slate-400">
+                                      <User className="w-8 h-8 mx-auto mb-1 text-slate-300" />
+                                      <span className="text-[10px] block">No Photo</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="text-[11px] font-bold text-slate-900 truncate w-full">
+                                  {activeProfile.name || "—"}
+                                </div>
+                                <div className="text-[10px] text-slate-500 mb-2">
+                                  ITS: {activeProfile.itsNo || "—"}
+                                </div>
+
+                                <label className="w-full py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1">
+                                  <Upload className="w-3 h-3 text-[#961212]" />
+                                  {uploadingAdminPhoto === "studentPhotoUrl"
+                                    ? "Uploading..."
+                                    : activeProfile.studentPhotoUrl
+                                    ? "Change Photo"
+                                    : "Upload Photo"}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={uploadingAdminPhoto === "studentPhotoUrl"}
+                                    onChange={(e) => handleAdminPhotoUpload(e, "studentPhotoUrl")}
+                                  />
+                                </label>
                               </div>
-                              <div>
-                                <span className="text-slate-500 block text-[11px]">ITS / ID:</span>
-                                <span className="font-mono font-bold">{activeProfile.itsNo || "—"} • ID {activeProfile.idNo || "—"}</span>
+
+                              {/* 2. Father Card */}
+                              <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center text-center shadow-2xs">
+                                <div className="flex items-center justify-between w-full mb-2">
+                                  <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
+                                    👨 Father / الوالد
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                      activeProfile.fatherPhotoUrl
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : "bg-amber-100 text-amber-800"
+                                    }`}
+                                  >
+                                    {activeProfile.fatherPhotoUrl ? "Uploaded" : "Missing"}
+                                  </span>
+                                </div>
+
+                                <div
+                                  className="w-24 h-32 rounded-lg overflow-hidden border border-slate-300 relative bg-slate-100 flex items-center justify-center cursor-pointer group shadow-2xs mb-2"
+                                  onClick={() =>
+                                    activeProfile.fatherPhotoUrl &&
+                                    setLightboxImg({
+                                      url: activeProfile.fatherPhotoUrl,
+                                      title: `${activeProfile.fatherName || "Father"} - Photo`,
+                                    })
+                                  }
+                                >
+                                  {activeProfile.fatherPhotoUrl ? (
+                                    <>
+                                      <img
+                                        src={activeProfile.fatherPhotoUrl}
+                                        alt="Father"
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                        <ZoomIn className="w-5 h-5" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-center p-2 text-slate-400">
+                                      <span className="text-3xl block mb-1">👨</span>
+                                      <span className="text-[10px] block">No Photo</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="text-[11px] font-bold text-slate-900 truncate w-full">
+                                  {activeProfile.fatherName || "—"}
+                                </div>
+                                <div className="text-[10px] text-slate-500 mb-2 truncate w-full">
+                                  {activeProfile.fatherOccupation || "Business"}
+                                </div>
+
+                                <label className="w-full py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1">
+                                  <Upload className="w-3 h-3 text-[#961212]" />
+                                  {uploadingAdminPhoto === "fatherPhotoUrl"
+                                    ? "Uploading..."
+                                    : activeProfile.fatherPhotoUrl
+                                    ? "Change Photo"
+                                    : "Upload Photo"}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={uploadingAdminPhoto === "fatherPhotoUrl"}
+                                    onChange={(e) => handleAdminPhotoUpload(e, "fatherPhotoUrl")}
+                                  />
+                                </label>
                               </div>
-                              <div>
-                                <span className="text-slate-500 block text-[11px]">Jamaat / Vatan:</span>
-                                <span className="font-semibold">{activeProfile.jamaat || "—"} / {activeProfile.vatan || "—"}</span>
+
+                              {/* 3. Mother Card */}
+                              <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center text-center shadow-2xs">
+                                <div className="flex items-center justify-between w-full mb-2">
+                                  <span className="text-[11px] font-bold text-purple-900 flex items-center gap-1">
+                                    👩 Mother / الوالدة
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                      activeProfile.motherPhotoUrl
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : "bg-amber-100 text-amber-800"
+                                    }`}
+                                  >
+                                    {activeProfile.motherPhotoUrl ? "Uploaded" : "Missing"}
+                                  </span>
+                                </div>
+
+                                <div
+                                  className="w-24 h-32 rounded-lg overflow-hidden border border-slate-300 relative bg-slate-100 flex items-center justify-center cursor-pointer group shadow-2xs mb-2"
+                                  onClick={() =>
+                                    activeProfile.motherPhotoUrl &&
+                                    setLightboxImg({
+                                      url: activeProfile.motherPhotoUrl,
+                                      title: `${activeProfile.motherName || "Mother"} - Photo`,
+                                    })
+                                  }
+                                >
+                                  {activeProfile.motherPhotoUrl ? (
+                                    <>
+                                      <img
+                                        src={activeProfile.motherPhotoUrl}
+                                        alt="Mother"
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                        <ZoomIn className="w-5 h-5" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-center p-2 text-slate-400">
+                                      <span className="text-3xl block mb-1">👩</span>
+                                      <span className="text-[10px] block">No Photo</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="text-[11px] font-bold text-slate-900 truncate w-full">
+                                  {activeProfile.motherName || "—"}
+                                </div>
+                                <div className="text-[10px] text-slate-500 mb-2 truncate w-full">
+                                  {activeProfile.motherOccupation || "Homemaker"}
+                                </div>
+
+                                <label className="w-full py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1">
+                                  <Upload className="w-3 h-3 text-[#961212]" />
+                                  {uploadingAdminPhoto === "motherPhotoUrl"
+                                    ? "Uploading..."
+                                    : activeProfile.motherPhotoUrl
+                                    ? "Change Photo"
+                                    : "Upload Photo"}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={uploadingAdminPhoto === "motherPhotoUrl"}
+                                    onChange={(e) => handleAdminPhotoUpload(e, "motherPhotoUrl")}
+                                  />
+                                </label>
                               </div>
-                              <div>
-                                <span className="text-slate-500 block text-[11px]">Father:</span>
-                                <span className="font-semibold">{activeProfile.fatherName || "—"} ({activeProfile.fatherOccupation || "Business"})</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500 block text-[11px]">Mother:</span>
-                                <span className="font-semibold">{activeProfile.motherName || "—"} ({activeProfile.motherOccupation || "Homemaker"})</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500 block text-[11px]">Age / DOB:</span>
-                                <span className="font-semibold">{activeProfile.age ? `${activeProfile.age} Yrs` : "—"} ({activeProfile.dob || "—"})</span>
-                              </div>
+                            </div>
+                          </div>
+
+                          {/* Basic Profile Details Grid */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Full Name:</span>
+                              <span className="font-bold text-slate-900">{activeProfile.name || "—"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">ITS / ID:</span>
+                              <span className="font-mono font-bold">{activeProfile.itsNo || "—"} • ID {activeProfile.idNo || "—"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Jamaat / Vatan:</span>
+                              <span className="font-semibold">{activeProfile.jamaat || "—"} / {activeProfile.vatan || "—"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Father:</span>
+                              <span className="font-semibold">{activeProfile.fatherName || "—"} ({activeProfile.fatherOccupation || "Business"})</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Mother:</span>
+                              <span className="font-semibold">{activeProfile.motherName || "—"} ({activeProfile.motherOccupation || "Homemaker"})</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Age / DOB:</span>
+                              <span className="font-semibold">{activeProfile.age ? `${activeProfile.age} Yrs` : "—"} ({activeProfile.dob || "—"})</span>
                             </div>
                           </div>
 
@@ -962,6 +1343,38 @@ export default function AdminTalabatProfilesPage() {
                   </div>
                 )
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════
+          IMAGE ZOOM / LIGHTBOX PREVIEW MODAL
+      ════════════════════════════════════════════════════════════ */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxImg(null)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-white rounded-2xl overflow-hidden shadow-2xl p-2 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3 border-b border-slate-100">
+              <h4 className="font-bold text-sm text-slate-800 truncate pr-2">{lightboxImg.title}</h4>
+              <button
+                onClick={() => setLightboxImg(null)}
+                className="p-1 text-slate-400 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 flex items-center justify-center bg-slate-50 rounded-xl max-h-[70vh] overflow-hidden">
+              <img
+                src={lightboxImg.url}
+                alt={lightboxImg.title}
+                className="max-h-[66vh] max-w-full object-contain rounded-lg shadow-sm"
+              />
             </div>
           </div>
         </div>

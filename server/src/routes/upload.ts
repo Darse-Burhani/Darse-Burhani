@@ -16,13 +16,17 @@ fs.mkdirSync(uploadsDir, { recursive: true });
 // Allowed MIME types and extensions
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
+  "image/jpg",
+  "image/pjpeg",
   "image/png",
+  "image/x-png",
   "image/webp",
   "image/gif",
   "image/avif",
+  "image/jfif",
 ]);
 
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]);
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif", "jfif"]);
 
 // Dangerous extensions that must be rejected regardless of MIME type
 const DANGEROUS_EXTENSIONS = new Set([
@@ -129,7 +133,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 20 * 1024 * 1024, // 20MB limit
     files: 1,
   },
   fileFilter: (_req, file, cb) => {
@@ -159,7 +163,7 @@ router.post("/", requireAuth, (req, res) => {
       const message =
         err instanceof multer.MulterError
           ? err.code === "LIMIT_FILE_SIZE"
-            ? "File too large. Maximum 5MB allowed."
+            ? "File too large. Maximum 20MB allowed."
             : `Upload failed: ${err.message}`
           : err instanceof Error
             ? err.message

@@ -46,7 +46,23 @@ export default function TalabatLayout() {
           setIsHafiz(true);
         }
         const g = String(data?.grade || "").trim().toLowerCase();
-        if (g === "4" || g === "darajah 4" || g === "grade 4" || g === "class 4" || g === "iv" || g === "4th") {
+        if (
+          g === "4" ||
+          g === "darajah 4" ||
+          g === "grade 4" ||
+          g === "class 4" ||
+          g === "iv" ||
+          g === "4th" ||
+          g === "rabea" ||
+          g === "darajah rabea" ||
+          g === "grade 4 (rabea)" ||
+          g === "class 4 (rabea)" ||
+          g === "rabi'a" ||
+          g.includes("rabea") ||
+          g.includes("rabia") ||
+          g.includes("الرابعة") ||
+          g.includes("رابعة")
+        ) {
           setIsGrade4(true);
         }
       })

@@ -83,21 +83,109 @@ async function digestFetch(url, { method = 'GET', username, password, body, head
   return authed;
 }
 
+// Mirrors server/src/lib/biometric.ts parseScanTime: device timestamps without an
+// explicit offset are wall-clock IST, so append +05:30 instead of letting the
+// server-local timezone decide.
 function parseEventTime(isoOrLocal) {
   if (!isoOrLocal) return new Date();
   const raw = String(isoOrLocal).trim();
-  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) {
+  if (!raw) return new Date();
+  if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(raw)) {
     const d = new Date(raw);
     if (!Number.isNaN(d.getTime())) return d;
   }
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/);
-  if (m) {
-    const [, y, mo, d, h, mi, s] = m;
-    const utcMs = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
-    return new Date(utcMs - (5 * 60 + 30) * 60 * 1000);
+  const normalized = raw.replace(/\//g, "-").replace(" ", "T");
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/);
+  if (isoMatch) {
+    const [, y, mo, d, h, mi, s, ms] = isoMatch;
+    const parsed = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}${ms ? `.${ms}` : ""}+05:30`);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  const dmyMatch = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (dmyMatch) {
+    const [, d, mo, y, h, mi, s] = dmyMatch;
+    const parsed = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}+05:30`);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
   }
   const fallback = new Date(raw);
   return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
+}
+
+// Mirrors server getISTDetails().calendarDayUTC: the IST calendar day (YYYY-MM-DD
+// in Asia/Kolkata) stored as midnight UTC. Using the UTC date instead misfiles
+// scans between 00:00–05:29 IST into the previous day.
+function getIstCalendarDayUTC(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (t) => parts.find((p) => p.type === t)?.value || "01";
+  return new Date(Date.UTC(Number(get("year")), Number(get("month")) - 1, Number(get("day"))));
+}
+
+function getIstNowXml() {
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t) => parts.find((p) => p.type === t)?.value || "00";
+  let hour = get("hour");
+  if (hour === "24") hour = "00";
+  return {
+    localTime: `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}:${get("second")}+05:30`,
+    timeZone: "CST-5:30:00",
+  };
+}
+
+// Mirrors server syncDeviceTime (lib/hikvision/index.ts): terminals lose their
+// clock (dead CMOS battery / reboot / NTP failure). Measure drift via
+// ISAPI/System/time, push IST back when it exceeds 60s, and return driftMs
+// (device minus true time) so callers can map skewed event timestamps back.
+async function syncDeviceClock(dev, password) {
+  try {
+    const base = `http://${dev.host}:${dev.port}`;
+    const t0 = Date.now();
+    const res = await digestFetch(`${base}/ISAPI/System/time`, {
+      method: "GET",
+      username: dev.username,
+      password,
+      timeoutMs: 5000,
+    });
+    if (!res.ok) return 0;
+    const xml = await res.text();
+    const m = xml.match(/<localTime>([^<]+)<\/localTime>/);
+    if (!m) return 0;
+    const devNow = new Date(m[1]);
+    if (Number.isNaN(devNow.getTime())) return 0;
+    const rttHalf = (Date.now() - t0) / 2;
+    const driftMs = devNow.getTime() - t0 - rttHalf;
+    if (Math.abs(driftMs) <= 60_000) return driftMs;
+    const modeMatch = xml.match(/<timeMode>([^<]+)<\/timeMode>/);
+    const { localTime, timeZone } = getIstNowXml();
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<Time version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">\n<timeMode>${modeMatch ? modeMatch[1] : "manual"}</timeMode>\n<localTime>${localTime}</localTime>\n<timeZone>${timeZone}</timeZone>\n</Time>`;
+    const putRes = await digestFetch(`${base}/ISAPI/System/time`, {
+      method: "PUT",
+      username: dev.username,
+      password,
+      headers: { "Content-Type": "application/xml" },
+      body,
+      timeoutMs: 5000,
+    });
+    const outcome = putRes.ok ? "re-synced to IST" : `sync failed (HTTP ${putRes.status})`;
+    console.warn(`  ⚠️ ${dev.host} clock drifted by ${Math.round(driftMs / 1000)}s — ${outcome}`);
+    return driftMs;
+  } catch (err) {
+    console.warn(`  ⚠️ Could not read clock on ${dev.host}: ${err.message || err}`);
+    return 0;
+  }
 }
 
 function isAttendanceEvent(e) {
@@ -116,18 +204,21 @@ function isAttendanceEvent(e) {
   return false;
 }
 
-async function fetchAllTodayEvents(dev) {
-  const password = decryptPassword(dev.passwordEnc, dev.passwordIv);
+async function fetchAllTodayEvents(dev, password) {
+  password = password ?? decryptPassword(dev.passwordEnc, dev.passwordIv);
   let position = 0;
   const pageSize = 50;
   const allEvents = [];
   const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
   const todayIso = nowIST; // YYYY-MM-DD in IST
+  // One stable search session per device per run — Hikvision pages a single
+  // searchID; minting a new ID per page resets/duplicates the cursor.
+  const searchID = "sync-" + dev.id + "-" + Date.now();
 
   while (true) {
     const acsPayload = JSON.stringify({
       AcsEventCond: {
-        searchID: "sync-" + dev.id + "-" + Date.now(),
+        searchID,
         searchResultPosition: position,
         maxResults: pageSize,
         major: 0,
@@ -184,9 +275,10 @@ async function processScan(empNo, scanDate, host, verifyMode) {
     const name = `${student.user.firstName} ${student.user.lastName}`.trim();
     console.log(`  👤 MATCHED TALABAT: ${name} (ITS/ID: ${empNo}) at ${timeStr}`);
 
-    // Create AttendanceRecord
-    const todayUTC = new Date(Date.UTC(scanDate.getUTCFullYear(), scanDate.getUTCMonth(), scanDate.getUTCDate()));
-    
+    // Bucket by IST calendar day (matches server getISTDetails). Using the UTC
+    // date misfiles 00:00–05:29 IST scans into the previous day.
+    const todayUTC = getIstCalendarDayUTC(scanDate);
+
     // Find class enrollment
     const activeEnrollment = student.classEnrollments.find(e => e.isActive) || student.classEnrollments[0];
     let classId = activeEnrollment?.classId;
@@ -196,6 +288,8 @@ async function processScan(empNo, scanDate, host, verifyMode) {
     }
 
     if (classId) {
+      // First scan of the day wins check-in (server DUPLICATE-guard parity);
+      // later scans only advance check-out. Re-polls are idempotent.
       const rec = await prisma.attendanceRecord.upsert({
         where: {
           studentId_classId_date: {
@@ -210,13 +304,14 @@ async function processScan(empNo, scanDate, host, verifyMode) {
           date: todayUTC,
           status: "PRESENT",
           checkInTime: scanDate,
+          checkOutTime: scanDate,
           verificationMethod: "BIOMETRIC",
           biometricMethod: "FACIAL",
           biometricHash: empNo,
           recordedById: student.userId,
         },
         update: {
-          checkInTime: scanDate,
+          checkOutTime: scanDate,
         }
       });
       console.log(`     ✅ Attendance record saved: ID=${rec.id}, Status=PRESENT`);
@@ -231,10 +326,11 @@ async function processScan(empNo, scanDate, host, verifyMode) {
         status: "PRESENT",
         source: "BIOMETRIC",
         checkInTime: scanDate,
+        checkOutTime: scanDate,
         recordedById: student.userId,
       },
       update: {
-        checkInTime: scanDate,
+        checkOutTime: scanDate,
       }
     });
 
@@ -275,7 +371,7 @@ async function processScan(empNo, scanDate, host, verifyMode) {
   if (teacher) {
     const name = `${teacher.user.firstName} ${teacher.user.lastName}`.trim();
     console.log(`  👨‍🏫 MATCHED FACULTY: ${name} (EmployeeId: ${empNo}) at ${timeStr}`);
-    const todayUTC = new Date(Date.UTC(scanDate.getUTCFullYear(), scanDate.getUTCMonth(), scanDate.getUTCDate()));
+    const todayUTC = getIstCalendarDayUTC(scanDate);
     await prisma.teacherAttendanceRecord.upsert({
       where: { teacherId_date: { teacherId: teacher.id, date: todayUTC } },
       create: {
@@ -283,12 +379,13 @@ async function processScan(empNo, scanDate, host, verifyMode) {
         date: todayUTC,
         status: "PRESENT",
         checkInTime: scanDate,
+        checkOutTime: scanDate,
         verificationMethod: "BIOMETRIC",
         biometricMethod: "FACIAL",
         biometricHash: empNo,
       },
       update: {
-        checkInTime: scanDate,
+        checkOutTime: scanDate,
       },
     });
 
@@ -324,17 +421,38 @@ async function main() {
   console.log("====================================================");
 
   const devices = await prisma.biometricDevice.findMany();
+  const startOfTodayIST = getIstCalendarDayUTC(new Date());
   for (const dev of devices) {
     try {
+      const password = decryptPassword(dev.passwordEnc, dev.passwordIv);
+      // Fix + measure terminal clock BEFORE querying: a drifted clock both
+      // shifts the device-side query window and skews every event timestamp.
+      const driftMs = await syncDeviceClock(dev, password);
+      const clockSkewed = Math.abs(driftMs) > 60_000;
+      if (driftMs !== 0) {
+        console.log(`  🕒 ${dev.host} clock drift: ${Math.round(driftMs / 1000)}s${clockSkewed ? " (correcting event timestamps)" : ""}`);
+      }
       console.log(`\nFetching scans from ${dev.name} (${dev.host})...`);
-      const events = await fetchAllTodayEvents(dev);
+      const events = await fetchAllTodayEvents(dev, password);
       const attendanceEvents = events.filter(isAttendanceEvent);
       console.log(`Found ${events.length} total events, ${attendanceEvents.length} attendance face scans.`);
 
+      // Oldest-first so first scan wins check-in and latest lands check-out.
+      const ordered = attendanceEvents
+        .map((ev) => {
+          const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
+          let scanDate = parseEventTime(ev.time);
+          if (clockSkewed) scanDate = new Date(scanDate.getTime() - driftMs);
+          return { ev, empNo, scanDate };
+        })
+        .filter(({ scanDate }) => scanDate >= startOfTodayIST)
+        .sort((a, b) => a.scanDate - b.scanDate);
+
+      const skipped = attendanceEvents.length - ordered.length;
+      if (skipped > 0) console.log(`  ⏭️ Skipped ${skipped} pre-today scan(s) outside the IST day window.`);
+
       let processed = 0;
-      for (const ev of attendanceEvents) {
-        const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
-        const scanDate = parseEventTime(ev.time);
+      for (const { ev, empNo, scanDate } of ordered) {
         const ok = await processScan(empNo, scanDate, dev.host, ev.currentVerifyMode);
         if (ok) processed++;
       }

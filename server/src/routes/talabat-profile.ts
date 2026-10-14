@@ -7,13 +7,199 @@ const router = Router();
 function isGrade4(grade?: string | null): boolean {
   if (!grade) return false;
   const g = grade.trim().toLowerCase();
-  return g === "4" || g === "darajah 4" || g === "grade 4" || g === "class 4" || g === "iv" || g === "4th";
+  return (
+    g === "4" ||
+    g === "darajah 4" ||
+    g === "grade 4" ||
+    g === "class 4" ||
+    g === "iv" ||
+    g === "4th" ||
+    g === "rabea" ||
+    g === "darajah rabea" ||
+    g === "grade 4 (rabea)" ||
+    g === "class 4 (rabea)" ||
+    g === "rabi'a" ||
+    g.includes("rabea") ||
+    g.includes("rabia") ||
+    g.includes("الرابعة") ||
+    g.includes("رابعة")
+  );
+}
+
+function generatePrefilledProfile(sp: any, user: any, parent?: any) {
+  return {
+    id: "",
+    studentId: sp.id,
+    year: "1447 H",
+    status: "DRAFT",
+    studentPhotoUrl: user?.avatarUrl || null,
+    name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
+    itsNo: sp.its || "",
+    idNo: sp.studentId || sp.trNo || "",
+    jamaat: sp.residentCity || sp.watan || "",
+    vatan: sp.watan || "",
+    nationality: "Indian",
+    dob: sp.dobGregorian ? new Date(sp.dobGregorian).toISOString().split("T")[0] : sp.dobHijri || "",
+    age: sp.age || null,
+    fatherPhotoUrl: null,
+    fatherName: sp.fatherName || (parent?.user?.firstName ? `${parent?.user?.firstName} ${parent?.user?.lastName}`.trim() : ""),
+    fatherOccupation: sp.fatherOccupation || parent?.occupation || "",
+    motherPhotoUrl: null,
+    motherName: sp.motherName || "",
+    motherOccupation: "Homemaker",
+    result1444: "",
+    result1445: "",
+    result1446: "",
+    result1447: "",
+    hifzYear: sp.hafizYear || "",
+    hifzTabaqa: "",
+    course1: "",
+    course2: "",
+    course3: "",
+    course4: "",
+    activities: "",
+    otherExams: "",
+    strengths: ["", "", ""],
+    weaknesses: ["", "", ""],
+    aboutMyself: "",
+    behaviourRating: null,
+    communicationRating: null,
+    dedicationRating: null,
+    disciplineRating: null,
+    masoolRemarks: null,
+    remarksMasool: null,
+    remarksTahfeez: null,
+    remarksTaleem: null,
+    remarksTadeeb: null,
+    remarksTanzeem: null,
+    remarksSports: null,
+    remarksMaktabat: null,
+    remarksSkills: null,
+    remarksOtherExams: null,
+    remarksCounselling: null,
+    counsellingNotes: null,
+    reviewedById: null,
+    reviewedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 // ── GET /api/talabat-profile/me ──
-// For logged in student: check if Grade 4, return their profile (or prefilled defaults)
+// For logged in student or parent: check if Grade 4 / Rabea, return their profile (or prefilled defaults)
 router.get("/me", requireAuth, async (req, res) => {
   const session = req.auth!;
+
+  // Handle PARENT role
+  if (session.user.role === "PARENT") {
+    const parent = await prisma.parentProfile.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        user: true,
+        studentLinks: {
+          include: {
+            student: {
+              include: {
+                user: true,
+                talabatProfile1447: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!parent || !parent.studentLinks.length) {
+      return res.status(404).json({ success: false, error: "Parent profile or linked students not found" });
+    }
+
+    const requestedStudentId = req.query.studentId as string;
+    let targetLink = requestedStudentId
+      ? parent.studentLinks.find(
+          (l) =>
+            l.student.id === requestedStudentId ||
+            l.student.studentId === requestedStudentId ||
+            l.student.userId === requestedStudentId
+        )
+      : parent.studentLinks.find((l) => isGrade4(l.student.grade));
+
+    // Fallback to first student if only one exists
+    if (!targetLink && parent.studentLinks.length === 1) {
+      targetLink = parent.studentLinks[0];
+    }
+
+    if (!targetLink) {
+      return res.json({
+        success: true,
+        isGrade4: false,
+        message: "None of your registered children are currently in Darajah 4 (Rabea).",
+      });
+    }
+
+    const sp = targetLink.student;
+    const grade4 = isGrade4(sp.grade);
+    let profile = sp.talabatProfile1447;
+    if (!profile) {
+      profile = generatePrefilledProfile(sp, sp.user, parent) as any;
+    }
+
+    return res.json({
+      success: true,
+      isGrade4: grade4,
+      isParent: true,
+      profile,
+      studentInfo: {
+        id: sp.id,
+        name: `${sp.user.firstName} ${sp.user.lastName}`.trim(),
+        grade: sp.grade,
+        section: sp.section,
+        its: sp.its,
+        avatarUrl: sp.user.avatarUrl,
+      },
+      availableChildren: parent.studentLinks.map((l) => ({
+        id: l.student.id,
+        name: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
+        grade: l.student.grade,
+        isGrade4: isGrade4(l.student.grade),
+      })),
+    });
+  }
+
+  // Handle ADMIN viewing specific student via ?studentId=
+  if (session.user.role === "ADMIN" && req.query.studentId) {
+    const sp = await prisma.studentProfile.findUnique({
+      where: { id: req.query.studentId as string },
+      include: {
+        user: true,
+        talabatProfile1447: true,
+      },
+    });
+
+    if (!sp) {
+      return res.status(404).json({ success: false, error: "Student not found" });
+    }
+
+    let profile = sp.talabatProfile1447;
+    if (!profile) {
+      profile = generatePrefilledProfile(sp, sp.user) as any;
+    }
+
+    return res.json({
+      success: true,
+      isGrade4: isGrade4(sp.grade),
+      profile,
+      studentInfo: {
+        id: sp.id,
+        name: `${sp.user.firstName} ${sp.user.lastName}`.trim(),
+        grade: sp.grade,
+        section: sp.section,
+        its: sp.its,
+        avatarUrl: sp.user.avatarUrl,
+      },
+    });
+  }
+
+  // Handle STUDENT role
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     include: {
@@ -36,63 +222,19 @@ router.get("/me", requireAuth, async (req, res) => {
     return res.json({
       success: true,
       isGrade4: false,
-      message: "The 1447 H Talabat Profile (توجيه الطالب) is only available for eligible 1447 H students.",
+      message: "The 1447 H Talabat Profile (توجيه الطالب) is only available for eligible 1447 H Darajah 4 (Rabea) students.",
     });
   }
 
   let profile = sp.talabatProfile1447;
   if (!profile) {
-    // Generate prefilled draft
-    profile = {
-      id: "",
-      studentId: sp.id,
-      year: "1447 H",
-      status: "DRAFT",
-      studentPhotoUrl: user.avatarUrl || null,
-      name: `${user.firstName} ${user.lastName}`.trim(),
-      itsNo: sp.its || "",
-      idNo: sp.studentId || sp.trNo || "",
-      jamaat: sp.residentCity || sp.watan || "",
-      vatan: sp.watan || "",
-      nationality: "Indian",
-      dob: sp.dobGregorian ? new Date(sp.dobGregorian).toISOString().split("T")[0] : sp.dobHijri || "",
-      age: sp.age || null,
-      fatherPhotoUrl: null,
-      fatherName: sp.fatherName || "",
-      fatherOccupation: sp.fatherOccupation || "",
-      motherPhotoUrl: null,
-      motherName: sp.motherName || "",
-      motherOccupation: "Homemaker",
-      result1444: "",
-      result1445: "",
-      result1446: "",
-      result1447: "",
-      hifzYear: sp.hafizYear || "",
-      hifzTabaqa: "",
-      course1: "",
-      course2: "",
-      course3: "",
-      course4: "",
-      activities: "",
-      otherExams: "",
-      strengths: ["", "", ""],
-      weaknesses: ["", "", ""],
-      aboutMyself: "",
-      behaviourRating: null,
-      communicationRating: null,
-      dedicationRating: null,
-      disciplineRating: null,
-      masoolRemarks: null,
-      reviewedById: null,
-      reviewedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as any;
+    profile = generatePrefilledProfile(sp, user) as any;
   }
 
   return res.json({
     success: true,
     isGrade4: true,
+    isParent: false,
     profile,
     studentInfo: {
       id: sp.id,
@@ -106,24 +248,76 @@ router.get("/me", requireAuth, async (req, res) => {
 });
 
 // ── PUT /api/talabat-profile/me ──
-// Save or Submit Student's 1447 H Profile
+// Save or Submit Student or Parent's 1447 H Profile
 router.put("/me", requireAuth, async (req, res) => {
   const session = req.auth!;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { studentProfile: true },
-  });
-
-  if (!user || !user.studentProfile) {
-    return res.status(404).json({ success: false, error: "Student profile not found" });
-  }
-
-  const sp = user.studentProfile;
-  if (!isGrade4(sp.grade) && session.user.role !== "ADMIN") {
-    return res.status(403).json({ success: false, error: "Only eligible 1447 H Talabat can fill this form." });
-  }
-
   const body = req.body || {};
+  let studentProfileId: string | null = null;
+  let targetUserAvatar: string | null = null;
+  let targetUserId: string | null = null;
+
+  if (session.user.role === "PARENT") {
+    const parent = await prisma.parentProfile.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        studentLinks: {
+          include: { student: { include: { user: true } } },
+        },
+      },
+    });
+
+    if (!parent || !parent.studentLinks.length) {
+      return res.status(404).json({ success: false, error: "Parent profile or linked students not found" });
+    }
+
+    const requestedStudentId = body.studentId || (req.query.studentId as string);
+    const targetLink = requestedStudentId
+      ? parent.studentLinks.find(
+          (l) =>
+            l.student.id === requestedStudentId ||
+            l.student.studentId === requestedStudentId ||
+            l.student.userId === requestedStudentId
+        )
+      : parent.studentLinks.find((l) => isGrade4(l.student.grade)) || parent.studentLinks[0];
+
+    if (!targetLink) {
+      return res.status(403).json({ success: false, error: "Cannot find linked student in Darajah 4 (Rabea)" });
+    }
+
+    studentProfileId = targetLink.student.id;
+    targetUserAvatar = targetLink.student.user.avatarUrl;
+    targetUserId = targetLink.student.user.id;
+  } else if (session.user.role === "ADMIN" && body.studentId) {
+    const sp = await prisma.studentProfile.findUnique({
+      where: { id: body.studentId },
+      include: { user: true },
+    });
+    if (!sp) {
+      return res.status(404).json({ success: false, error: "Student not found" });
+    }
+    studentProfileId = sp.id;
+    targetUserAvatar = sp.user.avatarUrl;
+    targetUserId = sp.user.id;
+  } else {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { studentProfile: true },
+    });
+
+    if (!user || !user.studentProfile) {
+      return res.status(404).json({ success: false, error: "Student profile not found" });
+    }
+
+    const sp = user.studentProfile;
+    if (!isGrade4(sp.grade) && session.user.role !== "ADMIN") {
+      return res.status(403).json({ success: false, error: "Only eligible 1447 H Talabat can fill this form." });
+    }
+
+    studentProfileId = sp.id;
+    targetUserAvatar = user.avatarUrl;
+    targetUserId = user.id;
+  }
+
   const status = body.status === "SUBMITTED" ? "SUBMITTED" : "DRAFT";
 
   const strengths = Array.isArray(body.strengths) ? body.strengths.filter((s: any) => typeof s === "string" && s.trim().length > 0) : [];
@@ -132,10 +326,10 @@ router.put("/me", requireAuth, async (req, res) => {
   const dataToSave = {
     year: body.year || "1447 H",
     status,
-    studentPhotoUrl: body.studentPhotoUrl || user.avatarUrl || null,
-    name: body.name || `${user.firstName} ${user.lastName}`.trim(),
-    itsNo: body.itsNo || sp.its || null,
-    idNo: body.idNo || sp.studentId || null,
+    studentPhotoUrl: body.studentPhotoUrl || targetUserAvatar || null,
+    name: body.name || null,
+    itsNo: body.itsNo || null,
+    idNo: body.idNo || null,
     jamaat: body.jamaat || null,
     vatan: body.vatan || null,
     nationality: body.nationality || "Indian",
@@ -165,18 +359,33 @@ router.put("/me", requireAuth, async (req, res) => {
   };
 
   const saved = await prisma.talabatProfile1447.upsert({
-    where: { studentId: sp.id },
+    where: { studentId: studentProfileId },
     create: {
-      studentId: sp.id,
+      studentId: studentProfileId,
       ...dataToSave,
     },
     update: dataToSave,
   });
 
-  // Sync basic fields to StudentProfile & User avatar if provided
-  if (body.studentPhotoUrl && body.studentPhotoUrl !== user.avatarUrl) {
+  // Sync basic parent and contact fields to StudentProfile for consistency
+  const studentProfileUpdates: any = {};
+  if (body.fatherName) studentProfileUpdates.fatherName = body.fatherName.trim();
+  if (body.fatherOccupation) studentProfileUpdates.fatherOccupation = body.fatherOccupation.trim();
+  if (body.motherName) studentProfileUpdates.motherName = body.motherName.trim();
+  if (body.vatan) studentProfileUpdates.watan = body.vatan.trim();
+  if (body.jamaat) studentProfileUpdates.residentCity = body.jamaat.trim();
+
+  if (Object.keys(studentProfileUpdates).length > 0) {
+    await prisma.studentProfile.update({
+      where: { id: studentProfileId },
+      data: studentProfileUpdates,
+    }).catch(() => {});
+  }
+
+  // Sync avatar to User if provided and changed
+  if (body.studentPhotoUrl && targetUserId && body.studentPhotoUrl !== targetUserAvatar) {
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: targetUserId },
       data: { avatarUrl: body.studentPhotoUrl },
     }).catch(() => {});
   }
@@ -184,24 +393,42 @@ router.put("/me", requireAuth, async (req, res) => {
   return res.json({
     success: true,
     data: saved,
-    message: status === "SUBMITTED" ? "Talabat profile submitted successfully!" : "Draft saved successfully.",
+    message: status === "SUBMITTED" ? "Talabat profile submitted successfully to administration!" : "Draft saved successfully.",
   });
 });
 
 // ── GET /api/talabat-profile/list ──
-// For Admin and Teachers: List all Darajah 4 students and their profiles
+// For Admin and Teachers: List all Darajah 4 / Rabea students and their profiles
 router.get("/list", requireAuth, async (req, res) => {
   const session = req.auth!;
   if (session.user.role !== "ADMIN" && session.user.role !== "TEACHER") {
     return res.status(403).json({ success: false, error: "Access denied" });
   }
 
-  // Find all Grade 4 students
+  // Find all Grade 4 / Rabea students
   const students = await prisma.studentProfile.findMany({
     where: {
-      grade: {
-        in: ["4", "Darajah 4", "Grade 4", "Class 4", "IV", "4th"],
-      },
+      OR: [
+        {
+          grade: {
+            in: [
+              "4",
+              "Darajah 4",
+              "Grade 4",
+              "Class 4",
+              "IV",
+              "4th",
+              "Rabea",
+              "rabea",
+              "Darajah Rabea",
+              "Grade 4 (Rabea)",
+              "Class 4 (Rabea)",
+            ],
+          },
+        },
+        { grade: { contains: "rabea", mode: "insensitive" } },
+        { grade: { contains: "4" } },
+      ],
     },
     include: {
       user: {
@@ -233,6 +460,14 @@ router.get("/list", requireAuth, async (req, res) => {
     status: s.talabatProfile1447?.status || "NOT_STARTED",
     hasProfile: !!s.talabatProfile1447,
     profileId: s.talabatProfile1447?.id || null,
+    studentPhotoUrl: s.talabatProfile1447?.studentPhotoUrl || s.user.avatarUrl || null,
+    fatherPhotoUrl: s.talabatProfile1447?.fatherPhotoUrl || null,
+    motherPhotoUrl: s.talabatProfile1447?.motherPhotoUrl || null,
+    fatherName: s.talabatProfile1447?.fatherName || s.fatherName || null,
+    motherName: s.talabatProfile1447?.motherName || s.motherName || null,
+    hasStudentPhoto: !!(s.talabatProfile1447?.studentPhotoUrl || s.user.avatarUrl),
+    hasFatherPhoto: !!s.talabatProfile1447?.fatherPhotoUrl,
+    hasMotherPhoto: !!s.talabatProfile1447?.motherPhotoUrl,
     ratings: s.talabatProfile1447 ? {
       behaviour: s.talabatProfile1447.behaviourRating,
       communication: s.talabatProfile1447.communicationRating,
@@ -413,6 +648,68 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
     success: true,
     data: saved,
     message: "Masul remarks and ratings saved successfully!",
+  });
+});
+
+// ── PUT /api/talabat-profile/admin/profile/:studentId ──
+// For Admin and Teachers: Update student profile details (including photos)
+router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
+  const session = req.auth!;
+  if (session.user.role !== "ADMIN" && session.user.role !== "TEACHER") {
+    return res.status(403).json({ success: false, error: "Access denied" });
+  }
+
+  const { studentId } = req.params;
+  const student = await prisma.studentProfile.findUnique({
+    where: { id: studentId },
+    include: { user: true, talabatProfile1447: true },
+  });
+
+  if (!student) {
+    return res.status(404).json({ success: false, error: "Student not found" });
+  }
+
+  const body = req.body || {};
+  const dataToUpdate: any = {};
+  if (body.studentPhotoUrl !== undefined) dataToUpdate.studentPhotoUrl = body.studentPhotoUrl || null;
+  if (body.fatherPhotoUrl !== undefined) dataToUpdate.fatherPhotoUrl = body.fatherPhotoUrl || null;
+  if (body.fatherName !== undefined) dataToUpdate.fatherName = body.fatherName || null;
+  if (body.fatherOccupation !== undefined) dataToUpdate.fatherOccupation = body.fatherOccupation || null;
+  if (body.motherPhotoUrl !== undefined) dataToUpdate.motherPhotoUrl = body.motherPhotoUrl || null;
+  if (body.motherName !== undefined) dataToUpdate.motherName = body.motherName || null;
+  if (body.motherOccupation !== undefined) dataToUpdate.motherOccupation = body.motherOccupation || null;
+  if (body.name !== undefined) dataToUpdate.name = body.name || null;
+  if (body.itsNo !== undefined) dataToUpdate.itsNo = body.itsNo || null;
+  if (body.idNo !== undefined) dataToUpdate.idNo = body.idNo || null;
+  if (body.jamaat !== undefined) dataToUpdate.jamaat = body.jamaat || null;
+  if (body.vatan !== undefined) dataToUpdate.vatan = body.vatan || null;
+  if (body.status !== undefined) dataToUpdate.status = body.status;
+
+  const saved = await prisma.talabatProfile1447.upsert({
+    where: { studentId },
+    create: {
+      studentId,
+      year: "1447 H",
+      status: "DRAFT",
+      name: `${student.user.firstName} ${student.user.lastName}`.trim(),
+      itsNo: student.its || null,
+      idNo: student.studentId || null,
+      ...dataToUpdate,
+    },
+    update: dataToUpdate,
+  });
+
+  if (body.studentPhotoUrl) {
+    await prisma.user.update({
+      where: { id: student.user.id },
+      data: { avatarUrl: body.studentPhotoUrl },
+    }).catch(() => {});
+  }
+
+  return res.json({
+    success: true,
+    data: saved,
+    message: "Student profile updated successfully!",
   });
 });
 
