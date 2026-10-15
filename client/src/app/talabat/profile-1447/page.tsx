@@ -261,7 +261,7 @@ export default function TalabatProfile1447Page() {
         setFormData(updated);
 
         // Auto-save photo into database draft immediately so it is never lost
-        await fetch("/api/talabat-profile/me", {
+        const saveRes = await fetch("/api/talabat-profile/me", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -269,7 +269,11 @@ export default function TalabatProfile1447Page() {
             studentId: selectedChildId || studentInfo?.id,
             status: formData.status || "DRAFT",
           }),
-        }).catch(() => {});
+        });
+        const saveJson = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok || saveJson.success === false) {
+          throw new Error(saveJson.error || "Upload succeeded but failed to save to database profile.");
+        }
 
         const label =
           fieldName === "fatherPhotoUrl"

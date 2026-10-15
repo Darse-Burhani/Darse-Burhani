@@ -281,7 +281,7 @@ router.put("/me", requireAuth, async (req, res) => {
       : parent.studentLinks.find((l) => isGrade4(l.student.grade)) || parent.studentLinks[0];
 
     if (!targetLink) {
-      return res.status(403).json({ success: false, error: "Cannot find linked student in Darajah 4 (Rabea)" });
+      return res.status(403).json({ success: false, error: "Cannot find linked student profile" });
     }
 
     studentProfileId = targetLink.student.id;
@@ -301,7 +301,7 @@ router.put("/me", requireAuth, async (req, res) => {
   } else {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { studentProfile: true },
+      include: { studentProfile: { include: { talabatProfile1447: true } } },
     });
 
     if (!user || !user.studentProfile) {
@@ -309,7 +309,7 @@ router.put("/me", requireAuth, async (req, res) => {
     }
 
     const sp = user.studentProfile;
-    if (!isGrade4(sp.grade) && session.user.role !== "ADMIN") {
+    if (!isGrade4(sp.grade) && session.user.role !== "ADMIN" && !sp.talabatProfile1447) {
       return res.status(403).json({ success: false, error: "Only eligible 1447 H Talabat can fill this form." });
     }
 
@@ -390,6 +390,50 @@ router.put("/me", requireAuth, async (req, res) => {
     }).catch(() => {});
   }
 
+  // Sync parent photos to linked ParentProfile user accounts
+  if (studentProfileId) {
+    if (body.fatherPhotoUrl) {
+      const fatherLinks = await prisma.parentStudentLink.findMany({
+        where: {
+          studentId: studentProfileId,
+          OR: [
+            { relationship: { contains: "father", mode: "insensitive" } },
+            { parent: { relationType: { contains: "father", mode: "insensitive" } } },
+          ],
+        },
+        include: { parent: { include: { user: true } } },
+      }).catch(() => []);
+      for (const link of fatherLinks) {
+        if (link.parent?.user?.id) {
+          await prisma.user.update({
+            where: { id: link.parent.user.id },
+            data: { avatarUrl: body.fatherPhotoUrl },
+          }).catch(() => {});
+        }
+      }
+    }
+    if (body.motherPhotoUrl) {
+      const motherLinks = await prisma.parentStudentLink.findMany({
+        where: {
+          studentId: studentProfileId,
+          OR: [
+            { relationship: { contains: "mother", mode: "insensitive" } },
+            { parent: { relationType: { contains: "mother", mode: "insensitive" } } },
+          ],
+        },
+        include: { parent: { include: { user: true } } },
+      }).catch(() => []);
+      for (const link of motherLinks) {
+        if (link.parent?.user?.id) {
+          await prisma.user.update({
+            where: { id: link.parent.user.id },
+            data: { avatarUrl: body.motherPhotoUrl },
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+
   return res.json({
     success: true,
     data: saved,
@@ -405,7 +449,7 @@ router.get("/list", requireAuth, async (req, res) => {
     return res.status(403).json({ success: false, error: "Access denied" });
   }
 
-  // Find all Grade 4 / Rabea students
+  // Find all Grade 4 / Rabea students OR any student with an existing 1447 profile
   const students = await prisma.studentProfile.findMany({
     where: {
       OR: [
@@ -428,6 +472,7 @@ router.get("/list", requireAuth, async (req, res) => {
         },
         { grade: { contains: "rabea", mode: "insensitive" } },
         { grade: { contains: "4" } },
+        { talabatProfile1447: { isNot: null } },
       ],
     },
     include: {
@@ -704,6 +749,48 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
       where: { id: student.user.id },
       data: { avatarUrl: body.studentPhotoUrl },
     }).catch(() => {});
+  }
+
+  // Sync parent photos to linked ParentProfile user accounts
+  if (body.fatherPhotoUrl) {
+    const fatherLinks = await prisma.parentStudentLink.findMany({
+      where: {
+        studentId,
+        OR: [
+          { relationship: { contains: "father", mode: "insensitive" } },
+          { parent: { relationType: { contains: "father", mode: "insensitive" } } },
+        ],
+      },
+      include: { parent: { include: { user: true } } },
+    }).catch(() => []);
+    for (const link of fatherLinks) {
+      if (link.parent?.user?.id) {
+        await prisma.user.update({
+          where: { id: link.parent.user.id },
+          data: { avatarUrl: body.fatherPhotoUrl },
+        }).catch(() => {});
+      }
+    }
+  }
+  if (body.motherPhotoUrl) {
+    const motherLinks = await prisma.parentStudentLink.findMany({
+      where: {
+        studentId,
+        OR: [
+          { relationship: { contains: "mother", mode: "insensitive" } },
+          { parent: { relationType: { contains: "mother", mode: "insensitive" } } },
+        ],
+      },
+      include: { parent: { include: { user: true } } },
+    }).catch(() => []);
+    for (const link of motherLinks) {
+      if (link.parent?.user?.id) {
+        await prisma.user.update({
+          where: { id: link.parent.user.id },
+          data: { avatarUrl: body.motherPhotoUrl },
+        }).catch(() => {});
+      }
+    }
   }
 
   return res.json({

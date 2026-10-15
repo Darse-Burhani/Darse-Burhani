@@ -1674,7 +1674,11 @@ export function isMockRunning(): boolean {
 
 export async function startMock(): Promise<void> {
   if (mockTimer) return;
-  await mockScan();
+  try {
+    await mockScan();
+  } catch (error) {
+    console.warn("[biometric] initial mock scan deferred (database not ready):", (error as any)?.message || error);
+  }
   mockTimer = setInterval(() => {
     mockScan().catch((error) => {
       console.error("[biometric] mock scan error:", error);

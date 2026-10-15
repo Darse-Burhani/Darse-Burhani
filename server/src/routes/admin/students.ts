@@ -47,6 +47,19 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
       orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, isActive: true, avatarUrl: true } },
+        talabatProfile1447: {
+          select: {
+            id: true,
+            status: true,
+            studentPhotoUrl: true,
+            fatherPhotoUrl: true,
+            motherPhotoUrl: true,
+            fatherName: true,
+            motherName: true,
+            fatherOccupation: true,
+            motherOccupation: true,
+          },
+        },
         _count: {
           select: {
             pointLogs: true,
@@ -66,6 +79,9 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: 
         email: s.user.email,
         isActive: s.user.isActive,
         avatarUrl: s.user.avatarUrl,
+        fatherPhotoUrl: s.talabatProfile1447?.fatherPhotoUrl || null,
+        motherPhotoUrl: s.talabatProfile1447?.motherPhotoUrl || null,
+        talabatProfile1447: s.talabatProfile1447,
         studentId: s.studentId,
         its: s.its,
         trNo: s.trNo,
@@ -159,8 +175,31 @@ router.put("/:userId", requireRole("ADMIN"), async (req, res) => {
     const updatedProfile = await prisma.studentProfile.update({
       where: { id: student.id },
       data: profileData,
-      include: { user: { select: { firstName: true, lastName: true, email: true, isActive: true, avatarUrl: true } } },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, isActive: true, avatarUrl: true } },
+        talabatProfile1447: true,
+      },
     });
+
+    // If fatherPhotoUrl or motherPhotoUrl was provided, sync to talabatProfile1447
+    if (body.fatherPhotoUrl !== undefined || body.motherPhotoUrl !== undefined) {
+      const talabatPhotoUpdates: any = {};
+      if (body.fatherPhotoUrl !== undefined) talabatPhotoUpdates.fatherPhotoUrl = body.fatherPhotoUrl || null;
+      if (body.motherPhotoUrl !== undefined) talabatPhotoUpdates.motherPhotoUrl = body.motherPhotoUrl || null;
+      if (body.fatherName !== undefined) talabatPhotoUpdates.fatherName = body.fatherName || null;
+      if (body.motherName !== undefined) talabatPhotoUpdates.motherName = body.motherName || null;
+
+      await prisma.talabatProfile1447.upsert({
+        where: { studentId: student.id },
+        create: {
+          studentId: student.id,
+          year: "1447 H",
+          status: "DRAFT",
+          ...talabatPhotoUpdates,
+        },
+        update: talabatPhotoUpdates,
+      }).catch(() => {});
+    }
 
     return res.json({ success: true, data: updatedProfile });
   } catch (error) {

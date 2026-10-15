@@ -246,6 +246,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
             create: {
               employeeId: employeeId?.trim() || its?.trim() || `TCH-${Date.now()}`,
               its: its?.trim() || null,
+              biometricHash: employeeId?.trim() || its?.trim() || cleanEmail,
               department: department?.trim() || null,
               subjects: Array.isArray(subjects) ? subjects : subjects ? [String(subjects)] : [],
               khidmatMauze: body.khidmatMauze?.trim() || null,
@@ -369,7 +370,17 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
 
     // Update teacher profile if user is TEACHER
     if (user.role === "TEACHER") {
-      const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: id } });
+      let teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: id } });
+      if (!teacherProfile) {
+        teacherProfile = await prisma.teacherProfile.create({
+          data: {
+            userId: id,
+            employeeId: body.employeeId?.trim() || body.its?.trim() || `TCH-${Date.now()}`,
+            its: body.its?.trim() || null,
+            biometricHash: body.biometricHash?.trim() || body.employeeId?.trim() || body.its?.trim() || user.email,
+          },
+        });
+      }
       if (teacherProfile) {
         const teacherData: Record<string, any> = {};
         if (portfolioEnabled !== undefined) teacherData.portfolioEnabled = portfolioEnabled;
@@ -379,6 +390,9 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
         if (body.khidmatMauze !== undefined) teacherData.khidmatMauze = body.khidmatMauze?.trim() || null;
         if (body.phone !== undefined) teacherData.mobile = body.phone?.trim() || null;
         if (body.mobile !== undefined) teacherData.mobile = body.mobile?.trim() || null;
+        if (body.biometricHash !== undefined) teacherData.biometricHash = body.biometricHash?.trim() || null;
+        if (body.employeeId !== undefined && !teacherProfile.biometricHash) teacherData.biometricHash = body.employeeId?.trim() || null;
+        if (body.its !== undefined && !teacherProfile.biometricHash) teacherData.biometricHash = body.its?.trim() || null;
 
         if (Object.keys(teacherData).length > 0) {
           await prisma.teacherProfile.update({

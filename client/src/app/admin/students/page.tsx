@@ -37,6 +37,8 @@ interface StudentRecord {
   motherEmail: string | null;
   fatherPhone: string | null;
   motherPhone: string | null;
+  fatherPhotoUrl?: string | null;
+  motherPhotoUrl?: string | null;
   admissionYear: string | null;
   currentYear: string | null;
   darsId: string | null;
@@ -74,12 +76,19 @@ export default function AdminStudentsPage() {
   const [editSaved, setEditSaved] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [fatherPhotoUrl, setFatherPhotoUrl] = useState<string | null>(null);
+  const [motherPhotoUrl, setMotherPhotoUrl] = useState<string | null>(null);
+  const [uploadingParentPhoto, setUploadingParentPhoto] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const fatherInputRef = useRef<HTMLInputElement>(null);
+  const motherInputRef = useRef<HTMLInputElement>(null);
 
   const openEdit = (s: StudentRecord) => {
     setEditSaved(false);
     setEditing(s);
     setAvatarUrl(s.avatarUrl);
+    setFatherPhotoUrl(s.fatherPhotoUrl || null);
+    setMotherPhotoUrl(s.motherPhotoUrl || null);
     setEditForm({
       firstName: s.firstName,
       lastName: s.lastName,
@@ -120,7 +129,13 @@ export default function AdminStudentsPage() {
       const res = await fetch(`/api/admin/students/${editing.userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editForm, avatarUrl, isActive: editing.isActive }),
+        body: JSON.stringify({
+          ...editForm,
+          avatarUrl,
+          fatherPhotoUrl,
+          motherPhotoUrl,
+          isActive: editing.isActive,
+        }),
       });
       const json = await res.json();
       if (json.success) {
@@ -160,6 +175,29 @@ export default function AdminStudentsPage() {
     } finally {
       setAvatarUploading(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const handleParentPhotoUpload = async (file: File | undefined, field: "fatherPhotoUrl" | "motherPhotoUrl") => {
+    if (!file || !editing) return;
+    setUploadingParentPhoto(field);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.success && json.url) {
+        if (field === "fatherPhotoUrl") setFatherPhotoUrl(json.url);
+        else setMotherPhotoUrl(json.url);
+      } else {
+        alert(json.error || "Failed to upload photo");
+      }
+    } catch {
+      alert("Failed to upload photo");
+    } finally {
+      setUploadingParentPhoto(null);
+      if (field === "fatherPhotoUrl" && fatherInputRef.current) fatherInputRef.current.value = "";
+      if (field === "motherPhotoUrl" && motherInputRef.current) motherInputRef.current.value = "";
     }
   };
 
@@ -462,7 +500,7 @@ export default function AdminStudentsPage() {
                     </div>
 
                     {/* ID badges */}
-                    <div className="flex flex-wrap gap-1.5 mb-4">
+                    <div className="flex flex-wrap gap-1.5 mb-2">
                       <span className="text-[10px] bg-emerald-50 text-[#047857] px-2 py-1 rounded-full font-medium border border-emerald-200/60">ITS: {s.its || "—"}</span>
                       {s.trNo && (
                         <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-1 rounded-full font-medium border border-amber-200/60">TR: {s.trNo}</span>
@@ -471,6 +509,25 @@ export default function AdminStudentsPage() {
                         <GraduationCap className="w-3 h-3 inline mr-0.5" />Grade {s.grade}{s.section}
                       </span>
                     </div>
+
+                    {/* Parents Yearly Profile Photo Indicator */}
+                    {(s.fatherPhotoUrl || s.motherPhotoUrl) && (
+                      <div className="flex items-center gap-2 mb-3 px-2 py-1 bg-amber-50/70 border border-amber-200/60 rounded-lg text-[11px]">
+                        <span className="font-semibold text-amber-900">Parents:</span>
+                        {s.fatherPhotoUrl && (
+                          <div className="flex items-center gap-1 text-slate-700" title="Father's Photo">
+                            <img src={s.fatherPhotoUrl} alt="Father" className="w-4 h-4 rounded-full object-cover border border-amber-300" onError={(e: any) => e.target.style.display = 'none'} />
+                            <span>Father</span>
+                          </div>
+                        )}
+                        {s.motherPhotoUrl && (
+                          <div className="flex items-center gap-1 text-slate-700" title="Mother's Photo">
+                            <img src={s.motherPhotoUrl} alt="Mother" className="w-4 h-4 rounded-full object-cover border border-amber-300" onError={(e: any) => e.target.style.display = 'none'} />
+                            <span>Mother</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Details grid */}
                     <div className={`grid grid-cols-2 gap-2 text-xs rounded-xl p-3 ${isHafiz ? "bg-amber-50/40 border border-amber-100/60" : "bg-emerald-50/40 border border-emerald-100/60"}`}>
@@ -697,14 +754,110 @@ export default function AdminStudentsPage() {
               </div>
             </div>
 
-            {/* Parent Contact */}
+            {/* Parent Contact & Photos */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Parent Contact</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Parent Contact & Yearly Profile Photos</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 <div><label htmlFor="edit-fatherPhone" className="text-xs font-medium text-gray-600">Father&apos;s Phone</label><input id="edit-fatherPhone" name="fatherPhone" className="fatimi-input mt-1" value={editForm.fatherPhone || ""} onChange={setField("fatherPhone")} /></div>
                 <div><label htmlFor="edit-motherPhone" className="text-xs font-medium text-gray-600">Mother&apos;s Phone</label><input id="edit-motherPhone" name="motherPhone" className="fatimi-input mt-1" value={editForm.motherPhone || ""} onChange={setField("motherPhone")} /></div>
                 <div><label htmlFor="edit-fatherEmail" className="text-xs font-medium text-gray-600">Father&apos;s Email</label><input id="edit-fatherEmail" name="fatherEmail" className="fatimi-input mt-1" value={editForm.fatherEmail || ""} onChange={setField("fatherEmail")} /></div>
                 <div><label htmlFor="edit-motherEmail" className="text-xs font-medium text-gray-600">Mother&apos;s Email</label><input id="edit-motherEmail" name="motherEmail" className="fatimi-input mt-1" value={editForm.motherEmail || ""} onChange={setField("motherEmail")} /></div>
+              </div>
+
+              {/* Parents Pictures (Yearly Profile) */}
+              <div className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-xl space-y-3">
+                <span className="block text-xs font-bold text-amber-950">Yearly Profile Parent Photos (توجيه الطالب)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Father Photo */}
+                  <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-amber-200/60 shadow-2xs">
+                    <div className="w-14 h-14 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
+                      {fatherPhotoUrl ? (
+                        <img src={fatherPhotoUrl} alt="Father" className="w-full h-full object-cover" onError={(e: any) => e.target.style.display = 'none'} />
+                      ) : (
+                        <User className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="block text-xs font-semibold text-slate-800">Father&apos;s Photo</span>
+                      <input
+                        ref={fatherInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleParentPhotoUpload(e.target.files?.[0], "fatherPhotoUrl")}
+                      />
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                          className="h-7 px-2 text-[11px] border-amber-300 text-amber-900 hover:bg-amber-100"
+                          onClick={() => fatherInputRef.current?.click()}
+                          disabled={uploadingParentPhoto === "fatherPhotoUrl"}
+                        >
+                          {uploadingParentPhoto === "fatherPhotoUrl" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Camera className="w-3 h-3 mr-1" />}
+                          {fatherPhotoUrl ? "Change" : "Upload"}
+                        </Button>
+                        {fatherPhotoUrl && (
+                          <Button
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50"
+                            onClick={() => setFatherPhotoUrl(null)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mother Photo */}
+                  <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-amber-200/60 shadow-2xs">
+                    <div className="w-14 h-14 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
+                      {motherPhotoUrl ? (
+                        <img src={motherPhotoUrl} alt="Mother" className="w-full h-full object-cover" onError={(e: any) => e.target.style.display = 'none'} />
+                      ) : (
+                        <User className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="block text-xs font-semibold text-slate-800">Mother&apos;s Photo</span>
+                      <input
+                        ref={motherInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleParentPhotoUpload(e.target.files?.[0], "motherPhotoUrl")}
+                      />
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                          className="h-7 px-2 text-[11px] border-amber-300 text-amber-900 hover:bg-amber-100"
+                          onClick={() => motherInputRef.current?.click()}
+                          disabled={uploadingParentPhoto === "motherPhotoUrl"}
+                        >
+                          {uploadingParentPhoto === "motherPhotoUrl" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Camera className="w-3 h-3 mr-1" />}
+                          {motherPhotoUrl ? "Change" : "Upload"}
+                        </Button>
+                        {motherPhotoUrl && (
+                          <Button
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50"
+                            onClick={() => setMotherPhotoUrl(null)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

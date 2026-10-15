@@ -207,10 +207,15 @@ function isAttendanceEvent(e) {
 async function fetchAllTodayEvents(dev, password) {
   password = password ?? decryptPassword(dev.passwordEnc, dev.passwordIv);
   let position = 0;
-  const pageSize = 50;
+  // NOTE: these terminals cap a page at 30 events no matter what maxResults
+  // you ask for (asking 50 or 1000 still returns 30). Do NOT treat a short
+  // page as "end of results" — only an empty page or reaching totalMatches
+  // means the end. Doing so silently kept just the first 30 of ~1000 events.
+  const pageSize = 30;
   const allEvents = [];
+  const targetDateArg = process.argv[2];
   const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
-  const todayIso = nowIST; // YYYY-MM-DD in IST
+  const todayIso = targetDateArg || nowIST; // YYYY-MM-DD in IST
   // One stable search session per device per run — Hikvision pages a single
   // searchID; minting a new ID per page resets/duplicates the cursor.
   const searchID = "sync-" + dev.id + "-" + Date.now();
@@ -248,9 +253,11 @@ async function fetchAllTodayEvents(dev, password) {
     allEvents.push(...infoList);
     position += infoList.length;
 
-    if (infoList.length < pageSize || (acsData?.AcsEvent?.totalMatches && position >= acsData.AcsEvent.totalMatches)) {
-      break;
-    }
+    const totalMatches = Number(acsData?.AcsEvent?.totalMatches) || 0;
+    // Stop only when the device says we've seen everything. A short page is
+    // NOT the end: the firmware always returns at most 30 events per page.
+    if (totalMatches && position >= totalMatches) break;
+    if (infoList.length === 0) break;
   }
 
   return allEvents;
@@ -345,7 +352,10 @@ async function processScan(empNo, scanDate, host, verifyMode) {
       };
       await fetch(`${renderUrl}/api/hikvision/events`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-biometric-secret': process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253',
+        },
         body: JSON.stringify(pushPayload),
       });
       console.log(`     🌐 Pushed to Render Cloud Webhook: ${empNo} (${timeStr})`);
@@ -400,7 +410,10 @@ async function processScan(empNo, scanDate, host, verifyMode) {
       };
       await fetch(`${renderUrl}/api/hikvision/events`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-biometric-secret': process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253',
+        },
         body: JSON.stringify(pushPayload),
       });
       console.log(`     🌐 Pushed to Render Cloud Webhook: ${empNo} (${timeStr})`);
@@ -416,12 +429,22 @@ async function processScan(empNo, scanDate, host, verifyMode) {
 }
 
 async function main() {
+  const targetDateArg = process.argv[2];
+  const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const targetDayIso = targetDateArg || nowIST;
   console.log("====================================================");
-  console.log("🔄 SYNCING ALL FACE SCANS FROM BOTH TERMINALS FOR TODAY");
+  console.log(`🔄 SYNCING FACE SCANS FROM BOTH TERMINALS FOR ${targetDayIso}${targetDateArg ? " (back-fill)" : " (today)"}`);
   console.log("====================================================");
 
   const devices = await prisma.biometricDevice.findMany();
-  const startOfTodayIST = getIstCalendarDayUTC(new Date());
+  // The floor must be the START OF THE TARGET DAY, not "start of today".
+  // Hard-coding today silently discarded every scan when back-filling a
+  // previous day (e.g. `sync-today-scans.mjs 2026-10-14` matched 0 records).
+  const [ty, tm, td] = targetDayIso.split('-').map(Number);
+  const startOfTargetIST = new Date(Date.UTC(ty, tm - 1, td));
+  // Upper bound: start of the day AFTER the target, so a device whose clock
+  // has drifted into tomorrow cannot leak the next day's scans into today's run.
+  const endOfTargetIST = new Date(Date.UTC(ty, tm - 1, td + 1));
   for (const dev of devices) {
     try {
       const password = decryptPassword(dev.passwordEnc, dev.passwordIv);
@@ -445,11 +468,11 @@ async function main() {
           if (clockSkewed) scanDate = new Date(scanDate.getTime() - driftMs);
           return { ev, empNo, scanDate };
         })
-        .filter(({ scanDate }) => scanDate >= startOfTodayIST)
+        .filter(({ scanDate }) => scanDate >= startOfTargetIST && scanDate < endOfTargetIST)
         .sort((a, b) => a.scanDate - b.scanDate);
 
       const skipped = attendanceEvents.length - ordered.length;
-      if (skipped > 0) console.log(`  ⏭️ Skipped ${skipped} pre-today scan(s) outside the IST day window.`);
+      if (skipped > 0) console.log(`  ⏭️ Skipped ${skipped} scan(s) outside the ${targetDayIso} IST day window.`);
 
       let processed = 0;
       for (const { ev, empNo, scanDate } of ordered) {

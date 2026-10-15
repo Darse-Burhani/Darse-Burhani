@@ -71,6 +71,12 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
                     avatarUrl: true,
                   },
                 },
+                talabatProfile1447: {
+                  select: {
+                    fatherPhotoUrl: true,
+                    motherPhotoUrl: true,
+                  },
+                },
               },
             },
           },
@@ -81,35 +87,45 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
       },
     });
 
-    const formattedParents = parents.map((parent) => ({
-      id: parent.id,
-      userId: parent.userId,
-      email: parent.user.email,
-      firstName: parent.user.firstName,
-      lastName: parent.user.lastName,
-      avatarUrl: parent.user.avatarUrl,
-      plainPassword: parent.user.plainPassword,
-      isActive: parent.user.isActive,
-      phone: parent.phone,
-      secondaryPhone: parent.secondaryPhone,
-      occupation: parent.occupation,
-      address: parent.address,
-      city: parent.city,
-      watan: parent.watan,
-      bloodGroup: parent.bloodGroup,
-      its: parent.its,
-      relationType: parent.relationType,
-      notes: parent.notes,
-      children: parent.studentLinks.map((link) => ({
-        linkId: link.id,
-        studentId: link.studentId,
-        studentName: `${link.student.user.firstName} ${link.student.user.lastName}`,
-        grade: link.student.grade,
-        section: link.student.section,
-        avatarUrl: link.student.user.avatarUrl,
-        relationship: link.relationship,
-      })),
-    }));
+    const formattedParents = parents.map((parent) => {
+      const isMother = (parent.relationType || "").toLowerCase().includes("mother");
+      const firstChildYearlyProfile = parent.studentLinks[0]?.student?.talabatProfile1447;
+      const yearlyParentPhoto = isMother
+        ? firstChildYearlyProfile?.motherPhotoUrl
+        : (firstChildYearlyProfile?.fatherPhotoUrl || firstChildYearlyProfile?.motherPhotoUrl);
+
+      return {
+        id: parent.id,
+        userId: parent.userId,
+        email: parent.user.email,
+        firstName: parent.user.firstName,
+        lastName: parent.user.lastName,
+        avatarUrl: parent.user.avatarUrl || yearlyParentPhoto || null,
+        plainPassword: parent.user.plainPassword,
+        isActive: parent.user.isActive,
+        phone: parent.phone,
+        secondaryPhone: parent.secondaryPhone,
+        occupation: parent.occupation,
+        address: parent.address,
+        city: parent.city,
+        watan: parent.watan,
+        bloodGroup: parent.bloodGroup,
+        its: parent.its,
+        relationType: parent.relationType,
+        notes: parent.notes,
+        children: parent.studentLinks.map((link) => ({
+          linkId: link.id,
+          studentId: link.studentId,
+          studentName: `${link.student.user.firstName} ${link.student.user.lastName}`,
+          grade: link.student.grade,
+          section: link.student.section,
+          avatarUrl: link.student.user.avatarUrl,
+          fatherPhotoUrl: link.student.talabatProfile1447?.fatherPhotoUrl || null,
+          motherPhotoUrl: link.student.talabatProfile1447?.motherPhotoUrl || null,
+          relationship: link.relationship,
+        })),
+      };
+    });
 
     return res.json({ success: true, data: formattedParents });
   } catch (error) {

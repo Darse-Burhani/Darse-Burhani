@@ -48,4 +48,12 @@ next-env.d.ts
 /_trash/
 /scratch/
 
+# runtime user uploads (book covers, teacher photos) — data, not source.
+# ~147 MB duplicated across both trees; keep them out of git history.
+/public/uploads/
+/client/public/uploads/
+
+# syncthing folder marker
+.stfolder
+
 

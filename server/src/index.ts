@@ -90,8 +90,12 @@ if (useClustering && cluster.isPrimary) {
     // If running in single-process mode, run background singletons here
     if (!useClustering) {
       if (process.env.BIOMETRIC_MOCK === "true") {
-        await startMock();
-        console.log("[biometric] mock device simulator enabled");
+        try {
+          await startMock();
+          console.log("[biometric] mock device simulator enabled");
+        } catch (error) {
+          console.warn("[biometric] mock device startup warning:", (error as any)?.message || error);
+        }
       }
 
       const isCloud = Boolean(
@@ -119,6 +123,25 @@ if (useClustering && cluster.isPrimary) {
   server.keepAliveTimeout = 65000;
   server.headersTimeout = 66000;
   server.requestTimeout = 30000;
+
+  // Bind errors (EADDRINUSE / EACCES) are emitted on the server, not thrown.
+  // Without this handler they surface as an uncaughtException, which the
+  // process-level guard above logs and swallows — leaving a "running" process
+  // that never accepts a single connection. Fail fast instead so the dev
+  // watcher / process manager can restart on a free port.
+  server.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(
+        `[server] Port ${port} is already in use. Free it (e.g. \`netstat -ano | findstr :${port}\`) ` +
+          `or start with PORT=<other-port>.`
+      );
+    } else if (error.code === "EACCES") {
+      console.error(`[server] Not permitted to bind port ${port}. Use a port above 1024 or run with elevation.`);
+    } else {
+      console.error("[server] HTTP server failed to start:", error);
+    }
+    process.exit(1);
+  });
 
   (globalThis as any).__express_server = server;
 

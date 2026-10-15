@@ -74,14 +74,50 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing required fields" });
     }
 
-    const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: teacherId } });
+    let teacherProfile = await prisma.teacherProfile.findFirst({
+      where: {
+        OR: [{ userId: teacherId }, { id: teacherId }],
+      },
+    });
+    if (!teacherProfile) {
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ id: teacherId }, { email: teacherId }] },
+      });
+      if (user && user.role === "TEACHER") {
+        teacherProfile = await prisma.teacherProfile.create({
+          data: {
+            userId: user.id,
+            employeeId: `TCH-${Date.now()}`,
+            biometricHash: user.email,
+          },
+        });
+      }
+    }
     if (!teacherProfile) {
       return res.status(404).json({ success: false, error: "Teacher not found" });
     }
 
     let masoolProfile = null;
     if (masoolId) {
-      masoolProfile = await prisma.teacherProfile.findUnique({ where: { userId: masoolId } });
+      masoolProfile = await prisma.teacherProfile.findFirst({
+        where: {
+          OR: [{ userId: masoolId }, { id: masoolId }],
+        },
+      });
+      if (!masoolProfile) {
+        const user = await prisma.user.findFirst({
+          where: { OR: [{ id: masoolId }, { email: masoolId }] },
+        });
+        if (user && user.role === "TEACHER") {
+          masoolProfile = await prisma.teacherProfile.create({
+            data: {
+              userId: user.id,
+              employeeId: `TCH-${Date.now()}`,
+              biometricHash: user.email,
+            },
+          });
+        }
+      }
       if (!masoolProfile) {
         return res.status(404).json({ success: false, error: "Masool not found" });
       }
@@ -271,7 +307,25 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
 
     let teacherProfileId = cls.teacherId;
     if (teacherId !== undefined && teacherId) {
-      const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: teacherId } });
+      let teacherProfile = await prisma.teacherProfile.findFirst({
+        where: {
+          OR: [{ userId: teacherId }, { id: teacherId }],
+        },
+      });
+      if (!teacherProfile) {
+        const user = await prisma.user.findFirst({
+          where: { OR: [{ id: teacherId }, { email: teacherId }] },
+        });
+        if (user && user.role === "TEACHER") {
+          teacherProfile = await prisma.teacherProfile.create({
+            data: {
+              userId: user.id,
+              employeeId: `TCH-${Date.now()}`,
+              biometricHash: user.email,
+            },
+          });
+        }
+      }
       if (!teacherProfile) {
         return res.status(404).json({ success: false, error: "Teacher not found" });
       }
@@ -281,7 +335,25 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
     let masoolProfileId: string | null = cls.masoolId ?? null;
     if (masoolId !== undefined) {
       if (masoolId) {
-        const masoolProfile = await prisma.teacherProfile.findUnique({ where: { userId: masoolId } });
+        let masoolProfile = await prisma.teacherProfile.findFirst({
+          where: {
+            OR: [{ userId: masoolId }, { id: masoolId }],
+          },
+        });
+        if (!masoolProfile) {
+          const user = await prisma.user.findFirst({
+            where: { OR: [{ id: masoolId }, { email: masoolId }] },
+          });
+          if (user && user.role === "TEACHER") {
+            masoolProfile = await prisma.teacherProfile.create({
+              data: {
+                userId: user.id,
+                employeeId: `TCH-${Date.now()}`,
+                biometricHash: user.email,
+              },
+            });
+          }
+        }
         if (!masoolProfile) {
           return res.status(404).json({ success: false, error: "Masool not found" });
         }
