@@ -273,8 +273,10 @@ export default function App() {
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="students"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="profile-1447" element={<Navigate to="/admin/talabat-profiles" replace />} />
-          <Route path="yearly-profile" element={<Navigate to="/admin/talabat-profiles" replace />} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
+          <Route path="portal-locks" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="locking" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="permissions" element={<Navigate to="/admin/settings" replace />} />
         </Route>
 
         {/* ── Talabat (Student) Routes ── */}

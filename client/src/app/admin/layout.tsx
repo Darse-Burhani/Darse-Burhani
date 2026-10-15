@@ -24,6 +24,7 @@ import {
   KeyRound,
   Palette,
   Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -200,6 +201,13 @@ const navItems: PortalNavItem[] = [
     label: "Security & Audit",
     href: "/admin/security",
     icon: ShieldCheck,
+    category: "Systems",
+  },
+  {
+    label: "Portal Locks & Permissions",
+    href: "/admin/settings",
+    icon: SlidersHorizontal,
+    badge: "Policy",
     category: "Systems",
   },
 ];

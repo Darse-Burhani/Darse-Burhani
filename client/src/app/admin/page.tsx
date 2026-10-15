@@ -272,15 +272,12 @@ export default function AdminDashboard() {
                   </kbd>
                 </button>
 
-                <Link href="/admin/settings">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-white/25 bg-white/10 text-white hover:bg-white/20 rounded-xl text-xs font-semibold h-10 px-4 transition-colors"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
-                    Portal Locks
-                  </Button>
+                <Link
+                  href="/admin/settings"
+                  className="inline-flex items-center gap-1.5 px-4 h-10 rounded-xl text-xs font-semibold border border-white/25 bg-white/10 text-white hover:bg-white/20 transition-colors shadow-xs"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Portal Locks</span>
                 </Link>
 
                 <Button
