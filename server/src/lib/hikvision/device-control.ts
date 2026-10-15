@@ -365,9 +365,9 @@ export async function deployUserToDevice(
 </UserInfo>`;
 
   const attempts = [
-    { url: `${base}/ISAPI/AccessControl/UserInfo/Record?format=json`, method: "PUT", ct: "application/json", body: payload },
-    { url: `${base}/ISAPI/AccessControl/UserInfo/SetUp?format=json`, method: "POST", ct: "application/json", body: payload },
-    { url: `${base}/ISAPI/AccessControl/UserInfo/Record`, method: "PUT", ct: "application/xml", body: xml },
+    { url: `${base}/ISAPI/AccessControl/UserInfo/Record?format=json`, method: "POST", ct: "application/json", body: payload },
+    { url: `${base}/ISAPI/AccessControl/UserInfo/SetUp?format=json`, method: "PUT", ct: "application/json", body: payload },
+    { url: `${base}/ISAPI/AccessControl/UserInfo/Modify?format=json`, method: "PUT", ct: "application/json", body: payload },
   ];
 
   let lastRes: Response | null = null;

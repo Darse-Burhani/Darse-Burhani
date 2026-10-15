@@ -46,41 +46,46 @@ function md5(str) {
 async function digestFetch(url, { method = 'GET', username, password, body, headers = {}, timeoutMs = 20000 }) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
-  const initial = await fetch(url, { method, headers, body, signal: controller.signal });
-  if (initial.status !== 401) {
-    clearTimeout(t);
-    return initial;
-  }
-  const authHeader = initial.headers.get('www-authenticate') || '';
-  if (!authHeader.toLowerCase().startsWith('digest')) {
-    clearTimeout(t);
-    return initial;
-  }
-  const chal = parseDigestHeader(authHeader.slice(7));
-  const realm = chal.realm || '';
-  const nonce = chal.nonce || '';
-  const qop = chal.qop;
-  const uri = new URL(url).pathname + new URL(url).search;
-  const ha1 = md5(`${username}:${realm}:${password}`);
-  const ha2 = md5(`${method}:${uri}`);
-  let responseVal;
-  let authStr = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}"`;
+  try {
+    const initial = await fetch(url, { method, headers, body, signal: controller.signal });
+    if (initial.status !== 401) {
+      clearTimeout(t);
+      return initial;
+    }
+    const authHeader = initial.headers.get('www-authenticate') || '';
+    if (!authHeader.toLowerCase().startsWith('digest')) {
+      clearTimeout(t);
+      return initial;
+    }
+    const chal = parseDigestHeader(authHeader.slice(7));
+    const realm = chal.realm || '';
+    const nonce = chal.nonce || '';
+    const qop = chal.qop;
+    const uri = new URL(url).pathname + new URL(url).search;
+    const ha1 = md5(`${username}:${realm}:${password}`);
+    const ha2 = md5(`${method}:${uri}`);
+    let responseVal;
+    let authStr = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}"`;
 
-  if (qop) {
-    const nc = '00000001';
-    const cnonce = Math.random().toString(36).slice(2, 10);
-    responseVal = md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
-    authStr += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}", response="${responseVal}"`;
-  } else {
-    responseVal = md5(`${ha1}:${nonce}:${ha2}`);
-    authStr += `, response="${responseVal}"`;
-  }
-  if (chal.opaque) authStr += `, opaque="${chal.opaque}"`;
+    if (qop) {
+      const nc = '00000001';
+      const cnonce = Math.random().toString(36).slice(2, 10);
+      responseVal = md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
+      authStr += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}", response="${responseVal}"`;
+    } else {
+      responseVal = md5(`${ha1}:${nonce}:${ha2}`);
+      authStr += `, response="${responseVal}"`;
+    }
+    if (chal.opaque) authStr += `, opaque="${chal.opaque}"`;
 
-  const finalHeaders = { ...headers, Authorization: authStr };
-  const authed = await fetch(url, { method, headers: finalHeaders, body, signal: controller.signal });
-  clearTimeout(t);
-  return authed;
+    const finalHeaders = { ...headers, Authorization: authStr };
+    const authed = await fetch(url, { method, headers: finalHeaders, body, signal: controller.signal });
+    clearTimeout(t);
+    return authed;
+  } catch (err) {
+    clearTimeout(t);
+    throw err;
+  }
 }
 
 // Mirrors server/src/lib/biometric.ts parseScanTime: device timestamps without an
@@ -264,13 +269,20 @@ async function fetchAllTodayEvents(dev, password) {
 }
 
 async function processScan(empNo, scanDate, host, verifyMode) {
+  const raw = String(empNo || '').trim();
+  const strippedNum = raw.replace(/^0+/, '');
+  const prefixMatch = raw.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
+  const innerNum = prefixMatch && prefixMatch[1] ? prefixMatch[1].trim() : '';
+  const innerStripped = innerNum ? innerNum.replace(/^0+/, '') : '';
+  const candidates = Array.from(new Set([raw, strippedNum, innerNum, innerStripped])).filter(Boolean);
+
   // 1. Check student
   const student = await prisma.studentProfile.findFirst({
     where: {
       OR: [
-        { its: empNo },
-        { studentId: empNo },
-        { biometricHash: empNo },
+        { its: { in: candidates } },
+        { studentId: { in: candidates } },
+        { biometricHash: { in: candidates } },
       ]
     },
     include: { user: true, classEnrollments: { include: { class: true } } }
@@ -370,9 +382,9 @@ async function processScan(empNo, scanDate, host, verifyMode) {
   const teacher = await prisma.teacherProfile.findFirst({
     where: {
       OR: [
-        { employeeId: empNo },
-        { its: empNo },
-        { biometricHash: empNo },
+        { employeeId: { in: candidates } },
+        { its: { in: candidates } },
+        { biometricHash: { in: candidates } },
       ]
     },
     include: { user: true }
