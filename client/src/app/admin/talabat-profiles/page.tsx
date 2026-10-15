@@ -261,6 +261,43 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
+  const handleDirectUpload = async (
+    studentId: string,
+    photoField: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl",
+    file: File
+  ) => {
+    try {
+      setFeedbackMsg(null);
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const uploadData = await uploadRes.json();
+
+      if (uploadData.success && uploadData.url) {
+        const updateRes = await fetch(`/api/talabat-profile/admin/profile/${studentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [photoField]: uploadData.url }),
+        });
+        const updateData = await updateRes.json();
+
+        if (updateData.success) {
+          fetchList();
+        } else {
+          setFeedbackMsg({ type: "error", text: updateData.error || "Failed to update profile photo" });
+        }
+      } else {
+        setFeedbackMsg({ type: "error", text: uploadData.error || "Upload failed" });
+      }
+    } catch (err: any) {
+      setFeedbackMsg({ type: "error", text: err.message || "Network error during upload" });
+    }
+  };
+
   const filteredStudents = students.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -498,52 +535,70 @@ export default function AdminTalabatProfilesPage() {
                         </div>
 
                         {/* Father Photo */}
-                        <div
-                          className="relative cursor-pointer group"
-                          title={s.fatherPhotoUrl ? "Father Photo Uploaded (Click to view)" : "Father Photo Missing"}
-                          onClick={() => s.fatherPhotoUrl && setLightboxImg({ url: s.fatherPhotoUrl, title: `${s.name}'s Father` })}
-                        >
-                          {s.fatherPhotoUrl ? (
+                        {s.fatherPhotoUrl ? (
+                          <div
+                            className="relative cursor-pointer group"
+                            title="Father Photo Uploaded (Click to view full size)"
+                            onClick={() => setLightboxImg({ url: s.fatherPhotoUrl!, title: `${s.name}'s Father` })}
+                          >
                             <img
                               src={s.fatherPhotoUrl}
                               alt="Father"
                               className="w-7 h-7 rounded-full object-cover border-2 border-blue-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-amber-50 border border-dashed border-amber-300 flex items-center justify-center text-[10px] text-amber-700 font-bold">
-                              👨
-                            </div>
-                          )}
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
-                              s.fatherPhotoUrl ? "bg-emerald-500" : "bg-amber-500"
-                            }`}
-                          />
-                        </div>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-emerald-500" />
+                          </div>
+                        ) : (
+                          <label
+                            className="relative cursor-pointer group flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 border border-dashed border-blue-300 hover:bg-blue-100 transition-colors shadow-2xs"
+                            title="Father Photo Missing • Click to upload directly"
+                          >
+                            <span className="text-[10px]">👨</span>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-amber-500" />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleDirectUpload(s.studentId, "fatherPhotoUrl", file);
+                              }}
+                            />
+                          </label>
+                        )}
 
                         {/* Mother Photo */}
-                        <div
-                          className="relative cursor-pointer group"
-                          title={s.motherPhotoUrl ? "Mother Photo Uploaded (Click to view)" : "Mother Photo Missing"}
-                          onClick={() => s.motherPhotoUrl && setLightboxImg({ url: s.motherPhotoUrl, title: `${s.name}'s Mother` })}
-                        >
-                          {s.motherPhotoUrl ? (
+                        {s.motherPhotoUrl ? (
+                          <div
+                            className="relative cursor-pointer group"
+                            title="Mother Photo Uploaded (Click to view full size)"
+                            onClick={() => setLightboxImg({ url: s.motherPhotoUrl!, title: `${s.name}'s Mother` })}
+                          >
                             <img
                               src={s.motherPhotoUrl}
                               alt="Mother"
                               className="w-7 h-7 rounded-full object-cover border-2 border-purple-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-amber-50 border border-dashed border-amber-300 flex items-center justify-center text-[10px] text-amber-700 font-bold">
-                              👩
-                            </div>
-                          )}
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
-                              s.motherPhotoUrl ? "bg-emerald-500" : "bg-amber-500"
-                            }`}
-                          />
-                        </div>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-emerald-500" />
+                          </div>
+                        ) : (
+                          <label
+                            className="relative cursor-pointer group flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 border border-dashed border-rose-300 hover:bg-rose-100 transition-colors shadow-2xs"
+                            title="Mother Photo Missing • Click to upload directly"
+                          >
+                            <span className="text-[10px]">👩</span>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-amber-500" />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleDirectUpload(s.studentId, "motherPhotoUrl", file);
+                              }}
+                            />
+                          </label>
+                        )}
 
                         <span className="text-[11px] text-slate-400 font-medium ml-1">
                           {s.hasFatherPhoto && s.hasMotherPhoto ? (

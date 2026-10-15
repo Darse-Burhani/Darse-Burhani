@@ -435,20 +435,21 @@ export function TalabatProfileDocument({
                     {hasFatherDetails && (
                       <div className="flex flex-row items-center">
                         {isFilled(data.fatherPhotoUrl) && (
-                          <div className="w-24 sm:w-28 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                          <div className="w-20 sm:w-24 h-24 sm:h-28 p-1 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
                             <img
                               src={data.fatherPhotoUrl!}
                               alt="Father"
                               className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
+                              onError={(e) => ((e.target as HTMLElement).style.display = "none")}
                             />
                           </div>
                         )}
                         <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
-                          <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
+                          <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2.5">
                             <span className="font-semibold text-slate-600 text-[11px]">Father Name:</span>
                             <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.fatherName || "—"}</span>
                           </div>
-                          <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
+                          <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2.5">
                             <span className="font-semibold text-slate-600 text-[11px]">Father Occupation:</span>
                             <span className="font-medium text-slate-900 text-xs">{data.fatherOccupation || "—"}</span>
                           </div>
@@ -460,11 +461,12 @@ export function TalabatProfileDocument({
                     {hasMotherDetails && (
                       <div className="flex flex-row items-center">
                         {isFilled(data.motherPhotoUrl) && (
-                          <div className="w-24 sm:w-28 h-20 p-1.5 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
+                          <div className="w-20 sm:w-24 h-24 sm:h-28 p-1 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
                             <img
                               src={data.motherPhotoUrl!}
                               alt="Mother"
                               className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
+                              onError={(e) => ((e.target as HTMLElement).style.display = "none")}
                             />
                           </div>
                         )}

@@ -29,6 +29,15 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
             student: {
               include: {
                 user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+                talabatProfile1447: {
+                  select: {
+                    id: true,
+                    status: true,
+                    studentPhotoUrl: true,
+                    fatherPhotoUrl: true,
+                    motherPhotoUrl: true,
+                  },
+                },
               },
             },
           },
@@ -244,6 +253,25 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
             method: (registry as any)?.method || (attendance as any)?.method || "BIOMETRIC",
             daysPresentLast7,
             attendanceRateLast7: Math.round((daysPresentLast7 / 7) * 100),
+
+            // Yearly Profile & Parent Photo Status (1447 H)
+            yearlyProfile: student.talabatProfile1447
+              ? {
+                  id: student.talabatProfile1447.id,
+                  status: student.talabatProfile1447.status,
+                  studentPhotoUrl: student.talabatProfile1447.studentPhotoUrl || student.user?.avatarUrl || null,
+                  fatherPhotoUrl: student.talabatProfile1447.fatherPhotoUrl,
+                  motherPhotoUrl: student.talabatProfile1447.motherPhotoUrl,
+                  hasStudentPhoto: !!(student.talabatProfile1447.studentPhotoUrl || student.user?.avatarUrl),
+                  hasFatherPhoto: !!student.talabatProfile1447.fatherPhotoUrl,
+                  hasMotherPhoto: !!student.talabatProfile1447.motherPhotoUrl,
+                  isComplete: !!(
+                    (student.talabatProfile1447.studentPhotoUrl || student.user?.avatarUrl) &&
+                    student.talabatProfile1447.fatherPhotoUrl &&
+                    student.talabatProfile1447.motherPhotoUrl
+                  ),
+                }
+              : null,
 
             // Today's Daily Hifz Evaluation
             todayHifzEvaluation: hifzEval

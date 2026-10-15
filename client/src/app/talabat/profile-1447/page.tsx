@@ -21,6 +21,9 @@ import {
   Users,
   BookOpen,
   Award,
+  Camera,
+  ZoomIn,
+  X,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
@@ -34,6 +37,7 @@ export default function TalabatProfile1447Page() {
   const [availableChildren, setAvailableChildren] = useState<Array<{ id: string; name: string; grade: string; isGrade4: boolean }>>([]);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<{ url: string; title: string } | null>(null);
 
   const [formData, setFormData] = useState<TalabatProfileData>({
     year: "1447 H",
@@ -128,13 +132,15 @@ export default function TalabatProfile1447Page() {
     field: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl",
     label: string,
     subtitle: string,
-    inputId: string
+    inputId: string,
+    guideline?: string
   ) => {
     const photoUrl = formData[field];
     const isUploading = uploadingField === field;
+    const cameraInputId = `${inputId}-camera`;
 
     return (
-      <div className="flex flex-col items-center w-full max-w-[240px]">
+      <div className="flex flex-col items-center w-full max-w-[260px]">
         <div className="flex items-center justify-between w-full mb-1.5 px-0.5">
           <span className="text-xs font-bold text-slate-800">{label}</span>
           {photoUrl ? (
@@ -148,7 +154,7 @@ export default function TalabatProfile1447Page() {
           )}
         </div>
 
-        <div className="w-full h-44 border-2 border-dashed border-slate-300 hover:border-[#961212] rounded-2xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/80 hover:bg-slate-100/90 transition-all group shadow-2xs">
+        <div className="w-full h-48 border-2 border-dashed border-slate-300 hover:border-[#961212] rounded-2xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/80 hover:bg-slate-100/90 transition-all group shadow-2xs">
           {photoUrl ? (
             <div className="relative w-full h-full">
               <img
@@ -159,42 +165,68 @@ export default function TalabatProfile1447Page() {
                   (e.target as HTMLElement).style.display = "none";
                 }}
               />
-              {/* Overlay with Change / Remove actions on hover/focus */}
+              {/* Overlay with Zoom, Change & Remove actions */}
               <div className="absolute inset-0 bg-slate-900/65 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                <label
-                  htmlFor={inputId}
-                  className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow hover:bg-slate-100 cursor-pointer transition-all"
-                >
-                  <Upload className="w-3.5 h-3.5 text-[#961212]" />
-                  Change Photo
-                </label>
                 <button
                   type="button"
-                  onClick={() => handleRemovePhoto(field)}
-                  className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow hover:bg-rose-700 cursor-pointer transition-all"
+                  onClick={() => setLightboxImg({ url: photoUrl, title: label })}
+                  className="px-3 py-1.5 bg-white/90 hover:bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition-all cursor-pointer"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Remove
+                  <ZoomIn className="w-3.5 h-3.5 text-blue-600" />
+                  Inspect Full
                 </button>
+                <div className="flex items-center gap-1.5">
+                  <label
+                    htmlFor={inputId}
+                    className="px-2.5 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1 shadow hover:bg-slate-100 cursor-pointer transition-all"
+                  >
+                    <Upload className="w-3 h-3 text-[#961212]" />
+                    Change
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(field)}
+                    className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow hover:bg-rose-700 cursor-pointer transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
-            <label
-              htmlFor={inputId}
-              className="w-full h-full flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none"
-            >
+            <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center select-none">
               <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-[#961212] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
                 <ImageIcon className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-slate-700 group-hover:text-[#961212] transition-colors leading-tight">
                 {subtitle}
               </span>
-              <span className="text-[10px] text-slate-500 mt-0.5">Click or tap to upload</span>
-              <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs group-hover:bg-[#961212] group-hover:text-white transition-all">
-                <Upload className="w-3 h-3" />
-                Select Photo
-              </span>
-            </label>
+              <span className="text-[10px] text-slate-500 mt-0.5">Passport photo format</span>
+              {guideline && (
+                <span className="text-[9px] text-amber-800 bg-amber-50/80 px-2 py-0.5 rounded mt-1 border border-amber-200/60 leading-tight">
+                  {guideline}
+                </span>
+              )}
+
+              <div className="flex items-center gap-1.5 mt-2.5">
+                <label
+                  htmlFor={inputId}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs hover:bg-[#961212] hover:text-white cursor-pointer transition-all"
+                >
+                  <Upload className="w-3 h-3" />
+                  Choose File
+                </label>
+                <label
+                  htmlFor={cameraInputId}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-lg text-[11px] font-semibold text-amber-900 shadow-2xs hover:bg-amber-600 hover:text-white cursor-pointer transition-all"
+                  title="Take photo using camera"
+                >
+                  <Camera className="w-3 h-3" />
+                  Camera
+                </label>
+              </div>
+            </div>
           )}
 
           {/* Loading Spinner Overlay */}
@@ -206,7 +238,7 @@ export default function TalabatProfile1447Page() {
             </div>
           )}
 
-          {/* Hidden File Input with specific ID */}
+          {/* Hidden File Input: Standard File Picker */}
           <input
             id={inputId}
             type="file"
@@ -215,21 +247,39 @@ export default function TalabatProfile1447Page() {
             onChange={(e) => handleFileUpload(e, field)}
             disabled={isUploading}
           />
+
+          {/* Hidden File Input: Direct Smartphone Camera Snap */}
+          <input
+            id={cameraInputId}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, field)}
+            disabled={isUploading}
+          />
         </div>
 
         {/* Visible buttons for touchscreens / quick access when photo is present */}
         {photoUrl && (
-          <div className="flex items-center justify-between w-full mt-2 gap-2">
+          <div className="flex items-center justify-between w-full mt-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setLightboxImg({ url: photoUrl, title: label })}
+              className="py-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold border border-slate-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <ZoomIn className="w-3 h-3 text-blue-600" /> View
+            </button>
             <label
               htmlFor={inputId}
-              className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-semibold text-center cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1"
+              className="flex-1 py-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-semibold text-center cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1"
             >
               <Upload className="w-3 h-3 text-[#961212]" /> Change
             </label>
             <button
               type="button"
               onClick={() => handleRemovePhoto(field)}
-              className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold cursor-pointer border border-rose-200 transition-colors flex items-center justify-center gap-1"
+              className="py-1 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold cursor-pointer border border-rose-200 transition-colors flex items-center justify-center gap-1"
             >
               <Trash2 className="w-3 h-3" /> Remove
             </button>
@@ -583,7 +633,8 @@ export default function TalabatProfile1447Page() {
                   "studentPhotoUrl",
                   "Student Passport Photo",
                   "Upload Student Photo",
-                  "upload-student-photo"
+                  "upload-student-photo",
+                  "Dawoodi Bohra Libas / Topi • Plain background"
                 )}
               </div>
 
@@ -697,7 +748,8 @@ export default function TalabatProfile1447Page() {
                     "fatherPhotoUrl",
                     "Father's Photo",
                     "Upload Father Photo",
-                    "upload-father-photo"
+                    "upload-father-photo",
+                    "Dawoodi Bohra Libas / Topi • Plain background"
                   )}
                 </div>
 
@@ -736,7 +788,8 @@ export default function TalabatProfile1447Page() {
                     "motherPhotoUrl",
                     "Mother's Photo",
                     "Upload Mother Photo",
-                    "upload-mother-photo"
+                    "upload-mother-photo",
+                    "Rida • Plain background"
                   )}
                 </div>
 
@@ -1112,9 +1165,33 @@ export default function TalabatProfile1447Page() {
       {/* ════════════════════════════════════════════════════════════
           TAB 2: OFFICIAL 2-PAGE DOCUMENT PREVIEW & PRINT
       ════════════════════════════════════════════════════════════ */}
-      {activeTab === "preview" && (
-        <div className="space-y-6">
-          <TalabatProfileDocument data={formData} showPrintButton={true} />
+      {/* ── IMAGE ZOOM / LIGHTBOX PREVIEW MODAL ── */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxImg(null)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-white rounded-2xl overflow-hidden shadow-2xl p-2 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3 border-b border-slate-100">
+              <h4 className="font-bold text-sm text-slate-800 truncate pr-2">{lightboxImg.title}</h4>
+              <button
+                onClick={() => setLightboxImg(null)}
+                className="p-1 text-slate-400 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 flex items-center justify-center bg-slate-50 rounded-xl max-h-[70vh] overflow-hidden">
+              <img
+                src={lightboxImg.url}
+                alt={lightboxImg.title}
+                className="max-h-[66vh] max-w-full object-contain rounded-lg shadow-sm"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

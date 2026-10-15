@@ -137,7 +137,7 @@ router.get("/me", requireAuth, async (req, res) => {
     }
 
     const sp = targetLink.student;
-    const grade4 = isGrade4(sp.grade);
+    const grade4 = isGrade4(sp.grade) || !!sp.talabatProfile1447;
     let profile = sp.talabatProfile1447;
     if (!profile) {
       profile = generatePrefilledProfile(sp, sp.user, parent) as any;
@@ -216,7 +216,7 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 
   const sp = user.studentProfile;
-  const grade4 = isGrade4(sp.grade);
+  const grade4 = isGrade4(sp.grade) || !!sp.talabatProfile1447;
 
   if (!grade4) {
     return res.json({
@@ -320,10 +320,44 @@ router.put("/me", requireAuth, async (req, res) => {
 
   const status = body.status === "SUBMITTED" ? "SUBMITTED" : "DRAFT";
 
-  const strengths = Array.isArray(body.strengths) ? body.strengths.filter((s: any) => typeof s === "string" && s.trim().length > 0) : [];
-  const weaknesses = Array.isArray(body.weaknesses) ? body.weaknesses.filter((w: any) => typeof w === "string" && w.trim().length > 0) : [];
+  const strengths = Array.isArray(body.strengths) ? body.strengths.filter((s: any) => typeof s === "string" && s.trim().length > 0) : undefined;
+  const weaknesses = Array.isArray(body.weaknesses) ? body.weaknesses.filter((w: any) => typeof w === "string" && w.trim().length > 0) : undefined;
 
-  const dataToSave = {
+  const updateData: any = {};
+  if (body.year !== undefined) updateData.year = body.year || "1447 H";
+  if (body.status !== undefined) updateData.status = status;
+  if (body.studentPhotoUrl !== undefined) updateData.studentPhotoUrl = body.studentPhotoUrl || null;
+  if (body.name !== undefined) updateData.name = body.name || null;
+  if (body.itsNo !== undefined) updateData.itsNo = body.itsNo || null;
+  if (body.idNo !== undefined) updateData.idNo = body.idNo || null;
+  if (body.jamaat !== undefined) updateData.jamaat = body.jamaat || null;
+  if (body.vatan !== undefined) updateData.vatan = body.vatan || null;
+  if (body.nationality !== undefined) updateData.nationality = body.nationality || "Indian";
+  if (body.dob !== undefined) updateData.dob = body.dob || null;
+  if (body.age !== undefined) updateData.age = body.age ? parseInt(String(body.age), 10) : null;
+  if (body.fatherPhotoUrl !== undefined) updateData.fatherPhotoUrl = body.fatherPhotoUrl || null;
+  if (body.fatherName !== undefined) updateData.fatherName = body.fatherName || null;
+  if (body.fatherOccupation !== undefined) updateData.fatherOccupation = body.fatherOccupation || null;
+  if (body.motherPhotoUrl !== undefined) updateData.motherPhotoUrl = body.motherPhotoUrl || null;
+  if (body.motherName !== undefined) updateData.motherName = body.motherName || null;
+  if (body.motherOccupation !== undefined) updateData.motherOccupation = body.motherOccupation || null;
+  if (body.result1444 !== undefined) updateData.result1444 = body.result1444 || null;
+  if (body.result1445 !== undefined) updateData.result1445 = body.result1445 || null;
+  if (body.result1446 !== undefined) updateData.result1446 = body.result1446 || null;
+  if (body.result1447 !== undefined) updateData.result1447 = body.result1447 || null;
+  if (body.hifzYear !== undefined) updateData.hifzYear = body.hifzYear || null;
+  if (body.hifzTabaqa !== undefined) updateData.hifzTabaqa = body.hifzTabaqa || null;
+  if (body.course1 !== undefined) updateData.course1 = body.course1 || null;
+  if (body.course2 !== undefined) updateData.course2 = body.course2 || null;
+  if (body.course3 !== undefined) updateData.course3 = body.course3 || null;
+  if (body.course4 !== undefined) updateData.course4 = body.course4 || null;
+  if (body.activities !== undefined) updateData.activities = body.activities || null;
+  if (body.otherExams !== undefined) updateData.otherExams = body.otherExams || null;
+  if (strengths !== undefined) updateData.strengths = strengths;
+  if (weaknesses !== undefined) updateData.weaknesses = weaknesses;
+  if (body.aboutMyself !== undefined) updateData.aboutMyself = body.aboutMyself || null;
+
+  const createData = {
     year: body.year || "1447 H",
     status,
     studentPhotoUrl: body.studentPhotoUrl || targetUserAvatar || null,
@@ -353,18 +387,19 @@ router.put("/me", requireAuth, async (req, res) => {
     course4: body.course4 || null,
     activities: body.activities || null,
     otherExams: body.otherExams || null,
-    strengths,
-    weaknesses,
+    strengths: strengths || [],
+    weaknesses: weaknesses || [],
     aboutMyself: body.aboutMyself || null,
+    ...updateData,
   };
 
   const saved = await prisma.talabatProfile1447.upsert({
     where: { studentId: studentProfileId },
     create: {
       studentId: studentProfileId,
-      ...dataToSave,
+      ...createData,
     },
-    update: dataToSave,
+    update: updateData,
   });
 
   // Sync basic parent and contact fields to StudentProfile for consistency

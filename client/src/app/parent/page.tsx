@@ -31,6 +31,7 @@ import {
   Zap,
   ArrowUpRight,
   Fingerprint,
+  Camera,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -375,15 +376,43 @@ export default function ParentDashboard() {
                     <p className="text-xs text-slate-600">
                       Upload Father &amp; Mother photos, update personal &amp; academic records, and submit for school administration review.
                     </p>
+
+                    {/* Live Parent Photos Status Badges */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                        selectedChild.yearlyProfile?.hasFatherPhoto
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : "bg-amber-100 text-amber-800 border border-amber-300"
+                      }`}>
+                        {selectedChild.yearlyProfile?.hasFatherPhoto ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <Clock className="w-3 h-3 text-amber-600" />
+                        )}
+                        Father Photo: {selectedChild.yearlyProfile?.hasFatherPhoto ? "Uploaded" : "Required"}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                        selectedChild.yearlyProfile?.hasMotherPhoto
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : "bg-amber-100 text-amber-800 border border-amber-300"
+                      }`}>
+                        {selectedChild.yearlyProfile?.hasMotherPhoto ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <Clock className="w-3 h-3 text-amber-600" />
+                        )}
+                        Mother Photo: {selectedChild.yearlyProfile?.hasMotherPhoto ? "Uploaded" : "Required"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <Link
-                  href={`/parent/yearly-profile?studentId=${selectedChild.id || selectedChild.studentProfileId}`}
+                  href={`/parent/yearly-profile?studentId=${selectedChild.studentProfileId || selectedChild.id}`}
                   className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#961212] hover:bg-[#b31b1b] px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg cursor-pointer"
                 >
-                  <FileText className="h-4 w-4" />
-                  <span>Open Yearly Form</span>
+                  <Camera className="h-4 w-4 text-amber-300" />
+                  <span>Upload Parents Photo</span>
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
