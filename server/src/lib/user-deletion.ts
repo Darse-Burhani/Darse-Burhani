@@ -151,8 +151,13 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
   const cleanNos = Array.from(new Set(candidateNos.map((n) => n?.trim()).filter(Boolean))) as string[];
 
   // 1. Cascade hard delete from all DB tables in an atomic transaction FIRST
-  const studentId = user.studentProfile?.id;
-  const teacherId = user.teacherProfile?.id;
+  const actualStudent = user.studentProfile || (await prisma.studentProfile.findUnique({ where: { userId: resolvedUserId } }));
+  const actualTeacher = user.teacherProfile || (await prisma.teacherProfile.findUnique({ where: { userId: resolvedUserId } }));
+  const actualParent = user.parentProfile || (await prisma.parentProfile.findUnique({ where: { userId: resolvedUserId } }));
+
+  const studentId = actualStudent?.id;
+  const teacherId = actualTeacher?.id;
+  const parentId = actualParent?.id;
 
   await prisma.$transaction(async (tx) => {
     // Clean up reviewer/assignee references on User
@@ -170,6 +175,13 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       data: { assignedToId: null },
     });
 
+    // Clean up institutional items created/assigned by this user (Admin or Faculty)
+    await tx.assignmentGrade.deleteMany({ where: { assignment: { createdById: resolvedUserId } } });
+    await tx.assignment.deleteMany({ where: { createdById: resolvedUserId } });
+    await tx.academicCalendarEvent.deleteMany({ where: { createdBy: resolvedUserId } });
+    await tx.teacherPortalAssignment.deleteMany({ where: { assignedById: resolvedUserId } });
+    await tx.takhteetPlan.updateMany({ where: { assignedById: resolvedUserId }, data: { assignedById: "system" } });
+
     // Clean up attendance actor / assignment references
     await tx.medicalExemption.deleteMany({ where: { assignedById: resolvedUserId } });
     await tx.attendanceRecord.updateMany({ where: { justifiedById: resolvedUserId }, data: { justifiedById: null } });
@@ -184,8 +196,8 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       // Library book loans
       const studentTokens = [
         studentId,
-        user.studentProfile?.studentId,
-        user.studentProfile?.its,
+        actualStudent?.studentId,
+        actualStudent?.its,
       ].filter(Boolean) as string[];
 
       await tx.bookLoan.deleteMany({
@@ -219,7 +231,7 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       await tx.walletTransaction.deleteMany({ where: { studentId } });
       await tx.medicalExemption.deleteMany({ where: { studentId } });
       await tx.talabatProfile1447.deleteMany({ where: { studentId } });
-      await tx.studentProfile.delete({ where: { id: studentId } });
+      await tx.studentProfile.deleteMany({ where: { id: studentId } });
     }
 
     // Delete teacher/faculty-related dependencies
@@ -242,9 +254,10 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       // Disassociate as masool in classes
       await tx.class.updateMany({ where: { masoolId: teacherId }, data: { masoolId: null } });
 
-      // Clean up classes taught by this teacher
-      await tx.pointLog.deleteMany({ where: { class: { teacherId } } });
+      // Clean up classes taught by this teacher - clean child logs first to avoid FK constraint
+      await tx.takhteetProgressLog.deleteMany({ where: { plan: { class: { teacherId } } } });
       await tx.takhteetPlan.deleteMany({ where: { class: { teacherId } } });
+      await tx.pointLog.deleteMany({ where: { class: { teacherId } } });
       await tx.attendanceRecord.deleteMany({ where: { class: { teacherId } } });
       await tx.classEnrollment.deleteMany({ where: { class: { teacherId } } });
       await tx.timetableSlot.deleteMany({ where: { class: { teacherId } } });
@@ -253,13 +266,27 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
       // Clean up attendance audit logs referencing this teacher
       await tx.attendanceAuditLog.deleteMany({ where: { teacherId } });
 
-      await tx.teacherProfile.delete({ where: { id: teacherId } });
+      await tx.teacherProfile.deleteMany({ where: { id: teacherId } });
     }
 
     // Delete parent-related dependencies
-    if (user.parentProfile) {
-      await tx.parentStudentLink.deleteMany({ where: { parentId: user.parentProfile.id } });
-      await tx.parentProfile.delete({ where: { id: user.parentProfile.id } });
+    if (parentId || user.role === "PARENT") {
+      await tx.parentStudentLink.deleteMany({
+        where: {
+          OR: [
+            ...(parentId ? [{ parentId }] : []),
+            { parent: { userId: resolvedUserId } },
+          ],
+        },
+      });
+      await tx.parentProfile.deleteMany({
+        where: {
+          OR: [
+            ...(parentId ? [{ id: parentId }] : []),
+            { userId: resolvedUserId },
+          ],
+        },
+      });
     }
 
     // Sessions, accounts, and notifications
@@ -267,8 +294,8 @@ export async function completelyDeleteUser(userId: string): Promise<CompleteDele
     await tx.account.deleteMany({ where: { userId: resolvedUserId } });
     await tx.notification.deleteMany({ where: { userId: resolvedUserId } });
 
-    // Finally delete the user root record
-    await tx.user.delete({ where: { id: resolvedUserId } });
+    // Finally delete the user root record (idempotent deleteMany prevents P2025 error)
+    await tx.user.deleteMany({ where: { id: resolvedUserId } });
   });
 
   // 2. Non-blocking biometric terminal purge (fires concurrently, never delays HTTP response)

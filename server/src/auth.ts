@@ -190,7 +190,7 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
   let user: LoginUser | null = null;
   let loginError: string | null = null;
 
-  // 1. Direct email lookup (case-insensitive on user.email or teacherProfile.tEmail)
+  // 1. Direct email lookup or admin alias (case-insensitive on user.email or teacherProfile.tEmail)
   if (loginId.includes("@")) {
     user = await prisma.user.findFirst({
       where: {
@@ -198,6 +198,14 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
           { email: { equals: loginId, mode: "insensitive" } },
           { teacherProfile: { tEmail: { equals: loginId, mode: "insensitive" } } },
         ],
+      },
+      select: userSelect,
+    });
+  } else if (loginId.trim().toLowerCase() === "admin") {
+    user = await prisma.user.findFirst({
+      where: {
+        role: "ADMIN",
+        isActive: true,
       },
       select: userSelect,
     });

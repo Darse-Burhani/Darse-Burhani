@@ -252,31 +252,54 @@ export async function updateProfilePermissions(
     }
   }
 
-  if (updates.talabat) {
-    currentPermissions.talabat = {
-      ...currentPermissions.talabat,
-      ...updates.talabat,
-      masterEnabled: updates.talabat.masterEnabled !== undefined ? updates.talabat.masterEnabled : currentPermissions.talabat.masterEnabled,
-      masterVisible: updates.talabat.masterVisible !== undefined ? updates.talabat.masterVisible : currentPermissions.talabat.masterVisible,
-    };
+  if (updates.talabat && typeof updates.talabat === "object") {
+    currentPermissions.talabat.masterEnabled =
+      updates.talabat.masterEnabled !== undefined
+        ? Boolean(updates.talabat.masterEnabled)
+        : currentPermissions.talabat.masterEnabled ?? true;
+    currentPermissions.talabat.masterVisible =
+      updates.talabat.masterVisible !== undefined
+        ? Boolean(updates.talabat.masterVisible)
+        : currentPermissions.talabat.masterVisible ?? true;
+
+    const sections = ["photo", "personal", "academic", "contact", "identifiers", "parents"];
+    for (const sec of sections) {
+      if (updates.talabat[sec] && typeof updates.talabat[sec] === "object") {
+        currentPermissions.talabat[sec] = {
+          ...(currentPermissions.talabat[sec] || {}),
+          ...updates.talabat[sec],
+        };
+      }
+    }
   }
 
-  if (updates.teacher) {
-    currentPermissions.teacher = {
-      masterEnabled: updates.teacher.masterEnabled !== undefined ? updates.teacher.masterEnabled : currentPermissions.teacher.masterEnabled,
-      masterVisible: updates.teacher.masterVisible !== undefined ? updates.teacher.masterVisible : currentPermissions.teacher.masterVisible,
-      items: {
-        ...currentPermissions.teacher.items,
-        ...(updates.teacher.items || {}),
-      },
-    };
+  if (updates.teacher && typeof updates.teacher === "object") {
+    currentPermissions.teacher.masterEnabled =
+      updates.teacher.masterEnabled !== undefined
+        ? Boolean(updates.teacher.masterEnabled)
+        : currentPermissions.teacher.masterEnabled ?? true;
+    currentPermissions.teacher.masterVisible =
+      updates.teacher.masterVisible !== undefined
+        ? Boolean(updates.teacher.masterVisible)
+        : currentPermissions.teacher.masterVisible ?? true;
+
+    if (updates.teacher.items && typeof updates.teacher.items === "object") {
+      for (const [key, itemVal] of Object.entries(updates.teacher.items)) {
+        if (itemVal && typeof itemVal === "object") {
+          currentPermissions.teacher.items[key] = {
+            ...(currentPermissions.teacher.items[key] || {}),
+            ...(itemVal as any),
+          };
+        }
+      }
+    }
   }
 
   const legacyKeys = ["personal", "academic", "contact", "identifiers", "parents", "photo"];
   for (const k of legacyKeys) {
     if (updates[k] && typeof updates[k] === "object") {
       currentPermissions.talabat[k] = {
-        ...currentPermissions.talabat[k],
+        ...(currentPermissions.talabat[k] || {}),
         ...updates[k],
       };
     }

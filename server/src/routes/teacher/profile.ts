@@ -110,15 +110,27 @@ router.put("/", requireAuth, async (req, res) => {
       include: { teacherProfile: true },
     });
 
-    if (!user || !user.teacherProfile) {
-      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Auto-create teacherProfile if user exists but profile record is missing
+    let teacherProfile = user.teacherProfile;
+    if (!teacherProfile) {
+      teacherProfile = await prisma.teacherProfile.create({
+        data: {
+          userId: user.id,
+          employeeId: user.email?.split("@")[0] || `TCH-${Date.now().toString().slice(-6)}`,
+          its: user.email?.split("@")[0] || null,
+        },
+      });
     }
 
     const body = req.body as Record<string, any>;
     const permissions = getProfilePermissions().teacher;
 
     // If not admin, check master toggle
-    if (!isAdmin && !permissions.masterEnabled) {
+    if (!isAdmin && permissions.masterEnabled === false) {
       return res.status(403).json({
         success: false,
         error: "Teacher profile editing is currently locked by administrator",
@@ -130,8 +142,9 @@ router.put("/", requireAuth, async (req, res) => {
 
     const canEdit = (field: string) => {
       if (isAdmin) return true;
-      const itm = permissions.items[field];
-      return itm?.isOpen !== false && itm?.isVisible !== false;
+      if (permissions.masterEnabled === false) return false;
+      const itm = permissions.items?.[field];
+      return itm?.isOpen !== false;
     };
 
     // 1. Photo
@@ -149,8 +162,8 @@ router.put("/", requireAuth, async (req, res) => {
 
     // 3. Name (firstName, lastName, or combined name)
     if (canEdit("name")) {
-      if (body.firstName !== undefined) userUpdate.firstName = body.firstName.trim();
-      if (body.lastName !== undefined) userUpdate.lastName = body.lastName.trim();
+      if (body.firstName !== undefined && body.firstName.trim()) userUpdate.firstName = body.firstName.trim();
+      if (body.lastName !== undefined && body.lastName.trim()) userUpdate.lastName = body.lastName.trim();
       if (body.name && !body.firstName && !body.lastName) {
         const parts = body.name.trim().split(/\s+/);
         userUpdate.firstName = parts[0] || user.firstName;
@@ -160,7 +173,12 @@ router.put("/", requireAuth, async (req, res) => {
 
     // 4. Age
     if (canEdit("age") && body.age !== undefined) {
-      teacherUpdate.age = body.age ? parseInt(String(body.age), 10) : null;
+      if (body.age === null || body.age === "" || body.age === undefined) {
+        teacherUpdate.age = null;
+      } else {
+        const parsed = parseInt(String(body.age), 10);
+        teacherUpdate.age = !isNaN(parsed) ? parsed : null;
+      }
     }
 
     // 5. KhidmatMauze
@@ -226,7 +244,12 @@ router.put("/", requireAuth, async (req, res) => {
 
     // 17. BIRTHDT_AD
     if (canEdit("birthDateAd") && body.birthDateAd !== undefined) {
-      teacherUpdate.birthDateAd = body.birthDateAd ? new Date(body.birthDateAd) : null;
+      if (!body.birthDateAd) {
+        teacherUpdate.birthDateAd = null;
+      } else {
+        const d = new Date(body.birthDateAd);
+        teacherUpdate.birthDateAd = !isNaN(d.getTime()) ? d : null;
+      }
     }
 
     // 18. BIRTHDT_H
@@ -242,21 +265,31 @@ router.put("/", requireAuth, async (req, res) => {
       });
     }
 
-    const updatedTeacher = await prisma.teacherProfile.update({
-      where: { id: user.teacherProfile.id },
-      data: teacherUpdate,
-      include: { user: true },
-    });
+    let updatedTeacher: any = teacherProfile;
+    if (Object.keys(teacherUpdate).length > 0) {
+      updatedTeacher = await prisma.teacherProfile.update({
+        where: { id: teacherProfile.id },
+        data: teacherUpdate,
+        include: { user: true },
+      });
+    } else {
+      updatedTeacher = (await prisma.teacherProfile.findUnique({
+        where: { id: teacherProfile.id },
+        include: { user: true },
+      })) || teacherProfile;
+    }
+
+    const effectiveUser = updatedTeacher.user || user;
 
     return res.json({
       success: true,
       message: "Teacher profile updated successfully",
       data: {
         ...updatedTeacher,
-        firstName: updatedTeacher.user.firstName,
-        lastName: updatedTeacher.user.lastName,
-        name: `${updatedTeacher.user.firstName} ${updatedTeacher.user.lastName}`.trim(),
-        avatarUrl: updatedTeacher.user.avatarUrl,
+        firstName: effectiveUser.firstName,
+        lastName: effectiveUser.lastName,
+        name: `${effectiveUser.firstName || ""} ${effectiveUser.lastName || ""}`.trim(),
+        avatarUrl: effectiveUser.avatarUrl,
         birthDateAd: updatedTeacher.birthDateAd
           ? updatedTeacher.birthDateAd.toISOString().slice(0, 10)
           : "",

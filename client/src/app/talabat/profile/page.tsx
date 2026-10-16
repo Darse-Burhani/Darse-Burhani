@@ -183,15 +183,17 @@ export default function TalabatProfilePage() {
           age: profile.age ? parseInt(profile.age) : null,
         }),
       });
-      if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && (json.success !== false)) {
         setSaved(true);
         toast({ title: "Profile Saved", description: "Your profile changes were saved successfully.", variant: "success" });
         setTimeout(() => setSaved(false), 3000);
       } else {
-        toast({ title: "Save Failed", description: "Failed to save profile changes.", variant: "destructive" });
+        toast({ title: "Save Failed", description: json.error || "Failed to save profile changes.", variant: "destructive" });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save profile:", error);
+      toast({ title: "Network Error", description: error?.message || "Failed to connect to server.", variant: "destructive" });
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Users,
   Search,
@@ -24,6 +24,17 @@ import {
   Camera,
   ZoomIn,
   Upload,
+  RefreshCw,
+  TrendingUp,
+  Check,
+  AlertCircle,
+  Phone,
+  Briefcase,
+  Layers,
+  Activity,
+  Smile,
+  ShieldCheck,
+  Image as ImageIcon,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
@@ -41,6 +52,8 @@ interface StudentListItem {
   studentPhotoUrl?: string | null;
   fatherPhotoUrl?: string | null;
   motherPhotoUrl?: string | null;
+  fatherName?: string | null;
+  motherName?: string | null;
   hasStudentPhoto?: boolean;
   hasFatherPhoto?: boolean;
   hasMotherPhoto?: boolean;
@@ -56,6 +69,8 @@ interface StudentListItem {
 
 export default function TeacherTalabatProfilesPage() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date>(new Date());
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -94,24 +109,31 @@ export default function TeacherTalabatProfilesPage() {
   const [showStudentDetailsAbove, setShowStudentDetailsAbove] = useState(true);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    fetchList();
-  }, []);
-
-  const fetchList = async () => {
+  const fetchList = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       const res = await fetch("/api/talabat-profile/list");
       const data = await res.json();
       if (data.success) {
         setStudents(data.students || []);
+        setLastSyncedAt(new Date());
       }
     } catch (e) {
       console.error("Failed to load list", e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchList();
+    const interval = setInterval(() => {
+      fetchList(true);
+    }, 25000);
+    return () => clearInterval(interval);
+  }, [fetchList]);
 
   const openStudentModal = async (studentId: string, defaultTab: "fill" | "document" = "fill") => {
     setSelectedStudentId(studentId);
@@ -202,7 +224,27 @@ export default function TeacherTalabatProfilesPage() {
             status: "REVIEWED",
           });
         }
-        fetchList();
+        // Real-time optimistic update of students list and live numbers
+        setStudents((prev) =>
+          prev.map((s) => {
+            if (s.studentId === selectedStudentId) {
+              return {
+                ...s,
+                status: "REVIEWED",
+                ratings: {
+                  behaviour: behaviourRating,
+                  communication: communicationRating,
+                  dedication: dedicationRating,
+                  discipline: disciplineRating,
+                  hasRemarks: Boolean(remarksMasool || remarksTahfeez || remarksTaleem || remarksTadeeb),
+                },
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return s;
+          })
+        );
+        fetchList(true);
       } else {
         setFeedbackMsg({ type: "error", text: data.error || "Failed to save remarks" });
       }
@@ -246,7 +288,22 @@ export default function TeacherTalabatProfilesPage() {
           setActiveProfile((prev) => (prev ? { ...prev, [photoField]: uploadData.url } : null));
           const label = photoField === "fatherPhotoUrl" ? "Father" : photoField === "motherPhotoUrl" ? "Mother" : "Student";
           setFeedbackMsg({ type: "success", text: `${label} photo updated and saved successfully!` });
-          fetchList();
+          // Real-time optimistic update of photos in local state
+          setStudents((prev) =>
+            prev.map((s) => {
+              if (s.studentId === selectedStudentId) {
+                return {
+                  ...s,
+                  [photoField]: uploadData.url,
+                  ...(photoField === "studentPhotoUrl" ? { avatarUrl: uploadData.url, studentPhotoUrl: uploadData.url, hasStudentPhoto: true } : {}),
+                  ...(photoField === "fatherPhotoUrl" ? { fatherPhotoUrl: uploadData.url, hasFatherPhoto: true } : {}),
+                  ...(photoField === "motherPhotoUrl" ? { motherPhotoUrl: uploadData.url, hasMotherPhoto: true } : {}),
+                };
+              }
+              return s;
+            })
+          );
+          fetchList(true);
         } else {
           setFeedbackMsg({ type: "error", text: updateData.error || "Failed to update profile photo" });
         }
@@ -260,125 +317,341 @@ export default function TeacherTalabatProfilesPage() {
     }
   };
 
-  const filteredStudents = students.filter((s) => {
-    const matchesSearch =
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.its && s.its.includes(searchQuery)) ||
-      (s.idNo && s.idNo.toLowerCase().includes(searchQuery.toLowerCase()));
+  // ── Realtime Number Calculations & KPI Metrics ──
+  const stats = useMemo(() => {
+    const total = students.length;
+    const submitted = students.filter((s) => s.status === "SUBMITTED").length;
+    const reviewed = students.filter((s) => s.status === "REVIEWED").length;
+    const pending = students.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
 
-    if (statusFilter === "ALL") return matchesSearch;
-    if (statusFilter === "SUBMITTED") return matchesSearch && s.status === "SUBMITTED";
-    if (statusFilter === "REVIEWED") return matchesSearch && s.status === "REVIEWED";
-    if (statusFilter === "PENDING") return matchesSearch && (s.status === "DRAFT" || s.status === "NOT_STARTED");
-    return matchesSearch;
-  });
+    const studentPhotos = students.filter((s) => !!(s.studentPhotoUrl || s.avatarUrl)).length;
+    const fatherPhotos = students.filter((s) => !!s.fatherPhotoUrl).length;
+    const motherPhotos = students.filter((s) => !!s.motherPhotoUrl).length;
+    const bothParents = students.filter((s) => !!s.fatherPhotoUrl && !!s.motherPhotoUrl).length;
+    const missingPhotos = students.filter((s) => !s.fatherPhotoUrl || !s.motherPhotoUrl).length;
+    const allThreePhotos = students.filter((s) => !!(s.studentPhotoUrl || s.avatarUrl) && !!s.fatherPhotoUrl && !!s.motherPhotoUrl).length;
 
-  const totalStudents = students.length;
-  const submittedCount = students.filter((s) => s.status === "SUBMITTED").length;
-  const reviewedCount = students.filter((s) => s.status === "REVIEWED").length;
-  const pendingCount = students.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
+    const reviewedWithRatings = students.filter(
+      (s) => s.ratings && (s.ratings.behaviour || s.ratings.discipline || s.ratings.dedication || s.ratings.communication)
+    );
+
+    let avgDiscipline = 0;
+    let avgBehaviour = 0;
+    let avgDedication = 0;
+    let avgCommunication = 0;
+
+    if (reviewedWithRatings.length > 0) {
+      const sum = reviewedWithRatings.reduce(
+        (acc, cur) => {
+          acc.discipline += cur.ratings?.discipline || 0;
+          acc.behaviour += cur.ratings?.behaviour || 0;
+          acc.dedication += cur.ratings?.dedication || 0;
+          acc.communication += cur.ratings?.communication || 0;
+          return acc;
+        },
+        { discipline: 0, behaviour: 0, dedication: 0, communication: 0 }
+      );
+      avgDiscipline = +(sum.discipline / reviewedWithRatings.length).toFixed(1);
+      avgBehaviour = +(sum.behaviour / reviewedWithRatings.length).toFixed(1);
+      avgDedication = +(sum.dedication / reviewedWithRatings.length).toFixed(1);
+      avgCommunication = +(sum.communication / reviewedWithRatings.length).toFixed(1);
+    }
+
+    const overallAvg = reviewedWithRatings.length > 0 ? +((avgDiscipline + avgBehaviour + avgDedication + avgCommunication) / 4).toFixed(1) : 0;
+    const reviewPercent = total > 0 ? Math.round((reviewed / total) * 100) : 0;
+    const submissionPercent = total > 0 ? Math.round(((submitted + reviewed) / total) * 100) : 0;
+    const photoPercent = total > 0 ? Math.round((allThreePhotos / total) * 100) : 0;
+
+    return {
+      total,
+      submitted,
+      reviewed,
+      pending,
+      studentPhotos,
+      fatherPhotos,
+      motherPhotos,
+      bothParents,
+      missingPhotos,
+      allThreePhotos,
+      avgDiscipline,
+      avgBehaviour,
+      avgDedication,
+      avgCommunication,
+      overallAvg,
+      reviewPercent,
+      submissionPercent,
+      photoPercent,
+    };
+  }, [students]);
+
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      const matchesSearch =
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.its && s.its.includes(searchQuery)) ||
+        (s.idNo && s.idNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.fatherName && s.fatherName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.motherName && s.motherName.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      if (statusFilter === "ALL") return matchesSearch;
+      if (statusFilter === "SUBMITTED") return matchesSearch && s.status === "SUBMITTED";
+      if (statusFilter === "REVIEWED") return matchesSearch && s.status === "REVIEWED";
+      if (statusFilter === "PENDING") return matchesSearch && (s.status === "DRAFT" || s.status === "NOT_STARTED");
+      if (statusFilter === "MISSING_PARENT_PHOTOS") return matchesSearch && (!s.hasFatherPhoto || !s.hasMotherPhoto);
+      if (statusFilter === "PHOTOS_COMPLETE") return matchesSearch && !!(s.hasFatherPhoto && s.hasMotherPhoto && (s.hasStudentPhoto || s.avatarUrl));
+      return matchesSearch;
+    });
+  }, [students, searchQuery, statusFilter]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* ── Page Header ── */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-slate-900 to-[#961212] text-white p-6 rounded-2xl shadow-md">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 backdrop-blur">
-            <GraduationCap className="w-8 h-8 text-amber-300" />
+      {/* ── Page Header Banner ── */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-slate-950 via-[#961212] to-slate-900 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden border border-white/10">
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 backdrop-blur-md shrink-0 shadow-inner">
+            <GraduationCap className="w-9 h-9 text-amber-300" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider bg-amber-400 text-slate-900 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shadow-xs">
                 Yearly Profile Faculty Evaluation (1447 H)
               </span>
-              <span className="text-xs text-white/80 font-alkanz">Yearly Profile – توجيه الطالب (1447 H)</span>
+              <span className="text-xs text-white/90 font-alkanz font-medium">Yearly Profile – توجيه الطالب (1447 H)</span>
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight mt-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1.5 flex items-center gap-2">
               Masul &amp; Faculty Remarks Portal
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300">
-              View student profiles above, enter bilingual Arabic/English remarks across all 10 departments, and record trait ratings (1–5).
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl mt-0.5">
+              Live evaluative dashboard for Darajah 4 (Rabea) talabat: real-time submission tracking, verified parent photos, trait ratings (1–5), and 10-department Arabic/English marks.
             </p>
           </div>
         </div>
+
+        {/* Live Status & Fast Action Strip */}
+        <div className="relative z-10 flex flex-col sm:items-end gap-2 shrink-0">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 border border-white/20 text-xs text-white backdrop-blur-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="font-semibold">Live Realtime Sync Active</span>
+            <span className="text-white/60">•</span>
+            <span className="text-white/80 font-mono text-[11px]">
+              {lastSyncedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          </div>
+
+          <button
+            onClick={() => fetchList(true)}
+            disabled={refreshing || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-xl text-xs font-semibold border border-white/20 transition-all cursor-pointer backdrop-blur-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
+            <span>{refreshing ? "Syncing..." : "Sync Realtime Data"}</span>
+          </button>
+        </div>
+
+        {/* Decorative Fatimi Gold Hairline */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent opacity-80" />
       </div>
 
-      {/* ── Stat Summary Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold">
-            {totalStudents}
+      {/* ── Realtime KPI Stats Overview (6 Responsive Cards) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3.5 mb-6">
+        {/* Card 1: Total Talabat */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Cohort</span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+              <GraduationCap className="w-4 h-4" />
+            </div>
           </div>
-          <div>
-            <span className="block text-xs font-semibold text-slate-500">Total Profiles</span>
-            <span className="text-sm font-bold text-slate-900">Talabat</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center font-bold">
-            {submittedCount}
-          </div>
-          <div>
-            <span className="block text-xs font-semibold text-slate-500">Submitted</span>
-            <span className="text-sm font-bold text-emerald-700">Awaiting Remarks</span>
+          <div className="mt-2">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono">
+              {stats.total}
+            </div>
+            <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
+              Grade 4 (Rabea) Talabat
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center font-bold">
-            {reviewedCount}
+        {/* Card 2: Submitted (Awaiting Faculty) */}
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">Submitted</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <Clock className="w-4 h-4" />
+            </div>
           </div>
-          <div>
-            <span className="block text-xs font-semibold text-slate-500">Reviewed</span>
-            <span className="text-sm font-bold text-blue-700">Remarks Complete</span>
+          <div className="mt-2">
+            <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight font-mono">
+              {stats.submitted}
+            </div>
+            <div className="text-[11px] font-semibold text-emerald-600 mt-0.5 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Awaiting Remarks
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center font-bold">
-            {pendingCount}
+        {/* Card 3: Reviewed Complete */}
+        <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-800">Reviewed</span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
           </div>
-          <div>
-            <span className="block text-xs font-semibold text-slate-500">Pending</span>
-            <span className="text-sm font-bold text-amber-700">Draft / Incomplete</span>
+          <div className="mt-2">
+            <div className="text-2xl sm:text-3xl font-black text-blue-700 tracking-tight font-mono">
+              {stats.reviewed}
+            </div>
+            <div className="text-[11px] font-semibold text-blue-600 mt-0.5">
+              {stats.reviewPercent}% Cohort Complete
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Draft / Pending */}
+        <div className="bg-white p-4 rounded-2xl border border-amber-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-800">Draft / Pending</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+              <Edit3 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight font-mono">
+              {stats.pending}
+            </div>
+            <div className="text-[11px] font-semibold text-amber-600 mt-0.5">
+              Awaiting Student Save
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5: Parents Photos Verified */}
+        <div className="bg-white p-4 rounded-2xl border border-rose-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-800">Family Photos</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+              <Heart className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-black text-rose-700 tracking-tight font-mono">
+                {stats.bothParents}
+              </span>
+              <span className="text-xs text-rose-600 font-bold font-mono">/ {stats.total}</span>
+            </div>
+            <div className="text-[11px] font-semibold text-rose-600 mt-0.5">
+              {stats.bothParents === stats.total ? "100% Both Parents" : `${stats.missingPhotos} Missing 1+ Photo`}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 6: Cohort Trait Score */}
+        <div className="bg-white p-4 rounded-2xl border border-indigo-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-800">Trait Average</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl sm:text-3xl font-black text-indigo-900 tracking-tight font-mono flex items-center gap-1">
+              <span>{stats.overallAvg > 0 ? stats.overallAvg : "—"}</span>
+              <span className="text-xs font-bold text-slate-400">/ 5.0</span>
+            </div>
+            <div className="text-[11px] font-semibold text-indigo-600 mt-0.5">
+              {stats.reviewed > 0 ? `Across ${stats.reviewed} Reviewed` : "Pending Reviews"}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* ── Faculty Traits Live Metric Pill Strip ── */}
+      {stats.reviewed > 0 && (
+        <div className="mb-6 bg-slate-900 text-white rounded-2xl p-4 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              Live Evaluated Trait Ratings (1–5 Scale):
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
+            <div className="bg-white/10 px-3 py-1.5 rounded-xl flex items-center justify-between gap-2 border border-white/10">
+              <span className="text-xs text-slate-300">Discipline</span>
+              <span className="font-mono font-bold text-amber-300 text-xs">★ {stats.avgDiscipline}</span>
+            </div>
+            <div className="bg-white/10 px-3 py-1.5 rounded-xl flex items-center justify-between gap-2 border border-white/10">
+              <span className="text-xs text-slate-300">Dedication</span>
+              <span className="font-mono font-bold text-amber-300 text-xs">★ {stats.avgDedication}</span>
+            </div>
+            <div className="bg-white/10 px-3 py-1.5 rounded-xl flex items-center justify-between gap-2 border border-white/10">
+              <span className="text-xs text-slate-300">Behaviour</span>
+              <span className="font-mono font-bold text-amber-300 text-xs">★ {stats.avgBehaviour}</span>
+            </div>
+            <div className="bg-white/10 px-3 py-1.5 rounded-xl flex items-center justify-between gap-2 border border-white/10">
+              <span className="text-xs text-slate-300">Communication</span>
+              <span className="font-mono font-bold text-amber-300 text-xs">★ {stats.avgCommunication}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Search & Filter Controls ── */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+        <div className="relative w-full sm:w-96">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Search by Name, ITS, or ID..."
+            placeholder="Search by Student Name, ITS, ID, Father, or Mother..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none shadow-xs transition-all"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0 mr-1">
             <Filter className="w-3.5 h-3.5" /> Filter:
           </span>
           {[
-            { key: "ALL", label: "All" },
-            { key: "SUBMITTED", label: "Submitted" },
-            { key: "REVIEWED", label: "Reviewed" },
-            { key: "PENDING", label: "Pending" },
+            { key: "ALL", label: "All", count: stats.total },
+            { key: "SUBMITTED", label: "Submitted", count: stats.submitted },
+            { key: "REVIEWED", label: "Reviewed", count: stats.reviewed },
+            { key: "PENDING", label: "Pending", count: stats.pending },
+            { key: "MISSING_PARENT_PHOTOS", label: "Missing Parent Photos", count: stats.missingPhotos },
+            { key: "PHOTOS_COMPLETE", label: "Complete Photos", count: stats.bothParents },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
                 statusFilter === tab.key
                   ? "bg-[#961212] text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {tab.label}
+              <span>{tab.label}</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                  statusFilter === tab.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>

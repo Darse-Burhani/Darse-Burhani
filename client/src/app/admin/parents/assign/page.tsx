@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -70,7 +69,6 @@ interface StudentOption {
 }
 
 export default function AdminAssignTalabatPage() {
-  const location = useLocation();
   const [parents, setParents] = useState<ParentData[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);

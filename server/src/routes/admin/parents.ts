@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { completelyDeleteUser } from "../../lib/user-deletion";
+import { cache } from "../../lib/cache";
 
 const { hash } = bcrypt;
 const router = Router();
@@ -328,7 +330,6 @@ router.post("/:userId/avatar", requireRole("ADMIN"), (req, res) => {
 // DELETE /api/admin/parents?id=xxx or ?userId=xxx
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
     const id = (req.query.id as string) || (req.query.parentId as string) || (req.body?.id as string);
     const userId = (req.query.userId as string) || (req.body?.userId as string);
 
@@ -336,65 +337,21 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Parent ID or User ID is required" });
     }
 
-    let parent = null;
-    if (id) {
-      parent = await prisma.parentProfile.findUnique({
-        where: { id },
-        include: { user: true },
-      });
-    }
-    if (!parent && userId) {
-      parent = await prisma.parentProfile.findUnique({
-        where: { userId },
-        include: { user: true },
-      });
-    }
+    const targetId = userId || id;
+    const result = await completelyDeleteUser(targetId);
 
-    if (!parent) {
-      if (userId) {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (user) {
-          await prisma.$transaction([
-            prisma.session.deleteMany({ where: { userId } }),
-            prisma.account.deleteMany({ where: { userId } }),
-            prisma.user.update({
-              where: { id: userId },
-              data: {
-                isActive: false,
-                deletedAt: new Date(),
-                deletedById: session.user.id,
-                passwordHash: `DELETED_${Date.now()}`,
-              },
-            }),
-          ]);
-          return res.json({ success: true, message: "Parent account deleted" });
-        }
-      }
-      return res.status(404).json({ success: false, error: "Parent profile not found" });
-    }
+    cache.invalidateTag("user");
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("dashboard");
 
-    const targetUserId = parent.userId;
-
-    // Delete linked child relations, sessions, and soft-delete user account
-    await prisma.$transaction([
-      prisma.parentStudentLink.deleteMany({ where: { parentId: parent.id } }),
-      prisma.session.deleteMany({ where: { userId: targetUserId } }),
-      prisma.account.deleteMany({ where: { userId: targetUserId } }),
-      prisma.user.update({
-        where: { id: targetUserId },
-        data: {
-          isActive: false,
-          deletedAt: new Date(),
-          deletedById: session.user.id,
-          passwordHash: `DELETED_${Date.now()}`,
-        },
-      }),
-    ]);
-
-    return res.json({ success: true, message: "Parent profile and account deleted" });
-  } catch (error) {
+    return res.json({
+      success: true,
+      message: "Parent profile completely purged from database.",
+      data: result,
+    });
+  } catch (error: any) {
     console.error("Parent delete error:", error);
-    return res.status(500).json({ success: false, error: "Failed to delete parent" });
+    return res.status(500).json({ success: false, error: error?.message || "Failed to delete parent" });
   }
 });
 

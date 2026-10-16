@@ -532,7 +532,7 @@ export function resolveScanStatus(
   window: ScanWindowConfig,
   scanMinutes: number,
 ): "TOO_EARLY" | "PRESENT" | "LATE" | "CLOSED" {
-  if (scanMinutes < window.startMinutes) return "TOO_EARLY";
+  if (scanMinutes < window.startMinutes) return "PRESENT"; // Early arrivals are PRESENT (on-time)
   if (scanMinutes <= window.endMinutes) return "PRESENT";
   if (scanMinutes <= window.lateEndMinutes) return "LATE";
   return "CLOSED";
@@ -940,25 +940,13 @@ export async function processBiometricScan(
       const facultyWindow = await getScanWindow("TEACHER", when, true);
       const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when, true);
 
-      // Determine attendance status (PRESENT / LATE) with strict schedule enforcement
+      // Determine attendance status (PRESENT / LATE) with resilient schedule handling
       let teacherStatus: "PRESENT" | "LATE" = "PRESENT";
       if (facultyWindow && facultyWindow.enabled) {
         if (facultyWindowStatus.isUpcoming) {
-          // Strict Schedule Enforcement: Block early attendance marking
-          return pushEvent({
-            type: "TOO_EARLY",
-            fingerprint,
-            deviceId: deviceId ?? null,
-            role: "TEACHER",
-            teacher: teacherInfo,
-            message: `Too early to scan. Faculty window opens at ${facultyWindow.startTime} IST in "${facultyWindow.eventName}". Attendance not recorded.`,
-            verifyMode: method,
-            scanWindow: windowPayload(facultyWindow),
-          }, when, false);
-        }
-
-        if (facultyWindowStatus.isExceeded || resolveScanStatus(facultyWindow, scanMinutes) === "CLOSED") {
-          // Strict Schedule Enforcement: Scanning window is CLOSED — do NOT pull or record attendance
+          // Early arrival: Faculty member arrived early before official start time -> marked PRESENT
+          teacherStatus = "PRESENT";
+        } else if (facultyWindowStatus.isExceeded || resolveScanStatus(facultyWindow, scanMinutes) === "CLOSED") {
           const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
             where: { teacherId_date: { teacherId: teacher.id, date } },
           });
@@ -974,6 +962,14 @@ export async function processBiometricScan(
             const timeStr = firstCheckIn
               ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
               : timeFormatted12;
+
+            if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+              await prisma.teacherAttendanceRecord.update({
+                where: { teacherId_date: { teacherId: teacher.id, date } },
+                data: { checkOutTime: when },
+              });
+            }
+
             return pushEvent({
               type: "DUPLICATE",
               fingerprint,
@@ -985,22 +981,16 @@ export async function processBiometricScan(
                 status: existingTeacherRecord.status as "PRESENT" | "LATE",
                 attendanceId: existingTeacherRecord.id,
               },
-              message: `Faculty Verified (Already checked in on-time at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
+              message: `Faculty Verified (Checked in at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
               verifyMode: method,
               scanWindow: windowPayload(facultyWindow),
             }, when, false);
           }
 
-          return pushEvent({
-            type: "WINDOW_CLOSED",
-            fingerprint,
-            deviceId: deviceId ?? null,
-            role: "TEACHER",
-            teacher: teacherInfo,
-            message: `Faculty scan window is CLOSED (Closed at ${facultyWindow.lateEndTime || facultyWindow.endTime} IST in "${facultyWindow.eventName}"). Attendance not recorded.`,
-            verifyMode: method,
-            scanWindow: windowPayload(facultyWindow),
-          }, when, false);
+          // Not checked in yet today -> mark LATE so scan is reliably recorded!
+          teacherStatus = "LATE";
+        } else {
+          teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
         }
 
         // Strict Exemption: Excluded from schedule session
@@ -1147,6 +1137,14 @@ export async function processBiometricScan(
         const timeStr = firstCheckIn
           ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
           : timeFormatted12;
+
+        if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+          await prisma.teacherAttendanceRecord.update({
+            where: { teacherId_date: { teacherId: teacher.id, date } },
+            data: { checkOutTime: when },
+          });
+        }
+
         return pushEvent({
           type: "DUPLICATE",
           fingerprint,
@@ -1292,25 +1290,13 @@ export async function processBiometricScan(
     }, when, false);
   }
 
-  // Determine status (PRESENT / LATE) with strict schedule enforcement
+  // Determine status (PRESENT / LATE) with resilient schedule handling
   let status: "PRESENT" | "LATE" = "PRESENT";
   if (studentWindow && studentWindow.enabled) {
     if (studentWindowStatus.isUpcoming) {
-      // Strict Schedule Enforcement: Block early attendance marking
-      return pushEvent({
-        type: "TOO_EARLY",
-        fingerprint,
-        deviceId: deviceId ?? null,
-        role: "STUDENT",
-        student: studentInfo,
-        message: `Too early to scan. "${studentWindow.eventName}" opens at ${studentWindow.startTime} IST. Attendance not recorded.`,
-        verifyMode: method,
-        scanWindow: windowPayload(studentWindow),
-      }, when, false);
-    }
-
-    if (studentWindowStatus.isExceeded || resolveScanStatus(studentWindow, scanMinutes) === "CLOSED") {
-      // Strict Schedule Enforcement: Scanning window is CLOSED — do NOT pull or record attendance
+      // Early arrival: Student arrived early before official start time -> marked PRESENT
+      status = "PRESENT";
+    } else if (studentWindowStatus.isExceeded || resolveScanStatus(studentWindow, scanMinutes) === "CLOSED") {
       const existingRecords = await prisma.attendanceRecord.findMany({
         where: { studentId: student.id, date },
         include: { class: { select: { name: true, subject: true } } },
@@ -1324,9 +1310,22 @@ export async function processBiometricScan(
           r.status === "MEDICAL"
       );
       if (priorValidRecord) {
-        const timeStr = priorValidRecord.checkInTime
-          ? getISTDetails(new Date(priorValidRecord.checkInTime)).timeFormatted12
+        const firstCheckIn = priorValidRecord.checkInTime;
+        const timeStr = firstCheckIn
+          ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
           : timeFormatted12;
+
+        if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+          await prisma.attendanceRecord.updateMany({
+            where: { studentId: student.id, date },
+            data: { checkOutTime: when },
+          });
+          await prisma.attendanceRegistry.updateMany({
+            where: { studentId: student.id, date },
+            data: { checkOutTime: when },
+          });
+        }
+
         return pushEvent({
           type: "DUPLICATE",
           fingerprint,
@@ -1344,22 +1343,16 @@ export async function processBiometricScan(
             status: r.status as "PRESENT" | "LATE",
             attendanceId: r.id,
           })),
-          message: `Learner Verified (Already checked in on-time at ${timeStr || "earlier"} IST): ${studentInfo.name}`,
+          message: `Learner Verified (Checked in at ${timeStr || "earlier"} IST): ${studentInfo.name}`,
           verifyMode: method,
           scanWindow: windowPayload(studentWindow),
         }, when, false);
       }
 
-      return pushEvent({
-        type: "WINDOW_CLOSED",
-        fingerprint,
-        deviceId: deviceId ?? null,
-        role: "STUDENT",
-        student: studentInfo,
-        message: `Talabat scan window is CLOSED (Closed at ${studentWindow.lateEndTime || studentWindow.endTime} IST in "${studentWindow.eventName}"). Attendance not recorded.`,
-        verifyMode: method,
-        scanWindow: windowPayload(studentWindow),
-      }, when, false);
+      // Not checked in yet today -> mark LATE so scan is reliably recorded!
+      status = "LATE";
+    } else {
+      status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
     }
 
     // Strict Exemption: Excluded from schedule session
@@ -1421,6 +1414,17 @@ export async function processBiometricScan(
     const timeStr = firstCheckIn
       ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
       : timeFormatted12;
+
+    if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+      await prisma.attendanceRecord.updateMany({
+        where: { studentId: student.id, date },
+        data: { checkOutTime: when },
+      });
+      await prisma.attendanceRegistry.updateMany({
+        where: { studentId: student.id, date },
+        data: { checkOutTime: when },
+      });
+    }
     return pushEvent({
       type: "DUPLICATE",
       fingerprint,

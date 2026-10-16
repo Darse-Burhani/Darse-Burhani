@@ -92,9 +92,14 @@ export default function AdminParentsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"ALL" | "FATHERS" | "MOTHERS" | "LINKED" | "UNLINKED" | "PHOTOS">("ALL");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
+
+  // Real-time synchronization state
+  const [lastSynced, setLastSynced] = useState<Date>(new Date());
+  const [secondsAgo, setSecondsAgo] = useState<number>(0);
 
   const toggleShowPassword = (userId: string) => {
     setShowPasswordMap((prev) => ({ ...prev, [userId]: !prev[userId] }));
@@ -143,21 +148,29 @@ export default function AdminParentsPage() {
   const [deletingParent, setDeletingParent] = useState<ParentData | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchParents = async (isManual = false) => {
+  const fetchParents = async (isManual = false, isSilent = false) => {
     if (isManual) setRefreshing(true);
+    else if (!isSilent) setLoading(true);
+
     try {
       const res = await fetch("/api/admin/parents");
       const data = await res.json();
       if (data.success) {
         setParents(data.data || []);
+        setLastSynced(new Date());
+        setSecondsAgo(0);
         if (isManual) {
           toast({ variant: "success", title: "Refreshed", description: "Parents list updated." });
         }
       } else {
-        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to fetch parents." });
+        if (!isSilent) {
+          toast({ variant: "destructive", title: "Error", description: data.error || "Failed to fetch parents." });
+        }
       }
     } catch {
-      toast({ variant: "destructive", title: "Network Error", description: "Could not connect to server." });
+      if (!isSilent) {
+        toast({ variant: "destructive", title: "Network Error", description: "Could not connect to server." });
+      }
     } finally {
       setLoading(false);
       if (isManual) setRefreshing(false);
@@ -166,12 +179,35 @@ export default function AdminParentsPage() {
 
   useEffect(() => {
     fetchParents();
+
+    // Silent background auto-polling every 25 seconds for realtime collaboration
+    const pollInterval = setInterval(() => {
+      fetchParents(false, true);
+    }, 25000);
+
+    // Relative elapsed time counter
+    const clockInterval = setInterval(() => {
+      setSecondsAgo((prev) => prev + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(clockInterval);
+    };
   }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return parents;
     return parents.filter((p) => {
+      // Category filter check
+      if (categoryFilter === "FATHERS" && p.relationType !== "Father") return false;
+      if (categoryFilter === "MOTHERS" && p.relationType !== "Mother") return false;
+      if (categoryFilter === "LINKED" && (!p.children || p.children.length === 0)) return false;
+      if (categoryFilter === "UNLINKED" && p.children && p.children.length > 0) return false;
+      if (categoryFilter === "PHOTOS" && !p.avatarUrl) return false;
+
+      if (!q) return true;
+
       const matchName = `${p.firstName} ${p.lastName}`.toLowerCase().includes(q);
       const matchEmail = p.email.toLowerCase().includes(q);
       const matchPhone = p.phone ? p.phone.toLowerCase().includes(q) : false;
@@ -199,7 +235,7 @@ export default function AdminParentsPage() {
         matchChildren
       );
     });
-  }, [parents, search]);
+  }, [parents, search, categoryFilter]);
 
   const handleCopyEmail = (email: string, id: string) => {
     navigator.clipboard.writeText(email);
@@ -446,7 +482,14 @@ export default function AdminParentsPage() {
 
   const totalLinkedStudents = parents.reduce((acc, p) => acc + (p.children?.length || 0), 0);
   const unlinkedParentsCount = parents.filter((p) => !p.children || p.children.length === 0).length;
+  const linkedParentsCount = parents.filter((p) => p.children && p.children.length > 0).length;
   const withBloodGroupCount = parents.filter((p) => !!p.bloodGroup).length;
+  const fathersCount = parents.filter((p) => p.relationType === "Father").length;
+  const mothersCount = parents.filter((p) => p.relationType === "Mother").length;
+  const withPhotosCount = parents.filter((p) => !!p.avatarUrl).length;
+  const photoPct = parents.length > 0 ? Math.round((withPhotosCount / parents.length) * 100) : 0;
+  const withItsCount = parents.filter((p) => !!p.its).length;
+  const avgPerLinked = linkedParentsCount > 0 ? (totalLinkedStudents / linkedParentsCount).toFixed(1) : "0";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -486,6 +529,10 @@ export default function AdminParentsPage() {
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/20 border-0 text-xs text-white font-semibold">
                     {parents.length} Registered
                   </span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-300/30 text-emerald-200 text-xs font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+                    Live Realtime Sync Active
+                  </div>
                 </div>
                 <p className="text-emerald-100 text-sm mt-1">
                   Manage parent profiles: photos, ITS ID, blood groups, addresses, occupations, password reset, and linked talabat.
@@ -514,7 +561,8 @@ export default function AdminParentsPage() {
                 onClick={() => fetchParents(true)}
                 disabled={refreshing || loading}
               >
-                <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+                <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
+                <span>{secondsAgo < 5 ? "Synced just now" : `Synced ${secondsAgo}s ago`}</span>
               </Button>
             </div>
           </div>
@@ -524,48 +572,92 @@ export default function AdminParentsPage() {
       </motion.div>
 
       {/* Stats Overview Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white border border-rose-100 rounded-xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
-            <Heart className="w-5 h-5" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-6">
+        {/* Total Registered */}
+        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-700">Parents Cohort</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+              <Heart className="w-4 h-4" />
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{parents.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Registered Parents</p>
-          </div>
-        </div>
-        <div className="bg-white border border-emerald-100 rounded-xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-[#047857] shrink-0">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{totalLinkedStudents}</p>
-            <p className="text-xs text-gray-500 mt-1">Linked Talabat</p>
+          <div className="text-2xl font-black text-gray-900 leading-none">{parents.length}</div>
+          <div className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5 font-medium">
+            <span className="text-slate-700 font-semibold">{fathersCount} Fathers</span>
+            <span>•</span>
+            <span className="text-slate-700 font-semibold">{mothersCount} Mothers</span>
           </div>
         </div>
-        <div className="bg-white border border-red-100 rounded-xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600 shrink-0">
-            <Droplet className="w-5 h-5" />
+
+        {/* Linked Talabat */}
+        <div className="bg-white border border-emerald-100 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#047857]">Linked Talabat</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-[#047857]">
+              <GraduationCap className="w-4 h-4" />
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{withBloodGroupCount}</p>
-            <p className="text-xs text-gray-500 mt-1">Blood Groups Logged</p>
+          <div className="text-2xl font-black text-gray-900 leading-none">{totalLinkedStudents}</div>
+          <div className="text-[11px] text-emerald-700 mt-2 font-medium">
+            Avg {avgPerLinked} talabat / linked parent
           </div>
         </div>
-        <div className="bg-white border border-amber-100 rounded-xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
-            <Link2 className="w-5 h-5" />
+
+        {/* Pending Linkage */}
+        <div className={`rounded-2xl p-4 border flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow ${
+          unlinkedParentsCount > 0 ? "bg-amber-50/60 border-amber-200" : "bg-white border-slate-100"
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${unlinkedParentsCount > 0 ? "text-amber-800" : "text-slate-600"}`}>
+              Pending Linkage
+            </span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+              unlinkedParentsCount > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
+            }`}>
+              <Link2 className="w-4 h-4" />
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{unlinkedParentsCount}</p>
-            <p className="text-xs text-gray-500 mt-1">Pending Linkage</p>
+          <div className="text-2xl font-black text-gray-900 leading-none">{unlinkedParentsCount}</div>
+          <div className={`text-[11px] font-medium mt-2 ${unlinkedParentsCount > 0 ? "text-amber-700" : "text-slate-500"}`}>
+            {unlinkedParentsCount > 0 ? "Talabat link required" : "All parents linked"}
+          </div>
+        </div>
+
+        {/* Photos Verified */}
+        <div className="bg-white border border-purple-100 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-700">Photos Uploaded</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+              <Camera className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black text-purple-700 leading-none">{withPhotosCount}</span>
+            <span className="text-xs font-bold text-purple-600 font-mono">({photoPct}%)</span>
+          </div>
+          <div className="w-full bg-purple-100 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div className="bg-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${photoPct}%` }} />
+          </div>
+        </div>
+
+        {/* ITS & Blood Group */}
+        <div className="bg-white border border-red-100 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-red-700">ITS &amp; Medical</span>
+            <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+              <Droplet className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-gray-900 leading-none">{withBloodGroupCount}</div>
+          <div className="text-[11px] text-gray-500 mt-2 font-medium">
+            {withItsCount} with ITS logged
           </div>
         </div>
       </div>
 
-      {/* Search Filter */}
-      <div className="mb-6">
-        <div className="relative max-w-lg">
+      {/* Search & Quick Filter Controls */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center">
+        <div className="relative w-full lg:w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8c6b2d]" />
           <label htmlFor="search-parents" className="sr-only">
             Search parents
@@ -574,10 +666,10 @@ export default function AdminParentsPage() {
             type="text"
             id="search-parents"
             name="search-parents"
-            placeholder="Search by name, ITS ID, email, blood group, occupation, city, address..."
+            placeholder="Search by name, ITS, email, blood group, city..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-[#d4af37]/35 bg-white text-sm focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20 outline-none shadow-xs transition-all"
+            className="w-full pl-10 pr-8 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-[#047857] focus:outline-none"
           />
           {search && (
             <button
@@ -587,6 +679,30 @@ export default function AdminParentsPage() {
               <X className="w-4 h-4" />
             </button>
           )}
+        </div>
+
+        {/* Filter Pills with Realtime Badges */}
+        <div className="flex items-center gap-1.5 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+          {[
+            { key: "ALL" as const, label: `All (${parents.length})` },
+            { key: "FATHERS" as const, label: `Fathers (${fathersCount})` },
+            { key: "MOTHERS" as const, label: `Mothers (${mothersCount})` },
+            { key: "LINKED" as const, label: `Linked (${linkedParentsCount})` },
+            { key: "UNLINKED" as const, label: `Unlinked (${unlinkedParentsCount})` },
+            { key: "PHOTOS" as const, label: `Photos Ready (${withPhotosCount})` },
+          ].map((pill) => (
+            <button
+              key={pill.key}
+              onClick={() => setCategoryFilter(pill.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                categoryFilter === pill.key
+                  ? "bg-[#047857] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
         </div>
       </div>
 

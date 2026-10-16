@@ -6,17 +6,20 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database...");
 
-  const passwordHash = await hash("password123", 12);
+  const passwordHash = await hash("mahad123", 12);
 
   // Create a single admin user for initial access
   const admin = await prisma.user.upsert({
     where: { email: "admin@darseburhani.edu" },
     update: {
       avatarUrl: "/logo.png",
+      passwordHash,
+      plainPassword: "mahad123",
     },
     create: {
       email: "admin@darseburhani.edu",
       passwordHash,
+      plainPassword: "mahad123",
       firstName: "Admin",
       lastName: "User",
       role: "ADMIN",
@@ -50,7 +53,7 @@ async function main() {
   console.log("\nSeeding complete!");
   console.log("\nLogin Credentials:");
   console.log("  Email: admin@darseburhani.edu");
-  console.log("  Password: password123");
+  console.log("  Password: mahad123");
   console.log("\nCreate teachers, students, and parents via the Admin dashboard.");
 }
 

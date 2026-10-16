@@ -2419,6 +2419,17 @@ function AdminCard({
           >
             <Pencil className="w-3 h-3 mr-1" /> Edit
           </Button>
+          {onDeleteProfile && !["admin@darseburhani.edu", "master@darseburhani.edu", "superadmin@darseburhani.edu"].includes(user.email?.toLowerCase()) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDeleteProfile(user.id)}
+              className="h-7 px-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 flex items-center gap-1"
+              title="Delete Admin Profile"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>

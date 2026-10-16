@@ -671,8 +671,14 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   }
 
   const { studentId } = req.params;
-  const student = await prisma.studentProfile.findUnique({
-    where: { id: studentId },
+  const student = await prisma.studentProfile.findFirst({
+    where: {
+      OR: [
+        { id: studentId },
+        { studentId: studentId },
+        { userId: studentId },
+      ],
+    },
     include: { user: true, talabatProfile1447: true },
   });
 
@@ -711,9 +717,9 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   if (body.counsellingNotes !== undefined) updateFields.counsellingNotes = body.counsellingNotes;
 
   const saved = await prisma.talabatProfile1447.upsert({
-    where: { studentId },
+    where: { studentId: student.id },
     create: {
-      studentId,
+      studentId: student.id,
       year: "1447 H",
       status: "REVIEWED",
       name: `${student.user.firstName} ${student.user.lastName}`.trim(),
@@ -740,8 +746,14 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
   }
 
   const { studentId } = req.params;
-  const student = await prisma.studentProfile.findUnique({
-    where: { id: studentId },
+  const student = await prisma.studentProfile.findFirst({
+    where: {
+      OR: [
+        { id: studentId },
+        { studentId: studentId },
+        { userId: studentId },
+      ],
+    },
     include: { user: true, talabatProfile1447: true },
   });
 
@@ -766,9 +778,9 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
   if (body.status !== undefined) dataToUpdate.status = body.status;
 
   const saved = await prisma.talabatProfile1447.upsert({
-    where: { studentId },
+    where: { studentId: student.id },
     create: {
-      studentId,
+      studentId: student.id,
       year: "1447 H",
       status: "DRAFT",
       name: `${student.user.firstName} ${student.user.lastName}`.trim(),

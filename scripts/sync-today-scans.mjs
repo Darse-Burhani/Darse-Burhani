@@ -218,9 +218,10 @@ async function fetchAllTodayEvents(dev, password) {
   // means the end. Doing so silently kept just the first 30 of ~1000 events.
   const pageSize = 30;
   const allEvents = [];
-  const targetDateArg = process.argv[2];
+  const isWatch = process.argv.includes('--watch') || process.argv.includes('--poll') || process.argv.includes('-w');
+  const dateArg = process.argv.slice(2).find((a) => !a.startsWith('-'));
   const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
-  const todayIso = targetDateArg || nowIST; // YYYY-MM-DD in IST
+  const todayIso = dateArg || nowIST; // YYYY-MM-DD in IST
   // One stable search session per device per run — Hikvision pages a single
   // searchID; minting a new ID per page resets/duplicates the cursor.
   const searchID = "sync-" + dev.id + "-" + Date.now();
@@ -440,23 +441,17 @@ async function processScan(empNo, scanDate, host, verifyMode) {
   return false;
 }
 
-async function main() {
-  const targetDateArg = process.argv[2];
-  const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
-  const targetDayIso = targetDateArg || nowIST;
+async function runSyncCycle(targetDayIso) {
   console.log("====================================================");
-  console.log(`🔄 SYNCING FACE SCANS FROM BOTH TERMINALS FOR ${targetDayIso}${targetDateArg ? " (back-fill)" : " (today)"}`);
+  console.log(`🔄 SYNCING FACE SCANS FROM BOTH TERMINALS FOR ${targetDayIso}`);
   console.log("====================================================");
 
   const devices = await prisma.biometricDevice.findMany();
-  // The floor must be the START OF THE TARGET DAY, not "start of today".
-  // Hard-coding today silently discarded every scan when back-filling a
-  // previous day (e.g. `sync-today-scans.mjs 2026-10-14` matched 0 records).
+  // Accurate IST calendar day boundary: 00:00:00 IST = previous day 18:30:00 UTC
   const [ty, tm, td] = targetDayIso.split('-').map(Number);
-  const startOfTargetIST = new Date(Date.UTC(ty, tm - 1, td));
-  // Upper bound: start of the day AFTER the target, so a device whose clock
-  // has drifted into tomorrow cannot leak the next day's scans into today's run.
-  const endOfTargetIST = new Date(Date.UTC(ty, tm - 1, td + 1));
+  const startOfTargetIST = new Date(Date.UTC(ty, tm - 1, td, 0, 0, 0) - 5.5 * 3600 * 1000);
+  const endOfTargetIST = new Date(Date.UTC(ty, tm - 1, td + 1, 0, 0, 0) - 5.5 * 3600 * 1000);
+
   for (const dev of devices) {
     try {
       const password = decryptPassword(dev.passwordEnc, dev.passwordIv);
@@ -496,6 +491,22 @@ async function main() {
       console.warn(`  ⚠️ Could not fetch logs from ${dev.name} (${dev.host}):`, err.message || err);
     }
   }
+}
+
+async function main() {
+  const isWatch = process.argv.includes('--watch') || process.argv.includes('--poll') || process.argv.includes('-w');
+  const dateArg = process.argv.slice(2).find((a) => !a.startsWith('-'));
+
+  do {
+    const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const targetDayIso = dateArg || nowIST;
+    await runSyncCycle(targetDayIso);
+
+    if (isWatch) {
+      console.log(`\n⏳ Continuous watcher active. Next device poll in 15 seconds (Press Ctrl+C to exit)...`);
+      await new Promise((resolve) => setTimeout(resolve, 15000));
+    }
+  } while (isWatch);
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error('FATAL:', e); process.exit(1); });

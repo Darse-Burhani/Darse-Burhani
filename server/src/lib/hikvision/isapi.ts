@@ -110,14 +110,13 @@ export async function getAcsEvents(c: HikConnection, from: Date, to: Date): Prom
   const queryAttempts = [
     { startTime: isaTime(from, true), endTime: isaTime(to, true) },
     { startTime: isaTime(from, false), endTime: isaTime(to, false) },
-    {}, // Latest events without time filter fallback
   ];
 
   for (const timeFilter of queryAttempts) {
     try {
       let position = 0;
       const allEvents: HikAcsEvent[] = [];
-      const searchID = randomUUID();
+      const searchID = `search-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
       while (position < maxTotalToFetch) {
         const body = JSON.stringify({
@@ -152,8 +151,8 @@ export async function getAcsEvents(c: HikConnection, from: Date, to: Date): Prom
         try {
           const json = JSON.parse(text);
           const acs = json.AcsEvent || json.AcsEventSearchResult || json.acsEventSearchResult || json;
-          totalMatches = acs.totalMatches || 0;
-          responseStatus = acs.responseStatusStrg || "";
+          totalMatches = Number(acs.totalMatches) || 0;
+          responseStatus = String(acs.responseStatusStrg || "").toUpperCase();
           pageEvents = parseAcsResponse(json).events;
         } catch {
           if (text.includes("<") && text.includes(">")) {
@@ -167,7 +166,13 @@ export async function getAcsEvents(c: HikConnection, from: Date, to: Date): Prom
         position += pageEvents.length;
 
         // If no more pages or reached total matches reported by device
-        if (responseStatus !== "MORE" || (totalMatches > 0 && position >= totalMatches)) {
+        if (totalMatches > 0 && position >= totalMatches) {
+          break;
+        }
+        if (pageEvents.length < pageSize && totalMatches === 0) {
+          break;
+        }
+        if (responseStatus && responseStatus !== "MORE" && responseStatus !== "OK") {
           break;
         }
       }

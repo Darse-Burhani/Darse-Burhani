@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import prisma from "../prisma";
-import { processBiometricScan, isRoleWindowOpen, isAnyHardwareWindowOpen } from "../biometric";
+import { processBiometricScan, isRoleWindowOpen, isAnyHardwareWindowOpen, parseScanTime } from "../biometric";
 import { digestFetch } from "./digest";
 import {
   getAcsEvents,
@@ -236,9 +236,7 @@ const inFlight = new Set<string>();
 
 function parseEventTime(value: string | undefined): Date | null {
   if (!value) return null;
-  const normalized = value.includes(" ") && !value.includes("T") ? value.replace(" ", "T") : value;
-  const d = new Date(normalized);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseScanTime(value);
 }
 
 const seenSerials = new Map<string, number>();
@@ -743,32 +741,6 @@ export async function pollDevice(
     const to = customTo ?? new Date();
     const startOfToday = getStartOfTodayIST();
 
-    // ── Schedule Window Gate ──
-    // When performing regular automated background polling (!force && !customFrom),
-    // verify if ANY hardware biometric scan window (Student or Faculty) is open or opening in <= 5 mins.
-    // If all windows are closed, do NOT query ACS events from the terminal.
-    // Update the device heartbeat/status at most once every 60s and return immediately.
-    if (!force && !customFrom) {
-      const windowCheck = await isAnyHardwareWindowOpen(to, 5);
-      if (!windowCheck.isOpen) {
-        const now = Date.now();
-        const shouldHeartbeat = !device.lastPolledAt || (now - device.lastPolledAt.getTime() > 60_000);
-        if (shouldHeartbeat) {
-          await prisma.biometricDevice.update({
-            where: { id },
-            data: {
-              status: "ONLINE",
-              lastError: null,
-              lastPolledAt: new Date(),
-              lastSeenAt: new Date(),
-              lastEventCursor: to, // keep cursor advanced to avoid backlog accumulation
-            },
-          }).catch(() => {});
-        }
-        return { scansFetched: 0, scansProcessed: 0 };
-      }
-    }
-
     // Query lookback:
     // 1. If explicit customFrom is provided, use it.
     // 2. If force is requested or first poll (no cursor), start from the beginning of today (00:00:00 IST).
@@ -822,11 +794,7 @@ export async function pollDevice(
       // NOTE: no window-based pre-filtering here. Every scan pulled from the
       // terminal is handed to processBiometricScan(), which enforces the
       // per-role scan windows itself (STUDENT vs TEACHER) and records a
-      // visible TOO_EARLY / SYSTEM event when a scan falls outside its
-      // window. Pre-filtering at this layer silently dropped valid faculty
-      // scans (e.g. faculty scanning at 07:30-07:40 while only the Talabat
-      // window was open, or during evening events), which showed up as
-      // "scanned on device but missing in portal".
+      // visible event. Pre-filtering at this layer silently dropped valid scans.
 
       try {
         console.log(`[hikvision] processing scan from ${device.host} for ID: "${empNo}" (name: "${ev.name ?? ''}", time: ${time.toISOString()}, serial: ${serial})`);
@@ -837,6 +805,22 @@ export async function pollDevice(
           ev.currentVerifyMode,
         );
         scansProcessed++;
+
+        // Forward to Render Cloud Webhook in background so cloud portal & SSE update in real time
+        const renderUrl = (process.env.RENDER_URL || "https://darse-burhani.onrender.com").replace(/\/+$/, "");
+        fetch(`${renderUrl}/api/hikvision/events`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-biometric-secret": process.env.BIOMETRIC_SECRET || "DARSEBURHANI5253",
+          },
+          body: JSON.stringify({
+            fingerprint: empNo,
+            timestamp: time.toISOString(),
+            deviceId: `hikvision:${device.host}`,
+            verifyMode: ev.currentVerifyMode || "FACIAL",
+          }),
+        }).catch(() => {});
       } catch (err) {
         console.error(`[hikvision] scan processing error for ${device.host}:`, err);
       }
