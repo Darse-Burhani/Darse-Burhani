@@ -8,6 +8,7 @@ import {
   logAuditEvent,
   getClientIp,
   resetRateLimits,
+  getRateLimitStats,
 } from "../../lib/security";
 import {
   getWafStats,
@@ -452,6 +453,42 @@ router.post("/whitelisted-ips/remove", (req, res) => {
   } catch (err) {
     console.error("Error removing IP from whitelist:", err);
     res.status(500).json({ success: false, error: "Failed to remove IP from whitelist" });
+  }
+});
+
+// ── GET & POST /api/admin/security/rate-limits ──
+router.get("/rate-limits", (_req, res) => {
+  try {
+    const stats = getRateLimitStats();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error("Error fetching rate limit telemetry:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch rate limit stats" });
+  }
+});
+
+router.post("/rate-limits/reset", (req, res) => {
+  try {
+    resetRateLimits();
+
+    const adminUser = (req as any).auth?.user;
+    logAuditEvent({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      userName: `${adminUser?.firstName} ${adminUser?.lastName}`,
+      userRole: "ADMIN",
+      action: "RATE_LIMITS_RESET",
+      category: "SECURITY",
+      severity: "INFO",
+      status: "SUCCESS",
+      ipAddress: getClientIp(req),
+      details: { reason: "Admin manually reset all in-memory rate limit token buckets" },
+    });
+
+    res.json({ success: true, message: "All rate limit buckets successfully reset." });
+  } catch (err) {
+    console.error("Error resetting rate limits:", err);
+    res.status(500).json({ success: false, error: "Failed to reset rate limits" });
   }
 });
 

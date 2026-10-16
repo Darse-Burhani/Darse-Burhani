@@ -1,23 +1,27 @@
 
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import prisma from "./prisma";
 import { cache } from "./cache";
 
 const router = Router();
-
 const startTime = Date.now();
 
-// GET /api/health - Lightweight liveness probe (for load balancer health checks)
-router.get("/", (_req, res) => {
+/**
+ * Lightweight liveness probe for Load Balancer health checks (AWS ALB, Nginx, K8s, GCP).
+ */
+export function livenessProbe(_req: Request, res: Response): void {
   res.status(200).json({
     status: "healthy",
+    pid: process.pid,
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
   });
-});
+}
 
-// GET /api/health/ready - Comprehensive readiness probe (DB connection, memory, load state)
-router.get("/ready", async (_req, res) => {
+/**
+ * Comprehensive readiness probe (DB connection ping, memory, active cache keys).
+ */
+export async function readinessProbe(_req: Request, res: Response): Promise<void> {
   const checkStart = Date.now();
   let dbStatus = "connected";
   let dbLatencyMs = 0;
@@ -36,6 +40,7 @@ router.get("/ready", async (_req, res) => {
 
   const responsePayload = {
     status: isHealthy ? "ready" : "degraded",
+    pid: process.pid,
     timestamp: new Date().toISOString(),
     uptimeSeconds: uptime,
     checkDurationMs: Date.now() - checkStart,
@@ -57,9 +62,20 @@ router.get("/ready", async (_req, res) => {
       platform: process.platform,
       arch: process.arch,
     },
+    loadBalancer: {
+      keepAliveTimeoutMs: 65000,
+      headersTimeoutMs: 66000,
+      healthy: isHealthy,
+    },
   };
 
   res.status(isHealthy ? 200 : 503).json(responsePayload);
-});
+}
+
+// GET /api/health - Lightweight liveness probe
+router.get("/", livenessProbe);
+
+// GET /api/health/ready - Comprehensive readiness probe
+router.get("/ready", readinessProbe);
 
 export default router;

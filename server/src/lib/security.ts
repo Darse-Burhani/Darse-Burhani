@@ -130,20 +130,23 @@ export function updateSecurityPolicies(updates: Partial<SecurityPolicyConfig>): 
 
 // ── Rate Limiter & Brute-Force Shield ──
 
-interface RateLimitRecord {
-  count: number;
-  firstRequestTime: number;
+export interface TokenBucketRecord {
+  tokens: number;
+  lastRefillTime: number;
+  capacity: number;
+  refillRatePerMs: number;
   lockedUntil?: number;
+  totalRequests: number;
 }
 
-const rateLimitMap = new Map<string, RateLimitRecord>();
+const rateLimitMap = new Map<string, TokenBucketRecord>();
 
 // Clean up expired rate limiter keys every 5 minutes to prevent memory leak
 if (typeof setInterval !== "undefined") {
   const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, record] of rateLimitMap.entries()) {
-      if (now - record.firstRequestTime > 300000 && (!record.lockedUntil || now > record.lockedUntil)) {
+      if (now - record.lastRefillTime > 300000 && (!record.lockedUntil || now > record.lockedUntil)) {
         rateLimitMap.delete(key);
       }
     }
@@ -158,20 +161,142 @@ export function resetRateLimits(): void {
   rateLimitMap.clear();
 }
 
-export function getClientIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") {
-    return forwarded.split(",")[0].trim();
+/**
+ * Diagnostic helper to inspect active rate limit buckets and overall load status.
+ */
+export function getRateLimitStats(): {
+  totalTrackedClients: number;
+  activeBuckets: Array<{ key: string; tokens: number; capacity: number; totalRequests: number; locked: boolean }>;
+} {
+  const active: Array<{ key: string; tokens: number; capacity: number; totalRequests: number; locked: boolean }> = [];
+  const now = Date.now();
+  for (const [key, b] of rateLimitMap.entries()) {
+    active.push({
+      key,
+      tokens: Math.round(b.tokens * 100) / 100,
+      capacity: Math.round(b.capacity),
+      totalRequests: b.totalRequests,
+      locked: Boolean(b.lockedUntil && now < b.lockedUntil),
+    });
+    if (active.length >= 100) break;
   }
-  return req.socket?.remoteAddress || req.ip || "127.0.0.1";
+  return {
+    totalTrackedClients: rateLimitMap.size,
+    activeBuckets: active,
+  };
+}
+
+/**
+ * Multi-tier Reverse Proxy & CDN Client IP Resolution.
+ * Supports Cloudflare, Akamai, AWS ALB, Nginx, Caddy, GCP, Render, Vercel, and direct connections.
+ */
+export function getClientIp(req: Request): string {
+  // 1. Cloudflare CDN / Edge Proxy
+  const cfIp = req.headers["cf-connecting-ip"];
+  if (typeof cfIp === "string" && cfIp.trim()) {
+    return cfIp.trim().replace(/^::ffff:/, "");
+  }
+
+  // 2. Akamai / Cloudflare True-Client-IP
+  const trueClientIp = req.headers["true-client-ip"];
+  if (typeof trueClientIp === "string" && trueClientIp.trim()) {
+    return trueClientIp.trim().replace(/^::ffff:/, "");
+  }
+
+  // 3. Nginx / Traefik / Caddy Forwarded Real IP
+  const realIp = req.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.trim()) {
+    return realIp.trim().replace(/^::ffff:/, "");
+  }
+
+  // 4. Standard X-Forwarded-For chain: client, proxy1, proxy2...
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    const ips = forwarded
+      .split(",")
+      .map((item) => item.trim().replace(/^::ffff:/, ""))
+      .filter(Boolean);
+    if (ips.length > 0) {
+      return ips[0];
+    }
+  }
+
+  // 5. Express 'trust proxy' resolved IP
+  if (req.ip) {
+    return req.ip.replace(/^::ffff:/, "");
+  }
+
+  // 6. Direct socket remote address fallback
+  const socketIp = req.socket?.remoteAddress;
+  if (socketIp) {
+    return socketIp.replace(/^::ffff:/, "");
+  }
+
+  return "127.0.0.1";
 }
 
 export interface RateLimiterOptions {
   isAuthLockout?: boolean;
+  burstMultiplier?: number;
+  roleMultipliers?: Record<string, number>;
 }
 
 /**
- * Creates a sliding-window rate limiting middleware.
+ * Calculates adaptive role multiplier so active staff (Admin, Teacher) operate with fluid headroom.
+ */
+function getRoleMultiplier(req: Request, customMultipliers?: Record<string, number>): number {
+  const user = (req as any).auth?.user || (req as any).session?.user || (req as any).user;
+  const role = String(user?.role || "").toUpperCase();
+
+  if (customMultipliers && customMultipliers[role]) {
+    return customMultipliers[role];
+  }
+
+  switch (role) {
+    case "ADMIN":
+    case "SUPER_ADMIN":
+      return 10.0; // 10x headroom for administrative operations, reports & directory sweeps
+    case "TEACHER":
+    case "FACULTY":
+      return 5.0; // 5x headroom for class management, live grading & attendance sweeps
+    case "STUDENT":
+    case "TALABAT":
+    case "PARENT":
+      return 2.5; // 2.5x headroom for authenticated portal users
+    default:
+      return 1.0; // 1x baseline for anonymous / guest visitors
+  }
+}
+
+/**
+ * Checks if request is an internal background poll or health check that should not deplete the interactive user click budget.
+ */
+function isBackgroundOrSilentRequest(req: Request): boolean {
+  if (req.method === "OPTIONS" || req.method === "HEAD") return true;
+
+  if (req.query?.silent === "true" || req.query?.background === "true") return true;
+
+  const bgHeader = req.headers["x-background-sync"] || req.headers["x-silent"] || req.headers["x-poll"];
+  if (bgHeader === "true" || bgHeader === "1") return true;
+
+  const path = req.path || req.originalUrl || "";
+  if (
+    path.startsWith("/healthz") ||
+    path.startsWith("/readyz") ||
+    path.startsWith("/livez") ||
+    path.startsWith("/ping") ||
+    path === "/api/health" ||
+    path === "/api/health/ready" ||
+    path === "/api/auth/session"
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Fluent Token Bucket Rate Limiter with burst capacity, role scaling, leaky refill, and RFC 6585 headers.
  */
 export function createRateLimiter(
   windowMs: number = 60000,
@@ -180,8 +305,15 @@ export function createRateLimiter(
   options?: RateLimiterOptions
 ): RequestHandler {
   const isDev = process.env.NODE_ENV !== "production";
+  const burstMultiplier = options?.burstMultiplier ?? 1.5;
+
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
+      // 1. Bypass background silent polls, preflights, and health probes
+      if (isBackgroundOrSilentRequest(req)) {
+        return next();
+      }
+
       const ip = getClientIp(req);
       const cleanIp = ip.replace(/^::ffff:/, "").trim();
       const isLocalOrPrivate =
@@ -198,73 +330,130 @@ export function createRateLimiter(
         return next();
       }
 
-      // Key by authenticated user ID if available, otherwise fallback to IP
+      // 2. Identify client by authenticated user ID if present, otherwise by resolved IP
       const userId = (req as any).auth?.user?.id || (req as any).session?.user?.id;
       const clientIdentifier = userId ? `user_${userId}` : ip;
       const key = `${endpointKey}:${clientIdentifier}`;
       const now = Date.now();
 
+      // 3. Compute dynamic capacity & refill rate based on role and environment
+      const roleMult = getRoleMultiplier(req, options?.roleMultipliers);
+      const devMult = isDev ? 5.0 : 1.0;
+      const effectiveMaxRequests = maxRequests * roleMult * devMult;
+
+      const baseRefillRatePerMs = effectiveMaxRequests / windowMs;
+      const targetCapacity = Math.max(10, Math.round(effectiveMaxRequests * burstMultiplier));
+
       let record = rateLimitMap.get(key);
 
       if (!record) {
-        record = { count: 1, firstRequestTime: now };
+        record = {
+          tokens: targetCapacity - 1, // deduct initial request
+          lastRefillTime: now,
+          capacity: targetCapacity,
+          refillRatePerMs: baseRefillRatePerMs,
+          totalRequests: 1,
+        };
         rateLimitMap.set(key, record);
+
+        // Standard RFC 6585 & X-RateLimit headers
+        res.setHeader("X-RateLimit-Limit", Math.round(record.capacity));
+        res.setHeader("X-RateLimit-Remaining", Math.max(0, Math.floor(record.tokens)));
+        res.setHeader("X-RateLimit-Reset", 1);
+        res.setHeader("RateLimit-Limit", Math.round(record.capacity));
+        res.setHeader("RateLimit-Remaining", Math.max(0, Math.floor(record.tokens)));
+        res.setHeader("RateLimit-Reset", 1);
         return next();
       }
 
-      // If the window has expired, reset counter and release any lock
-      if (now - record.firstRequestTime > windowMs) {
-        record.count = 1;
-        record.firstRequestTime = now;
-        record.lockedUntil = undefined;
-        return next();
+      // Dynamically upgrade capacity if user authenticated mid-session
+      if (targetCapacity > record.capacity) {
+        record.capacity = targetCapacity;
+        record.refillRatePerMs = baseRefillRatePerMs;
       }
 
-      // If an explicit lockout is currently active
+      // 4. Smooth Leaky Token Refill (adds tokens based on exact elapsed milliseconds)
+      const elapsedMs = Math.max(0, now - record.lastRefillTime);
+      record.tokens = Math.min(record.capacity, record.tokens + elapsedMs * record.refillRatePerMs);
+      record.lastRefillTime = now;
+
+      // 5. Check if under explicit brute-force lockout
       if (record.lockedUntil && now < record.lockedUntil) {
         const waitSeconds = Math.max(1, Math.ceil((record.lockedUntil - now) / 1000));
         res.setHeader("Retry-After", waitSeconds);
+        res.setHeader("X-RateLimit-Limit", Math.round(record.capacity));
+        res.setHeader("X-RateLimit-Remaining", 0);
+        res.setHeader("X-RateLimit-Reset", waitSeconds);
         res.status(429).json({
           success: false,
-          error: `Too many attempts. Temporarily locked. Try again in ${waitSeconds} seconds.`,
+          error: `Too many attempts. Temporarily locked for security. Try again in ${waitSeconds} seconds.`,
+          retryAfterSeconds: waitSeconds,
         });
         return;
       }
 
-      record.count++;
+      // 6. Token availability check
+      if (record.tokens >= 1.0) {
+        record.tokens -= 1.0;
+        record.totalRequests++;
 
-      const effectiveMax = isDev ? maxRequests * 5 : maxRequests;
+        const timeToFullSeconds = Math.max(
+          1,
+          Math.ceil((record.capacity - record.tokens) / (record.refillRatePerMs * 1000))
+        );
 
-      if (record.count > effectiveMax) {
-        const waitSeconds = options?.isAuthLockout
-          ? securityPolicies.lockoutDurationMinutes * 60
-          : Math.max(1, Math.ceil((record.firstRequestTime + windowMs - now) / 1000));
-
-        if (options?.isAuthLockout) {
-          record.lockedUntil = now + waitSeconds * 1000;
-        }
-
-        logAuditEvent({
-          action: "RATE_LIMIT_EXCEEDED",
-          category: "SECURITY",
-          severity: options?.isAuthLockout ? "CRITICAL" : "WARN",
-          status: "BLOCKED",
-          ipAddress: ip,
-          userAgent: req.headers["user-agent"],
-          details: { endpoint: req.originalUrl, count: record.count, waitSeconds },
-        });
-
-        res.setHeader("Retry-After", waitSeconds);
-        res.status(429).json({
-          success: false,
-          error: options?.isAuthLockout
-            ? `Too many attempts. Temporarily locked for ${securityPolicies.lockoutDurationMinutes} minutes.`
-            : `Rate limit exceeded. Try again in ${waitSeconds} seconds.`,
-        });
-        return;
+        res.setHeader("X-RateLimit-Limit", Math.round(record.capacity));
+        res.setHeader("X-RateLimit-Remaining", Math.max(0, Math.floor(record.tokens)));
+        res.setHeader("X-RateLimit-Reset", timeToFullSeconds);
+        res.setHeader("RateLimit-Limit", Math.round(record.capacity));
+        res.setHeader("RateLimit-Remaining", Math.max(0, Math.floor(record.tokens)));
+        res.setHeader("RateLimit-Reset", timeToFullSeconds);
+        return next();
       }
 
-      next();
+      // 7. Rate limit exceeded (Token bucket starved)
+      const tokensNeeded = 1.0 - record.tokens;
+      const waitMs = Math.ceil(tokensNeeded / record.refillRatePerMs);
+      const waitSeconds = Math.max(1, Math.ceil(waitMs / 1000));
+
+      if (options?.isAuthLockout) {
+        record.lockedUntil = now + securityPolicies.lockoutDurationMinutes * 60000;
+      }
+
+      logAuditEvent({
+        action: "RATE_LIMIT_EXCEEDED",
+        category: "SECURITY",
+        severity: options?.isAuthLockout ? "CRITICAL" : "WARN",
+        status: "BLOCKED",
+        ipAddress: ip,
+        userAgent: req.headers["user-agent"],
+        details: {
+          endpoint: req.originalUrl,
+          key,
+          waitSeconds,
+          capacity: record.capacity,
+          tokens: record.tokens,
+        },
+      });
+
+      res.setHeader("Retry-After", waitSeconds);
+      res.setHeader("X-RateLimit-Limit", Math.round(record.capacity));
+      res.setHeader("X-RateLimit-Remaining", 0);
+      res.setHeader("X-RateLimit-Reset", waitSeconds);
+      res.setHeader("RateLimit-Limit", Math.round(record.capacity));
+      res.setHeader("RateLimit-Remaining", 0);
+      res.setHeader("RateLimit-Reset", waitSeconds);
+
+      res.status(429).json({
+        success: false,
+        error: options?.isAuthLockout
+          ? `Too many attempts. Temporarily locked for ${securityPolicies.lockoutDurationMinutes} minutes.`
+          : `Traffic smoothed: please ease request pace. Retry in ${waitSeconds}s.`,
+        retryAfterSeconds: waitSeconds,
+        burstCapacity: Math.round(record.capacity),
+        remainingTokens: 0,
+      });
+      return;
     } catch (limiterErr) {
       console.warn("[rate-limiter] error during check, failing open:", limiterErr);
       next();

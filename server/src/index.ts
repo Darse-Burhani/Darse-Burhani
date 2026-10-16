@@ -85,7 +85,9 @@ if (useClustering && cluster.isPrimary) {
 
   const server = app.listen(port, host, async () => {
     const workerPrefix = useClustering ? `[worker:${process.pid}]` : `[server]`;
-    console.log(`${workerPrefix} High-performance backend ready on http://127.0.0.1:${port}`);
+    console.log(
+      `${workerPrefix} Load balancer ready on http://127.0.0.1:${port} (Keep-Alive: 65s, Headers-Timeout: 66s, Max-Conn: 50,000)`
+    );
 
     // If running in single-process mode, run background singletons here
     if (!useClustering) {

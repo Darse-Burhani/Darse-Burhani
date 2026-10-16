@@ -107,14 +107,71 @@ import parentProfileRoutes from "./routes/parent/profile";
 import parentLeaveRoutes from "./routes/parent/leave";
 import hifzDailyEvaluationRoutes from "./routes/hifz/daily-evaluation";
 
+import prisma from "./lib/prisma";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const uploadsDir = path.resolve(process.env.UPLOAD_DIR || path.join(repoRoot, "public", "uploads"));
 
 export function createApp() {
   const app = express();
-  app.set("trust proxy", 1);
+
+  // Dynamic Multi-Tier Reverse Proxy Trust Configuration
+  // Supports AWS ALB, Cloudflare, Nginx, Caddy, GCP, Render, Vercel, or custom hop counts
+  const trustProxyEnv = process.env.TRUST_PROXY;
+  if (trustProxyEnv === "true") {
+    app.set("trust proxy", true);
+  } else if (trustProxyEnv === "false") {
+    app.set("trust proxy", false);
+  } else if (trustProxyEnv && !isNaN(Number(trustProxyEnv))) {
+    app.set("trust proxy", Number(trustProxyEnv));
+  } else if (trustProxyEnv) {
+    app.set("trust proxy", trustProxyEnv);
+  } else {
+    // Default: Trust first-hop upstream load balancer (AWS ALB / Nginx / Cloudflare)
+    app.set("trust proxy", 1);
+  }
+
   app.disable("x-powered-by");
+
+  // 0. Zero-Overhead Load Balancer Health & Liveness Probes
+  // Fast 200 OK text/plain responses for AWS ALB, Nginx, K8s, GCP with zero parser overhead
+  app.get(["/healthz", "/livez", "/ping"], (_req, res) => {
+    res.status(200).type("text/plain").send("OK");
+  });
+
+  // Fast readiness check on root level
+  app.get("/readyz", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.status(200).json({
+        status: "ready",
+        pid: process.pid,
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(503).json({
+        status: "degraded",
+        pid: process.pid,
+        error: err?.message || "database unavailable",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
+  // Load Balancer Diagnostic Telemetry
+  app.get("/lb-status", (_req, res) => {
+    res.status(200).json({
+      status: "healthy",
+      pid: process.pid,
+      uptimeSeconds: Math.floor(process.uptime()),
+      memoryMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+      keepAliveTimeoutMs: 65000,
+      headersTimeoutMs: 66000,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   // 1. Performance Compression Middleware (Gzip/Deflate for fast payload transport)
   app.use(
@@ -186,10 +243,11 @@ export function createApp() {
   app.use("/api", globalApiRateLimiter);
 
   // ── Auth with rate limiting (20 attempts per minute) ──
-  const authLimiter = createRateLimiter(60000, 20, "auth_login", { isAuthLockout: true });
-  const passwordLimiter = createRateLimiter(60000, 10, "auth_password", { isAuthLockout: true });
-  const adminLimiter = createRateLimiter(60000, 120, "admin_api");
-  const uploadLimiter = createRateLimiter(60000, 60, "upload_api");
+  const authLimiter = createRateLimiter(60000, 20, "auth_login", { isAuthLockout: true, burstMultiplier: 1.5 });
+  const passwordLimiter = createRateLimiter(60000, 10, "auth_password", { isAuthLockout: true, burstMultiplier: 1.2 });
+  // Admin APIs: 600 req/min baseline with 2.0x burst (role multiplier scales this up to 6,000 req/min for admins, never stutters)
+  const adminLimiter = createRateLimiter(60000, 600, "admin_api", { burstMultiplier: 2.0 });
+  const uploadLimiter = createRateLimiter(60000, 180, "upload_api", { burstMultiplier: 1.5 });
 
   app.post("/api/auth/login", authLimiter, loginHandler);
   app.post("/api/auth/verify-2fa", authLimiter, verify2FaHandler);
