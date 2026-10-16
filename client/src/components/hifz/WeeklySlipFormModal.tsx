@@ -138,7 +138,6 @@ export default function WeeklySlipFormModal({
 
   const overallPerformance = totalMarks > 0 ? Math.round((totalMarks / 50) * 100) : 0;
   const tier = perfTier(overallPerformance);
-  const mColor = marhalaColor(marhala);
   const statusCfg = existingSlip?.status ? slipStatus(existingSlip.status) : null;
 
   const clamp = (v: string, max: number) => {

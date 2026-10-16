@@ -32,7 +32,7 @@ export function SecurityGuardLayout({
   const { data: session, status, update } = useSession();
   const [isLocked, setIsLocked] = useState(false);
   const [showTimeoutBanner, setShowTimeoutBanner] = useState(false);
-  const [timeoutRemaining, setTimeoutRemaining] = useState(120); // 2 minutes
+  const [timeoutRemaining] = useState(120); // 2 minutes
 
   const lastActivityRef = useRef<number>(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);

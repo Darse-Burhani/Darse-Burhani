@@ -7,14 +7,12 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   Activity,
-  Bell,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   Grid3X3,
   Home,
   LogOut,
-  Menu,
   Search,
   Settings,
   Sparkles,
@@ -58,34 +56,6 @@ interface PortalShellProps {
 // ─────────────────────────────────────────────────
 const GOLD = "#d4af37";
 const GOLD_DARK = "#b8860b";
-
-interface PortalTheme {
-  sidebar: string;
-  sidebarGlow: string;
-  content: string;
-  headerLine: string;
-  hoverBg: string;
-  border: string;
-  badge: string;
-  activeIcon: string;
-  breadcrumb: string;
-  ambientGlow: string;
-  avatarGradient: string;
-}
-
-const PORTAL_THEME: PortalTheme = {
-  sidebar: "linear-gradient(180deg, #011f18 0%, #022c22 55%, #064e3b 100%)",
-  sidebarGlow: "rgba(4, 120, 87, 0.45)",
-  content: "linear-gradient(160deg, #f0fdf4 0%, #ffffff 45%, #ecfdf5 100%)",
-  headerLine: `linear-gradient(90deg, #022c22, #10b981, #022c22)`,
-  hoverBg: "hover:bg-emerald-50",
-  border: "border-emerald-200",
-  badge: "bg-emerald-50 text-emerald-800 border border-emerald-200",
-  activeIcon: "#10b981",
-  breadcrumb: "#047857",
-  ambientGlow: "rgba(16, 185, 129, 0.2)",
-  avatarGradient: "linear-gradient(135deg, #064e3b, #022c22)",
-};
 
 function rootPathFor(role: PortalShellProps["role"]) {
   return role === "STUDENT" ? "/talabat" : `/${role.toLowerCase()}`;
@@ -315,7 +285,6 @@ export function PortalShell({
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 relative z-10 scrollbar-thin">
           {categorizedNavItems.map((group) => {
             const isCollapsed = !sidebarCollapsed && !!collapsedCategories[group.category];
-            const hasActiveItem = group.items.some((item) => isActive(item.href));
 
             return (
               <div key={group.category} className="space-y-1">

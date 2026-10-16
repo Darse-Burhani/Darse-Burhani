@@ -13,7 +13,6 @@ const router = Router();
 // Parent-submittable leave types — MEDICAL is intentionally excluded.
 // Medical leave is handled only by the school medical desk, never via parent portal.
 const PARENT_ALLOWED_TYPES = ["PERSONAL", "FAMILY_EMERGENCY", "OTHER"] as const;
-type ParentLeaveType = (typeof PARENT_ALLOWED_TYPES)[number];
 
 async function getParentProfileId(userId: string) {
   const parent = await prisma.parentProfile.findUnique({

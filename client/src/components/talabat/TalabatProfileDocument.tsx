@@ -1,21 +1,5 @@
-import React, { useState } from "react";
-import {
-  Printer,
-  CheckCircle2,
-  Award,
-  Star,
-  FileCheck2,
-  FileText,
-  User,
-  Users,
-  GraduationCap,
-  Sparkles,
-  BookOpen,
-  Calendar,
-  Layers,
-  HeartHandshake,
-  Check,
-} from "lucide-react";
+import React from "react";
+import { FileCheck2, Printer, GraduationCap } from "lucide-react";
 
 export interface TalabatProfileData {
   id?: string;

@@ -58,8 +58,6 @@ async function generateBarcode(category: string, title: string): Promise<string>
 // GET /api/admin/library - List all books with optional search/filter
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const search = (req.query.search as string) || "";
     const category = (req.query.category as string) || "";
     const status = (req.query.status as string) || "";
@@ -139,8 +137,6 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/library - Add a new book
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { title, author, publisher, category, barcode, rackNumber, shelfNumber, locationColor, coverImage, notes } = body;
 
@@ -193,8 +189,6 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 // PUT /api/admin/library - Update a book
 router.put("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { id, ...updateData } = body;
 
@@ -220,8 +214,6 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
 // DELETE /api/admin/library - Delete a book
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const id = req.query.id as string;
 
     if (!id) {

@@ -349,21 +349,6 @@ export async function deployUserToDevice(
     },
   });
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<UserInfo version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
-  <employeeNo>${user.employeeNo}</employeeNo>
-  <name>${user.name}</name>
-  <userType>${userType}</userType>
-  <Valid>
-    <enable>true</enable>
-    <beginTime>${validFrom}</beginTime>
-    <endTime>${validTo}</endTime>
-    <timeType>local</timeType>
-  </Valid>
-  <doorRight>${doorRight}</doorRight>
-  <RightPlan><doorNo>1</doorNo><planTemplateNo>1</planTemplateNo></RightPlan>
-</UserInfo>`;
-
   const attempts = [
     { url: `${base}/ISAPI/AccessControl/UserInfo/Record?format=json`, method: "POST", ct: "application/json", body: payload },
     { url: `${base}/ISAPI/AccessControl/UserInfo/SetUp?format=json`, method: "PUT", ct: "application/json", body: payload },

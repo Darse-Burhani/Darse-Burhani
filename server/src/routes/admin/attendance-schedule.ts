@@ -13,7 +13,6 @@ import {
   getISTDetails,
   getStartOfDayIST,
   getWindowType,
-  type AttendanceWindowType,
 } from "../../lib/biometric";
 
 const router = Router();
@@ -309,7 +308,6 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
     let facultyTimer: { start: string; end: string; late: string } | null = null;
     const fs = facultyStartTime && String(facultyStartTime).trim() ? String(facultyStartTime).trim() : null;
     const fe = facultyEndTime && String(facultyEndTime).trim() ? String(facultyEndTime).trim() : null;
-    const flRaw = facultyLateEndTime && String(facultyLateEndTime).trim() ? String(facultyLateEndTime).trim() : fe;
 
     if ((fs && !fe) || (!fs && fe)) {
       return res.status(400).json({ success: false, error: "Faculty timer requires both On-time From and On-time To" });

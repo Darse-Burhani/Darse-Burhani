@@ -30,7 +30,6 @@ import {
   Megaphone,
   Package,
   Layers,
-  FileSpreadsheet,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -139,7 +138,6 @@ export function NavigationBar() {
   const config = portalConfig[role];
   const isAdmin = role === "ADMIN";
   const isTeacher = role === "TEACHER";
-  const isStudent = role === "STUDENT";
   const isParent = role === "PARENT";
 
   // Build teacher nav items dynamically based on Admin assigned pages & module visibility

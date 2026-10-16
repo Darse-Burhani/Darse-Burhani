@@ -8,8 +8,6 @@ const router = Router();
 // GET /api/admin/classes - List all classes (high-speed DB cache)
 router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: ["class"] }), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const page = parseInt((req.query.page as string) || "1");
     const pageSize = parseInt((req.query.pageSize as string) || "50");
     const skip = (page - 1) * pageSize;
@@ -65,8 +63,6 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: 
 // POST /api/admin/classes - Create a class
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { name, grade, section, subject, roomNumber, teacherId, masoolId, academicYear } = body;
 

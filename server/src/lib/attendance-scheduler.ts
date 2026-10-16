@@ -1,11 +1,5 @@
 import prisma from "./prisma";
-import { sendEmail } from "./email";
 import { getStartOfDayIST, getISTDetails, broadcastAttendanceEvent, getWindowType } from "./biometric";
-import {
-  generateAttendanceReportEmailHtml,
-  generateAttendanceReportPlainText,
-  AttendanceReportData,
-} from "./attendance-email-template";
 
 interface SchedulerConfig {
   autoWeeklyEnabled: boolean;
@@ -39,7 +33,6 @@ let lastWeeklyRunDate: string | null = null;
 let lastMonthlyRunDate: string | null = null;
 let lastAutoAbsentRunDate: string | null = null;
 let lastSheetSyncRunDate: string | null = null;
-let lastDailyEmailRunDate: string | null = null;
 
 // Track which windows have already finalized attendance today (Key: "YYYY-MM-DD:windowId:role")
 const finalizedWindowsToday = new Set<string>();
@@ -549,7 +542,6 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
     });
 
     for (const w of windows) {
-      const [sh, sm] = w.startTime.split(":").map(Number);
       const [eh, em] = w.endTime.split(":").map(Number);
       const [lh, lm] = (w.lateEndTime || w.endTime).split(":").map(Number);
       const cutoffMin = (lh || eh || 0) * 60 + (lm || em || 0);

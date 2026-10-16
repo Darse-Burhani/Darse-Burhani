@@ -1,5 +1,4 @@
 import { Router } from "express";
-import prisma from "../../lib/prisma";
 import { getSessionUser } from "../../auth";
 import { requireAuth, requireRole } from "../../middleware";
 import {

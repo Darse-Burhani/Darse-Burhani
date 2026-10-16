@@ -143,6 +143,7 @@ export function parseSheetRows(rows: string[][]): HifzSheetRow[] {
       performancePercent: parseFloat(row[performanceIdx] || "0") || 0,
       email1: (row[email1Idx] || "").trim(),
       email2: (row[email2Idx] || "").trim(),
+      status,
     };
   });
 }

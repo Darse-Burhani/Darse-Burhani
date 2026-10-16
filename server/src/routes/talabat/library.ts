@@ -1,5 +1,5 @@
 
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth } from "../../middleware";
 
@@ -13,7 +13,6 @@ const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const session = req.auth!;
 
     const shelfParam = req.query.shelf as string;
     const searchQuery = req.query.search as string;

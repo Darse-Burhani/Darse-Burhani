@@ -17,12 +17,7 @@ import {
   Info,
   X,
   Flame,
-  CheckCircle2,
-  ExternalLink,
-  ShieldCheck,
-  Route,
   TreeDeciduous,
-  ArrowRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -544,7 +539,6 @@ export default function MarhalaFlowMap({
                   if (!coords) return null;
                   const color = marhalaColor(m);
                   const isSelected = selectedMarhala === m;
-                  const isHovered = hoveredBranch === m;
                   const branchData = treeData.find((t) => t.marhala === m);
                   const studentsCount = branchData?.totalStudents || 0;
                   const mentorsCount = branchData?.nodes.length || 0;

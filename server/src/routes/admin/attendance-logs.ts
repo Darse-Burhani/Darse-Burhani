@@ -99,7 +99,6 @@ router.get("/events", requireAuth, async (req, res) => {
     const events = windows.map((w) => {
       const ww = w as any;
       const windowType = getWindowType(ww);
-      const isManual = windowType === "MANUAL";
       const isTilawatDua = /tilawat/i.test(w.name);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);

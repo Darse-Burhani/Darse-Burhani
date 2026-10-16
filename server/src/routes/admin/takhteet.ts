@@ -77,8 +77,6 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 // GET /api/admin/takhteet - Teachers with their classes + all plans
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const [teachers, classes, plans] = await Promise.all([
       prisma.teacherProfile.findMany({
         where: { user: { isActive: true } },
@@ -240,8 +238,6 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 // PUT /api/admin/takhteet/:id - Update a plan (incl. progress/status)
 router.put("/:id", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const plan = await prisma.takhteetPlan.findUnique({ where: { id: req.params.id } });
     if (!plan) {
       return res.status(404).json({ success: false, error: "Plan not found" });

@@ -1,4 +1,3 @@
-import React from "react";
 import { Clock, RefreshCw, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 

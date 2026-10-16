@@ -335,12 +335,11 @@ router.post("/", requireAuth, async (req, res) => {
     } else {
       // Check individual record targetType or lookup ID
       const allIds = records.map((r) => r.id);
-      const [knownTeachers, knownStudents] = await Promise.all([
-        prisma.teacherProfile.findMany({ where: { id: { in: allIds } }, select: { id: true } }),
-        prisma.studentProfile.findMany({ where: { id: { in: allIds } }, select: { id: true } }),
-      ]);
+      const knownTeachers = await prisma.teacherProfile.findMany({
+        where: { id: { in: allIds } },
+        select: { id: true },
+      });
       const teacherIdSet = new Set(knownTeachers.map((t) => t.id));
-      const studentIdSet = new Set(knownStudents.map((s) => s.id));
 
       for (const item of records) {
         if (item.targetType === "TEACHER" || teacherIdSet.has(item.id)) {

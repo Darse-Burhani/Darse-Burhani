@@ -179,8 +179,6 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // POST /api/admin/hifz - Create a new hifz report
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { studentId, teacherId, academicYear, semester } = body;
 
@@ -335,8 +333,6 @@ router.put("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // DELETE /api/admin/hifz - Delete a hifz report
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const id = req.query.id as string;
 
     if (!id) {

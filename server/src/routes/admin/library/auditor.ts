@@ -7,8 +7,6 @@ const router = Router();
 // GET /api/admin/library/auditor - List books on a specific shelf for auditing
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const rackNumber = (req.query.rack as string) || "";
 
     if (!rackNumber) {
@@ -66,8 +64,6 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/library/auditor - Verify scanned barcode against expected shelf
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { barcode, expectedRackNumber, expectedShelfNumber } = body;
 

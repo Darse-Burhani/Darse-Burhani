@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CheckCircle2,
   Clock,
   XCircle,
   Stethoscope,
   FileCheck2,
-  Bot,
   UserCheck,
   Search,
   Eye,
@@ -19,7 +18,6 @@ import {
   GraduationCap,
   Briefcase,
   Sparkles,
-  Activity,
   Timer,
   AlertTriangle,
   Table as TableIcon,
@@ -32,7 +30,7 @@ import {
 import { AttendanceLogRecordItem, AttendanceLogsSummary } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { getHijriFromDate, HIJRI_1448_MILESTONES } from "@/lib/fatimi-calendar";
+import { getHijriFromDate } from "@/lib/fatimi-calendar";
 
 interface DailyStackedLogViewProps {
   records: AttendanceLogRecordItem[];

@@ -1,21 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  Check,
   X,
   Clock,
   CheckCircle2,
   XCircle,
   Stethoscope,
-  User,
   HeartPulse,
   Paperclip,
   ExternalLink,
   Loader2,
   Sparkles,
   Palmtree,
-  CalendarCheck,
   CheckSquare,
   Square,
 } from "lucide-react";

@@ -59,10 +59,6 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today.getTime() + 86400000);
-
         const [rank, totalStudents, badgeProgress, skillTree] = await Promise.all([
           prisma.studentProfile.count({
             where: { currentPoints: { gt: studentProfile.currentPoints } },

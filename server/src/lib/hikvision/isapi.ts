@@ -68,10 +68,6 @@ export async function getDeviceInfo(c: HikConnection): Promise<HikDeviceInfo> {
   };
 }
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
 /** ISAPI window format: yyyy-MM-ddTHH:mm:ss in Indian Standard Time (+05:30) */
 function isaTime(d: Date, withTz = true): string {
   const parts = new Intl.DateTimeFormat("en-IN", {

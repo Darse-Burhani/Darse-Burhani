@@ -10,7 +10,6 @@ import {
   Phone,
   GraduationCap,
 } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { getInitials } from "@/lib/utils";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";

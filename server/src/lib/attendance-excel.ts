@@ -364,7 +364,6 @@ export async function generateDailyAttendanceExcel(options: DailyReportOptions =
   cursor += 1;
 
   // Table header
-  const schedHeader = wsSummary.getRow(cursor);
   const schedCols = ["Event Name", "Audience", "On-Time From", "On-Time To", "Late Till", "Status"];
   const schedKeys = ["B", "C", "D", "E", "F", "G"];
   schedCols.forEach((label, i) => {

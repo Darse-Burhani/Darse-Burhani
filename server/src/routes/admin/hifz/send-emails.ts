@@ -14,24 +14,6 @@ function generateEmailHtml(studentName: string, reportData: any) {
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringOffset = ringCircumference - (ringCircumference * performancePercent) / 100;
 
-  // Performance color palette (Fatimid emerald-gold theme)
-  let perfColor = "#065f46";
-  let perfAccent = "#047857";
-  if (performancePercent >= 80) {
-    perfColor = "#065f46";
-    perfAccent = "#047857";
-  } else if (performancePercent >= 50) {
-    perfColor = "#0d7377";
-    perfAccent = "#0f766e";
-  } else if (performancePercent >= 25) {
-    perfColor = "#92400e";
-    perfAccent = "#b45309";
-  } else {
-    perfColor = "#991b1b";
-    perfAccent = "#dc2626";
-  }
-
-
   const formattedDate = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -245,8 +227,6 @@ function generateEmailHtml(studentName: string, reportData: any) {
 // POST /api/admin/hifz/send-emails - Send report cards to parents via SMTP
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { reportIds } = body;
 

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn, timeAgo } from "@/lib/utils";
-import { sendDesktopNotification, soundEngine } from "@/lib/notification-sound";
+import { sendDesktopNotification } from "@/lib/notification-sound";
 
 interface NotificationItem {
   id: string;
@@ -63,7 +63,6 @@ export function NotificationBell() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [bannerNotification, setBannerNotification] = useState<NotificationItem | null>(null);
@@ -253,8 +252,7 @@ export function NotificationBell() {
           onClick={() => {
             setOpen((prev) => !prev);
             if (!open) {
-              setLoading(true);
-              fetchNotifications().finally(() => setLoading(false));
+              fetchNotifications();
               // Request desktop permission if still default
               if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission().catch(() => {});

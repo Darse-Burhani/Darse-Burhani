@@ -1,16 +1,12 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import {
   ShieldCheck,
   Mail,
   HelpCircle,
-  ExternalLink,
   Lock,
   Sparkles,
-  Heart,
-  Globe,
   Clock,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";

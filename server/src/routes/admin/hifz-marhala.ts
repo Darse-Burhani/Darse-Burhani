@@ -587,7 +587,6 @@ router.post("/weekly-slips/publish", requireRole("ADMIN"), async (req, res) => {
 // Smooth joint UX: every slip is pre-created for the teacher, so filling is one tap. Admin sees live fill progress.
 router.post("/weekly-slips/command", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
     const { academicYear, weekNumber, marhala, weekStartDate, weekEndDate } = req.body as Record<string, any>;
     if (!academicYear || !weekNumber) {
       return res.status(400).json({ success: false, error: "academicYear and weekNumber are required" });
@@ -656,7 +655,6 @@ router.post("/weekly-slips/command", requireRole("ADMIN"), async (req, res) => {
     });
     const statusCounts = Object.fromEntries(stats.map((s) => [s.status, s._count.status])) as Record<string, number>;
     const total = existing.length + created;
-    const filled = (statusCounts.SUBMITTED || 0) + (statusCounts.APPROVED || 0) + (statusCounts.PUBLISHED || 0) + (statusCounts.DRAFT || 0);
     // DRAFT = created but not yet filled with marks — treat as not filled until marks >0
     return res.json({
       success: true,

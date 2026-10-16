@@ -7,8 +7,6 @@ const router = Router();
 
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const limit = parseInt((req.query.limit as string) || "20");
 
     const data = await cache.getOrSet(

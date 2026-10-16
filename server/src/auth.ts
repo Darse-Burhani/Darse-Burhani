@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 
 function getBcrypt(): any {
@@ -10,8 +10,8 @@ const compare = (s: string, hashStr: string): Promise<boolean> => getBcrypt().co
 const hash = (s: string, salt: number | string): Promise<string> => getBcrypt().hash(s, salt);
 
 import prisma from "./lib/prisma";
-import { logAuditEvent, getClientIp, getSecurityPolicies } from "./lib/security";
-import { createMfaChallenge, verifyMfaChallenge } from "./lib/mfa";
+import { logAuditEvent, getClientIp } from "./lib/security";
+import { verifyMfaChallenge } from "./lib/mfa";
 import { unbanIp } from "./lib/waf";
 
 export type Role = "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";

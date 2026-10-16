@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Sparkles, ShieldCheck, Lock, Activity, CheckCircle2 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 interface SplashScreenProps {
   minDurationMs?: number;

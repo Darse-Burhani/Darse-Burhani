@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import prisma from "../prisma";
-import { processBiometricScan, isRoleWindowOpen, isAnyHardwareWindowOpen, parseScanTime } from "../biometric";
+import { processBiometricScan, parseScanTime } from "../biometric";
 import { digestFetch } from "./digest";
 import {
   getAcsEvents,
@@ -367,7 +367,6 @@ export async function forceSyncDeviceTime(id: string): Promise<{ ok: boolean; dr
 
   // Read current device time & schema parameters first to ensure 100% ISAPI schema compatibility
   let timeMode = "manual";
-  let existingDeviceTime: string | undefined;
 
   try {
     const getRes = await digestFetch(`${base}/ISAPI/System/time`, {
@@ -378,9 +377,7 @@ export async function forceSyncDeviceTime(id: string): Promise<{ ok: boolean; dr
     if (getRes.ok) {
       const xml = await getRes.text();
       const modeMatch = xml.match(/<timeMode>([^<]+)<\/timeMode>/);
-      const timeMatch = xml.match(/<localTime>([^<]+)<\/localTime>/);
       if (modeMatch) timeMode = modeMatch[1];
-      if (timeMatch) existingDeviceTime = timeMatch[1];
     }
   } catch {
     // fallback to defaults

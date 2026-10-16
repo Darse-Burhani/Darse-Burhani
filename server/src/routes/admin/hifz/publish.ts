@@ -7,8 +7,6 @@ const router = Router();
 // POST /api/admin/hifz/publish - Publish/unpublish/hide a hifz report
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { reportId, publish, hide } = body;
 

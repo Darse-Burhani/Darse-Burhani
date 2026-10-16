@@ -221,7 +221,6 @@ export function eventRangeForRole(
 }
 
 const MAX_EVENTS = 300;
-const GRACE_MINUTES = 10; // fallback grace period before a scan counts as LATE
 const MOCK_INTERVAL_MS = 4000;
 
 type SseClient = (payload: string) => void;

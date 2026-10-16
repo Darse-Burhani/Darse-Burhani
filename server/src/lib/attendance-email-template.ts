@@ -314,7 +314,7 @@ export function generateAttendanceReportEmailHtml(data: AttendanceReportData): s
                   <td valign="middle" style="width:55%;padding-left:12px;">
                     <div style="display:inline-block;padding:4px 12px;background:${ratingBadgeBg};border:1px solid ${ratingBadgeBorder};border-radius:20px;margin-bottom:8px;">
                       <span style="font-size:12px;font-weight:800;color:${ratingBadgeText};">
-                        ● ${ratingLabel}
+                        ● ${ratingLabel} (${ratingLabelAr})
                       </span>
                     </div>
 

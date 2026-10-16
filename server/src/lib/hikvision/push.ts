@@ -2,7 +2,7 @@ import os from "node:os";
 import prisma from "../prisma";
 import { processBiometricScan, type BiometricEvent } from "../biometric";
 import { authFailureHint, digestFetch } from "./digest";
-import { isAttendanceEvent, BIOMETRIC_PASS_MINORS, BIOMETRIC_VERIFY_MODES, type HikConnection, type HikAcsEvent } from "./isapi";
+import { BIOMETRIC_PASS_MINORS, BIOMETRIC_VERIFY_MODES, type HikConnection } from "./isapi";
 import { toConnection } from ".";
 
 /**
@@ -851,7 +851,6 @@ export async function removeDevicePushUrl(deviceId: string, pushUrl: string): Pr
   const conn = toConnection(device);
   const existing = await getHttpHosts(conn);
   const mine = existing.filter((h) => sameWebhookPath(h.url, pushUrl));
-  const rest = existing.filter((h) => !sameWebhookPath(h.url, pushUrl));
   for (const host of mine) {
     await deleteHttpHost(conn, host.id);
   }

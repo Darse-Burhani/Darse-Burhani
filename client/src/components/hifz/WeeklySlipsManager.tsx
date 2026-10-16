@@ -269,7 +269,7 @@ export default function WeeklySlipsManager() {
   const [weekMode, setWeekMode] = useState<"all" | "week">("week");
   const [selectedMarhala, setSelectedMarhala] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [academicYear, setAcademicYear] = useState(defaultAcademicYear());
+  const [academicYear] = useState(defaultAcademicYear());
   const [editingSlip, setEditingSlip] = useState<any>(null);
   const [publishing, setPublishing] = useState(false);
   const [search, setSearch] = useState("");
@@ -403,7 +403,6 @@ export default function WeeklySlipsManager() {
 
   const submitted = slips.filter((s) => s.status === "SUBMITTED" || s.status === "APPROVED").length;
   const published = slips.filter((s) => s.status === "PUBLISHED").length;
-  const drafts = slips.filter((s) => s.status === "DRAFT").length;
   const avgPerf = slips.length > 0
     ? Math.round(slips.reduce((sum, s) => sum + (s.overallPerformance || 0), 0) / slips.length)
     : 0;

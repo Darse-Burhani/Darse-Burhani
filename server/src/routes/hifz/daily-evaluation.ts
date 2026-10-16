@@ -1,10 +1,8 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
-import { requireAuth, requireRole } from "../../middleware";
+import { requireAuth } from "../../middleware";
 import {
   calculateHifzProgressAndIkhtebaar,
-  MAHAD_IKHTEBAAR_MILESTONES,
-  TOTAL_QURAN_PAGES,
 } from "../../lib/mahad-ikhtebaar";
 
 const router = Router();
@@ -298,7 +296,6 @@ router.get("/overview", requireAuth, async (req, res) => {
 router.get("/student/:studentId", requireAuth, async (req, res) => {
   try {
     const { studentId } = req.params;
-    const academicYear = (req.query.academicYear as string) || "1446-1447";
 
     const student = await prisma.studentProfile.findFirst({
       where: {

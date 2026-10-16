@@ -1,22 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Calendar,
-  Download,
   Share2,
   RefreshCw,
   Search,
-  Filter,
-  Users,
   GraduationCap,
   Briefcase,
-  Sparkles,
-  TrendingUp,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
   FileSpreadsheet,
-  ExternalLink,
-  ChevronRight,
   ShieldCheck,
   Moon,
 } from "lucide-react";
@@ -24,11 +14,9 @@ import {
   getMonthlyAttendanceView,
   syncMonthlyAttendanceSheet,
   MonthlyAttendanceViewResponse,
-  MonthlyAttendanceStudentItem,
-  MonthlyAttendanceFacultyItem,
 } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
-import { getHijriFromDate, HIJRI_1448_MILESTONES } from "@/lib/fatimi-calendar";
+import { getHijriFromDate } from "@/lib/fatimi-calendar";
 
 interface MonthlySheetViewProps {
   initialMonth?: string;

@@ -1,6 +1,4 @@
 import crypto from "node:crypto";
-import prisma from "./prisma";
-import { logAuditEvent } from "./security";
 
 // In-memory store for pending MFA session challenges (expires in 5 minutes)
 interface PendingMfaChallenge {

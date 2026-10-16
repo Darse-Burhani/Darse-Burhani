@@ -43,7 +43,6 @@ interface Props {
 export function ParentNotificationCenter({ childrenList = [], onChildSelect, onRefreshData }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<ParentNotification[]>([]);
-  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"ALL" | "ATTENDANCE" | "HIFZ" | "POINTS" | "ANNOUNCEMENT">("ALL");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
@@ -87,8 +86,6 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
         setNotifications(fetched);
       }
     } catch {
-    } finally {
-      setLoading(false);
     }
   }, []);
 

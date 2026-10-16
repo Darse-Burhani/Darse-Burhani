@@ -29,33 +29,6 @@ import prisma from "./prisma";
 import { eventRangeForRole } from "./biometric";
 
 const SUMMARY_TAB = "Summary";
-const DAILY_HEADER = [
-  "Name",
-  "Role",
-  "ITS / ID",
-  "Grade / Department",
-  "Date",
-  "Check-in (IST)",
-  "Event",
-  "Status",
-  "Source / Reason",
-];
-const SUMMARY_HEADER = [
-  "Date",
-  "Talabat Present",
-  "Talabat Late",
-  "Talabat On Leave",
-  "Talabat Absent",
-  "Talabat Total",
-  "Talabat Rate %",
-  "Faculty Present",
-  "Faculty Late",
-  "Faculty On Leave",
-  "Faculty Absent",
-  "Faculty Total",
-  "Faculty Rate %",
-  "Synced At (IST)",
-];
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -863,7 +836,7 @@ export async function syncDailyAttendanceToSheet(targetDate?: Date): Promise<{
   const data = await buildDailySheetData(targetDate);
   const tab = sheetTitle(data.dateKey);
 
-  const summarySheetId = await ensureTab(sheets, spreadsheetId, SUMMARY_TAB);
+  await ensureTab(sheets, spreadsheetId, SUMMARY_TAB);
   const daySheetId = await ensureTab(sheets, spreadsheetId, tab);
 
   // 1. Clear previous content & write complete bifurcated data matrix
@@ -1377,7 +1350,6 @@ export async function syncMonthlyAttendanceToSheet(targetMonth?: string): Promis
   allValues.push([`👨‍🏫 FACULTY (TEACHERS & STAFF) MONTHLY ATTENDANCE REGISTER — ${teachers.length} Members (${facultyTurnout}% Monthly Turnout)`, "", "", "", "", "", "", "", "", "", "", ""]);
 
   // Faculty Columns Header
-  const facultyHeaderRowIndex = allValues.length;
   allValues.push([
     "Full Name",
     "Employee / ITS",

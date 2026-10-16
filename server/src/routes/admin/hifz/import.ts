@@ -56,8 +56,6 @@ async function findStudentByExactName(studentName: string): Promise<string | nul
 // POST /api/admin/hifz/import - Import students and progress from a Google Sheet
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const session = req.auth!;
-
     // Check if Google Sheets API key is configured
     if (!process.env.GOOGLE_SHEETS_API_KEY) {
       return res.status(500).json({
@@ -352,14 +350,6 @@ async function importToReport(report: any, parsedData: any[]) {
       : pendingAjzaStr.includes("-")
       ? 0
       : parseInt(pendingAjzaStr) || 0;
-
-    // Parse weak ajza count
-    const weakAjzaStr = String(rowData.weakAjza || "").trim();
-    const weakCount = weakAjzaStr.includes(",")
-      ? weakAjzaStr.split(",").filter(Boolean).length
-      : weakAjzaStr.includes("-")
-      ? 0
-      : parseInt(weakAjzaStr) || 0;
 
     // Basic part data that works with existing schema
     const partData: any = {

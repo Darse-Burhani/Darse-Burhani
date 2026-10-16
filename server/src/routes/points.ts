@@ -123,8 +123,6 @@ router.post("/", requireAuth, async (req, res) => {
 // GET /api/points - Get point logs
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const session = req.auth!;
-
     const studentId = req.query.studentId as string;
     const limit = parseInt((req.query.limit as string) || "20");
 
@@ -162,8 +160,6 @@ router.get("/", requireAuth, async (req, res) => {
 // PUT /api/points/undo - Undo a point mutation
 router.put("/", requireAuth, async (req, res) => {
   try {
-    const session = req.auth!;
-
     const body = req.body as Record<string, any>;
     const { pointLogIds } = body;
 

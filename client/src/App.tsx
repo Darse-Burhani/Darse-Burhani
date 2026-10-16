@@ -55,7 +55,6 @@ const AdminProcurement = lazy(() => import("@/app/admin/procurement/page"));
 const AdminLeave = lazy(() => import("@/app/admin/leave/page"));
 const AdminAttendanceLogs = lazy(() => import("@/app/admin/attendance-logs/page"));
 const AdminManualAttendance = lazy(() => import("@/app/admin/manual-attendance/page"));
-const AdminAttendanceRegistry = lazy(() => import("@/app/admin/manual-attendance/page"));
 const AdminSettings = lazy(() => import("@/app/admin/settings/page"));
 
 // ── Talabat (Student) Portal Pages ──
@@ -256,7 +255,7 @@ export default function App() {
           <Route path="attendance" element={<Navigate to="/admin/attendance-logs" replace />} />
           <Route path="attendance-logs" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminAttendanceLogs /></RequireAdminPageAccess>} />
           <Route path="attendance-log" element={<Navigate to="/admin/attendance-logs" replace />} />
-          <Route path="attendance-registry" element={<RequireAdminPageAccess pageKey="manual-attendance"><AdminAttendanceRegistry /></RequireAdminPageAccess>} />
+          <Route path="attendance-registry" element={<RequireAdminPageAccess pageKey="manual-attendance"><AdminManualAttendance /></RequireAdminPageAccess>} />
           <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><AdminLeave /></RequireAdminPageAccess>} />
           <Route path="attendance-schedule" element={<RequireAdminPageAccess pageKey="attendance-schedule"><AdminAttendanceSchedule /></RequireAdminPageAccess>} />
           <Route path="schedule" element={<Navigate to="/admin/attendance-schedule" replace />} />
