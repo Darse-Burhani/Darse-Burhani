@@ -61,9 +61,9 @@ export const portals: PortalConfig[] = [
     description: "Institutional governance, security and records — in one controlled workspace.",
     bullets: ["Admissions & records control", "Staff & timetable oversight", "Audit-ready reporting"],
     icon: Shield,
-    accent: "#047857",
-    accentSoft: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    accentRing: "border-emerald-600 ring-emerald-600/20 bg-emerald-50",
+    accent: "#34d399",
+    accentSoft: "bg-emerald-950/60 text-emerald-300 border-emerald-500/30",
+    accentRing: "border-amber-400 ring-amber-400/30 bg-emerald-900/40",
     placeholder: "admin@darseburhani.edu",
     inputLabel: "Administrator email",
     rolePath: "/admin",
@@ -76,9 +76,9 @@ export const portals: PortalConfig[] = [
     description: "Rosters, live attendance, Hifz progress and daily logbooks for every class.",
     bullets: ["Mark attendance in seconds", "Hifz & sabaq tracking", "Daily logbook & remarks"],
     icon: GraduationCap,
-    accent: "#0284c7",
-    accentSoft: "bg-sky-50 text-sky-800 border-sky-200",
-    accentRing: "border-sky-600 ring-sky-600/20 bg-sky-50",
+    accent: "#38bdf8",
+    accentSoft: "bg-sky-950/60 text-sky-300 border-sky-500/30",
+    accentRing: "border-amber-400 ring-amber-400/30 bg-emerald-900/40",
     placeholder: "faculty@darseburhani.edu",
     inputLabel: "Faculty email",
     rolePath: "/teacher",
@@ -88,12 +88,12 @@ export const portals: PortalConfig[] = [
     label: "Talabat Portal",
     shortLabel: "Talabat",
     badgeLabel: "Talabat system",
-    description: "Daily timetable, Hifz Quran progress, Maktabat book catalog and your attendance ledger.",
-    bullets: ["8-digit ITS quick sign-in", "Timetable & assignments", "Hifz tracking & attendance ledger"],
+    description: "Daily timetable, Hifz Quran progress, Maktabat book catalog and attendance ledger.",
+    bullets: ["8-digit ITS quick sign-in", "Timetable & assignments", "Attendance ledger"],
     icon: BookOpen,
-    accent: "#b45309",
-    accentSoft: "bg-amber-50 text-amber-800 border-amber-200",
-    accentRing: "border-amber-600 ring-amber-600/20 bg-amber-50",
+    accent: "#f59e0b",
+    accentSoft: "bg-amber-950/60 text-amber-300 border-amber-500/30",
+    accentRing: "border-amber-400 ring-amber-400/30 bg-emerald-900/40",
     placeholder: "8-digit ITS or student email",
     inputLabel: "ITS number or student email",
     rolePath: "/talabat",
@@ -106,9 +106,9 @@ export const portals: PortalConfig[] = [
     description: "Follow academic reports, request leave and receive official notices.",
     bullets: ["Progress & attendance reports", "Leave requests", "Notices & circulars"],
     icon: Users,
-    accent: "#7c3aed",
-    accentSoft: "bg-violet-50 text-violet-800 border-violet-200",
-    accentRing: "border-violet-600 ring-violet-600/20 bg-violet-50",
+    accent: "#c084fc",
+    accentSoft: "bg-violet-950/60 text-violet-300 border-violet-500/30",
+    accentRing: "border-amber-400 ring-amber-400/30 bg-emerald-900/40",
     placeholder: "parent@darseburhani.edu",
     inputLabel: "Registered parent email",
     rolePath: "/parent",
@@ -493,179 +493,159 @@ export default function LoginPage() {
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      <main className="relative min-h-[100dvh] w-full flex items-center justify-center px-4 py-8 sm:px-6 sm:py-10 bg-[#f4f6f5] overflow-hidden">
-        {/* Professional backdrop: soft gradient + geometric pattern + glows */}
+      <main className="relative h-[100dvh] max-h-[100dvh] w-full flex flex-col justify-between items-center px-3 py-2 sm:px-6 sm:py-5 bg-[#021610] text-slate-100 overflow-hidden select-none">
+        {/* 60% EYE-SMOOTHING FATIMI CANVAS: Deep Emerald Sanctuary + Sacred Geometry + Ambient Glows */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(900px 480px at 15% 10%, rgba(4,120,87,0.12) 0%, transparent 60%), radial-gradient(800px 460px at 90% 90%, rgba(180,83,9,0.10) 0%, transparent 60%), linear-gradient(180deg, #f8faf9 0%, #eef2f0 100%)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.5]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(4,78,59,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(4,78,59,0.055) 1px, transparent 1px)",
-            backgroundSize: "36px 36px",
-            maskImage: "radial-gradient(ellipse 75% 70% at 50% 40%, black 30%, transparent 78%)",
-            WebkitMaskImage: "radial-gradient(ellipse 75% 70% at 50% 40%, black 30%, transparent 78%)",
+              "radial-gradient(1100px 580px at 50% -5%, rgba(5, 150, 105, 0.28) 0%, transparent 65%), radial-gradient(900px 520px at 50% 105%, rgba(212, 175, 55, 0.16) 0%, transparent 60%), linear-gradient(180deg, #021a13 0%, #03251b 50%, #01130d 100%)",
           }}
         />
 
-        <div className="relative z-10 w-full max-w-[1040px]">
-          {/* Top trust bar */}
-          <div className="mb-4 flex items-center justify-center gap-2 text-[12px] font-medium text-slate-500">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-1 shadow-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
+        {/* Subtle Fatimi 8-point geometric star & arabesque lattice watermark */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.055]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L37 15L52 8L45 23L60 30L45 37L52 52L37 45L30 60L23 45L8 52L15 37L0 30L15 23L8 8L23 15Z' fill='%23fef08a' fill-opacity='0.6' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+            backgroundSize: "44px 44px",
+            maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 85%)",
+            WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 85%)",
+          }}
+        />
+
+        {/* TOP BRAND BAR (Responsive: Mobile compact, Desktop expanded) */}
+        <header className="relative z-10 w-full max-w-4xl flex items-center justify-between gap-3 px-1 sm:px-2 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div
+              className="relative flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl p-1 shadow-md ring-1 ring-amber-400/40"
+              style={{
+                background: "radial-gradient(circle at 35% 30%, #065f46 0%, #022c22 75%, #01140e 100%)",
+              }}
+            >
+              {!logoFailed ? (
+                <img
+                  src="/logo.png"
+                  alt="Darse Burhani"
+                  onError={() => setLogoFailed(true)}
+                  className="h-full w-full object-contain filter brightness-110 drop-shadow-[0_1px_4px_rgba(212,175,55,0.7)]"
+                  draggable={false}
+                />
+              ) : (
+                <span className="font-serif text-xs font-bold text-amber-300">DB</span>
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="font-serif text-[15px] sm:text-[17px] font-extrabold tracking-tight text-white leading-tight flex items-center gap-1.5">
+                Darse Burhani
+                <span className="text-[12px] sm:text-[13px] font-bold text-amber-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]">
+                  (Nisab)
+                </span>
               </span>
-              System operational
-              <span className="font-mono font-bold text-emerald-700">{serverPing}</span>
+              <span className="text-[9.5px] sm:text-[10.5px] font-semibold tracking-wider uppercase text-emerald-200/60">
+                Mahad al Zahra
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] sm:text-[12px] font-medium text-emerald-100/80">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-[#03231a]/70 px-2.5 py-0.5 sm:py-1 backdrop-blur-md shadow-xs">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-emerald-200 font-semibold">Live</span>
+              <span className="font-mono text-[10px] text-amber-300/90 font-bold">{serverPing}</span>
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 shadow-sm">
-              <Calendar size={13} className="text-slate-400" />
+            <span className="hidden md:inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-[#03231a]/60 px-2.5 py-1 text-emerald-200/70">
+              <Calendar size={11} className="text-amber-300" />
               {dateStr}
             </span>
           </div>
+        </header>
 
-          {/* Card */}
-          <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_-20px_rgba(2,44,34,0.35)] grid grid-cols-1 lg:grid-cols-[1fr_1.08fr]">
-            {/* ── LEFT: Brand panel ── */}
-            <div className="relative flex flex-col justify-between gap-8 overflow-hidden bg-[#062e23] p-7 sm:p-9 text-white">
+        {/* CENTER CARD (Zero-Scroll Mobile Fit + Desktop 2-Column Luxury) */}
+        <div className="relative z-10 w-full max-w-md lg:max-w-4xl my-auto flex-1 flex flex-col justify-center py-1 sm:py-3">
+          <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-emerald-500/25 bg-[#03231a]/90 sm:bg-[#03231a]/85 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] grid grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
+            {/* ── DESKTOP BRAND SHOWCASE (30% Structure & 10% Highlight) ── */}
+            <div className="hidden lg:flex relative flex-col justify-between gap-6 overflow-hidden bg-gradient-to-b from-[#042f24]/90 via-[#03261d]/90 to-[#021812]/95 p-8 text-white border-r border-emerald-500/20">
               <div
                 aria-hidden
                 className="absolute inset-0"
                 style={{
                   background:
-                    "radial-gradient(520px 320px at 20% 0%, rgba(52,211,153,0.28) 0%, transparent 60%), radial-gradient(560px 380px at 100% 100%, rgba(212,175,55,0.22) 0%, transparent 55%), linear-gradient(160deg, #0a3d2e 0%, #062e23 55%, #041f18 100%)",
-                }}
-              />
-              <div
-                aria-hidden
-                className="absolute inset-0 opacity-[0.14]"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-                  backgroundSize: "30px 30px",
-                  maskImage: "radial-gradient(ellipse 80% 70% at 30% 20%, black 20%, transparent 75%)",
-                  WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 30% 20%, black 20%, transparent 75%)",
+                    "radial-gradient(420px 280px at 20% 0%, rgba(52,211,153,0.2) 0%, transparent 60%), radial-gradient(400px 300px at 100% 100%, rgba(212,175,55,0.18) 0%, transparent 55%)",
                 }}
               />
 
-              <div className="relative">
-                {/* ENLARGED LOGO & BRAND HEADER */}
-                <div
-                  className="inline-flex items-center rounded-2xl p-3 pr-6 shadow-[0_16px_40px_rgba(0,0,0,0.45)] ring-1 ring-amber-400/40 backdrop-blur-xl transition-transform duration-200 hover:scale-[1.02]"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, rgba(2,44,34,0.85) 0%, rgba(6,78,59,0.75) 50%, rgba(1,26,20,0.9) 100%)",
-                    border: "1px solid rgba(254,240,138,0.3)",
-                  }}
-                >
-                  <div
-                    className="relative flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl p-2 shadow-md ring-1 ring-amber-400/50"
-                    style={{
-                      background:
-                        "radial-gradient(circle at 35% 30%, #065f46 0%, #022c22 70%, #01140e 100%)",
-                      boxShadow: "inset 0 1px 2px rgba(254,240,138,0.5), 0 4px 12px rgba(0,0,0,0.4)",
-                    }}
-                  >
-                    {!logoFailed ? (
-                      <img
-                        src="/logo.png"
-                        alt="Darse Burhani logo"
-                        onError={() => setLogoFailed(true)}
-                        className="h-full w-full object-contain filter brightness-[1.08] drop-shadow-[0_2px_8px_rgba(212,175,55,0.6)]"
-                        draggable={false}
-                        loading="eager"
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center rounded-xl bg-emerald-900 text-3xl font-serif font-extrabold text-amber-300">
-                        DB
-                      </span>
-                    )}
-                  </div>
-                  <div className="ml-4 flex flex-col justify-center">
-                    <span className="font-serif text-[26px] sm:text-[32px] font-extrabold tracking-tight text-white leading-none drop-shadow-sm">
-                      Darse Burhani <span className="text-amber-400 text-[22px] sm:text-[26px] font-bold">(Nisab)</span>
-                    </span>
-                    <span className="mt-2 text-[12px] sm:text-[13px] font-extrabold uppercase tracking-[0.2em] text-amber-300/90 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fde047]" />
-                      Mahad al Zahra
-                    </span>
-                  </div>
+              <div className="relative space-y-5">
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3.5 py-1 text-[11.5px] font-extrabold uppercase tracking-widest text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                  <PortalIcon size={14} className="text-amber-300" />
+                  <span>Gateway: {portal.badgeLabel}</span>
                 </div>
 
-                {/* Highlighted Portal Badge on Left Panel */}
-                <div className="mt-7 flex items-center gap-2">
-                  <span
-                    className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12px] font-extrabold uppercase tracking-[0.14em] shadow-sm backdrop-blur-md"
-                    style={{ borderColor: "rgba(253,230,138,0.4)", background: "rgba(212,175,55,0.18)", color: "#fef08a" }}
-                  >
-                    <PortalIcon size={14} className="text-amber-300" />
-                    <span>Active: {portal.badgeLabel}</span>
-                  </span>
+                <div>
+                  <h1 className="font-serif text-[30px] font-extrabold leading-tight text-white drop-shadow-sm">
+                    {portal.label}
+                  </h1>
+                  <p className="mt-2 text-[14px] leading-relaxed text-emerald-100/80 font-normal">
+                    {portal.description}
+                  </p>
                 </div>
 
-                <h1 className="mt-3 font-serif text-[28px] sm:text-[36px] font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-sm">
-                  {portal.label}
-                </h1>
-                <p className="mt-2 max-w-[38ch] text-[14.5px] leading-relaxed text-emerald-50/90 font-medium">
-                  {portal.description}
-                </p>
-
-                <ul className="mt-5 space-y-2.5">
-                  {portal.bullets.map((b) => (
-                    <li key={b} className="flex items-center gap-2.5 text-[13.5px] font-semibold text-emerald-50">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-400/40 shrink-0">
-                        <Check size={14} className="text-amber-300 font-bold" />
+                <ul className="space-y-2.5 pt-1">
+                  {portal.bullets.map((bullet) => (
+                    <li key={bullet} className="flex items-center gap-2.5 text-[13px] font-medium text-emerald-50/90">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 ring-1 ring-amber-400/50 text-amber-300 shrink-0">
+                        <Check size={12} className="stroke-[3]" />
                       </span>
-                      {b}
+                      <span>{bullet}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="relative">
-                <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-sm">
-                  <div className="flex items-center justify-between text-[12px]">
-                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-100/90">
-                      <LockKeyhole size={14} className="text-emerald-300" />
-                      Secure institutional sign-in
+              <div className="relative pt-4">
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-950/40 p-3.5 backdrop-blur-sm space-y-1.5">
+                  <div className="flex items-center justify-between text-[11.5px]">
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-200">
+                      <LockKeyhole size={13} className="text-amber-300" />
+                      256-bit TLS Institutional Encryption
                     </span>
-                    <span className="font-mono text-emerald-200/80">256-bit TLS</span>
+                    <span className="font-mono text-amber-300/80 font-bold">Secure</span>
                   </div>
-                  <div className="mt-2.5 flex items-center gap-2 text-[12px] text-emerald-50/70">
-                    <BadgeCheck size={14} className="shrink-0 text-amber-300" />
-                    Session valid for 2 hours. Contact the administration desk for password recovery.
-                  </div>
+                  <p className="text-[11px] text-emerald-200/60 leading-tight">
+                    Authorized entry only. Session automatically refreshes every 2 hours.
+                  </p>
                 </div>
-                <p className="mt-4 text-[12px] text-emerald-50/50">© 2026 Darse Burhani (Nisab) · Mahad al Zahra</p>
               </div>
             </div>
 
-            {/* ── RIGHT: Form panel ── */}
-            <div className="flex flex-col bg-white p-6 sm:p-9">
-              <div>
-                <h2 className="font-serif text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
-                  Welcome back
-                </h2>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <p className="text-[13.5px] text-slate-600 font-medium">
-                    Select your portal to continue:
+            {/* ── RIGHT FORM PANEL (Mobile Zero-Scroll Optimized) ── */}
+            <div className="flex flex-col justify-center p-3.5 sm:p-7 sm:py-6">
+              {/* Form title on mobile/desktop */}
+              <div className="flex items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-emerald-500/15">
+                <div>
+                  <h2 className="font-serif text-[17px] sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+                    Sign In
+                    <span className="text-[13px] sm:text-[14px] font-bold text-amber-300">
+                      · {portal.shortLabel}
+                    </span>
+                  </h2>
+                  <p className="text-[11px] sm:text-[12px] text-emerald-100/70 font-medium">
+                    Choose your portal and enter credentials
                   </p>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                    {portal.shortLabel} Selected
-                  </span>
                 </div>
+                {/* 10% Highlight: Active portal indicator */}
+                <span className="shrink-0 text-[10.5px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-400/15 px-2.5 py-1 rounded-full border border-amber-400/40 shadow-[0_0_8px_rgba(245,158,11,0.25)]">
+                  {portal.shortLabel}
+                </span>
               </div>
 
-              {/* Role selector with high-visibility highlighted text and active glow */}
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Select portal">
+              {/* 4-Role Segmented Selector (Mobile Compact Grid) */}
+              <div className="mt-2.5 sm:mt-3 grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#01140e]/90 border border-emerald-500/25" role="tablist" aria-label="Select portal">
                 {portals.map((p) => {
                   const active = p.role === selectedRole;
                   const Icon = p.icon;
@@ -676,66 +656,70 @@ export default function LoginPage() {
                       role="tab"
                       aria-selected={active}
                       onClick={() => handlePortalChange(p.role)}
-                      className={`relative flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl border px-3 py-3 text-[13px] font-extrabold tracking-wide transition-all duration-200 active:scale-[0.97] cursor-pointer ${
+                      className={`relative flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none active:scale-95 ${
                         active
-                          ? `${p.accentRing} ring-2 shadow-md text-slate-900 font-black`
-                          : "border-slate-200 bg-slate-50/70 text-slate-600 hover:border-slate-300 hover:bg-slate-100/80 hover:text-slate-900"
+                          ? "bg-gradient-to-b from-amber-400/25 to-amber-500/15 border border-amber-400/80 ring-1 ring-amber-400/40 shadow-[0_0_12px_rgba(245,158,11,0.3)] text-amber-300 font-black"
+                          : "text-emerald-100/70 hover:text-white hover:bg-emerald-900/30 border border-transparent font-medium"
                       }`}
                     >
                       <Icon
-                        size={17}
-                        className={active ? "scale-110 transition-transform" : "opacity-75"}
-                        style={{ color: active ? p.accent : undefined }}
+                        size={15}
+                        className={active ? "text-amber-300 scale-110 drop-shadow-[0_0_4px_rgba(245,158,11,0.6)]" : "text-emerald-300/60"}
                       />
-                      <span className={active ? "text-slate-950 font-black" : "text-slate-700"}>
+                      <span className={`text-[10.5px] sm:text-[11.5px] tracking-tight mt-0.5 truncate w-full ${active ? "text-amber-200 font-extrabold" : "text-emerald-100/70"}`}>
                         {p.shortLabel}
                       </span>
                       {active && (
-                        <span
-                          className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600 text-[9px] text-white shadow-xs ring-2 ring-white font-bold"
-                        >
-                          ✓
-                        </span>
+                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-amber-400 shadow-xs" />
                       )}
                     </button>
                   );
                 })}
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              {/* Form Body */}
+              <form onSubmit={handleSubmit} className="mt-2.5 sm:mt-3.5 space-y-2 sm:space-y-3">
+                {/* Error Banner */}
                 {error && (
                   <div
                     role="alert"
-                    className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-[13px] font-medium leading-snug text-red-800"
+                    className="flex items-center gap-2 rounded-lg border border-red-400/40 bg-red-950/70 px-3 py-1.5 text-[11.5px] font-semibold text-red-200 animate-in fade-in"
                   >
-                    <AlertTriangle size={17} className="mt-0.5 shrink-0 text-red-500" />
-                    <span>{error}</span>
+                    <AlertTriangle size={14} className="shrink-0 text-red-400" />
+                    <span className="truncate">{error}</span>
                   </div>
                 )}
 
+                {/* Email / ITS Input */}
                 <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <label htmlFor="login-email" className="text-[13px] font-bold text-slate-700">
+                  <div className="mb-1 flex items-center justify-between">
+                    <label htmlFor="login-email" className="text-[11.5px] sm:text-[12px] font-bold text-emerald-100/90">
                       {portal.inputLabel}
                     </label>
                     {portal.role === "STUDENT" && (
                       <button
                         type="button"
                         onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-800 transition hover:bg-amber-100 active:scale-95"
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10.5px] font-extrabold text-amber-300 shadow-xs hover:bg-amber-400/25 active:scale-95 transition"
                       >
-                        <QrCode size={12} />
+                        <QrCode size={11} className="text-amber-300" />
                         Scan ITS card
                       </button>
                     )}
                   </div>
                   <div
-                    className={`flex h-[52px] items-center rounded-xl border bg-white px-4 transition focus-within:ring-4 ${
-                      error ? "border-red-300 focus-within:border-red-400 focus-within:ring-red-100" : "border-slate-300 focus-within:border-emerald-600 focus-within:ring-emerald-100"
+                    className={`flex h-[42px] sm:h-[48px] items-center rounded-xl border bg-[#01140e]/95 px-3 transition focus-within:ring-2 ${
+                      error
+                        ? "border-red-400/80 focus-within:border-red-400 focus-within:ring-red-400/20"
+                        : "border-emerald-500/30 focus-within:border-amber-400 focus-within:ring-amber-400/30"
                     }`}
                   >
-                    <span className="mr-3 text-slate-400">
-                      {portal.role === "STUDENT" ? <Fingerprint size={19} className="text-amber-600" /> : <Mail size={18} />}
+                    <span className="mr-2.5 text-emerald-300/60">
+                      {portal.role === "STUDENT" ? (
+                        <Fingerprint size={17} className="text-amber-400" />
+                      ) : (
+                        <Mail size={16} />
+                      )}
                     </span>
                     <input
                       id="login-email"
@@ -753,42 +737,34 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder={portal.placeholder}
-                      className="w-full bg-transparent text-[15px] font-medium text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
+                      className="w-full bg-transparent text-[13.5px] sm:text-[14.5px] font-medium text-white placeholder:font-normal placeholder:text-emerald-100/35 focus:outline-none"
                     />
                     {portal.role === "STUDENT" && isEightDigitIts && (
-                      <CheckCircle2 size={18} className="ml-2 shrink-0 text-emerald-600" />
+                      <CheckCircle2 size={16} className="ml-1.5 shrink-0 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.6)]" />
                     )}
                   </div>
-                  {portal.role === "STUDENT" && email.length > 0 && (
-                    <p className="mt-1.5 px-1 text-[12px] font-medium">
-                      {isEightDigitIts ? (
-                        <span className="text-emerald-700">Valid 8-digit ITS format detected.</span>
-                      ) : isEmail ? (
-                        <span className="text-emerald-700">Student email address detected.</span>
-                      ) : (
-                        <span className="text-slate-400">Enter 8 digits or a valid email address.</span>
-                      )}
-                    </p>
-                  )}
                 </div>
 
+                {/* Password Input */}
                 <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <label htmlFor="login-password" className="text-[13px] font-bold text-slate-700">
+                  <div className="mb-1 flex items-center justify-between">
+                    <label htmlFor="login-password" className="text-[11.5px] sm:text-[12px] font-bold text-emerald-100/90">
                       Password
                     </label>
                     {capsLockOn && (
-                      <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-700">
-                        <AlertTriangle size={12} /> Caps Lock on
+                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-300">
+                        <AlertTriangle size={11} /> Caps Lock on
                       </span>
                     )}
                   </div>
                   <div
-                    className={`flex h-[52px] items-center rounded-xl border bg-white px-4 transition focus-within:ring-4 ${
-                      error ? "border-red-300 focus-within:border-red-400 focus-within:ring-red-100" : "border-slate-300 focus-within:border-emerald-600 focus-within:ring-emerald-100"
+                    className={`flex h-[42px] sm:h-[48px] items-center rounded-xl border bg-[#01140e]/95 px-3 transition focus-within:ring-2 ${
+                      error
+                        ? "border-red-400/80 focus-within:border-red-400 focus-within:ring-red-400/20"
+                        : "border-emerald-500/30 focus-within:border-amber-400 focus-within:ring-amber-400/30"
                     }`}
                   >
-                    <Lock size={18} className="mr-3 shrink-0 text-slate-400" />
+                    <Lock size={16} className="mr-2.5 shrink-0 text-emerald-300/60" />
                     <input
                       id="login-password"
                       name="password"
@@ -805,124 +781,131 @@ export default function LoginPage() {
                         setPassword(e.target.value);
                         if (error) setError("");
                       }}
-                      placeholder="Enter your password"
-                      className="w-full bg-transparent text-[15px] font-medium tracking-wide text-slate-900 placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none"
+                      placeholder="Enter password"
+                      className="w-full bg-transparent text-[13.5px] sm:text-[14.5px] font-medium tracking-wide text-white placeholder:font-normal placeholder:tracking-normal placeholder:text-emerald-100/35 focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      className="rounded-lg p-1 text-emerald-300/60 hover:text-amber-300 transition"
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
+                {/* Options Row: Keep signed in & Forgot password */}
                 <div className="flex items-center justify-between pt-0.5">
-                  <label className="flex cursor-pointer items-center gap-2.5 select-none">
+                  <label className="flex cursor-pointer items-center gap-2 select-none">
                     <button
                       type="button"
                       role="switch"
                       aria-checked={rememberMe}
                       onClick={() => setRememberMe(!rememberMe)}
-                      className={`relative h-[22px] w-[38px] rounded-full transition-colors ${rememberMe ? "bg-emerald-700" : "bg-slate-300"}`}
+                      className={`relative h-[18px] w-[32px] rounded-full transition-colors ${rememberMe ? "bg-amber-400" : "bg-emerald-950 border border-emerald-500/30"}`}
                     >
                       <span
-                        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow transition-all ${rememberMe ? "left-[20px]" : "left-[3px]"}`}
+                        className={`absolute top-[2px] h-3.5 w-3.5 rounded-full bg-white shadow transition-all ${rememberMe ? "left-[16px] bg-slate-950" : "left-[2px]"}`}
                       />
                     </button>
-                    <span className="text-[13px] font-medium text-slate-600">Keep me signed in</span>
+                    <span className="text-[11.5px] font-medium text-emerald-100/80">Keep signed in</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="text-[13px] font-bold text-emerald-800 underline-offset-4 hover:underline"
+                    className="text-[11.5px] font-bold text-amber-300 hover:text-amber-200 transition underline-offset-2 hover:underline"
                   >
                     Forgot password?
                   </button>
                 </div>
 
-                {/* ── HIGHLY PROMINENT INSTANT LOGIN BUTTON ── */}
-                <div className="pt-2">
+                {/* 10% HIGH-IMPACT HIGHLIGHT: Radiant Fatimi Gold CTA Submit Button */}
+                <div className="pt-1 sm:pt-2">
                   <button
                     type="submit"
                     disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                    className="group relative flex h-[58px] sm:h-[62px] w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-700 text-white shadow-[0_16px_36px_-6px_rgba(4,120,87,0.55),0_6px_16px_rgba(0,0,0,0.15)] ring-2 ring-amber-400/60 hover:ring-amber-400 transition-all duration-300 hover:from-emerald-700 hover:via-emerald-500 hover:to-teal-600 hover:shadow-[0_20px_42px_-6px_rgba(4,120,87,0.7)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer select-none"
+                    className="group relative flex h-[46px] sm:h-[52px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 font-black text-[14.5px] sm:text-[15.5px] tracking-tight shadow-[0_8px_24px_-4px_rgba(245,158,11,0.5),0_0_0_1px_rgba(254,240,138,0.7)] hover:from-amber-300 hover:via-amber-200 hover:to-amber-400 hover:shadow-[0_12px_28px_-4px_rgba(245,158,11,0.65)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer select-none transition-all duration-200"
                   >
-                    {/* Continuous animated shimmer beam */}
-                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+                    {/* Animated gold light beam shimmer */}
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
 
                     {isLoading ? (
-                      <span className="flex items-center gap-2.5 text-base sm:text-lg font-bold tracking-tight">
-                        <Loader2 size={22} className="animate-spin text-amber-300" />
+                      <span className="flex items-center gap-2 font-bold text-[14px]">
+                        <Loader2 size={18} className="animate-spin text-slate-950" />
                         Verifying credentials…
                       </span>
                     ) : isSuccess ? (
-                      <span className="flex items-center gap-2.5 text-base sm:text-lg font-bold tracking-tight text-emerald-100">
-                        <Check size={22} className="text-amber-300" />
-                        Signing you in…
+                      <span className="flex items-center gap-2 font-bold text-[14px] text-slate-950">
+                        <Check size={18} className="stroke-[3]" />
+                        Signing in…
                       </span>
                     ) : lockoutSeconds > 0 ? (
-                      <span className="text-base font-bold text-amber-200">
-                        Locked — try again in {lockoutSeconds}s
+                      <span className="font-bold text-[13px] text-red-950">
+                        Locked ({lockoutSeconds}s)
                       </span>
                     ) : (
-                      <span className="flex items-center gap-2.5 text-[16px] sm:text-[17px] font-extrabold tracking-tight drop-shadow-sm">
-                        <span>Sign In to {portal.label}</span>
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white shadow-xs transition-transform duration-200 group-hover:translate-x-1 group-hover:bg-white/30">
-                          <ArrowRight size={18} className="text-amber-200" />
+                      <span className="flex items-center gap-2">
+                        <span>Sign In to {portal.shortLabel}</span>
+                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/15 text-slate-950 transition-transform duration-200 group-hover:translate-x-1">
+                          <ArrowRight size={14} className="stroke-[3]" />
                         </div>
                       </span>
                     )}
                   </button>
                 </div>
 
-                <p className="text-center text-[12px] font-medium text-slate-500 pt-1">
-                  🔒 256-bit Encrypted Institutional Session · Auto-expires after 2 hours
+                {/* Compact Institutional Encryption Footnote inside Card */}
+                <p className="text-center text-[10.5px] font-medium text-emerald-200/50 pt-1 flex items-center justify-center gap-1.5">
+                  <LockKeyhole size={11} className="text-amber-300/80" />
+                  <span>256-bit Encrypted Session · Mahad al Zahra</span>
                 </p>
-
               </form>
             </div>
           </div>
-
-          <InstitutionalFooter variant="minimal" className="mt-6 rounded-2xl bg-white/80 shadow-2xs border border-slate-200/80" />
         </div>
+
+        {/* BOTTOM FOOTNOTE (Hidden on mobile to guarantee zero scroll, shown on desktop) */}
+        <footer className="relative z-10 w-full max-w-4xl shrink-0 text-center py-1 hidden sm:block">
+          <p className="text-[11px] text-emerald-100/50">
+            © 2026 Darse Burhani (Nisab) · Mahad al Zahra · Authorized Academic Access Only
+          </p>
+        </footer>
       </main>
 
       {/* ── Scanner modal ── */}
       <AnimatePresence>
         {showScannerModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="w-full max-w-md space-y-4 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 text-slate-900 shadow-2xl"
+              className="w-full max-w-md space-y-4 rounded-3xl border border-amber-400/40 bg-[#03231a] p-5 sm:p-6 text-white shadow-2xl backdrop-blur-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
                     <ScanLine size={19} />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-extrabold">ITS card scanner</h3>
-                    <p className="text-[12px] text-slate-500">Talabat student gateway</p>
+                    <h3 className="text-[15px] font-extrabold text-white">ITS card scanner</h3>
+                    <p className="text-[12px] text-emerald-200/70">Talabat student gateway</p>
                   </div>
                 </div>
-                <button type="button" onClick={handleCloseScanner} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <button type="button" onClick={handleCloseScanner} className="rounded-lg p-1.5 text-emerald-200/70 hover:bg-emerald-900/40 hover:text-white">
                   <X size={19} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 text-[13px] font-bold">
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-emerald-500/25 bg-[#01140e] p-1 text-[13px] font-bold">
                 <button
                   type="button"
                   onClick={() => {
                     setScannerMode("camera");
                     startCameraStream(cameraFacing);
                   }}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition ${scannerMode === "camera" ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition ${scannerMode === "camera" ? "bg-amber-400 text-slate-950 font-black shadow-sm" : "text-emerald-100/70 hover:text-white"}`}
                 >
                   <Camera size={15} /> Live camera
                 </button>
@@ -932,14 +915,14 @@ export default function LoginPage() {
                     setScannerMode("upload");
                     stopCameraStream();
                   }}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition ${scannerMode === "upload" ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition ${scannerMode === "upload" ? "bg-amber-400 text-slate-950 font-black shadow-sm" : "text-emerald-100/70 hover:text-white"}`}
                 >
                   <Upload size={15} /> Upload image
                 </button>
               </div>
 
               {scannerMode === "camera" ? (
-                <div className="relative flex h-60 items-center justify-center overflow-hidden rounded-2xl border border-slate-900 bg-slate-950 sm:h-64">
+                <div className="relative flex h-60 items-center justify-center overflow-hidden rounded-2xl border border-emerald-500/30 bg-black sm:h-64">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -966,11 +949,11 @@ export default function LoginPage() {
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-emerald-950/95 text-emerald-400"
+                      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-emerald-950/95 text-emerald-300"
                     >
-                      <CheckCircle2 size={40} />
-                      <span className="text-[12px] font-bold uppercase tracking-wider">ITS verified</span>
-                      <span className="rounded-xl border border-emerald-500/40 bg-emerald-950 px-4 py-1.5 font-mono text-xl font-extrabold tracking-widest text-white">
+                      <CheckCircle2 size={40} className="text-amber-300" />
+                      <span className="text-[12px] font-bold uppercase tracking-wider text-amber-200">ITS verified</span>
+                      <span className="rounded-xl border border-amber-400/40 bg-emerald-950 px-4 py-1.5 font-mono text-xl font-extrabold tracking-widest text-amber-300">
                         {scannedItsResult}
                       </span>
                     </motion.div>
@@ -999,27 +982,27 @@ export default function LoginPage() {
               ) : (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="group flex h-60 cursor-pointer flex-col items-center justify-center space-y-3 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-emerald-500 hover:bg-emerald-50/50 sm:h-64"
+                  className="group flex h-60 cursor-pointer flex-col items-center justify-center space-y-3 rounded-2xl border-2 border-dashed border-emerald-500/30 bg-[#01140e] p-6 text-center transition hover:border-amber-400/60 hover:bg-[#021c14] sm:h-64"
                 >
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 transition group-hover:scale-110">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 transition group-hover:scale-110">
                     <Upload size={24} />
                   </div>
                   <div>
-                    <p className="text-[13px] font-bold">Select ITS card photo</p>
-                    <p className="mt-1 text-[12px] text-slate-500">Automatic barcode and digit recognition</p>
+                    <p className="text-[13px] font-bold text-white">Select ITS card photo</p>
+                    <p className="mt-1 text-[12px] text-emerald-200/60">Automatic barcode and digit recognition</p>
                   </div>
                 </div>
               )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[12px]">
-                  <span className="truncate font-medium text-slate-600">{scannerStatus}</span>
-                  <span className="ml-2 shrink-0 font-mono font-bold text-emerald-700">{scanConfidence}%</span>
+                  <span className="truncate font-medium text-emerald-200/80">{scannerStatus}</span>
+                  <span className="ml-2 shrink-0 font-mono font-bold text-amber-300">{scanConfidence}%</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-1.5 overflow-hidden rounded-full bg-emerald-950">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-300"
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-300 transition-all duration-300"
                     style={{ width: `${scanConfidence}%` }}
                   />
                 </div>
@@ -1032,51 +1015,51 @@ export default function LoginPage() {
       {/* ── Forgot password modal ── */}
       <AnimatePresence>
         {showForgotModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              className="w-full max-w-md space-y-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl"
+              className="w-full max-w-md space-y-4 rounded-3xl border border-amber-400/40 bg-[#03231a] p-6 text-white shadow-2xl backdrop-blur-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
                     <HelpCircle size={20} />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-extrabold">Password recovery</h3>
-                    <p className="text-[12px] text-slate-500">Institutional assistance</p>
+                    <h3 className="text-[15px] font-extrabold text-white">Password recovery</h3>
+                    <p className="text-[12px] text-emerald-200/70">Institutional assistance</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(false)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="rounded-lg p-1.5 text-emerald-200/70 hover:bg-emerald-900/40 hover:text-white"
                 >
                   <X size={19} />
                 </button>
               </div>
-              <div className="space-y-3 text-[13.5px] text-slate-600">
+              <div className="space-y-3 text-[13.5px] text-emerald-100/80">
                 <p>Credentials can be reset through the administration desk or your designated coordinator.</p>
-                <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-                  <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800">
-                    <Building2 size={16} className="text-emerald-700" />
+                <div className="space-y-2 rounded-2xl border border-emerald-500/25 bg-[#01140e] p-3.5">
+                  <div className="flex items-center gap-2 text-[13px] font-semibold text-white">
+                    <Building2 size={16} className="text-amber-400" />
                     Darse Burhani administration desk
                   </div>
-                  <div className="flex items-center gap-2 font-mono text-[13px] text-slate-700">
-                    <Mail size={16} className="text-amber-600" />
+                  <div className="flex items-center gap-2 font-mono text-[13px] text-amber-300">
+                    <Mail size={16} className="text-amber-400" />
                     admin@darseburhani.edu
                   </div>
                 </div>
-                <p className="text-[12.5px] text-slate-500">
+                <p className="text-[12.5px] text-emerald-200/60">
                   Talabat students may also contact their class Murabbi directly for verification.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowForgotModal(false)}
-                className="w-full rounded-xl bg-[#064e3b] py-2.5 text-[14px] font-bold text-white transition hover:bg-[#053f30]"
+                className="w-full rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 py-2.5 text-[14px] font-bold text-slate-950 transition hover:brightness-110"
               >
                 Close
               </button>
