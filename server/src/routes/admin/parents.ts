@@ -351,7 +351,33 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
     });
   } catch (error: any) {
     console.error("Parent delete error:", error);
-    return res.status(500).json({ success: false, error: error?.message || "Failed to delete parent" });
+    const status = error?.message?.includes("Master system administrator") ? 403 : 400;
+    return res.status(status).json({ success: false, error: error?.message || "Failed to delete parent" });
+  }
+});
+
+// DELETE /api/admin/parents/:id
+router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: "Parent identifier is required" });
+    }
+    const result = await completelyDeleteUser(id);
+
+    cache.invalidateTag("user");
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("dashboard");
+
+    return res.json({
+      success: true,
+      message: "Parent profile completely purged from database.",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Parent delete error:", error);
+    const status = error?.message?.includes("Master system administrator") ? 403 : 400;
+    return res.status(status).json({ success: false, error: error?.message || "Failed to delete parent" });
   }
 });
 

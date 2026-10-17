@@ -511,7 +511,7 @@ router.post("/clear-avatars", requireRole("ADMIN"), async (req, res) => {
 
 router.delete("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const id = (req.query.id as string) || (req.body?.id as string);
+    const id = (req.query.id as string) || (req.query.userId as string) || (req.body?.id as string) || (req.body?.userId as string);
 
     if (!id) {
       return res.status(400).json({ success: false, error: "User ID required" });
@@ -519,7 +519,11 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
 
     const result = await completelyDeleteUser(id);
     cache.invalidateTag("user");
+    cache.invalidateTag("studentprofile");
+    cache.invalidateTag("teacherprofile");
+    cache.invalidateTag("parentprofile");
     cache.invalidateTag("dashboard");
+    cache.invalidateTag("stats");
     return res.json({
       success: true,
       message: "User profile completely purged from database and biometric terminals.",
@@ -527,7 +531,8 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
     });
   } catch (error: any) {
     console.error("User complete delete error:", error);
-    return res.status(500).json({ success: false, error: error?.message || "Failed to delete user" });
+    const status = error?.message?.includes("Master system administrator") ? 403 : 400;
+    return res.status(status).json({ success: false, error: error?.message || "Failed to delete user" });
   }
 });
 
@@ -540,7 +545,11 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
 
     const result = await completelyDeleteUser(id);
     cache.invalidateTag("user");
+    cache.invalidateTag("studentprofile");
+    cache.invalidateTag("teacherprofile");
+    cache.invalidateTag("parentprofile");
     cache.invalidateTag("dashboard");
+    cache.invalidateTag("stats");
     return res.json({
       success: true,
       message: "User profile completely purged from database and biometric terminals.",
@@ -548,7 +557,8 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
     });
   } catch (error: any) {
     console.error("User complete delete error:", error);
-    return res.status(500).json({ success: false, error: error?.message || "Failed to delete user" });
+    const status = error?.message?.includes("Master system administrator") ? 403 : 400;
+    return res.status(status).json({ success: false, error: error?.message || "Failed to delete user" });
   }
 });
 

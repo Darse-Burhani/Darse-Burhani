@@ -261,7 +261,8 @@ export default function AdminStudentsPage() {
     if (!deleting) return;
     setDeleteBusy(true);
     try {
-      const res = await fetch(`/api/admin/students/${deleting.userId}`, { method: "DELETE" });
+      const targetId = deleting.userId || deleting.id;
+      const res = await fetch(`/api/admin/students/${encodeURIComponent(targetId)}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         setStudents((prev) => prev.filter((s) => s.id !== deleting.id));

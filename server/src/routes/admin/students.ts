@@ -210,9 +210,32 @@ router.put("/:userId", requireRole("ADMIN"), async (req, res) => {
 
 import { completelyDeleteUser } from "../../lib/user-deletion";
 
+// DELETE /api/admin/students - Delete a student profile via query param (?id=xxx or ?userId=xxx or ?studentId=xxx)
+router.delete("/", requireRole("ADMIN"), async (req, res) => {
+  const targetId = (req.query.id as string) || (req.query.userId as string) || (req.query.studentId as string) || (req.body?.id as string) || (req.body?.userId as string);
+  if (!targetId) {
+    return res.status(400).json({ success: false, error: "Student ID or User ID is required" });
+  }
+  try {
+    const result = await completelyDeleteUser(targetId);
+    return res.json({
+      success: true,
+      message: "Student profile completely purged from database and biometric terminals.",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Admin student delete error:", error);
+    const status = error?.message?.includes("Master system administrator") ? 403 : 400;
+    return res.status(status).json({ success: false, error: error?.message || "Failed to delete student" });
+  }
+});
+
 // DELETE /api/admin/students/:userId - Delete a student profile + user + physical terminals
 router.delete("/:userId", requireRole("ADMIN"), async (req, res) => {
   const { userId } = req.params;
+  if (!userId) {
+    return res.status(400).json({ success: false, error: "Student identifier is required" });
+  }
   try {
     const result = await completelyDeleteUser(userId);
     return res.json({
@@ -222,7 +245,8 @@ router.delete("/:userId", requireRole("ADMIN"), async (req, res) => {
     });
   } catch (error: any) {
     console.error("Admin student delete error:", error);
-    return res.status(500).json({ success: false, error: error?.message || "Failed to delete student" });
+    const status = error?.message?.includes("Master system administrator") ? 403 : 400;
+    return res.status(status).json({ success: false, error: error?.message || "Failed to delete student" });
   }
 });
 
