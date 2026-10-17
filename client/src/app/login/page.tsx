@@ -581,8 +581,8 @@ export default function LoginPage() {
               />
 
               <div className="relative space-y-5">
-                <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3.5 py-1 text-[11.5px] font-extrabold uppercase tracking-widest text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                  <PortalIcon size={14} className="text-amber-300" />
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.15)]">
+                  <PortalIcon size={14} className="text-amber-300" aria-hidden="true" />
                   <span>Gateway: {portal.badgeLabel}</span>
                 </div>
 
@@ -597,9 +597,9 @@ export default function LoginPage() {
 
                 <ul className="space-y-2.5 pt-1">
                   {portal.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-center gap-2.5 text-[13px] font-medium text-emerald-50/90">
+                    <li key={bullet} className="flex items-center gap-2.5 text-[13px] font-medium text-emerald-100/80">
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 ring-1 ring-amber-400/50 text-amber-300 shrink-0">
-                        <Check size={12} className="stroke-[3]" />
+                        <Check size={12} className="stroke-[3]" aria-hidden="true" />
                       </span>
                       <span>{bullet}</span>
                     </li>
@@ -608,40 +608,34 @@ export default function LoginPage() {
               </div>
 
               <div className="relative pt-4">
-                <div className="rounded-xl border border-emerald-500/25 bg-emerald-950/40 p-3.5 backdrop-blur-sm space-y-1.5">
-                  <div className="flex items-center justify-between text-[11.5px]">
-                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-200">
-                      <LockKeyhole size={13} className="text-amber-300" />
-                      256-bit TLS Institutional Encryption
-                    </span>
-                    <span className="font-mono text-amber-300/80 font-bold">Secure</span>
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 p-3.5 backdrop-blur-xs flex items-center justify-between text-xs text-emerald-100/80">
+                  <div className="flex items-center gap-2">
+                    <BadgeCheck size={16} className="text-amber-300 shrink-0" aria-hidden="true" />
+                    <div>
+                      <span className="font-semibold text-white block">Official Institutional Gateway</span>
+                      <p className="text-xs text-emerald-100/70 mt-0.5 leading-normal">
+                        Authorized entry only · Session auto-refreshes every 2 hours
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-emerald-200/60 leading-tight">
-                    Authorized entry only. Session automatically refreshes every 2 hours.
-                  </p>
+                  <span className="font-mono text-amber-300 font-bold text-xs shrink-0 pl-2">TLS 1.3</span>
                 </div>
               </div>
             </div>
 
             {/* ── RIGHT FORM PANEL (Mobile Zero-Scroll Optimized) ── */}
             <div className="flex flex-col justify-center p-3.5 sm:p-7 sm:py-6">
-              {/* Form title on mobile/desktop */}
-              <div className="flex items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-emerald-500/15">
-                <div>
-                  <h2 className="font-serif text-[17px] sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
-                    Sign In
-                    <span className="text-[13px] sm:text-[14px] font-bold text-amber-300">
-                      · {portal.shortLabel}
-                    </span>
-                  </h2>
-                  <p className="text-[11px] sm:text-[12px] text-emerald-100/70 font-medium">
-                    Choose your portal and enter credentials
-                  </p>
-                </div>
-                {/* 10% Highlight: Active portal indicator */}
-                <span className="shrink-0 text-[10.5px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-400/15 px-2.5 py-1 rounded-full border border-amber-400/40 shadow-[0_0_8px_rgba(245,158,11,0.25)]">
-                  {portal.shortLabel}
-                </span>
+              {/* Form title on mobile/desktop (Issue 8: Clean header without redundant pill badge) */}
+              <div className="pb-2.5 sm:pb-3 border-b border-emerald-500/15 text-left">
+                <h2 className="font-serif text-[18px] sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+                  Sign In
+                  <span className="text-[14px] font-bold text-amber-300">
+                    · {portal.shortLabel}
+                  </span>
+                </h2>
+                <p className="text-xs text-emerald-100/80 font-medium mt-0.5">
+                  Choose your portal and enter institutional credentials
+                </p>
               </div>
 
               {/* 4-Role Segmented Selector (Mobile Compact Grid) */}
@@ -658,15 +652,16 @@ export default function LoginPage() {
                       onClick={() => handlePortalChange(p.role)}
                       className={`relative flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none active:scale-95 ${
                         active
-                          ? "bg-gradient-to-b from-amber-400/25 to-amber-500/15 border border-amber-400/80 ring-1 ring-amber-400/40 shadow-[0_0_12px_rgba(245,158,11,0.3)] text-amber-300 font-black"
-                          : "text-emerald-100/70 hover:text-white hover:bg-emerald-900/30 border border-transparent font-medium"
+                          ? "bg-gradient-to-b from-amber-400/25 to-amber-500/15 border border-amber-400/80 ring-1 ring-amber-400/40 shadow-sm text-amber-300 font-black"
+                          : "text-emerald-100/80 hover:text-white hover:bg-emerald-900/30 border border-transparent font-medium"
                       }`}
                     >
                       <Icon
                         size={15}
                         className={active ? "text-amber-300 scale-110 drop-shadow-[0_0_4px_rgba(245,158,11,0.6)]" : "text-emerald-300/60"}
+                        aria-hidden="true"
                       />
-                      <span className={`text-[10.5px] sm:text-[11.5px] tracking-tight mt-0.5 truncate w-full ${active ? "text-amber-200 font-extrabold" : "text-emerald-100/70"}`}>
+                      <span className={`text-xs tracking-tight mt-0.5 truncate w-full ${active ? "text-amber-200 font-extrabold" : "text-emerald-100/80"}`}>
                         {p.shortLabel}
                       </span>
                       {active && (
@@ -677,48 +672,42 @@ export default function LoginPage() {
                 })}
               </div>
 
-              {/* Form Body */}
-              <form onSubmit={handleSubmit} className="mt-2.5 sm:mt-3.5 space-y-2 sm:space-y-3">
+              {/* Form Body: Aligned on single vertical axis */}
+              <form onSubmit={handleSubmit} className="mt-2.5 sm:mt-3.5 w-full space-y-3">
                 {/* Error Banner */}
                 {error && (
                   <div
                     role="alert"
-                    className="flex items-center gap-2 rounded-lg border border-red-400/40 bg-red-950/70 px-3 py-1.5 text-[11.5px] font-semibold text-red-200 animate-in fade-in"
+                    className="flex items-center gap-2 rounded-lg border border-red-400/40 bg-red-950/70 px-3 py-1.5 text-xs font-semibold text-red-200 animate-in fade-in"
                   >
-                    <AlertTriangle size={14} className="shrink-0 text-red-400" />
+                    <AlertTriangle size={14} className="shrink-0 text-red-400" aria-hidden="true" />
                     <span className="truncate">{error}</span>
                   </div>
                 )}
 
-                {/* Email / ITS Input */}
-                <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <label htmlFor="login-email" className="text-[11.5px] sm:text-[12px] font-bold text-emerald-100/90">
+                {/* Email / ITS Input (Unified vertical column) */}
+                <div className="w-full space-y-1.5">
+                  <div className="flex w-full items-center justify-between">
+                    <label htmlFor="login-email" className="text-xs font-bold text-emerald-100/90 text-left">
                       {portal.inputLabel}
                     </label>
                     {portal.role === "STUDENT" && (
                       <button
                         type="button"
                         onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10.5px] font-extrabold text-amber-300 shadow-xs hover:bg-amber-400/25 active:scale-95 transition"
+                        className="inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-300 hover:bg-amber-400/20 active:scale-95 transition"
                       >
-                        <QrCode size={11} className="text-amber-300" />
-                        Scan ITS card
+                        <QrCode size={12} className="text-amber-300" aria-hidden="true" />
+                        <span>Scan ITS card</span>
                       </button>
                     )}
                   </div>
-                  <div
-                    className={`flex h-[42px] sm:h-[48px] items-center rounded-xl border bg-[#01140e]/95 px-3 transition focus-within:ring-2 ${
-                      error
-                        ? "border-red-400/80 focus-within:border-red-400 focus-within:ring-red-400/20"
-                        : "border-emerald-500/30 focus-within:border-amber-400 focus-within:ring-amber-400/30"
-                    }`}
-                  >
-                    <span className="mr-2.5 text-emerald-300/60">
+                  <div className="relative w-full">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-300/60">
                       {portal.role === "STUDENT" ? (
-                        <Fingerprint size={17} className="text-amber-400" />
+                        <Fingerprint size={17} className="text-amber-400" aria-hidden="true" />
                       ) : (
-                        <Mail size={16} />
+                        <Mail size={16} aria-hidden="true" />
                       )}
                     </span>
                     <input
@@ -737,34 +726,32 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder={portal.placeholder}
-                      className="w-full bg-transparent text-[13.5px] sm:text-[14.5px] font-medium text-white placeholder:font-normal placeholder:text-emerald-100/35 focus:outline-none"
+                      className={`w-full h-[44px] sm:h-[48px] rounded-xl border bg-[#01140e]/95 pl-10 pr-10 text-[13.5px] sm:text-[14.5px] font-medium text-white placeholder:font-normal placeholder:text-emerald-100/35 transition focus:outline-none focus:ring-1 ${
+                        error
+                          ? "border-red-400/80 focus:border-red-400 focus:ring-red-400/20"
+                          : "border-emerald-500/30 focus:border-amber-400 focus:ring-amber-400/30"
+                      }`}
                     />
                     {portal.role === "STUDENT" && isEightDigitIts && (
-                      <CheckCircle2 size={16} className="ml-1.5 shrink-0 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.6)]" />
+                      <CheckCircle2 size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.6)]" />
                     )}
                   </div>
                 </div>
 
-                {/* Password Input */}
-                <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <label htmlFor="login-password" className="text-[11.5px] sm:text-[12px] font-bold text-emerald-100/90">
+                {/* Password Input (Issue 7: Unified single field with internal overlay visibility toggle) */}
+                <div className="w-full space-y-1.5">
+                  <div className="flex w-full items-center justify-between">
+                    <label htmlFor="login-password" className="text-xs font-bold text-emerald-100/90 text-left">
                       Password
                     </label>
                     {capsLockOn && (
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-300">
-                        <AlertTriangle size={11} /> Caps Lock on
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300">
+                        <AlertTriangle size={12} aria-hidden="true" /> Caps Lock on
                       </span>
                     )}
                   </div>
-                  <div
-                    className={`flex h-[42px] sm:h-[48px] items-center rounded-xl border bg-[#01140e]/95 px-3 transition focus-within:ring-2 ${
-                      error
-                        ? "border-red-400/80 focus-within:border-red-400 focus-within:ring-red-400/20"
-                        : "border-emerald-500/30 focus-within:border-amber-400 focus-within:ring-amber-400/30"
-                    }`}
-                  >
-                    <Lock size={16} className="mr-2.5 shrink-0 text-emerald-300/60" />
+                  <div className="relative w-full">
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-300/60" aria-hidden="true" />
                     <input
                       id="login-password"
                       name="password"
@@ -782,21 +769,26 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder="Enter password"
-                      className="w-full bg-transparent text-[13.5px] sm:text-[14.5px] font-medium tracking-wide text-white placeholder:font-normal placeholder:tracking-normal placeholder:text-emerald-100/35 focus:outline-none"
+                      className={`w-full h-[44px] sm:h-[48px] rounded-xl border bg-[#01140e]/95 pl-10 pr-11 text-[13.5px] sm:text-[14.5px] font-medium text-white placeholder:font-normal placeholder:text-emerald-100/35 transition focus:outline-none focus:ring-1 ${
+                        error
+                          ? "border-red-400/80 focus:border-red-400 focus:ring-red-400/20"
+                          : "border-emerald-500/30 focus:border-amber-400 focus:ring-amber-400/30"
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="rounded-lg p-1 text-emerald-300/60 hover:text-amber-300 transition"
+                      aria-controls="login-password"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg text-emerald-300/60 hover:text-amber-300 hover:bg-emerald-900/30 transition focus:outline-none focus:ring-1 focus:ring-amber-400/50"
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                     </button>
                   </div>
                 </div>
 
                 {/* Options Row: Keep signed in & Forgot password */}
-                <div className="flex items-center justify-between pt-0.5">
+                <div className="flex w-full items-center justify-between pt-0.5">
                   <label className="flex cursor-pointer items-center gap-2 select-none">
                     <button
                       type="button"
@@ -809,39 +801,39 @@ export default function LoginPage() {
                         className={`absolute top-[2px] h-3.5 w-3.5 rounded-full bg-white shadow transition-all ${rememberMe ? "left-[16px] bg-slate-950" : "left-[2px]"}`}
                       />
                     </button>
-                    <span className="text-[11.5px] font-medium text-emerald-100/80">Keep signed in</span>
+                    <span className="text-xs font-medium text-emerald-100/80">Keep signed in</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="text-[11.5px] font-bold text-amber-300 hover:text-amber-200 transition underline-offset-2 hover:underline"
+                    className="text-xs font-semibold text-amber-300 hover:text-amber-200 transition underline-offset-2 hover:underline focus:outline-none focus:ring-1 focus:ring-amber-400/50 rounded"
                   >
                     Forgot password?
                   </button>
                 </div>
 
-                {/* 10% HIGH-IMPACT HIGHLIGHT: Radiant Fatimi Gold CTA Submit Button */}
-                <div className="pt-1 sm:pt-2">
+                {/* Primary Gold CTA Submit Button (Aligned to vertical grid) */}
+                <div className="w-full pt-1.5 sm:pt-2">
                   <button
                     type="submit"
                     disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                    className="group relative flex h-[46px] sm:h-[52px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 font-black text-[14.5px] sm:text-[15.5px] tracking-tight shadow-[0_8px_24px_-4px_rgba(245,158,11,0.5),0_0_0_1px_rgba(254,240,138,0.7)] hover:from-amber-300 hover:via-amber-200 hover:to-amber-400 hover:shadow-[0_12px_28px_-4px_rgba(245,158,11,0.65)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer select-none transition-all duration-200"
+                    className="group relative flex h-[46px] sm:h-[50px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 font-black text-sm sm:text-[15px] tracking-tight shadow-[0_8px_24px_-4px_rgba(245,158,11,0.5),0_0_0_1px_rgba(254,240,138,0.7)] hover:from-amber-300 hover:via-amber-200 hover:to-amber-400 hover:shadow-[0_12px_28px_-4px_rgba(245,158,11,0.65)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer select-none transition-all duration-200"
                   >
                     {/* Animated gold light beam shimmer */}
                     <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
 
                     {isLoading ? (
-                      <span className="flex items-center gap-2 font-bold text-[14px]">
+                      <span className="flex items-center gap-2 font-bold text-sm">
                         <Loader2 size={18} className="animate-spin text-slate-950" />
                         Verifying credentials…
                       </span>
                     ) : isSuccess ? (
-                      <span className="flex items-center gap-2 font-bold text-[14px] text-slate-950">
+                      <span className="flex items-center gap-2 font-bold text-sm text-slate-950">
                         <Check size={18} className="stroke-[3]" />
                         Signing in…
                       </span>
                     ) : lockoutSeconds > 0 ? (
-                      <span className="font-bold text-[13px] text-red-950">
+                      <span className="font-bold text-xs text-red-950">
                         Locked ({lockoutSeconds}s)
                       </span>
                     ) : (
@@ -855,10 +847,10 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {/* Compact Institutional Encryption Footnote inside Card */}
-                <p className="text-center text-[10.5px] font-medium text-emerald-200/50 pt-1 flex items-center justify-center gap-1.5">
-                  <LockKeyhole size={11} className="text-amber-300/80" />
-                  <span>256-bit Encrypted Session · Mahad al Zahra</span>
+                {/* Canonical Institutional Encryption Footnote (Issues 5, 9) */}
+                <p className="pt-2 flex items-center justify-center gap-1.5 text-center text-xs font-medium text-emerald-100/75">
+                  <LockKeyhole size={13} className="text-amber-300 shrink-0" aria-hidden="true" />
+                  <span>256-bit TLS Institutional Encryption · Mahad al Zahra</span>
                 </p>
               </form>
             </div>
