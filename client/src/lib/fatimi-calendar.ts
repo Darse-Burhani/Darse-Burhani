@@ -268,3 +268,11 @@ export const HIJRI_1448_MILESTONES = {
   },
 };
 
+/**
+ * Check if a date (Date object or string) falls within Fatimi Hijri month 4 (Rabīʿ al-Ākhir / Rabi ul Akhar).
+ */
+export function isRabiAlAkhirDate(inputDate?: Date | string | null): boolean {
+  if (!inputDate) return false;
+  return getHijriFromDate(inputDate).isRabiAlAkhir;
+}
+

@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
+import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
 
 const router = Router();
 
@@ -160,14 +161,18 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
           }),
         ]);
 
-        // Group attendance by student (prefer Registry checkInTime if available)
-        const registryByStudent = new Map(todayAttendanceRegistries.map((r) => [r.studentId, r]));
-        const attendanceByStudent = new Map(todayAttendanceRecords.map((a) => [a.studentId, a]));
+        // Group attendance by student (excluding Rabi ul Akhar without deleting from DB)
+        const nonRabiTodayRegistries = todayAttendanceRegistries.filter((r) => !isRabiAlAkhirDate(r.date));
+        const nonRabiTodayRecords = todayAttendanceRecords.filter((a) => !isRabiAlAkhirDate(a.date));
+        const nonRabiWeeklyRecords = weeklyAttendanceRecords.filter((r) => !isRabiAlAkhirDate(r.date));
+
+        const registryByStudent = new Map(nonRabiTodayRegistries.map((r) => [r.studentId, r]));
+        const attendanceByStudent = new Map(nonRabiTodayRecords.map((a) => [a.studentId, a]));
         const hifzEvalByStudent = new Map(todayHifzEvaluations.map((h) => [h.studentId, h]));
 
-        // Group 7-day attendance count
+        // Group 7-day attendance count excluding Rabi ul Akhar
         const weeklyAttendanceByStudent = new Map<string, typeof weeklyAttendanceRecords>();
-        for (const rec of weeklyAttendanceRecords) {
+        for (const rec of nonRabiWeeklyRecords) {
           const list = weeklyAttendanceByStudent.get(rec.studentId) || [];
           list.push(rec);
           weeklyAttendanceByStudent.set(rec.studentId, list);

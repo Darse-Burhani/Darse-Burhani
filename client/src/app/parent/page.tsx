@@ -32,6 +32,7 @@ import {
   ArrowUpRight,
   Fingerprint,
   Camera,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/components/ui/toast";
 import { getInitials, timeAgo, formatPoints } from "@/lib/utils";
+import { isRabiAlAkhirDate } from "@/lib/fatimi-calendar";
 import { ParentNotificationCenter } from "@/components/parent/ParentNotificationCenter";
 import { ParentLeaveManager } from "@/components/parent/ParentLeaveManager";
 
@@ -114,18 +116,20 @@ export default function ParentDashboard() {
     return children.find((c) => c.id === selectedChildId) || children[0];
   }, [children, selectedChildId]);
 
-  // ── Tracking feed for the selected child (attendance scans) ──
+  // ── Tracking feed for the selected child (attendance scans, omitting Rabi ul Akhar) ──
   const fetchTracking = useCallback(async () => {
     if (!selectedChild) return;
     setTrackingLoading(true);
     try {
       const res = await fetch(
-        `/api/parent/activity?childId=${encodeURIComponent(selectedChild.studentProfileId || selectedChild.id)}&limit=30`
+        `/api/parent/activity?childId=${encodeURIComponent(selectedChild.studentProfileId || selectedChild.id)}&limit=50`
       );
       const json = await res.json();
       if (json.success && json.data) {
         const acts = Array.isArray(json.data) ? json.data : json.data.activities || [];
-        setTrackingLogs(acts.filter((a: any) => a.type === "ATTENDANCE"));
+        setTrackingLogs(
+          acts.filter((a: any) => a.type === "ATTENDANCE" && !isRabiAlAkhirDate(a.createdAt))
+        );
       }
     } catch {
     } finally {
@@ -137,26 +141,31 @@ export default function ParentDashboard() {
     if (activeTab === "tracking") fetchTracking();
   }, [activeTab, fetchTracking]);
 
-  // Last-7-days strip derived from tracking scans
+  // Last-7-days strip derived from tracking scans (excluding Rabi ul Akhar days)
   const weekStrip = useMemo(() => {
     const days: Array<{ date: Date; label: string; present: boolean; time: string | null }> = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
       d.setDate(d.getDate() - i);
+      const isRabi = isRabiAlAkhirDate(d);
       const next = new Date(d.getTime() + 86400000);
-      const match = trackingLogs.find((a: any) => {
-        const t = new Date(a.createdAt).getTime();
-        return t >= d.getTime() && t < next.getTime();
-      });
+      const match = !isRabi
+        ? trackingLogs.find((a: any) => {
+            const t = new Date(a.createdAt).getTime();
+            return t >= d.getTime() && t < next.getTime();
+          })
+        : null;
       days.push({
         date: d,
         label: d.toLocaleDateString("en-US", { weekday: "short" }),
-        present: !!match || (selectedChild?.isCheckedIn && i === 0),
-        time: match?.checkInTime
-          ? new Date(match.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          : (selectedChild?.isCheckedIn && i === 0 && selectedChild?.lastCheckIn)
-          ? new Date(selectedChild.lastCheckIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        present: !isRabi && (!!match || (selectedChild?.isCheckedIn && i === 0)),
+        time: !isRabi
+          ? (match?.checkInTime
+              ? new Date(match.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : selectedChild?.isCheckedIn && i === 0 && selectedChild?.lastCheckIn
+              ? new Date(selectedChild.lastCheckIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : null)
           : null,
       });
     }
@@ -348,7 +357,7 @@ export default function ParentDashboard() {
             </div>
           </div>
 
-          {/* ═══ Rabea (Grade 4) Yearly Profile Notice & Link ═══ */}
+          {/* ═══ Rabea (Grade 4) Yearly Profile Notice & Link (Read-Only for Parents) ═══ */}
           {selectedChild && isRabeaGrade(selectedChild.grade) && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
@@ -368,41 +377,16 @@ export default function ParentDashboard() {
                       <span className="text-xs font-bold text-amber-900 font-alkanz">
                         توجيه الطالب – الدرجة الرابعة
                       </span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                        Official Document • Read-Only
+                      </span>
                     </div>
-                    <h3 className="mt-0.5 text-sm sm:text-base font-extrabold text-slate-900">
-                      Submit Parents Photo &amp; Yearly Profile for {selectedChild.firstName}
+                    <h3 className="mt-1 text-sm sm:text-base font-extrabold text-slate-900">
+                      Official Yearly Profile Document for {selectedChild.firstName}
                     </h3>
-                    <p className="text-xs text-slate-600">
-                      Upload Father &amp; Mother photos, update personal &amp; academic records, and submit for school administration review.
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      View and print the complete official academic records, hifz milestones, and comprehensive student profile. (View-only mode for parents).
                     </p>
-
-                    {/* Live Parent Photos Status Badges */}
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
-                        selectedChild.yearlyProfile?.hasFatherPhoto
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          : "bg-amber-100 text-amber-800 border border-amber-300"
-                      }`}>
-                        {selectedChild.yearlyProfile?.hasFatherPhoto ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        ) : (
-                          <Clock className="w-3 h-3 text-amber-600" />
-                        )}
-                        Father Photo: {selectedChild.yearlyProfile?.hasFatherPhoto ? "Uploaded" : "Required"}
-                      </span>
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
-                        selectedChild.yearlyProfile?.hasMotherPhoto
-                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                          : "bg-amber-100 text-amber-800 border border-amber-300"
-                      }`}>
-                        {selectedChild.yearlyProfile?.hasMotherPhoto ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        ) : (
-                          <Clock className="w-3 h-3 text-amber-600" />
-                        )}
-                        Mother Photo: {selectedChild.yearlyProfile?.hasMotherPhoto ? "Uploaded" : "Required"}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
@@ -410,8 +394,8 @@ export default function ParentDashboard() {
                   href={`/parent/yearly-profile?studentId=${selectedChild.studentProfileId || selectedChild.id}`}
                   className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#961212] hover:bg-[#b31b1b] px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg cursor-pointer"
                 >
-                  <Camera className="h-4 w-4 text-amber-300" />
-                  <span>Upload Parents Photo</span>
+                  <Eye className="h-4 w-4 text-amber-300" />
+                  <span>View Yearly Profile</span>
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>

@@ -4,6 +4,7 @@ import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
 import { getScanWindow } from "../../lib/biometric";
+import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
     const year = parseInt((req.query.year as string) || String(new Date().getFullYear()));
 
     const data = await cache.getOrSet(
-      `student:attendance:${session.user.id}:${year}:${month}`,
+      `student:attendance:v2:${session.user.id}:${year}:${month}`,
       async () => {
         const studentProfile = await prisma.studentProfile.findUnique({
           where: { userId: session.user.id },
@@ -30,15 +31,15 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         const monthStart = new Date(year, month, 1);
         const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
-        // All-time stats (for totals)
-        const allTimeStats = await prisma.attendanceRecord.groupBy({
-          by: ["status"],
+        // All-time attendance records (filter out Rabi ul Akhar without deleting from database)
+        const allRecords = await prisma.attendanceRecord.findMany({
           where: { studentId: studentProfile.id },
-          _count: true,
+          select: { status: true, date: true },
         });
+        const nonRabiAllRecords = allRecords.filter((r) => !isRabiAlAkhirDate(r.date));
 
-        // Current month records (for calendar)
-        const monthRecords = await prisma.attendanceRecord.findMany({
+        // Current month records (for calendar and breakdown)
+        const rawMonthRecords = await prisma.attendanceRecord.findMany({
           where: {
             studentId: studentProfile.id,
             date: { gte: monthStart, lte: monthEnd },
@@ -48,10 +49,11 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           },
           orderBy: { date: "desc" },
         });
+        const monthRecords = rawMonthRecords.filter((r) => !isRabiAlAkhirDate(r.date));
 
         // Get biometric scan records (Tilawat al Dua) for this month
         const scanWindow = await getScanWindow("STUDENT");
-        const biometricRecords = await prisma.attendanceRecord.findMany({
+        const rawBiometricRecords = await prisma.attendanceRecord.findMany({
           where: {
             studentId: studentProfile.id,
             date: { gte: monthStart, lte: monthEnd },
@@ -59,16 +61,18 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           },
           orderBy: { date: "desc" },
         });
+        const biometricRecords = rawBiometricRecords.filter((r) => !isRabiAlAkhirDate(r.date));
 
-        // Recent records (last 20)
-        const recentRecords = await prisma.attendanceRecord.findMany({
+        // Recent records (excluding Rabi ul Akhar, take 20)
+        const rawRecentRecords = await prisma.attendanceRecord.findMany({
           where: { studentId: studentProfile.id },
           include: {
             class: { select: { name: true, subject: true } },
           },
           orderBy: { date: "desc" },
-          take: 20,
+          take: 60,
         });
+        const recentRecords = rawRecentRecords.filter((r) => !isRabiAlAkhirDate(r.date)).slice(0, 20);
 
         // This month stats
         const monthPresent = monthRecords.filter((r) => r.status === "PRESENT").length;
@@ -84,27 +88,30 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         const biometricTotal = biometricRecords.length;
         const biometricPercentage = biometricTotal > 0 ? Math.round(((biometricPresent + biometricLate) / biometricTotal) * 100) : 0;
 
-        // Map all-time stats
-        const totalPresent = allTimeStats.find((s) => s.status === "PRESENT")?._count || 0;
-        const totalLate = allTimeStats.find((s) => s.status === "LATE")?._count || 0;
-        const totalAbsent = allTimeStats.find((s) => s.status === "ABSENT")?._count || 0;
-        const totalEarly = allTimeStats.find((s) => s.status === "EARLY_DEPARTURE")?._count || 0;
+        // Map all-time stats excluding Rabi ul Akhar
+        const totalPresent = nonRabiAllRecords.filter((s) => s.status === "PRESENT").length;
+        const totalLate = nonRabiAllRecords.filter((s) => s.status === "LATE").length;
+        const totalAbsent = nonRabiAllRecords.filter((s) => s.status === "ABSENT").length;
+        const totalEarly = nonRabiAllRecords.filter((s) => s.status === "EARLY_DEPARTURE").length;
         const totalRecords = totalPresent + totalLate + totalAbsent + totalEarly;
         const overallPercentage = totalRecords > 0 ? Math.round(((totalPresent + totalLate) / totalRecords) * 100) : 0;
 
-        // Calendar data — map each day of month to its status
+        // Calendar data — map each day of month to its status, hiding Rabi ul Akhar days
         const daysInMonth = monthEnd.getDate();
         const calendar: { day: number; status: string | null; tilawatStatus?: string | null }[] = [];
 
         for (let d = 1; d <= daysInMonth; d++) {
+          const dayDate = new Date(year, month, d);
+          const isRabiDay = isRabiAlAkhirDate(dayDate);
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-          const record = monthRecords.find(
-            (r) => r.date.toISOString().slice(0, 10) === dateStr,
-          );
-          // Check for Tilawat al Dua biometric scan on this day
-          const biometricRecord = biometricRecords.find(
-            (r) => r.date.toISOString().slice(0, 10) === dateStr,
-          );
+
+          const record = !isRabiDay
+            ? monthRecords.find((r) => r.date.toISOString().slice(0, 10) === dateStr)
+            : null;
+          const biometricRecord = !isRabiDay
+            ? biometricRecords.find((r) => r.date.toISOString().slice(0, 10) === dateStr)
+            : null;
+
           calendar.push({
             day: d,
             status: record?.status || null,
@@ -112,11 +119,11 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           });
         }
 
-        // Streak calculation — single batched query instead of 365 individual queries
+        // Streak calculation — single batched query excluding Rabi ul Akhar
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const recentStreakRecords = await prisma.attendanceRecord.findMany({
+        const rawStreakRecords = await prisma.attendanceRecord.findMany({
           where: {
             studentId: studentProfile.id,
             status: { in: ["PRESENT", "LATE"] },
@@ -125,6 +132,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           select: { date: true },
           orderBy: { date: "desc" },
         });
+        const recentStreakRecords = rawStreakRecords.filter((r) => !isRabiAlAkhirDate(r.date));
 
         // Count consecutive days from today backwards
         const uniqueDates = new Set(

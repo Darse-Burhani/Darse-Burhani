@@ -30,6 +30,7 @@ import {
   isFinalAttendanceEvent,
   type WindowTimes,
 } from "@/lib/attendance-window";
+import { isRabiAlAkhirDate } from "@/lib/fatimi-calendar";
 
 const justificationConfig: Record<string, { label: string; color: string; bg: string }> = {
   PENDING: { label: "Justification pending", color: "text-amber-700", bg: "bg-amber-100" },
@@ -129,7 +130,13 @@ export default function TalabatAttendancePage() {
         `/api/talabat/attendance?month=${currentMonth}&year=${currentYear}`,
       );
       const json = await res.json();
-      if (json.success) setData(json.data);
+      if (json.success && json.data) {
+        const d = json.data;
+        if (Array.isArray(d.recentRecords)) {
+          d.recentRecords = d.recentRecords.filter((r: any) => !isRabiAlAkhirDate(r.date));
+        }
+        setData(d);
+      }
     } finally {
       setLoading(false);
     }

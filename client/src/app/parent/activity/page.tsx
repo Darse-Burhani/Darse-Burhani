@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 import { timeAgo } from "@/lib/utils";
+import { isRabiAlAkhirDate } from "@/lib/fatimi-calendar";
 
 const activityIcons: Record<string, any> = {
   POINTS: Award,
@@ -60,8 +61,11 @@ export default function ParentActivityPage() {
   }, [selectedChildId]);
 
   const filteredActivities = useMemo(() => {
-    if (typeFilter === "ALL") return activities;
-    return activities.filter((a) => a.type === typeFilter);
+    const nonRabi = activities.filter(
+      (a) => a.type !== "ATTENDANCE" || !isRabiAlAkhirDate(a.createdAt)
+    );
+    if (typeFilter === "ALL") return nonRabi;
+    return nonRabi.filter((a) => a.type === typeFilter);
   }, [activities, typeFilter]);
 
   return (

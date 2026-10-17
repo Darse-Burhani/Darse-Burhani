@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
+import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
     const session = req.auth!;
 
     const data = await cache.getOrSet(
-      `student:scans:${session.user.id}`,
+      `student:scans:v2:${session.user.id}`,
       async () => {
         const profile = await prisma.studentProfile.findUnique({
           where: { userId: session.user.id },
@@ -27,31 +28,18 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         const todayStart = utcDayStart(now);
         const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-        const [scans, todayCount, monthCount, totalCount] = await Promise.all([
-          prisma.attendanceRecord.findMany({
-            where: { studentId: profile.id, verificationMethod: "BIOMETRIC" },
-            include: { class: { select: { name: true, subject: true } } },
-            orderBy: { checkInTime: "desc" },
-            take: 200,
-          }),
-          prisma.attendanceRecord.count({
-            where: {
-              studentId: profile.id,
-              verificationMethod: "BIOMETRIC",
-              date: { gte: todayStart },
-            },
-          }),
-          prisma.attendanceRecord.count({
-            where: {
-              studentId: profile.id,
-              verificationMethod: "BIOMETRIC",
-              date: { gte: monthStart },
-            },
-          }),
-          prisma.attendanceRecord.count({
-            where: { studentId: profile.id, verificationMethod: "BIOMETRIC" },
-          }),
-        ]);
+        const rawScans = await prisma.attendanceRecord.findMany({
+          where: { studentId: profile.id, verificationMethod: "BIOMETRIC" },
+          include: { class: { select: { name: true, subject: true } } },
+          orderBy: { checkInTime: "desc" },
+          take: 300,
+        });
+
+        // Filter out Rabi ul Akhar without deleting from DB
+        const scans = rawScans.filter((r) => !isRabiAlAkhirDate(r.date));
+        const todayCount = scans.filter((r) => r.date >= todayStart).length;
+        const monthCount = scans.filter((r) => r.date >= monthStart).length;
+        const totalCount = scans.length;
 
         return {
           grade: profile.grade,

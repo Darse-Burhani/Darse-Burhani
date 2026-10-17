@@ -439,3 +439,30 @@ export function getYearEvents(year: number): YearEvent[] {
 /** Day names for the calendar header */
 export const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const DAY_NAMES_AR = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
+
+/**
+ * Check if a date (Date object or ISO string) falls within the Fatimi Hijri month 4 (Rabīʿ al-Ākhir / Rabi ul Akhar).
+ */
+export function isRabiAlAkhirDate(inputDate?: Date | string | null): boolean {
+  if (!inputDate) return false;
+  const targetDate = inputDate instanceof Date && !Number.isNaN(inputDate.getTime())
+    ? inputDate
+    : new Date(inputDate);
+  if (Number.isNaN(targetDate.getTime())) return false;
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(targetDate);
+
+  const year = Number(parts.find((p) => p.type === "year")?.value || targetDate.getFullYear());
+  const month = Number(parts.find((p) => p.type === "month")?.value || targetDate.getMonth() + 1);
+  const day = Number(parts.find((p) => p.type === "day")?.value || targetDate.getDate());
+
+  const jd = gregorianToJulianDay(year, month, day);
+  const hijri = julianDayToHijri(jd);
+  return hijri.month === 4;
+}
+

@@ -114,6 +114,10 @@ router.get("/me", requireAuth, async (req, res) => {
     }
 
     const requestedStudentId = req.query.studentId as string;
+    const rabeaChildren = parent.studentLinks.filter(
+      (l) => isGrade4(l.student.grade) || !!l.student.talabatProfile1447
+    );
+
     let targetLink = requestedStudentId
       ? parent.studentLinks.find(
           (l) =>
@@ -121,23 +125,38 @@ router.get("/me", requireAuth, async (req, res) => {
             l.student.studentId === requestedStudentId ||
             l.student.userId === requestedStudentId
         )
-      : parent.studentLinks.find((l) => isGrade4(l.student.grade));
-
-    // Fallback to first student if only one exists
-    if (!targetLink && parent.studentLinks.length === 1) {
-      targetLink = parent.studentLinks[0];
-    }
+      : rabeaChildren[0];
 
     if (!targetLink) {
       return res.json({
         success: true,
         isGrade4: false,
-        message: "None of your registered children are currently in Darajah 4 (Rabea).",
+        isParent: true,
+        isReadOnly: true,
+        message: "None of your assigned children are currently in Darajah 4 (Rabea).",
+        availableChildren: [],
       });
     }
 
     const sp = targetLink.student;
     const grade4 = isGrade4(sp.grade) || !!sp.talabatProfile1447;
+
+    if (!grade4) {
+      return res.json({
+        success: true,
+        isGrade4: false,
+        isParent: true,
+        isReadOnly: true,
+        message: `${sp.user?.firstName || "This student"} is not enrolled in Darajah 4 (Rabea). The Yearly Profile is only for Rabea students.`,
+        availableChildren: rabeaChildren.map((l) => ({
+          id: l.student.id,
+          name: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
+          grade: l.student.grade,
+          isGrade4: true,
+        })),
+      });
+    }
+
     let profile = sp.talabatProfile1447;
     if (!profile) {
       profile = generatePrefilledProfile(sp, sp.user, parent) as any;
@@ -145,8 +164,9 @@ router.get("/me", requireAuth, async (req, res) => {
 
     return res.json({
       success: true,
-      isGrade4: grade4,
+      isGrade4: true,
       isParent: true,
+      isReadOnly: true,
       profile,
       studentInfo: {
         id: sp.id,
@@ -156,11 +176,11 @@ router.get("/me", requireAuth, async (req, res) => {
         its: sp.its,
         avatarUrl: sp.user.avatarUrl,
       },
-      availableChildren: parent.studentLinks.map((l) => ({
+      availableChildren: rabeaChildren.map((l) => ({
         id: l.student.id,
         name: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
         grade: l.student.grade,
-        isGrade4: isGrade4(l.student.grade),
+        isGrade4: true,
       })),
     });
   }
@@ -257,37 +277,13 @@ router.put("/me", requireAuth, async (req, res) => {
   let targetUserId: string | null = null;
 
   if (session.user.role === "PARENT") {
-    const parent = await prisma.parentProfile.findUnique({
-      where: { userId: session.user.id },
-      include: {
-        studentLinks: {
-          include: { student: { include: { user: true } } },
-        },
-      },
+    return res.status(403).json({
+      success: false,
+      error: "Parents have view-only access to the Yearly Profile and cannot edit or fill the form.",
     });
+  }
 
-    if (!parent || !parent.studentLinks.length) {
-      return res.status(404).json({ success: false, error: "Parent profile or linked students not found" });
-    }
-
-    const requestedStudentId = body.studentId || (req.query.studentId as string);
-    const targetLink = requestedStudentId
-      ? parent.studentLinks.find(
-          (l) =>
-            l.student.id === requestedStudentId ||
-            l.student.studentId === requestedStudentId ||
-            l.student.userId === requestedStudentId
-        )
-      : parent.studentLinks.find((l) => isGrade4(l.student.grade)) || parent.studentLinks[0];
-
-    if (!targetLink) {
-      return res.status(403).json({ success: false, error: "Cannot find linked student profile" });
-    }
-
-    studentProfileId = targetLink.student.id;
-    targetUserAvatar = targetLink.student.user.avatarUrl;
-    targetUserId = targetLink.student.user.id;
-  } else if (session.user.role === "ADMIN" && body.studentId) {
+  if (session.user.role === "ADMIN" && body.studentId) {
     const sp = await prisma.studentProfile.findUnique({
       where: { id: body.studentId },
       include: { user: true },

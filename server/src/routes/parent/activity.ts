@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
 
 const router = Router();
 
@@ -71,7 +72,7 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
       prisma.attendanceRecord.findMany({
         where: { studentId: { in: targetStudentProfileIds } },
         orderBy: { date: "desc" },
-        take: limit,
+        take: limit * 2,
         include: {
           student: {
             select: {
@@ -83,6 +84,9 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
         },
       }),
     ]);
+
+    // Omit Rabi ul Akhar attendance records from Parent portal (without deleting them from DB)
+    const nonRabiAttendance = attendanceRecords.filter((a) => !isRabiAlAkhirDate(a.date));
 
     const activities = [
       ...pointLogs.map((p) => ({
@@ -97,7 +101,7 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
         points: p.points,
         createdAt: p.createdAt,
       })),
-      ...attendanceRecords.map((a) => ({
+      ...nonRabiAttendance.map((a) => ({
         id: `att-${a.id}`,
         type: "ATTENDANCE" as const,
         childId: a.student.userId,

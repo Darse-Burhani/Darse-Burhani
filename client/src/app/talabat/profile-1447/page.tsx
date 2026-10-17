@@ -33,6 +33,7 @@ export default function TalabatProfile1447Page() {
   const [saving, setSaving] = useState(false);
   const [isGrade4, setIsGrade4] = useState<boolean | null>(null);
   const [isParent, setIsParent] = useState<boolean>(false);
+  const isParentUser = session?.user?.role === "PARENT" || isParent;
   const [studentInfo, setStudentInfo] = useState<{ id: string; name: string; grade: string; section?: string; its?: string } | null>(null);
   const [availableChildren, setAvailableChildren] = useState<Array<{ id: string; name: string; grade: string; isGrade4: boolean }>>([]);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
@@ -103,7 +104,10 @@ export default function TalabatProfile1447Page() {
       }
 
       setIsGrade4(data.isGrade4);
-      if (data.isParent) setIsParent(true);
+      if (data.isParent || session?.user?.role === "PARENT") {
+        setIsParent(true);
+        setActiveTab("preview");
+      }
       if (data.studentInfo) {
         setStudentInfo(data.studentInfo);
         if (data.studentInfo.id) setSelectedChildId(data.studentInfo.id);
@@ -462,12 +466,14 @@ export default function TalabatProfile1447Page() {
         <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-4">
           <GraduationCap className="w-7 h-7" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Yearly Profile Form (1447 H)</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Yearly Profile (1447 H)</h2>
         <p className="text-slate-600 text-sm leading-relaxed mb-6">
-          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is designated for graduating academic year students.
+          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is designated specifically for students in <strong>Darajah 4 (Rabea)</strong>.
         </p>
-        <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-500 border border-slate-200">
-          Your current registered level is not assigned to this profile. If you believe this is an error, please contact your administration.
+        <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-200 leading-relaxed">
+          {isParentUser
+            ? "None of your assigned children are currently enrolled in Darajah 4 (Rabea). Once a student enters Rabea, their official profile document will be available for you to inspect and print here."
+            : "Your current registered level is not assigned to this profile. If you believe this is an error, please contact your administration."}
         </div>
       </div>
     );
@@ -515,17 +521,19 @@ export default function TalabatProfile1447Page() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab("edit")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === "edit"
-                  ? "bg-white text-[#961212] shadow"
-                  : "bg-white/20 text-white hover:bg-white/30"
-              }`}
-            >
-              <FileEdit className="w-3.5 h-3.5" />
-              Edit Form
-            </button>
+            {!isParentUser && (
+              <button
+                onClick={() => setActiveTab("edit")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === "edit"
+                    ? "bg-white text-[#961212] shadow"
+                    : "bg-white/20 text-white hover:bg-white/30"
+                }`}
+              >
+                <FileEdit className="w-3.5 h-3.5" />
+                Edit Form
+              </button>
+            )}
             <button
               onClick={() => setActiveTab("preview")}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -535,14 +543,14 @@ export default function TalabatProfile1447Page() {
               }`}
             >
               <Eye className="w-3.5 h-3.5" />
-              Document View &amp; Print
+              {isParentUser ? "Official Document View" : "Document View & Print"}
             </button>
           </div>
         </div>
       </div>
 
       {/* ── Parent Mode Banner (if logged in as parent) ── */}
-      {isParent && (
+      {isParentUser && (
         <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-950">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center justify-center shrink-0">
@@ -550,22 +558,22 @@ export default function TalabatProfile1447Page() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full">
-                  Parent Access Mode
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                  Parent Read-Only View
                 </span>
                 <span className="text-xs font-bold text-slate-800">
                   {studentInfo?.name || "Student"} • Grade {studentInfo?.grade || "Rabea"}
                 </span>
               </div>
               <p className="text-xs text-amber-900/80 mt-0.5">
-                You are submitting this form as the parent. All photos and details are directly saved and reflected to the school administration.
+                Parents have view-only access to inspect and print this official Yearly Profile document. Form editing is restricted to students and school administration.
               </p>
             </div>
           </div>
 
           {availableChildren.length > 1 && (
             <div className="flex items-center gap-2 bg-white/80 p-2 rounded-xl border border-amber-200 shrink-0">
-              <span className="text-xs font-semibold text-slate-700">Select Child:</span>
+              <span className="text-xs font-semibold text-slate-700">Select Rabea Child:</span>
               <select
                 value={studentInfo?.id || ""}
                 onChange={(e) => fetchProfile(e.target.value)}
@@ -573,7 +581,7 @@ export default function TalabatProfile1447Page() {
               >
                 {availableChildren.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.grade}) {c.isGrade4 ? "• Rabea" : ""}
+                    {c.name} (Grade {c.grade})
                   </option>
                 ))}
               </select>
@@ -611,7 +619,7 @@ export default function TalabatProfile1447Page() {
       {/* ════════════════════════════════════════════════════════════
           TAB 1: EDIT FORM
       ════════════════════════════════════════════════════════════ */}
-      {activeTab === "edit" && (
+      {!isParentUser && activeTab === "edit" && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1165,6 +1173,12 @@ export default function TalabatProfile1447Page() {
       {/* ════════════════════════════════════════════════════════════
           TAB 2: OFFICIAL 2-PAGE DOCUMENT PREVIEW & PRINT
       ════════════════════════════════════════════════════════════ */}
+      {(isParentUser || activeTab === "preview") && (
+        <div className="space-y-6">
+          <TalabatProfileDocument data={formData} showPrintButton={true} />
+        </div>
+      )}
+
       {/* ── IMAGE ZOOM / LIGHTBOX PREVIEW MODAL ── */}
       {lightboxImg && (
         <div
