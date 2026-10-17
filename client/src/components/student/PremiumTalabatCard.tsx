@@ -37,11 +37,11 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
   const details = [
     { icon: Hash, label: "ITS Number", value: its },
     { icon: Hash, label: "TR Number", value: trNo },
+    { icon: Award, label: "Total Points", value: "0 PTS" },
     { icon: MapPin, label: "Watan", value: data.watan || "—" },
     { icon: MapPin, label: "Resident City", value: data.residentCity || "—" },
     { icon: Droplets, label: "Blood Group", value: data.bloodGroup || "—" },
     { icon: Calendar, label: "DOB (Hijri)", value: data.dobHijri || "—" },
-    { icon: Award, label: "Hafiz Year", value: data.hafizYear || "—" },
     { icon: Phone, label: "Mobile", value: data.mobileNumber || "—" },
   ];
 
@@ -77,6 +77,8 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
                       <ProfilePhoto
                         src={data.avatarUrl}
                         alt={fullName}
+                        subtitle={`ITS: ${its}`}
+                        previewable={true}
                         loading="eager"
                         decoding="async"
                       />
@@ -95,6 +97,11 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-200 bg-emerald-950/70 border border-amber-400/30">
                   <GraduationCap className="w-3.5 h-3.5 text-amber-300" />
                   Grade {grade}{section}
+                </span>
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-300 bg-emerald-950/70 border border-amber-400/30">
+                  <Award className="w-3.5 h-3.5 text-amber-300" />
+                  0 Points
                 </span>
 
                 {data.status && (

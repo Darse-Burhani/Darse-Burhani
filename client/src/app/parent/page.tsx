@@ -43,12 +43,11 @@ import { getInitials, timeAgo, formatPoints } from "@/lib/utils";
 import { ParentNotificationCenter } from "@/components/parent/ParentNotificationCenter";
 import { ParentLeaveManager } from "@/components/parent/ParentLeaveManager";
 
-type ParentTab = "overview" | "tracking" | "hifz" | "leave";
+type ParentTab = "overview" | "tracking" | "leave";
 
 const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.ElementType }> = [
   { id: "overview", label: "Overview", labelAr: "نظرة عامة", icon: Heart },
   { id: "tracking", label: "Live Tracking", labelAr: "الحضور والبصمة", icon: Navigation },
-  { id: "hifz", label: "Hifz & Daily Work", labelAr: "الحفظ واليومية", icon: BookOpen },
   { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
 ];
 
@@ -567,68 +566,8 @@ export default function ParentDashboard() {
                       ))}
                     </div>
 
-                    {/* 2-Column: Daily Hifz Snapshot + Recent Activity */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                      {/* Daily Hifz / Hafiz Card */}
-                      <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden lg:col-span-1">
-                        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 p-4 text-white flex items-center justify-between">
-                          <p className="flex items-center gap-2 text-sm font-bold">
-                            <BookOpen size={16} className="text-amber-300" />
-                            Daily Hifz & Evaluation
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab("hifz")}
-                            className="rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-bold text-slate-950 hover:bg-amber-300 transition"
-                          >
-                            Details
-                          </button>
-                        </div>
-
-                        <CardContent className="p-5 space-y-3">
-                          {selectedChild.status === "HAFIZ" || selectedChild.hafizYear ? (
-                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-1.5">
-                              <Crown className="w-8 h-8 text-amber-600 mx-auto" />
-                              <p className="font-bold text-amber-900 text-sm">Certified Hafiz Al-Quran</p>
-                              <p className="text-xs text-amber-700">
-                                Completed full Quran memorization ({selectedChild.hafizYear ? `Sanah ${selectedChild.hafizYear} H` : "Alhamdulillah"})
-                              </p>
-                            </div>
-                          ) : selectedChild.todayHifzEvaluation ? (
-                            <div className="space-y-2 text-xs">
-                              <div className="flex items-center justify-between font-bold">
-                                <span className="text-slate-500">Today's Sabaq:</span>
-                                <span className="text-slate-900 font-semibold">{selectedChild.todayHifzEvaluation.sabaqSurah || "Regular Sabaq"}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Score:</span>
-                                <span className="text-emerald-700 font-bold">{selectedChild.todayHifzEvaluation.totalMarks}/30</span>
-                              </div>
-                              {selectedChild.todayHifzEvaluation.teacherRemarks && (
-                                <p className="p-2 rounded-lg bg-emerald-50 text-emerald-900 text-[11px]">
-                                  <strong>Teacher note:</strong> {selectedChild.todayHifzEvaluation.teacherRemarks}
-                                </p>
-                              )}
-                            </div>
-                          ) : selectedChild.latestHifzSlip ? (
-                            <div className="space-y-2 text-xs">
-                              <div className="flex justify-between font-bold">
-                                <span className="text-slate-500">Current Position:</span>
-                                <span className="text-slate-900 font-semibold">Juz {selectedChild.latestHifzSlip.currentJuz || "—"} · Safah {selectedChild.latestHifzSlip.currentSafah || "—"}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500">Performance:</span>
-                                <span className="text-emerald-700 font-bold">{selectedChild.latestHifzSlip.overallPerformance}%</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-400 text-center py-4">No daily Hifz record yet today.</p>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      {/* Recent Activity Live Feed */}
-                      <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
+                    {/* Recent Classroom Activity Live Feed */}
+                    <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden w-full">
                         <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-5">
                           <CardTitle className="flex items-center gap-2 text-base font-bold text-gray-900">
                             <Activity size={16} className="text-emerald-700" />
@@ -662,7 +601,6 @@ export default function ParentDashboard() {
                           </Link>
                         </CardContent>
                       </Card>
-                    </div>
                   </div>
                 )}
 
@@ -781,138 +719,7 @@ export default function ParentDashboard() {
                 )}
 
                 {/* ─────────────────────────────────────────────────────────────
-                    TAB 3: HIFZ & DAILY WORK TRACKING
-                ───────────────────────────────────────────────────────────── */}
-                {activeTab === "hifz" && (
-                  <div className="space-y-5">
-                    {selectedChild.status === "HAFIZ" || selectedChild.hafizYear ? (
-                      <Card className="border-0 shadow-xl overflow-hidden bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white relative">
-                        <div className="p-8 sm:p-12 text-center relative z-10 space-y-4">
-                          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center">
-                            <Crown className="w-10 h-10 text-amber-400" />
-                          </div>
-                          <span className="text-xs font-bold uppercase tracking-widest text-amber-300 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-400/20">
-                            Certified Hafiz Al-Quran
-                          </span>
-                          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                            مَا شَاءَ اللَّهُ لَا قُوَّةَ إِلَّا بِاللَّهِ
-                          </h2>
-                          <p className="text-sm text-emerald-100/90 max-w-md mx-auto">
-                            {selectedChild.firstName} has completed the memorization of the Holy Quran. Daily beginner evaluations and ikhtebaar testing are not applicable.
-                          </p>
-                          {selectedChild.hafizYear && (
-                            <Badge className="bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1">
-                              Certified Year: {selectedChild.hafizYear} H
-                            </Badge>
-                          )}
-                        </div>
-                      </Card>
-                    ) : (
-                      <>
-                        {/* Daily Evaluation Card */}
-                        <div className="rounded-3xl border border-amber-200/80 bg-gradient-to-br from-white via-amber-50/10 to-amber-50/20 p-6 shadow-sm">
-                          <div className="flex items-center justify-between border-b border-amber-100 pb-3 mb-4">
-                            <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
-                              <BookOpen className="w-5 h-5 text-amber-600" />
-                              Today's Daily Evaluation (اليومية)
-                            </h3>
-                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-semibold">
-                              Live Feedback
-                            </Badge>
-                          </div>
-
-                          {selectedChild.todayHifzEvaluation ? (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-xs">
-                                  <span className="text-[11px] font-bold text-amber-800 uppercase">Sabaq (سبق)</span>
-                                  <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                    {selectedChild.todayHifzEvaluation.sabaqSurah || "Sabaq recitation"}
-                                  </p>
-                                  <p className="text-xs text-slate-500">{selectedChild.todayHifzEvaluation.sabaqLines || 0} Lines recited</p>
-                                </div>
-
-                                <div className="p-3.5 rounded-2xl bg-white border border-blue-100 shadow-xs">
-                                  <span className="text-[11px] font-bold text-blue-800 uppercase">Sabqi (سبقي)</span>
-                                  <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                    {selectedChild.todayHifzEvaluation.sabqiJuz ? `Juz ${selectedChild.todayHifzEvaluation.sabqiJuz}` : "Sabqi Revision"}
-                                  </p>
-                                  <p className="text-xs text-slate-500">Marks: {selectedChild.todayHifzEvaluation.sabqiMarks || 0}/10</p>
-                                </div>
-
-                                <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-xs">
-                                  <span className="text-[11px] font-bold text-emerald-800 uppercase">Muraja'at (مراجعة)</span>
-                                  <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                    {selectedChild.todayHifzEvaluation.murajaatJuz ? `Juz ${selectedChild.todayHifzEvaluation.murajaatJuz}` : "Dhor"}
-                                  </p>
-                                  <p className="text-xs text-slate-500">Marks: {selectedChild.todayHifzEvaluation.murajaatMarks || 0}/10</p>
-                                </div>
-                              </div>
-
-                              {selectedChild.todayHifzEvaluation.teacherRemarks && (
-                                <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
-                                  <strong>Muhaffiz Remarks: </strong> {selectedChild.todayHifzEvaluation.teacherRemarks}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="py-6 text-center text-xs text-slate-400">
-                              No daily evaluation recorded yet for today.
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Latest Weekly Slip */}
-                        {selectedChild.latestHifzSlip && (
-                          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                                <FileText className="w-5 h-5 text-emerald-700" />
-                                Weekly Hifz Slip (Week {selectedChild.latestHifzSlip.weekNumber})
-                              </h3>
-                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 font-bold">
-                                {selectedChild.latestHifzSlip.overallPerformance}% Score
-                              </Badge>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                              <div className="p-3 rounded-xl bg-slate-50">
-                                <span className="text-slate-400 block font-bold">Current Juz</span>
-                                <span className="text-sm font-black text-slate-900">Juz {selectedChild.latestHifzSlip.currentJuz || "—"}</span>
-                              </div>
-                              <div className="p-3 rounded-xl bg-slate-50">
-                                <span className="text-slate-400 block font-bold">Safah</span>
-                                <span className="text-sm font-black text-slate-900">Page {selectedChild.latestHifzSlip.currentSafah || "—"}</span>
-                              </div>
-                              <div className="p-3 rounded-xl bg-slate-50">
-                                <span className="text-slate-400 block font-bold">Discipline Rating</span>
-                                <div className="flex items-center gap-0.5 mt-0.5">
-                                  {Array.from({ length: selectedChild.latestHifzSlip.disciplineRating || 5 }).map((_, i) => (
-                                    <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="p-3 rounded-xl bg-slate-50">
-                                <span className="text-slate-400 block font-bold">Muhaffiz</span>
-                                <span className="text-xs font-bold text-slate-800">{selectedChild.latestHifzSlip.muhaffizName}</span>
-                              </div>
-                            </div>
-
-                            {selectedChild.latestHifzSlip.teacherNotes && (
-                              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-                                <strong className="text-slate-900">Teacher Notes: </strong>
-                                {selectedChild.latestHifzSlip.teacherNotes}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* ─────────────────────────────────────────────────────────────
-                    TAB 4: LEAVE APPLICATIONS
+                    TAB 3: LEAVE APPLICATIONS
                 ───────────────────────────────────────────────────────────── */}
                 {activeTab === "leave" && (
                   <div className="space-y-4">

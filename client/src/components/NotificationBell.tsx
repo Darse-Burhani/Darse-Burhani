@@ -98,9 +98,24 @@ export function NotificationBell() {
         setUnreadCount(json.data.unreadCount ?? 0);
 
         if (isInitialLoadRef.current) {
-          // Initialize known IDs so existing notifications don't trigger popups
+          // Initialize known IDs
           freshList.forEach((n) => knownIdsRef.current.add(n.id));
           isInitialLoadRef.current = false;
+
+          // If there is a very recent unread notification from the last 10 minutes, show it immediately
+          const recentUnread = freshList.find(
+            (n) => !n.isRead && (Date.now() - new Date(n.createdAt).getTime() < 10 * 60 * 1000)
+          );
+          if (recentUnread) {
+            setBannerNotification(recentUnread);
+            sendDesktopNotification({
+              title: recentUnread.title,
+              body: recentUnread.body,
+              link: recentUnread.link || undefined,
+              soundType: recentUnread.type === "ALERT" ? "alert" : "arrival",
+              tag: recentUnread.id,
+            });
+          }
         } else {
           // Find any new unread notification that arrived
           const brandNew = freshList.filter((n) => !n.isRead && !knownIdsRef.current.has(n.id));
@@ -230,7 +245,13 @@ export function NotificationBell() {
                   }}
                   className="mt-2 text-xs font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1 hover:underline"
                 >
-                  <span>Review in Procurement Console</span>
+                  <span>
+                    {bannerNotification.type === "ATTENDANCE"
+                      ? "View Campus Activity"
+                      : bannerNotification.type === "PROCUREMENT"
+                      ? "Review in Procurement Console"
+                      : "View Details"}
+                  </span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               )}

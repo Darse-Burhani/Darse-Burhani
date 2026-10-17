@@ -40,8 +40,6 @@ const rawNavItems = [
   { key: "classes", label: "Classes", href: "/teacher/classes", icon: BookOpen, category: "Academics" },
   { key: "classes", label: "Yearly Profile (1447 H)", href: "/teacher/talabat-profiles", icon: GraduationCap, category: "Academics" },
   { key: "timetable", label: "Timetable Matrix", href: "/teacher/timetable", icon: CalendarDays, category: "Academics" },
-  { key: "quran", label: "Quran (Hifz)", href: "/teacher/hifz", icon: Sparkles, category: "Academics" },
-  { key: "hifz-marhala", label: "Hifz Marhala", href: "/teacher/hifz-marhala", icon: GraduationCap, category: "Academics" },
   { key: "takhteet", label: "Takhteet", href: "/teacher/takhteet", icon: Layers, category: "Academics" },
   { key: "student-assignments", label: "Assignments", href: "/teacher/assignments", icon: ClipboardList, category: "Academics" },
   { key: "talabat-skills", label: "Talabat Skills Records", href: "/teacher/skills", icon: Sparkles, category: "Academics" },

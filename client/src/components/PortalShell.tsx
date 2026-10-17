@@ -985,7 +985,7 @@ export function PortalShell({
                   </Link>
 
                   <Link
-                    href={role === "ADMIN" ? "/admin/attendance-logs" : role === "TEACHER" ? "/teacher/hifz" : "/talabat/hifz"}
+                    href={role === "ADMIN" ? "/admin/attendance-logs" : role === "TEACHER" ? "/teacher/attendance-logs" : "/talabat/attendance"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
                   >

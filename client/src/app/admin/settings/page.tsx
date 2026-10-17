@@ -126,7 +126,6 @@ const TEACHER_MODULES_LIST = [
   { key: "attendance", label: "Attendance", desc: "Session attendance marking & registers", icon: Clock },
   { key: "faculty", label: "Faculty Portal", desc: "Teacher biometric clock-in & faculty attendance", icon: ClipboardCheck },
   { key: "calendar", label: "Calendar", desc: "Darse Burhani Hijri calendar, miqaats & schedules", icon: CalendarDays },
-  { key: "hifz", label: "Hifz Reports", desc: "Student Quran memorization daily tracking", icon: FileText },
   { key: "profile", label: "My Profile", desc: "Teacher institutional profile and bio", icon: User },
 ];
 
@@ -135,7 +134,6 @@ const TALABAT_MODULES_LIST = [
   { key: "attendance", label: "Attendance", desc: "Personal attendance record & statistics", icon: Clock },
   { key: "scans", label: "My Scans", desc: "Biometric & RFID punch scan timeline", icon: Fingerprint },
   { key: "calendar", label: "Calendar", desc: "Darse Burhani Hijri calendar, miqaats & schedules", icon: CalendarDays },
-  { key: "hifz", label: "Hifz Journey", desc: "Quran memorization milestones & progress", icon: BookMarked },
   { key: "library", label: "Library", desc: "Book catalog, borrowed books & overdue tracker", icon: BookOpen },
   { key: "skillTree", label: "Skill Tree", desc: "Academics & character skill development", icon: BarChart3 },
   { key: "badges", label: "Badges", desc: "Earned achievements, certificates & points", icon: Shield },

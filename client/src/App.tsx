@@ -28,8 +28,6 @@ const AdminLayout = lazy(() => import("@/app/admin/layout"));
 const AdminDashboard = lazy(() => import("@/app/admin/page"));
 const AdminClasses = lazy(() => import("@/app/admin/classes/page"));
 const AdminTimetable = lazy(() => import("@/app/admin/timetable/page"));
-const AdminHifz = lazy(() => import("@/app/admin/hifz/page"));
-const AdminHifzMarhala = lazy(() => import("@/app/admin/hifz-marhala/page"));
 const AdminPointMatrix = lazy(() => import("@/app/admin/point-matrix/page"));
 const AdminUsers = lazy(() => import("@/app/admin/users/page"));
 const AdminPasswords = lazy(() => import("@/app/admin/passwords/page"));
@@ -64,8 +62,6 @@ const TalabatAttendance = lazy(() => import("@/app/talabat/attendance/page"));
 const TalabatLeaveRequest = lazy(() => import("@/app/talabat/leave-request/page"));
 const TalabatScans = lazy(() => import("@/app/talabat/scans/page"));
 const TalabatBadges = lazy(() => import("@/app/talabat/badges/page"));
-const TalabatHifz = lazy(() => import("@/app/talabat/hifz/page"));
-const TalabatHifzMarhala = lazy(() => import("@/app/talabat/hifz-marhala/page"));
 const TalabatLibrary = lazy(() => import("@/app/talabat/library/page"));
 const TalabatProfile = lazy(() => import("@/app/talabat/profile/page"));
 const TalabatProfile1447 = lazy(() => import("@/app/talabat/profile-1447/page"));
@@ -85,9 +81,6 @@ const TeacherDashboard = lazy(() => import("@/app/teacher/page"));
 const TeacherClasses = lazy(() => import("@/app/teacher/classes/page"));
 const TeacherAttendance = lazy(() => import("@/app/teacher/attendance/page"));
 const TeacherLeave = lazy(() => import("@/app/teacher/leave/page"));
-const TeacherHifz = lazy(() => import("@/app/teacher/hifz/page"));
-const TeacherHifzMarhala = lazy(() => import("@/app/teacher/hifz-marhala/page"));
-const TeacherHifzWeeklySlip = lazy(() => import("@/app/teacher/hifz-weekly-slip/page"));
 const TeacherTakhteet = lazy(() => import("@/app/teacher/takhteet/page"));
 const TeacherProfile = lazy(() => import("@/app/teacher/profile/page"));
 const TeacherMedicalDuty = lazy(() => import("@/app/teacher/medical-duty/page"));
@@ -102,7 +95,6 @@ const FacultyAttendance = lazy(() => import("@/app/faculty/attendance/page"));
 const ParentLayout = lazy(() => import("@/app/parent/layout"));
 const ParentDashboard = lazy(() => import("@/app/parent/page"));
 const ParentActivity = lazy(() => import("@/app/parent/activity/page"));
-const ParentHifz = lazy(() => import("@/app/parent/hifz/page"));
 const ParentSettings = lazy(() => import("@/app/parent/settings/page"));
 
 function SuspenseFallback() {
@@ -227,9 +219,9 @@ export default function App() {
           <Route index element={<RequireAdminPageAccess pageKey="dashboard"><AdminDashboard /></RequireAdminPageAccess>} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><AdminClasses /></RequireAdminPageAccess>} />
           <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
-          <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><AdminHifz /></RequireAdminPageAccess>} />
-          <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><AdminHifzMarhala /></RequireAdminPageAccess>} />
-          <Route path="hifz-marhala/weekly-slips" element={<Navigate to="/admin/hifz-marhala" replace />} />
+          <Route path="hifz" element={<Navigate to="/admin" replace />} />
+          <Route path="hifz-marhala" element={<Navigate to="/admin" replace />} />
+          <Route path="hifz-marhala/*" element={<Navigate to="/admin" replace />} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
@@ -295,8 +287,9 @@ export default function App() {
           <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="scans" element={<ModuleLockGuard moduleKey="scans" role="STUDENT" title="My Scans"><TalabatScans /></ModuleLockGuard>} />
           <Route path="badges" element={<ModuleLockGuard moduleKey="badges" role="STUDENT" title="Badges"><TalabatBadges /></ModuleLockGuard>} />
-          <Route path="hifz" element={<ModuleLockGuard moduleKey="hifz" role="STUDENT" title="Hifz Journey"><TalabatHifz /></ModuleLockGuard>} />
-          <Route path="hifz-marhala" element={<ModuleLockGuard moduleKey="hifz" role="STUDENT" title="Hifz Marhala"><TalabatHifzMarhala /></ModuleLockGuard>} />
+          <Route path="hifz" element={<Navigate to="/talabat" replace />} />
+          <Route path="hifz-marhala" element={<Navigate to="/talabat" replace />} />
+          <Route path="hifz-marhala/*" element={<Navigate to="/talabat" replace />} />
           <Route path="library" element={<ModuleLockGuard moduleKey="library" role="STUDENT" title="Library"><TalabatLibrary /></ModuleLockGuard>} />
           <Route path="profile" element={<ModuleLockGuard moduleKey="profile" role="STUDENT" title="My Profile"><TalabatProfile /></ModuleLockGuard>} />
           <Route path="yearly-profile" element={<TalabatProfile1447 />} />
@@ -328,10 +321,11 @@ export default function App() {
           <Route path="leave-request" element={<Navigate to="/teacher/leave" replace />} />
           <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
           <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
-          <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifz /></RequireAdminPageAccess>} />
-          <Route path="hifz-reports" element={<Navigate to="/teacher/hifz" replace />} />
-          <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
-          <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
+          <Route path="hifz" element={<Navigate to="/teacher" replace />} />
+          <Route path="hifz-reports" element={<Navigate to="/teacher" replace />} />
+          <Route path="hifz-marhala" element={<Navigate to="/teacher" replace />} />
+          <Route path="hifz-weekly-slip" element={<Navigate to="/teacher" replace />} />
+          <Route path="hifz-marhala/*" element={<Navigate to="/teacher" replace />} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
           <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
@@ -388,7 +382,7 @@ export default function App() {
           <Route path="activity" element={<ParentActivity />} />
           <Route path="attendance" element={<Navigate to="/parent/activity" replace />} />
           <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
-          <Route path="hifz" element={<ParentHifz />} />
+          <Route path="hifz" element={<Navigate to="/parent" replace />} />
           <Route path="yearly-profile" element={<TalabatProfile1447 />} />
           <Route path="profile-1447" element={<TalabatProfile1447 />} />
           <Route path="settings" element={<ParentSettings />} />

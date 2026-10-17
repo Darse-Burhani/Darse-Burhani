@@ -25,7 +25,7 @@ const AvatarImage = React.forwardRef<
 >(({ className, alt = "User avatar", ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
-    loading="lazy"
+    loading="eager"
     decoding="async"
     alt={alt}
     className={cn(

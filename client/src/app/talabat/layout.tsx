@@ -23,8 +23,6 @@ const rawNavItems = [
   { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarDays },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
   { key: "yearly-profile", label: "Yearly Profile", href: "/talabat/yearly-profile", icon: GraduationCap },
-  { key: "hifz", label: "Hifz Journey", href: "/talabat/hifz", icon: BookMarked },
-  { key: "hifz", label: "Hifz Marhala", href: "/talabat/hifz-marhala", icon: BookOpen },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen },
   { key: "assignments", label: "Assignments", href: "/talabat/assignments", icon: ClipboardList },
   { key: "hobbies", label: "Hobbies & Skills", href: "/talabat/hobbies", icon: Palette },

@@ -68,7 +68,6 @@ const portalConfig: Record<
       { label: "Classes", href: "/admin/classes", icon: BookOpen },
       { label: "Takhteet", href: "/admin/timetable", icon: ClipboardList },
       { label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
-      { label: "Hifz", href: "/admin/hifz", icon: FileText },
       { label: "Point Matrix", href: "/admin/point-matrix", icon: Grid3X3 },
       { label: "Users", href: "/admin/users", icon: Users },
       { label: "Broadcasts", href: "/admin/notifications", icon: Megaphone },
@@ -100,7 +99,6 @@ const portalConfig: Record<
       { label: "Profile", href: "/talabat/profile", icon: User },
       { label: "Badges", href: "/talabat/badges", icon: Shield },
       { label: "Skill Tree", href: "/talabat/skill-tree", icon: BarChart3 },
-      { label: "Hifz", href: "/talabat/hifz", icon: BookOpen },
     ],
   },
   PARENT: {
@@ -113,7 +111,6 @@ const portalConfig: Record<
       { label: "Dashboard", href: "/parent", icon: Activity },
       { label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
       { label: "Activity", href: "/parent/activity", icon: Clock },
-      { label: "Hifz Reports", href: "/parent/hifz", icon: BookOpen },
     ],
   },
 };
@@ -169,7 +166,6 @@ export function NavigationBar() {
     if (href === "/talabat/skill-tree") return "skillTree";
     if (href === "/talabat/library") return "library";
     if (href === "/talabat/badges") return "badges";
-    if (href === "/talabat/hifz") return "hifz";
     if (href === "/talabat/attendance") return "attendance";
     if (href === "/talabat/profile") return "profile";
     if (href === "/teacher/classes") return "classes";

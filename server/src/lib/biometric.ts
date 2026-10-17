@@ -1537,7 +1537,7 @@ export async function processBiometricScan(
           title: notifTitle,
           body: notifMsg,
           type: "ATTENDANCE" as any,
-          link: "/parent/attendance",
+          link: "/parent/activity",
         })),
       });
     }

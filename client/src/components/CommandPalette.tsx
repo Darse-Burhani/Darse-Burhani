@@ -110,15 +110,6 @@ export function CommandPalette() {
         badge: "Hardware",
       },
       {
-        id: "act-hifz-marhala",
-        title: "Hifz Marhala Progression Matrix",
-        subtitle: "Track Quran memorization milestones and stages",
-        category: "Actions",
-        icon: BookOpen,
-        href: "/admin/hifz-marhala",
-        keywords: ["hifz", "quran", "marhala", "juz", "memorization"],
-      },
-      {
         id: "act-library-catalog",
         title: "Library Catalog & 3D Shelves",
         subtitle: "Scan barcodes, issue books, and manage inventory",

@@ -156,24 +156,6 @@ const COMMANDS: NavCommand[] = [
     icon: ClipboardList,
     keywords: ["curriculum", "syllabus", "planning", "portion", "progress"],
   },
-  {
-    id: "hifz",
-    title: "Quran & Hifz Management",
-    category: "Academics",
-    href: "/admin/hifz",
-    icon: FileText,
-    shortcut: "G H",
-    keywords: ["quran", "ajza", "juz", "murajaat", "jadeed", "report card", "publish"],
-  },
-  {
-    id: "hifz-marhala",
-    title: "Hifz Marhala — Assignments, Weekly Slips & Reports",
-    category: "Academics",
-    href: "/admin/hifz-marhala",
-    icon: GraduationCap,
-    keywords: ["marhala", "stages", "muhaffiz", "musaid", "tag", "assign", "halaqah", "hifz", "weekly", "slips", "publish"],
-  },
-
   // ── People Hub ──
   {
     id: "students",
@@ -332,7 +314,6 @@ export function CommandPalette() {
           a: "/admin/biometric", // Attendance Hub
           t: "/admin/attendance-schedule", // Timing / Schedule
           c: "/admin/classes", // Classes
-          h: "/admin/hifz", // Hifz
           s: "/admin/students", // Students
           u: "/admin/users", // Users
           p: "/admin/parents", // Parents

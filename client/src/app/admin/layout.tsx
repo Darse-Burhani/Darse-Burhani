@@ -97,18 +97,6 @@ const navItems: PortalNavItem[] = [
     category: "Academics",
   },
   {
-    label: "Quran & Hifz",
-    href: "/admin/hifz",
-    icon: FileText,
-    category: "Academics",
-  },
-  {
-    label: "Hifz Marhala",
-    href: "/admin/hifz-marhala",
-    icon: GraduationCap,
-    category: "Academics",
-  },
-  {
     label: "Takhteet Curriculum",
     href: "/admin/takhteet",
     icon: ClipboardList,

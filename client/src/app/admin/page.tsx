@@ -650,19 +650,6 @@ export default function AdminDashboard() {
                     <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </Link>
 
-                  <Link href="/admin/hifz" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50/60 transition-colors">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
-                      <FileText className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 group-hover:text-amber-700">
-                        Quran &amp; Hifz Program
-                      </p>
-                      <p className="text-xs text-gray-500">Murajaat, jadeed &amp; sanad</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                  </Link>
-
                   <Link href="/admin/takhteet" className="hub-tool-item group flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50/60 transition-colors">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-50 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-colors shrink-0">
                       <ClipboardList className="w-3.5 h-3.5" />

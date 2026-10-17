@@ -44,7 +44,6 @@ const portalOptions = [
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock, description: "Track your attendance & record logs", chip: "Record" },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays, description: "View the Fatimi academic calendar", chip: "Schedule" },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen, description: "Explore every rack, shelf & book", chip: "Books" },
-  { key: "hifz", label: "Hifz", href: "/talabat/hifz", icon: BookMarked, description: "Follow your Qur'an memorisation journey", chip: "Qur'an" },
   { key: "badges", label: "Badges", href: "/talabat/badges", icon: Medal, description: "Collect achievements & milestones", chip: "Awards" },
   { key: "skillTree", label: "Skill Tree", href: "/talabat/skill-tree", icon: GitBranch, description: "Track 4C attribute development", chip: "Growth" },
   { key: "profile", label: "Profile", href: "/talabat/profile", icon: User, description: "Manage your personal information", chip: "Profile" },
