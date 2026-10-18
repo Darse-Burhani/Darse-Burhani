@@ -738,6 +738,11 @@ export async function pollDevice(
     const to = customTo ?? new Date();
     const startOfToday = getStartOfTodayIST();
 
+    // Sunday is institutional holiday — Hikvision terminal polling is disabled unless explicitly forced
+    if (startOfToday.getUTCDay() === 0 && !force) {
+      return { scansFetched: 0, scansProcessed: 0 };
+    }
+
     // Query lookback:
     // 1. If explicit customFrom is provided, use it.
     // 2. If force is requested or first poll (no cursor), start from the beginning of today (00:00:00 IST).

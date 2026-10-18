@@ -78,8 +78,8 @@ export interface AttendanceLogRecordItem {
   section: string;
   designationOrClass: string;
   className?: string;
-  status: "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "ON_LEAVE" | "NOT_MARKED";
-  source: "SCAN" | "MANUAL" | "AUTO_ABSENT" | "MEDICAL_LEAVE" | "LEAVE_APPROVED" | "BIOMETRIC";
+  status: "PRESENT" | "LATE" | "ABSENT" | "EARLY_DEPARTURE" | "MEDICAL" | "ON_LEAVE" | "HOLIDAY" | "NOT_MARKED";
+  source: "SCAN" | "MANUAL" | "AUTO_ABSENT" | "MEDICAL_LEAVE" | "LEAVE_APPROVED" | "BIOMETRIC" | "HOLIDAY";
   verificationMethod?: string | null;
   biometricMethod?: "FACIAL" | "FINGERPRINT" | "CARD" | "BIOMETRIC" | string | null;
   checkInTime?: string | null;

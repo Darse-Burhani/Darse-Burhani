@@ -120,6 +120,72 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
     });
   }
 
+  // Sunday Institutional Holiday: Do NOT mark absent! Mark Holiday for all active students.
+  if (dayStart.getUTCDay() === 0) {
+    console.log("[attendance-scheduler] Sunday holiday detected: marking Holiday for all active students, skipping absent.");
+    let holidayCount = 0;
+    for (const s of students) {
+      if (s.attendanceRecords.length > 0 && s.attendanceRecords[0].status !== "ABSENT") {
+        continue;
+      }
+      const assignedClass = s.classEnrollments[0]?.class || fallbackClass;
+      await prisma.attendanceRegistry.upsert({
+        where: { studentId_date: { studentId: s.id, date: dayStart } },
+        create: {
+          studentId: s.id,
+          date: dayStart,
+          status: "ON_LEAVE",
+          source: "LEAVE_APPROVED",
+          remarks: "Sunday Holiday",
+          recordedById: "system-sunday-holiday",
+        },
+        update: {
+          status: "ON_LEAVE",
+          source: "LEAVE_APPROVED",
+          remarks: "Sunday Holiday",
+        },
+      });
+
+      if (assignedClass) {
+        await prisma.attendanceRecord.upsert({
+          where: {
+            studentId_classId_date: {
+              studentId: s.id,
+              classId: assignedClass.id,
+              date: dayStart,
+            },
+          },
+          create: {
+            studentId: s.id,
+            classId: assignedClass.id,
+            date: dayStart,
+            status: "ON_LEAVE",
+            source: "LEAVE_APPROVED",
+            verificationMethod: "MANUAL",
+            recordedById: "system-sunday-holiday",
+            justification: "Sunday Holiday",
+            justificationStatus: "APPROVED",
+          },
+          update: {
+            status: "ON_LEAVE",
+            source: "LEAVE_APPROVED",
+            justification: "Sunday Holiday",
+          },
+        });
+      }
+      holidayCount++;
+    }
+
+    return {
+      markedCount: 0,
+      alreadyLoggedCount: holidayCount,
+      totalStudents: students.length,
+      medicalCount: 0,
+      exemptCount: holidayCount,
+      markedStudents: [],
+    };
+  }
+
   const markedStudents: Array<{ id: string; name: string; grade: string; section: string }> = [];
   let alreadyLoggedCount = 0;
   let medicalCount = 0;
@@ -366,6 +432,38 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   const expected = await getExpectedFacultyForDay();
+
+  // Sunday Institutional Holiday: Do NOT mark faculty absent! Mark Holiday for all expected faculty.
+  if (dayStart.getUTCDay() === 0) {
+    console.log("[attendance-scheduler] Sunday holiday detected: marking Holiday for faculty, skipping absent.");
+    for (const t of expected) {
+      await prisma.teacherAttendanceRecord.upsert({
+        where: { teacherId_date: { teacherId: t.id, date: dayStart } },
+        create: {
+          teacherId: t.id,
+          date: dayStart,
+          status: "ON_LEAVE",
+          verificationMethod: "MANUAL",
+          notes: "Sunday Holiday",
+        },
+        update: {
+          status: "ON_LEAVE",
+          verificationMethod: "MANUAL",
+          notes: "Sunday Holiday",
+        },
+      });
+    }
+
+    return {
+      markedCount: 0,
+      alreadyLoggedCount: expected.length,
+      medicalCount: 0,
+      skippedCount: 0,
+      totalExpected: expected.length,
+      markedTeachers: [],
+    };
+  }
+
   const existing = await prisma.teacherAttendanceRecord.findMany({
     where: { date: { gte: dayStart, lt: dayEnd } },
     select: { teacherId: true },
@@ -457,6 +555,9 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
 async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
   try {
     const dayOfWeek = nowIST.getDay(); // 0=Sunday
+    // Sunday is institutional holiday — no timetable period sync
+    if (dayOfWeek === 0) return;
+
     const { hours, minutes } = getISTDetails(nowIST);
     const nowMin = hours * 60 + minutes;
 
@@ -535,6 +636,10 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
   try {
     const now = new Date();
     const { scanMinutes, calendarDayUTC } = getISTDetails(now);
+    // Sunday is institutional holiday — Hikvision scan auto-finalization is disabled
+    if (calendarDayUTC.getUTCDay() === 0) {
+      return;
+    }
     const todayStr = calendarDayUTC.toISOString().slice(0, 10);
 
     const windows = await prisma.biometricScanWindow.findMany({
@@ -633,9 +738,10 @@ export function startAttendanceScheduler() {
       // B. Real-time timetable period attendance sync
       await syncClassPeriodAttendance(now);
 
-      // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC)
+      // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC) - skip on Sunday
       if (
         config.autoMarkAbsentEnabled &&
+        currentDayOfWeek !== 0 &&
         currentHour >= config.autoMarkAbsentHourUtc &&
         lastAutoAbsentRunDate?.slice(0, 10) !== todayDateStr
       ) {

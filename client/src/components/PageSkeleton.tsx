@@ -24,7 +24,7 @@ export function SkeletonBlock({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-xl bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 dark:from-emerald-950/40 dark:via-emerald-900/30 dark:to-emerald-950/40 bg-[length:200%_100%] animate-pulse",
+        "rounded-md bg-slate-200/70 dark:bg-[#173628] animate-pulse",
         className,
       )}
     />

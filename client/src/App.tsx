@@ -183,7 +183,6 @@ export default function App() {
   return (
     <ErrorBoundary>
       <DevLockGuard>
-        <SplashScreen />
         <Suspense fallback={<SuspenseFallback />}>
           <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />

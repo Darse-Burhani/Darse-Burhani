@@ -918,6 +918,18 @@ export async function processBiometricScan(
   const date = calendarDayUTC;
   const method = normalizeVerifyMode(verifyMode);
 
+  // Sunday is institutional holiday — Hikvision biometric terminal scan is disabled on Sunday
+  if (calendarDayUTC.getUTCDay() === 0) {
+    return {
+      id: `holiday-sunday-${Date.now()}`,
+      type: "WINDOW_CLOSED",
+      fingerprint,
+      deviceId: deviceId ?? null,
+      timestamp: when.toISOString(),
+      message: "Hikvision biometric terminal scan is disabled on Sunday (Institutional Holiday). All members marked on Holiday.",
+    };
+  }
+
   // 1. Attempt to resolve Student
   const student = await resolveStudent(fingerprint);
 

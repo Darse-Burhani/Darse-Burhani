@@ -1,202 +1,94 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import {
-  FileText,
-  ShieldCheck,
-  AlertTriangle,
-  Users,
-  Key,
-  BookOpen,
-  ArrowLeft,
-  Sparkles,
-  CheckCircle2,
-  Lock,
-} from "lucide-react";
-import { FatimiLogo } from "@/components/FatimiLogo";
-import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
+import { InstitutionalFooter } from "@/components/InstitutionalFooter";
 
 export default function TermsPage() {
-  const lastUpdated = "September 2026";
+  const lastUpdated = "October 2026";
 
   return (
-    <main className="min-h-screen bg-[#01140f] text-gray-100 py-12 px-4 sm:px-6 lg:px-8 relative overflow-x-hidden select-none">
-      {/* Ambient background glows */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] bg-[#047857]/20" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full blur-[160px] bg-[#d4af37]/15" />
-      </div>
-
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Navigation Back */}
-        <div className="mb-8 flex items-center justify-between">
+    <div className="min-h-screen bg-[#0c1f17] text-[#f5f3ef] flex flex-col justify-between">
+      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        {/* Navigation */}
+        <div className="mb-8 flex items-center justify-between border-b border-[#1e382b] pb-4">
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-bold text-white transition-colors"
+            className="inline-flex items-center text-xs font-semibold text-[#c59b27] hover:underline"
           >
-            <ArrowLeft className="w-4 h-4 text-[#d4af37]" />
-            <span>Return to Portal</span>
+            ← Return to Sign In
           </Link>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-[11px] font-bold text-emerald-300">
-            <Sparkles className="w-3.5 h-3.5 text-[#d4af37]" />
-            <span>Institutional Agreement</span>
-          </div>
+          <span className="text-xs text-[#a49a86]">
+            Effective Date: {lastUpdated}
+          </span>
         </div>
 
-        {/* Header Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="rounded-3xl p-1 bg-gradient-to-b from-white/25 via-[#d4af37]/40 to-white/10 shadow-2xl backdrop-blur-2xl border border-white/15 mb-10"
-        >
-          <div className="rounded-[1.4rem] bg-[#032018]/90 backdrop-blur-2xl p-6 sm:p-10 relative overflow-hidden">
-            <div className="absolute top-3.5 left-3.5 pointer-events-none">
-              <FatimiCornerBracket size={24} stroke="#d4af37" opacity={0.8} />
-            </div>
-            <div className="absolute top-3.5 right-3.5 pointer-events-none">
-              <FatimiCornerBracket size={24} stroke="#d4af37" opacity={0.8} flipH />
-            </div>
+        {/* Title Header */}
+        <header className="mb-10 space-y-2">
+          <p className="text-xs uppercase tracking-[0.2em] font-semibold text-[#c59b27]">
+            Mahad al Zahra · Institutional Governance
+          </p>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#fbf8f2] tracking-tight">
+            Terms of Service and User Conduct
+          </h1>
+          <p className="text-sm text-[#b8b2a5] leading-relaxed max-w-2xl">
+            Conditions governing authorized access to the Darse Burhani (Nisab) academic and attendance network.
+          </p>
+        </header>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 mb-6">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#d4af37] via-[#f59e0b] to-[#b8860b] shadow-lg border border-amber-300/60 shrink-0">
-                <FatimiLogo size={38} variant="gold" />
-              </div>
-              <div>
-                <span className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#d4af37]">
-                  Mahad al Zahra
-                </span>
-                <h1 className="font-display font-black text-3xl sm:text-4xl text-white tracking-tight">
-                  Terms & Conditions of Portal Access
-                </h1>
-                <p className="text-xs text-emerald-100/90 mt-1">
-                  Academic Conduct, Acceptable Usage & System Security Agreement · Effective {lastUpdated}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-white/10 text-xs">
-              <div className="flex items-center gap-2 text-gray-300">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Authorized Users Only</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300">
-                <Lock className="w-4 h-4 text-[#d4af37] shrink-0" />
-                <span>Strict Role Isolation</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300">
-                <BookOpen className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>Academic Honor Code</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Content Sections */}
-        <div className="space-y-8 text-gray-300 text-sm leading-relaxed">
-          {/* Section 1 */}
-          <section className="p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3">
-            <h2 className="font-display font-bold text-xl text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#d4af37]" />
-              1. Acceptance of Terms
+        {/* Legal Sections */}
+        <div className="space-y-8 text-sm text-[#d2cec3] leading-relaxed">
+          <section className="space-y-3 p-6 rounded-lg bg-[#10271d] border border-[#1e382b]">
+            <h2 className="font-serif text-xl font-bold text-[#fbf8f2]">
+              1. Authorized Access and Credentials
             </h2>
             <p>
-              By accessing or using the Darse Burhani platform (including the Admin Portal, Faculty Portal, Talabat Student Hub, and Parent Portal), you agree to comply with and be legally bound by these Terms and Conditions and all institutional rules established by Darse Burhani (Nisab) — Mahad al Zahra.
+              Access to Darse Burhani is restricted strictly to enrolled talabat students, registered parents, appointed faculty members, and institutional administrators of Mahad al Zahra.
             </p>
-            <p className="text-xs text-gray-400">
-              If you do not agree with these Terms, you must immediately terminate your session and refrain from utilizing your account credentials.
+            <p>
+              Users are responsible for maintaining the confidentiality of their login credentials (including ITS number and account password). Sharing accounts or attempting to access other users&apos; accounts is strictly prohibited.
             </p>
           </section>
 
-          {/* Section 2 */}
-          <section className="p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3">
-            <h2 className="font-display font-bold text-xl text-white flex items-center gap-2">
-              <Key className="w-5 h-5 text-emerald-400" />
-              2. Account Security & Credential Integrity
+          <section className="space-y-3 p-6 rounded-lg bg-[#10271d] border border-[#1e382b]">
+            <h2 className="font-serif text-xl font-bold text-[#fbf8f2]">
+              2. Acceptable Institutional Use
             </h2>
-            <ul className="list-disc list-inside space-y-2 pl-2 text-gray-300 text-xs sm:text-sm">
-              <li><strong className="text-white">Confidentiality:</strong> You are solely responsible for maintaining the confidentiality of your login email, ITS number, and password. You may not share or delegate your credentials to any other individual.</li>
-              <li><strong className="text-white">Strict Role Isolation:</strong> Users are granted access only to the portal designated for their authenticated role (Admin, Teacher, Student, Parent). Attempting to bypass role guards or access unauthorized endpoints constitutes a severe disciplinary violation.</li>
-              <li><strong className="text-white">Session Security:</strong> Inactivity timeouts and lockout protocols are enforced for security. Any automated credential stuffing or brute-force attempts will result in automated account locking and IP quarantine.</li>
+            <p>
+              Users agree to utilize this system solely for academic review, attendance submission, Hifz progress tracking, and official communications. The following actions constitute immediate violations:
+            </p>
+            <ul className="list-disc list-inside space-y-1 pl-2 text-xs text-[#c7c1b5]">
+              <li>Attempting to alter or falsify attendance records, grades, or merits.</li>
+              <li>Circumventing role-based security permissions or inspection locks.</li>
+              <li>Automated scraping, bulk downloading, or exporting learner data without written administrative authorization.</li>
             </ul>
           </section>
 
-          {/* Section 3 */}
-          <section className="p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3">
-            <h2 className="font-display font-bold text-xl text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#d4af37]" />
-              3. User Codes of Conduct by Portal
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2">
-              <div className="p-4 rounded-xl bg-black/30 border border-white/10 space-y-1.5">
-                <h3 className="font-bold text-[#d4af37]">Faculty & Asateezah</h3>
-                <p className="text-gray-300">
-                  Must record accurate daily roll-call attendance, maintain objective marks grading, and adhere strictly to Takhteet syllabus timeline portions.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-black/30 border border-white/10 space-y-1.5">
-                <h3 className="font-bold text-purple-300">Talabat (Students)</h3>
-                <p className="text-gray-300">
-                  Must complete physical biometric scans punctually, submit genuine justifications for any unavoidable absences, and maintain academic integrity in Hifz and coursework.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-black/30 border border-white/10 space-y-1.5">
-                <h3 className="font-bold text-rose-300">Parents & Guardians</h3>
-                <p className="text-gray-300">
-                  Review real-time attendance telemetry responsibly, acknowledge school notifications promptly, and coordinate with faculty regarding student progress.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-black/30 border border-white/10 space-y-1.5">
-                <h3 className="font-bold text-amber-300">System Administrators</h3>
-                <p className="text-gray-300">
-                  Ensure 99.9% uptime, preserve audit logs, maintain IVMS hardware terminals, and safeguard student and faculty records from unauthorized exposure.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Section 4 */}
-          <section className="p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3">
-            <h2 className="font-display font-bold text-xl text-white flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-rose-400" />
-              4. Prohibited Activities
-            </h2>
-            <p>Users are strictly prohibited from:</p>
-            <ul className="list-disc list-inside space-y-1.5 pl-2 text-gray-300 text-xs sm:text-sm">
-              <li>Engaging in proxy attendance or attempting to simulate biometric scans for another student or teacher.</li>
-              <li>Reverse-engineering, scraping, or launching denial-of-service attacks against platform servers or API endpoints.</li>
-              <li>Uploading malicious attachments, unauthorized script injections, or illicit materials into academic assignments.</li>
-              <li>Falsifying medical justifications or absence documentation.</li>
-            </ul>
-          </section>
-
-          {/* Section 5 */}
-          <section className="p-6 sm:p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3">
-            <h2 className="font-display font-bold text-xl text-white flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              5. Intellectual Property & Institutional Rights
+          <section className="space-y-3 p-6 rounded-lg bg-[#10271d] border border-[#1e382b]">
+            <h2 className="font-serif text-xl font-bold text-[#fbf8f2]">
+              3. Attendance and Sabaq Records
             </h2>
             <p>
-              All software architecture, visual designs, Fatimi ornamental assets, Quranic Takhteet curricula, and databases comprising Darse Burhani are the exclusive intellectual property of Darse Burhani (Nisab) — Mahad al Zahra. Unauthorized reproduction or external redistribution is prohibited.
+              Official records maintained within Darse Burhani constitute the definitive institutional log for student attendance, Hifz Quran marhala milestones, and library borrowings. Discrepancies should be reported promptly to the class Murabbi or designated coordinator.
             </p>
           </section>
-        </div>
 
-        {/* Footer */}
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
-          <span>&copy; {new Date().getFullYear()} Darse Burhani (Nisab) · Mahad al Zahra. All rights reserved.</span>
-          <div className="flex items-center gap-4">
-            <Link href="/privacy" className="hover:text-white transition-colors underline">
-              Privacy Policy
-            </Link>
-            <Link href="/login" className="hover:text-white transition-colors">
-              Portal Access
-            </Link>
-          </div>
+          <section className="space-y-3 p-6 rounded-lg bg-[#10271d] border border-[#1e382b]">
+            <h2 className="font-serif text-xl font-bold text-[#fbf8f2]">
+              4. Contact and Administration
+            </h2>
+            <p>
+              For account issues, credential recovery, or technical assistance, contact the institutional administration desk:
+            </p>
+            <div className="text-xs text-[#b8b2a5] space-y-1 pt-1">
+              <p className="text-[#fbf8f2] font-semibold">Darse Burhani Administration Desk</p>
+              <p>Email: admin@darseburhani.edu</p>
+              <p>Mahad al Zahra Academic Administration</p>
+            </div>
+          </section>
         </div>
-      </div>
-    </main>
+      </main>
+
+      <InstitutionalFooter variant="minimal" />
+    </div>
   );
 }

@@ -17,7 +17,6 @@ import {
   Layers,
   GraduationCap,
   Briefcase,
-  Sparkles,
   Timer,
   AlertTriangle,
   Table as TableIcon,
@@ -245,29 +244,14 @@ function AttendanceTableView({
                             </span>
                           )}
 
-                          {/* Hijri Month & Date Stacking Tag */}
+                          {/* Hijri Day Tag */}
                           <div className="flex items-center gap-1">
                             <span
-                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black border tracking-wide ${
-                                hijri.isJumadaAlUla
-                                  ? "bg-emerald-100/90 text-emerald-950 border-emerald-300 shadow-2xs"
-                                  : hijri.isRabiAlAkhir
-                                  ? "bg-amber-100/80 text-amber-950 border-amber-300"
-                                  : "bg-slate-100 text-slate-800 border-slate-200"
-                              }`}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold text-slate-700 bg-slate-100 border border-slate-200"
                               title={hijri.formatted}
                             >
-                              <Moon className="w-2.5 h-2.5 text-emerald-700 shrink-0" />
+                              <Moon className="w-2.5 h-2.5 text-slate-500 shrink-0" />
                               <span>{hijri.day} {hijri.monthNameShort}</span>
-                              {hijri.isJumadaAlUla ? (
-                                <span className="ml-0.5 px-1 py-0.2 rounded text-[8px] bg-emerald-600 text-white font-black uppercase">
-                                  New 🌟
-                                </span>
-                              ) : hijri.isRabiAlAkhir ? (
-                                <span className="ml-0.5 px-1 py-0.2 rounded text-[8px] bg-amber-600 text-white font-bold uppercase">
-                                  Ended
-                                </span>
-                              ) : null}
                             </span>
                           </div>
                         </div>
@@ -285,7 +269,7 @@ function AttendanceTableView({
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                         <ClipboardCheck className="w-3 h-3 text-slate-400" />
-                        {r.source === "AUTO_ABSENT" ? "Auto-System" : "Manual / Unscanned"}
+                        {r.source === "AUTO_ABSENT" ? "Auto-System" : (r.status as string) === "HOLIDAY" ? "Sunday Holiday" : "Manual / Unscanned"}
                       </span>
                     )}
                   </td>
@@ -302,6 +286,8 @@ function AttendanceTableView({
                           ? "bg-rose-50 text-rose-800 border-rose-300"
                           : r.status === "ON_LEAVE"
                           ? "bg-purple-50 text-purple-800 border-purple-300"
+                          : (r.status as string) === "HOLIDAY"
+                          ? "bg-amber-50 text-amber-900 border-amber-300"
                           : r.status === "NOT_MARKED"
                           ? "bg-slate-100 text-slate-700 border-slate-300"
                           : "bg-red-50 text-red-800 border-red-300"
@@ -311,8 +297,9 @@ function AttendanceTableView({
                       {r.status === "LATE" && <Clock className="w-3 h-3" />}
                       {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
                       {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
+                      {(r.status as string) === "HOLIDAY" && <CalendarDays className="w-3 h-3" />}
                       {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
-                      {r.status}
+                      {(r.status as string) === "HOLIDAY" ? "HOLIDAY" : r.status}
                     </span>
                   </td>
 
@@ -417,6 +404,8 @@ function AttendanceGridView({
                         ? "bg-rose-50 text-rose-800 border-rose-200"
                         : r.status === "ON_LEAVE"
                         ? "bg-purple-50 text-purple-800 border-purple-200"
+                        : (r.status as string) === "HOLIDAY"
+                        ? "bg-amber-50 text-amber-900 border-amber-200"
                         : r.status === "NOT_MARKED"
                         ? "bg-slate-100 text-slate-700 border-slate-200"
                         : "bg-red-50 text-red-800 border-red-200"
@@ -426,9 +415,10 @@ function AttendanceGridView({
                     {r.status === "LATE" && <Clock className="w-3 h-3" />}
                     {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
                     {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
+                    {(r.status as string) === "HOLIDAY" && <CalendarDays className="w-3 h-3" />}
                     {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
                     {r.status === "NOT_MARKED" && <Timer className="w-3 h-3" />}
-                    <span>{r.status.replace(/_/g, " ")}</span>
+                    <span>{(r.status as string) === "HOLIDAY" ? "HOLIDAY" : r.status.replace(/_/g, " ")}</span>
                   </span>
                 </div>
 
@@ -468,26 +458,13 @@ function AttendanceGridView({
                           </span>
                         </div>
 
-                        {/* Hijri Month & Date Stacking */}
+                        {/* Hijri Day */}
                         <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-gray-100/80">
                           <span className="text-gray-400 flex items-center gap-1 font-semibold">
                             <Moon className="w-2.5 h-2.5 text-emerald-600" /> Hijri Day
                           </span>
-                          <span
-                            className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-black ${
-                              hijri.isJumadaAlUla
-                                ? "bg-emerald-100 text-emerald-950 border border-emerald-300"
-                                : hijri.isRabiAlAkhir
-                                ? "bg-amber-100 text-amber-950 border border-amber-300"
-                                : "bg-slate-100 text-slate-700"
-                            }`}
-                          >
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                             <span>{hijri.day} {hijri.monthNameShort}</span>
-                            {hijri.isJumadaAlUla && (
-                              <span className="px-1 py-0.2 rounded text-[7.5px] bg-emerald-600 text-white uppercase font-extrabold">
-                                New 🌟
-                              </span>
-                            )}
                           </span>
                         </div>
                       </div>
@@ -639,22 +616,10 @@ export function DailyStackedLogView({
   logType = "ALL",
 }: DailyStackedLogViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
-  const [hijriTier, setHijriTier] = useState<"ALL" | "JUMADA_ULA" | "RABI_AKHIR">("ALL");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [prevSummary, setPrevSummary] = useState<AttendanceLogsSummary | null>(null);
   const [changedKeys, setChangedKeys] = useState<Set<string>>(new Set());
-
-  const currentDayHijri = useMemo(() => getHijriFromDate(selectedDate || new Date()), [selectedDate]);
-
-  const jumadaRecordsCount = useMemo(
-    () => records.filter((r) => getHijriFromDate(r.checkInTime || selectedDate).isJumadaAlUla).length,
-    [records, selectedDate]
-  );
-  const rabiRecordsCount = useMemo(
-    () => records.filter((r) => getHijriFromDate(r.checkInTime || selectedDate).isRabiAlAkhir).length,
-    [records, selectedDate]
-  );
 
   // Detect which numbers changed for pulse animation
   useEffect(() => {
@@ -683,11 +648,6 @@ export function DailyStackedLogView({
       if (activeTab === "ABSENT" && r.status !== "ABSENT") return false;
       if (activeTab === "NOT_MARKED" && r.status !== "NOT_MARKED") return false;
 
-      // Hijri month stacking filter
-      const rHijri = getHijriFromDate(r.checkInTime || selectedDate);
-      if (hijriTier === "JUMADA_ULA" && !rHijri.isJumadaAlUla) return false;
-      if (hijriTier === "RABI_AKHIR" && !rHijri.isRabiAlAkhir) return false;
-
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const matchesName = r.name.toLowerCase().includes(q);
@@ -697,7 +657,7 @@ export function DailyStackedLogView({
       }
       return true;
     });
-  }, [records, activeTab, hijriTier, selectedDate, search]);
+  }, [records, activeTab, search]);
 
   const talabatRecords = useMemo(() => filteredRecords.filter((r) => r.role === "STUDENT"), [filteredRecords]);
   const facultyRecords = useMemo(() => filteredRecords.filter((r) => r.role === "FACULTY"), [filteredRecords]);
@@ -706,86 +666,6 @@ export function DailyStackedLogView({
 
   return (
     <div className="space-y-4">
-      {/* ── Fatimi Hijri Month Stacking & Transition Banner ── */}
-      <div className="p-4 rounded-[22px] bg-gradient-to-r from-slate-950 via-emerald-950 to-teal-950 border border-emerald-500/40 text-white relative overflow-hidden shadow-lg">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/4 w-52 h-52 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1.5 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black uppercase tracking-wider">
-                <Moon className="w-3.5 h-3.5 text-amber-300" />
-                <span>Fatimi Hijri Stacking Display</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-sm">
-                <Sparkles className="w-3 h-3" />
-                Rabīʿ al-Ākhir Ended &bull; Jumādā al-Ūlā Active
-              </span>
-            </div>
-
-            <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight flex-wrap">
-              <span>Date:</span>
-              <span className="text-amber-300 font-serif">{currentDayHijri.formatted}</span>
-              <span className="text-emerald-400 font-arabic text-sm">({currentDayHijri.formattedAr})</span>
-            </h3>
-
-            <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
-              Rabīʿ al-Ākhir has ended. New Talabat and Faculty attendance scans are automatically registered under <strong className="text-emerald-300">Jumādā al-Ūlā 1448 H</strong>. Use the stacking filters to view new records versus past concluded logs.
-            </p>
-          </div>
-
-          {/* Hijri Month Stacking Switcher Pills */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0 bg-slate-900/90 p-1.5 rounded-2xl border border-emerald-500/30">
-            <button
-              type="button"
-              onClick={() => setHijriTier("ALL")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                hijriTier === "ALL"
-                  ? "bg-white text-slate-950 font-black shadow-md"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800"
-              }`}
-            >
-              <span>All Scans</span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-slate-200/40 text-current">
-                {records.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHijriTier("JUMADA_ULA")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                hijriTier === "JUMADA_ULA"
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-emerald-950 font-black shadow-md ring-2 ring-emerald-400/50"
-                  : "text-emerald-300 hover:text-white hover:bg-emerald-950/60 border border-emerald-500/30"
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Jumādā al-Ūlā (New 🌟)</span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-black bg-emerald-900/40 text-current">
-                {jumadaRecordsCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHijriTier("RABI_AKHIR")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                hijriTier === "RABI_AKHIR"
-                  ? "bg-amber-400 text-amber-950 font-black shadow-md ring-2 ring-amber-300/50"
-                  : "text-amber-300 hover:text-white hover:bg-amber-950/40 border border-amber-500/30"
-              }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Rabīʿ al-Ākhir (Ended)</span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-900/40 text-current">
-                {rabiRecordsCount}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
       {/* ── Strict Subsystem Mode Notification Banner ── */}
       {logType === "HIKVISION" && (
         <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-teal-950/80 to-emerald-900/90 border border-emerald-500/30 text-white flex items-center justify-between gap-3 shadow-sm">

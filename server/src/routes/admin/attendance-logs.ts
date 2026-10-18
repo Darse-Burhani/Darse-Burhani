@@ -316,6 +316,15 @@ router.get("/", requireAuth, async (req, res) => {
           }
         }
 
+        const isSunday = dayStart.getUTCDay() === 0;
+        if (isSunday) {
+          if (effectiveStatus === "ABSENT" || effectiveStatus === "NOT_MARKED") {
+            effectiveStatus = "HOLIDAY";
+            effectiveSource = "HOLIDAY";
+            remarks = remarks || "Sunday Holiday";
+          }
+        }
+
         const isManualScan = !hasBiometricScan;
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false, isManualScan) : null;
         const biometricMethod = record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
@@ -372,12 +381,14 @@ router.get("/", requireAuth, async (req, res) => {
         orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
       });
 
+      const isSunday = dayStart.getUTCDay() === 0;
+
       facultyRecords = teachers.map((t) => {
         const rec = t.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || t.attendanceRecords[0];
-        const status = rec ? rec.status : "NOT_MARKED";
+        let status = rec ? rec.status : "NOT_MARKED";
         const checkInTime = rec?.checkInTime?.toISOString() || null;
         const checkOutTime = rec?.checkOutTime?.toISOString() || null;
-        const remarks = rec?.notes || null;
+        let remarks = rec?.notes || null;
         let source = "MANUAL";
         if (rec) {
           if (rec.verificationMethod === "BIOMETRIC" || rec.biometricHash) {
@@ -392,6 +403,13 @@ router.get("/", requireAuth, async (req, res) => {
             source = "MANUAL";
           }
         }
+
+        if (isSunday && (status === "ABSENT" || status === "NOT_MARKED")) {
+          status = "HOLIDAY";
+          source = "HOLIDAY";
+          remarks = remarks || "Sunday Holiday";
+        }
+
         const isManualScan = source !== "SCAN" && source !== "BIOMETRIC";
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true, isManualScan) : null;
         const biometricMethod = rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
@@ -502,13 +520,13 @@ router.get("/", requireAuth, async (req, res) => {
         else if (r.status === "LATE") late++;
         else if (r.status === "ABSENT") absent++;
         else if (r.status === "MEDICAL") medical++;
-        else if (r.status === "ON_LEAVE") onLeave++;
+        else if (r.status === "ON_LEAVE" || r.status === "HOLIDAY") onLeave++;
         else notMarked++;
         if (r.source === "SCAN" || r.source === "BIOMETRIC") scanned++;
         else if (r.source === "MANUAL") manual++;
         else if (r.source === "AUTO_ABSENT") autoAbsent++;
         else if (r.source === "MEDICAL_LEAVE") medicalLeave++;
-        else if (r.source === "LEAVE_APPROVED") leaveApproved++;
+        else if (r.source === "LEAVE_APPROVED" || r.source === "HOLIDAY") leaveApproved++;
       }
       return { total: list.length, present, late, absent, medical, onLeave, notMarked,
         sources: { scanned, manual, autoAbsent, medicalLeave, leaveApproved } };
