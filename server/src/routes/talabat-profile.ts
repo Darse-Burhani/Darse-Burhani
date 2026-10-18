@@ -236,16 +236,6 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 
   const sp = user.studentProfile;
-  const grade4 = isGrade4(sp.grade) || !!sp.talabatProfile1447;
-
-  if (!grade4) {
-    return res.json({
-      success: true,
-      isGrade4: false,
-      message: "The 1447 H Talabat Profile (توجيه الطالب) is only available for eligible 1447 H Darajah 4 (Rabea) students.",
-    });
-  }
-
   let profile = sp.talabatProfile1447;
   if (!profile) {
     profile = generatePrefilledProfile(sp, user) as any;
@@ -305,10 +295,6 @@ router.put("/me", requireAuth, async (req, res) => {
     }
 
     const sp = user.studentProfile;
-    if (!isGrade4(sp.grade) && session.user.role !== "ADMIN" && !sp.talabatProfile1447) {
-      return res.status(403).json({ success: false, error: "Only eligible 1447 H Talabat can fill this form." });
-    }
-
     studentProfileId = sp.id;
     targetUserAvatar = user.avatarUrl;
     targetUserId = user.id;
@@ -480,32 +466,57 @@ router.get("/list", requireAuth, async (req, res) => {
     return res.status(403).json({ success: false, error: "Access denied" });
   }
 
-  // Find all Grade 4 / Rabea students OR any student with an existing 1447 profile
+  let whereClause: any = {
+    user: { isActive: true, deletedAt: null },
+  };
+
+  if (session.user.role === "TEACHER") {
+    const teacherProfile = await prisma.teacherProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    if (teacherProfile) {
+      const assignedClasses = await prisma.class.findMany({
+        where: { teacherId: teacherProfile.id, isActive: true },
+        select: { id: true },
+      });
+      const classIds = assignedClasses.map((c) => c.id);
+
+      const [classEnrollments, hifzAssignments] = await Promise.all([
+        classIds.length > 0
+          ? prisma.classEnrollment.findMany({
+              where: { classId: { in: classIds }, isActive: true },
+              select: { studentId: true },
+            })
+          : [],
+        prisma.hifzMarhalaAssignment.findMany({
+          where: { teacherId: teacherProfile.id },
+          select: { studentId: true },
+        }),
+      ]);
+
+      const assignedStudentIds = Array.from(
+        new Set([
+          ...classEnrollments.map((e) => e.studentId),
+          ...hifzAssignments.map((a) => a.studentId),
+        ])
+      );
+
+      whereClause = {
+        user: { isActive: true, deletedAt: null },
+        OR: [
+          ...(assignedStudentIds.length > 0 ? [{ id: { in: assignedStudentIds } }] : []),
+          { talabatProfile1447: { isNot: null } },
+          { grade: { contains: "4" } },
+          { grade: { contains: "rabea", mode: "insensitive" } },
+        ],
+      };
+    }
+  }
+
   const students = await prisma.studentProfile.findMany({
-    where: {
-      OR: [
-        {
-          grade: {
-            in: [
-              "4",
-              "Darajah 4",
-              "Grade 4",
-              "Class 4",
-              "IV",
-              "4th",
-              "Rabea",
-              "rabea",
-              "Darajah Rabea",
-              "Grade 4 (Rabea)",
-              "Class 4 (Rabea)",
-            ],
-          },
-        },
-        { grade: { contains: "rabea", mode: "insensitive" } },
-        { grade: { contains: "4" } },
-        { talabatProfile1447: { isNot: null } },
-      ],
-    },
+    where: whereClause,
     include: {
       user: {
         select: {
@@ -519,6 +530,8 @@ router.get("/list", requireAuth, async (req, res) => {
       talabatProfile1447: true,
     },
     orderBy: [
+      { grade: "asc" },
+      { section: "asc" },
       { studentId: "asc" },
       { its: "asc" },
     ],

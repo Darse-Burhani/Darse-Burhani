@@ -882,6 +882,32 @@ export async function syncMonthlyAttendanceSheet(month?: string): Promise<{ succ
   });
 }
 
+export async function syncManualAttendanceSheet(date?: string): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; url: string } }> {
+  return request<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; url: string } }>("/api/admin/attendance-logs/sync-manual-sheet", {
+    method: "POST",
+    body: JSON.stringify({ date }),
+  });
+}
+
+export async function syncTalabatDirectorySheet(): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; rowsSynced: number; url: string } }> {
+  return request<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; rowsSynced: number; url: string } }>("/api/admin/attendance-logs/sync-talabat-sheet", {
+    method: "POST",
+  });
+}
+
+export async function syncFacultyDirectorySheet(): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; rowsSynced: number; url: string } }> {
+  return request<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; rowsSynced: number; url: string } }>("/api/admin/attendance-logs/sync-faculty-sheet", {
+    method: "POST",
+  });
+}
+
+export async function syncAllRecordsSheet(params?: { date?: string; month?: string }): Promise<{ success: boolean; message: string; data: any }> {
+  return request<{ success: boolean; message: string; data: any }>("/api/admin/attendance-logs/sync-all-records", {
+    method: "POST",
+    body: JSON.stringify(params || {}),
+  });
+}
+
 export async function getStudentAuditTimeline(studentId: string): Promise<StudentAuditHistory> {
   return request<StudentAuditHistory>(`/api/admin/attendance-registry/student/${studentId}`);
 }

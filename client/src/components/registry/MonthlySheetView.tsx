@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import {
   getMonthlyAttendanceView,
-  syncMonthlyAttendanceSheet,
   MonthlyAttendanceViewResponse,
 } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
@@ -38,7 +37,6 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
   }, [selectedMonth]);
   const [data, setData] = useState<MonthlyAttendanceViewResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
   const [activeAudience, setActiveAudience] = useState<"STUDENT" | "FACULTY">("STUDENT");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterGrade, setFilterGrade] = useState<string>("ALL");
@@ -65,28 +63,6 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
     loadMonthlyData(selectedMonth);
   }, [selectedMonth]);
 
-  const handleSyncToGoogleSheet = async () => {
-    setIsSyncingSheet(true);
-    try {
-      const res = await syncMonthlyAttendanceSheet(selectedMonth);
-      toast({
-        title: "Google Sheet Updated Successfully",
-        description: res.message || `Monthly register tab '${res.data?.tabTitle}' synced!`,
-        variant: "success",
-      });
-      if (res.data?.url) {
-        window.open(res.data.url, "_blank");
-      }
-    } catch (err: any) {
-      toast({
-        title: "Sheet Sync Notice",
-        description: err?.message || "Failed to update Google Sheet tab.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncingSheet(false);
-    }
-  };
 
   // Next month / Upcoming from Monday helper
   const handleNextMonth = () => {
@@ -271,15 +247,6 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
               Current Month
             </button>
 
-            <button
-              type="button"
-              onClick={handleSyncToGoogleSheet}
-              disabled={isSyncingSheet}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-emerald-950 font-black text-xs shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Share2 className={`w-3.5 h-3.5 ${isSyncingSheet ? "animate-spin" : ""}`} />
-              <span>{isSyncingSheet ? "Syncing..." : "Sync to Google Sheet"}</span>
-            </button>
 
             <button
               type="button"

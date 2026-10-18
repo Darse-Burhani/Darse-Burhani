@@ -8,6 +8,9 @@ import {
   sheetSyncStatus,
   syncDailyAttendanceToSheet,
   syncMonthlyAttendanceToSheet,
+  syncManualAttendanceToSheet,
+  syncTalabatDirectoryToSheet,
+  syncFacultyDirectoryToSheet,
   testSheetConnection,
   saveSheetConfiguration,
   queueAutoSheetSync,
@@ -882,6 +885,68 @@ router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("[attendance-logs] sync-monthly-sheet error:", error);
     return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync monthly Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-manual-sheet — Push manual roll-call attendance to Google Sheet
+router.post("/sync-manual-sheet", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
+    const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
+    const result = await syncManualAttendanceToSheet(target);
+    return res.json({ success: true, message: `Synced manual attendance to tab '${result.tabTitle}'`, data: result });
+  } catch (error) {
+    console.error("[attendance-logs] sync-manual-sheet error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync manual Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-talabat-sheet — Push Talabat student directory to Google Sheet
+router.post("/sync-talabat-sheet", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const result = await syncTalabatDirectoryToSheet();
+    return res.json({ success: true, message: `Synced ${result.rowsSynced} talabat students to tab '${result.tabTitle}'`, data: result });
+  } catch (error) {
+    console.error("[attendance-logs] sync-talabat-sheet error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync talabat directory to Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-faculty-sheet — Push faculty roster to Google Sheet
+router.post("/sync-faculty-sheet", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const result = await syncFacultyDirectoryToSheet();
+    return res.json({ success: true, message: `Synced ${result.rowsSynced} faculty members to tab '${result.tabTitle}'`, data: result });
+  } catch (error) {
+    console.error("[attendance-logs] sync-faculty-sheet error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync faculty directory to Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-all-records — Batch push all active records to Google Sheet
+router.post("/sync-all-records", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
+    const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
+    const rawMonth = typeof req.body?.month === "string" ? req.body.month.trim() : undefined;
+
+    const [daily, monthly, talabat, faculty] = await Promise.all([
+      syncDailyAttendanceToSheet(target),
+      syncMonthlyAttendanceToSheet(rawMonth),
+      syncTalabatDirectoryToSheet(),
+      syncFacultyDirectoryToSheet(),
+    ]);
+
+    markSheetSyncRan(target.toISOString().slice(0, 10));
+
+    return res.json({
+      success: true,
+      message: "Successfully synchronized Daily Attendance, Monthly Register, Talabat Directory, and Faculty Roster to Google Sheets!",
+      data: { daily, monthly, talabat, faculty },
+    });
+  } catch (error) {
+    console.error("[attendance-logs] sync-all-records error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync all records to Google Sheet" });
   }
 });
 

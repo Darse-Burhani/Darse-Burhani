@@ -1899,3 +1899,253 @@ export async function syncManualAttendanceToSheet(
     },
   };
 }
+
+/**
+ * Synchronizes Talabat (Students) Directory to Google Sheets.
+ */
+export async function syncTalabatDirectoryToSheet(customSpreadsheetId?: string): Promise<{
+  spreadsheetId: string;
+  tabTitle: string;
+  rowsSynced: number;
+  url: string;
+}> {
+  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getAttendanceSpreadsheetId());
+  if (!spreadsheetId) {
+    throw new Error("No Google Spreadsheet configured. Please set the Spreadsheet ID or URL.");
+  }
+  const creds = getServiceAccountCreds();
+  if (!creds) {
+    throw new Error("Google Service Account credentials missing.");
+  }
+
+  let auth: unknown;
+  if ("json" in creds) {
+    const parsed = JSON.parse(creds.json);
+    auth = new google.auth.JWT({
+      email: parsed.client_email,
+      key: parsed.private_key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+  } else {
+    auth = new google.auth.JWT({
+      email: creds.email,
+      key: creds.key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+  }
+
+  const sheets = google.sheets({ version: "v4", auth: auth as never });
+
+  const students = await prisma.studentProfile.findMany({
+    where: { user: { isActive: true, deletedAt: null } },
+    include: {
+      user: { select: { firstName: true, lastName: true, email: true } },
+      talabatProfile1447: { select: { status: true, fatherName: true, motherName: true, fatherOccupation: true, motherOccupation: true, updatedAt: true } },
+    },
+    orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+  });
+
+  const tabTitle = "Talabat Directory";
+  const rows: Array<Array<string | number>> = [];
+  rows.push(["DARSE BURHANI — TALABAT (STUDENT) DIRECTORY"]);
+  rows.push([`Generated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST | Total Active Talabat: ${students.length}`]);
+  rows.push([]);
+  rows.push([
+    "S.No",
+    "ITS",
+    "Student ID",
+    "Full Name",
+    "Arabic Name",
+    "Grade",
+    "Section",
+    "Status",
+    "Hafiz Year",
+    "Father Name",
+    "Mother Name",
+    "Mobile / Contact",
+    "City / Watan",
+    "Yearly Profile Status",
+    "Last Updated",
+  ]);
+
+  students.forEach((s, idx) => {
+    rows.push([
+      idx + 1,
+      s.its || "--",
+      s.studentId || "--",
+      `${s.user.firstName} ${s.user.lastName}`.trim(),
+      s.nameAr || "--",
+      s.grade || "--",
+      s.section || "--",
+      s.status || "SANAH",
+      s.hafizYear || "--",
+      s.talabatProfile1447?.fatherName || s.fatherName || "--",
+      s.talabatProfile1447?.motherName || s.motherName || "--",
+      s.mobileNumber || s.fatherPhone || "--",
+      s.residentCity || s.watan || "--",
+      s.talabatProfile1447?.status || "NOT_STARTED",
+      s.talabatProfile1447?.updatedAt ? new Date(s.talabatProfile1447.updatedAt).toISOString().slice(0, 10) : "--",
+    ]);
+  });
+
+  // Ensure tab exists
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const existingSheet = (meta.data.sheets || []).find((s) => s.properties?.title === tabTitle);
+
+  if (!existingSheet) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: tabTitle,
+                gridProperties: { rowCount: Math.max(rows.length + 50, 200), columnCount: 16 },
+              },
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  // Clear and update
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `${tabTitle}!A1:Z${rows.length + 100}`,
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${tabTitle}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: rows },
+  });
+
+  return {
+    spreadsheetId,
+    tabTitle,
+    rowsSynced: students.length,
+    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+  };
+}
+
+/**
+ * Synchronizes Faculty & Staff Directory to Google Sheets.
+ */
+export async function syncFacultyDirectoryToSheet(customSpreadsheetId?: string): Promise<{
+  spreadsheetId: string;
+  tabTitle: string;
+  rowsSynced: number;
+  url: string;
+}> {
+  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getAttendanceSpreadsheetId());
+  if (!spreadsheetId) {
+    throw new Error("No Google Spreadsheet configured. Please set the Spreadsheet ID or URL.");
+  }
+  const creds = getServiceAccountCreds();
+  if (!creds) {
+    throw new Error("Google Service Account credentials missing.");
+  }
+
+  let auth: unknown;
+  if ("json" in creds) {
+    const parsed = JSON.parse(creds.json);
+    auth = new google.auth.JWT({
+      email: parsed.client_email,
+      key: parsed.private_key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+  } else {
+    auth = new google.auth.JWT({
+      email: creds.email,
+      key: creds.key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+  }
+
+  const sheets = google.sheets({ version: "v4", auth: auth as never });
+
+  const teachers = await prisma.teacherProfile.findMany({
+    where: { user: { isActive: true, deletedAt: null } },
+    include: {
+      user: { select: { firstName: true, lastName: true, email: true } },
+    },
+    orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
+  });
+
+  const tabTitle = "Faculty Directory";
+  const rows: Array<Array<string | number>> = [];
+  rows.push(["DARSE BURHANI — FACULTY & STAFF ROSTER"]);
+  rows.push([`Generated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST | Total Active Faculty: ${teachers.length}`]);
+  rows.push([]);
+  rows.push([
+    "S.No",
+    "Employee ID",
+    "ITS",
+    "Full Name",
+    "Department",
+    "Designation",
+    "Email",
+    "Phone / Contact",
+    "Specialization",
+  ]);
+
+  teachers.forEach((t, idx) => {
+    rows.push([
+      idx + 1,
+      t.employeeId || "--",
+      t.its || "--",
+      `${t.user.firstName} ${t.user.lastName}`.trim(),
+      t.department || "Faculty",
+      t.designation || "Teacher",
+      t.user.email || "--",
+      t.phone || "--",
+      t.specialization || "--",
+    ]);
+  });
+
+  // Ensure tab exists
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const existingSheet = (meta.data.sheets || []).find((s) => s.properties?.title === tabTitle);
+
+  if (!existingSheet) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: tabTitle,
+                gridProperties: { rowCount: Math.max(rows.length + 50, 100), columnCount: 12 },
+              },
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  // Clear and update
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `${tabTitle}!A1:Z${rows.length + 100}`,
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${tabTitle}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: rows },
+  });
+
+  return {
+    spreadsheetId,
+    tabTitle,
+    rowsSynced: teachers.length,
+    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+  };
+}
+

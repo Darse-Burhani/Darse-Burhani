@@ -41,6 +41,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
 
   const getPageKeyFromHref = (href: string) => {
     const clean = href.replace(/^\/(admin|teacher)\//, "").split("/")[0].split("?")[0];
+    if (clean === "google-sheets" || clean === "sheets") return "attendance-logs";
     if (clean === "attendance-emails") return "email-reports";
     if (clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance") return "manual-attendance";
     if (clean === "makhzn" || clean === "makhzan") return "makhzan";

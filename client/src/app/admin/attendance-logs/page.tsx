@@ -366,6 +366,7 @@ export default function AdminAttendanceLogsPage() {
           hubTitle="Attendance & Biometric Center"
           hubDescription="Real-time terminal monitoring, manual classroom registers, scan windows, and automated reports."
           tabs={[
+            { label: "Google Sheets Center", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Cloud Sync" },
             { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
             { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
             { label: "Live Scans & Logs", href: "/admin/attendance-logs", icon: FileText, badge: "Audit" },
@@ -412,10 +413,8 @@ export default function AdminAttendanceLogsPage() {
             </span>
           </button>
         </div>
-
         <div className="hidden md:flex items-center gap-2 pr-3 text-[11px] font-bold text-slate-400">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Biometric Gateway &bull; Auto Monthly Google Sheets Sync</span>
+          <span>Biometric Gateway &bull; Attendance Logs &amp; Registry</span>
         </div>
       </div>
 

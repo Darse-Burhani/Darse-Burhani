@@ -53,6 +53,7 @@ const AdminProcurement = lazy(() => import("@/app/admin/procurement/page"));
 const AdminLeave = lazy(() => import("@/app/admin/leave/page"));
 const AdminAttendanceLogs = lazy(() => import("@/app/admin/attendance-logs/page"));
 const AdminManualAttendance = lazy(() => import("@/app/admin/manual-attendance/page"));
+const AdminGoogleSheets = lazy(() => import("@/app/admin/google-sheets/page"));
 const AdminSettings = lazy(() => import("@/app/admin/settings/page"));
 
 // ── Talabat (Student) Portal Pages ──
@@ -249,6 +250,9 @@ export default function App() {
           <Route path="attendance-registry" element={<RequireAdminPageAccess pageKey="manual-attendance"><AdminManualAttendance /></RequireAdminPageAccess>} />
           <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><AdminLeave /></RequireAdminPageAccess>} />
           <Route path="attendance-schedule" element={<RequireAdminPageAccess pageKey="attendance-schedule"><AdminAttendanceSchedule /></RequireAdminPageAccess>} />
+          <Route path="google-sheets" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminGoogleSheets /></RequireAdminPageAccess>} />
+          <Route path="sheets" element={<Navigate to="/admin/google-sheets" replace />} />
+          <Route path="sheet-sync" element={<Navigate to="/admin/google-sheets" replace />} />
           <Route path="schedule" element={<Navigate to="/admin/attendance-schedule" replace />} />
           <Route path="attendance-emails" element={<RequireAdminPageAccess pageKey="email-reports"><AdminAttendanceEmails /></RequireAdminPageAccess>} />
           <Route path="academics" element={<Navigate to="/admin/classes" replace />} />
@@ -332,6 +336,7 @@ export default function App() {
           <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents"><AdminParentsAssign /></RequireAdminPageAccess>} />
           <Route path="attendance-logs" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminAttendanceLogs /></RequireAdminPageAccess>} />
           <Route path="attendance-schedule" element={<RequireAdminPageAccess pageKey="attendance-schedule"><AdminAttendanceSchedule /></RequireAdminPageAccess>} />
+          <Route path="google-sheets" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminGoogleSheets /></RequireAdminPageAccess>} />
           <Route path="attendance-emails" element={<RequireAdminPageAccess pageKey="email-reports"><AdminAttendanceEmails /></RequireAdminPageAccess>} />
           <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
