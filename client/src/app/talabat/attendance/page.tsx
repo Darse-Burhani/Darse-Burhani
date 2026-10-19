@@ -331,7 +331,7 @@ export default function TalabatAttendancePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8"
           >
             <Card className="fatimi-card">
               <CardContent className="p-5">
@@ -348,22 +348,6 @@ export default function TalabatAttendancePage() {
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   {stats.month.present + stats.month.late} of {stats.month.total} days
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card className="fatimi-card">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 rounded-xl bg-amber-100 text-amber-600">
-                    <Flame className="w-5 h-5" />
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                    Current
-                  </Badge>
-                </div>
-                <p className="text-xs text-gray-500 font-medium">Day Streak</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.currentStreak}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">consecutive days</p>
               </CardContent>
             </Card>
 

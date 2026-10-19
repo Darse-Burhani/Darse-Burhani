@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
 import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
+import { getISTDetails, eventRangeForRole } from "../../lib/biometric";
 
 const router = Router();
 
@@ -69,6 +70,15 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
         const tonight = new Date(today.getTime() + 86400000);
         const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000);
 
+        const studentUserIds = links.map((l) => l.student.userId);
+        const studentTrOrIts = links
+          .flatMap((l) => [l.student.studentId, l.student.its, l.student.trNo])
+          .filter(Boolean) as string[];
+
+        const allStudentLoanIds = Array.from(
+          new Set([...studentProfileIds, ...studentUserIds, ...studentTrOrIts])
+        );
+
         const [
           todayAttendanceRecords,
           todayAttendanceRegistries,
@@ -78,6 +88,8 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
           allPointLogs,
           allBadges,
           latestHifzSlips,
+          allBookLoans,
+          scanWindows,
         ] = await Promise.all([
           // 1. Today's class attendance records
           prisma.attendanceRecord.findMany({
@@ -85,6 +97,7 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
               studentId: { in: studentProfileIds },
               date: { gte: today, lt: tonight },
             },
+            include: { class: { select: { id: true, name: true } } },
             orderBy: { checkInTime: "desc" },
           }),
           // 1b. Today's Master Attendance Registry (Biometric punches)
@@ -101,12 +114,8 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
               studentId: { in: studentProfileIds },
               date: { gte: sevenDaysAgo, lt: tonight },
             },
-            select: {
-              studentId: true,
-              date: true,
-              status: true,
-              checkInTime: true,
-            },
+            include: { class: { select: { id: true, name: true } } },
+            orderBy: { date: "desc" },
           }),
           // 2b. Today's Daily Hifz Evaluation
           prisma.hifzDailyEvaluation.findMany({
@@ -158,6 +167,18 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
                 select: { user: { select: { firstName: true, lastName: true } } },
               },
             },
+          }),
+          // 7. Recent book loans for all children
+          prisma.bookLoan.findMany({
+            where: { studentId: { in: allStudentLoanIds } },
+            orderBy: { borrowedAt: "desc" },
+            take: studentProfileIds.length * 10,
+            include: { book: true },
+          }),
+          // 8. Scheduled scan windows
+          prisma.biometricScanWindow.findMany({
+            where: { enabled: true },
+            orderBy: { startTime: "asc" },
           }),
         ]);
 
@@ -299,16 +320,76 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
 
             // Points
             pointsToday,
-            recentActivity: studentLogs.map((r) => ({
-              id: r.id,
-              type: "POINTS" as const,
-              category: r.category,
-              points: r.points,
-              title: `${r.points > 0 ? "+" : ""}${r.points} ${r.category} Points`,
-              detail: r.note || `Awarded by ${r.teacher?.user?.firstName || "Teacher"} ${r.teacher?.user?.lastName || ""}`,
-              teacherName: r.teacher?.user ? `${r.teacher.user.firstName} ${r.teacher.user.lastName}` : "Faculty",
-              createdAt: r.createdAt,
-            })),
+            recentActivity: (() => {
+              const studentLoans = allBookLoans.filter(
+                (l) =>
+                  l.studentId === student.id ||
+                  l.studentId === student.userId ||
+                  l.studentId === student.studentId ||
+                  l.studentId === student.its ||
+                  l.studentId === student.trNo
+              );
+
+              const studentAtt = weeklyRecords.slice(0, 10);
+
+              const combined = [
+                ...studentLogs.map((r) => ({
+                  id: `point-${r.id}`,
+                  type: "POINTS" as const,
+                  category: r.category,
+                  points: r.points,
+                  title: `${r.points > 0 ? "+" : ""}${r.points} ${r.category} Points`,
+                  detail: r.note || `Awarded by ${r.teacher?.user?.firstName || "Teacher"} ${r.teacher?.user?.lastName || ""}`,
+                  teacherName: r.teacher?.user ? `${r.teacher.user.firstName} ${r.teacher.user.lastName}` : "Faculty",
+                  createdAt: r.createdAt,
+                })),
+                ...studentLoans.map((loan) => {
+                  const dueFormatted = new Date(loan.dueAt).toLocaleDateString("en-IN", {
+                    month: "short",
+                    day: "numeric",
+                  });
+                  return {
+                    id: `loan-${loan.id}`,
+                    type: "LIBRARY" as const,
+                    category: "Library",
+                    points: 0,
+                    title: `Library Book Issue: ${loan.bookTitle}`,
+                    detail: `Barcode: ${loan.bookBarcode || loan.book?.barcode || "—"} • Due: ${dueFormatted} • Status: ${loan.status}`,
+                    teacherName: "Maktabat",
+                    createdAt: loan.borrowedAt,
+                  };
+                }),
+                ...studentAtt.map((att) => {
+                  const scanTimestamp = att.checkInTime || att.date;
+                  const { scanMinutes, timeFormatted12 } = getISTDetails(new Date(scanTimestamp));
+
+                  const matchedWindow = scanWindows.find((w) => {
+                    const r = eventRangeForRole(w as any, "STUDENT");
+                    return r && r.enabled && scanMinutes >= r.startMin && scanMinutes <= r.lateMin;
+                  });
+
+                  const eventName = matchedWindow?.name || (att as any).class?.name || "Tilawat al Dua";
+                  const method = (att as any).biometricMethod || (att as any).verificationMethod || "Biometric";
+
+                  return {
+                    id: `att-${att.id || att.date}`,
+                    type: "ATTENDANCE" as const,
+                    category: "Attendance",
+                    points: 0,
+                    title: `${eventName}: ${att.status}`,
+                    detail: att.checkInTime
+                      ? `Verified at ${timeFormatted12} IST via ${method} (${eventName})`
+                      : `Logged as ${att.status} for ${eventName}`,
+                    teacherName: eventName,
+                    createdAt: att.checkInTime || att.date,
+                  };
+                }),
+              ];
+
+              return combined
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .slice(0, 10);
+            })(),
 
             // Badges
             recentBadges: studentBadges.map((b) => ({

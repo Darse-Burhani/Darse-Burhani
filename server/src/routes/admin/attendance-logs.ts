@@ -6,6 +6,7 @@ import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } from "../../lib/attendance-scheduler";
 import {
   sheetSyncStatus,
+  isSheetSyncConfigured,
   syncDailyAttendanceToSheet,
   syncMonthlyAttendanceToSheet,
   syncManualAttendanceToSheet,
@@ -862,6 +863,12 @@ router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
 // Body: { date?: "YYYY-MM-DD" } (defaults to today UTC)
 router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
+    if (!isSheetSyncConfigured()) {
+      return res.status(400).json({
+        success: false,
+        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Google Service Account in Admin → Google Sheets Settings before syncing.",
+      });
+    }
     const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
     const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
     if (Number.isNaN(target.getTime())) {
@@ -872,19 +879,25 @@ router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
     return res.json({ success: true, message: `Synced ${result.rowsSynced} rows to tab '${result.tabTitle}'`, data: result });
   } catch (error) {
     console.error("[attendance-logs] sync-sheet error:", error);
-    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync Google Sheet" });
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync Google Sheet" });
   }
 });
 
 // POST /api/admin/attendance-logs/sync-monthly-sheet — Push monthly summary register to Google Sheet
 router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
+    if (!isSheetSyncConfigured()) {
+      return res.status(400).json({
+        success: false,
+        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Google Service Account in Admin → Google Sheets Settings before syncing.",
+      });
+    }
     const rawMonth = typeof req.body?.month === "string" ? req.body.month.trim() : undefined;
     const result = await syncMonthlyAttendanceToSheet(rawMonth);
     return res.json({ success: true, message: `Synced monthly register to tab '${result.tabTitle}'`, data: result });
   } catch (error) {
     console.error("[attendance-logs] sync-monthly-sheet error:", error);
-    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync monthly Google Sheet" });
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync monthly Google Sheet" });
   }
 });
 
@@ -926,6 +939,12 @@ router.post("/sync-faculty-sheet", requireRole("ADMIN"), async (_req, res) => {
 // POST /api/admin/attendance-logs/sync-all-records — Batch push all active records to Google Sheet
 router.post("/sync-all-records", requireRole("ADMIN"), async (req, res) => {
   try {
+    if (!isSheetSyncConfigured()) {
+      return res.status(400).json({
+        success: false,
+        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Google Service Account in Admin → Google Sheets Settings before syncing.",
+      });
+    }
     const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
     const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
     const rawMonth = typeof req.body?.month === "string" ? req.body.month.trim() : undefined;
@@ -946,7 +965,7 @@ router.post("/sync-all-records", requireRole("ADMIN"), async (req, res) => {
     });
   } catch (error) {
     console.error("[attendance-logs] sync-all-records error:", error);
-    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync all records to Google Sheet" });
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync all records to Google Sheet" });
   }
 });
 
@@ -1112,8 +1131,7 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
     const facultyAvgRate = facultyList.length > 0 ? Math.round(facultyList.reduce((acc, c) => acc + c.rate, 0) / facultyList.length) : 0;
     const overallRate = Math.round((talabatAvgRate + facultyAvgRate) / 2);
 
-    return res.json({
-      success: true,
+    const payload = {
       monthKey,
       monthName,
       totalWorkingDays,
@@ -1125,6 +1143,12 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
       talabat: talabatList,
       faculty: facultyList,
       hijri: hijriMeta,
+    };
+
+    return res.json({
+      success: true,
+      ...payload,
+      data: payload,
     });
   } catch (error) {
     console.error("[attendance-logs] monthly-view error:", error);

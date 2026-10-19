@@ -481,7 +481,7 @@ function AttendanceGridView({
               <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
                 {r.role === "STUDENT" ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700">
-                    <Flame className="w-3.5 h-3.5 text-amber-500" /> {r.streakDays || 0}d streak
+                    <GraduationCap className="w-3.5 h-3.5 text-emerald-600" /> Talib
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700">

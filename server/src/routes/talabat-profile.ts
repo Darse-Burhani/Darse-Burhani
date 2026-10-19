@@ -491,7 +491,7 @@ router.get("/list", requireAuth, async (req, res) => {
             })
           : [],
         prisma.hifzMarhalaAssignment.findMany({
-          where: { teacherId: teacherProfile.id },
+          where: { facultyId: teacherProfile.id },
           select: { studentId: true },
         }),
       ]);

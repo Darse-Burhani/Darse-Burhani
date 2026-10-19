@@ -477,7 +477,6 @@ export default function AdminStudentsPage() {
                               Sanah
                             </span>
                           )}
-                          <Badge className={`text-[9px] ${tierColors[s.tier] || "bg-gray-100 text-gray-600"}`}>{s.tier}</Badge>
                           {!s.isActive && <Badge variant="destructive" className="text-[9px]">Inactive</Badge>}
                         </div>
                       </div>
@@ -572,10 +571,6 @@ export default function AdminStudentsPage() {
                       <div className="text-center">
                         <p className="text-sm font-bold text-gray-900">{s.currentPoints}</p>
                         <p className="text-[10px] text-gray-400">Points</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-bold text-gray-900">{s.streakDays}</p>
-                        <p className="text-[10px] text-gray-400">Streak</p>
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-bold text-gray-900">{s.counts.pointLogs}</p>

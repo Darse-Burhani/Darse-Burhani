@@ -113,10 +113,7 @@ function evaluateIndividual(metrics?: MetricRecord | null): EvaluationResult {
       badgeLabel: "Exemplary Standing",
       badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
       score,
-      diagnosis:
-        streakDays >= 7
-          ? `Flawless consistency with an active ${streakDays}-day unbroken attendance streak.`
-          : "Maintains highest-tier daily attendance and prompt on-time arrivals.",
+      diagnosis: "Maintains exemplary daily attendance and prompt on-time arrivals.",
       recommendation: "Eligible for positive conduct points and attendance badge commendations.",
       color: "#059669",
     };
@@ -993,12 +990,7 @@ export default function IndividualTrackingPage() {
                   {/* Diagnosis snippet */}
                   <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
                     <span className="truncate pr-2 italic">“{ev.diagnosis}”</span>
-                    {person.streakDays !== undefined && person.streakDays > 0 && (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 shrink-0">
-                        <Flame className="w-3 h-3 text-amber-600" />
-                        {person.streakDays}d streak
-                      </span>
-                    )}
+
                   </div>
                 </motion.div>
               );

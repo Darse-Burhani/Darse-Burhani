@@ -891,7 +891,7 @@ export default function MarhalaFlowMap({
                   <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
                     <p className="text-[11px] text-slate-500">Point Score</p>
                     <p className="font-bold text-sm text-amber-500 mt-0.5">
-                      {selectedLeaf.currentPoints} pts ({selectedLeaf.tier})
+                      {selectedLeaf.currentPoints} pts
                     </p>
                   </div>
                 </div>

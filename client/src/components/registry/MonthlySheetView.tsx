@@ -449,13 +449,12 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
                   <th className="py-3.5 px-3 text-center bg-rose-950/60 text-rose-300">Absent</th>
                   <th className="py-3.5 px-3 text-center">Sessions</th>
                   <th className="py-3.5 px-4 text-center">Monthly Turnout</th>
-                  <th className="py-3.5 px-4 text-center">Performance Tier</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredTalabat.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-12 text-center text-slate-400 font-semibold">
+                    <td colSpan={10} className="py-12 text-center text-slate-400 font-semibold">
                       {loading ? "Loading monthly records..." : "No student records found for this month."}
                     </td>
                   </tr>
@@ -522,21 +521,7 @@ export function MonthlySheetView({ initialMonth }: MonthlySheetViewProps) {
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-center">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              s.rate >= 90
-                                ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                                : s.rate >= 80
-                                ? "bg-teal-100 text-teal-900 border border-teal-300"
-                                : s.rate >= 70
-                                ? "bg-blue-100 text-blue-900 border border-blue-300"
-                                : "bg-amber-100 text-amber-900 border border-amber-300"
-                            }`}
-                          >
-                            {s.tier}
-                          </span>
-                        </td>
+
                       </tr>
                     );
                   })

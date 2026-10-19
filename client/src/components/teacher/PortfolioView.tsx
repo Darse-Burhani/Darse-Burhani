@@ -28,12 +28,6 @@ const quickActions = [
   { id: "offtask", label: "Off-Task", points: -3, type: "NEGATIVE" as const, color: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200", icon: AlertTriangle },
 ];
 
-function getTierBadge(tier: string) {
-  const variants: Record<string, "bronze" | "silver" | "gold" | "platinum" | "diamond"> = {
-    BRONZE: "bronze", SILVER: "silver", GOLD: "gold", PLATINUM: "platinum", DIAMOND: "diamond",
-  };
-  return variants[tier] ?? "bronze";
-}
 
 type Tab = "overview" | "students" | "classes";
 
@@ -233,8 +227,7 @@ export default function PortfolioView({ data }: PortfolioViewProps) {
                           <p className="text-sm font-medium text-gray-900 leading-tight">{student.firstName}</p>
                           <p className="text-xs text-gray-500">{student.lastName}</p>
                           <div className="flex items-center gap-1 mt-2">
-                            <span className="text-xs font-bold text-gray-700">{formatPoints(student.currentPoints)}</span>
-                            <Badge variant={getTierBadge(student.tier)} className="text-[10px] px-1.5 py-0">{student.tier}</Badge>
+                            <span className="text-xs font-bold text-gray-700">{formatPoints(student.currentPoints)} pts</span>
                           </div>
                           {selectedStudents.has(student.id) && <div className="absolute inset-0 rounded-xl ring-2 ring-amber-500 ring-offset-1 pointer-events-none" />}
                         </motion.button>

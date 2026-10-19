@@ -23,7 +23,7 @@ export function InstitutionalFooter({
           <div className="flex items-center gap-5 text-xs">
             <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Terms of Service</Link>
-            <a href="mailto:admin@darseburhani.edu" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Institutional Support</a>
+            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Support: support.darseburhani.galiakot@gmail.com</a>
           </div>
         </div>
       </footer>
@@ -85,7 +85,7 @@ export function InstitutionalFooter({
             </h4>
             <div className="text-xs text-[#b8b2a5] space-y-1">
               <p className="text-[#fbf8f2] font-medium">Administration Desk, Mahad al Zahra</p>
-              <p>Email: admin@darseburhani.edu</p>
+              <p>Email: <a href="mailto:support.darseburhani.galiakot@gmail.com" className="text-[#c59b27] hover:underline font-semibold">support.darseburhani.galiakot@gmail.com</a></p>
               <p>Assistance hours: Monday to Saturday, 08:00 – 16:30 IST</p>
             </div>
           </div>

@@ -63,7 +63,6 @@ export default function TalabatBadgesPage() {
                         <div className="w-16 h-16 rounded-full fatimi-emerald-gradient flex items-center justify-center text-3xl mx-auto mb-3 shadow-md">⭐</div>
                         <h3 className="font-semibold text-gray-900 mb-1">{badge.name}</h3>
                         <p className="text-xs text-gray-500 mb-2">{badge.description}</p>
-                        <Badge variant={badge.tier === "GOLD" ? "gold" : badge.tier === "SILVER" ? "silver" : badge.tier === "PLATINUM" ? "platinum" : badge.tier === "DIAMOND" ? "diamond" : "bronze"} className="text-xs">{badge.tier}</Badge>
                         {badge.earnedAt && <p className="text-[10px] text-gray-400 mt-2">Earned {new Date(badge.earnedAt).toLocaleDateString()}</p>}
                       </CardContent>
                     </Card>
@@ -86,7 +85,6 @@ export default function TalabatBadgesPage() {
                         <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-3xl mx-auto mb-3">🔒</div>
                         <h3 className="font-semibold text-gray-900 mb-1">{badge.name}</h3>
                         <p className="text-xs text-gray-500 mb-2">{badge.description}</p>
-                        <Badge variant="secondary" className="text-xs">{badge.tier}</Badge>
                         <div className="mt-3">
                           <div className="w-full bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full bg-gray-400" style={{ width: `${badge.progress}%` }} /></div>
                           <p className="text-[10px] text-gray-400 mt-1">{badge.progress}% complete</p>

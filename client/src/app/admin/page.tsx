@@ -1142,9 +1142,6 @@ export default function AdminDashboard() {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-xs font-bold text-amber-700 num-tabular">{s.points} pts</p>
-                          <Badge className={`text-xs font-semibold border ${tierColors[s.tier] || "bg-gray-100 text-gray-600"}`}>
-                            {s.tier}
-                          </Badge>
                         </div>
                       </div>
                     ))}

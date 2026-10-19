@@ -70,9 +70,11 @@ export default function GoogleSheetsAdminPage() {
     try {
       setLoading(true);
       const data = await getSheetSyncStatus();
-      setStatus(data);
-      if (data.spreadsheetId) {
-        setConfigSpreadsheetId(data.spreadsheetId);
+      if (data) {
+        setStatus(data);
+        if (data.spreadsheetId) {
+          setConfigSpreadsheetId(data.spreadsheetId);
+        }
       }
     } catch (err: any) {
       console.error("Failed to load Google Sheet status:", err);

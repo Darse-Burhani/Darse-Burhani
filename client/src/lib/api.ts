@@ -196,7 +196,8 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     throw new Error(json.error || `Request failed with status ${res.status}`);
   }
 
-  return json.data as T;
+  const data = (json.data !== undefined ? json.data : json) as T;
+  return data;
 }
 
 // ── Talabat API ──
@@ -756,8 +757,8 @@ export interface SheetSyncResult {
 }
 
 export async function getSheetSyncStatus(): Promise<SheetSyncStatusData> {
-  const res = await request<{ success: boolean; data: SheetSyncStatusData }>("/api/admin/attendance-logs/sync-sheet/status");
-  return res.data;
+  const res = await request<any>("/api/admin/attendance-logs/sync-sheet/status");
+  return ((res && res.data) ? res.data : res) as SheetSyncStatusData;
 }
 
 export async function testSheetConnection(config: {
@@ -771,20 +772,11 @@ export async function testSheetConnection(config: {
   url: string;
   serviceAccountEmail: string;
 }> {
-  const res = await request<{
-    success: boolean;
-    message: string;
-    data: {
-      title: string;
-      sheetNames: string[];
-      url: string;
-      serviceAccountEmail: string;
-    };
-  }>("/api/admin/attendance-logs/sync-sheet/test", {
+  const res = await request<any>("/api/admin/attendance-logs/sync-sheet/test", {
     method: "POST",
     body: JSON.stringify(config),
   });
-  return res.data;
+  return ((res && res.data) ? res.data : res);
 }
 
 export async function saveSheetConfig(config: {
@@ -872,7 +864,8 @@ export async function getMonthlyAttendanceView(month?: string, hijriMonth?: numb
   if (month) params.set("month", month);
   if (hijriMonth) params.set("hijriMonth", String(hijriMonth));
   const q = params.toString() ? `?${params.toString()}` : "";
-  return request<MonthlyAttendanceViewResponse>(`/api/admin/attendance-logs/monthly-view${q}`);
+  const res = await request<any>(`/api/admin/attendance-logs/monthly-view${q}`);
+  return ((res && res.data) ? res.data : res) as MonthlyAttendanceViewResponse;
 }
 
 export async function syncMonthlyAttendanceSheet(month?: string): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; url: string } }> {

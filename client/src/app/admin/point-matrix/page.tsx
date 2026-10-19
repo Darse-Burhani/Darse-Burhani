@@ -109,7 +109,6 @@ export default function AdminPointMatrixPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("ALL");
   const [selectedSection, setSelectedSection] = useState("ALL");
-  const [selectedTier, setSelectedTier] = useState("ALL");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   // Modals & Drawers
@@ -190,21 +189,17 @@ export default function AdminPointMatrixPage() {
 
       const matchesGrade = selectedGrade === "ALL" || t.grade === selectedGrade;
       const matchesSection = selectedSection === "ALL" || t.section === selectedSection;
-      const matchesTier = selectedTier === "ALL" || t.tier.toUpperCase() === selectedTier.toUpperCase();
-
-      return matchesSearch && matchesGrade && matchesSection && matchesTier;
+      return matchesSearch && matchesGrade && matchesSection;
     });
-  }, [talabat, searchQuery, selectedGrade, selectedSection, selectedTier]);
+  }, [talabat, searchQuery, selectedGrade, selectedSection]);
 
   // Metrics
   const metrics = useMemo(() => {
     const totalTalabat = talabat.length;
     const totalPointsAwarded = talabat.reduce((acc, t) => acc + (t.currentPoints || 0), 0);
-    const platinumCount = talabat.filter((t) => t.tier === "PLATINUM").length;
-    const goldCount = talabat.filter((t) => t.tier === "GOLD").length;
     const activeRulesCount = rules.length;
 
-    return { totalTalabat, totalPointsAwarded, platinumCount, goldCount, activeRulesCount };
+    return { totalTalabat, totalPointsAwarded, activeRulesCount };
   }, [talabat, rules]);
 
   // Handle Select All
@@ -456,19 +451,6 @@ export default function AdminPointMatrixPage() {
     setShowRuleModal(true);
   };
 
-  // Tier color mapper
-  const getTierBadge = (tier: string) => {
-    switch (tier.toUpperCase()) {
-      case "PLATINUM":
-        return <Badge className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 shadow-sm">💎 Platinum</Badge>;
-      case "GOLD":
-        return <Badge className="bg-gradient-to-r from-amber-400 to-amber-600 text-white border-0 shadow-sm">🥇 Gold</Badge>;
-      case "SILVER":
-        return <Badge className="bg-gradient-to-r from-slate-300 to-slate-500 text-white border-0 shadow-sm">🥈 Silver</Badge>;
-      default:
-        return <Badge className="bg-gradient-to-r from-orange-400 to-amber-700 text-white border-0 shadow-sm">🥉 Bronze</Badge>;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-24 text-slate-900 dark:text-slate-100">
@@ -603,16 +585,12 @@ export default function AdminPointMatrixPage() {
           <Card className="border-slate-200/80 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900/60 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Elite Champions</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xl font-bold text-cyan-600 dark:text-cyan-400">{metrics.platinumCount} 💎</span>
-                  <span className="text-slate-300 dark:text-slate-700">|</span>
-                  <span className="text-xl font-bold text-amber-500">{metrics.goldCount} 🥇</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">Platinum & Gold tiers</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Activity Logs</p>
+                <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{logs.length}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Recorded merit transactions</p>
               </div>
-              <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-                <Flame className="w-6 h-6" />
+              <div className="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl">
+                <History className="w-6 h-6" />
               </div>
             </CardContent>
           </Card>
@@ -732,19 +710,6 @@ export default function AdminPointMatrixPage() {
                   ))}
                 </select>
 
-                {/* Tier Filter */}
-                <select
-                  aria-label="Filter by Tier"
-                  value={selectedTier}
-                  onChange={(e) => setSelectedTier(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
-                >
-                  <option value="ALL">All Tiers</option>
-                  <option value="PLATINUM">💎 Platinum</option>
-                  <option value="GOLD">🥇 Gold</option>
-                  <option value="SILVER">🥈 Silver</option>
-                  <option value="BRONZE">🥉 Bronze</option>
-                </select>
 
                 {/* Bulk Select All */}
                 <Button
@@ -786,7 +751,6 @@ export default function AdminPointMatrixPage() {
                       <th className="py-3.5 px-4">Talib</th>
                       <th className="py-3.5 px-4">Grade & Section</th>
                       <th className="py-3.5 px-4">ITS / ID</th>
-                      <th className="py-3.5 px-4">Tier Status</th>
                       <th className="py-3.5 px-4 text-center">Score Balance</th>
                       <th className="py-3.5 px-4">Recent Point Action</th>
                       <th className="py-3.5 px-4 text-right">Quick Score</th>
@@ -795,14 +759,14 @@ export default function AdminPointMatrixPage() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs sm:text-sm">
                     {loading ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
                           Loading Talabat point matrix...
                         </td>
                       </tr>
                     ) : filteredTalabat.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
                           No Talabat found matching your search and filter criteria.
                         </td>
                       </tr>
@@ -842,13 +806,8 @@ export default function AdminPointMatrixPage() {
                                   )}
                                 </div>
                                 <div>
-                                  <p className="text-slate-900 dark:text-white font-semibold flex items-center gap-1.5">
+                                  <p className="text-slate-900 dark:text-white font-semibold">
                                     {talib.name}
-                                    {talib.streakDays > 2 && (
-                                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 flex items-center gap-0.5">
-                                        <Flame className="w-2.5 h-2.5 text-amber-500" /> {talib.streakDays}d
-                                      </span>
-                                    )}
                                   </p>
                                   <p className="text-[11px] text-slate-400">{talib.email}</p>
                                 </div>
@@ -862,9 +821,6 @@ export default function AdminPointMatrixPage() {
                             <td className="py-3.5 px-4 text-xs font-mono text-slate-500">
                               <div>{talib.its || "—"}</div>
                               <div className="text-[10px] text-slate-400">{talib.studentId}</div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              {getTierBadge(talib.tier)}
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               <div className="inline-flex flex-col items-center">

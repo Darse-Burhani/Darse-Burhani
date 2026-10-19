@@ -513,29 +513,28 @@ export default function ParentDashboard() {
 
                         {/* Quick metrics */}
                         <div className="flex shrink-0 items-center gap-3">
-                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5 text-center min-w-[100px]">
-                            <span className="block text-[11px] font-bold uppercase text-emerald-700">7-Day Rate</span>
+                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5 text-center min-w-[110px]">
+                            <span className="block text-[11px] font-bold uppercase text-emerald-700">7-Day Attendance</span>
                             <span className="text-lg font-black text-emerald-800">
                               {selectedChild.attendanceRateLast7 ?? 100}%
                             </span>
                           </div>
-                          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-3.5 text-center min-w-[100px]">
-                            <span className="block text-[11px] font-bold uppercase text-amber-700">Streak</span>
-                            <span className="flex items-center justify-center gap-1 text-lg font-black text-amber-800">
-                              <Flame className="h-4 w-4 fill-orange-500 text-orange-500" />
-                              {selectedChild.streakDays || 0}d
+                          <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-3.5 text-center min-w-[110px]">
+                            <span className="block text-[11px] font-bold uppercase text-teal-700">Campus Status</span>
+                            <span className="flex items-center justify-center gap-1 text-sm font-black text-teal-800 mt-0.5">
+                              {selectedChild.isCheckedIn ? "Checked In" : "Not Present"}
                             </span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Stats 4-Grid */}
+                    {/* Stats 4-Grid (Tier Rank and Streak removed) */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
                       {[
                         { label: "Today's Merits", value: `+${selectedChild.pointsToday || 0}`, icon: TrendingUp, box: "bg-amber-50 text-amber-700 border-amber-200" },
                         { label: "Total Points", value: formatPoints(selectedChild.currentPoints || 0), icon: Award, box: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-                        { label: "Tier Rank", value: selectedChild.tier || "BRONZE", icon: Shield, box: "bg-violet-50 text-violet-700 border-violet-200" },
+                        { label: "Attendance Status", value: selectedChild.isCheckedIn ? "Checked In" : "Pending", icon: Clock, box: "bg-teal-50 text-teal-700 border-teal-200" },
                         { label: "Blood Group", value: selectedChild.bloodGroup || "—", icon: Droplet, box: "bg-rose-50 text-rose-600 border-rose-200" },
                       ].map((s) => (
                         <div key={s.label} className="flex items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -550,12 +549,12 @@ export default function ParentDashboard() {
                       ))}
                     </div>
 
-                    {/* Recent Classroom Activity Live Feed */}
+                    {/* Recent Classroom, Library & Attendance Activity Live Feed */}
                     <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden w-full">
                         <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-5">
                           <CardTitle className="flex items-center gap-2 text-base font-bold text-gray-900">
                             <Activity size={16} className="text-emerald-700" />
-                            Recent Classroom Activity & Merits
+                            Recent Activity, Library &amp; Attendance
                           </CardTitle>
                           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
                             Live Feed
@@ -563,22 +562,34 @@ export default function ParentDashboard() {
                         </CardHeader>
                         <CardContent className="p-5 space-y-2.5">
                           {selectedChild.recentActivity?.length ? (
-                            selectedChild.recentActivity.slice(0, 4).map((act: any) => (
-                              <div key={act.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
-                                <div className="rounded-xl border border-amber-200 bg-amber-100/70 p-2 text-amber-700 shrink-0">
-                                  <Award size={16} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="truncate text-xs sm:text-sm font-bold text-gray-900">{act.title}</p>
-                                    <span className="shrink-0 text-[11px] text-gray-400">{timeAgo(new Date(act.createdAt))}</span>
+                            selectedChild.recentActivity.slice(0, 5).map((act: any) => {
+                              const isLib = act.type === "LIBRARY";
+                              const isAtt = act.type === "ATTENDANCE";
+                              return (
+                                <div key={act.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
+                                  <div
+                                    className={`rounded-xl border p-2 shrink-0 ${
+                                      isLib
+                                        ? "border-indigo-200 bg-indigo-100/70 text-indigo-700"
+                                        : isAtt
+                                        ? "border-emerald-200 bg-emerald-100/70 text-emerald-700"
+                                        : "border-amber-200 bg-amber-100/70 text-amber-700"
+                                    }`}
+                                  >
+                                    {isLib ? <BookOpen size={16} /> : isAtt ? <Clock size={16} /> : <Award size={16} />}
                                   </div>
-                                  <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{act.detail}</p>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="truncate text-xs sm:text-sm font-bold text-gray-900">{act.title}</p>
+                                      <span className="shrink-0 text-[11px] text-gray-400">{timeAgo(new Date(act.createdAt))}</span>
+                                    </div>
+                                    <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{act.detail}</p>
+                                  </div>
                                 </div>
-                              </div>
-                            ))
+                              );
+                            })
                           ) : (
-                            <p className="py-6 text-center text-xs text-gray-400">No merit logs recorded yet today.</p>
+                            <p className="py-6 text-center text-xs text-gray-400">No activity logs recorded yet today.</p>
                           )}
                           <Link href="/parent/activity" className="flex items-center justify-center gap-1 pt-1 text-xs font-bold text-emerald-800 hover:underline">
                             View Full Activity Log <ChevronRight size={14} />

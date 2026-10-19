@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
+import { getISTDetails, eventRangeForRole } from "../../lib/biometric";
 
 const router = Router();
 
@@ -43,13 +44,20 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
     const limit = parseInt((req.query.limit as string) || "50");
 
     // Match either studentProfileId or userId
-    const targetStudentProfileIds = childId
-      ? links
-          .filter((l) => l.student.id === childId || l.student.userId === childId)
-          .map((l) => l.student.id)
-      : studentIds;
+    const targetLinks = childId
+      ? links.filter((l) => l.student.id === childId || l.student.userId === childId)
+      : links;
 
-    const [pointLogs, attendanceRecords] = await Promise.all([
+    const targetStudentProfileIds = targetLinks.map((l) => l.student.id);
+    const targetUserIds = targetLinks.map((l) => l.student.userId);
+    const targetStudentIds = targetLinks.map((l) => l.student.studentId).filter(Boolean) as string[];
+    const targetIts = targetLinks.map((l) => l.student.its).filter(Boolean) as string[];
+
+    const targetLoanStudentIds = Array.from(
+      new Set([...targetStudentProfileIds, ...targetUserIds, ...targetStudentIds, ...targetIts])
+    );
+
+    const [pointLogs, attendanceRecords, bookLoans, scanWindows] = await Promise.all([
       prisma.pointLog.findMany({
         where: { studentId: { in: targetStudentProfileIds } },
         orderBy: { createdAt: "desc" },
@@ -74,6 +82,7 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
         orderBy: { date: "desc" },
         take: limit * 2,
         include: {
+          class: { select: { id: true, name: true } },
           student: {
             select: {
               id: true,
@@ -83,10 +92,41 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
           },
         },
       }),
+      prisma.bookLoan.findMany({
+        where: { studentId: { in: targetLoanStudentIds } },
+        orderBy: { borrowedAt: "desc" },
+        take: limit,
+        include: {
+          book: true,
+        },
+      }),
+      prisma.biometricScanWindow.findMany({
+        where: { enabled: true },
+        orderBy: { startTime: "asc" },
+      }),
     ]);
 
     // Omit Rabi ul Akhar attendance records from Parent portal (without deleting them from DB)
     const nonRabiAttendance = attendanceRecords.filter((a) => !isRabiAlAkhirDate(a.date));
+
+    // Helper map for child lookup by any ID
+    const findChildForBorrower = (borrowerId: string) => {
+      const match = targetLinks.find(
+        (l) =>
+          l.student.id === borrowerId ||
+          l.student.userId === borrowerId ||
+          l.student.studentId === borrowerId ||
+          l.student.its === borrowerId
+      );
+      if (match) {
+        return {
+          id: match.student.userId,
+          studentProfileId: match.student.id,
+          name: `${match.student.user?.firstName || ""} ${match.student.user?.lastName || ""}`.trim(),
+        };
+      }
+      return null;
+    };
 
     const activities = [
       ...pointLogs.map((p) => ({
@@ -101,20 +141,69 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
         points: p.points,
         createdAt: p.createdAt,
       })),
-      ...nonRabiAttendance.map((a) => ({
-        id: `att-${a.id}`,
-        type: "ATTENDANCE" as const,
-        childId: a.student.userId,
-        studentProfileId: a.student.id,
-        childName: `${a.student.user?.firstName || ""} ${a.student.user?.lastName || ""}`,
-        title: `Campus Attendance: ${a.status}`,
-        detail: a.checkInTime
-          ? `Biometric check-in verified at ${new Date(a.checkInTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-          : `Status logged as ${a.status}`,
-        status: a.status,
-        checkInTime: a.checkInTime,
-        createdAt: a.date,
-      })),
+      ...nonRabiAttendance.map((a) => {
+        const scanTimestamp = a.checkInTime || a.date;
+        const { scanMinutes, timeFormatted12 } = getISTDetails(new Date(scanTimestamp));
+
+        const matchedWindow = scanWindows.find((w) => {
+          const r = eventRangeForRole(w as any, "STUDENT");
+          return r && r.enabled && scanMinutes >= r.startMin && scanMinutes <= r.lateMin;
+        });
+
+        const eventName = matchedWindow?.name || a.class?.name || "Tilawat al Dua";
+        const method = a.biometricMethod || a.verificationMethod || "Biometric Terminal";
+
+        return {
+          id: `att-${a.id}`,
+          type: "ATTENDANCE" as const,
+          childId: a.student.userId,
+          studentProfileId: a.student.id,
+          childName: `${a.student.user?.firstName || ""} ${a.student.user?.lastName || ""}`,
+          eventName,
+          title: `${eventName}: ${a.status}`,
+          detail: a.checkInTime
+            ? `Biometric scan verified at ${timeFormatted12} IST via ${method} (${eventName})`
+            : `Status logged as ${a.status} for ${eventName}`,
+          status: a.status,
+          checkInTime: a.checkInTime,
+          method,
+          createdAt: a.checkInTime || a.date,
+        };
+      }),
+      ...bookLoans.map((loan) => {
+        const child = findChildForBorrower(loan.studentId);
+        const dueFormatted = new Date(loan.dueAt).toLocaleDateString("en-IN", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        const returnedFormatted = loan.returnedAt
+          ? new Date(loan.returnedAt).toLocaleDateString("en-IN", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : null;
+
+        return {
+          id: `loan-${loan.id}`,
+          type: "LIBRARY" as const,
+          childId: child?.id || loan.studentId,
+          studentProfileId: child?.studentProfileId,
+          childName: child?.name || loan.studentName,
+          title: `Library Book Issue: ${loan.bookTitle}`,
+          detail: `Barcode: ${loan.bookBarcode || loan.book?.barcode || "—"} • Due: ${dueFormatted} • Status: ${loan.status}${
+            returnedFormatted ? ` • Returned: ${returnedFormatted}` : ""
+          }`,
+          bookTitle: loan.bookTitle,
+          bookBarcode: loan.bookBarcode || loan.book?.barcode,
+          status: loan.status,
+          borrowedAt: loan.borrowedAt,
+          dueAt: loan.dueAt,
+          returnedAt: loan.returnedAt,
+          createdAt: loan.borrowedAt,
+        };
+      }),
     ]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit);

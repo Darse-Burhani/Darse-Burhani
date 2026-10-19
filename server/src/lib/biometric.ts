@@ -207,6 +207,13 @@ export function eventRangeForRole(
       const late = Math.max(e, toMinutes(w.lateEndTime ?? w.endTime));
       return { startMin: s, endMin: e, lateMin: late, enabled: w.enabled };
     }
+    // Unified schedule fallback: If the row is enabled and faculty is not explicitly disabled
+    if (w.enabled && w.facultyEnabled !== false) {
+      const s = toMinutes(w.facultyStartTime || w.startTime);
+      const e = toMinutes(w.facultyEndTime || w.endTime);
+      const late = Math.max(e, toMinutes(w.facultyLateEndTime || w.facultyEndTime || w.lateEndTime || w.endTime));
+      return { startMin: s, endMin: e, lateMin: late, enabled: w.enabled };
+    }
     return null;
   }
   // Role === "STUDENT": strictly exclude faculty-only rows
@@ -493,12 +500,12 @@ export function toWindowConfig(w: ScanWindowRowLike, role: "STUDENT" | "TEACHER"
   const range = eventRangeForRole(w, role);
   if (!range) return null;
   const startTime =
-    role === "TEACHER" && hasFacultyTimer(w) ? (w.facultyStartTime as string) : w.startTime;
+    role === "TEACHER" ? (w.facultyStartTime || w.startTime) : w.startTime;
   const endTime =
-    role === "TEACHER" && hasFacultyTimer(w) ? (w.facultyEndTime as string) : w.endTime;
+    role === "TEACHER" ? (w.facultyEndTime || w.endTime) : w.endTime;
   const lateEndTime =
-    role === "TEACHER" && hasFacultyTimer(w)
-      ? (w.facultyLateEndTime ?? w.facultyEndTime ?? w.endTime)
+    role === "TEACHER"
+      ? (w.facultyLateEndTime || w.facultyEndTime || w.lateEndTime || w.endTime)
       : (w.lateEndTime ?? w.endTime);
   return {
     name: `${w.name} — ${role === "TEACHER" ? "Faculty" : "Talabat"}`,

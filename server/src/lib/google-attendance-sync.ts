@@ -1256,7 +1256,7 @@ export async function syncMonthlyAttendanceToSheet(targetMonth?: string): Promis
     totalStudentAttended += attended;
     totalStudentExpected += total;
     const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
-    const tier = pct >= 90 ? "MUMTAZ 🌟" : pct >= 80 ? "JAYYID JIDDAN" : pct >= 70 ? "JAYYID" : "NEEDS ATTENTION";
+    const statusLabel = pct >= 90 ? "MUMTAZ 🌟" : pct >= 80 ? "JAYYID JIDDAN" : pct >= 70 ? "JAYYID" : "NEEDS ATTENTION";
     return [
       `${st.user.firstName} ${st.user.lastName}`.trim(),
       st.its || "—",
@@ -1269,7 +1269,7 @@ export async function syncMonthlyAttendanceToSheet(targetMonth?: string): Promis
       String(s.absent),
       String(total),
       `${pct}%`,
-      tier,
+      statusLabel,
     ];
   });
 
@@ -1337,7 +1337,7 @@ export async function syncMonthlyAttendanceToSheet(targetMonth?: string): Promis
     "Absent Days",
     "Total Sessions",
     "Monthly Rate %",
-    "Performance Tier",
+    "Attendance Status",
   ]);
 
   allValues.push(...talabatRows);
@@ -2099,10 +2099,10 @@ export async function syncFacultyDirectoryToSheet(customSpreadsheetId?: string):
       t.its || "--",
       `${t.user.firstName} ${t.user.lastName}`.trim(),
       t.department || "Faculty",
-      t.designation || "Teacher",
+      (t as any).designation || "Teacher",
       t.user.email || "--",
-      t.phone || "--",
-      t.specialization || "--",
+      (t as any).phone || "--",
+      (t as any).specialization || "--",
     ]);
   });
 

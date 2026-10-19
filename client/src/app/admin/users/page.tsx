@@ -1765,7 +1765,7 @@ function TalabatCard({
             <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <div className="truncate">
               <span className="text-[10px] uppercase font-bold text-gray-400 block">Performance</span>
-              <span className="font-semibold text-gray-800">{sp.currentPoints ?? 0} Pts • {sp.tier || "BRONZE"}</span>
+              <span className="font-semibold text-gray-800">{sp.currentPoints ?? 0} Points</span>
             </div>
           </div>
 

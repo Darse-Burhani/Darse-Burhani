@@ -171,16 +171,6 @@ const quickActionPresets: QuickActionPreset[] = [
   },
 ];
 
-function getTierBadge(tier: string) {
-  const variants: Record<string, "bronze" | "silver" | "gold" | "platinum" | "diamond"> = {
-    BRONZE: "bronze",
-    SILVER: "silver",
-    GOLD: "gold",
-    PLATINUM: "platinum",
-    DIAMOND: "diamond",
-  };
-  return variants[tier?.toUpperCase()] ?? "bronze";
-}
 
 export default function ExpertTeacherDashboard() {
   const { isModuleVisible } = usePortalAccess();
@@ -199,7 +189,6 @@ export default function ExpertTeacherDashboard() {
   // Filters & Selection
   const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
   const [attendanceFilter, setAttendanceFilter] = useState<"ALL" | "PRESENT" | "ABSENT">("ALL");
-  const [tierFilter, setTierFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "points_desc" | "points_asc" | "attendance">("name");
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
@@ -260,7 +249,6 @@ export default function ExpertTeacherDashboard() {
         }
         if (attendanceFilter === "PRESENT" && !s.isCheckedIn) return false;
         if (attendanceFilter === "ABSENT" && s.isCheckedIn) return false;
-        if (tierFilter !== "ALL" && s.tier?.toUpperCase() !== tierFilter) return false;
 
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
@@ -281,7 +269,7 @@ export default function ExpertTeacherDashboard() {
         }
         return a.firstName.localeCompare(b.firstName);
       });
-  }, [students, selectedClassId, attendanceFilter, tierFilter, searchQuery, sortBy]);
+  }, [students, selectedClassId, attendanceFilter, searchQuery, sortBy]);
 
   // Selection handlers
   const toggleStudent = (id: string) => {
@@ -799,20 +787,6 @@ export default function ExpertTeacherDashboard() {
                     </button>
                   </div>
 
-                  {/* Tier Filter */}
-                  <select
-                    value={tierFilter}
-                    aria-label="Filter by star tier"
-                    onChange={(e) => setTierFilter(e.target.value)}
-                    className="px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/70 text-xs font-bold text-gray-700 focus:border-emerald-500 outline-none"
-                  >
-                    <option value="ALL">All Tiers</option>
-                    <option value="DIAMOND">💎 Diamond</option>
-                    <option value="PLATINUM">✨ Platinum</option>
-                    <option value="GOLD">🥇 Gold</option>
-                    <option value="SILVER">🥈 Silver</option>
-                    <option value="BRONZE">🥉 Bronze</option>
-                  </select>
 
                   {/* Sort Order */}
                   <select
@@ -962,16 +936,6 @@ export default function ExpertTeacherDashboard() {
                             </Avatar>
                           </div>
 
-                          {/* Streak Flame Badge */}
-                          {student.streakDays > 0 && (
-                            <div
-                              title={`${student.streakDays} days active streak`}
-                              className="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full flex items-center shadow-xs"
-                            >
-                              <Flame className="w-2.5 h-2.5 mr-0.5 fill-current" />
-                              {student.streakDays}
-                            </div>
-                          )}
                         </div>
 
                         {/* Full Name & ITS */}
@@ -990,17 +954,11 @@ export default function ExpertTeacherDashboard() {
                           )}
                         </div>
 
-                        {/* Points & Tier Badge */}
+                        {/* Points Display */}
                         <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100 w-full justify-center">
                           <span className="text-xs font-black text-emerald-950 font-mono">
                             {formatPoints(student.currentPoints)} <span className="text-[9px] font-bold text-gray-500">PTS</span>
                           </span>
-                          <Badge
-                            variant={getTierBadge(student.tier)}
-                            className="text-[9px] px-1.5 py-0 font-black uppercase tracking-wider"
-                          >
-                            {student.tier}
-                          </Badge>
                         </div>
 
                         {/* Instant 1-Click +10 Quick Reward (Hover trigger) */}
@@ -1032,7 +990,6 @@ export default function ExpertTeacherDashboard() {
                         setSearchQuery("");
                         setSelectedClassId("ALL");
                         setAttendanceFilter("ALL");
-                        setTierFilter("ALL");
                       }}
                       className="mt-4 rounded-xl text-xs font-bold"
                     >

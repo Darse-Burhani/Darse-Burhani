@@ -45,10 +45,10 @@ export const portals: PortalConfig[] = [
     label: "Administrative Portal",
     shortLabel: "Admin",
     badgeLabel: "Central Governance",
-    description: "Official institutional administration for student admissions, academic governance, and scheduling.",
-    instructions: "Sign in with your registered administrator credentials and institutional password.",
-    placeholder: "Enter administrator email",
-    inputLabel: "Administrator email",
+    description: "Official institutional governance for academic operations, biometric terminals, scheduling, and admissions.",
+    instructions: "Sign in with your authorized administrator email and institutional password.",
+    placeholder: "e.g. admin@darseburhani.edu",
+    inputLabel: "Administrator Email",
     rolePath: "/admin",
     icon: ShieldCheck,
   },
@@ -57,10 +57,10 @@ export const portals: PortalConfig[] = [
     label: "Faculty Portal",
     shortLabel: "Faculty",
     badgeLabel: "Academic Faculty",
-    description: "Class rosters, daily classroom attendance registry, Hifz Quran logbooks, and academic remarks.",
+    description: "Classroom rosters, daily attendance register, Hifz Quran logbooks, and academic remarks.",
     instructions: "Sign in with your appointed faculty email address.",
-    placeholder: "Enter faculty email",
-    inputLabel: "Faculty email",
+    placeholder: "e.g. faculty@mahadalzahra.com",
+    inputLabel: "Faculty Email",
     rolePath: "/teacher",
     icon: GraduationCap,
   },
@@ -70,9 +70,9 @@ export const portals: PortalConfig[] = [
     shortLabel: "Talabat",
     badgeLabel: "Enrolled Talabat",
     description: "Daily timetable, Hifz Quran progress, Sabaq assignments, and Maktabat book borrowings.",
-    instructions: "Enter your 8-digit ITS number or scan your physical ITS card to proceed.",
+    instructions: "Enter your 8-digit ITS number or click 'Scan ITS Card' with your camera.",
     placeholder: "Enter 8-digit ITS or student email",
-    inputLabel: "ITS number or student email",
+    inputLabel: "8-Digit ITS or Student Email",
     rolePath: "/talabat",
     icon: Sparkles,
   },
@@ -83,8 +83,8 @@ export const portals: PortalConfig[] = [
     badgeLabel: "Parent Network",
     description: "Track your child's academic progress, review attendance records, and submit leave requests.",
     instructions: "Sign in with your registered parent email address.",
-    placeholder: "Enter registered parent email",
-    inputLabel: "Registered parent email",
+    placeholder: "e.g. parent@example.com",
+    inputLabel: "Parent Email",
     rolePath: "/parent",
     icon: Users,
   },
@@ -408,16 +408,18 @@ export default function LoginPage() {
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Main Container - Locks to viewport height in ONE VIEW with zero scrolling */}
-      <div className="h-screen max-h-screen bg-[#03140e] text-white flex flex-col justify-between px-3 py-2 sm:px-6 sm:py-3.5 relative overflow-hidden select-none">
-        {/* Subtle Ambient Glows */}
-        <div className="pointer-events-none absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-[#d4af37]/10 blur-3xl" />
+      {/* Main Container - High Clarity Bright & Prestigious Theme */}
+      <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-[#ecfdf5] text-slate-800 flex flex-col justify-between px-4 py-3 sm:px-8 sm:py-5 relative overflow-x-hidden selection:bg-emerald-200 selection:text-emerald-900">
+        
+        {/* Soft Ambient Radiance Orbs */}
+        <div className="pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-amber-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full bg-emerald-600/5 blur-[120px]" />
 
         {/* ── Top Header ── */}
-        <header className="w-full max-w-5xl mx-auto flex items-center justify-between pb-2 sm:pb-2.5 border-b border-[#1b3d2c]/60 relative z-10 shrink-0">
-          <div className="flex items-center gap-3 group">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0c2a1c] border border-[#d4af37]/50 p-1 flex items-center justify-center shrink-0 shadow-md group-hover:border-[#d4af37] transition-all">
+        <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200/80 relative z-10 shrink-0">
+          <div className="flex items-center gap-3.5 group">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white border-2 border-emerald-600/20 p-1.5 flex items-center justify-center shrink-0 shadow-md shadow-emerald-900/5 group-hover:border-emerald-600 transition-all">
               {!logoFailed ? (
                 <img
                   src="/logo.png"
@@ -426,72 +428,91 @@ export default function LoginPage() {
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <span className="font-serif text-xs font-bold text-[#d4af37]">DB</span>
+                <span className="font-serif text-sm font-black text-emerald-800">DB</span>
               )}
             </div>
             <div>
-              <span className="font-serif text-lg sm:text-xl font-bold text-white tracking-tight block leading-tight">
-                Darse Burhani <span className="text-[#d4af37] font-semibold text-xs sm:text-sm">(Nisab)</span>
+              <span className="font-serif text-xl sm:text-2xl font-black text-slate-900 tracking-tight block leading-tight">
+                Darse Burhani <span className="text-emerald-700 font-bold text-xs sm:text-sm tracking-normal">(Nisab)</span>
               </span>
-              <span className="text-[10px] sm:text-[11px] font-bold tracking-[0.16em] uppercase text-[#d4af37] block mt-0.5">
-                Mahad al Zahra
+              <span className="text-[11px] sm:text-xs font-bold tracking-[0.18em] uppercase text-amber-700 block mt-0.5">
+                Mahad al Zahra &bull; Aljamea-tus-Saifiyah
               </span>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-[#0a2318] border border-[#1b4330] text-xs font-semibold text-[#d2cec3]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/90 border border-slate-200 shadow-xs text-xs font-semibold text-slate-700">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             <span>Academic Portal &bull; 1448 H</span>
           </div>
         </header>
 
-        {/* ── Center Main Card (Guaranteed to fit in 1 view without scrolling) ── */}
-        <main className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center py-1 sm:py-2 relative z-10 min-h-0">
-          <div className="rounded-2xl sm:rounded-3xl bg-[#092017]/95 border border-[#1d4432] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_1px_rgba(212,175,55,0.2)] grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] overflow-hidden backdrop-blur-md max-h-full">
-            {/* Left Context & Guidance Panel */}
-            <div className="p-4 sm:p-6 lg:p-7 bg-[#071d14] border-b lg:border-b-0 lg:border-r border-[#1d4432] flex flex-col justify-between space-y-3 sm:space-y-4">
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#113826] border border-[#d4af37]/50 text-[#d4af37] text-xs font-bold shadow-inner">
-                  <portal.icon className="w-3.5 h-3.5 text-[#d4af37]" />
+        {/* ── Center Main Card (Spacious, Pristine, Sized with Luxury Polish) ── */}
+        <main className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center py-4 sm:py-6 relative z-10">
+          <div className="rounded-3xl bg-white border border-slate-200/90 shadow-[0_20px_60px_-15px_rgba(6,78,59,0.12),0_10px_25px_-5px_rgba(0,0,0,0.04)] grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] overflow-hidden">
+            
+            {/* Left Showcase & Heritage Panel (Deep Royal Emerald with Warm Gold Trim) */}
+            <div className="p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#047857] text-white flex flex-col justify-between space-y-6 relative overflow-hidden">
+              {/* Subtle background arabesque watermark glow */}
+              <div className="pointer-events-none absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-emerald-400/10 blur-2xl" />
+              <div className="pointer-events-none absolute -left-10 -top-10 w-48 h-48 rounded-full bg-amber-400/15 blur-2xl" />
+
+              <div className="space-y-4 relative z-10">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/60 border border-amber-400/50 text-amber-300 text-xs font-bold shadow-xs">
+                  <portal.icon className="w-4 h-4 text-amber-300" />
                   <span>{portal.badgeLabel}</span>
                 </div>
 
-                <h1 className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-snug">
+                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight drop-shadow-xs">
                   {portal.label}
                 </h1>
 
-                <p className="text-xs sm:text-sm text-[#d2cec3] leading-relaxed line-clamp-3 sm:line-clamp-none">
+                <p className="text-sm text-emerald-100/95 leading-relaxed font-normal">
                   {portal.description}
                 </p>
 
-                <div className="p-3 rounded-xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#d2cec3] space-y-1 shadow-inner">
-                  <div className="flex items-center gap-1.5 text-white font-bold">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#d4af37]" />
-                    <span>Instructions</span>
+                {/* Clear Instruction Card */}
+                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-xs space-y-1.5 shadow-inner">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    <span>Access Instructions</span>
                   </div>
-                  <p className="leading-relaxed text-xs text-[#d2cec3]">
+                  <p className="leading-relaxed text-xs text-white/95">
                     {portal.instructions}
                   </p>
                 </div>
               </div>
 
-              {/* Institution Help note - Professional institutional support */}
-              <div className="pt-2.5 border-t border-[#1d4432] text-xs space-y-0.5">
-                <p className="font-bold text-white">Institutional Support</p>
-                <p className="text-xs text-[#d2cec3] leading-relaxed">
-                  For credential assistance or portal access issues, please contact the Administration Desk at Mahad al Zahra.
+              {/* Security & Support Guarantee */}
+              <div className="pt-4 border-t border-emerald-700/60 text-xs space-y-2 relative z-10">
+                <div className="flex items-center gap-2 text-emerald-200/90 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Integrated Biometric &amp; Central Identity Sync</span>
+                </div>
+                <p className="text-[11px] text-emerald-200/90 leading-relaxed">
+                  For password reset or biometric queries, contact:{" "}
+                  <a href="mailto:support.darseburhani.galiakot@gmail.com" className="underline font-bold text-amber-300 hover:text-white">
+                    support.darseburhani.galiakot@gmail.com
+                  </a>
                 </p>
               </div>
             </div>
 
-            {/* Right Sign-In Form Panel */}
-            <div className="p-4 sm:p-6 lg:p-7 flex flex-col justify-center bg-[#092017]">
-              {/* 4-Role Tactile Segmented Control with Unique Button Effects */}
-              <div className="space-y-1.5 mb-2.5 sm:mb-3">
-                <label className="text-[11px] font-bold text-[#d2cec3] uppercase tracking-wider block">
-                  Select Institutional Workspace
-                </label>
-                <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#051810] border border-[#1b3d2c]" role="tablist">
+            {/* Right Sign-In Form Panel (Crisp, High-Visibility, Bright White Canvas) */}
+            <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center bg-white">
+              
+              {/* 4-Role Segmented Tabs with Proper Sizing & High Contrast */}
+              <div className="space-y-2 mb-5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
+                    Choose Your Workspace
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    4 Roles Available
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200" role="tablist">
                   {portals.map((p) => {
                     const active = p.role === selectedRole;
                     const Icon = p.icon;
@@ -502,14 +523,14 @@ export default function LoginPage() {
                         role="tab"
                         aria-selected={active}
                         onClick={() => handlePortalChange(p.role)}
-                        className={`relative py-1.5 sm:py-2 px-1 rounded-lg text-xs text-center font-bold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer select-none active:scale-95 ${
+                        className={`relative py-2.5 px-2 rounded-xl text-xs text-center font-bold transition-all flex flex-col items-center justify-center gap-1 cursor-pointer select-none active:scale-[0.97] ${
                           active
-                            ? "bg-[#143a29] text-white border border-[#d4af37] shadow-[0_2px_8px_rgba(212,175,55,0.25)]"
-                            : "bg-[#051810] text-[#d2cec3] hover:text-white hover:bg-[#0c2217]"
+                            ? "bg-emerald-700 text-white shadow-md shadow-emerald-900/20 ring-1 ring-emerald-800"
+                            : "bg-white text-slate-700 hover:bg-emerald-50/70 hover:text-emerald-900 border border-slate-200/80"
                         }`}
                       >
-                        <Icon className={`w-3.5 h-3.5 ${active ? "text-[#d4af37]" : "text-[#9e9789]"}`} />
-                        <span className="text-[11px] sm:text-xs font-bold leading-tight">{p.shortLabel}</span>
+                        <Icon className={`w-4 h-4 ${active ? "text-amber-300" : "text-slate-500"}`} />
+                        <span className="text-xs font-bold leading-tight">{p.shortLabel}</span>
                       </button>
                     );
                   })}
@@ -517,41 +538,42 @@ export default function LoginPage() {
               </div>
 
               {/* Sign-in Form */}
-              <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-3">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                
                 {/* Error Banner */}
                 {error && (
                   <div
                     role="alert"
-                    className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-800 text-xs font-bold text-rose-200 flex items-start gap-2 shadow-sm"
+                    className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-xs"
                   >
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
 
-                {/* Email / ITS Input */}
-                <div className="space-y-1">
+                {/* Email / ITS Input with Generous Sizing */}
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label htmlFor="login-email" className="text-xs font-bold text-[#d2cec3]">
+                    <label htmlFor="login-email" className="text-xs font-bold text-slate-800 uppercase tracking-wide">
                       {portal.inputLabel}
                     </label>
 
-                    {/* Attractive Unique Scan ITS Button */}
+                    {/* Scan ITS Button */}
                     {portal.role === "STUDENT" && (
                       <button
                         type="button"
                         onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#d4af37] border border-[#d4af37]/40 text-xs font-bold transition-all shadow-2xs hover:shadow-[#d4af37]/20 active:scale-95 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
                       >
-                        <QrCode className="w-3.5 h-3.5 animate-pulse" />
+                        <QrCode className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
                         <span>Scan ITS Card</span>
                       </button>
                     )}
                   </div>
 
                   <div className="relative">
-                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9e9789] pointer-events-none">
-                      {portal.role === "STUDENT" ? <Sparkles size={16} /> : <Mail size={16} />}
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      {portal.role === "STUDENT" ? <Sparkles size={18} /> : <Mail size={18} />}
                     </div>
                     <input
                       id="login-email"
@@ -569,26 +591,26 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder={portal.placeholder}
-                      className="w-full h-10 sm:h-11 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-3.5 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
+                      className="w-full h-12 sm:h-13 rounded-2xl bg-white border border-slate-300 pl-11 pr-4 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/15 transition-all font-medium shadow-xs"
                     />
                   </div>
                 </div>
 
-                {/* Password Input */}
-                <div className="space-y-1">
+                {/* Password Input with Generous Sizing */}
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label htmlFor="login-password" className="text-xs font-bold text-[#d2cec3]">
+                    <label htmlFor="login-password" className="text-xs font-bold text-slate-800 uppercase tracking-wide">
                       Password
                     </label>
                     {capsLockOn && (
-                      <span className="text-xs font-bold text-[#d4af37] flex items-center gap-1">
-                        <AlertCircle size={12} /> Caps Lock Active
+                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1">
+                        <AlertCircle size={13} /> Caps Lock Active
                       </span>
                     )}
                   </div>
                   <div className="relative">
-                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9e9789] pointer-events-none">
-                      <Lock size={16} />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <Lock size={18} />
                     </div>
                     <input
                       id="login-password"
@@ -607,64 +629,64 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder="Enter account password"
-                      className="w-full h-10 sm:h-11 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-11 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
+                      className="w-full h-12 sm:h-13 rounded-2xl bg-white border border-slate-300 pl-11 pr-12 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/15 transition-all font-medium shadow-xs"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9e9789] hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
 
                 {/* Options row */}
-                <div className="flex items-center justify-between pt-0.5 text-xs font-medium">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-[#d2cec3]">
+                <div className="flex items-center justify-between pt-1 text-xs font-semibold">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded accent-[#d4af37] bg-[#051810] border-[#214936] cursor-pointer"
+                      className="w-4 h-4 rounded accent-emerald-700 bg-white border-slate-300 cursor-pointer"
                     />
                     <span>Remember credentials</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="text-xs text-[#d2cec3] hover:text-[#d4af37] underline decoration-[#d2cec3]/40 hover:decoration-[#d4af37] underline-offset-4 transition-colors cursor-pointer"
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline underline-offset-4 transition-colors cursor-pointer"
                   >
                     Forgot password?
                   </button>
                 </div>
 
-                {/* ── UNIQUE 3D PUSH-DOWN SIGN-IN BUTTON WITH SHIMMER EFFECT (Always visible and clickable) ── */}
-                <div className="pt-1.5 sm:pt-2">
+                {/* Primary Sign-In Button with Radiant Shimmer */}
+                <div className="pt-2">
                   <button
                     type="submit"
                     disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                    className="relative w-full h-11 sm:h-12 rounded-xl bg-[#d4af37] hover:bg-[#e0b73c] text-[#03140e] font-black text-xs sm:text-sm tracking-wide transition-all transform active:translate-y-0.5 shadow-[0_3px_0_#937318,0_8px_16px_rgba(0,0,0,0.35)] active:shadow-[0_1px_0_#937318,0_3px_6px_rgba(0,0,0,0.25)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
+                    className="relative w-full h-12 sm:h-13 rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 hover:from-emerald-800 hover:to-emerald-800 text-white font-black text-sm tracking-wide transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
                   >
-                    {/* Shimmer light sweep highlight */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
+                    {/* Shimmer light sweep */}
+                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
 
                     {isLoading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-[#071d14] border-t-transparent rounded-full animate-spin" />
+                      <span className="flex items-center gap-2.5">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         Verifying credentials...
                       </span>
                     ) : isSuccess ? (
-                      <span className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-950" />
-                        Success! Entering workspace...
+                      <span className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-amber-300" />
+                        Authenticated! Entering portal...
                       </span>
                     ) : lockoutSeconds > 0 ? (
-                      `Locked (${lockoutSeconds}s)`
+                      `Account Locked (${lockoutSeconds}s)`
                     ) : (
                       <>
-                        <span>Sign in to {portal.shortLabel} Portal</span>
+                        <span>Sign In to {portal.shortLabel} Portal</span>
                         <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                       </>
                     )}
@@ -676,14 +698,18 @@ export default function LoginPage() {
         </main>
 
         {/* ── Bottom Footer ── */}
-        <footer className="w-full max-w-5xl mx-auto pt-2 sm:pt-2.5 border-t border-[#1b3d2c]/60 flex flex-col sm:flex-row items-center justify-between gap-1.5 text-[11px] sm:text-xs text-[#d2cec3] relative z-10 shrink-0">
-          <p>© 2026 Darse Burhani (Nisab) &bull; Mahad al Zahra</p>
-          <div className="flex items-center gap-4 font-medium text-[#d2cec3]">
-            <Link to="/privacy" className="text-[#d2cec3] hover:text-white underline underline-offset-2 transition-colors">
+        <footer className="w-full max-w-6xl mx-auto pt-3 sm:pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 relative z-10 shrink-0">
+          <p className="font-medium">© 2026 Darse Burhani (Nisab) &bull; Mahad al Zahra</p>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 font-semibold text-slate-600">
+            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="text-emerald-700 hover:underline underline-offset-2 transition-colors font-bold">
+              Support: support.darseburhani.galiakot@gmail.com
+            </a>
+            <span className="hidden sm:inline">&bull;</span>
+            <Link to="/privacy" className="hover:text-emerald-700 hover:underline underline-offset-2 transition-colors">
               Privacy Policy
             </Link>
             <span>&bull;</span>
-            <Link to="/terms" className="text-[#d2cec3] hover:text-white underline underline-offset-2 transition-colors">
+            <Link to="/terms" className="hover:text-emerald-700 hover:underline underline-offset-2 transition-colors">
               Terms of Service
             </Link>
           </div>
@@ -692,28 +718,28 @@ export default function LoginPage() {
 
       {/* ── ITS Card Scanner Modal ── */}
       {showScannerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#092218] border border-[#d4af37]/40 p-6 text-white space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#1d4432] pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 p-6 text-slate-900 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center">
-                  <QrCode size={18} />
+                <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
+                  <QrCode size={19} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white">Scan ITS Card</h3>
-                  <p className="text-xs text-[#d2cec3]">Instant camera &amp; barcode detection</p>
+                  <h3 className="text-sm font-black text-slate-900">Scan ITS Card</h3>
+                  <p className="text-xs text-slate-500 font-medium">Instant camera &amp; barcode detection</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleCloseScanner}
-                className="p-1 rounded-lg text-[#d2cec3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs font-black">
+            <div className="grid grid-cols-2 gap-2 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => {
@@ -722,8 +748,8 @@ export default function LoginPage() {
                 }}
                 className={`py-2.5 px-3 rounded-xl text-center transition-all cursor-pointer ${
                   scannerMode === "camera"
-                    ? "bg-[#d4af37] text-[#03140e] shadow-md"
-                    : "bg-[#051810] text-[#d2cec3] hover:text-white border border-[#1b3d2c]"
+                    ? "bg-emerald-700 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
                 Use Camera
@@ -736,8 +762,8 @@ export default function LoginPage() {
                 }}
                 className={`py-2.5 px-3 rounded-xl text-center transition-all cursor-pointer ${
                   scannerMode === "upload"
-                    ? "bg-[#d4af37] text-[#03140e] shadow-md"
-                    : "bg-[#051810] text-[#d2cec3] hover:text-white border border-[#1b3d2c]"
+                    ? "bg-emerald-700 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
                 Upload Photo
@@ -745,7 +771,7 @@ export default function LoginPage() {
             </div>
 
             {scannerMode === "camera" ? (
-              <div className="relative h-64 bg-black rounded-2xl overflow-hidden border border-[#214936] flex items-center justify-center shadow-inner">
+              <div className="relative h-64 bg-slate-950 rounded-2xl overflow-hidden border border-slate-300 flex items-center justify-center shadow-inner">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -753,13 +779,13 @@ export default function LoginPage() {
                   muted
                   className={`h-full w-full object-cover ${cameraFacing === "user" ? "scale-x-[-1]" : ""}`}
                 />
-                {/* Clean framing box with scanning laser animation */}
-                <div className="absolute inset-8 border-2 border-dashed border-[#d4af37]/70 rounded-xl pointer-events-none flex flex-col justify-between p-2">
-                  <div className="w-full h-0.5 bg-[#d4af37] shadow-[0_0_8px_#d4af37] animate-pulse" />
-                  <span className="text-xs text-center text-[#d4af37] bg-black/60 py-0.5 px-2 rounded-full self-center">
+                {/* Laser animation */}
+                <div className="absolute inset-8 border-2 border-dashed border-amber-400/80 rounded-xl pointer-events-none flex flex-col justify-between p-2">
+                  <div className="w-full h-0.5 bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse" />
+                  <span className="text-xs text-center text-amber-300 bg-black/60 py-0.5 px-2 rounded-full self-center font-bold">
                     Align ITS card barcode here
                   </span>
-                  <div className="w-full h-0.5 bg-[#d4af37] shadow-[0_0_8px_#d4af37] animate-pulse" />
+                  <div className="w-full h-0.5 bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse" />
                 </div>
                 {cameraError && (
                   <p className="absolute bottom-3 inset-x-3 p-2 bg-rose-950 border border-rose-800 text-xs text-rose-200 rounded-xl text-center">
@@ -767,9 +793,9 @@ export default function LoginPage() {
                   </p>
                 )}
                 {scannedItsResult && (
-                  <div className="absolute inset-0 bg-[#092218]/95 flex flex-col items-center justify-center gap-2">
-                    <span className="text-xs uppercase tracking-wider text-[#d2cec3] font-bold">Verified ITS</span>
-                    <span className="font-mono text-2xl font-black text-[#d4af37]">{scannedItsResult}</span>
+                  <div className="absolute inset-0 bg-emerald-950/95 flex flex-col items-center justify-center gap-2">
+                    <span className="text-xs uppercase tracking-wider text-emerald-200 font-bold">Verified ITS</span>
+                    <span className="font-mono text-2xl font-black text-amber-300">{scannedItsResult}</span>
                   </div>
                 )}
                 <button
@@ -783,58 +809,63 @@ export default function LoginPage() {
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="h-64 rounded-2xl border-2 border-dashed border-[#2d5843] bg-[#051810] flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-[#d4af37] hover:bg-[#071f15] transition-all group"
+                className="h-64 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-emerald-600 hover:bg-emerald-50/50 transition-all group"
               >
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                <div className="w-12 h-12 rounded-2xl bg-[#d4af37]/15 text-[#d4af37] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                   <Upload size={24} />
                 </div>
-                <p className="text-xs font-black text-white">Select ITS Card Photo</p>
-                <p className="text-xs text-[#d2cec3] mt-0.5">Scans barcode and 8-digit ITS number</p>
+                <p className="text-xs font-black text-slate-800">Select ITS Card Photo</p>
+                <p className="text-xs text-slate-500 mt-0.5">Scans barcode and 8-digit ITS number</p>
               </div>
             )}
 
-            <p className="text-xs text-center text-[#d2cec3] font-medium">{scannerStatus}</p>
+            <p className="text-xs text-center text-slate-500 font-medium">{scannerStatus}</p>
           </div>
         </div>
       )}
 
       {/* ── Forgot Password Modal ── */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#092218] border border-[#d4af37]/40 p-6 text-white space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#1d4432] pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 p-6 text-slate-900 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center">
-                  <KeyRound size={18} />
+                <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
+                  <KeyRound size={19} />
                 </div>
-                <h3 className="text-sm font-black text-white">Password Assistance</h3>
+                <h3 className="text-sm font-black text-slate-900">Password Assistance</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowForgotModal(false)}
-                className="p-1 rounded-lg text-[#d2cec3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="space-y-3 text-xs text-[#d2cec3] leading-relaxed font-medium">
+            <div className="space-y-3 text-xs text-slate-600 leading-relaxed font-medium">
               <p>
                 Institutional credentials are authenticated centrally to safeguard student and faculty records.
               </p>
-              <div className="p-3.5 rounded-2xl bg-[#051810] border border-[#1b3d2c] space-y-1.5 text-xs">
-                <span className="font-bold text-white block">Mahad al Zahra Administration Desk</span>
-                <p className="text-[#d2cec3]">Support: Central Academic Governance Office</p>
-                <p className="text-[#d2cec3]">In-person credential assistance and verification are available during office hours.</p>
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-1.5 text-xs">
+                <span className="font-bold text-slate-900 block">Mahad al Zahra Administration Desk</span>
+                <p className="text-slate-800">
+                  Direct Support Email:{" "}
+                  <a href="mailto:support.darseburhani.galiakot@gmail.com" className="text-emerald-800 font-extrabold hover:underline">
+                    support.darseburhani.galiakot@gmail.com
+                  </a>
+                </p>
+                <p className="text-slate-600">For password resets, credential assistance, and queries, email our support desk directly.</p>
               </div>
-              <p className="text-[#d2cec3]">
+              <p className="text-slate-500">
                 Talabat students may also approach their appointed class teacher directly for on-premises verification.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
-              className="w-full py-2.5 rounded-xl bg-[#d4af37] text-xs font-black text-[#03140e] hover:bg-[#e0b73c] transition-colors cursor-pointer shadow-md"
+              className="w-full py-2.5 rounded-xl bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer shadow-sm"
             >
               Close
             </button>
@@ -842,7 +873,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* ── 3D Splash Screen Transition ── */}
+      {/* ── Splash Screen Transition ── */}
       {transitionTarget && (
         <SplashScreen
           mode="login_transition"
