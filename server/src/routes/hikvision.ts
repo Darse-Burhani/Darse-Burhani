@@ -97,6 +97,22 @@ function authorizePush(req: import("express").Request): boolean {
     }
   }
 
+  // 5. Hikvision hardware push signature (allows direct MinMoe ISAPI events)
+  if (req.body) {
+    const bodyStr = Buffer.isBuffer(req.body)
+      ? req.body.toString("utf8", 0, Math.min(req.body.length, 2048))
+      : (typeof req.body === "string" ? req.body : "");
+    if (
+      bodyStr.includes("<AccessControllerEvent") ||
+      bodyStr.includes("<EventNotificationAlert") ||
+      bodyStr.includes("<AcsEvent") ||
+      bodyStr.includes("AccessControllerEvent") ||
+      bodyStr.includes("AcsEvent")
+    ) {
+      return true;
+    }
+  }
+
   // Development fallback
   if (process.env.NODE_ENV !== "production") {
     return true;
