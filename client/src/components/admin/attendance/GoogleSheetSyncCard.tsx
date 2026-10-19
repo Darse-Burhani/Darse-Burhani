@@ -8,6 +8,7 @@ import {
   Sparkles,
   ShieldCheck,
   Check,
+  Settings,
 } from "lucide-react";
 import {
   getSheetSyncStatus,
@@ -16,6 +17,7 @@ import {
   SheetSyncResult,
 } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
+import { GoogleSheetPasteConfigModal } from "./GoogleSheetPasteConfigModal";
 
 interface GoogleSheetSyncCardProps {
   onSyncComplete?: (result: SheetSyncResult) => void;
@@ -31,6 +33,7 @@ export function GoogleSheetSyncCard({
   const [status, setStatus] = useState<SheetSyncStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SheetSyncResult | null>(null);
 
   const fetchStatus = useCallback(async () => {
@@ -58,7 +61,17 @@ export function GoogleSheetSyncCard({
       if (onSyncComplete) onSyncComplete(res.data);
       fetchStatus();
     } catch (err) {
-      toast.error((err as Error).message || "Failed to push to Google Sheet");
+      const msg = (err as Error).message || "Failed to push to Google Sheet";
+      if (msg.includes("not configured") || msg.includes("missing") || msg.includes("400") || !status?.configured) {
+        toast({
+          title: "Google Sheet Setup Required",
+          description: "Paste your Google Spreadsheet link and credentials to connect.",
+          variant: "default",
+        });
+        setShowConfigModal(true);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSyncing(false);
     }
@@ -88,11 +101,20 @@ export function GoogleSheetSyncCard({
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 px-2.5 py-0.5 text-xs text-slate-300">
                   <Loader2 className="h-3 w-3 animate-spin text-emerald-400" /> Connecting...
                 </span>
-              ) : (
+              ) : status?.configured ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-0.5 text-xs font-bold text-emerald-200 shadow-xs">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   Connected &amp; Synced Properly
                 </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowConfigModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-500/20 px-3 py-0.5 text-xs font-bold text-amber-200 shadow-xs hover:bg-amber-500/30 cursor-pointer transition-colors"
+                >
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                  Setup Required &bull; Paste Link
+                </button>
               )}
             </div>
 
@@ -115,6 +137,16 @@ export function GoogleSheetSyncCard({
 
         {/* Right side actions */}
         <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowConfigModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-95 shadow-xs backdrop-blur-sm cursor-pointer"
+            title="Configure / Paste Google Sheet"
+          >
+            <Settings className="h-3.5 w-3.5 text-emerald-300" />
+            <span>Configure Sheet</span>
+          </button>
+
           {status?.url && (
             <a
               href={status.url}
@@ -163,6 +195,19 @@ export function GoogleSheetSyncCard({
           </div>
         </div>
       )}
+
+      {/* Google Sheet Paste & Configure Modal */}
+      <GoogleSheetPasteConfigModal
+        open={showConfigModal}
+        onOpenChange={setShowConfigModal}
+        onConfigSaved={(s) => {
+          setStatus(s);
+        }}
+        syncNowAction={{
+          label: targetDate ? `Sync Sheet (${targetDate})` : "Sync Today Now",
+          onSync: handleSync,
+        }}
+      />
     </div>
   );
 }

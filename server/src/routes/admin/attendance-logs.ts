@@ -843,7 +843,7 @@ router.post("/sync-sheet/test", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance-logs/sync-sheet/config — Save/Update Google Sheet sync configuration
 router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
   try {
-    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, enabled, syncHourUtc } = req.body || {};
+    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, enabled, syncHourUtc, testNow } = req.body || {};
     await saveSheetConfiguration({
       spreadsheetId,
       serviceAccountJson,
@@ -852,7 +852,37 @@ router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
       enabled,
       syncHourUtc,
     });
-    return res.json({ success: true, message: "Google Sheet sync configuration saved successfully", data: sheetSyncStatus() });
+
+    const status = sheetSyncStatus();
+    let testResult: { success: boolean; title: string; sheetNames: string[]; url: string; serviceAccountEmail: string } | null = null;
+    let testError: string | null = null;
+
+    if (testNow && status.configured) {
+      try {
+        testResult = await testSheetConnection();
+      } catch (err) {
+        testError = (err as Error)?.message || "Failed to verify connection with provided credentials";
+      }
+    }
+
+    if (testError) {
+      return res.status(400).json({
+        success: false,
+        saved: true,
+        testFailed: true,
+        error: `Configuration saved, but connection test failed: ${testError}`,
+        data: status,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: testResult
+        ? `Configuration saved and successfully connected to spreadsheet: "${testResult.title}"`
+        : "Google Sheet sync configuration saved successfully",
+      data: status,
+      testResult,
+    });
   } catch (error) {
     console.error("[attendance-logs] sync-sheet config error:", error);
     return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to save configuration" });
@@ -864,9 +894,14 @@ router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
 router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
     if (!isSheetSyncConfigured()) {
+      const status = sheetSyncStatus();
       return res.status(400).json({
         success: false,
-        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Google Service Account in Admin → Google Sheets Settings before syncing.",
+        needsConfig: true,
+        error: !status.hasSpreadsheetId
+          ? "Google Spreadsheet ID/URL is missing. Please paste your Google Sheet link or ID."
+          : "Google Service Account is not configured yet. Please paste your Service Account JSON key to enable live syncing.",
+        data: status,
       });
     }
     const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
@@ -887,9 +922,14 @@ router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
 router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
     if (!isSheetSyncConfigured()) {
+      const status = sheetSyncStatus();
       return res.status(400).json({
         success: false,
-        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Google Service Account in Admin → Google Sheets Settings before syncing.",
+        needsConfig: true,
+        error: !status.hasSpreadsheetId
+          ? "Google Spreadsheet ID/URL is missing. Please paste your Google Sheet link or ID."
+          : "Google Service Account is not configured yet. Please paste your Service Account JSON key to enable live syncing.",
+        data: status,
       });
     }
     const rawMonth = typeof req.body?.month === "string" ? req.body.month.trim() : undefined;
@@ -1046,6 +1086,29 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
       }),
     ]);
 
+    const daysInMonth = Math.max(
+      1,
+      Math.round((monthEndDate.getTime() - monthStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    );
+
+    const daysList: Array<{ date: string; day: number; weekday: string; isWeekend: boolean }> = [];
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const curDate = new Date(monthStartDate.getTime());
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = curDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const dayOfWeek = curDate.getDay();
+      daysList.push({
+        date: dateStr,
+        day: d,
+        weekday: weekdays[dayOfWeek],
+        isWeekend: dayOfWeek === 0,
+      });
+      curDate.setDate(curDate.getDate() + 1);
+    }
+
+    const dateToDayIndex = new Map<string, number>();
+    daysList.forEach((d) => dateToDayIndex.set(d.date, d.day));
+
     const daySet = new Set<string>();
     studentRecords.forEach((r) => daySet.add(r.date.toISOString().slice(0, 10)));
     studentRegistries.forEach((r) => daySet.add(r.date.toISOString().slice(0, 10)));
@@ -1053,6 +1116,30 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
     const totalWorkingDays = Math.max(daySet.size, 1);
 
     const studentStatsMap = new Map<string, { present: number; late: number; leave: number; absent: number }>();
+    const studentDailyMap = new Map<string, Record<number, "P" | "L" | "LV" | "A">>();
+
+    const recordStudentDay = (studentId: string, status: string, date: Date) => {
+      if (!studentDailyMap.has(studentId)) {
+        studentDailyMap.set(studentId, {});
+      }
+      const daily = studentDailyMap.get(studentId)!;
+      const istStr = date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const dayNum = dateToDayIndex.get(istStr);
+      if (dayNum) {
+        let code: "P" | "L" | "LV" | "A" = "A";
+        if (status === "PRESENT") code = "P";
+        else if (status === "LATE") code = "L";
+        else if (status === "ON_LEAVE" || status === "MEDICAL") code = "LV";
+        else if (status === "ABSENT") code = "A";
+
+        const existing = daily[dayNum];
+        // Priority: P > L > LV > A
+        if (!existing || code === "P" || (code === "L" && existing !== "P") || (code === "LV" && existing === "A")) {
+          daily[dayNum] = code;
+        }
+      }
+    };
+
     for (const r of studentRecords) {
       if (!studentStatsMap.has(r.studentId)) {
         studentStatsMap.set(r.studentId, { present: 0, late: 0, leave: 0, absent: 0 });
@@ -1062,6 +1149,12 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
       else if (r.status === "LATE") s.late++;
       else if (r.status === "ON_LEAVE" || r.status === "MEDICAL") s.leave++;
       else if (r.status === "ABSENT") s.absent++;
+
+      recordStudentDay(r.studentId, r.status, r.date);
+    }
+
+    for (const reg of studentRegistries) {
+      recordStudentDay(reg.studentId, reg.status, reg.date);
     }
 
     const talabatList = students.map((st, idx) => {
@@ -1088,10 +1181,13 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
         total: effectiveTotal,
         rate,
         tier,
+        daily: studentDailyMap.get(st.id) || {},
       };
     });
 
     const teacherStatsMap = new Map<string, { present: number; late: number; absent: number }>();
+    const teacherDailyMap = new Map<string, Record<number, "P" | "L" | "A">>();
+
     for (const tr of teacherRecords) {
       if (!teacherStatsMap.has(tr.teacherId)) {
         teacherStatsMap.set(tr.teacherId, { present: 0, late: 0, absent: 0 });
@@ -1100,6 +1196,24 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
       if (tr.status === "PRESENT") t.present++;
       else if (tr.status === "LATE") t.late++;
       else if (tr.status === "ABSENT") t.absent++;
+
+      if (!teacherDailyMap.has(tr.teacherId)) {
+        teacherDailyMap.set(tr.teacherId, {});
+      }
+      const daily = teacherDailyMap.get(tr.teacherId)!;
+      const istStr = tr.date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const dayNum = dateToDayIndex.get(istStr);
+      if (dayNum) {
+        let code: "P" | "L" | "A" = "A";
+        if (tr.status === "PRESENT") code = "P";
+        else if (tr.status === "LATE") code = "L";
+        else if (tr.status === "ABSENT") code = "A";
+
+        const existing = daily[dayNum];
+        if (!existing || code === "P" || (code === "L" && existing !== "P")) {
+          daily[dayNum] = code;
+        }
+      }
     }
 
     const facultyList = teachers.map((tc, idx) => {
@@ -1124,6 +1238,7 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
         total: effectiveTotal,
         rate,
         compliance,
+        daily: teacherDailyMap.get(tc.id) || {},
       };
     });
 
@@ -1134,6 +1249,8 @@ router.get("/monthly-view", requireAuth, async (req, res) => {
     const payload = {
       monthKey,
       monthName,
+      daysInMonth,
+      daysList,
       totalWorkingDays,
       talabatCount: talabatList.length,
       facultyCount: facultyList.length,

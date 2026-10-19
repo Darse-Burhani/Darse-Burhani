@@ -18,6 +18,9 @@ import {
   ShieldCheck,
   Sparkles,
   Zap,
+  Clipboard,
+  Key,
+  AlertTriangle,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -64,6 +67,9 @@ export default function GoogleSheetsAdminPage() {
   // Config Drawer / Modal
   const [showConfig, setShowConfig] = useState(false);
   const [configSpreadsheetId, setConfigSpreadsheetId] = useState("");
+  const [configServiceAccountJson, setConfigServiceAccountJson] = useState("");
+  const [detectedEmail, setDetectedEmail] = useState<string | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
 
   const fetchStatus = useCallback(async () => {
@@ -74,6 +80,13 @@ export default function GoogleSheetsAdminPage() {
         setStatus(data);
         if (data.spreadsheetId) {
           setConfigSpreadsheetId(data.spreadsheetId);
+        }
+        if (data.fullServiceAccountEmail) {
+          setDetectedEmail(data.fullServiceAccountEmail);
+        }
+        // Auto-open config if not configured
+        if (!data.configured) {
+          setShowConfig(true);
         }
       }
     } catch (err: any) {
@@ -87,6 +100,21 @@ export default function GoogleSheetsAdminPage() {
     fetchStatus();
   }, [fetchStatus]);
 
+  // Auto-parse Service Account JSON when changed
+  useEffect(() => {
+    const raw = configServiceAccountJson.trim();
+    if (!raw) return;
+    try {
+      if (raw.includes("docs.google.com/spreadsheets") && !configSpreadsheetId) {
+        setConfigSpreadsheetId(raw);
+        setConfigServiceAccountJson("");
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed.client_email) setDetectedEmail(parsed.client_email);
+    } catch {}
+  }, [configServiceAccountJson, configSpreadsheetId]);
+
   const handleCopyId = () => {
     if (!status?.spreadsheetId) return;
     navigator.clipboard.writeText(status.spreadsheetId);
@@ -97,9 +125,12 @@ export default function GoogleSheetsAdminPage() {
   const handleTestConnection = async () => {
     try {
       setTestingConnection(true);
-      const res = await testSheetConnection({});
+      const res = await testSheetConnection({
+        spreadsheetId: configSpreadsheetId.trim() || undefined,
+        serviceAccountJson: configServiceAccountJson.trim() || undefined,
+      });
       toast({
-        title: "Connection Verified",
+        title: "Connection Verified! 🎉",
         description: `Successfully linked to spreadsheet: "${res.title}". Found ${res.sheetNames.length} tabs.`,
         variant: "success",
       });
@@ -115,22 +146,84 @@ export default function GoogleSheetsAdminPage() {
     }
   };
 
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasteSpreadsheetId = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const trimmed = text.trim();
+        if (trimmed.startsWith("{") && trimmed.includes("client_email")) {
+          setConfigServiceAccountJson(trimmed);
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed.client_email) setDetectedEmail(parsed.client_email);
+          } catch {}
+          toast({ title: "Detected Service Account JSON", description: "Moved to Service Account field.", variant: "default" });
+        } else {
+          setConfigSpreadsheetId(trimmed);
+          toast({ title: "Pasted Spreadsheet Link", description: "Updated from clipboard.", variant: "success" });
+        }
+      }
+    } catch {
+      toast({ title: "Clipboard Access", description: "Press Ctrl+V to paste into the input.", variant: "default" });
+    }
+  };
+
+  const handlePasteServiceAccountJson = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setConfigServiceAccountJson(text.trim());
+        try {
+          const parsed = JSON.parse(text.trim());
+          if (parsed.client_email) setDetectedEmail(parsed.client_email);
+        } catch {}
+        toast({ title: "Pasted JSON Key", description: "Service Account credentials updated.", variant: "success" });
+      }
+    } catch {
+      toast({ title: "Clipboard Access", description: "Press Ctrl+V to paste JSON into the box.", variant: "default" });
+    }
+  };
+
+  const handleCopyEmail = (email: string) => {
+    navigator.clipboard.writeText(email);
+    setCopiedEmail(true);
+    toast({
+      title: "Service Account Email Copied",
+      description: "Open your Google Sheet, click 'Share', and add this email as Editor.",
+      variant: "success",
+    });
+    setTimeout(() => setCopiedEmail(false), 2500);
+  };
+
+  const handleSaveConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!configSpreadsheetId.trim()) {
       toast({ title: "Validation Error", description: "Please enter a valid Google Spreadsheet ID or URL", variant: "destructive" });
       return;
     }
     try {
       setSavingConfig(true);
-      const res = await saveSheetConfig({ spreadsheetId: configSpreadsheetId.trim() });
-      toast({
-        title: "Configuration Saved",
-        description: res.message || "Google Sheet target updated successfully.",
-        variant: "success",
+      const res = await saveSheetConfig({
+        spreadsheetId: configSpreadsheetId.trim(),
+        serviceAccountJson: configServiceAccountJson.trim() || undefined,
+        testNow: true,
       });
+
+      if (res.testFailed) {
+        toast({
+          title: "Saved with Notice",
+          description: res.error || "Configuration saved, but Google Sheets connection test failed. Check permissions.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Configuration Saved! 🚀",
+          description: res.message || "Google Sheet target updated successfully.",
+          variant: "success",
+        });
+        setShowConfig(false);
+      }
       setStatus(res.data);
-      setShowConfig(false);
     } catch (err: any) {
       toast({
         title: "Save Failed",
@@ -445,40 +538,125 @@ export default function GoogleSheetsAdminPage() {
           </div>
         )}
 
-        {/* Config Form Drawer */}
+        {/* Config Form Drawer / Paste Interface */}
         {showConfig && (
-          <form onSubmit={handleSaveConfig} className="relative z-10 mt-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Change Google Spreadsheet Configuration
-              </h3>
+          <form onSubmit={handleSaveConfig} className="relative z-10 mt-6 p-5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-emerald-500/30 dark:border-emerald-800 space-y-4 shadow-inner">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  Paste &amp; Configure Google Sheet
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowConfig(false)}
-                className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer px-2 py-1 rounded-lg"
               >
                 Close
               </button>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
+
+            {/* Field 1: Spreadsheet URL or ID */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                  Google Spreadsheet URL or ID <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handlePasteSpreadsheetId}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 cursor-pointer"
+                >
+                  <Clipboard className="w-3 h-3" />
+                  <span>Paste from Clipboard</span>
+                </button>
+              </div>
               <input
                 type="text"
                 value={configSpreadsheetId}
-                onChange={(e) => setConfigSpreadsheetId(e.target.value)}
-                placeholder="Paste Google Spreadsheet URL or Spreadsheet ID..."
-                className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  if (val.startsWith("{") && val.includes("client_email")) {
+                    setConfigServiceAccountJson(val);
+                    try {
+                      const p = JSON.parse(val);
+                      if (p.client_email) setDetectedEmail(p.client_email);
+                    } catch {}
+                  } else {
+                    setConfigSpreadsheetId(e.target.value);
+                  }
+                }}
+                placeholder="Paste full URL: https://docs.google.com/spreadsheets/d/.../edit or raw ID"
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+            </div>
+
+            {/* Field 2: Service Account JSON */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                  Google Service Account JSON Key <span className="text-slate-400 text-[10px] font-normal">(for cloud write access)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handlePasteServiceAccountJson}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 cursor-pointer"
+                >
+                  <Key className="w-3 h-3" />
+                  <span>Paste JSON Key</span>
+                </button>
+              </div>
+              <textarea
+                rows={3}
+                value={configServiceAccountJson}
+                onChange={(e) => setConfigServiceAccountJson(e.target.value)}
+                placeholder='Paste service account JSON key: { "type": "service_account", "client_email": "...", "private_key": "..." }'
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y"
+              />
+            </div>
+
+            {/* Email Sharing Alert */}
+            {(detectedEmail || status?.fullServiceAccountEmail) && (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    Share Spreadsheet with this Email as Editor:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyEmail(detectedEmail || status?.fullServiceAccountEmail!)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 dark:bg-amber-800 dark:hover:bg-amber-700 text-amber-950 dark:text-amber-100 font-bold text-[11px] transition-all cursor-pointer"
+                  >
+                    {copiedEmail ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedEmail ? "Copied" : "Copy Email"}</span>
+                  </button>
+                </div>
+                <div className="font-mono text-[11px] text-amber-800 dark:text-amber-300 break-all select-all">
+                  {detectedEmail || status?.fullServiceAccountEmail}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={testingConnection || !configSpreadsheetId.trim()}
+                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+              >
+                {testingConnection ? "Testing..." : "Test Connection"}
+              </button>
               <button
                 type="submit"
-                disabled={savingConfig}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                disabled={savingConfig || !configSpreadsheetId.trim()}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md hover:shadow-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
               >
-                {savingConfig ? "Saving..." : "Save Spreadsheet ID"}
+                {savingConfig ? "Saving & Testing..." : "Save & Verify Connection"}
               </button>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Make sure this spreadsheet is shared with the Google Service Account as <strong>Editor</strong>.
-            </p>
           </form>
         )}
       </div>

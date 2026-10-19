@@ -726,10 +726,13 @@ export async function pollHikvisionDevicesNow(): Promise<{
 
 export interface SheetSyncStatusData {
   configured: boolean;
+  hasSpreadsheetId?: boolean;
+  hasCredentials?: boolean;
   spreadsheetId: string | null;
   maskedSpreadsheetId?: string | null;
   serviceAccountEmail?: string | null;
   fullServiceAccountEmail?: string | null;
+  projectId?: string | null;
   enabled: boolean;
   syncHourUtc: number;
   url: string | null;
@@ -786,8 +789,9 @@ export async function saveSheetConfig(config: {
   serviceAccountPrivateKey?: string;
   enabled?: boolean;
   syncHourUtc?: number;
-}): Promise<{ message: string; data: SheetSyncStatusData }> {
-  return request<{ message: string; data: SheetSyncStatusData }>("/api/admin/attendance-logs/sync-sheet/config", {
+  testNow?: boolean;
+}): Promise<{ message: string; data: SheetSyncStatusData; testResult?: any; testFailed?: boolean; error?: string }> {
+  return request<{ message: string; data: SheetSyncStatusData; testResult?: any; testFailed?: boolean; error?: string }>("/api/admin/attendance-logs/sync-sheet/config", {
     method: "POST",
     body: JSON.stringify(config),
   });
@@ -798,6 +802,13 @@ export async function syncAttendanceSheet(date?: string): Promise<{ message: str
     method: "POST",
     body: JSON.stringify({ date }),
   });
+}
+
+export interface MonthlyDayItem {
+  date: string;
+  day: number;
+  weekday: string;
+  isWeekend: boolean;
 }
 
 export interface MonthlyAttendanceStudentItem {
@@ -817,6 +828,7 @@ export interface MonthlyAttendanceStudentItem {
   total: number;
   rate: number;
   tier: string;
+  daily?: Record<number, "P" | "L" | "LV" | "A">;
 }
 
 export interface MonthlyAttendanceFacultyItem {
@@ -834,12 +846,15 @@ export interface MonthlyAttendanceFacultyItem {
   total: number;
   rate: number;
   compliance: string;
+  daily?: Record<number, "P" | "L" | "A">;
 }
 
 export interface MonthlyAttendanceViewResponse {
   success: boolean;
   monthKey: string;
   monthName: string;
+  daysInMonth?: number;
+  daysList?: MonthlyDayItem[];
   totalWorkingDays: number;
   talabatCount: number;
   facultyCount: number;

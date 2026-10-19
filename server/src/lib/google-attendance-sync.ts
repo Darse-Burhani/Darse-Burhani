@@ -25,19 +25,69 @@
 import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import prisma from "./prisma";
 import { eventRangeForRole } from "./biometric";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.resolve(__dirname, "../../..");
 
 const SUMMARY_TAB = "Summary";
 
 // ── Config ────────────────────────────────────────────────────────────────
 
 export function extractSpreadsheetId(input: string): string {
-  const trimmed = (input || "").trim();
+  if (!input) return "";
+  let trimmed = String(input).trim();
   if (!trimmed) return "";
-  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (match && match[1]) return match[1];
-  return trimmed;
+
+  // If user pasted an iframe embed snippet: <iframe src=".../spreadsheets/d/ID/edit..."></iframe>
+  const iframeMatch = trimmed.match(/src=["']([^"']+)["']/i);
+  if (iframeMatch && iframeMatch[1]) {
+    trimmed = iframeMatch[1].trim();
+  }
+
+  // If user accidentally pasted JSON containing spreadsheetId or URL
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.spreadsheetId || parsed.sheetId) {
+        return extractSpreadsheetId(parsed.spreadsheetId || parsed.sheetId);
+      }
+    } catch {
+      // not JSON
+    }
+  }
+
+  // Standard Google Spreadsheet URLs:
+  // /spreadsheets/d/<ID>/... or /spreadsheets/u/0/d/<ID>/...
+  const match = trimmed.match(/\/spreadsheets\/(?:d|u\/\d+\/d)\/([a-zA-Z0-9-_]+)/i);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Published web spreadsheets: /spreadsheets/d/e/<ID>/...
+  const pubMatch = trimmed.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/i);
+  if (pubMatch && pubMatch[1]) {
+    return pubMatch[1];
+  }
+
+  // Clean trailing query params or hashes (e.g. ?gid=0, #gid=0, ?usp=sharing)
+  const clean = trimmed.split(/[?#&]/)[0].trim();
+
+  // If path segments exist (e.g. docs.google.com/.../d/123)
+  if (clean.includes("/")) {
+    const parts = clean.split("/").filter(Boolean);
+    const dIdx = parts.indexOf("d");
+    if (dIdx !== -1 && parts[dIdx + 1]) {
+      return parts[dIdx + 1].trim();
+    }
+    return parts[parts.length - 1].trim();
+  }
+
+  // Remove potential quotes or brackets
+  return clean.replace(/['"`[\]]/g, "").trim();
 }
 
 export function getAttendanceSpreadsheetId(): string {
@@ -78,23 +128,32 @@ export function sheetSyncStatus() {
   const id = getAttendanceSpreadsheetId();
   const creds = getServiceAccountCreds();
   let saEmail: string | null = null;
+  let projectId: string | null = null;
   if (creds) {
     if ("email" in creds) saEmail = creds.email;
     else if ("json" in creds) {
       try {
-        saEmail = JSON.parse(creds.json).client_email || null;
+        const parsed = JSON.parse(creds.json);
+        saEmail = parsed.client_email || null;
+        projectId = parsed.project_id || null;
       } catch {
         saEmail = null;
       }
     }
   }
 
+  const hasCreds = Boolean(creds);
+  const hasId = Boolean(id);
+
   return {
-    configured: isSheetSyncConfigured(),
+    configured: hasId && hasCreds,
+    hasSpreadsheetId: hasId,
+    hasCredentials: hasCreds,
     spreadsheetId: id || null,
     maskedSpreadsheetId: id ? `${id.slice(0, 6)}…${id.slice(-4)}` : null,
     serviceAccountEmail: saEmail ? `${saEmail.slice(0, 6)}…@${saEmail.split("@")[1] || "gserviceaccount.com"}` : null,
     fullServiceAccountEmail: saEmail,
+    projectId,
     enabled: process.env.GOOGLE_SHEET_DAILY_SYNC !== "false",
     syncHourUtc: parseInt(process.env.GOOGLE_SHEET_SYNC_HOUR || "15", 10),
     url: id ? `https://docs.google.com/spreadsheets/d/${id}` : null,
@@ -117,7 +176,7 @@ export async function testSheetConnection(custom?: {
 }> {
   const spreadsheetId = extractSpreadsheetId(custom?.spreadsheetId || getAttendanceSpreadsheetId());
   if (!spreadsheetId) {
-    throw new Error("Missing Google Spreadsheet ID or URL. Please provide a valid sheet URL/ID.");
+    throw new Error("Missing Google Spreadsheet ID or URL. Please paste your Google Sheet link or ID.");
   }
 
   let auth: unknown;
@@ -147,7 +206,7 @@ export async function testSheetConnection(custom?: {
   } else {
     const creds = getServiceAccountCreds();
     if (!creds) {
-      throw new Error("No Service Account credentials configured. Provide Service Account JSON or Email + Key.");
+      throw new Error("No Google Service Account credentials configured. Paste your Service Account JSON key or Service Account Email + Private Key.");
     }
     if ("json" in creds) {
       const parsed = JSON.parse(creds.json);
@@ -167,18 +226,33 @@ export async function testSheetConnection(custom?: {
     }
   }
 
-  const client = google.sheets({ version: "v4", auth: auth as never });
-  const meta = await client.spreadsheets.get({ spreadsheetId });
-  const title = meta.data.properties?.title || "Untitled Spreadsheet";
-  const sheetNames = (meta.data.sheets || []).map((s) => s.properties?.title || "Sheet").filter(Boolean);
+  try {
+    const client = google.sheets({ version: "v4", auth: auth as never });
+    const meta = await client.spreadsheets.get({ spreadsheetId });
+    const title = meta.data.properties?.title || "Untitled Spreadsheet";
+    const sheetNames = (meta.data.sheets || []).map((s) => s.properties?.title || "Sheet").filter(Boolean);
 
-  return {
-    success: true,
-    title,
-    sheetNames,
-    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
-    serviceAccountEmail: saEmail,
-  };
+    return {
+      success: true,
+      title,
+      sheetNames,
+      url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+      serviceAccountEmail: saEmail,
+    };
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    if (msg.includes("The caller does not have permission") || err?.code === 403) {
+      throw new Error(
+        `Permission Denied (403): The spreadsheet is not shared with the service account. Please open your Google Sheet, click 'Share', and add "${saEmail || "your service account email"}" as Editor.`
+      );
+    }
+    if (msg.includes("Requested entity was not found") || err?.code === 404) {
+      throw new Error(
+        `Spreadsheet Not Found (404): No spreadsheet found with ID "${spreadsheetId}". Please verify the URL or ID you pasted.`
+      );
+    }
+    throw new Error(`Google Sheets connection error: ${msg}`);
+  }
 }
 
 export async function saveSheetConfiguration(config: {
@@ -189,19 +263,52 @@ export async function saveSheetConfiguration(config: {
   enabled?: boolean;
   syncHourUtc?: number;
 }): Promise<void> {
-  const rootDir = process.cwd();
-  const envPath = path.resolve(rootDir, ".env");
+  let cleanId = "";
+  let rawJson = (config.serviceAccountJson || "").trim();
 
-  const cleanId = extractSpreadsheetId(config.spreadsheetId || "");
-  if (cleanId) process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID = cleanId;
-  if (config.serviceAccountJson !== undefined) {
-    process.env.GOOGLE_SERVICE_ACCOUNT_JSON = config.serviceAccountJson.trim();
+  // Detect if user pasted Service Account JSON into spreadsheetId field
+  const rawId = (config.spreadsheetId || "").trim();
+  if (rawId.startsWith("{") && rawId.includes("client_email")) {
+    rawJson = rawId;
+  } else {
+    cleanId = extractSpreadsheetId(rawId);
   }
-  if (config.serviceAccountEmail !== undefined) {
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = config.serviceAccountEmail.trim();
+
+  // Detect if user pasted sheet URL into serviceAccountJson field
+  if (rawJson && (rawJson.includes("docs.google.com/spreadsheets") || !rawJson.includes("{"))) {
+    const extracted = extractSpreadsheetId(rawJson);
+    if (extracted && !cleanId) {
+      cleanId = extracted;
+      rawJson = "";
+    }
   }
-  if (config.serviceAccountPrivateKey !== undefined) {
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = config.serviceAccountPrivateKey.trim();
+
+  if (cleanId) {
+    process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID = cleanId;
+  }
+
+  let parsedEmail: string | undefined = config.serviceAccountEmail?.trim();
+  let parsedKey: string | undefined = config.serviceAccountPrivateKey?.trim();
+  let cleanJsonStr: string | undefined = undefined;
+
+  if (rawJson) {
+    try {
+      const parsed = typeof rawJson === "string" ? JSON.parse(rawJson) : rawJson;
+      if (parsed.client_email) parsedEmail = parsed.client_email.trim();
+      if (parsed.private_key) parsedKey = parsed.private_key.trim();
+      cleanJsonStr = JSON.stringify(parsed);
+      process.env.GOOGLE_SERVICE_ACCOUNT_JSON = cleanJsonStr;
+    } catch {
+      cleanJsonStr = rawJson;
+      process.env.GOOGLE_SERVICE_ACCOUNT_JSON = rawJson;
+    }
+  }
+
+  if (parsedEmail) {
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = parsedEmail;
+  }
+  if (parsedKey) {
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = parsedKey;
   }
   if (config.enabled !== undefined) {
     process.env.GOOGLE_SHEET_DAILY_SYNC = config.enabled ? "true" : "false";
@@ -210,42 +317,50 @@ export async function saveSheetConfiguration(config: {
     process.env.GOOGLE_SHEET_SYNC_HOUR = String(config.syncHourUtc);
   }
 
-  // Update .env file if it exists
-  try {
-    let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+  // Update .env files (check repoRoot, process.cwd(), and parent dir)
+  const candidatePaths = Array.from(new Set([
+    path.resolve(repoRoot, ".env"),
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "../.env"),
+  ]));
 
-    const setEnvVar = (key: string, val: string) => {
-      const reg = new RegExp(`^${key}=.*$`, "m");
-      if (reg.test(content)) {
-        content = content.replace(reg, `${key}=${val}`);
-      } else {
-        content = content.trimEnd() + `\n${key}=${val}\n`;
+  for (const envPath of candidatePaths) {
+    try {
+      if (!fs.existsSync(envPath)) continue;
+      let content = fs.readFileSync(envPath, "utf8");
+
+      const setEnvVar = (key: string, val: string) => {
+        // Matches existing key=... or commented out # key=...
+        const reg = new RegExp(`^(?:#\\s*)?${key}=.*$`, "m");
+        if (reg.test(content)) {
+          content = content.replace(reg, `${key}=${val}`);
+        } else {
+          content = content.trimEnd() + `\n${key}=${val}\n`;
+        }
+      };
+
+      if (cleanId) setEnvVar("GOOGLE_ATTENDANCE_SPREADSHEET_ID", `"${cleanId}"`);
+      if (cleanJsonStr) {
+        setEnvVar("GOOGLE_SERVICE_ACCOUNT_JSON", `'${cleanJsonStr}'`);
       }
-    };
+      if (parsedEmail) {
+        setEnvVar("GOOGLE_SERVICE_ACCOUNT_EMAIL", `"${parsedEmail}"`);
+      }
+      if (parsedKey) {
+        const escapedKey = parsedKey.replace(/\r?\n/g, "\\n");
+        setEnvVar("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", `"${escapedKey}"`);
+      }
+      if (config.enabled !== undefined) {
+        setEnvVar("GOOGLE_SHEET_DAILY_SYNC", config.enabled ? "true" : "false");
+      }
+      if (config.syncHourUtc !== undefined) {
+        setEnvVar("GOOGLE_SHEET_SYNC_HOUR", `"${config.syncHourUtc}"`);
+      }
 
-    if (cleanId) setEnvVar("GOOGLE_ATTENDANCE_SPREADSHEET_ID", `"${cleanId}"`);
-    if (config.serviceAccountJson !== undefined && config.serviceAccountJson.trim()) {
-      // JSON stringified for single line or formatted
-      const cleanJson = JSON.stringify(JSON.parse(config.serviceAccountJson));
-      setEnvVar("GOOGLE_SERVICE_ACCOUNT_JSON", `'${cleanJson}'`);
+      fs.writeFileSync(envPath, content, "utf8");
+    } catch (err) {
+      console.warn(`[google-sheet-sync] Warning: Could not persist to ${envPath}:`, (err as Error)?.message);
     }
-    if (config.serviceAccountEmail !== undefined && config.serviceAccountEmail.trim()) {
-      setEnvVar("GOOGLE_SERVICE_ACCOUNT_EMAIL", `"${config.serviceAccountEmail.trim()}"`);
-    }
-    if (config.serviceAccountPrivateKey !== undefined && config.serviceAccountPrivateKey.trim()) {
-      const escapedKey = config.serviceAccountPrivateKey.trim().replace(/\r?\n/g, "\\n");
-      setEnvVar("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", `"${escapedKey}"`);
-    }
-    if (config.enabled !== undefined) {
-      setEnvVar("GOOGLE_SHEET_DAILY_SYNC", config.enabled ? "true" : "false");
-    }
-    if (config.syncHourUtc !== undefined) {
-      setEnvVar("GOOGLE_SHEET_SYNC_HOUR", `"${config.syncHourUtc}"`);
-    }
-
-    fs.writeFileSync(envPath, content, "utf8");
-  } catch (err) {
-    console.warn("[google-sheet-sync] Warning: Could not persist to .env file:", (err as Error)?.message);
   }
 }
 
