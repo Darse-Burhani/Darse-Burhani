@@ -46,8 +46,8 @@ export const portals: PortalConfig[] = [
     shortLabel: "Admin",
     badgeLabel: "Central Governance",
     description: "Official institutional administration for student admissions, academic governance, and scheduling.",
-    instructions: "Sign in with your registered administrator email and institutional password.",
-    placeholder: "admin@darseburhani.edu",
+    instructions: "Sign in with your registered administrator credentials and institutional password.",
+    placeholder: "Enter administrator email",
     inputLabel: "Administrator email",
     rolePath: "/admin",
     icon: ShieldCheck,
@@ -59,7 +59,7 @@ export const portals: PortalConfig[] = [
     badgeLabel: "Academic Faculty",
     description: "Class rosters, daily classroom attendance registry, Hifz Quran logbooks, and academic remarks.",
     instructions: "Sign in with your appointed faculty email address.",
-    placeholder: "teacher@darseburhani.edu",
+    placeholder: "Enter faculty email",
     inputLabel: "Faculty email",
     rolePath: "/teacher",
     icon: GraduationCap,
@@ -83,7 +83,7 @@ export const portals: PortalConfig[] = [
     badgeLabel: "Parent Network",
     description: "Track your child's academic progress, review attendance records, and submit leave requests.",
     instructions: "Sign in with your registered parent email address.",
-    placeholder: "parent@darseburhani.edu",
+    placeholder: "Enter registered parent email",
     inputLabel: "Registered parent email",
     rolePath: "/parent",
     icon: Users,
@@ -408,16 +408,16 @@ export default function LoginPage() {
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Main Container */}
-      <div className="min-h-screen bg-[#03140e] text-white flex flex-col justify-between px-4 py-6 sm:px-6 sm:py-8 relative overflow-hidden">
+      {/* Main Container - Locks to viewport height in ONE VIEW with zero scrolling */}
+      <div className="h-screen max-h-screen bg-[#03140e] text-white flex flex-col justify-between px-3 py-2 sm:px-6 sm:py-3.5 relative overflow-hidden select-none">
         {/* Subtle Ambient Glows */}
         <div className="pointer-events-none absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-[#d4af37]/10 blur-3xl" />
 
         {/* ── Top Header ── */}
-        <header className="w-full max-w-5xl mx-auto flex items-center justify-between pb-5 border-b border-[#1b3d2c]/60 relative z-10">
-          <div className="flex items-center gap-3.5 group">
-            <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-[#0c2a1c] border border-[#d4af37]/50 p-1 flex items-center justify-center shrink-0 shadow-lg group-hover:border-[#d4af37] transition-all">
+        <header className="w-full max-w-5xl mx-auto flex items-center justify-between pb-2 sm:pb-2.5 border-b border-[#1b3d2c]/60 relative z-10 shrink-0">
+          <div className="flex items-center gap-3 group">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0c2a1c] border border-[#d4af37]/50 p-1 flex items-center justify-center shrink-0 shadow-md group-hover:border-[#d4af37] transition-all">
               {!logoFailed ? (
                 <img
                   src="/logo.png"
@@ -426,45 +426,45 @@ export default function LoginPage() {
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <span className="font-serif text-sm font-bold text-[#d4af37]">DB</span>
+                <span className="font-serif text-xs font-bold text-[#d4af37]">DB</span>
               )}
             </div>
             <div>
-              <span className="font-serif text-xl sm:text-2xl font-bold text-white tracking-tight block leading-tight">
-                Darse Burhani <span className="text-[#d4af37] font-semibold text-base sm:text-lg">(Nisab)</span>
+              <span className="font-serif text-lg sm:text-xl font-bold text-white tracking-tight block leading-tight">
+                Darse Burhani <span className="text-[#d4af37] font-semibold text-xs sm:text-sm">(Nisab)</span>
               </span>
-              <span className="text-xs font-bold tracking-[0.18em] uppercase text-[#d4af37] block mt-0.5">
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-[0.16em] uppercase text-[#d4af37] block mt-0.5">
                 Mahad al Zahra
               </span>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0a2318] border border-[#1b4330] text-xs font-semibold text-[#d2cec3]">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-[#0a2318] border border-[#1b4330] text-xs font-semibold text-[#d2cec3]">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Academic Portal &bull; 1448 H</span>
           </div>
         </header>
 
-        {/* ── Center Main Card ── */}
-        <main className="w-full max-w-5xl mx-auto my-auto py-6 sm:py-8 relative z-10">
-          <div className="rounded-3xl bg-[#092017]/95 border border-[#1d4432] shadow-[0_24px_60px_rgba(0,0,0,0.5),0_0_1px_rgba(212,175,55,0.2)] grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] overflow-hidden backdrop-blur-md">
+        {/* ── Center Main Card (Guaranteed to fit in 1 view without scrolling) ── */}
+        <main className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center py-1 sm:py-2 relative z-10 min-h-0">
+          <div className="rounded-2xl sm:rounded-3xl bg-[#092017]/95 border border-[#1d4432] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_1px_rgba(212,175,55,0.2)] grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] overflow-hidden backdrop-blur-md max-h-full">
             {/* Left Context & Guidance Panel */}
-            <div className="p-6 sm:p-10 bg-[#071d14] border-b lg:border-b-0 lg:border-r border-[#1d4432] flex flex-col justify-between space-y-6">
-              <div className="space-y-5">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#113826] border border-[#d4af37]/50 text-[#d4af37] text-xs font-bold shadow-inner">
+            <div className="p-4 sm:p-6 lg:p-7 bg-[#071d14] border-b lg:border-b-0 lg:border-r border-[#1d4432] flex flex-col justify-between space-y-3 sm:space-y-4">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#113826] border border-[#d4af37]/50 text-[#d4af37] text-xs font-bold shadow-inner">
                   <portal.icon className="w-3.5 h-3.5 text-[#d4af37]" />
                   <span>{portal.badgeLabel}</span>
                 </div>
 
-                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
+                <h1 className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-snug">
                   {portal.label}
                 </h1>
 
-                <p className="text-xs sm:text-sm text-[#d2cec3] leading-relaxed font-medium">
+                <p className="text-xs sm:text-sm text-[#d2cec3] leading-relaxed line-clamp-3 sm:line-clamp-none">
                   {portal.description}
                 </p>
 
-                <div className="p-4 rounded-2xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#d2cec3] space-y-2 shadow-inner">
+                <div className="p-3 rounded-xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#d2cec3] space-y-1 shadow-inner">
                   <div className="flex items-center gap-1.5 text-white font-bold">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#d4af37]" />
                     <span>Instructions</span>
@@ -475,26 +475,23 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Institution Help note */}
-              <div className="pt-4 border-t border-[#1d4432] text-xs space-y-1">
-                <p className="font-bold text-white">Need institutional credential assistance?</p>
+              {/* Institution Help note - Professional institutional support */}
+              <div className="pt-2.5 border-t border-[#1d4432] text-xs space-y-0.5">
+                <p className="font-bold text-white">Institutional Support</p>
                 <p className="text-xs text-[#d2cec3] leading-relaxed">
-                  Contact the Administration Desk at Mahad al Zahra or email{" "}
-                  <a href="mailto:admin@darseburhani.edu" className="text-[#d4af37] hover:underline underline-offset-2 transition-colors font-semibold">
-                    admin@darseburhani.edu
-                  </a>.
+                  For credential assistance or portal access issues, please contact the Administration Desk at Mahad al Zahra.
                 </p>
               </div>
             </div>
 
             {/* Right Sign-In Form Panel */}
-            <div className="p-6 sm:p-10 flex flex-col justify-center bg-[#092017]">
+            <div className="p-4 sm:p-6 lg:p-7 flex flex-col justify-center bg-[#092017]">
               {/* 4-Role Tactile Segmented Control with Unique Button Effects */}
-              <div className="space-y-2.5 mb-6">
-                <label className="text-xs font-bold text-[#d2cec3] uppercase tracking-wider block">
+              <div className="space-y-1.5 mb-2.5 sm:mb-3">
+                <label className="text-[11px] font-bold text-[#d2cec3] uppercase tracking-wider block">
                   Select Institutional Workspace
                 </label>
-                <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-[#051810] border border-[#1b3d2c]" role="tablist">
+                <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#051810] border border-[#1b3d2c]" role="tablist">
                   {portals.map((p) => {
                     const active = p.role === selectedRole;
                     const Icon = p.icon;
@@ -505,14 +502,14 @@ export default function LoginPage() {
                         role="tab"
                         aria-selected={active}
                         onClick={() => handlePortalChange(p.role)}
-                        className={`relative py-2.5 px-2 rounded-xl text-xs text-center font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer select-none active:scale-95 ${
+                        className={`relative py-1.5 sm:py-2 px-1 rounded-lg text-xs text-center font-bold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer select-none active:scale-95 ${
                           active
                             ? "bg-[#143a29] text-white border border-[#d4af37] shadow-[0_2px_8px_rgba(212,175,55,0.25)]"
                             : "bg-[#051810] text-[#d2cec3] hover:text-white hover:bg-[#0c2217]"
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${active ? "text-[#d4af37]" : "text-[#9e9789]"}`} />
-                        <span className="text-xs font-bold leading-tight">{p.shortLabel}</span>
+                        <Icon className={`w-3.5 h-3.5 ${active ? "text-[#d4af37]" : "text-[#9e9789]"}`} />
+                        <span className="text-[11px] sm:text-xs font-bold leading-tight">{p.shortLabel}</span>
                       </button>
                     );
                   })}
@@ -520,12 +517,12 @@ export default function LoginPage() {
               </div>
 
               {/* Sign-in Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-3">
                 {/* Error Banner */}
                 {error && (
                   <div
                     role="alert"
-                    className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-800 text-xs font-bold text-rose-200 flex items-start gap-2 shadow-sm"
+                    className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-800 text-xs font-bold text-rose-200 flex items-start gap-2 shadow-sm"
                   >
                     <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     <span>{error}</span>
@@ -533,7 +530,7 @@ export default function LoginPage() {
                 )}
 
                 {/* Email / ITS Input */}
-                <div className="space-y-2.5">
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label htmlFor="login-email" className="text-xs font-bold text-[#d2cec3]">
                       {portal.inputLabel}
@@ -544,7 +541,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#d4af37] border border-[#d4af37]/40 text-xs font-bold transition-all shadow-2xs hover:shadow-[#d4af37]/20 active:scale-95 cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#d4af37] border border-[#d4af37]/40 text-xs font-bold transition-all shadow-2xs hover:shadow-[#d4af37]/20 active:scale-95 cursor-pointer"
                       >
                         <QrCode className="w-3.5 h-3.5 animate-pulse" />
                         <span>Scan ITS Card</span>
@@ -572,13 +569,13 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder={portal.placeholder}
-                      className="w-full h-12 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-3.5 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
+                      className="w-full h-10 sm:h-11 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-3.5 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
                     />
                   </div>
                 </div>
 
                 {/* Password Input */}
-                <div className="space-y-2.5">
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label htmlFor="login-password" className="text-xs font-bold text-[#d2cec3]">
                       Password
@@ -610,13 +607,13 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder="Enter account password"
-                      className="w-full h-12 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-11 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
+                      className="w-full h-10 sm:h-11 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-11 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9e9789] hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9e9789] hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -624,13 +621,13 @@ export default function LoginPage() {
                 </div>
 
                 {/* Options row */}
-                <div className="flex items-center justify-between pt-1 text-xs font-medium">
+                <div className="flex items-center justify-between pt-0.5 text-xs font-medium">
                   <label className="flex items-center gap-2 cursor-pointer select-none text-[#d2cec3]">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded accent-[#d4af37] bg-[#051810] border-[#214936] cursor-pointer"
+                      className="w-3.5 h-3.5 rounded accent-[#d4af37] bg-[#051810] border-[#214936] cursor-pointer"
                     />
                     <span>Remember credentials</span>
                   </label>
@@ -643,12 +640,12 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {/* ── UNIQUE 3D PUSH-DOWN SIGN-IN BUTTON WITH SHIMMER EFFECT ── */}
-                <div className="pt-3">
+                {/* ── UNIQUE 3D PUSH-DOWN SIGN-IN BUTTON WITH SHIMMER EFFECT (Always visible and clickable) ── */}
+                <div className="pt-1.5 sm:pt-2">
                   <button
                     type="submit"
                     disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                    className="relative w-full h-13 rounded-2xl bg-[#d4af37] hover:bg-[#e0b73c] text-[#03140e] font-black text-sm tracking-wide transition-all transform active:translate-y-0.5 shadow-[0_4px_0_#937318,0_10px_20px_rgba(0,0,0,0.4)] active:shadow-[0_1px_0_#937318,0_4px_8px_rgba(0,0,0,0.3)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
+                    className="relative w-full h-11 sm:h-12 rounded-xl bg-[#d4af37] hover:bg-[#e0b73c] text-[#03140e] font-black text-xs sm:text-sm tracking-wide transition-all transform active:translate-y-0.5 shadow-[0_3px_0_#937318,0_8px_16px_rgba(0,0,0,0.35)] active:shadow-[0_1px_0_#937318,0_3px_6px_rgba(0,0,0,0.25)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
                   >
                     {/* Shimmer light sweep highlight */}
                     <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
@@ -660,7 +657,7 @@ export default function LoginPage() {
                       </span>
                     ) : isSuccess ? (
                       <span className="flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-950" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-950" />
                         Success! Entering workspace...
                       </span>
                     ) : lockoutSeconds > 0 ? (
@@ -679,7 +676,7 @@ export default function LoginPage() {
         </main>
 
         {/* ── Bottom Footer ── */}
-        <footer className="w-full max-w-5xl mx-auto pt-5 border-t border-[#1b3d2c]/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#d2cec3] relative z-10">
+        <footer className="w-full max-w-5xl mx-auto pt-2 sm:pt-2.5 border-t border-[#1b3d2c]/60 flex flex-col sm:flex-row items-center justify-between gap-1.5 text-[11px] sm:text-xs text-[#d2cec3] relative z-10 shrink-0">
           <p>© 2026 Darse Burhani (Nisab) &bull; Mahad al Zahra</p>
           <div className="flex items-center gap-4 font-medium text-[#d2cec3]">
             <Link to="/privacy" className="text-[#d2cec3] hover:text-white underline underline-offset-2 transition-colors">
@@ -825,10 +822,10 @@ export default function LoginPage() {
               <p>
                 Institutional credentials are authenticated centrally to safeguard student and faculty records.
               </p>
-              <div className="p-3.5 rounded-2xl bg-[#051810] border border-[#1b3d2c] space-y-1 text-xs">
+              <div className="p-3.5 rounded-2xl bg-[#051810] border border-[#1b3d2c] space-y-1.5 text-xs">
                 <span className="font-bold text-white block">Mahad al Zahra Administration Desk</span>
-                <p>Email: <strong className="text-[#d4af37]">admin@darseburhani.edu</strong></p>
-                <p>Office: Mahad al Zahra Administration Office</p>
+                <p className="text-[#d2cec3]">Support: Central Academic Governance Office</p>
+                <p className="text-[#d2cec3]">In-person credential assistance and verification are available during office hours.</p>
               </div>
               <p className="text-[#d2cec3]">
                 Talabat students may also approach their appointed class teacher directly for on-premises verification.
