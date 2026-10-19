@@ -23,6 +23,7 @@ node_modules/
 *.pem
 *.xlsx
 desktop.ini
+backups/
 __pycache__/
 *.pyc
 
