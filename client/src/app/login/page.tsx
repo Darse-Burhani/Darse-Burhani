@@ -36,8 +36,6 @@ export interface PortalConfig {
   placeholder: string;
   inputLabel: string;
   rolePath: string;
-  demoEmail: string;
-  demoPass: string;
   icon: React.ElementType;
 }
 
@@ -52,8 +50,6 @@ export const portals: PortalConfig[] = [
     placeholder: "admin@darseburhani.edu",
     inputLabel: "Administrator email",
     rolePath: "/admin",
-    demoEmail: "admin@darseburhani.edu",
-    demoPass: "admin123",
     icon: ShieldCheck,
   },
   {
@@ -66,8 +62,6 @@ export const portals: PortalConfig[] = [
     placeholder: "teacher@darseburhani.edu",
     inputLabel: "Faculty email",
     rolePath: "/teacher",
-    demoEmail: "teacher@darseburhani.edu",
-    demoPass: "teacher123",
     icon: GraduationCap,
   },
   {
@@ -80,8 +74,6 @@ export const portals: PortalConfig[] = [
     placeholder: "Enter 8-digit ITS or student email",
     inputLabel: "ITS number or student email",
     rolePath: "/talabat",
-    demoEmail: "50463544",
-    demoPass: "student123",
     icon: Sparkles,
   },
   {
@@ -94,8 +86,6 @@ export const portals: PortalConfig[] = [
     placeholder: "parent@darseburhani.edu",
     inputLabel: "Registered parent email",
     rolePath: "/parent",
-    demoEmail: "parent@darseburhani.edu",
-    demoPass: "parent123",
     icon: Users,
   },
 ];
@@ -175,13 +165,6 @@ export default function LoginPage() {
 
   const handlePortalChange = (role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT") => {
     setSelectedRole(role);
-    setError("");
-  };
-
-  const handleQuickFill = (p: PortalConfig) => {
-    setSelectedRole(p.role);
-    setEmail(p.demoEmail);
-    setPassword(p.demoPass);
     setError("");
   };
 
@@ -466,64 +449,41 @@ export default function LoginPage() {
         <main className="w-full max-w-5xl mx-auto my-auto py-6 sm:py-8 relative z-10">
           <div className="rounded-3xl bg-[#092017]/95 border border-[#1d4432] shadow-[0_24px_60px_rgba(0,0,0,0.5),0_0_1px_rgba(212,175,55,0.2)] grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] overflow-hidden backdrop-blur-md">
             {/* Left Context & Guidance Panel */}
-            <div className="p-6 sm:p-10 bg-gradient-to-br from-[#061a12] via-[#092218] to-[#04140e] border-b lg:border-b-0 lg:border-r border-[#1d4432] flex flex-col justify-between space-y-6">
+            <div className="p-6 sm:p-10 bg-[#071d14] border-b lg:border-b-0 lg:border-r border-[#1d4432] flex flex-col justify-between space-y-6">
               <div className="space-y-5">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d4af37]/15 border border-[#d4af37]/40 text-[#fde047] text-xs font-bold tracking-wider uppercase shadow-inner">
-                  <portal.icon className="w-3.5 h-3.5" />
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#113826] border border-[#d4af37]/60 text-[#fef08a] text-xs font-bold tracking-wider uppercase shadow-inner">
+                  <portal.icon className="w-3.5 h-3.5 text-[#fde047]" />
                   <span>{portal.badgeLabel}</span>
                 </div>
 
-                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#fbf8f2] leading-tight">
+                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
                   {portal.label}
                 </h1>
 
-                <p className="text-xs sm:text-sm text-[#c7c1b5] leading-relaxed font-medium">
+                <p className="text-xs sm:text-sm text-[#ded8ce] leading-relaxed font-medium">
                   {portal.description}
                 </p>
 
-                <div className="p-4 rounded-2xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#d2cec3] space-y-2 shadow-inner">
+                <div className="p-4 rounded-2xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#ded8ce] space-y-2 shadow-inner">
                   <div className="flex items-center gap-1.5 text-white font-bold">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#d4af37]" />
                     <span>Instructions</span>
                   </div>
-                  <p className="leading-relaxed text-[11px] text-[#b8b19e]">
+                  <p className="leading-relaxed text-[11px] text-[#ded8ce]">
                     {portal.instructions}
                   </p>
-                </div>
-
-                {/* Quick 1-Click Demo Credentials Pills */}
-                <div className="pt-2 space-y-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#9f9582] block">
-                    Fast Demo Access (Click to autofill):
-                  </span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {portals.map((p) => {
-                      const Icon = p.icon;
-                      const active = p.role === selectedRole;
-                      return (
-                        <button
-                          key={p.role}
-                          type="button"
-                          onClick={() => handleQuickFill(p)}
-                          className={`flex items-center gap-2 p-2 rounded-xl text-left text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
-                            active
-                              ? "bg-[#d4af37]/20 border-[#d4af37] text-white shadow-sm"
-                              : "bg-[#0c2419] border-[#1c4533] text-[#b5ad9a] hover:bg-[#133625] hover:text-white"
-                          }`}
-                        >
-                          <Icon className={`w-3.5 h-3.5 ${active ? "text-[#fde047]" : "text-[#8e8574]"}`} />
-                          <span className="truncate">{p.shortLabel}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
               </div>
 
               {/* Institution Help note */}
-              <div className="pt-4 border-t border-[#1d4432] text-xs text-[#8e8574] space-y-1">
-                <p className="font-bold text-[#b8b2a5]">Need institutional credential assistance?</p>
-                <p className="text-[11px]">Contact the Administration Desk at Mahad al Zahra or email admin@darseburhani.edu.</p>
+              <div className="pt-4 border-t border-[#1d4432] text-xs space-y-1">
+                <p className="font-bold text-[#f5f3ef]">Need institutional credential assistance?</p>
+                <p className="text-[11px] text-[#ded8ce]">
+                  Contact the Administration Desk at Mahad al Zahra or email{" "}
+                  <a href="mailto:admin@darseburhani.edu" className="underline text-[#fde047] hover:text-white font-medium">
+                    admin@darseburhani.edu
+                  </a>.
+                </p>
               </div>
             </div>
 
@@ -531,7 +491,7 @@ export default function LoginPage() {
             <div className="p-6 sm:p-10 flex flex-col justify-center bg-[#092017]">
               {/* 4-Role Tactile Segmented Control with Unique Button Effects */}
               <div className="space-y-2.5 mb-6">
-                <label className="text-[11px] font-black text-[#a49a86] uppercase tracking-wider block">
+                <label className="text-[11px] font-black text-[#ded8ce] uppercase tracking-wider block">
                   Select Institutional Workspace
                 </label>
                 <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-[#051810] border border-[#1b3d2c]" role="tablist">
@@ -547,11 +507,11 @@ export default function LoginPage() {
                         onClick={() => handlePortalChange(p.role)}
                         className={`relative py-2.5 px-2 rounded-xl text-xs text-center font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer select-none active:scale-95 ${
                           active
-                            ? "bg-gradient-to-b from-[#184533] to-[#0f2e22] text-[#fbf8f2] border border-[#d4af37]/60 shadow-[0_2px_8px_rgba(212,175,55,0.25)]"
-                            : "text-[#8e8574] hover:text-[#f5f3ef] hover:bg-[#0c2217]"
+                            ? "bg-[#143a29] text-white border border-[#d4af37] shadow-[0_2px_8px_rgba(212,175,55,0.25)]"
+                            : "bg-[#051810] text-[#d2cec3] hover:text-white hover:bg-[#0c2217]"
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${active ? "text-[#fde047]" : "text-[#7a7262]"}`} />
+                        <Icon className={`w-4 h-4 ${active ? "text-[#fde047]" : "text-[#a49a86]"}`} />
                         <span className="text-[11px] font-bold leading-tight">{p.shortLabel}</span>
                       </button>
                     );
@@ -688,7 +648,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                    className="relative w-full h-13 rounded-2xl bg-gradient-to-r from-[#d4af37] via-[#e5b945] to-[#f5cb5c] hover:from-[#e5b945] hover:to-[#fde047] text-[#071d14] font-black text-sm tracking-wide transition-all transform active:translate-y-0.5 shadow-[0_4px_0_#937318,0_10px_20px_rgba(0,0,0,0.4)] active:shadow-[0_1px_0_#937318,0_4px_8px_rgba(0,0,0,0.3)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
+                    className="relative w-full h-13 rounded-2xl bg-[#d4af37] hover:bg-[#e0b73c] text-[#03140e] font-black text-sm tracking-wide transition-all transform active:translate-y-0.5 shadow-[0_4px_0_#937318,0_10px_20px_rgba(0,0,0,0.4)] active:shadow-[0_1px_0_#937318,0_4px_8px_rgba(0,0,0,0.3)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
                   >
                     {/* Shimmer light sweep highlight */}
                     <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
@@ -719,14 +679,14 @@ export default function LoginPage() {
         </main>
 
         {/* ── Bottom Footer ── */}
-        <footer className="w-full max-w-5xl mx-auto pt-5 border-t border-[#1b3d2c]/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#8e8574] relative z-10">
+        <footer className="w-full max-w-5xl mx-auto pt-5 border-t border-[#1b3d2c]/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#d2cec3] relative z-10">
           <p>© 2026 Darse Burhani (Nisab) &bull; Mahad al Zahra</p>
-          <div className="flex items-center gap-4 font-medium">
-            <Link to="/privacy" className="hover:text-[#d2cec3] transition-colors">
+          <div className="flex items-center gap-4 font-medium text-[#d2cec3]">
+            <Link to="/privacy" className="text-[#d2cec3] hover:text-white underline underline-offset-2 transition-colors">
               Privacy Policy
             </Link>
             <span>&bull;</span>
-            <Link to="/terms" className="hover:text-[#d2cec3] transition-colors">
+            <Link to="/terms" className="text-[#d2cec3] hover:text-white underline underline-offset-2 transition-colors">
               Terms of Service
             </Link>
           </div>
