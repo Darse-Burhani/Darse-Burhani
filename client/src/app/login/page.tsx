@@ -830,7 +830,7 @@ export default function LoginPage() {
                 <p>Email: <strong className="text-[#d4af37]">admin@darseburhani.edu</strong></p>
                 <p>Office: Mahad al Zahra Administration Office</p>
               </div>
-              <p className="text-[#8e8574]">
+              <p className="text-[#ded8ce]">
                 Talabat students may also approach their appointed class teacher directly for on-premises verification.
               </p>
             </div>
