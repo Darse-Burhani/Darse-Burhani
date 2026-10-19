@@ -15,15 +15,15 @@ export function InstitutionalFooter({
 
   if (variant === "minimal") {
     return (
-      <footer className={`mt-auto border-t border-slate-200 dark:border-[#1e382b] bg-white dark:bg-[#091711] py-4 px-4 text-center text-xs text-slate-500 dark:text-[#a49a86] ${className}`}>
+      <footer className={`mt-auto border-t border-slate-200 bg-white/95 backdrop-blur-sm py-4 px-4 text-center text-xs text-slate-600 ${className}`}>
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="font-medium text-slate-700 dark:text-[#d2cec3]">
-            © {currentYear} Darse Burhani (Nisab) · <span className="font-semibold text-[#0f5132] dark:text-[#c59b27]">Mahad al Zahra</span>
+          <p className="font-semibold text-slate-700">
+            © {currentYear} Darse Burhani (Nisab) · <span className="font-bold text-emerald-800">Mahad al Zahra</span>
           </p>
-          <div className="flex items-center gap-5 text-xs">
-            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Terms of Service</Link>
-            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="hover:text-slate-900 dark:hover:text-[#fbf8f2] transition-colors">Support: support.darseburhani.galiakot@gmail.com</a>
+          <div className="flex items-center gap-5 text-xs font-semibold text-slate-600">
+            <Link href="/privacy" className="hover:text-emerald-800 hover:underline transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-emerald-800 hover:underline transition-colors">Terms of Service</Link>
+            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="hover:text-emerald-800 hover:underline transition-colors">Support</a>
           </div>
         </div>
       </footer>
