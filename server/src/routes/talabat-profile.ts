@@ -236,6 +236,25 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 
   const sp = user.studentProfile;
+  const grade4 = isGrade4(sp.grade) || !!sp.talabatProfile1447;
+
+  if (!grade4) {
+    return res.json({
+      success: true,
+      isGrade4: false,
+      isParent: false,
+      isReadOnly: true,
+      message: "The Yearly Profile is strictly designated for Darajah Rabea (Grade 4) Talabat.",
+      studentInfo: {
+        id: sp.id,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        grade: sp.grade,
+        section: sp.section,
+        its: sp.its,
+      },
+    });
+  }
+
   let profile = sp.talabatProfile1447;
   if (!profile) {
     profile = generatePrefilledProfile(sp, user) as any;
@@ -245,6 +264,7 @@ router.get("/me", requireAuth, async (req, res) => {
     success: true,
     isGrade4: true,
     isParent: false,
+    isReadOnly: false,
     profile,
     studentInfo: {
       id: sp.id,
@@ -295,6 +315,13 @@ router.put("/me", requireAuth, async (req, res) => {
     }
 
     const sp = user.studentProfile;
+    if (!isGrade4(sp.grade) && !sp.talabatProfile1447) {
+      return res.status(403).json({
+        success: false,
+        error: "Yearly Profile is strictly restricted to Darajah Rabea (Grade 4) Talabat.",
+      });
+    }
+
     studentProfileId = sp.id;
     targetUserAvatar = user.avatarUrl;
     targetUserId = user.id;

@@ -220,7 +220,7 @@ export function TalabatProfileDocument({
       <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
         {/* Status Indicator */}
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-[#961212] text-white shadow-xs">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gradient-to-r from-[#06241a] to-[#0a3d2c] text-amber-300 border border-amber-400/30 shadow-xs">
             <FileCheck2 className="w-3.5 h-3.5" />
             Official Profile Document Preview
           </span>
@@ -267,10 +267,10 @@ export function TalabatProfileDocument({
 
               {/* Institution & Title */}
               <div className="text-center flex-1 px-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#b31b1b] font-serif uppercase">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#0a3d2c] font-serif uppercase">
                   Darse Burhani
                 </h1>
-                <h2 className="text-base sm:text-lg font-extrabold text-[#961212] tracking-wider mt-0.5">
+                <h2 className="text-base sm:text-lg font-extrabold text-[#06241a] tracking-wider mt-0.5">
                   TALABAT PROFILE – {data.year || "1447 H"}
                 </h2>
                 <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
@@ -282,10 +282,10 @@ export function TalabatProfileDocument({
                 <div className="text-right flex flex-col items-end">
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <span className="block text-[11px] font-bold text-[#b31b1b]">Further</span>
-                      <span className="block text-[11px] font-bold text-[#b31b1b]">Education:</span>
+                      <span className="block text-[11px] font-bold text-[#0a3d2c]">Further</span>
+                      <span className="block text-[11px] font-bold text-[#0a3d2c]">Education:</span>
                     </div>
-                    <span className="text-base font-bold text-[#b31b1b] font-alkanz dir-rtl" dir="rtl">
+                    <span className="text-base font-bold text-[#0a3d2c] font-alkanz dir-rtl" dir="rtl">
                       توجيه الطالب
                     </span>
                   </div>
@@ -539,7 +539,7 @@ export function TalabatProfileDocument({
                       <div className="col-span-12 border-t border-slate-800 flex flex-col divide-y divide-slate-800">
                         {hasActivities && (
                           <div className="p-2 bg-white">
-                            <div className="text-[11px] font-bold font-alkanz text-[#961212] mb-1 dir-rtl" dir="rtl">
+                            <div className="text-[11px] font-bold font-alkanz text-[#0a3d2c] mb-1 dir-rtl" dir="rtl">
                               الاشتراك في البرامج العلمية والثقافية:
                             </div>
                             <div className="text-xs leading-relaxed font-alkanz dir-rtl text-right text-slate-800" dir="rtl">
@@ -549,7 +549,7 @@ export function TalabatProfileDocument({
                         )}
                         {hasOtherExams && (
                           <div className="p-2 bg-slate-50/50 flex items-center justify-between">
-                            <span className="font-alkanz font-bold text-xs text-[#961212] dir-rtl" dir="rtl">
+                            <span className="font-alkanz font-bold text-xs text-[#0a3d2c] dir-rtl" dir="rtl">
                               الامتحانات الأخرى:
                             </span>
                             <span className="font-bold text-xs text-slate-900">{data.otherExams}</span>
@@ -676,7 +676,7 @@ export function TalabatProfileDocument({
                               {cat.value}
                             </div>
                             <div className="col-span-3 sm:col-span-2 p-2 flex flex-col items-center justify-center text-center bg-slate-50/60">
-                              <span className="font-alkanz text-xs font-bold text-[#b31b1b] dir-rtl" dir="rtl">
+                              <span className="font-alkanz text-xs font-bold text-[#0a3d2c] dir-rtl" dir="rtl">
                                 {cat.labelAr}
                               </span>
                               <span className="text-[9px] text-slate-500 font-sans mt-0.5">{cat.labelEn}</span>
@@ -690,7 +690,7 @@ export function TalabatProfileDocument({
                   {/* Sibling & Counselling Notes Box (Only if entered) */}
                   {hasCounsellingNotes && (
                     <div className="border border-slate-800 rounded-xs p-3 bg-white mt-3">
-                      <div className="text-[10px] font-bold text-[#961212] uppercase tracking-wider mb-1">
+                      <div className="text-[10px] font-bold text-[#0a3d2c] uppercase tracking-wider mb-1">
                         Sibling Details &amp; Career Counselling Guidance Notes:
                       </div>
                       <div className="text-xs font-serif leading-relaxed text-slate-800 whitespace-pre-wrap">
@@ -705,7 +705,7 @@ export function TalabatProfileDocument({
             {/* Official Document Footer */}
             <div className="pt-4 mt-6 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
               <div>Darse Burhani Official Institutional Document • 1447 H</div>
-              <div className="font-alkanz dir-rtl text-xs text-[#961212]" dir="rtl">
+              <div className="font-alkanz dir-rtl text-xs text-[#0a3d2c]" dir="rtl">
                 الحمد لله على ما أنعم والشكر له على ما ألهم
               </div>
             </div>

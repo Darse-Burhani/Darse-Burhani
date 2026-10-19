@@ -477,7 +477,7 @@ export default function TalabatSkillTreePage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-extrabold text-base text-slate-900">{meta.label}</h3>
-                            <span className="text-xs font-bold text-[#961212] font-alkanz dir-rtl" dir="rtl">
+                            <span className="text-xs font-bold text-[#0a3d2c] font-alkanz dir-rtl" dir="rtl">
                               {meta.arabicLabel}
                             </span>
                           </div>

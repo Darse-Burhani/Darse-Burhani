@@ -304,6 +304,7 @@ model StudentProfile {
   talabatProfile1447         TalabatProfile1447?
 
   @@index([userId])
+  @@index([grade])
   @@index([grade, section])
   @@index([currentPoints])
   @@index([its])
@@ -1437,6 +1438,9 @@ model TalabatProfile1447 {
   student             StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
+  @@index([studentId, year])
+  @@index([status])
+  @@index([year])
   @@index([reviewedById])
   @@map("talabat_profiles_1447")
 }

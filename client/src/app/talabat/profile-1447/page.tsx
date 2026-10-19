@@ -158,7 +158,7 @@ export default function TalabatProfile1447Page() {
           )}
         </div>
 
-        <div className="w-full h-48 border-2 border-dashed border-slate-300 hover:border-[#961212] rounded-2xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/80 hover:bg-slate-100/90 transition-all group shadow-2xs">
+        <div className="w-full h-48 border-2 border-dashed border-slate-300 hover:border-emerald-600 rounded-2xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/80 hover:bg-emerald-50/20 transition-all group shadow-2xs">
           {photoUrl ? (
             <div className="relative w-full h-full">
               <img
@@ -184,7 +184,7 @@ export default function TalabatProfile1447Page() {
                     htmlFor={inputId}
                     className="px-2.5 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1 shadow hover:bg-slate-100 cursor-pointer transition-all"
                   >
-                    <Upload className="w-3 h-3 text-[#961212]" />
+                    <Upload className="w-3 h-3 text-emerald-700" />
                     Change
                   </label>
                   <button
@@ -200,15 +200,15 @@ export default function TalabatProfile1447Page() {
             </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center select-none">
-              <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-[#961212] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
                 <ImageIcon className="w-5 h-5" />
               </div>
-              <span className="text-xs font-bold text-slate-700 group-hover:text-[#961212] transition-colors leading-tight">
+              <span className="text-xs font-bold text-slate-700 group-hover:text-emerald-800 transition-colors leading-tight">
                 {subtitle}
               </span>
               <span className="text-[10px] text-slate-500 mt-0.5">Passport photo format</span>
               {guideline && (
-                <span className="text-[9px] text-amber-800 bg-amber-50/80 px-2 py-0.5 rounded mt-1 border border-amber-200/60 leading-tight">
+                <span className="text-[9px] text-emerald-900 bg-emerald-50/80 px-2 py-0.5 rounded mt-1 border border-emerald-200/60 leading-tight">
                   {guideline}
                 </span>
               )}
@@ -216,7 +216,7 @@ export default function TalabatProfile1447Page() {
               <div className="flex items-center gap-1.5 mt-2.5">
                 <label
                   htmlFor={inputId}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs hover:bg-[#961212] hover:text-white cursor-pointer transition-all"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 shadow-2xs hover:bg-emerald-800 hover:text-white cursor-pointer transition-all"
                 >
                   <Upload className="w-3 h-3" />
                   Choose File
@@ -236,7 +236,7 @@ export default function TalabatProfile1447Page() {
           {/* Loading Spinner Overlay */}
           {isUploading && (
             <div className="absolute inset-0 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center z-20">
-              <div className="w-7 h-7 border-3 border-[#961212] border-t-transparent rounded-full animate-spin mb-1.5"></div>
+              <div className="w-7 h-7 border-3 border-emerald-700 border-t-transparent rounded-full animate-spin mb-1.5"></div>
               <span className="text-xs font-bold text-slate-800">Uploading &amp; saving...</span>
               <span className="text-[10px] text-slate-500">Please wait</span>
             </div>
@@ -278,7 +278,7 @@ export default function TalabatProfile1447Page() {
               htmlFor={inputId}
               className="flex-1 py-1 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-semibold text-center cursor-pointer border border-slate-200 transition-colors flex items-center justify-center gap-1"
             >
-              <Upload className="w-3 h-3 text-[#961212]" /> Change
+              <Upload className="w-3 h-3 text-emerald-700" /> Change
             </label>
             <button
               type="button"
@@ -451,10 +451,66 @@ export default function TalabatProfile1447Page() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm font-medium text-slate-600">Loading Talabat Profile (1447 H)...</p>
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-pulse">
+        {/* Top Hero Banner Skeleton */}
+        <div className="rounded-2xl bg-gradient-to-r from-[#06241a] via-[#0a3d2c] to-[#041a13] p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-xl bg-emerald-900/80 border border-emerald-700/50" />
+              <div className="space-y-2">
+                <div className="h-4 w-36 rounded-full bg-emerald-800/70" />
+                <div className="h-7 w-64 sm:w-80 rounded-lg bg-emerald-700/60" />
+                <div className="h-3.5 w-48 sm:w-72 rounded-md bg-emerald-800/50" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-24 rounded-full bg-emerald-800/60" />
+              <div className="h-9 w-32 rounded-lg bg-emerald-700/60" />
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Photo Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col items-center gap-3">
+              <div className="w-28 h-36 rounded-xl bg-slate-200/80 border-2 border-dashed border-slate-300" />
+              <div className="h-4 w-32 rounded bg-slate-200" />
+              <div className="h-3 w-44 rounded bg-slate-100" />
+            </div>
+          ))}
+        </div>
+
+        {/* Form Section 1 Skeleton */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+            <div className="w-6 h-6 rounded-full bg-emerald-100" />
+            <div className="h-5 w-48 rounded bg-slate-200" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3.5 w-24 rounded bg-slate-200" />
+                <div className="h-10 w-full rounded-lg bg-slate-100 border border-slate-200" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Form Section 2 Skeleton */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+            <div className="w-6 h-6 rounded-full bg-amber-100" />
+            <div className="h-5 w-52 rounded bg-slate-200" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3.5 w-20 rounded bg-slate-200" />
+                <div className="h-10 w-full rounded-lg bg-slate-100 border border-slate-200" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -462,18 +518,24 @@ export default function TalabatProfile1447Page() {
 
   if (isGrade4 === false) {
     return (
-      <div className="max-w-2xl mx-auto my-12 p-8 bg-white border border-amber-200 rounded-2xl shadow-sm text-center">
-        <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-4">
-          <GraduationCap className="w-7 h-7" />
+      <div className="max-w-xl mx-auto my-14 p-8 bg-white border border-emerald-900/10 rounded-2xl shadow-lg text-center">
+        <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xs">
+          <GraduationCap className="w-8 h-8 text-emerald-800" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Yearly Profile (1447 H)</h2>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200 mb-3">
+          Darajah Rabea (Grade 4) Exclusive
+        </div>
+        <h2 className="text-xl font-extrabold text-slate-900 mb-2">Yearly Profile (1447 H)</h2>
         <p className="text-slate-600 text-sm leading-relaxed mb-6">
-          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is designated specifically for students in <strong>Darajah 4 (Rabea)</strong>.
+          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is exclusively designated for students enrolled in <strong>Darajah 4 (Rabea)</strong> and their parents.
         </p>
-        <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-200 leading-relaxed">
-          {isParentUser
-            ? "None of your assigned children are currently enrolled in Darajah 4 (Rabea). Once a student enters Rabea, their official profile document will be available for you to inspect and print here."
-            : "Your current registered level is not assigned to this profile. If you believe this is an error, please contact your administration."}
+        <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-200 leading-relaxed text-left space-y-1.5">
+          <p className="font-semibold text-slate-800">Access Information:</p>
+          <p>
+            {isParentUser
+              ? "None of your assigned children are currently enrolled in Darajah 4 (Rabea). Once a student enters Darajah Rabea, their verified yearly profile document will automatically appear here for inspection and printing."
+              : "Your enrolled darajah is not Darajah 4 (Rabea). Yearly profile submission is reserved for Grade 4 Talabat."}
+          </p>
         </div>
       </div>
     );
@@ -481,41 +543,47 @@ export default function TalabatProfile1447Page() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* ── Top Hero Header ── */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-[#961212] to-[#b31b1b] text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+      {/* ── Top Hero Header (Fatimi Theme) ── */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-[#06241a] via-[#0a3d2c] to-[#041a13] text-white p-6 rounded-2xl shadow-xl relative overflow-hidden border border-emerald-700/40">
+        {/* Subtle decorative glow */}
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
         <div className="relative z-10 flex items-center gap-4">
           <img
             src="/logo.png"
             alt="Darse Burhani"
-            className="w-16 h-16 object-contain bg-white/10 p-1.5 rounded-xl border border-white/20 backdrop-blur"
+            className="w-16 h-16 object-contain bg-white/10 p-1.5 rounded-xl border border-amber-400/30 backdrop-blur shadow-sm"
             onError={(e) => ((e.target as HTMLElement).style.display = "none")}
           />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full backdrop-blur">
                 Academic Year 1447 H
               </span>
-              <span className="text-xs font-semibold text-white/90">
+              <span className="text-xs font-semibold text-emerald-200">
                 Further Education: توجيه الطالب
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
               TALABAT PROFILE – 1447 H
             </h1>
-            <p className="text-white/80 text-xs sm:text-sm mt-0.5">
-              Fill and submit your official comprehensive academic and self-assessment profile.
+            <p className="text-emerald-100/80 text-xs sm:text-sm mt-0.5">
+              {isParentUser
+                ? "Official verified academic, hifz milestones and character records (Parent View-Only Mode)."
+                : "Fill and submit your official comprehensive academic and self-assessment profile."}
             </p>
           </div>
         </div>
 
         {/* Status Badge & Actions */}
         <div className="relative z-10 flex flex-wrap items-center gap-2">
-          <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+          <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-xs ${
             formData.status === "SUBMITTED"
-              ? "bg-emerald-500 text-white"
+              ? "bg-emerald-600 text-white border border-emerald-400/40"
               : formData.status === "REVIEWED"
-              ? "bg-blue-500 text-white"
-              : "bg-amber-400 text-slate-900"
+              ? "bg-blue-600 text-white border border-blue-400/40"
+              : "bg-amber-400 text-slate-900 border border-amber-300"
           }`}>
             Status: {formData.status || "DRAFT"}
           </div>
@@ -523,26 +591,28 @@ export default function TalabatProfile1447Page() {
           <div className="flex items-center gap-2">
             {!isParentUser && (
               <button
+                type="button"
                 onClick={() => setActiveTab("edit")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
                   activeTab === "edit"
-                    ? "bg-white text-[#961212] shadow"
-                    : "bg-white/20 text-white hover:bg-white/30"
+                    ? "bg-white text-[#0a3d2c] shadow-md"
+                    : "bg-white/15 text-white hover:bg-white/25"
                 }`}
               >
-                <FileEdit className="w-3.5 h-3.5" />
+                <FileEdit className="w-3.5 h-3.5 text-emerald-700" />
                 Edit Form
               </button>
             )}
             <button
+              type="button"
               onClick={() => setActiveTab("preview")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
                 activeTab === "preview"
-                  ? "bg-white text-[#961212] shadow"
-                  : "bg-white/20 text-white hover:bg-white/30"
+                  ? "bg-white text-[#0a3d2c] shadow-md"
+                  : "bg-white/15 text-white hover:bg-white/25"
               }`}
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-3.5 h-3.5 text-amber-600" />
               {isParentUser ? "Official Document View" : "Document View & Print"}
             </button>
           </div>
@@ -551,33 +621,33 @@ export default function TalabatProfile1447Page() {
 
       {/* ── Parent Mode Banner (if logged in as parent) ── */}
       {isParentUser && (
-        <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-950">
+        <div className="mb-6 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/60 border border-emerald-700/20 p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-emerald-950">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900 flex items-center justify-center shrink-0 shadow-2xs">
+              <Users className="w-5 h-5 text-emerald-800" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
-                  Parent Read-Only View
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-700 text-white px-2 py-0.5 rounded-full shadow-2xs">
+                  Parent View-Only Mode
                 </span>
                 <span className="text-xs font-bold text-slate-800">
                   {studentInfo?.name || "Student"} • Grade {studentInfo?.grade || "Rabea"}
                 </span>
               </div>
-              <p className="text-xs text-amber-900/80 mt-0.5">
-                Parents have view-only access to inspect and print this official Yearly Profile document. Form editing is restricted to students and school administration.
+              <p className="text-xs text-slate-600 mt-0.5">
+                Parents have view-only access to inspect and print this official Yearly Profile document. Form editing is restricted to Darajah Rabea students and school administration.
               </p>
             </div>
           </div>
 
           {availableChildren.length > 1 && (
-            <div className="flex items-center gap-2 bg-white/80 p-2 rounded-xl border border-amber-200 shrink-0">
+            <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs shrink-0">
               <span className="text-xs font-semibold text-slate-700">Select Rabea Child:</span>
               <select
                 value={studentInfo?.id || ""}
                 onChange={(e) => fetchProfile(e.target.value)}
-                className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#961212]"
+                className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
               >
                 {availableChildren.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -630,7 +700,7 @@ export default function TalabatProfile1447Page() {
           {/* ── Section 1: Personal Details ── */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
-              <User className="w-5 h-5 text-[#961212]" />
+              <User className="w-5 h-5 text-emerald-700" />
               <h2 className="text-lg font-bold text-slate-900">1. Personal Details</h2>
             </div>
 
@@ -655,7 +725,7 @@ export default function TalabatProfile1447Page() {
                     value={formData.name || ""}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Jafar bhai Husain bhai Badri"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     required
                   />
                 </div>
@@ -667,7 +737,7 @@ export default function TalabatProfile1447Page() {
                     value={formData.itsNo || ""}
                     onChange={(e) => setFormData({ ...formData, itsNo: e.target.value })}
                     placeholder="e.g. 30382713"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                   />
                 </div>
 
@@ -678,7 +748,7 @@ export default function TalabatProfile1447Page() {
                     value={formData.idNo || ""}
                     onChange={(e) => setFormData({ ...formData, idNo: e.target.value })}
                     placeholder="e.g. 641"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                   />
                 </div>
 
@@ -689,7 +759,7 @@ export default function TalabatProfile1447Page() {
                     value={formData.jamaat || ""}
                     onChange={(e) => setFormData({ ...formData, jamaat: e.target.value })}
                     placeholder="e.g. Ratlam"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                   />
                 </div>
 
@@ -700,7 +770,7 @@ export default function TalabatProfile1447Page() {
                     value={formData.vatan || ""}
                     onChange={(e) => setFormData({ ...formData, vatan: e.target.value })}
                     placeholder="e.g. Ratlam"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                   />
                 </div>
 
@@ -711,7 +781,7 @@ export default function TalabatProfile1447Page() {
                     value={formData.nationality || "Indian"}
                     onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
                     placeholder="Indian"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                   />
                 </div>
 
@@ -723,7 +793,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.dob || ""}
                       onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                       placeholder="YYYY-MM-DD"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -733,7 +803,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.age || ""}
                       onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                       placeholder="e.g. 17"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -744,7 +814,7 @@ export default function TalabatProfile1447Page() {
           {/* ── Section 2: Family Details ── */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
-              <Users className="w-5 h-5 text-[#961212]" />
+              <Users className="w-5 h-5 text-emerald-700" />
               <h2 className="text-lg font-bold text-slate-900">2. Family Details</h2>
             </div>
 
@@ -771,7 +841,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.fatherName || ""}
                       onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
                       placeholder="e.g. Husain bhai Shaikh Abdulhusain"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -783,7 +853,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.fatherOccupation || ""}
                       onChange={(e) => setFormData({ ...formData, fatherOccupation: e.target.value })}
                       placeholder="e.g. Business / Service"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -811,7 +881,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.motherName || ""}
                       onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
                       placeholder="e.g. Zainab bai Husain bhai"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -823,7 +893,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.motherOccupation || "Homemaker"}
                       onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
                       placeholder="Homemaker"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -834,7 +904,7 @@ export default function TalabatProfile1447Page() {
           {/* ── Section 3: Academics Details ── */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
-              <GraduationCap className="w-5 h-5 text-[#961212]" />
+              <GraduationCap className="w-5 h-5 text-emerald-700" />
               <h2 className="text-lg font-bold text-slate-900">3. Academics Details</h2>
             </div>
 
@@ -987,7 +1057,7 @@ export default function TalabatProfile1447Page() {
                 value={formData.activities || ""}
                 onChange={(e) => setFormData({ ...formData, activities: e.target.value })}
                 placeholder="e.g. المعرض العلمي، مسابقة حفظ القصائد، روضة الادب الفاطمي، الروض العربي، Debate, Skit"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-serif leading-relaxed focus:ring-2 focus:ring-[#961212] focus:outline-none text-right dir-rtl"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-serif leading-relaxed focus:ring-2 focus:ring-emerald-700 focus:outline-none text-right dir-rtl"
                 dir="rtl"
               />
             </div>
@@ -996,7 +1066,7 @@ export default function TalabatProfile1447Page() {
           {/* ── Section 4: Self - Assessment (Strengths & Weaknesses) ── */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
-              <Award className="w-5 h-5 text-[#961212]" />
+              <Award className="w-5 h-5 text-emerald-700" />
               <h2 className="text-lg font-bold text-slate-900">4. Self – Assessment</h2>
             </div>
 
@@ -1082,7 +1152,7 @@ export default function TalabatProfile1447Page() {
           {/* ── Section 5: About Myself ── */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
-              <Sparkles className="w-5 h-5 text-[#961212]" />
+              <Sparkles className="w-5 h-5 text-emerald-700" />
               <h2 className="text-lg font-bold text-slate-900">5. About Myself (Hobbies, Interests &amp; Skills)</h2>
             </div>
 
@@ -1092,7 +1162,7 @@ export default function TalabatProfile1447Page() {
                 value={formData.aboutMyself || ""}
                 onChange={(e) => setFormData({ ...formData, aboutMyself: e.target.value })}
                 placeholder="e.g. Hobbies - Reading Books, Learning new things. Interest - Computers, Dawat ni akhbar. Skills - Good in computers, can adapt to work with everyone."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-[#961212] focus:outline-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-emerald-700 focus:outline-none"
               />
             </div>
           </div>
@@ -1160,9 +1230,9 @@ export default function TalabatProfile1447Page() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#961212] hover:bg-[#b31b1b] text-white font-bold rounded-xl text-sm shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-800 to-teal-900 hover:from-emerald-900 hover:to-teal-950 text-white font-bold rounded-xl text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 text-amber-300" />
                 {saving ? "Submitting..." : "Submit to Admin & Teachers"}
               </button>
             </div>

@@ -371,7 +371,7 @@ export default function ParentDashboard() {
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[#961212] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                      <span className="rounded-full bg-gradient-to-r from-[#06241a] to-[#0a3d2c] border border-amber-400/40 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300 shadow-2xs">
                         Yearly Profile 1447 H
                       </span>
                       <span className="text-xs font-bold text-amber-900 font-alkanz">
@@ -392,11 +392,11 @@ export default function ParentDashboard() {
 
                 <Link
                   href={`/parent/yearly-profile?studentId=${selectedChild.studentProfileId || selectedChild.id}`}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#961212] hover:bg-[#b31b1b] px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg cursor-pointer"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#06241a] via-[#0a3d2c] to-[#041a13] hover:from-[#0a3d2c] hover:to-[#06241a] border border-amber-400/40 px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg cursor-pointer"
                 >
                   <Eye className="h-4 w-4 text-amber-300" />
                   <span>View Yearly Profile</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 text-emerald-300" />
                 </Link>
               </div>
             </motion.div>
