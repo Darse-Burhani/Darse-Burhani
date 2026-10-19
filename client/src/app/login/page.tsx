@@ -409,7 +409,7 @@ export default function LoginPage() {
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Main Container */}
-      <div className="min-h-screen bg-[#03140e] text-[#f5f3ef] flex flex-col justify-between px-4 py-6 sm:px-6 sm:py-8 relative overflow-hidden">
+      <div className="min-h-screen bg-[#03140e] text-white flex flex-col justify-between px-4 py-6 sm:px-6 sm:py-8 relative overflow-hidden">
         {/* Subtle Ambient Glows */}
         <div className="pointer-events-none absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-[#d4af37]/10 blur-3xl" />
@@ -417,7 +417,7 @@ export default function LoginPage() {
         {/* ── Top Header ── */}
         <header className="w-full max-w-5xl mx-auto flex items-center justify-between pb-5 border-b border-[#1b3d2c]/60 relative z-10">
           <div className="flex items-center gap-3.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0c2a1c] to-[#051810] border border-[#d4af37]/40 p-1.5 flex items-center justify-center shrink-0 shadow-md group-hover:border-[#d4af37] transition-all">
+            <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-[#0c2a1c] border border-[#d4af37]/50 p-1 flex items-center justify-center shrink-0 shadow-lg group-hover:border-[#d4af37] transition-all">
               {!logoFailed ? (
                 <img
                   src="/logo.png"
@@ -426,20 +426,20 @@ export default function LoginPage() {
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <span className="font-serif text-xs font-bold text-[#d4af37]">DB</span>
+                <span className="font-serif text-sm font-bold text-[#d4af37]">DB</span>
               )}
             </div>
             <div>
-              <span className="font-serif text-lg sm:text-xl font-bold text-[#fbf8f2] tracking-tight block leading-tight">
-                Darse Burhani <span className="text-[#d4af37] font-semibold text-sm sm:text-base">(Nisab)</span>
+              <span className="font-serif text-xl sm:text-2xl font-bold text-white tracking-tight block leading-tight">
+                Darse Burhani <span className="text-[#d4af37] font-semibold text-base sm:text-lg">(Nisab)</span>
               </span>
-              <span className="text-[10px] sm:text-[11px] font-bold tracking-[0.2em] uppercase text-[#c59b27] block">
+              <span className="text-xs font-bold tracking-[0.18em] uppercase text-[#d4af37] block mt-0.5">
                 Mahad al Zahra
               </span>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0a2318] border border-[#1b4330] text-[11px] font-bold text-[#c7c1b5]">
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0a2318] border border-[#1b4330] text-xs font-semibold text-[#d2cec3]">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Academic Portal &bull; 1448 H</span>
           </div>
@@ -451,8 +451,8 @@ export default function LoginPage() {
             {/* Left Context & Guidance Panel */}
             <div className="p-6 sm:p-10 bg-[#071d14] border-b lg:border-b-0 lg:border-r border-[#1d4432] flex flex-col justify-between space-y-6">
               <div className="space-y-5">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#113826] border border-[#d4af37]/60 text-[#fef08a] text-xs font-bold tracking-wider uppercase shadow-inner">
-                  <portal.icon className="w-3.5 h-3.5 text-[#fde047]" />
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#113826] border border-[#d4af37]/50 text-[#d4af37] text-xs font-bold shadow-inner">
+                  <portal.icon className="w-3.5 h-3.5 text-[#d4af37]" />
                   <span>{portal.badgeLabel}</span>
                 </div>
 
@@ -460,16 +460,16 @@ export default function LoginPage() {
                   {portal.label}
                 </h1>
 
-                <p className="text-xs sm:text-sm text-[#ded8ce] leading-relaxed font-medium">
+                <p className="text-xs sm:text-sm text-[#d2cec3] leading-relaxed font-medium">
                   {portal.description}
                 </p>
 
-                <div className="p-4 rounded-2xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#ded8ce] space-y-2 shadow-inner">
+                <div className="p-4 rounded-2xl bg-[#0d2a1e] border border-[#214f39] text-xs text-[#d2cec3] space-y-2 shadow-inner">
                   <div className="flex items-center gap-1.5 text-white font-bold">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#d4af37]" />
                     <span>Instructions</span>
                   </div>
-                  <p className="leading-relaxed text-[11px] text-[#ded8ce]">
+                  <p className="leading-relaxed text-xs text-[#d2cec3]">
                     {portal.instructions}
                   </p>
                 </div>
@@ -477,10 +477,10 @@ export default function LoginPage() {
 
               {/* Institution Help note */}
               <div className="pt-4 border-t border-[#1d4432] text-xs space-y-1">
-                <p className="font-bold text-[#f5f3ef]">Need institutional credential assistance?</p>
-                <p className="text-[11px] text-[#ded8ce]">
+                <p className="font-bold text-white">Need institutional credential assistance?</p>
+                <p className="text-xs text-[#d2cec3] leading-relaxed">
                   Contact the Administration Desk at Mahad al Zahra or email{" "}
-                  <a href="mailto:admin@darseburhani.edu" className="underline text-[#fde047] hover:text-white font-medium">
+                  <a href="mailto:admin@darseburhani.edu" className="text-[#d4af37] hover:underline underline-offset-2 transition-colors font-semibold">
                     admin@darseburhani.edu
                   </a>.
                 </p>
@@ -491,7 +491,7 @@ export default function LoginPage() {
             <div className="p-6 sm:p-10 flex flex-col justify-center bg-[#092017]">
               {/* 4-Role Tactile Segmented Control with Unique Button Effects */}
               <div className="space-y-2.5 mb-6">
-                <label className="text-[11px] font-black text-[#ded8ce] uppercase tracking-wider block">
+                <label className="text-xs font-bold text-[#d2cec3] uppercase tracking-wider block">
                   Select Institutional Workspace
                 </label>
                 <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-[#051810] border border-[#1b3d2c]" role="tablist">
@@ -511,8 +511,8 @@ export default function LoginPage() {
                             : "bg-[#051810] text-[#d2cec3] hover:text-white hover:bg-[#0c2217]"
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${active ? "text-[#fde047]" : "text-[#a49a86]"}`} />
-                        <span className="text-[11px] font-bold leading-tight">{p.shortLabel}</span>
+                        <Icon className={`w-4 h-4 ${active ? "text-[#d4af37]" : "text-[#9e9789]"}`} />
+                        <span className="text-xs font-bold leading-tight">{p.shortLabel}</span>
                       </button>
                     );
                   })}
@@ -533,7 +533,7 @@ export default function LoginPage() {
                 )}
 
                 {/* Email / ITS Input */}
-                <div className="space-y-1.5">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label htmlFor="login-email" className="text-xs font-bold text-[#d2cec3]">
                       {portal.inputLabel}
@@ -544,7 +544,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#fde047] border border-[#d4af37]/40 text-xs font-bold transition-all shadow-2xs hover:shadow-[#d4af37]/20 active:scale-95 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#d4af37] border border-[#d4af37]/40 text-xs font-bold transition-all shadow-2xs hover:shadow-[#d4af37]/20 active:scale-95 cursor-pointer"
                       >
                         <QrCode className="w-3.5 h-3.5 animate-pulse" />
                         <span>Scan ITS Card</span>
@@ -553,7 +553,7 @@ export default function LoginPage() {
                   </div>
 
                   <div className="relative">
-                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7f8c84] pointer-events-none">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9e9789] pointer-events-none">
                       {portal.role === "STUDENT" ? <Sparkles size={16} /> : <Mail size={16} />}
                     </div>
                     <input
@@ -572,25 +572,25 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder={portal.placeholder}
-                      className="w-full h-12 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-3.5 text-sm text-[#f5f3ef] placeholder:text-[#526359] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
+                      className="w-full h-12 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-3.5 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
                     />
                   </div>
                 </div>
 
                 {/* Password Input */}
-                <div className="space-y-1.5">
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label htmlFor="login-password" className="text-xs font-bold text-[#d2cec3]">
                       Password
                     </label>
                     {capsLockOn && (
-                      <span className="text-[11px] font-bold text-[#fde047] flex items-center gap-1">
+                      <span className="text-xs font-bold text-[#d4af37] flex items-center gap-1">
                         <AlertCircle size={12} /> Caps Lock Active
                       </span>
                     )}
                   </div>
                   <div className="relative">
-                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7f8c84] pointer-events-none">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9e9789] pointer-events-none">
                       <Lock size={16} />
                     </div>
                     <input
@@ -610,13 +610,13 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       placeholder="Enter account password"
-                      className="w-full h-12 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-11 text-sm text-[#f5f3ef] placeholder:text-[#526359] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
+                      className="w-full h-12 rounded-xl bg-[#051810] border border-[#214936] pl-10 pr-11 text-sm text-white placeholder:text-[#65736b] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/25 transition-all font-medium"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7f8c84] hover:text-[#f5f3ef] p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9e9789] hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -624,8 +624,8 @@ export default function LoginPage() {
                 </div>
 
                 {/* Options row */}
-                <div className="flex items-center justify-between pt-1 text-xs font-semibold">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-[#b8b2a5]">
+                <div className="flex items-center justify-between pt-1 text-xs font-medium">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-[#d2cec3]">
                     <input
                       type="checkbox"
                       checked={rememberMe}
@@ -637,7 +637,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="text-[#d4af37] hover:underline cursor-pointer"
+                    className="text-xs text-[#d2cec3] hover:text-[#d4af37] underline decoration-[#d2cec3]/40 hover:decoration-[#d4af37] underline-offset-4 transition-colors cursor-pointer"
                   >
                     Forgot password?
                   </button>
@@ -696,21 +696,21 @@ export default function LoginPage() {
       {/* ── ITS Card Scanner Modal ── */}
       {showScannerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#092218] border border-[#d4af37]/40 p-6 text-[#f5f3ef] space-y-4 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl bg-[#092218] border border-[#d4af37]/40 p-6 text-white space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#1d4432] pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#d4af37]/20 text-[#fde047] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center">
                   <QrCode size={18} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[#fbf8f2]">Scan ITS Card</h3>
-                  <p className="text-[11px] text-[#a49a86]">Instant camera &amp; barcode detection</p>
+                  <h3 className="text-sm font-black text-white">Scan ITS Card</h3>
+                  <p className="text-xs text-[#d2cec3]">Instant camera &amp; barcode detection</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleCloseScanner}
-                className="p-1 rounded-lg text-[#a49a86] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-[#d2cec3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -725,8 +725,8 @@ export default function LoginPage() {
                 }}
                 className={`py-2.5 px-3 rounded-xl text-center transition-all cursor-pointer ${
                   scannerMode === "camera"
-                    ? "bg-[#d4af37] text-[#0c1f17] shadow-md"
-                    : "bg-[#051810] text-[#a49a86] hover:text-white border border-[#1b3d2c]"
+                    ? "bg-[#d4af37] text-[#03140e] shadow-md"
+                    : "bg-[#051810] text-[#d2cec3] hover:text-white border border-[#1b3d2c]"
                 }`}
               >
                 Use Camera
@@ -739,8 +739,8 @@ export default function LoginPage() {
                 }}
                 className={`py-2.5 px-3 rounded-xl text-center transition-all cursor-pointer ${
                   scannerMode === "upload"
-                    ? "bg-[#d4af37] text-[#0c1f17] shadow-md"
-                    : "bg-[#051810] text-[#a49a86] hover:text-white border border-[#1b3d2c]"
+                    ? "bg-[#d4af37] text-[#03140e] shadow-md"
+                    : "bg-[#051810] text-[#d2cec3] hover:text-white border border-[#1b3d2c]"
                 }`}
               >
                 Upload Photo
@@ -758,11 +758,11 @@ export default function LoginPage() {
                 />
                 {/* Clean framing box with scanning laser animation */}
                 <div className="absolute inset-8 border-2 border-dashed border-[#d4af37]/70 rounded-xl pointer-events-none flex flex-col justify-between p-2">
-                  <div className="w-full h-0.5 bg-[#fde047] shadow-[0_0_8px_#fde047] animate-pulse" />
-                  <span className="text-[10px] text-center text-[#fde047] bg-black/60 py-0.5 px-2 rounded-full self-center">
+                  <div className="w-full h-0.5 bg-[#d4af37] shadow-[0_0_8px_#d4af37] animate-pulse" />
+                  <span className="text-xs text-center text-[#d4af37] bg-black/60 py-0.5 px-2 rounded-full self-center">
                     Align ITS card barcode here
                   </span>
-                  <div className="w-full h-0.5 bg-[#fde047] shadow-[0_0_8px_#fde047] animate-pulse" />
+                  <div className="w-full h-0.5 bg-[#d4af37] shadow-[0_0_8px_#d4af37] animate-pulse" />
                 </div>
                 {cameraError && (
                   <p className="absolute bottom-3 inset-x-3 p-2 bg-rose-950 border border-rose-800 text-xs text-rose-200 rounded-xl text-center">
@@ -771,7 +771,7 @@ export default function LoginPage() {
                 )}
                 {scannedItsResult && (
                   <div className="absolute inset-0 bg-[#092218]/95 flex flex-col items-center justify-center gap-2">
-                    <span className="text-xs uppercase tracking-wider text-[#a49a86] font-bold">Verified ITS</span>
+                    <span className="text-xs uppercase tracking-wider text-[#d2cec3] font-bold">Verified ITS</span>
                     <span className="font-mono text-2xl font-black text-[#d4af37]">{scannedItsResult}</span>
                   </div>
                 )}
@@ -789,15 +789,15 @@ export default function LoginPage() {
                 className="h-64 rounded-2xl border-2 border-dashed border-[#2d5843] bg-[#051810] flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-[#d4af37] hover:bg-[#071f15] transition-all group"
               >
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                <div className="w-12 h-12 rounded-2xl bg-[#d4af37]/15 text-[#fde047] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-2xl bg-[#d4af37]/15 text-[#d4af37] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                   <Upload size={24} />
                 </div>
-                <p className="text-xs font-black text-[#fbf8f2]">Select ITS Card Photo</p>
-                <p className="text-[11px] text-[#a49a86] mt-0.5">Scans barcode and 8-digit ITS number</p>
+                <p className="text-xs font-black text-white">Select ITS Card Photo</p>
+                <p className="text-xs text-[#d2cec3] mt-0.5">Scans barcode and 8-digit ITS number</p>
               </div>
             )}
 
-            <p className="text-xs text-center text-[#a49a86] font-medium">{scannerStatus}</p>
+            <p className="text-xs text-center text-[#d2cec3] font-medium">{scannerStatus}</p>
           </div>
         </div>
       )}
@@ -805,39 +805,39 @@ export default function LoginPage() {
       {/* ── Forgot Password Modal ── */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#092218] border border-[#d4af37]/40 p-6 text-[#f5f3ef] space-y-4 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl bg-[#092218] border border-[#d4af37]/40 p-6 text-white space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#1d4432] pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#d4af37]/20 text-[#fde047] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center">
                   <KeyRound size={18} />
                 </div>
-                <h3 className="text-sm font-black text-[#fbf8f2]">Password Assistance</h3>
+                <h3 className="text-sm font-black text-white">Password Assistance</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowForgotModal(false)}
-                className="p-1 rounded-lg text-[#a49a86] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-[#d2cec3] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="space-y-3 text-xs text-[#c7c1b5] leading-relaxed font-medium">
+            <div className="space-y-3 text-xs text-[#d2cec3] leading-relaxed font-medium">
               <p>
                 Institutional credentials are authenticated centrally to safeguard student and faculty records.
               </p>
-              <div className="p-3.5 rounded-2xl bg-[#051810] border border-[#1b3d2c] space-y-1 text-[11px]">
-                <span className="font-bold text-[#fbf8f2] block">Mahad al Zahra Administration Desk</span>
+              <div className="p-3.5 rounded-2xl bg-[#051810] border border-[#1b3d2c] space-y-1 text-xs">
+                <span className="font-bold text-white block">Mahad al Zahra Administration Desk</span>
                 <p>Email: <strong className="text-[#d4af37]">admin@darseburhani.edu</strong></p>
                 <p>Office: Mahad al Zahra Administration Office</p>
               </div>
-              <p className="text-[#ded8ce]">
+              <p className="text-[#d2cec3]">
                 Talabat students may also approach their appointed class teacher directly for on-premises verification.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
-              className="w-full py-2.5 rounded-xl bg-[#d4af37] text-xs font-black text-[#0c1f17] hover:bg-[#e5b945] transition-colors cursor-pointer shadow-md"
+              className="w-full py-2.5 rounded-xl bg-[#d4af37] text-xs font-black text-[#03140e] hover:bg-[#e0b73c] transition-colors cursor-pointer shadow-md"
             >
               Close
             </button>
