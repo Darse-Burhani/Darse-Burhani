@@ -58,6 +58,13 @@ enum ActionType {
   NEGATIVE
 }
 
+enum BadalStatus {
+  PENDING
+  ASSIGNED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
 
 enum TakhteetStatus {
   PENDING
@@ -220,6 +227,9 @@ model TeacherProfile {
   weeklySlipsAuthored        HifzWeeklySlip[]        @relation("TeacherWeeklySlips")
   dailyEvaluationsAuthored   HifzDailyEvaluation[]   @relation("FacultyDailyEvaluations")
   medicalExemptions          MedicalExemption[]
+  timetableSlots             TimetableSlot[]
+  originalBadals             TimetableBadal[]        @relation("OriginalBadalTeacher")
+  substituteBadals           TimetableBadal[]        @relation("SubstituteBadalTeacher")
 
   @@index([userId])
   @@index([its])
@@ -584,6 +594,7 @@ model Class {
   pointLogs       PointLog[]
   timetableSlots  TimetableSlot[]
   takhteetPlans   TakhteetPlan[]
+  timetableBadals TimetableBadal[]
 
   @@index([teacherId, isActive])
   @@index([masoolId])
@@ -795,10 +806,13 @@ model WalletTransaction {
 model TimetableSlot {
   id          String   @id @default(cuid())
   classId     String?
+  className   String?  // E.g. "1 A", "4 B"
+  teacherId   String?
+  teacherName String?
   dayOfWeek   Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
   period      Int      // 1, 2, 3, ...
-  startTime   String   // "08:00"
-  endTime     String   // "08:45"
+  startTime   String   // "10:30"
+  endTime     String   // "11:00"
   subject     String
   roomNumber  String?
   isBreak     Boolean  @default(false)
@@ -806,11 +820,51 @@ model TimetableSlot {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  class Class? @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class   Class?          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  badals  TimetableBadal[]
 
   @@index([classId])
+  @@index([teacherId])
   @@index([dayOfWeek])
+  @@index([dayOfWeek, period])
   @@map("timetable_slots")
+}
+
+model TimetableBadal {
+  id                  String       @id @default(cuid())
+  date                DateTime     // Target substitution date (midnight UTC)
+  slotId              String?
+  classId             String?
+  className           String       // E.g. "1 A", "4 B"
+  period              Int          // 1..9
+  startTime           String       // E.g. "10:30"
+  endTime             String       // E.g. "11:00"
+  subject             String
+  originalTeacherId   String?
+  originalTeacherName String?
+  badalTeacherId      String?
+  badalTeacherName    String?
+  reason              String       // "Medical Leave", "Emergency", "Official Khidmat", etc.
+  status              BadalStatus  @default(ASSIGNED)
+  instructions        String?      // Sabaq portions or instructions
+  isFulfilled         Boolean      @default(false)
+  assignedById        String?
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  originalTeacher TeacherProfile? @relation("OriginalBadalTeacher", fields: [originalTeacherId], references: [id], onDelete: SetNull)
+  badalTeacher    TeacherProfile? @relation("SubstituteBadalTeacher", fields: [badalTeacherId], references: [id], onDelete: SetNull)
+  slot            TimetableSlot?  @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  class           Class?          @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([status])
+  @@index([badalTeacherId])
+  @@index([originalTeacherId])
+  @@index([date, period])
+  @@map("timetable_badals")
 }
 
 model BiometricScanWindow {

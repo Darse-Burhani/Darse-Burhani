@@ -200,8 +200,8 @@ export default function AdminParentsPage() {
     const q = search.toLowerCase().trim();
     return parents.filter((p) => {
       // Category filter check
-      if (categoryFilter === "FATHERS" && p.relationType !== "Father") return false;
-      if (categoryFilter === "MOTHERS" && p.relationType !== "Mother") return false;
+      if (categoryFilter === "FATHERS" && !(p.relationType || "").toLowerCase().includes("father")) return false;
+      if (categoryFilter === "MOTHERS" && !(p.relationType || "").toLowerCase().includes("mother")) return false;
       if (categoryFilter === "LINKED" && (!p.children || p.children.length === 0)) return false;
       if (categoryFilter === "UNLINKED" && p.children && p.children.length > 0) return false;
       if (categoryFilter === "PHOTOS" && !p.avatarUrl) return false;
@@ -484,8 +484,8 @@ export default function AdminParentsPage() {
   const unlinkedParentsCount = parents.filter((p) => !p.children || p.children.length === 0).length;
   const linkedParentsCount = parents.filter((p) => p.children && p.children.length > 0).length;
   const withBloodGroupCount = parents.filter((p) => !!p.bloodGroup).length;
-  const fathersCount = parents.filter((p) => p.relationType === "Father").length;
-  const mothersCount = parents.filter((p) => p.relationType === "Mother").length;
+  const fathersCount = parents.filter((p) => (p.relationType || "").toLowerCase().includes("father")).length;
+  const mothersCount = parents.filter((p) => (p.relationType || "").toLowerCase().includes("mother")).length;
   const withPhotosCount = parents.filter((p) => !!p.avatarUrl).length;
   const photoPct = parents.length > 0 ? Math.round((withPhotosCount / parents.length) * 100) : 0;
   const withItsCount = parents.filter((p) => !!p.its).length;

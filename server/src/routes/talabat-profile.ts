@@ -493,8 +493,21 @@ router.get("/list", requireAuth, async (req, res) => {
     return res.status(403).json({ success: false, error: "Access denied" });
   }
 
+  // Strictly restrict Yearly Profile to Darajah Rabea (Grade 4) Talabat ONLY
+  const rabeaGradeFilter = {
+    OR: [
+      { grade: "4" },
+      { grade: "4th" },
+      { grade: "IV" },
+      { grade: { contains: "4" } },
+      { grade: { contains: "rabea", mode: "insensitive" } },
+      { grade: { contains: "rabia", mode: "insensitive" } },
+    ],
+  };
+
   let whereClause: any = {
     user: { isActive: true, deletedAt: null },
+    ...rabeaGradeFilter,
   };
 
   if (session.user.role === "TEACHER") {
@@ -504,40 +517,21 @@ router.get("/list", requireAuth, async (req, res) => {
     });
 
     if (teacherProfile) {
-      const assignedClasses = await prisma.class.findMany({
-        where: { teacherId: teacherProfile.id, isActive: true },
+      // Find all Darajah Rabea classes (4 A, 4 B)
+      const rabeaClasses = await prisma.class.findMany({
+        where: {
+          OR: [
+            { grade: "4" },
+            { name: { contains: "4" } },
+          ],
+        },
         select: { id: true },
       });
-      const classIds = assignedClasses.map((c) => c.id);
-
-      const [classEnrollments, hifzAssignments] = await Promise.all([
-        classIds.length > 0
-          ? prisma.classEnrollment.findMany({
-              where: { classId: { in: classIds }, isActive: true },
-              select: { studentId: true },
-            })
-          : [],
-        prisma.hifzMarhalaAssignment.findMany({
-          where: { facultyId: teacherProfile.id },
-          select: { studentId: true },
-        }),
-      ]);
-
-      const assignedStudentIds = Array.from(
-        new Set([
-          ...classEnrollments.map((e) => e.studentId),
-          ...hifzAssignments.map((a) => a.studentId),
-        ])
-      );
+      const rabeaClassIds = rabeaClasses.map((c) => c.id);
 
       whereClause = {
         user: { isActive: true, deletedAt: null },
-        OR: [
-          ...(assignedStudentIds.length > 0 ? [{ id: { in: assignedStudentIds } }] : []),
-          { talabatProfile1447: { isNot: null } },
-          { grade: { contains: "4" } },
-          { grade: { contains: "rabea", mode: "insensitive" } },
-        ],
+        ...rabeaGradeFilter,
       };
     }
   }

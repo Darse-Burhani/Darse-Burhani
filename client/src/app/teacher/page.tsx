@@ -1437,34 +1437,6 @@ export default function ExpertTeacherDashboard() {
             </motion.div>
           )}
 
-          {/* ─────────────────────────────────────────────────────────────
-              7. FLOATING UNDO ACTION TOAST
-             ───────────────────────────────────────────────────────────── */}
-          <AnimatePresence>
-            {showUndo && (
-              <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 30, scale: 0.95 }}
-                className="fixed bottom-6 right-6 z-50 bg-gray-950 text-white px-5 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border border-amber-500/30 backdrop-blur-md"
-              >
-                <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <Check className="w-4 h-4" />
-                </div>
-                <div className="max-w-xs">
-                  <p className="text-xs font-black text-white leading-tight">{lastAction}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Mistake? Tap undo to revert points.</p>
-                </div>
-                <button
-                  onClick={handleUndo}
-                  className="px-3.5 py-1.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition-colors flex items-center gap-1.5 shrink-0 shadow-sm active:scale-95"
-                >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  Undo
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
     </div>
   );
 }
