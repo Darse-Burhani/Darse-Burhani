@@ -76,7 +76,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
                     select: {
                       id: true,
                       its: true,
-                      rollNumber: true,
+                      studentId: true,
                       user: {
                         select: {
                           id: true,
@@ -89,7 +89,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
                     },
                   },
                 },
-                orderBy: [{ student: { rollNumber: "asc" } }, { student: { user: { firstName: "asc" } } }],
+                orderBy: [{ student: { studentId: "asc" } }],
               },
               _count: {
                 select: { enrollments: true, timetableSlots: true },
@@ -156,12 +156,13 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             studentCount: c._count.enrollments,
             slotCount: c._count.timetableSlots,
             talabat: (c.enrollments || []).map((e: any) => ({
-              id: e.student.id,
-              userId: e.student.user?.id,
-              name: `${e.student.user?.firstName || ""} ${e.student.user?.lastName || ""}`.trim(),
-              its: e.student.its,
-              rollNumber: e.student.rollNumber || null,
-              avatarUrl: e.student.user?.avatarUrl || null,
+              id: e.student?.id,
+              userId: e.student?.user?.id,
+              name: `${e.student?.user?.firstName || ""} ${e.student?.user?.lastName || ""}`.trim(),
+              its: e.student?.its,
+              rollNumber: e.student?.studentId || null,
+              studentId: e.student?.studentId,
+              avatarUrl: e.student?.user?.avatarUrl || null,
             })),
           })),
           teachers: teachers.map((t) => ({
@@ -200,7 +201,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     });
   } catch (error) {
     console.error("Timetable fetch error:", error);
-    return res.status(500).json({ success: false, error: "Failed to fetch timetable" });
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to fetch timetable" });
   }
 });
 
