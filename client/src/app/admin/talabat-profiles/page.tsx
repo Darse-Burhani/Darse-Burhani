@@ -126,12 +126,15 @@ export default function AdminTalabatProfilesPage() {
 
       const res = await fetch("/api/talabat-profile/list");
       const data = await res.json();
-      if (data.success) {
-        setStudents(data.students || []);
+      if (data.success && Array.isArray(data.students)) {
+        setStudents(data.students);
         setLastSynced(new Date());
         setSecondsAgo(0);
+      } else {
+        setStudents([]);
       }
     } catch (e) {
+      setStudents([]);
       console.error("Failed to load list", e);
     } finally {
       setLoading(false);
@@ -368,7 +371,9 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
-  const filteredStudents = students.filter((s) => {
+  const studentList = Array.isArray(students) ? students : [];
+
+  const filteredStudents = studentList.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (s.its && s.its.includes(searchQuery)) ||
@@ -383,18 +388,18 @@ export default function AdminTalabatProfilesPage() {
     return matchesSearch;
   });
 
-  const totalStudents = students.length;
-  const submittedCount = students.filter((s) => s.status === "SUBMITTED").length;
-  const reviewedCount = students.filter((s) => s.status === "REVIEWED").length;
-  const pendingCount = students.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
-  const missingPhotosCount = students.filter((s) => !s.hasFatherPhoto || !s.hasMotherPhoto).length;
-  const photosCompleteCount = students.filter((s) => s.hasFatherPhoto && s.hasMotherPhoto && s.hasStudentPhoto).length;
+  const totalStudents = studentList.length;
+  const submittedCount = studentList.filter((s) => s.status === "SUBMITTED").length;
+  const reviewedCount = studentList.filter((s) => s.status === "REVIEWED").length;
+  const pendingCount = studentList.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
+  const missingPhotosCount = studentList.filter((s) => !s.hasFatherPhoto || !s.hasMotherPhoto).length;
+  const photosCompleteCount = studentList.filter((s) => s.hasFatherPhoto && s.hasMotherPhoto && s.hasStudentPhoto).length;
 
   const reviewedPct = totalStudents > 0 ? Math.round((reviewedCount / totalStudents) * 100) : 0;
   const photosPct = totalStudents > 0 ? Math.round((photosCompleteCount / totalStudents) * 100) : 0;
 
   // Realtime trait averages calculation across cohort
-  const evaluatedStudents = students.filter(
+  const evaluatedStudents = studentList.filter(
     (s) => s.ratings && (s.ratings.discipline || s.ratings.dedication || s.ratings.behaviour || s.ratings.communication)
   );
   const avgDiscipline = evaluatedStudents.length

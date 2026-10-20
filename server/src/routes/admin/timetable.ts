@@ -13,7 +13,10 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     if (classId) where.classId = classId;
     if (className) where.className = className;
     if (teacherId) where.teacherId = teacherId;
-    if (dayOfWeek !== undefined && dayOfWeek !== "") where.dayOfWeek = parseInt(dayOfWeek, 10);
+    if (dayOfWeek !== undefined && dayOfWeek !== "") {
+      const parsed = parseInt(dayOfWeek, 10);
+      if (!Number.isNaN(parsed)) where.dayOfWeek = parsed;
+    }
 
     const [slots, classes, teachers] = await Promise.all([
       prisma.timetableSlot.findMany({
@@ -80,8 +83,8 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           classGrade: s.class?.grade || "",
           classSection: s.class?.section || "",
           teacherId: s.teacherId,
-          teacherName: s.teacherName || (s.teacher ? `${s.teacher.user.firstName} ${s.teacher.user.lastName}` : "TBA"),
-          teacherAvatar: s.teacher?.user.avatarUrl || null,
+          teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
+          teacherAvatar: s.teacher?.user?.avatarUrl || null,
           teacherIts: s.teacher?.its || null,
           subject: s.subject,
           dayOfWeek: s.dayOfWeek,
@@ -98,17 +101,17 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           grade: c.grade,
           section: c.section,
           subject: c.subject,
-          masoolName: c.masool ? `${c.masool.user.firstName} ${c.masool.user.lastName}` : "TBA",
+          masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
           masoolIts: c.masool?.its || null,
           studentCount: c._count.enrollments,
           slotCount: c._count.timetableSlots,
         })),
         teachers: teachers.map((t) => ({
           id: t.id,
-          name: `${t.user.firstName} ${t.user.lastName}`,
-          email: t.user.email,
+          name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+          email: t.user?.email || "",
           its: t.its,
-          avatarUrl: t.user.avatarUrl,
+          avatarUrl: t.user?.avatarUrl || null,
           weeklyPeriods: t._count.timetableSlots,
         })),
       },
@@ -125,7 +128,13 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 router.get("/badal", requireRole("ADMIN"), async (req, res) => {
   try {
     const { date, status } = req.query as Record<string, string | undefined>;
-    const targetDate = date ? new Date(`${date}T00:00:00.000Z`) : undefined;
+    let targetDate: Date | undefined;
+    if (date && typeof date === "string" && date.trim()) {
+      const parsed = Date.parse(date.includes("T") ? date : `${date}T00:00:00.000Z`);
+      if (!Number.isNaN(parsed)) {
+        targetDate = new Date(parsed);
+      }
+    }
 
     const where: any = {};
     if (targetDate) {
@@ -163,11 +172,11 @@ router.get("/badal", requireRole("ADMIN"), async (req, res) => {
         endTime: b.endTime,
         subject: b.subject,
         originalTeacherId: b.originalTeacherId,
-        originalTeacherName: b.originalTeacherName || (b.originalTeacher ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "Original Teacher"),
-        originalTeacherAvatar: b.originalTeacher?.user.avatarUrl || null,
+        originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"),
+        originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
         badalTeacherId: b.badalTeacherId,
-        badalTeacherName: b.badalTeacherName || (b.badalTeacher ? `${b.badalTeacher.user.firstName} ${b.badalTeacher.user.lastName}` : "Pending Assignment"),
-        badalTeacherAvatar: b.badalTeacher?.user.avatarUrl || null,
+        badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"),
+        badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
         reason: b.reason,
         status: b.status,
         instructions: b.instructions,
@@ -192,7 +201,17 @@ router.get("/badal/available-teachers", requireRole("ADMIN"), async (req, res) =
 
     const dow = parseInt(dayOfWeek, 10);
     const p = parseInt(period, 10);
-    const targetDate = date ? new Date(`${date}T00:00:00.000Z`) : new Date();
+    if (Number.isNaN(dow) || Number.isNaN(p)) {
+      return res.status(400).json({ success: false, error: "Valid dayOfWeek and period are required" });
+    }
+
+    let targetDate = new Date();
+    if (date && typeof date === "string" && date.trim()) {
+      const parsed = Date.parse(date.includes("T") ? date : `${date}T00:00:00.000Z`);
+      if (!Number.isNaN(parsed)) {
+        targetDate = new Date(parsed);
+      }
+    }
     const startOfDay = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), 0, 0, 0, 0));
     const endOfDay = new Date(startOfDay.getTime() + 86400000);
 
@@ -238,10 +257,10 @@ router.get("/badal/available-teachers", requireRole("ADMIN"), async (req, res) =
       success: true,
       data: allTeachers.map((t) => ({
         id: t.id,
-        name: `${t.user.firstName} ${t.user.lastName}`,
-        email: t.user.email,
+        name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+        email: t.user?.email || "",
         its: t.its,
-        avatarUrl: t.user.avatarUrl,
+        avatarUrl: t.user?.avatarUrl || null,
         badalCount: t._count.substituteBadals,
         isFree: true,
       })),

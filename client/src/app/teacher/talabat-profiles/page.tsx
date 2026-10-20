@@ -115,11 +115,14 @@ export default function TeacherTalabatProfilesPage() {
       else setRefreshing(true);
       const res = await fetch("/api/talabat-profile/list");
       const data = await res.json();
-      if (data.success) {
-        setStudents(data.students || []);
+      if (data.success && Array.isArray(data.students)) {
+        setStudents(data.students);
         setLastSyncedAt(new Date());
+      } else {
+        setStudents([]);
       }
     } catch (e) {
+      setStudents([]);
       console.error("Failed to load list", e);
     } finally {
       setLoading(false);
@@ -319,19 +322,20 @@ export default function TeacherTalabatProfilesPage() {
 
   // ── Realtime Number Calculations & KPI Metrics ──
   const stats = useMemo(() => {
-    const total = students.length;
-    const submitted = students.filter((s) => s.status === "SUBMITTED").length;
-    const reviewed = students.filter((s) => s.status === "REVIEWED").length;
-    const pending = students.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
+    const list = Array.isArray(students) ? students : [];
+    const total = list.length;
+    const submitted = list.filter((s) => s.status === "SUBMITTED").length;
+    const reviewed = list.filter((s) => s.status === "REVIEWED").length;
+    const pending = list.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
 
-    const studentPhotos = students.filter((s) => !!(s.studentPhotoUrl || s.avatarUrl)).length;
-    const fatherPhotos = students.filter((s) => !!s.fatherPhotoUrl).length;
-    const motherPhotos = students.filter((s) => !!s.motherPhotoUrl).length;
-    const bothParents = students.filter((s) => !!s.fatherPhotoUrl && !!s.motherPhotoUrl).length;
-    const missingPhotos = students.filter((s) => !s.fatherPhotoUrl || !s.motherPhotoUrl).length;
-    const allThreePhotos = students.filter((s) => !!(s.studentPhotoUrl || s.avatarUrl) && !!s.fatherPhotoUrl && !!s.motherPhotoUrl).length;
+    const studentPhotos = list.filter((s) => !!(s.studentPhotoUrl || s.avatarUrl)).length;
+    const fatherPhotos = list.filter((s) => !!s.fatherPhotoUrl).length;
+    const motherPhotos = list.filter((s) => !!s.motherPhotoUrl).length;
+    const bothParents = list.filter((s) => !!s.fatherPhotoUrl && !!s.motherPhotoUrl).length;
+    const missingPhotos = list.filter((s) => !s.fatherPhotoUrl || !s.motherPhotoUrl).length;
+    const allThreePhotos = list.filter((s) => !!(s.studentPhotoUrl || s.avatarUrl) && !!s.fatherPhotoUrl && !!s.motherPhotoUrl).length;
 
-    const reviewedWithRatings = students.filter(
+    const reviewedWithRatings = list.filter(
       (s) => s.ratings && (s.ratings.behaviour || s.ratings.discipline || s.ratings.dedication || s.ratings.communication)
     );
 
@@ -385,7 +389,8 @@ export default function TeacherTalabatProfilesPage() {
   }, [students]);
 
   const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
+    const list = Array.isArray(students) ? students : [];
+    return list.filter((s) => {
       const matchesSearch =
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (s.its && s.its.includes(searchQuery)) ||

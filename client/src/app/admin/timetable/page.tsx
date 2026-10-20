@@ -122,21 +122,39 @@ export default function AdminTimetableMasterPage() {
       const dataT = await resTimetable.json();
       const dataTak = await resTakhteet.json();
 
-      if (dataT.success) {
-        setSlots(dataT.data.slots || []);
-        setClasses(dataT.data.classes || []);
-        setTeachers(dataT.data.teachers || []);
-        if (!selectedTeacherId && dataT.data.teachers?.length > 0) {
-          setSelectedTeacherId(dataT.data.teachers[0].id);
+      if (dataT.success && dataT.data) {
+        setSlots(Array.isArray(dataT.data.slots) ? dataT.data.slots : []);
+        setClasses(Array.isArray(dataT.data.classes) ? dataT.data.classes : []);
+        const teacherList = Array.isArray(dataT.data.teachers) ? dataT.data.teachers : [];
+        setTeachers(teacherList);
+        if (!selectedTeacherId && teacherList.length > 0) {
+          setSelectedTeacherId(teacherList[0].id);
         }
+      } else {
+        setSlots([]);
+        setClasses([]);
+        setTeachers([]);
       }
-      if (dataTak.success) {
-        setTakhteetList(dataTak.data || []);
+
+      if (dataTak.success && dataTak.data) {
+        const rawPlans = Array.isArray(dataTak.data)
+          ? dataTak.data
+          : Array.isArray(dataTak.data.plans)
+          ? dataTak.data.plans
+          : [];
+        setTakhteetList(rawPlans);
+      } else {
+        setTakhteetList([]);
       }
+
       if (isManual) {
         toast({ variant: "success", title: "Synced", description: "Timetable & allocations updated." });
       }
     } catch {
+      setSlots([]);
+      setClasses([]);
+      setTeachers([]);
+      setTakhteetList([]);
       toast({ variant: "destructive", title: "Sync Error", description: "Could not load timetable data." });
     } finally {
       setLoading(false);
@@ -148,12 +166,15 @@ export default function AdminTimetableMasterPage() {
   const fetchBadals = useCallback(async () => {
     setBadalLoading(true);
     try {
-      const res = await fetch(`/api/admin/timetable/badal?date=${badalDate}`);
+      const res = await fetch(`/api/admin/timetable/badal?date=${encodeURIComponent(badalDate || "")}`);
       const data = await res.json();
-      if (data.success) {
-        setBadals(data.data || []);
+      if (data.success && Array.isArray(data.data)) {
+        setBadals(data.data);
+      } else {
+        setBadals([]);
       }
     } catch {
+      setBadals([]);
     } finally {
       setBadalLoading(false);
     }
@@ -194,11 +215,11 @@ export default function AdminTimetableMasterPage() {
     setLoadingAvailable(true);
     try {
       const res = await fetch(
-        `/api/admin/timetable/badal/available-teachers?dayOfWeek=${slot.dayOfWeek}&period=${slot.period}&date=${badalDate}`
+        `/api/admin/timetable/badal/available-teachers?dayOfWeek=${slot.dayOfWeek}&period=${slot.period}&date=${encodeURIComponent(badalDate || "")}`
       );
       const data = await res.json();
-      if (data.success) {
-        setAvailableTeachers(data.data || []);
+      if (data.success && Array.isArray(data.data)) {
+        setAvailableTeachers(data.data);
         if (data.data.length > 0) {
           setBadalForm((prev) => ({
             ...prev,
@@ -206,8 +227,11 @@ export default function AdminTimetableMasterPage() {
             badalTeacherName: data.data[0].name,
           }));
         }
+      } else {
+        setAvailableTeachers([]);
       }
     } catch {
+      setAvailableTeachers([]);
       toast({ variant: "destructive", title: "Error", description: "Failed to query available teachers." });
     } finally {
       setLoadingAvailable(false);
@@ -285,8 +309,8 @@ export default function AdminTimetableMasterPage() {
   // Matrix mappings
   const classSlotsMap = useMemo(() => {
     const map = new Map<string, any>(); // `${dayOfWeek}_${period}` -> slot
-    slots
-      .filter((s) => s.className === selectedClassName)
+    (Array.isArray(slots) ? slots : [])
+      .filter((s) => s && s.className === selectedClassName)
       .forEach((s) => {
         map.set(`${s.dayOfWeek}_${s.period}`, s);
       });
@@ -295,8 +319,8 @@ export default function AdminTimetableMasterPage() {
 
   const teacherSlotsMap = useMemo(() => {
     const map = new Map<string, any>(); // `${dayOfWeek}_${period}` -> slot
-    slots
-      .filter((s) => s.teacherId === selectedTeacherId)
+    (Array.isArray(slots) ? slots : [])
+      .filter((s) => s && s.teacherId === selectedTeacherId)
       .forEach((s) => {
         map.set(`${s.dayOfWeek}_${s.period}`, s);
       });
@@ -304,24 +328,30 @@ export default function AdminTimetableMasterPage() {
   }, [slots, selectedTeacherId]);
 
   const activeClassObj = useMemo(() => {
-    return classes.find((c) => c.name === selectedClassName) || null;
+    return (Array.isArray(classes) ? classes : []).find((c) => c && c.name === selectedClassName) || null;
   }, [classes, selectedClassName]);
 
   const activeTeacherObj = useMemo(() => {
-    return teachers.find((t) => t.id === selectedTeacherId) || null;
+    return (Array.isArray(teachers) ? teachers : []).find((t) => t && t.id === selectedTeacherId) || null;
   }, [teachers, selectedTeacherId]);
 
   const filteredTakhteet = useMemo(() => {
+    const list = Array.isArray(takhteetList) ? takhteetList : [];
     const q = takhteetSearch.toLowerCase().trim();
-    return takhteetList.filter((item) => {
-      if (takhteetClassFilter !== "ALL" && item.class?.name !== takhteetClassFilter) return false;
+    return list.filter((item) => {
+      if (!item) return false;
+      const cName = item.className || item.class?.name || "";
+      if (takhteetClassFilter !== "ALL" && cName !== takhteetClassFilter && !cName.startsWith(takhteetClassFilter)) {
+        return false;
+      }
       if (!q) return true;
+      const tName = item.teacherName || (item.teacher?.user ? `${item.teacher.user.firstName || ""} ${item.teacher.user.lastName || ""}` : "");
       return (
         item.subject?.toLowerCase().includes(q) ||
-        item.teacher?.user?.firstName?.toLowerCase().includes(q) ||
-        item.teacher?.user?.lastName?.toLowerCase().includes(q) ||
-        item.class?.name?.toLowerCase().includes(q) ||
-        item.title?.toLowerCase().includes(q)
+        tName.toLowerCase().includes(q) ||
+        cName.toLowerCase().includes(q) ||
+        item.title?.toLowerCase().includes(q) ||
+        item.description?.toLowerCase().includes(q)
       );
     });
   }, [takhteetList, takhteetSearch, takhteetClassFilter]);
@@ -720,7 +750,7 @@ export default function AdminTimetableMasterPage() {
                 <Loader2 className="w-6 h-6 animate-spin text-amber-500 mx-auto mb-2" />
                 <p className="text-xs text-slate-500 font-medium">Loading substitutions for {badalDate}...</p>
               </div>
-            ) : badals.length === 0 ? (
+            ) : (!Array.isArray(badals) || badals.length === 0) ? (
               <div className="p-12 text-center">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3">
                   <CheckCircle2 className="w-6 h-6" />
@@ -745,7 +775,7 @@ export default function AdminTimetableMasterPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {badals.map((b) => (
+                    {(Array.isArray(badals) ? badals : []).map((b) => (
                       <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="p-4">
                           <div className="font-black text-slate-900">Period {b.period}</div>
@@ -882,10 +912,10 @@ export default function AdminTimetableMasterPage() {
                   {filteredTakhteet.map((item, idx) => (
                     <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="p-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="p-4 font-black text-slate-900">Class {item.class?.name}</td>
+                      <td className="p-4 font-black text-slate-900">Class {item.className || item.class?.name}</td>
                       <td className="p-4 font-bold text-emerald-800">{item.subject}</td>
                       <td className="p-4 font-semibold text-slate-800">
-                        {item.teacher?.user ? `${item.teacher.user.firstName} ${item.teacher.user.lastName}` : "TBA"}
+                        {item.teacherName || (item.teacher?.user ? `${item.teacher.user.firstName || ""} ${item.teacher.user.lastName || ""}`.trim() : "TBA")}
                       </td>
                       <td className="p-4 max-w-sm text-slate-600 text-[11.5px] truncate" title={item.description || item.title}>
                         {item.description || item.title}
