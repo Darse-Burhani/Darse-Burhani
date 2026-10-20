@@ -3,7 +3,7 @@ services:
     name: darse-burhani
     runtime: node
     plan: free
-    buildCommand: npm install --include=dev && npx prisma migrate deploy && npm run build
+    buildCommand: npm install --include=dev && node scripts/prisma-safe.mjs migrate deploy && npm run build
     startCommand: npm start
     envVars:
       - key: PORT
@@ -11,6 +11,8 @@ services:
       - key: NPM_CONFIG_PRODUCTION
         value: "false"
       - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
         sync: false
       - key: NEXTAUTH_SECRET
         generateValue: true

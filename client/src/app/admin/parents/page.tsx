@@ -147,6 +147,30 @@ export default function AdminParentsPage() {
   // Delete modal state
   const [deletingParent, setDeletingParent] = useState<ParentData | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [syncingParents, setSyncingParents] = useState(false);
+
+  const handleSyncParents = async () => {
+    if (!window.confirm("Scan all Talabat records and automatically create/verify Father & Mother accounts linked to their children (default initial password: parent5253)?")) return;
+    setSyncingParents(true);
+    try {
+      const res = await fetch("/api/admin/parents/sync-and-link", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Parents Synchronized & Linked",
+          description: `${json.data.linksCreated} connections created/verified across ${json.data.studentsProcessed} Talabat. Default password is 'parent5253'.`,
+        });
+        await fetchParents(true);
+      } else {
+        toast({ variant: "destructive", title: "Sync Failed", description: json.error || "Could not sync parents." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network Error", description: "Could not connect to server." });
+    } finally {
+      setSyncingParents(false);
+    }
+  };
 
   const fetchParents = async (isManual = false, isSilent = false) => {
     if (isManual) setRefreshing(true);
@@ -541,15 +565,23 @@ export default function AdminParentsPage() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Button
+                onClick={handleSyncParents}
+                disabled={syncingParents}
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold shadow-md gap-1.5 text-xs"
+              >
+                {syncingParents ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                Auto-Link All Parents from Talabat
+              </Button>
+              <Button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-[#d4af37] hover:bg-[#b8972e] text-gray-950 font-bold shadow-md gap-1.5"
+                className="bg-[#d4af37] hover:bg-[#b8972e] text-gray-950 font-bold shadow-md gap-1.5 text-xs"
               >
                 <Plus className="w-4 h-4" /> Add Parent
               </Button>
               <Link href="/admin/parents/assign">
                 <Button
                   size="sm"
-                  className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/30 shadow-sm gap-1.5"
+                  className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/30 shadow-sm gap-1.5 text-xs"
                 >
                   <UserPlus className="w-4 h-4" /> Assign Talabat
                 </Button>
@@ -557,7 +589,7 @@ export default function AdminParentsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm text-xs"
                 onClick={() => fetchParents(true)}
                 disabled={refreshing || loading}
               >
@@ -570,6 +602,42 @@ export default function AdminParentsPage() {
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent opacity-80" />
         </div>
       </motion.div>
+
+      {/* Parent Access & Credentials Guide */}
+      <div className="mb-6 bg-gradient-to-r from-emerald-950 via-[#06241a] to-emerald-900 rounded-2xl p-5 text-white border border-emerald-700/50 shadow-md">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 font-bold mt-0.5">
+              <Key className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+                  Parent Credentials &amp; Portal Instructions
+                </span>
+                <span className="text-xs text-amber-300 font-mono">Default Password: <strong>parent5253</strong></span>
+              </div>
+              <h3 className="text-sm font-bold text-white mt-1">
+                Parent Account Creation &amp; Student Linking Workflow
+              </h3>
+              <p className="text-xs text-emerald-100/90 mt-0.5 max-w-3xl leading-relaxed">
+                Parents sign in using their <strong>registered email address</strong> and the standard initial password <strong>parent5253</strong>.
+                Click <em>&ldquo;Auto-Link All Parents from Talabat&rdquo;</em> to automatically generate accounts for both Father and Mother from student records and link them to their children.
+                Once logged in, parents can track live attendance scans, check their child&rsquo;s Class Timetable, and contact their Class Masool at <code>/parent</code>.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSyncParents}
+            disabled={syncingParents}
+            className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs px-4 py-2 shrink-0 shadow-md gap-1.5"
+          >
+            {syncingParents ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            Auto-Link All Parents Now
+          </Button>
+        </div>
+      </div>
 
       {/* Stats Overview Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-6">

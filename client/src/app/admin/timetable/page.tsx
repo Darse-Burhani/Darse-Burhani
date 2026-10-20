@@ -28,12 +28,22 @@ import {
   Check,
   X,
   FileSpreadsheet,
+  Pencil,
+  Printer,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalFooter,
+  ModalClose,
+} from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 
@@ -103,6 +113,30 @@ export default function AdminTimetableMasterPage() {
     notes: "",
   });
   const [savingBadal, setSavingBadal] = useState(false);
+
+  // Teacher Filter State
+  const [teacherSearch, setTeacherSearch] = useState("");
+
+  // Slot Management Modal State (Add / Edit / Delete slots directly)
+  const [slotModalOpen, setSlotModalOpen] = useState(false);
+  const [isEditingExistingSlot, setIsEditingExistingSlot] = useState(false);
+  const [slotFormData, setSlotFormData] = useState({
+    id: "",
+    classId: "",
+    className: "1 A",
+    teacherId: "",
+    teacherName: "",
+    dayOfWeek: 1,
+    period: 1,
+    subject: "",
+    startTime: "10:30",
+    endTime: "11:00",
+    roomNumber: "Room 1 A",
+    isBreak: false,
+    breakName: "",
+  });
+  const [savingSlot, setSavingSlot] = useState(false);
+  const [deletingSlot, setDeletingSlot] = useState(false);
 
   // Takhteet filter
   const [takhteetSearch, setTakhteetSearch] = useState("");
@@ -189,6 +223,110 @@ export default function AdminTimetableMasterPage() {
       fetchBadals();
     }
   }, [activeTab, fetchBadals]);
+
+  // Read URL query params on mount (e.g. ?class=2%20A or ?tab=teachers)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get("class");
+      if (c) setSelectedClassName(c);
+      const t = params.get("tab");
+      if (t === "teachers" || t === "classes" || t === "badal" || t === "takhteet") {
+        setActiveTab(t as ActiveTab);
+      }
+    }
+  }, []);
+
+  // ── SLOT CRUD ACTIONS (ADD / EDIT / DELETE) ──
+  const openAddSlotModal = (day: number, period: number) => {
+    const pDef = PERIOD_DEFS.find((p) => p.period === period);
+    const times = pDef ? pDef.time.split(" – ") : ["10:30", "11:00"];
+    const activeCls = classes.find((c) => c.name === selectedClassName);
+    setSlotFormData({
+      id: "",
+      classId: activeCls?.id || "",
+      className: selectedClassName,
+      teacherId: teachers[0]?.id || "",
+      teacherName: teachers[0]?.name || "",
+      dayOfWeek: day,
+      period: period,
+      subject: "",
+      startTime: times[0] ? times[0].trim() : "10:30",
+      endTime: times[1] ? times[1].trim() : "11:00",
+      roomNumber: `Room ${selectedClassName}`,
+      isBreak: false,
+      breakName: "",
+    });
+    setIsEditingExistingSlot(false);
+    setSlotModalOpen(true);
+  };
+
+  const openEditSlotModal = (slot: any) => {
+    setSlotFormData({
+      id: slot.id,
+      classId: slot.classId || "",
+      className: slot.className || selectedClassName,
+      teacherId: slot.teacherId || "",
+      teacherName: slot.teacherName || "",
+      dayOfWeek: slot.dayOfWeek,
+      period: slot.period,
+      subject: slot.subject || "",
+      startTime: slot.startTime || "10:30",
+      endTime: slot.endTime || "11:00",
+      roomNumber: slot.roomNumber || `Room ${slot.className || selectedClassName}`,
+      isBreak: Boolean(slot.isBreak),
+      breakName: slot.breakName || "",
+    });
+    setIsEditingExistingSlot(true);
+    setSlotModalOpen(true);
+  };
+
+  const handleSaveSlot = async () => {
+    if (!slotFormData.subject && !slotFormData.isBreak) {
+      toast({ variant: "warning", title: "Subject Required", description: "Please enter a subject name or check Break." });
+      return;
+    }
+    setSavingSlot(true);
+    try {
+      const res = await fetch("/api/admin/timetable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(slotFormData),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ variant: "success", title: "Saved", description: `Lesson slot updated for ${slotFormData.className}.` });
+        setSlotModalOpen(false);
+        await fetchTimetableData(false);
+      } else {
+        toast({ variant: "destructive", title: "Error", description: json.error || "Failed to save slot." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setSavingSlot(false);
+    }
+  };
+
+  const handleDeleteSlot = async (slotId: string) => {
+    if (!window.confirm("Delete this lesson slot from timetable?")) return;
+    setDeletingSlot(true);
+    try {
+      const res = await fetch(`/api/admin/timetable/${slotId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        toast({ variant: "success", title: "Deleted", description: "Lesson slot deleted successfully." });
+        setSlotModalOpen(false);
+        await fetchTimetableData(false);
+      } else {
+        toast({ variant: "destructive", title: "Error", description: json.error || "Failed to delete slot." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setDeletingSlot(false);
+    }
+  };
 
   // Fetch free teachers when scheduling a badal
   const openBadalModalForSlot = async (slot: any) => {
@@ -468,6 +606,7 @@ export default function AdminTimetableMasterPage() {
       {activeTab === "classes" && (
         <div className="space-y-6">
           {/* Class Selector Bar */}
+          {/* Class Selector Bar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               <span className="text-xs font-black uppercase text-slate-400 tracking-wider shrink-0 mr-1">
@@ -495,16 +634,31 @@ export default function AdminTimetableMasterPage() {
             </div>
 
             {activeClassObj && (
-              <div className="flex items-center gap-4 text-xs font-medium text-slate-600 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Class Teacher:</span>
-                  <span className="font-bold text-slate-900">{activeClassObj.masoolName}</span>
+              <div className="flex items-center gap-3 flex-wrap shrink-0">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80">
+                  <div className="w-6 h-6 rounded-md bg-[#06241a] text-amber-300 text-[10px] font-black flex items-center justify-center">
+                    مسؤول
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[9px] font-black uppercase text-amber-800">Class Masool:</div>
+                    <div className="text-xs font-bold text-slate-900 truncate max-w-[200px]" title={activeClassObj.masoolName}>
+                      {activeClassObj.masoolName || "Not assigned"}
+                    </div>
+                  </div>
                 </div>
-                <div className="h-4 w-px bg-slate-200" />
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Room:</span>
-                  <span className="font-bold text-emerald-700">Room {activeClassObj.name}</span>
+
+                <div className="text-xs font-semibold text-emerald-800 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200/60">
+                  Room {activeClassObj.name}
                 </div>
+
+                <Button
+                  onClick={() => window.print()}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-bold gap-1 border-slate-300 text-slate-700 hover:bg-slate-100"
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-500" /> Print
+                </Button>
               </div>
             )}
           </div>
@@ -535,11 +689,29 @@ export default function AdminTimetableMasterPage() {
                       {PERIOD_DEFS.map((p) => {
                         const slot = classSlotsMap.get(`${d.day}_${p.period}`);
                         return (
-                          <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
+                          <td key={p.period} className="p-1.5 border-r border-slate-100 last:border-r-0 align-top">
                             {slot ? (
                               <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-50/80 to-slate-50 border border-emerald-200/70 hover:border-emerald-400 transition-all shadow-2xs group relative">
-                                <div className="text-xs font-black text-slate-900 leading-tight">
-                                  {slot.subject}
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="text-xs font-black text-slate-900 leading-tight">
+                                    {slot.subject}
+                                  </div>
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+                                    <button
+                                      onClick={() => openEditSlotModal(slot)}
+                                      className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900"
+                                      title="Edit lesson details"
+                                    >
+                                      <Pencil className="w-2.5 h-2.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSlot(slot.id)}
+                                      className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600"
+                                      title="Delete slot"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="text-[11px] text-emerald-800 font-semibold mt-1 truncate" title={slot.teacherName}>
                                   {slot.teacherName}
@@ -557,9 +729,14 @@ export default function AdminTimetableMasterPage() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="h-16 flex items-center justify-center text-[10px] text-slate-300 font-medium">
-                                —
-                              </div>
+                              <button
+                                onClick={() => openAddSlotModal(d.day, p.period)}
+                                className="w-full h-16 rounded-xl border border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-all flex flex-col items-center justify-center text-slate-300 hover:text-emerald-700 group cursor-pointer"
+                                title="Click to add lesson"
+                              >
+                                <Plus className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                <span className="text-[9px] font-medium opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">Add</span>
+                              </button>
                             )}
                           </td>
                         );
@@ -578,47 +755,81 @@ export default function AdminTimetableMasterPage() {
          ───────────────────────────────────────────────────────────── */}
       {activeTab === "teachers" && (
         <div className="space-y-6">
-          {/* Teacher Selector Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              <span className="text-xs font-black uppercase text-slate-400 tracking-wider shrink-0 mr-1">
-                Select Teacher:
-              </span>
-              {teachers.map((t) => {
-                const isSelected = selectedTeacherId === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedTeacherId(t.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
-                      isSelected
-                        ? "bg-[#06241a] text-amber-300 ring-2 ring-emerald-600/30 shadow-sm"
-                        : "bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
-                    }`}
+          {/* Teacher Selector Bar & Search */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search faculty by name or ITS..."
+                  value={teacherSearch}
+                  onChange={(e) => setTeacherSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
+                />
+              </div>
+
+              {activeTeacherObj && (
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                    <Avatar className="w-8 h-8 ring-1 ring-emerald-700">
+                      {activeTeacherObj.avatarUrl && <AvatarImage src={activeTeacherObj.avatarUrl} alt={activeTeacherObj.name} />}
+                      <AvatarFallback className="bg-emerald-950 text-amber-300 text-xs font-bold">
+                        {getInitials(activeTeacherObj.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">{activeTeacherObj.name}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        ITS: {activeTeacherObj.its || "—"} • {activeTeacherObj.weeklyPeriods} Lessons / Week • {Math.max(0, 54 - (activeTeacherObj.weeklyPeriods || 0))} Free Periods
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => window.print()}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs font-bold gap-1 border-slate-300 text-slate-700 hover:bg-slate-100"
                   >
-                    <span>{t.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-amber-400 text-slate-950 font-bold" : "bg-slate-200 text-slate-600"}`}>
-                      {t.weeklyPeriods} periods
-                    </span>
-                  </button>
-                );
-              })}
+                    <Printer className="w-3.5 h-3.5 text-slate-500" /> Print
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {activeTeacherObj && (
-              <div className="flex items-center gap-3 shrink-0">
-                <Avatar className="w-9 h-9 ring-1 ring-emerald-700">
-                  {activeTeacherObj.avatarUrl && <AvatarImage src={activeTeacherObj.avatarUrl} alt={activeTeacherObj.name} />}
-                  <AvatarFallback className="bg-emerald-950 text-amber-300 text-xs font-bold">
-                    {getInitials(activeTeacherObj.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="text-xs font-bold text-slate-900">{activeTeacherObj.name}</div>
-                  <div className="text-[10px] text-slate-500 font-mono">ITS: {activeTeacherObj.its || "—"} • {activeTeacherObj.weeklyPeriods} Weekly Lessons</div>
-                </div>
-              </div>
-            )}
+            {/* Teacher Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-1 border-t border-slate-100">
+              <span className="text-xs font-black uppercase text-slate-400 tracking-wider shrink-0 mr-1">
+                Faculty ({teachers.length}):
+              </span>
+              {teachers
+                .filter(
+                  (t) =>
+                    !teacherSearch ||
+                    t.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                    (t.its && t.its.includes(teacherSearch))
+                )
+                .map((t) => {
+                  const isSelected = selectedTeacherId === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTeacherId(t.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-[#06241a] text-amber-300 ring-2 ring-emerald-600/30 shadow-sm"
+                          : "bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
+                      }`}
+                    >
+                      <span>{t.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-amber-400 text-slate-950 font-bold" : "bg-slate-200 text-slate-600"}`}>
+                        {t.weeklyPeriods}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
           </div>
 
           {/* Grid View */}
@@ -1062,6 +1273,195 @@ export default function AdminTimetableMasterPage() {
           </div>
         </div>
       )}
+
+      {/* ── Slot Add / Edit Modal ── */}
+      <Modal open={slotModalOpen} onOpenChange={setSlotModalOpen}>
+        <ModalContent className="max-w-lg">
+          <ModalHeader>
+            <ModalTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-[#06241a] text-amber-300 flex items-center justify-center text-xs font-black">
+                {isEditingExistingSlot ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              </div>
+              <span>{isEditingExistingSlot ? "Edit Timetable Lesson" : "Schedule New Lesson"}</span>
+            </ModalTitle>
+          </ModalHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700">Class</label>
+                <select
+                  value={slotFormData.className}
+                  onChange={(e) => {
+                    const c = classes.find((item) => item.name === e.target.value);
+                    setSlotFormData({ ...slotFormData, className: e.target.value, classId: c?.id || "", roomNumber: `Room ${e.target.value}` });
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none mt-1"
+                >
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.name}>Class {c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Teacher</label>
+                <select
+                  value={slotFormData.teacherId}
+                  onChange={(e) => {
+                    const t = teachers.find((item) => item.id === e.target.value);
+                    setSlotFormData({ ...slotFormData, teacherId: e.target.value, teacherName: t ? t.name : "" });
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none mt-1"
+                >
+                  <option value="">Unassigned / Free</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.weeklyPeriods} lessons)</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700">Day</label>
+                <select
+                  value={slotFormData.dayOfWeek}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, dayOfWeek: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none mt-1"
+                >
+                  {DAYS.map((d) => (
+                    <option key={d.day} value={d.day}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Period</label>
+                <select
+                  value={slotFormData.period}
+                  onChange={(e) => {
+                    const p = Number(e.target.value);
+                    const def = PERIOD_DEFS.find((item) => item.period === p);
+                    const times = def ? def.time.split(" – ") : ["10:30", "11:00"];
+                    setSlotFormData({
+                      ...slotFormData,
+                      period: p,
+                      startTime: times[0]?.trim() || slotFormData.startTime,
+                      endTime: times[1]?.trim() || slotFormData.endTime,
+                    });
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none mt-1"
+                >
+                  {PERIOD_DEFS.map((p) => (
+                    <option key={p.period} value={p.period}>{p.label} ({p.time})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700">Room</label>
+                <input
+                  type="text"
+                  value={slotFormData.roomNumber}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, roomNumber: e.target.value })}
+                  placeholder="e.g. Room 1 A"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700">Subject / Sabaq Name</label>
+              <input
+                type="text"
+                value={slotFormData.subject}
+                onChange={(e) => setSlotFormData({ ...slotFormData, subject: e.target.value })}
+                placeholder="e.g. Quran Hifz, Lisan ud Dawat, Fiqh, Maths"
+                disabled={slotFormData.isBreak}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700">Start Time</label>
+                <input
+                  type="time"
+                  value={slotFormData.startTime}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, startTime: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">End Time</label>
+                <input
+                  type="time"
+                  value={slotFormData.endTime}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, endTime: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={slotFormData.isBreak}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, isBreak: e.target.checked })}
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                Mark as Break / Recess Period
+              </label>
+            </div>
+            {slotFormData.isBreak && (
+              <div>
+                <label className="text-xs font-bold text-slate-700">Break Title</label>
+                <input
+                  type="text"
+                  value={slotFormData.breakName}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, breakName: e.target.value })}
+                  placeholder="e.g. Namaz & Recess, Lunch Break"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none mt-1"
+                />
+              </div>
+            )}
+          </div>
+
+          <ModalFooter className="flex items-center justify-between">
+            {isEditingExistingSlot ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDeleteSlot(slotFormData.id)}
+                disabled={deletingSlot || savingSlot}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-bold gap-1"
+              >
+                {deletingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Delete Slot
+              </Button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2">
+              <ModalClose asChild>
+                <Button variant="outline" size="sm" className="text-xs border-slate-300">
+                  Cancel
+                </Button>
+              </ModalClose>
+              <Button
+                size="sm"
+                onClick={handleSaveSlot}
+                disabled={savingSlot}
+                className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-bold text-xs gap-1.5"
+              >
+                {savingSlot ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                {isEditingExistingSlot ? "Save Changes" : "Create Lesson Slot"}
+              </Button>
+            </div>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

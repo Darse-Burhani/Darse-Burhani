@@ -63,13 +63,12 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       prisma.teacherProfile.findMany({
         where: {
           user: { isActive: true, deletedAt: null },
-          timetableSlots: { some: {} },
         },
         include: {
           user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
           _count: { select: { timetableSlots: true } },
         },
-        orderBy: [{ user: { firstName: "asc" } }],
+        orderBy: [{ timetableSlots: { _count: "desc" } }, { user: { firstName: "asc" } }],
       }),
     ]);
 
@@ -103,6 +102,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           subject: c.subject,
           masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
           masoolIts: c.masool?.its || null,
+          masoolId: c.masoolId,
           studentCount: c._count.enrollments,
           slotCount: c._count.timetableSlots,
         })),
@@ -119,6 +119,215 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   } catch (error) {
     console.error("Timetable fetch error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch timetable" });
+  }
+});
+
+const PERIOD_TIMES: Record<number, { startTime: string; endTime: string }> = {
+  1: { startTime: "10:30", endTime: "11:00" },
+  2: { startTime: "11:00", endTime: "11:30" },
+  3: { startTime: "11:30", endTime: "12:00" },
+  4: { startTime: "12:00", endTime: "12:30" },
+  5: { startTime: "12:30", endTime: "13:00" },
+  6: { startTime: "14:15", endTime: "14:45" },
+  7: { startTime: "14:45", endTime: "15:15" },
+  8: { startTime: "15:15", endTime: "15:45" },
+  9: { startTime: "15:45", endTime: "16:15" },
+};
+
+// POST /api/admin/timetable - Create or upsert timetable slot
+router.post("/", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const {
+      id,
+      classId,
+      className,
+      teacherId,
+      teacherName,
+      dayOfWeek,
+      period,
+      startTime,
+      endTime,
+      subject,
+      roomNumber,
+      isBreak,
+      breakName,
+    } = req.body;
+
+    if (!dayOfWeek || period === undefined) {
+      return res.status(400).json({ success: false, error: "dayOfWeek and period are required" });
+    }
+
+    const dow = Number(dayOfWeek);
+    const p = Number(period);
+
+    // Resolve class details
+    let resolvedClassId = classId || null;
+    let resolvedClassName = className || null;
+    if (resolvedClassId && !resolvedClassName) {
+      const cls = await prisma.class.findUnique({ where: { id: resolvedClassId } });
+      if (cls) resolvedClassName = cls.name;
+    } else if (!resolvedClassId && resolvedClassName) {
+      const cls = await prisma.class.findFirst({ where: { name: resolvedClassName, academicYear: "1448 H" } });
+      if (cls) resolvedClassId = cls.id;
+    }
+
+    // Resolve teacher details
+    let resolvedTeacherId = teacherId || null;
+    let resolvedTeacherName = teacherName || null;
+    if (resolvedTeacherId) {
+      const tp = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: resolvedTeacherId }, { userId: resolvedTeacherId }] },
+        include: { user: true },
+      });
+      if (tp) {
+        resolvedTeacherId = tp.id;
+        if (!resolvedTeacherName) {
+          resolvedTeacherName = `${tp.user.firstName} ${tp.user.lastName}`.trim();
+        }
+      }
+    }
+
+    const defaultTimes = PERIOD_TIMES[p] || { startTime: "10:30", endTime: "11:00" };
+    const finalStart = startTime || defaultTimes.startTime;
+    const finalEnd = endTime || defaultTimes.endTime;
+
+    let slot;
+    if (id) {
+      slot = await prisma.timetableSlot.update({
+        where: { id },
+        data: {
+          classId: resolvedClassId,
+          className: resolvedClassName,
+          teacherId: resolvedTeacherId,
+          teacherName: resolvedTeacherName,
+          dayOfWeek: dow,
+          period: p,
+          startTime: finalStart,
+          endTime: finalEnd,
+          subject: isBreak ? "" : (subject || "General Lesson"),
+          roomNumber: roomNumber || (resolvedClassName ? `Room ${resolvedClassName}` : null),
+          isBreak: Boolean(isBreak),
+          breakName: isBreak ? (breakName || "Break") : null,
+        },
+      });
+    } else {
+      // Check if a slot already exists for this class at this day and period
+      const existing = resolvedClassId
+        ? await prisma.timetableSlot.findFirst({
+            where: { classId: resolvedClassId, dayOfWeek: dow, period: p },
+          })
+        : null;
+
+      if (existing) {
+        slot = await prisma.timetableSlot.update({
+          where: { id: existing.id },
+          data: {
+            className: resolvedClassName,
+            teacherId: resolvedTeacherId,
+            teacherName: resolvedTeacherName,
+            startTime: finalStart,
+            endTime: finalEnd,
+            subject: isBreak ? "" : (subject || "General Lesson"),
+            roomNumber: roomNumber || (resolvedClassName ? `Room ${resolvedClassName}` : null),
+            isBreak: Boolean(isBreak),
+            breakName: isBreak ? (breakName || "Break") : null,
+          },
+        });
+      } else {
+        slot = await prisma.timetableSlot.create({
+          data: {
+            classId: resolvedClassId,
+            className: resolvedClassName,
+            teacherId: resolvedTeacherId,
+            teacherName: resolvedTeacherName,
+            dayOfWeek: dow,
+            period: p,
+            startTime: finalStart,
+            endTime: finalEnd,
+            subject: isBreak ? "" : (subject || "General Lesson"),
+            roomNumber: roomNumber || (resolvedClassName ? `Room ${resolvedClassName}` : null),
+            isBreak: Boolean(isBreak),
+            breakName: isBreak ? (breakName || "Break") : null,
+          },
+        });
+      }
+    }
+
+    return res.json({ success: true, data: slot });
+  } catch (error) {
+    console.error("Timetable slot save error:", error);
+    return res.status(500).json({ success: false, error: "Failed to save timetable slot" });
+  }
+});
+
+// PUT /api/admin/timetable/:id - Update timetable slot
+router.put("/:id", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      classId,
+      className,
+      teacherId,
+      teacherName,
+      dayOfWeek,
+      period,
+      startTime,
+      endTime,
+      subject,
+      roomNumber,
+      isBreak,
+      breakName,
+    } = req.body;
+
+    const data: any = {};
+    if (classId !== undefined) data.classId = classId;
+    if (className !== undefined) data.className = className;
+    if (teacherId !== undefined) data.teacherId = teacherId;
+    if (teacherName !== undefined) data.teacherName = teacherName;
+    if (dayOfWeek !== undefined) data.dayOfWeek = Number(dayOfWeek);
+    if (period !== undefined) data.period = Number(period);
+    if (startTime !== undefined) data.startTime = startTime;
+    if (endTime !== undefined) data.endTime = endTime;
+    if (subject !== undefined) data.subject = subject;
+    if (roomNumber !== undefined) data.roomNumber = roomNumber;
+    if (isBreak !== undefined) data.isBreak = Boolean(isBreak);
+    if (breakName !== undefined) data.breakName = breakName;
+
+    const updated = await prisma.timetableSlot.update({
+      where: { id },
+      data,
+    });
+
+    return res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error("Timetable slot update error:", error);
+    return res.status(500).json({ success: false, error: "Failed to update timetable slot" });
+  }
+});
+
+// DELETE /api/admin/timetable/:id or DELETE /api/admin/timetable?id=... - Delete timetable slot
+router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.timetableSlot.delete({ where: { id } });
+    return res.json({ success: true, message: "Timetable slot deleted successfully" });
+  } catch (error) {
+    console.error("Timetable slot delete error:", error);
+    return res.status(500).json({ success: false, error: "Failed to delete timetable slot" });
+  }
+});
+
+router.delete("/", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const id = req.query.id as string;
+    if (!id) {
+      return res.status(400).json({ success: false, error: "id parameter is required" });
+    }
+    await prisma.timetableSlot.delete({ where: { id } });
+    return res.json({ success: true, message: "Timetable slot deleted successfully" });
+  } catch (error) {
+    console.error("Timetable slot delete error:", error);
+    return res.status(500).json({ success: false, error: "Failed to delete timetable slot" });
   }
 });
 

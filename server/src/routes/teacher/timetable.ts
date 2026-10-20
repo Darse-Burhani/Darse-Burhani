@@ -123,4 +123,50 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
   }
 });
 
+// GET /api/teacher/timetable/class/:name - Full timetable for any Darajah class
+router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => {
+  try {
+    const { name } = req.params;
+    const targetClass = await prisma.class.findFirst({
+      where: { name, academicYear: "1448 H" },
+      include: {
+        teacher: { include: { user: true } },
+        masool: { include: { user: true } },
+        timetableSlots: {
+          orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
+        },
+        _count: { select: { enrollments: true } },
+      },
+    });
+
+    if (!targetClass) {
+      return res.status(404).json({ success: false, error: "Class not found" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        class: {
+          id: targetClass.id,
+          name: targetClass.name,
+          grade: targetClass.grade,
+          section: targetClass.section,
+          roomNumber: targetClass.roomNumber || `Room ${targetClass.name}`,
+          studentCount: targetClass._count.enrollments,
+          masool: targetClass.masool ? {
+            name: `${targetClass.masool.user.firstName} ${targetClass.masool.user.lastName}`,
+            email: targetClass.masool.user.email,
+            its: targetClass.masool.its,
+            avatarUrl: targetClass.masool.user.avatarUrl,
+          } : null,
+        },
+        slots: targetClass.timetableSlots,
+      },
+    });
+  } catch (error) {
+    console.error("Teacher class timetable error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch class timetable" });
+  }
+});
+
 export default router;

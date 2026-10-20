@@ -33,6 +33,8 @@ import {
   Fingerprint,
   Camera,
   Eye,
+  Printer,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,11 +47,12 @@ import { isRabiAlAkhirDate } from "@/lib/fatimi-calendar";
 import { ParentNotificationCenter } from "@/components/parent/ParentNotificationCenter";
 import { ParentLeaveManager } from "@/components/parent/ParentLeaveManager";
 
-type ParentTab = "overview" | "tracking" | "leave";
+type ParentTab = "overview" | "tracking" | "timetable" | "leave";
 
 const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.ElementType }> = [
   { id: "overview", label: "Overview", labelAr: "نظرة عامة", icon: Heart },
   { id: "tracking", label: "Live Tracking", labelAr: "الحضور والبصمة", icon: Navigation },
+  { id: "timetable", label: "Class Timetable & Masool", labelAr: "الجدول والمسؤول", icon: BookOpen },
   { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
 ];
 
@@ -79,6 +82,10 @@ export default function ParentDashboard() {
   const [activeTab, setActiveTab] = useState<ParentTab>("overview");
   const [trackingLogs, setTrackingLogs] = useState<any[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
+
+  // Class Timetable & Masool State
+  const [timetableData, setTimetableData] = useState<any>(null);
+  const [timetableLoading, setTimetableLoading] = useState(false);
 
   const fetchDashboard = useCallback(
     async (isManual = false) => {
@@ -140,6 +147,32 @@ export default function ParentDashboard() {
   useEffect(() => {
     if (activeTab === "tracking") fetchTracking();
   }, [activeTab, fetchTracking]);
+
+  // Fetch Class Timetable & Masool for selected child
+  const fetchTimetable = useCallback(async () => {
+    if (!selectedChild) return;
+    setTimetableLoading(true);
+    try {
+      const childId = selectedChild.id || selectedChild.studentProfileId;
+      const res = await fetch(`/api/parent/timetable?studentId=${encodeURIComponent(childId)}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setTimetableData(json.data);
+      } else {
+        setTimetableData(null);
+      }
+    } catch {
+      setTimetableData(null);
+    } finally {
+      setTimetableLoading(false);
+    }
+  }, [selectedChild]);
+
+  useEffect(() => {
+    if (activeTab === "timetable") {
+      fetchTimetable();
+    }
+  }, [activeTab, fetchTimetable]);
 
   // Last-7-days strip derived from tracking scans (excluding Rabi ul Akhar days)
   const weekStrip = useMemo(() => {
@@ -721,6 +754,180 @@ export default function ParentDashboard() {
                     <ParentLeaveManager
                       childrenList={leaveChildren}
                     />
+                  </div>
+                )}
+
+                {/* ─────────────────────────────────────────────────────────────
+                    TAB 4: CLASS TIMETABLE & MASOOL
+                ───────────────────────────────────────────────────────────── */}
+                {activeTab === "timetable" && (
+                  <div className="space-y-6">
+                    {timetableLoading ? (
+                      <div className="py-20 text-center bg-white rounded-3xl border border-slate-200">
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
+                        <p className="text-xs text-slate-500 mt-2 font-medium">Loading class timetable and masool details...</p>
+                      </div>
+                    ) : !timetableData?.class ? (
+                      <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
+                        <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                        <h4 className="text-sm font-bold text-slate-800">No Timetable Assigned Yet</h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                          Class allocation for {selectedChild.firstName} is being finalized for academic year 1448 H.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Masool & Class Banner */}
+                        <div className="rounded-3xl border border-amber-200/90 bg-gradient-to-br from-amber-50/60 via-white to-emerald-50/50 p-6 shadow-xs">
+                          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                            <div className="flex items-start gap-4">
+                              <Avatar className="w-14 h-14 ring-2 ring-amber-400 shrink-0">
+                                {timetableData.class.masool?.avatarUrl && (
+                                  <AvatarImage src={timetableData.class.masool.avatarUrl} alt={timetableData.class.masool.name} />
+                                )}
+                                <AvatarFallback className="bg-[#06241a] text-amber-300 font-bold text-sm">
+                                  {getInitials(timetableData.class.masool?.name || "Masool")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">
+                                    Official Class Masool (مسؤول الصف)
+                                  </span>
+                                  <span className="text-xs font-bold text-emerald-800 font-mono">
+                                    Class {timetableData.class.name} • 1448 H
+                                  </span>
+                                </div>
+                                <h3 className="text-lg font-black text-slate-900 mt-1">
+                                  {timetableData.class.masool?.name || "Assigned Faculty Masool"}
+                                </h3>
+                                <div className="text-xs text-slate-600 mt-0.5 flex items-center gap-3 flex-wrap">
+                                  {timetableData.class.masool?.its && (
+                                    <span className="font-mono">ITS: <strong>{timetableData.class.masool.its}</strong></span>
+                                  )}
+                                  {timetableData.class.masool?.email && (
+                                    <span>Email: <strong>{timetableData.class.masool.email}</strong></span>
+                                  )}
+                                  <span>Room: <strong>{timetableData.class.roomNumber}</strong></span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <Button
+                              onClick={() => window.print()}
+                              variant="outline"
+                              size="sm"
+                              className="text-xs font-bold gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-50 shrink-0"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-slate-500" /> Print Timetable
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Badal Duties / Substitute Notice for today if any */}
+                        {timetableData.badalToday && timetableData.badalToday.length > 0 && (
+                          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs">
+                            <div className="font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-amber-700" /> Today&apos;s Substitution Notice
+                            </div>
+                            <div className="mt-2 space-y-1.5">
+                              {timetableData.badalToday.map((b: any) => (
+                                <p key={b.id} className="text-slate-800 font-medium">
+                                  Period {b.period} ({b.startTime}–{b.endTime}) {b.subject}: <strong>{b.badalTeacher}</strong> is taking class today in place of {b.originalTeacher}.
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Full Weekly Timetable Grid */}
+                        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+                          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                              <h4 className="text-sm font-black text-slate-900">
+                                Weekly Lesson Schedule — Class {timetableData.class.name}
+                              </h4>
+                              <p className="text-xs text-slate-500">
+                                6 Days (Monday to Saturday) • 9 Academic Periods Daily
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs font-mono border-emerald-300 text-emerald-800 bg-emerald-50">
+                              30 Weekly Periods
+                            </Badge>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full border-collapse min-w-[900px]">
+                              <thead>
+                                <tr className="bg-[#06241a] text-white">
+                                  <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
+                                    Day / Period
+                                  </th>
+                                  {[
+                                    { period: 1, time: "10:30 – 11:00", label: "P1" },
+                                    { period: 2, time: "11:00 – 11:30", label: "P2" },
+                                    { period: 3, time: "11:30 – 12:00", label: "P3" },
+                                    { period: 4, time: "12:00 – 12:30", label: "P4" },
+                                    { period: 5, time: "12:30 – 13:00", label: "P5" },
+                                    { period: 6, time: "14:15 – 14:45", label: "P6" },
+                                    { period: 7, time: "14:45 – 15:15", label: "P7" },
+                                    { period: 8, time: "15:15 – 15:45", label: "P8" },
+                                    { period: 9, time: "15:45 – 16:15", label: "P9" },
+                                  ].map((p) => (
+                                    <th key={p.period} className="p-2.5 text-center border-r border-emerald-900/60 last:border-r-0 min-w-[110px]">
+                                      <div className="text-xs font-black text-amber-300">{p.label}</div>
+                                      <div className="text-[10px] font-mono opacity-80 mt-0.5">{p.time}</div>
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {[
+                                  { day: 1, name: "Monday" },
+                                  { day: 2, name: "Tuesday" },
+                                  { day: 3, name: "Wednesday" },
+                                  { day: 4, name: "Thursday" },
+                                  { day: 5, name: "Friday" },
+                                  { day: 6, name: "Saturday" },
+                                ].map((d) => (
+                                  <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                    <td className="p-3 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/80">
+                                      {d.name}
+                                    </td>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((pNum) => {
+                                      const slot = (timetableData.slots || []).find(
+                                        (s: any) => s.dayOfWeek === d.day && s.period === pNum
+                                      );
+                                      return (
+                                        <td key={pNum} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
+                                          {slot ? (
+                                            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-50/70 to-slate-50 border border-emerald-200/70 shadow-2xs">
+                                              <div className="text-xs font-black text-slate-900 leading-tight">
+                                                {slot.subject}
+                                              </div>
+                                              <div className="text-[11px] text-emerald-800 font-semibold mt-1 truncate" title={slot.teacherName}>
+                                                {slot.teacherName}
+                                              </div>
+                                              <div className="text-[9px] font-mono text-slate-400 mt-1">
+                                                {slot.roomNumber || `Room ${timetableData.class.name}`}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="h-14 flex items-center justify-center text-[10px] text-slate-300 font-medium">
+                                              —
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </motion.div>

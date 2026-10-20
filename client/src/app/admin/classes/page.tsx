@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   BookOpen,
   Plus,
@@ -20,6 +21,7 @@ import {
   Check,
   CalendarDays,
   ClipboardList,
+  Sparkles,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,10 +60,11 @@ const emptySlotForm = {
 export default function AdminClassesPage() {
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncingDarajah, setSyncingDarajah] = useState(false);
   const [search, setSearch] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [teachers, setTeachers] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: "", grade: "", section: "", subject: "", roomNumber: "", teacherId: "", masoolId: "", academicYear: "2025-2026" });
+  const [form, setForm] = useState({ name: "", grade: "", section: "", subject: "", roomNumber: "", teacherId: "", masoolId: "", academicYear: "1448 H" });
   const [saving, setSaving] = useState(false);
 
   // ── Manage modal state ──
@@ -150,10 +153,49 @@ export default function AdminClassesPage() {
       const res = await fetch("/api/admin/classes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       if (res.ok) {
         setShowCreateModal(false);
-        setForm({ name: "", grade: "", section: "", subject: "", roomNumber: "", teacherId: "", masoolId: "", academicYear: "2025-2026" });
+        setForm({ name: "", grade: "", section: "", subject: "", roomNumber: "", teacherId: "", masoolId: "", academicYear: "1448 H" });
         await loadClasses();
       }
     } finally { setSaving(false); }
+  };
+
+  const handleSyncDarajah = async () => {
+    if (!window.confirm("Initialize/synchronize all 8 Darajah classes (1A–4B), auto-assign official Masools, and auto-enroll matching students for 1448 H?")) return;
+    setSyncingDarajah(true);
+    try {
+      const res = await fetch("/api/admin/classes/sync-darajah", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        window.alert(`Darajah Classes Synced!\n${json.data.classesCreatedOrUpdated} classes verified, ${json.data.enrolledStudents} talabat enrolled.`);
+        await loadClasses();
+      } else {
+        window.alert(json.error || "Failed to sync Darajah classes");
+      }
+    } catch {
+      window.alert("Failed to connect to server");
+    } finally {
+      setSyncingDarajah(false);
+    }
+  };
+
+  const handleAutoEnroll = async () => {
+    if (!managing) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/classes/${managing.id}/auto-enroll`, { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        window.alert(`Auto-enrollment complete: ${json.data.enrolled} talabat enrolled into ${managing.name}.`);
+        await refreshDetail();
+        await loadClasses();
+      } else {
+        window.alert(json.error || "Failed to auto-enroll students");
+      }
+    } catch {
+      window.alert("Failed to auto-enroll students");
+    } finally {
+      setBusy(false);
+    }
   };
 
   // ── Details tab ──
@@ -311,9 +353,20 @@ export default function AdminClassesPage() {
                 <p className="text-emerald-100 text-sm mt-1">Manage classes and timetables</p>
               </div>
             </div>
-            <Button className="fatimi-gold-accent text-white hover:opacity-90 shadow-lg" onClick={() => setShowCreateModal(true)}>
-              <Plus className="w-4 h-4 mr-1" /> New Class
-            </Button>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Button
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/30 text-xs font-bold gap-1.5 shadow-sm"
+                onClick={handleSyncDarajah}
+                disabled={syncingDarajah}
+              >
+                {syncingDarajah ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300 mr-1" />}
+                Sync 8 Darajah Classes (1A–4B)
+              </Button>
+              <Button className="fatimi-gold-accent text-white hover:opacity-90 shadow-lg text-xs font-bold" onClick={() => setShowCreateModal(true)}>
+                <Plus className="w-4 h-4 mr-1" /> New Class
+              </Button>
+            </div>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: "linear-gradient(90deg, transparent, #d4af37, transparent)" }} />
         </div>
@@ -352,21 +405,43 @@ export default function AdminClassesPage() {
                 <div className="fatimi-card-header" />
                 <CardContent className="p-6 flex flex-col flex-1">
                   <div className="flex items-start justify-between mb-3">
-                    <Badge variant="outline" className="text-xs border-emerald-200/60 text-[#047857] bg-emerald-50/50">{cls.subject}</Badge>
+                    <Badge variant="outline" className="text-xs border-emerald-200/60 text-[#047857] bg-emerald-50/50">
+                      {cls.slotCount ? `${cls.slotCount} Periods` : cls.subject}
+                    </Badge>
                     <Badge variant={cls.isActive ? "success" : "secondary"} className="text-[10px]">{cls.isActive ? "Active" : "Inactive"}</Badge>
                   </div>
                   <h3 className="font-semibold text-gray-900 text-lg mb-1">{cls.name}</h3>
-                  <p className="text-sm text-gray-500 mb-3">Grade {cls.grade}{cls.section} &bull; Room {cls.roomNumber || "TBA"}</p>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-500">Teacher: {cls.teacherName}</span>
-                    <span className="flex items-center gap-1 text-gray-600"><Users className="w-4 h-4" /> {cls.studentCount}</span>
+                  <p className="text-sm text-gray-500 mb-2">Grade {cls.grade}{cls.section} &bull; Room {cls.roomNumber || "TBA"}</p>
+
+                  <div className="mb-3 px-3 py-2 rounded-xl bg-amber-50/80 border border-amber-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[11px] font-bold text-amber-900 shrink-0">مسؤول الصف:</span>
+                      <span className="text-xs font-semibold text-slate-800 truncate" title={cls.masoolName || "Unassigned"}>
+                        {cls.masoolName || "Unassigned"}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0 border-amber-300 text-amber-800 bg-amber-100/60 font-semibold">
+                      Masool
+                    </Badge>
                   </div>
-                  <p className="text-xs text-gray-400 mb-4">Masool: {cls.masoolName || "—"}</p>
-                  <div className="mt-auto flex items-center justify-between gap-2">
-                    <Button size="sm" variant="outline" className="border-emerald-200/60 text-[#047857] hover:bg-emerald-50" onClick={() => openManage(cls)}>
-                      <Settings className="w-3.5 h-3.5 mr-1" /> Manage
-                    </Button>
-                    <span className="text-xs text-gray-400">{cls.academicYear}</span>
+
+                  <div className="flex items-center justify-between text-sm mb-3 text-gray-600">
+                    <span className="truncate mr-2">Teacher: {cls.teacherName}</span>
+                    <span className="flex items-center gap-1 shrink-0 font-medium"><Users className="w-4 h-4 text-emerald-700" /> {cls.studentCount}</span>
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <Button size="sm" variant="outline" className="border-emerald-200/60 text-[#047857] hover:bg-emerald-50 text-xs font-semibold" onClick={() => openManage(cls)}>
+                        <Settings className="w-3.5 h-3.5 mr-1" /> Manage
+                      </Button>
+                      <Link href={`/admin/timetable?class=${encodeURIComponent(cls.name)}`}>
+                        <Button size="sm" variant="ghost" className="text-amber-800 hover:text-amber-900 hover:bg-amber-50 text-xs font-semibold">
+                          <Calendar className="w-3.5 h-3.5 mr-1 text-amber-600" /> Timetable
+                        </Button>
+                      </Link>
+                    </div>
+                    <span className="text-xs font-mono text-gray-400">{cls.academicYear}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -467,9 +542,21 @@ export default function AdminClassesPage() {
               <div className="space-y-6">
                 {/* Enrolled roster */}
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-[#047857]" /> Enrolled Talabat ({roster.length})
-                  </h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-[#047857]" /> Enrolled Talabat ({roster.length})
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-300 text-[#047857] hover:bg-emerald-50 text-xs font-semibold"
+                      onClick={handleAutoEnroll}
+                      disabled={busy}
+                    >
+                      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 text-amber-500 mr-1" />}
+                      Auto-Enroll Matching Talabat
+                    </Button>
+                  </div>
                   {roster.length === 0 ? (
                     <p className="text-sm text-gray-400 bg-gray-50 rounded-xl px-4 py-6 text-center">No talabat in this class yet.</p>
                   ) : (

@@ -167,7 +167,7 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       return res.status(409).json({ success: false, error: "A user with this email already exists." });
     }
 
-    const defaultPassword = password || "parent123";
+    const defaultPassword = password || "parent5253";
     const passwordHash = await hash(defaultPassword, 10);
 
     const user = await prisma.user.create({
@@ -199,10 +199,239 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       },
     });
 
+    // If studentId or studentIds provided, link them immediately
+    const rawStudentIds = body.studentIds || (body.studentId ? [body.studentId] : []);
+    if (Array.isArray(rawStudentIds) && rawStudentIds.length > 0 && user.parentProfile) {
+      for (const sId of rawStudentIds) {
+        if (!sId) continue;
+        const student = await prisma.studentProfile.findFirst({
+          where: { OR: [{ id: sId }, { userId: sId }, { studentId: sId }] },
+        });
+        if (student) {
+          await prisma.parentStudentLink.upsert({
+            where: {
+              parentId_studentId: {
+                parentId: user.parentProfile.id,
+                studentId: student.id,
+              },
+            },
+            create: {
+              parentId: user.parentProfile.id,
+              studentId: student.id,
+              relationship: relationType || "Parent",
+            },
+            update: {
+              relationship: relationType || "Parent",
+            },
+          });
+        }
+      }
+    }
+
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("dashboard");
+
     return res.status(201).json({ success: true, data: user });
   } catch (error) {
     console.error("Parent create error:", error);
     return res.status(500).json({ success: false, error: "Failed to create parent profile" });
+  }
+});
+
+// POST /api/admin/parents/sync-and-link - Automated linking of all parents from Talabat profiles
+router.post("/sync-and-link", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const PARENT_PASSWORD = "parent5253";
+    const passwordHash = await hash(PARENT_PASSWORD, 10);
+
+    const students = await prisma.studentProfile.findMany({
+      include: { user: true },
+      orderBy: { its: "asc" },
+    });
+
+    let fatherUsersCreated = 0;
+    let motherUsersCreated = 0;
+    let linksCreated = 0;
+    let studentsProcessed = 0;
+
+    const getOrCreateParent = async (
+      emailRaw: string,
+      relationType: string,
+      watan?: string | null,
+      city?: string | null
+    ) => {
+      const email = emailRaw.toLowerCase().trim();
+      const emailName = email.split("@")[0].trim();
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+        include: { parentProfile: true },
+      });
+
+      if (existingUser) {
+        let parentProfileId = existingUser.parentProfile?.id;
+        if (!parentProfileId) {
+          const newProfile = await prisma.parentProfile.create({
+            data: {
+              userId: existingUser.id,
+              relationType,
+              watan: watan || null,
+              city: city || null,
+            },
+          });
+          parentProfileId = newProfile.id;
+        }
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            role: "PARENT",
+            plainPassword: PARENT_PASSWORD,
+            isActive: true,
+          },
+        });
+        return { userId: existingUser.id, parentProfileId };
+      }
+
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          plainPassword: PARENT_PASSWORD,
+          firstName: emailName.charAt(0).toUpperCase() + emailName.slice(1),
+          lastName: "",
+          role: "PARENT",
+          isActive: true,
+          parentProfile: {
+            create: {
+              relationType,
+              watan: watan || null,
+              city: city || null,
+            },
+          },
+        },
+        include: { parentProfile: true },
+      });
+
+      return { userId: newUser.id, parentProfileId: newUser.parentProfile!.id };
+    };
+
+    for (const student of students) {
+      const fEmail = student.fatherEmail?.toLowerCase().trim() || null;
+      const mEmail = student.motherEmail?.toLowerCase().trim() || null;
+
+      if (!fEmail && !mEmail) continue;
+      studentsProcessed++;
+
+      if (fEmail && mEmail && fEmail === mEmail) {
+        // Shared Parent Account
+        const { parentProfileId } = await getOrCreateParent(
+          fEmail,
+          "Father & Mother",
+          student.watan,
+          student.residentCity
+        );
+
+        await prisma.parentStudentLink.upsert({
+          where: {
+            parentId_studentId: {
+              parentId: parentProfileId,
+              studentId: student.id,
+            },
+          },
+          create: {
+            parentId: parentProfileId,
+            studentId: student.id,
+            relationship: "Father & Mother",
+          },
+          update: {
+            relationship: "Father & Mother",
+          },
+        });
+        fatherUsersCreated++;
+        linksCreated++;
+      } else {
+        if (fEmail) {
+          const { parentProfileId: fatherProfileId } = await getOrCreateParent(
+            fEmail,
+            "Father",
+            student.watan,
+            student.residentCity
+          );
+
+          await prisma.parentStudentLink.upsert({
+            where: {
+              parentId_studentId: {
+                parentId: fatherProfileId,
+                studentId: student.id,
+              },
+            },
+            create: {
+              parentId: fatherProfileId,
+              studentId: student.id,
+              relationship: "Father",
+            },
+            update: {
+              relationship: "Father",
+            },
+          });
+          fatherUsersCreated++;
+          linksCreated++;
+        }
+
+        if (mEmail) {
+          const { parentProfileId: motherProfileId } = await getOrCreateParent(
+            mEmail,
+            "Mother",
+            student.watan,
+            student.residentCity
+          );
+
+          await prisma.parentStudentLink.upsert({
+            where: {
+              parentId_studentId: {
+                parentId: motherProfileId,
+                studentId: student.id,
+              },
+            },
+            create: {
+              parentId: motherProfileId,
+              studentId: student.id,
+              relationship: "Mother",
+            },
+            update: {
+              relationship: "Mother",
+            },
+          });
+          motherUsersCreated++;
+          linksCreated++;
+        }
+      }
+    }
+
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("user");
+    cache.invalidateTag("dashboard");
+
+    const [totalParents, totalLinks] = await Promise.all([
+      prisma.user.count({ where: { role: "PARENT" } }),
+      prisma.parentStudentLink.count(),
+    ]);
+
+    return res.json({
+      success: true,
+      message: `Processed ${studentsProcessed} talabat. Created/verified ${linksCreated} parent-student connections.`,
+      data: {
+        studentsProcessed,
+        fatherUsersCreated,
+        motherUsersCreated,
+        linksCreated,
+        totalParents,
+        totalLinks,
+      },
+    });
+  } catch (error) {
+    console.error("Sync and link parents error:", error);
+    return res.status(500).json({ success: false, error: "Failed to sync and link parents" });
   }
 });
 
