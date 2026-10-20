@@ -25,6 +25,7 @@ import {
   Palette,
   Sparkles,
   SlidersHorizontal,
+  FileSpreadsheet,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -56,6 +57,13 @@ const navItems: PortalNavItem[] = [
     label: "Attendance Logs",
     href: "/admin/attendance-logs",
     icon: Layers,
+    category: "Operations",
+  },
+  {
+    label: "Google Sheets Sync",
+    href: "/admin/google-sheets",
+    icon: FileSpreadsheet,
+    badge: "Cloud",
     category: "Operations",
   },
   {

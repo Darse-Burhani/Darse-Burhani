@@ -196,8 +196,17 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     throw new Error(json.error || `Request failed with status ${res.status}`);
   }
 
-  const data = (json.data !== undefined ? json.data : json) as T;
-  return data;
+  if (json.data !== undefined) {
+    if (typeof json.data === "object" && json.data !== null && !Array.isArray(json.data)) {
+      return {
+        ...json.data,
+        ...json,
+        data: json.data,
+      } as T;
+    }
+    return json.data as T;
+  }
+  return json as T;
 }
 
 // ── Talabat API ──

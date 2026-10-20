@@ -28,6 +28,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import prisma from "./prisma";
 import { eventRangeForRole } from "./biometric";
+import { getHijriMonthInfo } from "./fatimi-calendar";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,117 @@ const repoRoot = path.resolve(__dirname, "../../..");
 
 const SUMMARY_TAB = "Summary";
 
-// ── Config ────────────────────────────────────────────────────────────────
+// ── Persistent DB Config & In-Memory Cache ──────────────────────────────────
+
+export interface StoredGoogleSheetConfig {
+  spreadsheetId?: string;
+  serviceAccountJson?: string;
+  serviceAccountEmail?: string;
+  serviceAccountPrivateKey?: string;
+  manualSpreadsheetId?: string;
+  enabled?: boolean;
+  syncHourUtc?: number;
+  lastSyncedAt?: string;
+  lastSyncedDate?: string;
+}
+
+let cachedDbConfig: StoredGoogleSheetConfig | null = null;
+let isConfigLoadedFromDb = false;
+
+/**
+ * Loads persisted Google Sheets configuration from PostgreSQL (system_settings table)
+ * and populates runtime environment and in-memory cache.
+ */
+export async function loadSheetConfigFromDb(): Promise<StoredGoogleSheetConfig | null> {
+  try {
+    const row = await prisma.systemSetting.findUnique({
+      where: { key: "google_sheets_config" },
+    });
+    if (row?.value && typeof row.value === "object") {
+      cachedDbConfig = row.value as StoredGoogleSheetConfig;
+      if (cachedDbConfig.spreadsheetId) {
+        process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID = cachedDbConfig.spreadsheetId;
+      }
+      if (cachedDbConfig.serviceAccountJson) {
+        process.env.GOOGLE_SERVICE_ACCOUNT_JSON = cachedDbConfig.serviceAccountJson;
+      }
+      if (cachedDbConfig.serviceAccountEmail) {
+        process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = cachedDbConfig.serviceAccountEmail;
+      }
+      if (cachedDbConfig.serviceAccountPrivateKey) {
+        process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = cachedDbConfig.serviceAccountPrivateKey;
+      }
+      if (cachedDbConfig.manualSpreadsheetId) {
+        process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = cachedDbConfig.manualSpreadsheetId;
+      }
+      if (cachedDbConfig.enabled !== undefined) {
+        process.env.GOOGLE_SHEET_DAILY_SYNC = cachedDbConfig.enabled ? "true" : "false";
+      }
+      if (cachedDbConfig.syncHourUtc !== undefined) {
+        process.env.GOOGLE_SHEET_SYNC_HOUR = String(cachedDbConfig.syncHourUtc);
+      }
+      isConfigLoadedFromDb = true;
+      return cachedDbConfig;
+    }
+  } catch (err) {
+    console.warn("[google-attendance-sync] Could not load sheet config from DB:", (err as Error)?.message);
+  }
+  isConfigLoadedFromDb = true;
+  return null;
+}
+
+// ── Bulletproof Service Account JSON & Key Parser ─────────────────────────
+
+export function parseServiceAccountJson(input?: string | null): Record<string, any> | null {
+  if (!input) return null;
+  let str = String(input).trim();
+  if (!str) return null;
+
+  // Strip wrapping outer single quotes or double quotes if present
+  if ((str.startsWith("'") && str.endsWith("'")) || (str.startsWith('"') && str.endsWith('"'))) {
+    str = str.slice(1, -1).trim();
+  }
+
+  // Handle escaped quotes inside string
+  if (str.includes('\\"') && !str.includes('"type"')) {
+    try {
+      const unescaped = JSON.parse(`"${str}"`);
+      if (typeof unescaped === "string") str = unescaped;
+    } catch {}
+  }
+
+  try {
+    const parsed = JSON.parse(str);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch {
+    // Check if user provided base64 encoded JSON
+    try {
+      const decoded = Buffer.from(str, "base64").toString("utf8");
+      const parsed = JSON.parse(decoded);
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+export function normalizePrivateKey(key?: string | null): string {
+  if (!key) return "";
+  let clean = String(key).trim();
+  // Strip outer quotes
+  if ((clean.startsWith("'") && clean.endsWith("'")) || (clean.startsWith('"') && clean.endsWith('"'))) {
+    clean = clean.slice(1, -1).trim();
+  }
+  // Convert literal \n and CRLF to real LF
+  clean = clean.replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+  return clean;
+}
+
+// ── Config Extractors ───────────────────────────────────────────────────────
 
 export function extractSpreadsheetId(input: string): string {
   if (!input) return "";
@@ -92,6 +203,7 @@ export function extractSpreadsheetId(input: string): string {
 
 export function getAttendanceSpreadsheetId(): string {
   const raw = (
+    cachedDbConfig?.spreadsheetId ||
     process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID ||
     process.env.GOOGLE_ATTENDANCE_SHEET_ID ||
     process.env.GOOGLE_SHEET_ID ||
@@ -100,14 +212,46 @@ export function getAttendanceSpreadsheetId(): string {
   return extractSpreadsheetId(raw);
 }
 
-function getServiceAccountCreds(): { email: string; key: string } | { json: string } | null {
-  const json = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || "").trim();
-  if (json) return { json };
-  const email = (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "").trim();
-  let key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
+export function getManualAttendanceSpreadsheetId(): string {
+  const raw = (
+    cachedDbConfig?.manualSpreadsheetId ||
+    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID ||
+    process.env.GOOGLE_MANUAL_SHEET_ID ||
+    cachedDbConfig?.spreadsheetId ||
+    process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID ||
+    ""
+  ).trim();
+  return extractSpreadsheetId(raw);
+}
+
+export function getServiceAccountCreds(): { email: string; key: string } | { json: string } | null {
+  const jsonRaw = (
+    cachedDbConfig?.serviceAccountJson ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON ||
+    ""
+  ).trim();
+
+  if (jsonRaw) {
+    const parsed = parseServiceAccountJson(jsonRaw);
+    if (parsed?.client_email && parsed?.private_key) {
+      return { json: JSON.stringify(parsed) };
+    }
+  }
+
+  const email = (
+    cachedDbConfig?.serviceAccountEmail ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    ""
+  ).trim();
+
+  let key = (
+    cachedDbConfig?.serviceAccountPrivateKey ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    ""
+  ).trim();
+
   if (!email || !key) return null;
-  // .env commonly stores newlines as literal \n
-  key = key.replace(/\\n/g, "\n");
+  key = normalizePrivateKey(key);
   if (!key.includes("BEGIN PRIVATE KEY")) return null;
   return { email, key };
 }
@@ -122,6 +266,10 @@ let lastSyncedDateKey: string | null = null;
 export function markSheetSyncRan(dateKey: string) {
   lastSyncedAtIso = new Date().toISOString();
   lastSyncedDateKey = dateKey;
+  if (cachedDbConfig) {
+    cachedDbConfig.lastSyncedAt = lastSyncedAtIso;
+    cachedDbConfig.lastSyncedDate = lastSyncedDateKey;
+  }
 }
 
 export function sheetSyncStatus() {
@@ -129,15 +277,15 @@ export function sheetSyncStatus() {
   const creds = getServiceAccountCreds();
   let saEmail: string | null = null;
   let projectId: string | null = null;
+
   if (creds) {
-    if ("email" in creds) saEmail = creds.email;
-    else if ("json" in creds) {
-      try {
-        const parsed = JSON.parse(creds.json);
+    if ("email" in creds) {
+      saEmail = creds.email;
+    } else if ("json" in creds) {
+      const parsed = parseServiceAccountJson(creds.json);
+      if (parsed) {
         saEmail = parsed.client_email || null;
         projectId = parsed.project_id || null;
-      } catch {
-        saEmail = null;
       }
     }
   }
@@ -155,11 +303,74 @@ export function sheetSyncStatus() {
     fullServiceAccountEmail: saEmail,
     projectId,
     enabled: process.env.GOOGLE_SHEET_DAILY_SYNC !== "false",
-    syncHourUtc: parseInt(process.env.GOOGLE_SHEET_SYNC_HOUR || "15", 10),
+    syncHourUtc: parseInt(process.env.GOOGLE_SHEET_SYNC_HOUR || String(cachedDbConfig?.syncHourUtc || "15"), 10),
     url: id ? `https://docs.google.com/spreadsheets/d/${id}` : null,
-    lastSyncedAt: lastSyncedAtIso,
-    lastSyncedDate: lastSyncedDateKey,
+    lastSyncedAt: lastSyncedAtIso || cachedDbConfig?.lastSyncedAt || null,
+    lastSyncedDate: lastSyncedDateKey || cachedDbConfig?.lastSyncedDate || null,
   };
+}
+
+// ── Centralized JWT Auth Client Generator ──────────────────────────────────
+
+export function createGoogleAuthClient(credsParam?: {
+  serviceAccountJson?: string;
+  serviceAccountEmail?: string;
+  serviceAccountPrivateKey?: string;
+}): { auth: any; email: string } {
+  let saEmail = "";
+  let privateKey = "";
+
+  const customJson = credsParam?.serviceAccountJson?.trim();
+  if (customJson) {
+    const parsed = parseServiceAccountJson(customJson);
+    if (!parsed) {
+      throw new Error("Invalid Service Account JSON key format. Please ensure you copied the full JSON file from Google Cloud Console.");
+    }
+    if (!parsed.client_email) {
+      throw new Error("Missing 'client_email' in Service Account JSON key.");
+    }
+    if (!parsed.private_key) {
+      throw new Error("Missing 'private_key' in Service Account JSON key.");
+    }
+    saEmail = parsed.client_email.trim();
+    privateKey = normalizePrivateKey(parsed.private_key);
+  } else if (credsParam?.serviceAccountEmail && credsParam?.serviceAccountPrivateKey) {
+    saEmail = credsParam.serviceAccountEmail.trim();
+    privateKey = normalizePrivateKey(credsParam.serviceAccountPrivateKey);
+  } else {
+    const creds = getServiceAccountCreds();
+    if (!creds) {
+      throw new Error(
+        "Google Service Account is not configured. Please paste your Service Account JSON key in Admin → Google Sheets Settings."
+      );
+    }
+    if ("json" in creds) {
+      const parsed = parseServiceAccountJson(creds.json);
+      if (!parsed?.client_email || !parsed?.private_key) {
+        throw new Error("Stored Service Account JSON key could not be parsed.");
+      }
+      saEmail = parsed.client_email.trim();
+      privateKey = normalizePrivateKey(parsed.private_key);
+    } else {
+      saEmail = creds.email;
+      privateKey = normalizePrivateKey(creds.key);
+    }
+  }
+
+  if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+    throw new Error("Invalid Google Private Key: Missing '-----BEGIN PRIVATE KEY-----' header.");
+  }
+
+  const auth = new google.auth.JWT({
+    email: saEmail,
+    key: privateKey,
+    scopes: [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file",
+    ],
+  });
+
+  return { auth, email: saEmail };
 }
 
 export async function testSheetConnection(custom?: {
@@ -179,52 +390,7 @@ export async function testSheetConnection(custom?: {
     throw new Error("Missing Google Spreadsheet ID or URL. Please paste your Google Sheet link or ID.");
   }
 
-  let auth: unknown;
-  let saEmail = "";
-
-  const rawJson = (custom?.serviceAccountJson || "").trim();
-  if (rawJson) {
-    try {
-      const parsed = JSON.parse(rawJson);
-      saEmail = parsed.client_email || "";
-      auth = new google.auth.JWT({
-        email: parsed.client_email,
-        key: parsed.private_key,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-    } catch (err) {
-      throw new Error(`Invalid Service Account JSON format: ${(err as Error).message}`);
-    }
-  } else if (custom?.serviceAccountEmail && custom?.serviceAccountPrivateKey) {
-    saEmail = custom.serviceAccountEmail.trim();
-    let key = custom.serviceAccountPrivateKey.trim().replace(/\\n/g, "\n");
-    auth = new google.auth.JWT({
-      email: saEmail,
-      key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  } else {
-    const creds = getServiceAccountCreds();
-    if (!creds) {
-      throw new Error("No Google Service Account credentials configured. Paste your Service Account JSON key or Service Account Email + Private Key.");
-    }
-    if ("json" in creds) {
-      const parsed = JSON.parse(creds.json);
-      saEmail = parsed.client_email || "";
-      auth = new google.auth.JWT({
-        email: parsed.client_email,
-        key: parsed.private_key,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-    } else {
-      saEmail = creds.email;
-      auth = new google.auth.JWT({
-        email: creds.email,
-        key: creds.key,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-    }
-  }
+  const { auth, email: saEmail } = createGoogleAuthClient(custom);
 
   try {
     const client = google.sheets({ version: "v4", auth: auth as never });
@@ -243,12 +409,17 @@ export async function testSheetConnection(custom?: {
     const msg = err?.message || String(err);
     if (msg.includes("The caller does not have permission") || err?.code === 403) {
       throw new Error(
-        `Permission Denied (403): The spreadsheet is not shared with the service account. Please open your Google Sheet, click 'Share', and add "${saEmail || "your service account email"}" as Editor.`
+        `Permission Denied (403): The spreadsheet is not shared with the service account. Please open your Google Sheet, click the blue 'Share' button at top-right, and share it with "${saEmail || "your service account email"}" as Editor.`
       );
     }
     if (msg.includes("Requested entity was not found") || err?.code === 404) {
       throw new Error(
         `Spreadsheet Not Found (404): No spreadsheet found with ID "${spreadsheetId}". Please verify the URL or ID you pasted.`
+      );
+    }
+    if (msg.includes("API has not been used in project") || msg.includes("disabled")) {
+      throw new Error(
+        `Google Sheets API is disabled in your Google Cloud Project. Please visit Google Cloud Console → APIs & Services and enable "Google Sheets API".`
       );
     }
     throw new Error(`Google Sheets connection error: ${msg}`);
@@ -260,6 +431,7 @@ export async function saveSheetConfiguration(config: {
   serviceAccountJson?: string;
   serviceAccountEmail?: string;
   serviceAccountPrivateKey?: string;
+  manualSpreadsheetId?: string;
   enabled?: boolean;
   syncHourUtc?: number;
 }): Promise<void> {
@@ -268,14 +440,14 @@ export async function saveSheetConfiguration(config: {
 
   // Detect if user pasted Service Account JSON into spreadsheetId field
   const rawId = (config.spreadsheetId || "").trim();
-  if (rawId.startsWith("{") && rawId.includes("client_email")) {
+  if (rawId.startsWith("{") && (rawId.includes("client_email") || rawId.includes("project_id"))) {
     rawJson = rawId;
   } else {
     cleanId = extractSpreadsheetId(rawId);
   }
 
   // Detect if user pasted sheet URL into serviceAccountJson field
-  if (rawJson && (rawJson.includes("docs.google.com/spreadsheets") || !rawJson.includes("{"))) {
+  if (rawJson && (rawJson.includes("docs.google.com/spreadsheets") || (!rawJson.includes("{") && !rawJson.includes("BEGIN PRIVATE KEY")))) {
     const extracted = extractSpreadsheetId(rawJson);
     if (extracted && !cleanId) {
       cleanId = extracted;
@@ -283,8 +455,9 @@ export async function saveSheetConfiguration(config: {
     }
   }
 
-  if (cleanId) {
-    process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID = cleanId;
+  let cleanManualId = "";
+  if (config.manualSpreadsheetId) {
+    cleanManualId = extractSpreadsheetId(config.manualSpreadsheetId);
   }
 
   let parsedEmail: string | undefined = config.serviceAccountEmail?.trim();
@@ -292,18 +465,25 @@ export async function saveSheetConfiguration(config: {
   let cleanJsonStr: string | undefined = undefined;
 
   if (rawJson) {
-    try {
-      const parsed = typeof rawJson === "string" ? JSON.parse(rawJson) : rawJson;
+    const parsed = parseServiceAccountJson(rawJson);
+    if (parsed) {
       if (parsed.client_email) parsedEmail = parsed.client_email.trim();
       if (parsed.private_key) parsedKey = parsed.private_key.trim();
       cleanJsonStr = JSON.stringify(parsed);
-      process.env.GOOGLE_SERVICE_ACCOUNT_JSON = cleanJsonStr;
-    } catch {
+    } else {
       cleanJsonStr = rawJson;
-      process.env.GOOGLE_SERVICE_ACCOUNT_JSON = rawJson;
     }
   }
 
+  if (cleanId) {
+    process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID = cleanId;
+  }
+  if (cleanManualId) {
+    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = cleanManualId;
+  }
+  if (cleanJsonStr) {
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON = cleanJsonStr;
+  }
   if (parsedEmail) {
     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = parsedEmail;
   }
@@ -317,7 +497,33 @@ export async function saveSheetConfiguration(config: {
     process.env.GOOGLE_SHEET_SYNC_HOUR = String(config.syncHourUtc);
   }
 
-  // Update .env files (check repoRoot, process.cwd(), and parent dir)
+  // Update in-memory cache
+  cachedDbConfig = {
+    spreadsheetId: cleanId || cachedDbConfig?.spreadsheetId || process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID,
+    manualSpreadsheetId: cleanManualId || cachedDbConfig?.manualSpreadsheetId || process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID,
+    serviceAccountJson: cleanJsonStr || cachedDbConfig?.serviceAccountJson || process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+    serviceAccountEmail: parsedEmail || cachedDbConfig?.serviceAccountEmail || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    serviceAccountPrivateKey: parsedKey || cachedDbConfig?.serviceAccountPrivateKey || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+    enabled: config.enabled !== undefined ? config.enabled : (cachedDbConfig?.enabled ?? true),
+    syncHourUtc: config.syncHourUtc !== undefined ? config.syncHourUtc : (cachedDbConfig?.syncHourUtc ?? 15),
+    lastSyncedAt: lastSyncedAtIso || cachedDbConfig?.lastSyncedAt,
+    lastSyncedDate: lastSyncedDateKey || cachedDbConfig?.lastSyncedDate,
+  };
+  isConfigLoadedFromDb = true;
+
+  // Persist to PostgreSQL database (Prisma SystemSetting table)
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: "google_sheets_config" },
+      update: { value: cachedDbConfig as any },
+      create: { key: "google_sheets_config", value: cachedDbConfig as any },
+    });
+    console.log("[google-attendance-sync] Saved Google Sheets configuration to database (SystemSetting: google_sheets_config).");
+  } catch (dbErr) {
+    console.warn("[google-attendance-sync] Warning: Could not persist config to DB SystemSetting:", (dbErr as Error)?.message);
+  }
+
+  // Also persist to .env files on disk if possible
   const candidatePaths = Array.from(new Set([
     path.resolve(repoRoot, ".env"),
     path.resolve(process.cwd(), ".env"),
@@ -329,23 +535,19 @@ export async function saveSheetConfiguration(config: {
       if (!fs.existsSync(envPath)) continue;
       let content = fs.readFileSync(envPath, "utf8");
 
-      const setEnvVar = (key: string, val: string) => {
-        // Matches existing key=... or commented out # key=...
-        const reg = new RegExp(`^(?:#\\s*)?${key}=.*$`, "m");
+      const setEnvVar = (k: string, v: string) => {
+        const reg = new RegExp(`^(?:#\\s*)?${k}=.*$`, "m");
         if (reg.test(content)) {
-          content = content.replace(reg, `${key}=${val}`);
+          content = content.replace(reg, `${k}=${v}`);
         } else {
-          content = content.trimEnd() + `\n${key}=${val}\n`;
+          content = content.trimEnd() + `\n${k}=${v}\n`;
         }
       };
 
       if (cleanId) setEnvVar("GOOGLE_ATTENDANCE_SPREADSHEET_ID", `"${cleanId}"`);
-      if (cleanJsonStr) {
-        setEnvVar("GOOGLE_SERVICE_ACCOUNT_JSON", `'${cleanJsonStr}'`);
-      }
-      if (parsedEmail) {
-        setEnvVar("GOOGLE_SERVICE_ACCOUNT_EMAIL", `"${parsedEmail}"`);
-      }
+      if (cleanManualId) setEnvVar("GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID", `"${cleanManualId}"`);
+      if (cleanJsonStr) setEnvVar("GOOGLE_SERVICE_ACCOUNT_JSON", JSON.stringify(cleanJsonStr));
+      if (parsedEmail) setEnvVar("GOOGLE_SERVICE_ACCOUNT_EMAIL", `"${parsedEmail}"`);
       if (parsedKey) {
         const escapedKey = parsedKey.replace(/\r?\n/g, "\\n");
         setEnvVar("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", `"${escapedKey}"`);
@@ -364,35 +566,16 @@ export async function saveSheetConfiguration(config: {
   }
 }
 
-function getWriteClient() {
-  const spreadsheetId = getAttendanceSpreadsheetId();
+export function getWriteClient(customSpreadsheetId?: string) {
+  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getAttendanceSpreadsheetId());
   if (!spreadsheetId) {
     throw new Error(
-      "GOOGLE_ATTENDANCE_SPREADSHEET_ID is not set. Create a spreadsheet, share it with the service account, and set its ID in .env or the Attendance Settings.",
+      "Google Spreadsheet ID/URL is not configured. Open Admin → Google Sheets Settings and paste your Google Sheet link or ID."
     );
   }
-  const creds = getServiceAccountCreds();
-  if (!creds) {
-    throw new Error(
-      "Google service-account credentials missing. Set GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY (or GOOGLE_SERVICE_ACCOUNT_JSON).",
-    );
-  }
-  let auth: unknown;
-  if ("json" in creds) {
-    const parsed = JSON.parse(creds.json);
-    auth = new google.auth.JWT({
-      email: parsed.client_email,
-      key: parsed.private_key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  } else {
-    auth = new google.auth.JWT({
-      email: creds.email,
-      key: creds.key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  }
-  return { sheets: google.sheets({ version: "v4", auth: auth as never }), spreadsheetId };
+  const { auth, email } = createGoogleAuthClient();
+  const sheets = google.sheets({ version: "v4", auth: auth as never });
+  return { sheets, spreadsheetId, serviceAccountEmail: email };
 }
 
 // ── Data builders (mirror attendance-excel.ts daily logic, Sheets-friendly) ──
@@ -922,18 +1105,49 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
 
 // ── Sheets write helpers ──────────────────────────────────────────────────
 
-async function ensureTab(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string, title: string): Promise<number | undefined> {
-  const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" });
-  const existing = (meta.data.sheets || []).find((s) => s.properties?.title === title);
-  if (typeof existing?.properties?.sheetId === "number") {
-    return existing.properties.sheetId;
+export async function ensureTab(
+  sheets: ReturnType<typeof google.sheets>,
+  spreadsheetId: string,
+  title: string,
+  initialRows = 100,
+  initialCols = 15
+): Promise<number | undefined> {
+  const cleanTitle = title.trim();
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" });
+    const existing = (meta.data.sheets || []).find(
+      (s) => s.properties?.title?.trim().toLowerCase() === cleanTitle.toLowerCase()
+    );
+    if (typeof existing?.properties?.sheetId === "number") {
+      return existing.properties.sheetId;
+    }
+    const addRes = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: cleanTitle,
+                gridProperties: { rowCount: initialRows, columnCount: initialCols },
+              },
+            },
+          },
+        ],
+      },
+    });
+    const newId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId;
+    return typeof newId === "number" ? newId : undefined;
+  } catch (err: any) {
+    if (err?.message?.includes("already exists")) {
+      const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" });
+      const found = (meta.data.sheets || []).find(
+        (s) => s.properties?.title?.trim().toLowerCase() === cleanTitle.toLowerCase()
+      );
+      return typeof found?.properties?.sheetId === "number" ? found.properties.sheetId : undefined;
+    }
+    throw err;
   }
-  const addRes = await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: { requests: [{ addSheet: { properties: { title } } }] },
-  });
-  const newId = addRes.data.replies?.[0]?.addSheet?.properties?.sheetId;
-  return typeof newId === "number" ? newId : undefined;
 }
 
 function sheetTitle(dateKey: string): string {
@@ -1295,16 +1509,30 @@ export async function syncMonthlyAttendanceToSheet(targetMonth?: string): Promis
   const { sheets, spreadsheetId } = getWriteClient();
   const now = new Date();
   const monthKey = targetMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const [yearStr, monthStr] = monthKey.split("-");
-  const year = parseInt(yearStr, 10);
-  const monthNum = parseInt(monthStr, 10);
 
-  const monthStartDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
-  const monthEndDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59));
-  const monthName = monthStartDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  let monthStartDate: Date;
+  let monthEndDate: Date;
+  let monthName: string;
+
+  if (monthKey.startsWith("H")) {
+    const parts = monthKey.slice(1).split("-");
+    const hYear = parseInt(parts[0], 10) || 1448;
+    const hMonth = parseInt(parts[1], 10) || 5;
+    const hInfo = getHijriMonthInfo(hYear, hMonth);
+    monthStartDate = new Date(Date.UTC(hInfo.gregorianStart.year, hInfo.gregorianStart.month - 1, hInfo.gregorianStart.day, 0, 0, 0));
+    monthEndDate = new Date(Date.UTC(hInfo.gregorianEnd.year, hInfo.gregorianEnd.month - 1, hInfo.gregorianEnd.day, 23, 59, 59));
+    monthName = `${hInfo.monthName} ${hYear}H`;
+  } else {
+    const [yearStr, monthStr] = monthKey.split("-");
+    const year = parseInt(yearStr, 10);
+    const monthNum = parseInt(monthStr, 10);
+    monthStartDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+    monthEndDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59));
+    monthName = monthStartDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  }
+
   const tabTitle = `Monthly - ${monthName}`;
-
-  const daySheetId = await ensureTab(sheets, spreadsheetId, tabTitle);
+  const daySheetId = await ensureTab(sheets, spreadsheetId, tabTitle, 400, 15);
 
   // Fetch all active Talabat and Faculty with monthly attendance
   const [students, teachers, studentRecords, teacherRecords] = await Promise.all([
@@ -1630,16 +1858,6 @@ export async function runDailySheetSyncJob(targetDate?: Date): Promise<{
 // DEDICATED MANUAL ATTENDANCE GOOGLE SHEET SUPPORT
 // ════════════════════════════════════════════════════════════════════════════
 
-export function getManualAttendanceSpreadsheetId(): string {
-  const raw = (
-    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID ||
-    process.env.GOOGLE_MANUAL_SHEET_ID ||
-    process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID ||
-    ""
-  ).trim();
-  return extractSpreadsheetId(raw);
-}
-
 let lastManualSyncedAtIso: string | null = null;
 let lastManualSyncedDateKey: string | null = null;
 
@@ -1650,17 +1868,15 @@ export function manualSheetSyncStatus() {
   if (creds) {
     if ("email" in creds) saEmail = creds.email;
     else if ("json" in creds) {
-      try {
-        saEmail = JSON.parse(creds.json).client_email || null;
-      } catch {
-        saEmail = null;
-      }
+      const parsed = parseServiceAccountJson(creds.json);
+      saEmail = parsed?.client_email || null;
     }
   }
 
   const isDedicated = Boolean(
     process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID ||
-    process.env.GOOGLE_MANUAL_SHEET_ID
+    process.env.GOOGLE_MANUAL_SHEET_ID ||
+    cachedDbConfig?.manualSpreadsheetId
   );
 
   return {
@@ -1671,8 +1887,8 @@ export function manualSheetSyncStatus() {
     serviceAccountEmail: saEmail ? `${saEmail.slice(0, 6)}…@${saEmail.split("@")[1] || "gserviceaccount.com"}` : null,
     fullServiceAccountEmail: saEmail,
     url: id ? `https://docs.google.com/spreadsheets/d/${id}` : null,
-    lastSyncedAt: lastManualSyncedAtIso,
-    lastSyncedDate: lastManualSyncedDateKey,
+    lastSyncedAt: lastManualSyncedAtIso || cachedDbConfig?.lastSyncedAt || null,
+    lastSyncedDate: lastManualSyncedDateKey || cachedDbConfig?.lastSyncedDate || null,
   };
 }
 
@@ -1687,32 +1903,7 @@ export async function createManualSpreadsheet(customTitle?: string): Promise<{
   title: string;
   serviceAccountEmail: string;
 }> {
-  const creds = getServiceAccountCreds();
-  if (!creds) {
-    throw new Error(
-      "Google Service Account credentials missing. Please configure Service Account JSON or Email + Private Key in Attendance Settings."
-    );
-  }
-
-  let auth: unknown;
-  let saEmail = "";
-  if ("json" in creds) {
-    const parsed = JSON.parse(creds.json);
-    saEmail = parsed.client_email || "";
-    auth = new google.auth.JWT({
-      email: parsed.client_email,
-      key: parsed.private_key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
-    });
-  } else {
-    saEmail = creds.email;
-    auth = new google.auth.JWT({
-      email: creds.email,
-      key: creds.key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
-    });
-  }
-
+  const { auth, email: saEmail } = createGoogleAuthClient();
   const client = google.sheets({ version: "v4", auth: auth as never });
   const title = customTitle?.trim() || `Darse Burhani — Manual Attendance Register (${new Date().getFullYear()})`;
 
@@ -1745,13 +1936,34 @@ export async function createManualSpreadsheet(customTitle?: string): Promise<{
 
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
 
-  // Persist as dedicated manual spreadsheet in process.env and .env file
+  // Persist as dedicated manual spreadsheet in cache, DB, and .env
   process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = spreadsheetId;
+  if (cachedDbConfig) {
+    cachedDbConfig.manualSpreadsheetId = spreadsheetId;
+  }
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: "google_sheets_config" },
+      update: {
+        value: {
+          ...(cachedDbConfig || {}),
+          manualSpreadsheetId: spreadsheetId,
+        } as any,
+      },
+      create: {
+        key: "google_sheets_config",
+        value: { manualSpreadsheetId: spreadsheetId } as any,
+      },
+    });
+  } catch (err) {
+    console.warn("[google-sheet-sync] Warning persisting manual sheet ID to DB:", err);
+  }
+
   try {
     const rootDir = process.cwd();
     const envPath = path.resolve(rootDir, ".env");
     let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
-    const reg = new RegExp(`^GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID=.*$`, "m");
+    const reg = new RegExp(`^(?:#\\s*)?GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID=.*$`, "m");
     if (reg.test(content)) {
       content = content.replace(reg, `GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID="${spreadsheetId}"`);
     } else {
@@ -1784,33 +1996,12 @@ export async function syncManualAttendanceToSheet(
   url: string;
   stats: any;
 }> {
-  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getManualAttendanceSpreadsheetId());
-  if (!spreadsheetId) {
-    throw new Error("No Google Spreadsheet configured for manual attendance. Please create or link a sheet first.");
+  const targetId = extractSpreadsheetId(customSpreadsheetId || getManualAttendanceSpreadsheetId());
+  if (!targetId) {
+    throw new Error("No Google Spreadsheet configured for manual attendance. Please create or link a sheet first in Google Sheets Settings.");
   }
 
-  const creds = getServiceAccountCreds();
-  if (!creds) {
-    throw new Error("Google Service Account credentials missing. Please set credentials in settings.");
-  }
-
-  let auth: unknown;
-  if ("json" in creds) {
-    const parsed = JSON.parse(creds.json);
-    auth = new google.auth.JWT({
-      email: parsed.client_email,
-      key: parsed.private_key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  } else {
-    auth = new google.auth.JWT({
-      email: creds.email,
-      key: creds.key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  }
-
-  const sheets = google.sheets({ version: "v4", auth: auth as never });
+  const { sheets, spreadsheetId } = getWriteClient(targetId);
 
   // Date range for the requested day
   const dateKey = targetDate.toISOString().slice(0, 10);
@@ -1820,7 +2011,7 @@ export async function syncManualAttendanceToSheet(
   // Fetch all students with their manual registries / records
   const [students, teachers] = await Promise.all([
     prisma.studentProfile.findMany({
-      where: { user: { isActive: true } },
+      where: { user: { isActive: true, deletedAt: null } },
       include: {
         user: { select: { firstName: true, lastName: true, email: true } },
         classEnrollments: {
@@ -1838,10 +2029,10 @@ export async function syncManualAttendanceToSheet(
           orderBy: [{ checkInTime: "desc" }],
         },
       },
-      orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+      orderBy: [{ grade: "asc" }, { section: "asc" }, { studentId: "asc" }],
     }),
     prisma.teacherProfile.findMany({
-      where: { user: { isActive: true } },
+      where: { user: { isActive: true, deletedAt: null } },
       include: {
         user: { select: { firstName: true, lastName: true, email: true } },
         attendanceRecords: {
@@ -1849,7 +2040,7 @@ export async function syncManualAttendanceToSheet(
           orderBy: [{ checkInTime: "desc" }],
         },
       },
-      orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
+      orderBy: [{ department: "asc" }, { employeeId: "asc" }],
     }),
   ]);
 
@@ -1962,41 +2153,41 @@ export async function syncManualAttendanceToSheet(
   });
 
   // Ensure tab exists
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const existingSheet = (meta.data.sheets || []).find((s) => s.properties?.title === tabTitle);
+  const daySheetId = await ensureTab(sheets, spreadsheetId, tabTitle, Math.max(rows.length + 50, 200), 15);
 
-  if (!existingSheet) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: tabTitle,
-                gridProperties: { rowCount: Math.max(rows.length + 50, 200), columnCount: 15 },
-              },
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  // Clear and write rows
+  // Clear and write rows with single quotes around tabTitle
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
-    range: `${tabTitle}!A1:Z${rows.length + 100}`,
+    range: `'${tabTitle}'!A1:Z${rows.length + 100}`,
   });
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${tabTitle}!A1`,
+    range: `'${tabTitle}'!A1`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: rows,
     },
   });
+
+  // Apply styling
+  if (daySheetId !== undefined) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: { sheetId: daySheetId, gridProperties: { frozenRowCount: 5 } },
+                fields: "gridProperties.frozenRowCount",
+              },
+            },
+          ],
+        },
+      });
+    } catch {}
+  }
 
   lastManualSyncedAtIso = new Date().toISOString();
   lastManualSyncedDateKey = dateKey;
@@ -2024,32 +2215,7 @@ export async function syncTalabatDirectoryToSheet(customSpreadsheetId?: string):
   rowsSynced: number;
   url: string;
 }> {
-  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getAttendanceSpreadsheetId());
-  if (!spreadsheetId) {
-    throw new Error("No Google Spreadsheet configured. Please set the Spreadsheet ID or URL.");
-  }
-  const creds = getServiceAccountCreds();
-  if (!creds) {
-    throw new Error("Google Service Account credentials missing.");
-  }
-
-  let auth: unknown;
-  if ("json" in creds) {
-    const parsed = JSON.parse(creds.json);
-    auth = new google.auth.JWT({
-      email: parsed.client_email,
-      key: parsed.private_key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  } else {
-    auth = new google.auth.JWT({
-      email: creds.email,
-      key: creds.key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  }
-
-  const sheets = google.sheets({ version: "v4", auth: auth as never });
+  const { sheets, spreadsheetId } = getWriteClient(customSpreadsheetId || getAttendanceSpreadsheetId());
 
   const students = await prisma.studentProfile.findMany({
     where: { user: { isActive: true, deletedAt: null } },
@@ -2057,7 +2223,7 @@ export async function syncTalabatDirectoryToSheet(customSpreadsheetId?: string):
       user: { select: { firstName: true, lastName: true, email: true } },
       talabatProfile1447: { select: { status: true, fatherName: true, motherName: true, fatherOccupation: true, motherOccupation: true, updatedAt: true } },
     },
-    orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+    orderBy: [{ grade: "asc" }, { section: "asc" }, { studentId: "asc" }],
   });
 
   const tabTitle = "Talabat Directory";
@@ -2104,39 +2270,65 @@ export async function syncTalabatDirectoryToSheet(customSpreadsheetId?: string):
   });
 
   // Ensure tab exists
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const existingSheet = (meta.data.sheets || []).find((s) => s.properties?.title === tabTitle);
+  const daySheetId = await ensureTab(sheets, spreadsheetId, tabTitle, Math.max(rows.length + 50, 200), 16);
 
-  if (!existingSheet) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: tabTitle,
-                gridProperties: { rowCount: Math.max(rows.length + 50, 200), columnCount: 16 },
-              },
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  // Clear and update
+  // Clear and update with single-quote range
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
-    range: `${tabTitle}!A1:Z${rows.length + 100}`,
+    range: `'${tabTitle}'!A1:Z${rows.length + 100}`,
   });
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${tabTitle}!A1`,
+    range: `'${tabTitle}'!A1`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: rows },
   });
+
+  // Apply Emerald styling
+  if (daySheetId !== undefined) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: { sheetId: daySheetId, gridProperties: { frozenRowCount: 4 } },
+                fields: "gridProperties.frozenRowCount",
+              },
+            },
+            {
+              repeatCell: {
+                range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 15 },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.015, green: 0.184, blue: 0.141 },
+                    textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 12 },
+                    horizontalAlignment: "CENTER",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+              },
+            },
+            {
+              repeatCell: {
+                range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 15 },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 },
+                    textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10 },
+                    horizontalAlignment: "CENTER",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+              },
+            },
+          ],
+        },
+      });
+    } catch {}
+  }
 
   return {
     spreadsheetId,
@@ -2155,39 +2347,14 @@ export async function syncFacultyDirectoryToSheet(customSpreadsheetId?: string):
   rowsSynced: number;
   url: string;
 }> {
-  const spreadsheetId = extractSpreadsheetId(customSpreadsheetId || getAttendanceSpreadsheetId());
-  if (!spreadsheetId) {
-    throw new Error("No Google Spreadsheet configured. Please set the Spreadsheet ID or URL.");
-  }
-  const creds = getServiceAccountCreds();
-  if (!creds) {
-    throw new Error("Google Service Account credentials missing.");
-  }
-
-  let auth: unknown;
-  if ("json" in creds) {
-    const parsed = JSON.parse(creds.json);
-    auth = new google.auth.JWT({
-      email: parsed.client_email,
-      key: parsed.private_key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  } else {
-    auth = new google.auth.JWT({
-      email: creds.email,
-      key: creds.key,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-  }
-
-  const sheets = google.sheets({ version: "v4", auth: auth as never });
+  const { sheets, spreadsheetId } = getWriteClient(customSpreadsheetId || getAttendanceSpreadsheetId());
 
   const teachers = await prisma.teacherProfile.findMany({
     where: { user: { isActive: true, deletedAt: null } },
     include: {
       user: { select: { firstName: true, lastName: true, email: true } },
     },
-    orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
+    orderBy: [{ department: "asc" }, { employeeId: "asc" }],
   });
 
   const tabTitle = "Faculty Directory";
@@ -2201,10 +2368,12 @@ export async function syncFacultyDirectoryToSheet(customSpreadsheetId?: string):
     "ITS",
     "Full Name",
     "Department",
-    "Designation",
+    "Role / Designation",
     "Email",
-    "Phone / Contact",
-    "Specialization",
+    "Mobile / Contact",
+    "Subjects / Specialization",
+    "Khidmat Mauze",
+    "Aljamea Degree",
   ]);
 
   teachers.forEach((t, idx) => {
@@ -2214,47 +2383,75 @@ export async function syncFacultyDirectoryToSheet(customSpreadsheetId?: string):
       t.its || "--",
       `${t.user.firstName} ${t.user.lastName}`.trim(),
       t.department || "Faculty",
-      (t as any).designation || "Teacher",
-      t.user.email || "--",
-      (t as any).phone || "--",
-      (t as any).specialization || "--",
+      t.roleTitle || t.subCategory || "Teacher",
+      t.user.email || t.tEmail || "--",
+      t.mobile || "--",
+      t.subjects && t.subjects.length > 0 ? t.subjects.join(", ") : "--",
+      t.khidmatMauze || "--",
+      t.aljameaDegree || t.farigDarajah || "--",
     ]);
   });
 
   // Ensure tab exists
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const existingSheet = (meta.data.sheets || []).find((s) => s.properties?.title === tabTitle);
+  const daySheetId = await ensureTab(sheets, spreadsheetId, tabTitle, Math.max(rows.length + 50, 100), 12);
 
-  if (!existingSheet) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: tabTitle,
-                gridProperties: { rowCount: Math.max(rows.length + 50, 100), columnCount: 12 },
-              },
-            },
-          },
-        ],
-      },
-    });
-  }
-
-  // Clear and update
+  // Clear and update with single-quote range
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
-    range: `${tabTitle}!A1:Z${rows.length + 100}`,
+    range: `'${tabTitle}'!A1:Z${rows.length + 100}`,
   });
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${tabTitle}!A1`,
+    range: `'${tabTitle}'!A1`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: rows },
   });
+
+  // Apply Indigo styling
+  if (daySheetId !== undefined) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: { sheetId: daySheetId, gridProperties: { frozenRowCount: 4 } },
+                fields: "gridProperties.frozenRowCount",
+              },
+            },
+            {
+              repeatCell: {
+                range: { sheetId: daySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 11 },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.118, green: 0.106, blue: 0.294 },
+                    textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 12 },
+                    horizontalAlignment: "CENTER",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+              },
+            },
+            {
+              repeatCell: {
+                range: { sheetId: daySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 11 },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.058, green: 0.09, blue: 0.165 },
+                    textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10 },
+                    horizontalAlignment: "CENTER",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+              },
+            },
+          ],
+        },
+      });
+    } catch {}
+  }
 
   return {
     spreadsheetId,

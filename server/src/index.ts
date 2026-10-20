@@ -6,7 +6,13 @@ import { startMock } from "./lib/biometric";
 import { startDevicePolling } from "./lib/hikvision";
 import { startAttendanceScheduler } from "./lib/attendance-scheduler";
 import { syncMasterTimetableIfEmpty } from "./lib/timetable-master-sync";
+import { loadSheetConfigFromDb } from "./lib/google-attendance-sync";
 import prisma from "./lib/prisma";
+
+// Pre-load Google Sheets configuration from database
+loadSheetConfigFromDb().catch((err) =>
+  console.warn("[google-sheets] Startup config load notice:", (err as any)?.message || err)
+);
 
 const port = Number(process.env.PORT || 4000);
 const host = "0.0.0.0";

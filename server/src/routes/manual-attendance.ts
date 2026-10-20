@@ -9,6 +9,8 @@ import {
   createManualSpreadsheet,
   syncManualAttendanceToSheet,
   extractSpreadsheetId,
+  loadSheetConfigFromDb,
+  saveSheetConfiguration,
 } from "../lib/google-attendance-sync";
 
 const router = Router();
@@ -554,6 +556,7 @@ router.post("/", requireAuth, async (req, res) => {
 // GET /api/attendance/manual/sheet-status — Status of the dedicated manual attendance Google Sheet
 router.get("/sheet-status", requireAuth, async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     const status = manualSheetSyncStatus();
     return res.json({ success: true, data: status });
   } catch (error) {
@@ -565,6 +568,7 @@ router.get("/sheet-status", requireAuth, async (req, res) => {
 // POST /api/attendance/manual/create-sheet — Programmatically create a new Google Sheet for manual roll calls
 router.post("/create-sheet", requireAuth, async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     const { title } = req.body || {};
     const result = await createManualSpreadsheet(title);
     return res.json({
@@ -590,7 +594,8 @@ router.post("/link-sheet", requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: "Valid Google Sheet ID or URL is required" });
     }
 
-    process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = cleanId;
+    await saveSheetConfiguration({ manualSpreadsheetId: cleanId });
+
     return res.json({
       success: true,
       message: "Manual attendance Google Sheet linked successfully",
@@ -608,6 +613,7 @@ router.post("/link-sheet", requireAuth, async (req, res) => {
 // POST /api/attendance/manual/sync-sheet — Sync manual attendance for a date to the dedicated Google Sheet
 router.post("/sync-sheet", requireAuth, async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     const rawDate = typeof req.body?.date === "string" ? req.body.date.trim() : "";
     const targetDate = rawDate ? new Date(`${rawDate}T00:00:00Z`) : new Date();
     if (Number.isNaN(targetDate.getTime())) {

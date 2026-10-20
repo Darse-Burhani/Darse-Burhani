@@ -7,6 +7,7 @@ import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } f
 import {
   sheetSyncStatus,
   isSheetSyncConfigured,
+  loadSheetConfigFromDb,
   syncDailyAttendanceToSheet,
   syncMonthlyAttendanceToSheet,
   syncManualAttendanceToSheet,
@@ -816,6 +817,7 @@ router.post("/finalize-event", requireRole("ADMIN"), async (req, res) => {
 // GET /api/admin/attendance-logs/sync-sheet/status — Google Sheet daily log status
 router.get("/sync-sheet/status", requireRole("ADMIN"), async (_req, res) => {
   try {
+    await loadSheetConfigFromDb();
     return res.json({ success: true, data: sheetSyncStatus() });
   } catch (error) {
     console.error("[attendance-logs] sync-sheet status error:", error);
@@ -826,6 +828,7 @@ router.get("/sync-sheet/status", requireRole("ADMIN"), async (_req, res) => {
 // POST /api/admin/attendance-logs/sync-sheet/test — Test Google Sheet connection & permissions
 router.post("/sync-sheet/test", requireRole("ADMIN"), async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey } = req.body || {};
     const result = await testSheetConnection({
       spreadsheetId,
@@ -843,12 +846,13 @@ router.post("/sync-sheet/test", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance-logs/sync-sheet/config — Save/Update Google Sheet sync configuration
 router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
   try {
-    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, enabled, syncHourUtc, testNow } = req.body || {};
+    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, manualSpreadsheetId, enabled, syncHourUtc, testNow } = req.body || {};
     await saveSheetConfiguration({
       spreadsheetId,
       serviceAccountJson,
       serviceAccountEmail,
       serviceAccountPrivateKey,
+      manualSpreadsheetId,
       enabled,
       syncHourUtc,
     });
@@ -866,11 +870,12 @@ router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
     }
 
     if (testError) {
-      return res.status(400).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         saved: true,
         testFailed: true,
-        error: `Configuration saved, but connection test failed: ${testError}`,
+        error: `Configuration saved to database, but connection test failed: ${testError}`,
+        message: `Saved, but connection notice: ${testError}`,
         data: status,
       });
     }
@@ -893,13 +898,14 @@ router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
 // Body: { date?: "YYYY-MM-DD" } (defaults to today UTC)
 router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     if (!isSheetSyncConfigured()) {
       const status = sheetSyncStatus();
       return res.status(400).json({
         success: false,
         needsConfig: true,
         error: !status.hasSpreadsheetId
-          ? "Google Spreadsheet ID/URL is missing. Please paste your Google Sheet link or ID."
+          ? "Google Spreadsheet ID/URL is missing. Please paste your Google Sheet link or ID in Settings."
           : "Google Service Account is not configured yet. Please paste your Service Account JSON key to enable live syncing.",
         data: status,
       });
@@ -921,13 +927,14 @@ router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance-logs/sync-monthly-sheet — Push monthly summary register to Google Sheet
 router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     if (!isSheetSyncConfigured()) {
       const status = sheetSyncStatus();
       return res.status(400).json({
         success: false,
         needsConfig: true,
         error: !status.hasSpreadsheetId
-          ? "Google Spreadsheet ID/URL is missing. Please paste your Google Sheet link or ID."
+          ? "Google Spreadsheet ID/URL is missing. Please paste your Google Sheet link or ID in Settings."
           : "Google Service Account is not configured yet. Please paste your Service Account JSON key to enable live syncing.",
         data: status,
       });
@@ -944,44 +951,76 @@ router.post("/sync-monthly-sheet", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance-logs/sync-manual-sheet — Push manual roll-call attendance to Google Sheet
 router.post("/sync-manual-sheet", requireRole("ADMIN"), async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
+    if (!isSheetSyncConfigured()) {
+      const status = sheetSyncStatus();
+      return res.status(400).json({
+        success: false,
+        needsConfig: true,
+        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Service Account in Google Sheets Settings.",
+        data: status,
+      });
+    }
     const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
     const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
     const result = await syncManualAttendanceToSheet(target);
     return res.json({ success: true, message: `Synced manual attendance to tab '${result.tabTitle}'`, data: result });
   } catch (error) {
     console.error("[attendance-logs] sync-manual-sheet error:", error);
-    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync manual Google Sheet" });
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync manual Google Sheet" });
   }
 });
 
 // POST /api/admin/attendance-logs/sync-talabat-sheet — Push Talabat student directory to Google Sheet
 router.post("/sync-talabat-sheet", requireRole("ADMIN"), async (_req, res) => {
   try {
+    await loadSheetConfigFromDb();
+    if (!isSheetSyncConfigured()) {
+      const status = sheetSyncStatus();
+      return res.status(400).json({
+        success: false,
+        needsConfig: true,
+        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Service Account in Google Sheets Settings.",
+        data: status,
+      });
+    }
     const result = await syncTalabatDirectoryToSheet();
     return res.json({ success: true, message: `Synced ${result.rowsSynced} talabat students to tab '${result.tabTitle}'`, data: result });
   } catch (error) {
     console.error("[attendance-logs] sync-talabat-sheet error:", error);
-    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync talabat directory to Google Sheet" });
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync talabat directory to Google Sheet" });
   }
 });
 
 // POST /api/admin/attendance-logs/sync-faculty-sheet — Push faculty roster to Google Sheet
 router.post("/sync-faculty-sheet", requireRole("ADMIN"), async (_req, res) => {
   try {
+    await loadSheetConfigFromDb();
+    if (!isSheetSyncConfigured()) {
+      const status = sheetSyncStatus();
+      return res.status(400).json({
+        success: false,
+        needsConfig: true,
+        error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Service Account in Google Sheets Settings.",
+        data: status,
+      });
+    }
     const result = await syncFacultyDirectoryToSheet();
     return res.json({ success: true, message: `Synced ${result.rowsSynced} faculty members to tab '${result.tabTitle}'`, data: result });
   } catch (error) {
     console.error("[attendance-logs] sync-faculty-sheet error:", error);
-    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to sync faculty directory to Google Sheet" });
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync faculty directory to Google Sheet" });
   }
 });
 
 // POST /api/admin/attendance-logs/sync-all-records — Batch push all active records to Google Sheet
 router.post("/sync-all-records", requireRole("ADMIN"), async (req, res) => {
   try {
+    await loadSheetConfigFromDb();
     if (!isSheetSyncConfigured()) {
       return res.status(400).json({
         success: false,
+        needsConfig: true,
         error: "Google Sheets sync is not configured yet. Please configure your Spreadsheet ID and Google Service Account in Admin → Google Sheets Settings before syncing.",
       });
     }
@@ -989,19 +1028,58 @@ router.post("/sync-all-records", requireRole("ADMIN"), async (req, res) => {
     const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
     const rawMonth = typeof req.body?.month === "string" ? req.body.month.trim() : undefined;
 
-    const [daily, monthly, talabat, faculty] = await Promise.all([
-      syncDailyAttendanceToSheet(target),
-      syncMonthlyAttendanceToSheet(rawMonth),
-      syncTalabatDirectoryToSheet(),
-      syncFacultyDirectoryToSheet(),
-    ]);
+    const results: Record<string, any> = {};
+    const errors: string[] = [];
+
+    // 1. Daily Attendance
+    try {
+      results.daily = await syncDailyAttendanceToSheet(target);
+    } catch (err: any) {
+      console.error("[attendance-logs] sync-all daily error:", err);
+      errors.push(`Daily attendance sync failed: ${err.message}`);
+    }
+
+    // 2. Monthly Summary
+    try {
+      results.monthly = await syncMonthlyAttendanceToSheet(rawMonth);
+    } catch (err: any) {
+      console.error("[attendance-logs] sync-all monthly error:", err);
+      errors.push(`Monthly register sync failed: ${err.message}`);
+    }
+
+    // 3. Talabat Directory
+    try {
+      results.talabat = await syncTalabatDirectoryToSheet();
+    } catch (err: any) {
+      console.error("[attendance-logs] sync-all talabat error:", err);
+      errors.push(`Talabat directory sync failed: ${err.message}`);
+    }
+
+    // 4. Faculty Directory
+    try {
+      results.faculty = await syncFacultyDirectoryToSheet();
+    } catch (err: any) {
+      console.error("[attendance-logs] sync-all faculty error:", err);
+      errors.push(`Faculty roster sync failed: ${err.message}`);
+    }
 
     markSheetSyncRan(target.toISOString().slice(0, 10));
 
+    if (errors.length > 0 && Object.keys(results).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: errors.join(" | "),
+        data: results,
+      });
+    }
+
     return res.json({
       success: true,
-      message: "Successfully synchronized Daily Attendance, Monthly Register, Talabat Directory, and Faculty Roster to Google Sheets!",
-      data: { daily, monthly, talabat, faculty },
+      message: errors.length > 0
+        ? `Partially synced with notices: ${errors.join(" | ")}`
+        : "Successfully synchronized Daily Attendance, Monthly Register, Talabat Directory, and Faculty Roster to Google Sheets!",
+      data: results,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
     console.error("[attendance-logs] sync-all-records error:", error);

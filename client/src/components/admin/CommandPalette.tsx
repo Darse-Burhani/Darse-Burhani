@@ -31,6 +31,7 @@ import {
   ShoppingBag,
   Barcode,
   KeyRound,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -110,6 +111,15 @@ const COMMANDS: NavCommand[] = [
     icon: Layers,
     shortcut: "G L",
     keywords: ["logs", "audit", "verification", "daily roster", "records"],
+  },
+  {
+    id: "google-sheets",
+    title: "Google Sheets Cloud Sync (Daily & Monthly Registers)",
+    category: "Attendance",
+    href: "/admin/google-sheets",
+    icon: FileSpreadsheet,
+    shortcut: "G G",
+    keywords: ["google", "sheets", "sync", "spreadsheet", "drive", "cloud", "export", "roster", "excel"],
   },
   {
     id: "attendance-schedule",
