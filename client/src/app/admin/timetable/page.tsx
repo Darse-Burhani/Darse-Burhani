@@ -734,7 +734,7 @@ export default function AdminTimetableMasterPage() {
           { label: "Classes Directory", href: "/admin/classes", icon: BookOpen },
           { label: "Timetable & Badal Master", href: "/admin/timetable", icon: CalendarDays },
           { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
-          { label: "Daily Monitoring", href: "/admin/monitoring", icon: ShieldCheck },
+          { label: "Daily Tracking", href: "/admin/tracking", icon: ShieldCheck },
         ]}
       />
 
@@ -1069,7 +1069,7 @@ export default function AdminTimetableMasterPage() {
                       className="relative group cursor-pointer shrink-0"
                       title="Click to view full Masool profile photo"
                     >
-                      <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl ring-4 ring-amber-400/90 shadow-md overflow-hidden bg-slate-900 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl ring-4 ring-amber-400/90 shadow-md overflow-hidden bg-slate-900 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
                         <img
                           src={activeClassObj.masoolAvatar}
                           alt={activeClassObj.masoolName}
@@ -1082,7 +1082,7 @@ export default function AdminTimetableMasterPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl ring-3 ring-amber-400/50 bg-[#06241a] text-amber-300 flex items-center justify-center text-base font-black shrink-0 shadow-md">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl ring-3 ring-amber-400/50 bg-gradient-to-br from-[#06241a] to-[#0a3d2c] text-amber-300 flex items-center justify-center text-lg sm:text-xl font-black shrink-0 shadow-md">
                       {getInitials(activeClassObj.masoolName)}
                     </div>
                   )}
@@ -1305,11 +1305,12 @@ export default function AdminTimetableMasterPage() {
 
                                   {/* Asatezah Profile Picture & Name */}
                                   <div className="flex items-center gap-2 mt-2 pt-1">
-                                    {slot.teacherAvatar ? (
-                                      <Avatar className="w-6 h-6 ring-1 ring-emerald-600/40 shrink-0 shadow-2xs">
-                                        <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />
-                                      </Avatar>
-                                    ) : null}
+                                    <Avatar className="w-6 h-6 ring-1 ring-emerald-600/40 shrink-0 shadow-2xs">
+                                      {slot.teacherAvatar && <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />}
+                                      <AvatarFallback className="bg-emerald-950 text-amber-300 text-[9px] font-black">
+                                        {getInitials(slot.teacherName)}
+                                      </AvatarFallback>
+                                    </Avatar>
                                     <div className="min-w-0 flex-1">
                                       <div
                                         className="text-[11px] text-slate-900 font-bold truncate leading-tight"
@@ -1455,11 +1456,12 @@ export default function AdminTimetableMasterPage() {
                                   {slot.subject}
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-2">
-                                  {slot.teacherAvatar ? (
-                                    <Avatar className="w-5 h-5 ring-1 ring-emerald-600/30 shrink-0">
-                                      <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />
-                                    </Avatar>
-                                  ) : null}
+                                  <Avatar className="w-5 h-5 ring-1 ring-emerald-600/30 shrink-0">
+                                    {slot.teacherAvatar && <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />}
+                                    <AvatarFallback className="bg-emerald-950 text-amber-300 text-[8px] font-black">
+                                      {getInitials(slot.teacherName)}
+                                    </AvatarFallback>
+                                  </Avatar>
                                   <span className="text-[10.5px] text-slate-700 font-bold truncate" title={slot.teacherName}>
                                     {slot.teacherName}
                                   </span>
@@ -1504,22 +1506,23 @@ export default function AdminTimetableMasterPage() {
               {activeTeacherObj && (
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-slate-50 border border-slate-200">
-                    {activeTeacherObj.avatarUrl ? (
-                      <Avatar
-                        onClick={() =>
-                          setViewingMasoolPhoto({
-                            name: activeTeacherObj.name,
-                            avatar: activeTeacherObj.avatarUrl,
-                            its: activeTeacherObj.its,
-                            className: "Faculty Member",
-                          })
-                        }
-                        className="w-11 h-11 ring-2 ring-emerald-700 shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform"
-                        title="Click to view full photo"
-                      >
-                        <AvatarImage src={activeTeacherObj.avatarUrl} alt={activeTeacherObj.name} />
-                      </Avatar>
-                    ) : null}
+                    <Avatar
+                      onClick={() =>
+                        activeTeacherObj.avatarUrl && setViewingMasoolPhoto({
+                          name: activeTeacherObj.name,
+                          avatar: activeTeacherObj.avatarUrl,
+                          its: activeTeacherObj.its,
+                          className: "Faculty Member",
+                        })
+                      }
+                      className={`w-11 h-11 ring-2 ring-emerald-700 shrink-0 shadow-sm ${activeTeacherObj.avatarUrl ? "cursor-pointer hover:scale-105 transition-transform" : ""}`}
+                      title={activeTeacherObj.avatarUrl ? "Click to view full photo" : activeTeacherObj.name}
+                    >
+                      {activeTeacherObj.avatarUrl && <AvatarImage src={activeTeacherObj.avatarUrl} alt={activeTeacherObj.name} />}
+                      <AvatarFallback className="bg-gradient-to-br from-[#06241a] to-[#0a3d2c] text-amber-300 font-bold text-xs">
+                        {getInitials(activeTeacherObj.name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div>
                       <div className="text-xs font-extrabold text-slate-900">{activeTeacherObj.name}</div>
                       <div className="text-[10px] text-slate-500 font-mono">
@@ -1597,11 +1600,12 @@ export default function AdminTimetableMasterPage() {
                             : "bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 border border-transparent hover:border-emerald-200"
                         }`}
                       >
-                        {t.avatarUrl ? (
-                          <Avatar className="w-5 h-5 ring-1 ring-amber-400/50 shrink-0">
-                            <AvatarImage src={t.avatarUrl} alt={t.name} />
-                          </Avatar>
-                        ) : null}
+                        <Avatar className="w-5 h-5 ring-1 ring-amber-400/50 shrink-0">
+                          {t.avatarUrl && <AvatarImage src={t.avatarUrl} alt={t.name} />}
+                          <AvatarFallback className={`text-[9px] font-bold ${isSelected ? "bg-amber-400 text-slate-950" : "bg-emerald-900 text-amber-300"}`}>
+                            {getInitials(t.name)}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="whitespace-nowrap">{t.name}</span>
                         <span
                           className={`text-[10px] px-1.5 py-0.2 rounded-full ${
@@ -1914,21 +1918,23 @@ export default function AdminTimetableMasterPage() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            {b.originalTeacherAvatar ? (
-                              <Avatar className="w-7 h-7 ring-1 ring-slate-200 shrink-0">
-                                <AvatarImage src={b.originalTeacherAvatar} alt={b.originalTeacherName} />
-                              </Avatar>
-                            ) : null}
+                            <Avatar className="w-7 h-7 ring-1 ring-slate-200 shrink-0">
+                              {b.originalTeacherAvatar && <AvatarImage src={b.originalTeacherAvatar} alt={b.originalTeacherName} />}
+                              <AvatarFallback className="bg-rose-950 text-rose-200 text-[10px] font-bold">
+                                {getInitials(b.originalTeacherName)}
+                              </AvatarFallback>
+                            </Avatar>
                             <span className="font-semibold text-rose-900">{b.originalTeacherName}</span>
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            {b.badalTeacherAvatar ? (
-                              <Avatar className="w-7 h-7 ring-1 ring-emerald-600 shrink-0">
-                                <AvatarImage src={b.badalTeacherAvatar} alt={b.badalTeacherName} />
-                              </Avatar>
-                            ) : null}
+                            <Avatar className="w-7 h-7 ring-1 ring-emerald-600 shrink-0">
+                              {b.badalTeacherAvatar && <AvatarImage src={b.badalTeacherAvatar} alt={b.badalTeacherName} />}
+                              <AvatarFallback className="bg-emerald-950 text-amber-300 text-[10px] font-bold">
+                                {getInitials(b.badalTeacherName)}
+                              </AvatarFallback>
+                            </Avatar>
                             <span className="font-bold text-emerald-950">{b.badalTeacherName}</span>
                           </div>
                         </td>

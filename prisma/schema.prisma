@@ -828,6 +828,8 @@ model TimetableSlot {
   @@index([teacherId])
   @@index([dayOfWeek])
   @@index([dayOfWeek, period])
+  @@index([className])
+  @@index([classId, dayOfWeek, period])
   @@map("timetable_slots")
 }
 
@@ -864,6 +866,9 @@ model TimetableBadal {
   @@index([badalTeacherId])
   @@index([originalTeacherId])
   @@index([date, period])
+  @@index([className, date])
+  @@index([classId])
+  @@index([slotId])
   @@map("timetable_badals")
 }
 

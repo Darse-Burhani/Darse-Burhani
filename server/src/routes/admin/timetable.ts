@@ -44,6 +44,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
                 select: {
                   id: true,
                   its: true,
+                  photoUrl: true,
                   employeeId: true,
                   user: {
                     select: {
@@ -64,6 +65,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
                 select: {
                   id: true,
                   its: true,
+                  photoUrl: true,
                   user: { select: { firstName: true, lastName: true, avatarUrl: true } },
                 },
               },
@@ -99,7 +101,11 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             where: {
               user: { isActive: true, deletedAt: null },
             },
-            include: {
+            select: {
+              id: true,
+              its: true,
+              photoUrl: true,
+              employeeId: true,
               user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
               _count: { select: { timetableSlots: true } },
             },
@@ -126,7 +132,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             classSection: s.class?.section || "",
             teacherId: s.teacherId,
             teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
-            teacherAvatar: s.teacher?.user?.avatarUrl || null,
+            teacherAvatar: s.teacher?.user?.avatarUrl || s.teacher?.photoUrl || null,
             teacherIts: s.teacher?.its || null,
             subject: s.subject,
             dayOfWeek: s.dayOfWeek,
@@ -145,7 +151,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             subject: c.subject,
             masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
             masoolIts: c.masool?.its || null,
-            masoolAvatar: c.masool?.user?.avatarUrl || null,
+            masoolAvatar: c.masool?.user?.avatarUrl || c.masool?.photoUrl || null,
             masoolId: c.masoolId,
             studentCount: c._count.enrollments,
             slotCount: c._count.timetableSlots,
@@ -163,7 +169,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
             email: t.user?.email || "",
             its: t.its,
-            avatarUrl: t.user?.avatarUrl || null,
+            avatarUrl: t.user?.avatarUrl || t.photoUrl || null,
             weeklyPeriods: t._count.timetableSlots,
           })),
           todayBadals: todayBadals.map((b) => ({
@@ -229,6 +235,7 @@ const SLOT_INCLUDE = {
     select: {
       id: true,
       its: true,
+      photoUrl: true,
       employeeId: true,
       user: { select: { firstName: true, lastName: true, avatarUrl: true } },
     },
@@ -244,7 +251,7 @@ function formatSlotResponse(slot: any) {
     classSection: slot.class?.section || "",
     teacherId: slot.teacherId,
     teacherName: slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA"),
-    teacherAvatar: slot.teacher?.user?.avatarUrl || null,
+    teacherAvatar: slot.teacher?.user?.avatarUrl || slot.teacher?.photoUrl || null,
     teacherIts: slot.teacher?.its || null,
     subject: slot.subject,
     dayOfWeek: slot.dayOfWeek,
@@ -483,7 +490,14 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     }
 
     if (status && status !== "ALL") {
-      where.status = status;
+      if (status === "FULFILLED" || status === "COMPLETED") {
+        where.OR = [{ isFulfilled: true }, { status: "COMPLETED" }];
+      } else if (status === "PENDING") {
+        where.isFulfilled = false;
+        where.status = { not: "CANCELLED" };
+      } else {
+        where.status = status;
+      }
     }
 
     if (search && search.trim()) {
