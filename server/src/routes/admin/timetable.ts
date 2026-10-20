@@ -122,6 +122,19 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   }
 });
 
+// POST /api/admin/timetable/sync-master - Synchronize 8 Darajah classes and generate 240 timetable slots
+router.post("/sync-master", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { syncMasterTimetableAndClasses } = await import("../../lib/timetable-master-sync");
+    const force = req.query.force === "true" || req.body?.force === true;
+    const result = await syncMasterTimetableAndClasses(force);
+    return res.json(result);
+  } catch (error: any) {
+    console.error("Master timetable sync error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to sync master timetable" });
+  }
+});
+
 const PERIOD_TIMES: Record<number, { startTime: string; endTime: string }> = {
   1: { startTime: "10:30", endTime: "11:00" },
   2: { startTime: "11:00", endTime: "11:30" },

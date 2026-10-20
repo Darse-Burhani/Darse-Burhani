@@ -511,126 +511,23 @@ router.post("/:id/auto-enroll", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// POST /api/admin/classes/sync-darajah - Seed / Synchronize all 8 Darajah classes (1A to 4B)
+// POST /api/admin/classes/sync-darajah - Seed / Synchronize all 8 Darajah classes (1A to 4B) and 240 Timetable slots
 router.post("/sync-darajah", requireRole("ADMIN"), async (_req, res) => {
   try {
-    const DARAJAH_CONFIGS = [
-      { grade: "1", section: "A", name: "1 A", masoolName: "Mulla Husain bhai Mulla Fakhruddin Habib", masoolEmail: "husain.habib@darseburhani.com", masoolIts: "30384792" },
-      { grade: "1", section: "B", name: "1 B", masoolName: "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala", masoolEmail: "husain.kanchwala@darseburhani.com", masoolIts: "60472254" },
-      { grade: "2", section: "A", name: "2 A", masoolName: "Mulla Aliasgar bhai Husainali bhai Khandwala", masoolEmail: "aliasgar.khandwala@darseburhani.com", masoolIts: "60406964" },
-      { grade: "2", section: "B", name: "2 B", masoolName: "Shaikh Juzer bhai Shaikh Taher bhai Presswala", masoolEmail: "juzer.presswala@darseburhani.com", masoolIts: "20359148" },
-      { grade: "3", section: "A", name: "3 A", masoolName: "Mulla Taher bhai Shaikh Muslim bhai Shakir", masoolEmail: "taher.shakir@darseburhani.com", masoolIts: "30394078" },
-      { grade: "3", section: "B", name: "3 B", masoolName: "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali", masoolEmail: "murtaza.jamali@darseburhani.com", masoolIts: "30387984" },
-      { grade: "4", section: "A", name: "4 A", masoolName: "Shaikh Shabbir bhai Mohsinali bhai Shakir", masoolEmail: "shabbir.shakir@darseburhani.com", masoolIts: "20378107" },
-      { grade: "4", section: "B", name: "4 B", masoolName: "Shaikh Kumail bhai Shaikh Mustafa bhai Raj", masoolEmail: "kumail.raj@darseburhani.com", masoolIts: "20433286" },
-    ];
-
-    const results: any[] = [];
-    const allStudents = await prisma.studentProfile.findMany({
-      where: { user: { role: "STUDENT", isActive: true, deletedAt: null } },
-      select: { id: true, grade: true, section: true },
-    });
-
-    for (const cfg of DARAJAH_CONFIGS) {
-      // Find or resolve Masool teacher
-      let teacherProfile: any = null;
-      if (cfg.masoolIts) {
-        teacherProfile = await prisma.teacherProfile.findFirst({
-          where: { its: cfg.masoolIts },
-          include: { user: true },
-        });
-      }
-      if (!teacherProfile) {
-        teacherProfile = await prisma.teacherProfile.findFirst({
-          where: {
-            user: {
-              OR: [
-                { email: cfg.masoolEmail },
-                { firstName: { contains: cfg.masoolName.split(" ")[0] } },
-              ],
-            },
-          },
-          include: { user: true },
-        });
-      }
-      if (!teacherProfile) {
-        // Fallback to any teacher
-        teacherProfile = await prisma.teacherProfile.findFirst();
-      }
-
-      const teacherId = teacherProfile?.id;
-
-      // Find or create Class for 1448 H
-      let cls = await prisma.class.findFirst({
-        where: {
-          grade: cfg.grade,
-          section: cfg.section,
-          academicYear: "1448 H",
-        },
-      });
-
-      if (!cls) {
-        cls = await prisma.class.create({
-          data: {
-            name: cfg.name,
-            grade: cfg.grade,
-            section: cfg.section,
-            subject: "Darajah Core Curriculum",
-            roomNumber: `Room ${cfg.name}`,
-            academicYear: "1448 H",
-            teacherId: teacherId || "fallback-teacher",
-            masoolId: teacherId || null,
-            isActive: true,
-          },
-        });
-      } else {
-        cls = await prisma.class.update({
-          where: { id: cls.id },
-          data: {
-            name: cfg.name,
-            roomNumber: `Room ${cfg.name}`,
-            teacherId: teacherId || cls.teacherId,
-            masoolId: teacherId || cls.masoolId,
-            isActive: true,
-          },
-        });
-      }
-
-      // Auto-enroll all matching students into this class
-      let enrolledCount = 0;
-      for (const st of allStudents) {
-        const gNum = (st.grade || "").replace(/[^0-9]/g, "");
-        const sSec = (st.section || "A").trim().toUpperCase();
-
-        if (gNum === cfg.grade && sSec === cfg.section) {
-          await prisma.classEnrollment.upsert({
-            where: { classId_studentId: { classId: cls.id, studentId: st.id } },
-            update: { isActive: true },
-            create: { classId: cls.id, studentId: st.id, isActive: true },
-          });
-          enrolledCount++;
-        }
-      }
-
-      results.push({
-        classId: cls.id,
-        name: cls.name,
-        grade: cls.grade,
-        section: cls.section,
-        masool: teacherProfile ? `${teacherProfile.user.firstName} ${teacherProfile.user.lastName}` : "TBA",
-        masoolIts: teacherProfile?.its || null,
-        enrolledCount,
-      });
-    }
-
+    const { syncMasterTimetableAndClasses } = await import("../../lib/timetable-master-sync");
+    const result = await syncMasterTimetableAndClasses(true);
     return res.json({
       success: true,
-      message: `Configured all 8 Darajah classes for 1448 H with official Masools and Talabat enrollment`,
-      classes: results,
+      message: result.message,
+      data: {
+        classesCreatedOrUpdated: result.classesCount,
+        enrolledStudents: result.enrolledCount,
+        slotsCreated: result.slotsCount,
+      },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Sync Darajah error:", error);
-    return res.status(500).json({ success: false, error: "Failed to sync Darajah classes" });
+    return res.status(500).json({ success: false, error: error?.message || "Failed to sync Darajah classes" });
   }
 });
 

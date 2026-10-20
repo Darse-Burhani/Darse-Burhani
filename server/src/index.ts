@@ -5,6 +5,7 @@ import { createApp } from "./app";
 import { startMock } from "./lib/biometric";
 import { startDevicePolling } from "./lib/hikvision";
 import { startAttendanceScheduler } from "./lib/attendance-scheduler";
+import { syncMasterTimetableIfEmpty } from "./lib/timetable-master-sync";
 import prisma from "./lib/prisma";
 
 const port = Number(process.env.PORT || 4000);
@@ -52,6 +53,9 @@ if (useClustering && cluster.isPrimary) {
     console.log("[hikvision] Cloud deployment detected (Render/Production): Full-time LAN polling disabled. Event-driven webhook push listening active on /api/hikvision/events.");
   }
   startAttendanceScheduler();
+  syncMasterTimetableIfEmpty().catch((err) =>
+    console.warn("[timetable:startup] Master timetable auto-sync notice:", (err as any)?.message || err)
+  );
 
   // Fork worker processes
   for (let i = 0; i < concurrency; i++) {
@@ -124,6 +128,9 @@ if (useClustering && cluster.isPrimary) {
       }
 
       startAttendanceScheduler();
+      syncMasterTimetableIfEmpty().catch((err) =>
+        console.warn("[timetable:startup] Master timetable auto-sync notice:", (err as any)?.message || err)
+      );
     }
   });
 

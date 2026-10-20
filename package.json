@@ -29,7 +29,8 @@
     "password:reset-faculty": "tsx scripts/reset-faculty-passwords.ts",
     "seed:demo": "tsx scripts/seed-demo-credentials.ts",
     "db:backup": "tsx scripts/backup-supabase-to-local.ts",
-    "db:restore": "tsx scripts/restore-local-db.ts"
+    "db:restore": "tsx scripts/restore-local-db.ts",
+    "db:sync-timetable": "tsx scripts/sync-supabase-timetable.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
