@@ -70,6 +70,7 @@ const TalabatSettings = lazy(() => import("@/app/talabat/settings/page"));
 const TalabatSkillTree = lazy(() => import("@/app/talabat/skill-tree/page"));
 const TalabatAssignments = lazy(() => import("@/app/talabat/assignments/page"));
 const TalabatHobbies = lazy(() => import("@/app/talabat/hobbies/page"));
+const TalabatTimetable = lazy(() => import("@/app/talabat/timetable/page"));
 const AdminAssignments = lazy(() => import("@/app/admin/assignments/page"));
 const AdminHobbies = lazy(() => import("@/app/admin/hobbies/page"));
 const AdminSkills = lazy(() => import("@/app/admin/skills/page"));
@@ -283,6 +284,9 @@ export default function App() {
           }
         >
           <Route index element={<TalabatDashboard />} />
+          <Route path="timetable" element={<ModuleLockGuard moduleKey="timetable" role="STUDENT" title="Class Timetable"><TalabatTimetable /></ModuleLockGuard>} />
+          <Route path="schedule" element={<Navigate to="/talabat/timetable" replace />} />
+          <Route path="classes" element={<Navigate to="/talabat/timetable" replace />} />
           <Route path="attendance" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Attendance"><TalabatAttendance /></ModuleLockGuard>} />
           <Route path="leave-request" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Leave Records"><TalabatLeaveRequest /></ModuleLockGuard>} />
           <Route path="leave" element={<Navigate to="/talabat/leave-request" replace />} />

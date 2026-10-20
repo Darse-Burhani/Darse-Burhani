@@ -22,6 +22,9 @@ import {
   Settings,
   Loader2,
   ChevronRight,
+  ShieldCheck,
+  ArrowRightLeft,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +44,7 @@ const skillCategories = [
 ];
 
 const portalOptions = [
+  { key: "timetable", label: "Class Timetable", href: "/talabat/timetable", icon: CalendarDays, description: "Official weekly class schedule & faculty", chip: "Academics" },
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock, description: "Track your attendance & record logs", chip: "Record" },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays, description: "View the Fatimi academic calendar", chip: "Schedule" },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen, description: "Explore every rack, shelf & book", chip: "Books" },
@@ -54,6 +58,7 @@ export default function TalabatDashboard() {
   const { theme } = useFatimiTheme();
   const { isModuleVisible } = usePortalAccess();
   const [data, setData] = useState<any>(null);
+  const [timetableData, setTimetableData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,6 +71,15 @@ export default function TalabatDashboard() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+    fetch("/api/talabat/timetable")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data) {
+          setTimetableData(res.data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const hour = new Date().getHours();
@@ -166,6 +180,81 @@ export default function TalabatDashboard() {
 
           {/* ═══════════ Student Academic Identity Card ═══════════ */}
           <PremiumTalabatCard data={data} />
+
+          {/* ═══════════ Today's Timetable & Masool al-Fasl Widget ═══════════ */}
+          {timetableData && (
+            <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.05, ease: "easeOut" }}>
+              <div className="p-1 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/10 bg-white overflow-hidden shadow-xs border border-slate-200/80">
+                <div className="p-5 bg-gradient-to-r from-emerald-950 via-[#0a3d2c] to-emerald-900 text-white rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-md">
+                      <CalendarDays className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                          Class {timetableData.class?.name}
+                        </Badge>
+                        <span className="text-xs text-emerald-200 font-mono">1448 H Academic Matrix</span>
+                      </div>
+                      <h3 className="text-lg font-extrabold text-white mt-0.5">
+                        {timetableData.masool ? `Class Teacher: ${timetableData.masool.name}` : "Official Class Schedule"}
+                      </h3>
+                      {timetableData.masool?.its && (
+                        <p className="text-xs text-emerald-200/80">
+                          Masool al-Fasl (ITS: {timetableData.masool.its})
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/talabat/timetable"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all self-start md:self-center"
+                  >
+                    <span>View Full Timetable</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                {/* Today's Period Preview Strip */}
+                {timetableData.todaySlots && timetableData.todaySlots.length > 0 && (
+                  <div className="p-4 bg-slate-50/60 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                        Today&apos;s Periods ({timetableData.todaySlots.length} sessions)
+                      </span>
+                      <span className="text-[11px] text-slate-500">Term I • 1448 H</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                      {timetableData.todaySlots.map((s: any) => (
+                        <div
+                          key={s.id}
+                          className="p-2.5 rounded-xl border border-slate-200/90 bg-white shadow-2xs text-xs"
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                            <span className="font-bold text-slate-700">P{s.period}</span>
+                            <span>{s.startTime}</span>
+                          </div>
+                          <div className="font-black text-slate-900 truncate mt-0.5">{s.subject}</div>
+                          <div className="text-[10.5px] text-emerald-800 font-semibold truncate mt-0.5">
+                            {s.badal ? (
+                              <span className="text-amber-800 font-bold flex items-center gap-1">
+                                <ArrowRightLeft className="w-2.5 h-2.5 shrink-0" />
+                                {s.badal.badalTeacherName}
+                              </span>
+                            ) : (
+                              s.teacherName
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           {/* ═══════════ Portal Options Hub ═══════════ */}
           <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }} className="space-y-4">

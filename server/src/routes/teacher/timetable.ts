@@ -58,7 +58,7 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
 
       // 4. All classes for reference
       prisma.class.findMany({
-        where: { isActive: true, academicYear: "1448 H" },
+        where: { isActive: true, academicYear: "1448 H", grade: { in: ["1", "2", "3", "4"] } },
         select: { id: true, name: true, grade: true, section: true },
         orderBy: [{ grade: "asc" }, { section: "asc" }],
       }),

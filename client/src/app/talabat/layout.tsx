@@ -19,6 +19,7 @@ import { usePortalAccess } from "@/context/PortalAccessContext";
 
 const rawNavItems = [
   { key: "dashboard", label: "Dashboard", href: "/talabat", icon: Activity },
+  { key: "timetable", label: "Class Timetable", href: "/talabat/timetable", icon: CalendarDays },
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock },
   { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarDays },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },

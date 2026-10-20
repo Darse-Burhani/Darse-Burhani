@@ -96,6 +96,7 @@ import talabatHifzRoutes from "./routes/talabat/hifz";
 import talabatLeaveRoutes from "./routes/talabat/leave";
 import talabatHifzMarhalaRoutes from "./routes/talabat/hifz-marhala";
 import talabatProfile1447Routes from "./routes/talabat-profile";
+import talabatTimetableRoutes from "./routes/talabat/timetable";
 import assignmentsRoutes from "./routes/assignments";
 import hobbiesRoutes from "./routes/hobbies";
 import skillsRoutes from "./routes/skills";
@@ -350,6 +351,7 @@ export function createApp() {
   app.use("/api/talabat/hifz", talabatHifzRoutes);
   app.use("/api/talabat/leave", talabatLeaveRoutes);
   app.use("/api/talabat/hifz-marhala", talabatHifzMarhalaRoutes);
+  app.use("/api/talabat/timetable", talabatTimetableRoutes);
   app.use("/api/assignments", assignmentsRoutes);
   app.use("/api/hobbies", hobbiesRoutes);
   app.use("/api/skills", skillsRoutes);

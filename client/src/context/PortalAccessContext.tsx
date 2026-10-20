@@ -15,6 +15,7 @@ export interface PortalModulesConfig {
 const defaultModules: PortalModulesConfig = {
   talabat: {
     dashboard: true,
+    timetable: true,
     attendance: true,
     scans: true,
     calendar: true,
@@ -27,6 +28,7 @@ const defaultModules: PortalModulesConfig = {
   teacher: {
     dashboard: true,
     classes: true,
+    timetable: true,
     takhteet: true,
     attendance: true,
     faculty: true,

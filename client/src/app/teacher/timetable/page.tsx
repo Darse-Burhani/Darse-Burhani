@@ -77,6 +77,22 @@ export default function TeacherTimetablePage() {
   const badalDuties = data?.badalDuties || [];
   const badalsForMe = data?.badalsForMe || [];
 
+  const now = new Date();
+  const istDayStr = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "short" }).format(now);
+  const dowMap: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  const todayDow = dowMap[istDayStr] || 1;
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+
+  const todayDutiesMap = new Map<number, any>();
+  badalDuties.forEach((b: any) => {
+    if (b.date === todayIso) todayDutiesMap.set(b.period, b);
+  });
+
+  const todayCoveredMap = new Map<number, any>();
+  badalsForMe.forEach((b: any) => {
+    if (b.date === todayIso) todayCoveredMap.set(b.period, b);
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header Banner */}
@@ -161,37 +177,67 @@ export default function TeacherTimetablePage() {
               </tr>
             </thead>
             <tbody>
-              {DAYS.map((d) => (
-                <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
-                  <td className="p-3 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/80">
-                    {d.name}
-                  </td>
-                  {PERIOD_DEFS.map((p) => {
-                    const slot = slotsMap.get(`${d.day}_${p.period}`);
-                    return (
-                      <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
-                        {slot ? (
-                          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-50/80 to-slate-50 border border-emerald-200/80 shadow-2xs">
-                            <div className="text-xs font-black text-slate-900 leading-tight">
-                              {slot.subject}
+              {DAYS.map((d) => {
+                const isToday = d.day === todayDow;
+                return (
+                  <tr key={d.day} className={`border-b border-slate-100 transition-colors ${isToday ? "bg-amber-50/20" : "hover:bg-slate-50/60"}`}>
+                    <td className={`p-3 font-black text-xs border-r border-slate-200/80 ${isToday ? "bg-amber-100/60 text-amber-950 font-extrabold" : "bg-slate-50/80 text-slate-900"}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span>{d.name}</span>
+                        {isToday && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
+                      </div>
+                    </td>
+                    {PERIOD_DEFS.map((p) => {
+                      const slot = slotsMap.get(`${d.day}_${p.period}`);
+                      const badalDutyToday = isToday ? todayDutiesMap.get(p.period) : null;
+                      const coveredToday = isToday ? todayCoveredMap.get(p.period) : null;
+
+                      return (
+                        <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
+                          {badalDutyToday ? (
+                            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 shadow-2xs">
+                              <div className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                                <ArrowRightLeft className="w-2.5 h-2.5 text-amber-700" /> Badal Duty
+                              </div>
+                              <div className="text-xs font-black text-slate-900 leading-tight mt-0.5">
+                                {badalDutyToday.subject}
+                              </div>
+                              <div className="text-[11px] text-amber-900 font-bold mt-1">
+                                Class {badalDutyToday.className}
+                              </div>
+                              <div className="text-[9.5px] text-slate-500 mt-0.5 italic">
+                                For {badalDutyToday.originalTeacher}
+                              </div>
                             </div>
-                            <div className="text-[11px] text-emerald-800 font-bold mt-1">
-                              Class {slot.className}
+                          ) : slot ? (
+                            <div className={`p-2.5 rounded-xl border shadow-2xs ${coveredToday ? "bg-slate-50 border-slate-300 opacity-75" : "bg-gradient-to-br from-emerald-50/80 to-slate-50 border-emerald-200/80"}`}>
+                              <div className="text-xs font-black text-slate-900 leading-tight">
+                                {slot.subject}
+                              </div>
+                              <div className="text-[11px] text-emerald-800 font-bold mt-1">
+                                Class {slot.className}
+                              </div>
+                              {coveredToday ? (
+                                <div className="text-[9.5px] font-bold text-amber-800 mt-1 flex items-center gap-1">
+                                  <ArrowRightLeft className="w-2.5 h-2.5" /> Covered by {coveredToday.badalTeacher}
+                                </div>
+                              ) : (
+                                <div className="text-[9.5px] font-mono text-slate-400 mt-1">
+                                  {slot.roomNumber || `Room ${slot.className}`}
+                                </div>
+                              )}
                             </div>
-                            <div className="text-[9.5px] font-mono text-slate-400 mt-1">
-                              {slot.roomNumber || `Room ${slot.className}`}
+                          ) : (
+                            <div className="h-16 flex items-center justify-center text-[10px] text-slate-300 font-medium">
+                              Free
                             </div>
-                          </div>
-                        ) : (
-                          <div className="h-16 flex items-center justify-center text-[10px] text-slate-300 font-medium">
-                            Free
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
