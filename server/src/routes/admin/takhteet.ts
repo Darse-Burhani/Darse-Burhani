@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { cache } from "../../lib/cache";
 
 const router = Router();
 
@@ -74,108 +75,116 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// GET /api/admin/takhteet - Teachers with their classes + all plans
+// GET /api/admin/takhteet - Teachers with their classes + all plans (cached in-memory)
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
-    const [teachers, classes, plans] = await Promise.all([
-      prisma.teacherProfile.findMany({
-        where: { user: { isActive: true } },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
-          classes: {
-            select: {
-              id: true,
-              name: true,
-              subject: true,
-              academicYear: true,
-              isActive: true,
+    const data = await cache.getOrSet(
+      "admin:takhteet",
+      async () => {
+        const [teachers, classes, plans] = await Promise.all([
+          prisma.teacherProfile.findMany({
+            where: { user: { isActive: true } },
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
+              classes: {
+                select: {
+                  id: true,
+                  name: true,
+                  subject: true,
+                  academicYear: true,
+                  isActive: true,
+                },
+              },
+              _count: { select: { takhteetPlans: true } },
             },
-          },
-          _count: { select: { takhteetPlans: true } },
-        },
-        orderBy: { user: { firstName: "asc" } },
-      }),
-      prisma.class.findMany({
-        include: {
-          teacher: {
-            select: {
-              user: { select: { id: true, firstName: true, lastName: true } },
+            orderBy: { user: { firstName: "asc" } },
+          }),
+          prisma.class.findMany({
+            include: {
+              teacher: {
+                select: {
+                  user: { select: { id: true, firstName: true, lastName: true } },
+                },
+              },
             },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.takhteetPlan.findMany({
-        include: {
-          teacher: {
-            select: {
-              id: true,
-              user: { select: { id: true, firstName: true, lastName: true, email: true } },
-            },
-          },
-          class: { select: { id: true, name: true, grade: true, section: true } },
-          _count: { select: { progressLogs: true } },
-          progressLogs: {
             orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { note: true, createdAt: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
+          }),
+          prisma.takhteetPlan.findMany({
+            include: {
+              teacher: {
+                select: {
+                  id: true,
+                  user: { select: { id: true, firstName: true, lastName: true, email: true } },
+                },
+              },
+              class: { select: { id: true, name: true, grade: true, section: true } },
+              _count: { select: { progressLogs: true } },
+              progressLogs: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { note: true, createdAt: true },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          }),
+        ]);
 
-    return res.json({
-      success: true,
-      data: {
-        teachers: teachers.map((t) => ({
-          id: t.userId,
-          name: `${t.user.firstName} ${t.user.lastName}`,
-          email: t.user.email,
-          avatarUrl: t.user.avatarUrl,
-          employeeId: t.employeeId,
-          department: t.department,
-          subjects: t.subjects,
-          planCount: t._count.takhteetPlans,
-          classes: t.classes.map((c) => ({
-            classId: c.id,
-            className: c.name,
+        return {
+          teachers: teachers.map((t) => ({
+            id: t.userId,
+            name: `${t.user.firstName} ${t.user.lastName}`,
+            email: t.user.email,
+            avatarUrl: t.user.avatarUrl,
+            employeeId: t.employeeId,
+            department: t.department,
+            subjects: t.subjects,
+            planCount: t._count.takhteetPlans,
+            classes: t.classes.map((c) => ({
+              classId: c.id,
+              className: c.name,
+              subject: c.subject,
+              academicYear: c.academicYear,
+              isActive: c.isActive,
+            })),
+          })),
+          classes: classes.map((c) => ({
+            id: c.id,
+            name: c.name,
+            grade: c.grade,
+            section: c.section,
             subject: c.subject,
             academicYear: c.academicYear,
             isActive: c.isActive,
+            teacherUserId: c.teacher?.user?.id || null,
+            teacherName: c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned",
           })),
-        })),
-        classes: classes.map((c) => ({
-          id: c.id,
-          name: c.name,
-          grade: c.grade,
-          section: c.section,
-          subject: c.subject,
-          academicYear: c.academicYear,
-          isActive: c.isActive,
-          teacherUserId: c.teacher?.user?.id || null,
-          teacherName: c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned",
-        })),
-        plans: plans.map((p) => ({
-          id: p.id,
-          teacherId: p.teacher?.user?.id || "",
-          teacherName: p.teacher?.user ? `${p.teacher.user.firstName} ${p.teacher.user.lastName}` : "Unassigned",
-          teacherEmail: p.teacher?.user?.email || "",
-          classId: p.classId,
-          className: p.class ? `${p.class.name} (${p.class.grade}${p.class.section})` : "Unassigned",
-          subject: p.subject,
-          title: p.title,
-          description: p.description,
-          academicYear: p.academicYear,
-          month: p.month,
-          status: p.status,
-          progress: p.progress,
-          logCount: p._count?.progressLogs || 0,
-          lastLog: p.progressLogs?.[0] || null,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-        })),
+          plans: plans.map((p) => ({
+            id: p.id,
+            teacherId: p.teacher?.user?.id || "",
+            teacherName: p.teacher?.user ? `${p.teacher.user.firstName} ${p.teacher.user.lastName}` : "Unassigned",
+            teacherEmail: p.teacher?.user?.email || "",
+            classId: p.classId,
+            className: p.class ? `${p.class.name} (${p.class.grade}${p.class.section})` : "Unassigned",
+            subject: p.subject,
+            title: p.title,
+            description: p.description,
+            academicYear: p.academicYear,
+            month: p.month,
+            status: p.status,
+            progress: p.progress,
+            logCount: p._count?.progressLogs || 0,
+            lastLog: p.progressLogs?.[0] || null,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+          })),
+        };
       },
+      { ttl: 30_000, tags: ["takhteet", "teacher", "class"] }
+    );
+
+    return res.json({
+      success: true,
+      data,
     });
   } catch (error) {
     console.error("Takhteet fetch error:", error);
@@ -228,6 +237,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       },
     });
 
+    cache.invalidateTag("takhteet");
     return res.status(201).json({ success: true, data: plan });
   } catch (error) {
     console.error("Takhteet create error:", error);
@@ -279,6 +289,7 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
       });
     }
 
+    cache.invalidateTag("takhteet");
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error("Takhteet update error:", error);
@@ -290,6 +301,7 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
 router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
   try {
     await prisma.takhteetPlan.delete({ where: { id: req.params.id } });
+    cache.invalidateTag("takhteet");
     return res.json({ success: true });
   } catch (error) {
     console.error("Takhteet delete error:", error);

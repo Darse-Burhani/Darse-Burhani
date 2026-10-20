@@ -1,10 +1,11 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { cache } from "../../lib/cache";
 
 const router = Router();
 
-// GET /api/admin/timetable - Full matrix with optional filtering
+// GET /api/admin/timetable - Full matrix with optional filtering (high performance with memory caching)
 router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { classId, className, teacherId, dayOfWeek } = req.query as Record<string, string | undefined>;
@@ -22,157 +23,174 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     const startOfToday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
     const endOfToday = new Date(startOfToday.getTime() + 86400000);
 
-    const [slots, classes, teachers, todayBadals] = await Promise.all([
-      prisma.timetableSlot.findMany({
-        where,
-        include: {
-          class: {
-            select: {
-              id: true,
-              name: true,
-              grade: true,
-              section: true,
-              subject: true,
-            },
-          },
-          teacher: {
-            select: {
-              id: true,
-              its: true,
-              employeeId: true,
-              user: {
+    const cacheKey = `admin:timetable:${JSON.stringify(where)}`;
+    const data = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        const [slots, classes, teachers, todayBadals] = await Promise.all([
+          prisma.timetableSlot.findMany({
+            where,
+            include: {
+              class: {
                 select: {
-                  firstName: true,
-                  lastName: true,
-                  avatarUrl: true,
+                  id: true,
+                  name: true,
+                  grade: true,
+                  section: true,
+                  subject: true,
                 },
               },
-            },
-          },
-        },
-        orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }, { className: "asc" }],
-      }),
-      prisma.class.findMany({
-        where: { isActive: true, grade: { in: ["1", "2", "3", "4"] } },
-        include: {
-          masool: {
-            include: { user: true },
-          },
-          enrollments: {
-            include: {
-              student: {
-                include: {
+              teacher: {
+                select: {
+                  id: true,
+                  its: true,
+                  employeeId: true,
                   user: {
                     select: {
-                      id: true,
                       firstName: true,
                       lastName: true,
                       avatarUrl: true,
-                      email: true,
                     },
                   },
                 },
               },
             },
-            orderBy: [{ student: { rollNumber: "asc" } }, { student: { user: { firstName: "asc" } } }],
-          },
-          _count: {
-            select: { enrollments: true, timetableSlots: true },
-          },
-        },
-        orderBy: [{ grade: "asc" }, { section: "asc" }],
-      }),
-      prisma.teacherProfile.findMany({
-        where: {
-          user: { isActive: true, deletedAt: null },
-        },
-        include: {
-          user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
-          _count: { select: { timetableSlots: true } },
-        },
-        orderBy: [{ timetableSlots: { _count: "desc" } }, { user: { firstName: "asc" } }],
-      }),
-      prisma.timetableBadal.findMany({
-        where: {
-          date: { gte: startOfToday, lt: endOfToday },
-        },
-        include: {
-          originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
-          badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
-        },
-        orderBy: [{ period: "asc" }],
-      }),
-    ]);
+            orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }, { className: "asc" }],
+          }),
+          prisma.class.findMany({
+            where: { isActive: true, grade: { in: ["1", "2", "3", "4"] } },
+            include: {
+              masool: {
+                select: {
+                  id: true,
+                  its: true,
+                  user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+                },
+              },
+              enrollments: {
+                where: { isActive: true },
+                include: {
+                  student: {
+                    select: {
+                      id: true,
+                      its: true,
+                      rollNumber: true,
+                      user: {
+                        select: {
+                          id: true,
+                          firstName: true,
+                          lastName: true,
+                          avatarUrl: true,
+                          email: true,
+                        },
+                      },
+                    },
+                  },
+                },
+                orderBy: [{ student: { rollNumber: "asc" } }, { student: { user: { firstName: "asc" } } }],
+              },
+              _count: {
+                select: { enrollments: true, timetableSlots: true },
+              },
+            },
+            orderBy: [{ grade: "asc" }, { section: "asc" }],
+          }),
+          prisma.teacherProfile.findMany({
+            where: {
+              user: { isActive: true, deletedAt: null },
+            },
+            include: {
+              user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+              _count: { select: { timetableSlots: true } },
+            },
+            orderBy: [{ timetableSlots: { _count: "desc" } }, { user: { firstName: "asc" } }],
+          }),
+          prisma.timetableBadal.findMany({
+            where: {
+              date: { gte: startOfToday, lt: endOfToday },
+            },
+            include: {
+              originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+              badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+            },
+            orderBy: [{ period: "asc" }],
+          }),
+        ]);
+
+        return {
+          slots: slots.map((s) => ({
+            id: s.id,
+            classId: s.classId,
+            className: s.className || s.class?.name || "Class",
+            classGrade: s.class?.grade || "",
+            classSection: s.class?.section || "",
+            teacherId: s.teacherId,
+            teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
+            teacherAvatar: s.teacher?.user?.avatarUrl || null,
+            teacherIts: s.teacher?.its || null,
+            subject: s.subject,
+            dayOfWeek: s.dayOfWeek,
+            period: s.period,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            roomNumber: s.roomNumber,
+            isBreak: s.isBreak,
+            breakName: s.breakName,
+          })),
+          classes: classes.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            grade: c.grade,
+            section: c.section,
+            subject: c.subject,
+            masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
+            masoolIts: c.masool?.its || null,
+            masoolAvatar: c.masool?.user?.avatarUrl || null,
+            masoolId: c.masoolId,
+            studentCount: c._count.enrollments,
+            slotCount: c._count.timetableSlots,
+            talabat: (c.enrollments || []).map((e: any) => ({
+              id: e.student.id,
+              userId: e.student.user?.id,
+              name: `${e.student.user?.firstName || ""} ${e.student.user?.lastName || ""}`.trim(),
+              its: e.student.its,
+              rollNumber: e.student.rollNumber || null,
+              avatarUrl: e.student.user?.avatarUrl || null,
+            })),
+          })),
+          teachers: teachers.map((t) => ({
+            id: t.id,
+            name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+            email: t.user?.email || "",
+            its: t.its,
+            avatarUrl: t.user?.avatarUrl || null,
+            weeklyPeriods: t._count.timetableSlots,
+          })),
+          todayBadals: todayBadals.map((b) => ({
+            id: b.id,
+            date: b.date.toISOString().split("T")[0],
+            slotId: b.slotId,
+            classId: b.classId,
+            className: b.className,
+            period: b.period,
+            subject: b.subject,
+            originalTeacherId: b.originalTeacherId,
+            originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
+            originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
+            badalTeacherId: b.badalTeacherId,
+            badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName} ${b.badalTeacher.user.lastName}` : "TBA"),
+            badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
+            status: b.status,
+            isFulfilled: b.isFulfilled,
+          })),
+        };
+      },
+      { ttl: 15_000, tags: ["timetableslot", "timetable", "class"] }
+    );
 
     return res.json({
       success: true,
-      data: {
-        slots: slots.map((s) => ({
-          id: s.id,
-          classId: s.classId,
-          className: s.className || s.class?.name || "Class",
-          classGrade: s.class?.grade || "",
-          classSection: s.class?.section || "",
-          teacherId: s.teacherId,
-          teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
-          teacherAvatar: s.teacher?.user?.avatarUrl || null,
-          teacherIts: s.teacher?.its || null,
-          subject: s.subject,
-          dayOfWeek: s.dayOfWeek,
-          period: s.period,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          roomNumber: s.roomNumber,
-          isBreak: s.isBreak,
-          breakName: s.breakName,
-        })),
-        classes: classes.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          grade: c.grade,
-          section: c.section,
-          subject: c.subject,
-          masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
-          masoolIts: c.masool?.its || null,
-          masoolAvatar: c.masool?.user?.avatarUrl || null,
-          masoolId: c.masoolId,
-          studentCount: c._count.enrollments,
-          slotCount: c._count.timetableSlots,
-          talabat: (c.enrollments || []).map((e: any) => ({
-            id: e.student.id,
-            userId: e.student.user?.id,
-            name: `${e.student.user?.firstName || ""} ${e.student.user?.lastName || ""}`.trim(),
-            its: e.student.its,
-            rollNumber: e.student.rollNumber || null,
-            avatarUrl: e.student.user?.avatarUrl || null,
-          })),
-        })),
-        teachers: teachers.map((t) => ({
-          id: t.id,
-          name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
-          email: t.user?.email || "",
-          its: t.its,
-          avatarUrl: t.user?.avatarUrl || null,
-          weeklyPeriods: t._count.timetableSlots,
-        })),
-        todayBadals: todayBadals.map((b) => ({
-          id: b.id,
-          date: b.date.toISOString().split("T")[0],
-          slotId: b.slotId,
-          classId: b.classId,
-          className: b.className,
-          period: b.period,
-          subject: b.subject,
-          originalTeacherId: b.originalTeacherId,
-          originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
-          originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
-          badalTeacherId: b.badalTeacherId,
-          badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName} ${b.badalTeacher.user.lastName}` : "TBA"),
-          badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
-          status: b.status,
-          isFulfilled: b.isFulfilled,
-        })),
-      },
+      data,
     });
   } catch (error) {
     console.error("Timetable fetch error:", error);
@@ -361,6 +379,9 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       }
     }
 
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
     return res.json({
       success: true,
       data: formatSlotResponse(slot),
@@ -410,6 +431,9 @@ router.put("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       include: SLOT_INCLUDE,
     });
 
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
     return res.json({ success: true, data: formatSlotResponse(updated) });
   } catch (error) {
     console.error("Timetable slot update error:", error);
@@ -425,6 +449,8 @@ router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Slot id is required" });
     }
     await prisma.timetableSlot.delete({ where: { id } });
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
     return res.json({ success: true, message: "Timetable slot deleted successfully" });
   } catch (error) {
     console.error("Timetable slot delete error:", error);
@@ -434,7 +460,7 @@ router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 
 // ── BADAL (SUBSTITUTION) MANAGEMENT ENDPOINTS ──
 
-// GET /api/admin/timetable/badal - List badal records
+// GET /api/admin/timetable/badal - List badal records (high performance cached)
 router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { date, status, search } = req.query as Record<string, string | undefined>;
@@ -471,45 +497,54 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       ];
     }
 
-    const badals = await prisma.timetableBadal.findMany({
-      where,
-      include: {
-        originalTeacher: {
-          include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
-        },
-        badalTeacher: {
-          include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
-        },
-        slot: true,
+    const cacheKey = `admin:timetable:badal:${JSON.stringify(where)}`;
+    const data = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        const badals = await prisma.timetableBadal.findMany({
+          where,
+          include: {
+            originalTeacher: {
+              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+            },
+            badalTeacher: {
+              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+            },
+            slot: true,
+          },
+          orderBy: [{ date: "desc" }, { period: "asc" }],
+        });
+
+        return badals.map((b) => ({
+          id: b.id,
+          date: b.date.toISOString().split("T")[0],
+          slotId: b.slotId,
+          classId: b.classId,
+          className: b.className,
+          period: b.period,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          subject: b.subject,
+          originalTeacherId: b.originalTeacherId,
+          originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"),
+          originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
+          badalTeacherId: b.badalTeacherId,
+          badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"),
+          badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
+          reason: b.reason,
+          status: b.status,
+          instructions: b.instructions,
+          isFulfilled: b.isFulfilled,
+          notes: b.notes,
+          createdAt: b.createdAt,
+        }));
       },
-      orderBy: [{ date: "desc" }, { period: "asc" }],
-    });
+      { ttl: 15_000, tags: ["timetablebadal", "timetable"] }
+    );
 
     return res.json({
       success: true,
-      data: badals.map((b) => ({
-        id: b.id,
-        date: b.date.toISOString().split("T")[0],
-        slotId: b.slotId,
-        classId: b.classId,
-        className: b.className,
-        period: b.period,
-        startTime: b.startTime,
-        endTime: b.endTime,
-        subject: b.subject,
-        originalTeacherId: b.originalTeacherId,
-        originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"),
-        originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
-        badalTeacherId: b.badalTeacherId,
-        badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"),
-        badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
-        reason: b.reason,
-        status: b.status,
-        instructions: b.instructions,
-        isFulfilled: b.isFulfilled,
-        notes: b.notes,
-        createdAt: b.createdAt,
-      })),
+      data,
     });
   } catch (error) {
     console.error("Badal fetch error:", error);
@@ -650,10 +685,13 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         assignedById: session.user.id,
       },
       include: {
-        originalTeacher: { include: { user: true } },
-        badalTeacher: { include: { user: true } },
+        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+        badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
       },
     });
+
+    cache.invalidateTag("timetablebadal");
+    cache.invalidateTag("timetable");
 
     return res.json({ success: true, data: badal });
   } catch (error) {
@@ -681,6 +719,9 @@ router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       data,
     });
 
+    cache.invalidateTag("timetablebadal");
+    cache.invalidateTag("timetable");
+
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error("Update badal error:", error);
@@ -693,6 +734,8 @@ router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) =>
   try {
     const { id } = req.params;
     await prisma.timetableBadal.delete({ where: { id } });
+    cache.invalidateTag("timetablebadal");
+    cache.invalidateTag("timetable");
     return res.json({ success: true, message: "Badal assignment deleted successfully" });
   } catch (error) {
     console.error("Delete badal error:", error);

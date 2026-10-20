@@ -1,7 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
-import { apiCacheMiddleware } from "../../lib/cache";
+import { apiCacheMiddleware, cache } from "../../lib/cache";
 
 const router = Router();
 
@@ -145,93 +145,103 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 // GET /api/admin/classes/:id - Full class detail: info + roster + timetable
 router.get("/:id", requireRole("ADMIN"), async (req, res) => {
   try {
-    const cls = await prisma.class.findUnique({
-      where: { id: req.params.id },
-      include: {
-        teacher: {
-          select: {
-            id: true,
-            user: { select: { id: true, firstName: true, lastName: true } },
-          },
-        },
-        masool: {
-          select: {
-            id: true,
-            user: { select: { id: true, firstName: true, lastName: true } },
-          },
-        },
-        enrollments: {
-          where: { isActive: true },
+    const data = await cache.getOrSet(
+      `admin:class:${req.params.id}`,
+      async () => {
+        const cls = await prisma.class.findUnique({
+          where: { id: req.params.id },
           include: {
-            student: {
+            teacher: {
+              select: {
+                id: true,
+                user: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+            masool: {
+              select: {
+                id: true,
+                user: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+            enrollments: {
+              where: { isActive: true },
               include: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                    isActive: true,
-                    avatarUrl: true,
+                student: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        isActive: true,
+                        avatarUrl: true,
+                      },
+                    },
                   },
                 },
               },
+              orderBy: { student: { user: { firstName: "asc" } } },
+            },
+            timetableSlots: {
+              orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
             },
           },
-          orderBy: { student: { user: { firstName: "asc" } } },
-        },
-      },
-    });
+        });
 
-    if (!cls) {
+        if (!cls) {
+          return null;
+        }
+
+        return {
+          id: cls.id,
+          name: cls.name,
+          grade: cls.grade,
+          section: cls.section,
+          subject: cls.subject,
+          roomNumber: cls.roomNumber,
+          academicYear: cls.academicYear,
+          isActive: cls.isActive,
+          teacherId: cls.teacher?.user?.id || null,
+          teacherName: cls.teacher?.user ? `${cls.teacher.user.firstName} ${cls.teacher.user.lastName}` : "Unassigned",
+          masoolId: cls.masool?.user?.id ?? null,
+          masoolName: cls.masool?.user ? `${cls.masool.user.firstName} ${cls.masool.user.lastName}` : null,
+          students: cls.enrollments.map((e) => ({
+            studentProfileId: e.student.id,
+            userId: e.student.user.id,
+            studentId: e.student.studentId,
+            firstName: e.student.user.firstName,
+            lastName: e.student.user.lastName,
+            email: e.student.user.email,
+            isActive: e.student.user.isActive,
+            avatarUrl: e.student.user.avatarUrl,
+            grade: e.student.grade,
+            section: e.student.section,
+            status: e.student.status,
+          })),
+          slots: (cls.timetableSlots || []).map((s) => ({
+            id: s.id,
+            dayOfWeek: s.dayOfWeek,
+            period: s.period,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            subject: s.subject,
+            roomNumber: s.roomNumber,
+            isBreak: s.isBreak,
+            breakName: s.breakName,
+          })),
+        };
+      },
+      { ttl: 20_000, tags: ["class", "classes", "timetableslot"] }
+    );
+
+    if (!data) {
       return res.status(404).json({ success: false, error: "Class not found" });
     }
 
-    const slots = await prisma.timetableSlot.findMany({
-      where: { classId: cls.id },
-      orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
-    });
-
     return res.json({
       success: true,
-      data: {
-        id: cls.id,
-        name: cls.name,
-        grade: cls.grade,
-        section: cls.section,
-        subject: cls.subject,
-        roomNumber: cls.roomNumber,
-        academicYear: cls.academicYear,
-        isActive: cls.isActive,
-        teacherId: cls.teacher?.user?.id || null,
-        teacherName: cls.teacher?.user ? `${cls.teacher.user.firstName} ${cls.teacher.user.lastName}` : "Unassigned",
-        masoolId: cls.masool?.user?.id ?? null,
-        masoolName: cls.masool?.user ? `${cls.masool.user.firstName} ${cls.masool.user.lastName}` : null,
-        students: cls.enrollments.map((e) => ({
-          studentProfileId: e.student.id,
-          userId: e.student.user.id,
-          studentId: e.student.studentId,
-          firstName: e.student.user.firstName,
-          lastName: e.student.user.lastName,
-          email: e.student.user.email,
-          isActive: e.student.user.isActive,
-          avatarUrl: e.student.user.avatarUrl,
-          grade: e.student.grade,
-          section: e.student.section,
-          status: e.student.status,
-        })),
-        slots: slots.map((s) => ({
-          id: s.id,
-          dayOfWeek: s.dayOfWeek,
-          period: s.period,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          subject: s.subject,
-          roomNumber: s.roomNumber,
-          isBreak: s.isBreak,
-          breakName: s.breakName,
-        })),
-      },
+      data,
     });
   } catch (error) {
     console.error("Class detail error:", error);

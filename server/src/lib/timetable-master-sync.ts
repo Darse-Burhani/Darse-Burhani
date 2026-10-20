@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import bcrypt from "bcryptjs";
+import { cache } from "./cache";
 
 // Official Teacher ITS & Email Mapping
 export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
@@ -396,11 +397,14 @@ export async function ensureDatabaseSchema(): Promise<void> {
     // 4. Ensure performance indexes exist
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_slots_teacherId_idx" ON "timetable_slots"("teacherId");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_slots_dayOfWeek_period_idx" ON "timetable_slots"("dayOfWeek", "period");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_slots_className_idx" ON "timetable_slots"("className");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_slots_classId_dow_p_idx" ON "timetable_slots"("classId", "dayOfWeek", "period");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_date_idx" ON "timetable_badals"("date");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_status_idx" ON "timetable_badals"("status");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_badalTeacherId_idx" ON "timetable_badals"("badalTeacherId");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_originalTeacherId_idx" ON "timetable_badals"("originalTeacherId");`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_date_period_idx" ON "timetable_badals"("date", "period");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_className_date_idx" ON "timetable_badals"("className", "date");`);
 
     // 5. Ensure Foreign Keys exist
     await prisma.$executeRawUnsafe(`
@@ -578,7 +582,8 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
     select: { id: true, studentId: true, grade: true, section: true },
   });
 
-  let enrolledCount = 0;
+  // Step 3: Fast batch enrollment of Talabat into matching classes
+  const enrollmentList: Array<{ classId: string; studentId: string; isActive: boolean }> = [];
   for (const st of allStudents) {
     const gradeNum = (st.grade || "").replace(/[^0-9]/g, "") || "1";
     const secLetter = (st.section || "A").trim().toUpperCase();
@@ -586,18 +591,38 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
     const targetClassId = classIdMap.get(targetClassName);
 
     if (targetClassId) {
-      try {
-        await prisma.classEnrollment.upsert({
-          where: { classId_studentId: { classId: targetClassId, studentId: st.id } },
-          update: { isActive: true },
-          create: { classId: targetClassId, studentId: st.id, isActive: true },
-        });
-        enrolledCount++;
-      } catch {}
+      enrollmentList.push({
+        classId: targetClassId,
+        studentId: st.id,
+        isActive: true,
+      });
     }
   }
 
-  // Step 4: Ingest / Re-sync Timetable Slots
+  let enrolledCount = 0;
+  if (enrollmentList.length > 0) {
+    try {
+      const res = await prisma.classEnrollment.createMany({
+        data: enrollmentList,
+        skipDuplicates: true,
+      });
+      enrolledCount = res.count;
+    } catch {
+      // Graceful fallback if composite key conflict
+      for (const item of enrollmentList) {
+        try {
+          await prisma.classEnrollment.upsert({
+            where: { classId_studentId: { classId: item.classId, studentId: item.studentId } },
+            update: { isActive: true },
+            create: item,
+          });
+          enrolledCount++;
+        } catch {}
+      }
+    }
+  }
+
+  // Step 4: Fast batch ingest of Timetable Slots (1 single query instead of 240 roundtrips)
   const currentSlotCount = await prisma.timetableSlot.count();
   if (force || currentSlotCount === 0) {
     if (force) {
@@ -605,29 +630,34 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
       await prisma.timetableSlot.deleteMany({});
     }
 
-    let insertedSlots = 0;
-    for (const [clsName, dayOfWeek, period, subject, teacherKey] of RAW_SLOTS) {
+    const slotPayloads = RAW_SLOTS.map(([clsName, dayOfWeek, period, subject, teacherKey]) => {
       const classId = classIdMap.get(clsName) || null;
       const teacherId = teacherIdMap.get(teacherKey) || fallbackTeacherId || null;
       const times = PERIOD_TIMES[period] || { startTime: "10:30", endTime: "11:00" };
+      return {
+        classId,
+        className: clsName,
+        teacherId,
+        teacherName: teacherKey,
+        dayOfWeek,
+        period,
+        startTime: times.startTime,
+        endTime: times.endTime,
+        subject,
+        roomNumber: `Room ${clsName}`,
+      };
+    });
 
-      await prisma.timetableSlot.create({
-        data: {
-          classId,
-          className: clsName,
-          teacherId,
-          teacherName: teacherKey,
-          dayOfWeek,
-          period,
-          startTime: times.startTime,
-          endTime: times.endTime,
-          subject,
-          roomNumber: `Room ${clsName}`,
-        },
-      });
-      insertedSlots++;
-    }
-    console.log(`[timetable:sync] ✓ Successfully seeded ${insertedSlots} timetable slots across 8 classes!`);
+    const created = await prisma.timetableSlot.createMany({
+      data: slotPayloads,
+      skipDuplicates: true,
+    });
+
+    const insertedSlots = created.count || slotPayloads.length;
+    cache.invalidateTag("timetable");
+    cache.invalidateTag("classes");
+
+    console.log(`[timetable:sync] ✓ Successfully batch seeded ${insertedSlots} timetable slots across 8 classes!`);
     return {
       success: true,
       classesCount: CLASS_CONFIGS.length,
@@ -636,6 +666,9 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
       message: `Master timetable synchronized: 8 classes active, ${insertedSlots} timetable slots generated, ${enrolledCount} students enrolled.`,
     };
   }
+
+  cache.invalidateTag("timetable");
+  cache.invalidateTag("classes");
 
   return {
     success: true,

@@ -28,15 +28,32 @@ function getPooledDatabaseUrl(): string | undefined {
     const [base, queryStr] = url.split("?");
     const params = new URLSearchParams(queryStr || "");
 
-    const defaultLimit = process.env.RENDER ? "3" : "5";
+    const isSupabasePooler = url.includes("pooler.supabase.com") || url.includes("supabase.co");
+    const isPort6543 = url.includes(":6543");
+    const isPort5432 = url.includes(":5432");
+
+    // Optimize connection limit:
+    // Supabase session pooler on port 5432 limits max clients to 15. Keep connection limit low to prevent exhaustion.
+    const defaultLimit = process.env.RENDER ? (isSupabasePooler && isPort5432 ? "3" : "4") : "5";
     const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || defaultLimit, 10);
     params.set("connection_limit", String(targetLimit));
+
+    // Connect & Pool timeouts
     const currentTimeout = parseInt(params.get("pool_timeout") || "0", 10);
     if (!params.has("pool_timeout") || currentTimeout < 30) {
       params.set("pool_timeout", "30");
     }
-    if (!params.has("prepared_statement_cache_size")) {
-      params.set("prepared_statement_cache_size", "500");
+    if (!params.has("connect_timeout")) {
+      params.set("connect_timeout", "15");
+    }
+
+    // Handle PgBouncer transaction mode vs session mode
+    if (isPort6543 || params.get("pgbouncer") === "true") {
+      params.set("pgbouncer", "true");
+      params.set("statement_cache_size", "0");
+      params.delete("prepared_statement_cache_size");
+    } else if (!params.has("prepared_statement_cache_size")) {
+      params.set("prepared_statement_cache_size", "250");
     }
 
     return `${base}?${params.toString()}`;
@@ -57,15 +74,24 @@ const prismaClientSingleton = () => {
       async $allOperations({ model, operation, args, query }: any) {
         const result = await query(args);
 
-        // Only invalidate cache on write operations — reads are safe
+        // Invalidate cache on write operations — reads are fast & cached
         if (model && WRITE_OPERATIONS.has(operation)) {
           const tag = model.toLowerCase();
           cache.invalidateTag(tag);
 
-          // Also clear global dashboards/stats that aggregate across models
+          // Clear global dashboards/stats
           if (["pointlog", "studentprofile", "attendancerecord"].includes(tag)) {
             cache.invalidateTag("dashboard");
             cache.invalidateTag("stats");
+          }
+
+          // Clear timetable & class caches
+          if (["timetableslot", "timetablebadal", "class", "classenrollment", "teacherprofile", "user"].includes(tag)) {
+            cache.invalidateTag("timetable");
+            cache.invalidateTag("timetableslot");
+            cache.invalidateTag("class");
+            cache.invalidateTag("classes");
+            cache.invalidateTag("teachers");
           }
         }
 
