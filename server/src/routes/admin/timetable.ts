@@ -437,22 +437,38 @@ router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // GET /api/admin/timetable/badal - List badal records
 router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    const { date, status } = req.query as Record<string, string | undefined>;
-    let targetDate: Date | undefined;
-    if (date && typeof date === "string" && date.trim()) {
-      const parsed = Date.parse(date.includes("T") ? date : `${date}T00:00:00.000Z`);
-      if (!Number.isNaN(parsed)) {
-        targetDate = new Date(parsed);
+    const { date, status, search } = req.query as Record<string, string | undefined>;
+    const where: any = {};
+
+    if (date && date !== "ALL") {
+      if (date === "week") {
+        const now = new Date();
+        const startOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7), 0, 0, 0));
+        const endOfWeek = new Date(startOfWeek.getTime() + 7 * 86400000);
+        where.date = { gte: startOfWeek, lt: endOfWeek };
+      } else {
+        const parsed = Date.parse(date.includes("T") ? date : `${date}T00:00:00.000Z`);
+        if (!Number.isNaN(parsed)) {
+          const targetDate = new Date(parsed);
+          const nextDay = new Date(targetDate.getTime() + 86400000);
+          where.date = { gte: targetDate, lt: nextDay };
+        }
       }
     }
 
-    const where: any = {};
-    if (targetDate) {
-      const nextDay = new Date(targetDate.getTime() + 86400000);
-      where.date = { gte: targetDate, lt: nextDay };
-    }
     if (status && status !== "ALL") {
       where.status = status;
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { className: { contains: q, mode: "insensitive" } },
+        { subject: { contains: q, mode: "insensitive" } },
+        { originalTeacherName: { contains: q, mode: "insensitive" } },
+        { badalTeacherName: { contains: q, mode: "insensitive" } },
+        { reason: { contains: q, mode: "insensitive" } },
+      ];
     }
 
     const badals = await prisma.timetableBadal.findMany({
@@ -550,11 +566,10 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
       if (b.badalTeacherId) busyTeacherIds.add(b.badalTeacherId);
     }
 
-    // 3. Find all active teachers who are FREE
+    // 3. Find all active teachers, prioritizing those who are completely free
     const allTeachers = await prisma.teacherProfile.findMany({
       where: {
         user: { isActive: true, deletedAt: null },
-        id: { notIn: Array.from(busyTeacherIds) },
       },
       include: {
         user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
@@ -565,15 +580,20 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
 
     return res.json({
       success: true,
-      data: allTeachers.map((t) => ({
-        id: t.id,
-        name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
-        email: t.user?.email || "",
-        its: t.its,
-        avatarUrl: t.user?.avatarUrl || null,
-        badalCount: t._count.substituteBadals,
-        isFree: true,
-      })),
+      data: allTeachers
+        .map((t) => {
+          const isFree = !busyTeacherIds.has(t.id);
+          return {
+            id: t.id,
+            name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+            email: t.user?.email || "",
+            its: t.its,
+            avatarUrl: t.user?.avatarUrl || null,
+            badalCount: t._count.substituteBadals,
+            isFree,
+          };
+        })
+        .sort((a, b) => (a.isFree === b.isFree ? 0 : a.isFree ? -1 : 1)),
     });
   } catch (error) {
     console.error("Available teachers error:", error);
