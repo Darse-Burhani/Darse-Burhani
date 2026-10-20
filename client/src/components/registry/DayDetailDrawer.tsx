@@ -267,7 +267,7 @@ export function DayDetailDrawer({
                                 {d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                               </span>
                               <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                                   item.status === "PRESENT"
                                     ? "bg-emerald-50 text-emerald-700"
                                     : item.status === "LATE"
@@ -279,24 +279,16 @@ export function DayDetailDrawer({
                                     : "bg-red-50 text-red-700"
                                 }`}
                               >
-                                <span>{item.status}</span>
+                                <span>{item.status === "ON_LEAVE" ? "LEAVE" : item.status}</span>
                               </span>
                             </div>
 
                             <div className="text-right text-[11px] text-gray-500">
                               <span className="font-medium text-gray-700">
                                 {item.source === "BIOMETRIC" || item.source === "SCAN"
-                                  ? "Live Scan"
+                                  ? "Device Scan"
                                   : item.source.replace(/_/g, " ")}
                               </span>
-                              {item.checkInTime && (
-                                <div className="text-[10px] text-gray-400">
-                                  {new Date(item.checkInTime).toLocaleTimeString("en-US", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </div>
-                              )}
                             </div>
                           </div>
                         );

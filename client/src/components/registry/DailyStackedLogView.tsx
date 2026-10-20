@@ -53,21 +53,52 @@ interface DailyStackedLogViewProps {
 
 type TabType = "ALL" | "PRESENT" | "LATE" | "MEDICAL" | "ON_LEAVE" | "ABSENT" | "NOT_MARKED";
 
-function formatPreciseScanTime(isoTime?: string | null) {
-  if (!isoTime) return null;
-  const d = new Date(isoTime);
-  if (Number.isNaN(d.getTime())) return null;
-  const timeStr = d.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-  const now = Date.now();
-  const diffMs = now - d.getTime();
-  const isRecent = diffMs >= 0 && diffMs < 5 * 60 * 1000;
-  return { timeStr, isRecent };
+function getStatusBadgeConfig(status: string) {
+  switch (status) {
+    case "PRESENT":
+      return {
+        label: "PRESENT",
+        icon: CheckCircle2,
+        className: "bg-emerald-50 text-emerald-800 border-emerald-300",
+      };
+    case "LATE":
+      return {
+        label: "LATE",
+        icon: Clock,
+        className: "bg-amber-50 text-amber-800 border-amber-300",
+      };
+    case "ABSENT":
+      return {
+        label: "ABSENT",
+        icon: XCircle,
+        className: "bg-red-50 text-red-800 border-red-300",
+      };
+    case "ON_LEAVE":
+      return {
+        label: "LEAVE",
+        icon: FileCheck2,
+        className: "bg-purple-50 text-purple-800 border-purple-300",
+      };
+    case "MEDICAL":
+      return {
+        label: "MEDICAL",
+        icon: Stethoscope,
+        className: "bg-rose-50 text-rose-800 border-rose-300",
+      };
+    case "HOLIDAY":
+      return {
+        label: "HOLIDAY",
+        icon: CalendarDays,
+        className: "bg-amber-50 text-amber-900 border-amber-300",
+      };
+    case "NOT_MARKED":
+    default:
+      return {
+        label: "NOT MARKED",
+        icon: Timer,
+        className: "bg-slate-100 text-slate-700 border-slate-300",
+      };
+  }
 }
 
 // Animated number with live pulse
@@ -162,9 +193,8 @@ function AttendanceTableView({
               <th scope="col" className="px-4 py-3">{isFaculty ? "Faculty Member" : "Talib (Student)"}</th>
               <th scope="col" className="px-3 py-3 font-mono">{isFaculty ? "Employee ID" : "ITS / ID"}</th>
               <th scope="col" className="px-3 py-3">{isFaculty ? "Department / Roles" : "Grade & Section"}</th>
-              <th scope="col" className="px-3 py-3">Scan &amp; Check-in</th>
+              <th scope="col" className="px-3 py-3 text-center">Attendance Status</th>
               <th scope="col" className="px-3 py-3">Verification Mode</th>
-              <th scope="col" className="px-3 py-3 text-center">Status</th>
               <th scope="col" className="px-4 py-3">Notes / Remarks</th>
               <th scope="col" className="px-3 py-3 text-right">Action</th>
             </tr>
@@ -173,6 +203,9 @@ function AttendanceTableView({
             {records.map((r, i) => {
               const isScanned = Boolean(r.source === "SCAN" || r.verificationMethod === "BIOMETRIC" || r.checkInTime);
               const hijri = getHijriFromDate(r.checkInTime || selectedDate);
+              const badge = getStatusBadgeConfig(r.status);
+              const StatusIcon = badge.icon;
+
               return (
                 <tr
                   key={r.id || r.memberId || i}
@@ -217,90 +250,56 @@ function AttendanceTableView({
 
                   {/* Class / Department */}
                   <td className="px-3 py-2.5 text-gray-600 font-semibold">
-                    {r.designationOrClass || "—"}
+                    <div>{r.designationOrClass || "—"}</div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold text-slate-600 bg-slate-100 border border-slate-200"
+                        title={hijri.formatted}
+                      >
+                        <Moon className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                        <span>{hijri.day} {hijri.monthNameShort}</span>
+                      </span>
+                    </div>
                   </td>
 
-                  {/* Scan & Check-in Time */}
-                  <td className="px-3 py-2.5 font-mono text-gray-900 tabular-nums">
-                    {(() => {
-                      const formatted = formatPreciseScanTime(r.checkInTime);
-                      return (
-                        <div className="flex flex-col gap-1">
-                          {formatted ? (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-300 text-xs flex items-center gap-1">
-                                <Zap className="w-3 h-3 text-emerald-600 fill-current" />
-                                {formatted.timeStr} IST
-                              </span>
-                              {formatted.isRecent && (
-                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
-                                  Live
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 font-normal">
-                              ⏳ Not Scanned
-                            </span>
-                          )}
-
-                          {/* Hijri Day Tag */}
-                          <div className="flex items-center gap-1">
-                            <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold text-slate-700 bg-slate-100 border border-slate-200"
-                              title={hijri.formatted}
-                            >
-                              <Moon className="w-2.5 h-2.5 text-slate-500 shrink-0" />
-                              <span>{hijri.day} {hijri.monthNameShort}</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                  {/* Attendance Status Badge (PRESENT, LATE, ABSENT, LEAVE, MEDICAL) */}
+                  <td className="px-3 py-2.5 text-center">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border tracking-wide shadow-2xs ${badge.className}`}
+                    >
+                      <StatusIcon className="w-3.5 h-3.5" />
+                      <span>{badge.label}</span>
+                    </span>
                   </td>
 
                   {/* Verification Mode */}
                   <td className="px-3 py-2.5 text-xs">
-                    {isScanned ? (
+                    {r.status === "ON_LEAVE" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-900 border border-purple-200">
+                        <FileCheck2 className="w-3 h-3 text-purple-600" />
+                        Approved Leave
+                      </span>
+                    ) : r.status === "MEDICAL" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-900 border border-rose-200">
+                        <Stethoscope className="w-3 h-3 text-rose-600" />
+                        Medical Duty
+                      </span>
+                    ) : (r.status as string) === "HOLIDAY" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                        <CalendarDays className="w-3 h-3 text-amber-600" />
+                        Sunday Holiday
+                      </span>
+                    ) : isScanned && r.verificationMethod !== "MANUAL" ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100/80 text-emerald-950 border border-emerald-300">
                         <Fingerprint className="w-3 h-3 text-emerald-700" />
                         MinMoe Device Scan
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                        <ClipboardCheck className="w-3 h-3 text-slate-400" />
-                        {r.source === "AUTO_ABSENT" ? "Auto-System" : (r.status as string) === "HOLIDAY" ? "Sunday Holiday" : "Manual / Unscanned"}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-900 border border-blue-200">
+                        <ClipboardCheck className="w-3 h-3 text-blue-600" />
+                        {r.source === "AUTO_ABSENT" ? "Auto-System" : "Manual Register"}
                       </span>
                     )}
-                  </td>
-
-                  {/* Status Chip */}
-                  <td className="px-3 py-2.5 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wide ${
-                        r.status === "PRESENT"
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                          : r.status === "LATE"
-                          ? "bg-amber-50 text-amber-800 border-amber-300"
-                          : r.status === "MEDICAL"
-                          ? "bg-rose-50 text-rose-800 border-rose-300"
-                          : r.status === "ON_LEAVE"
-                          ? "bg-purple-50 text-purple-800 border-purple-300"
-                          : (r.status as string) === "HOLIDAY"
-                          ? "bg-amber-50 text-amber-900 border-amber-300"
-                          : r.status === "NOT_MARKED"
-                          ? "bg-slate-100 text-slate-700 border-slate-300"
-                          : "bg-red-50 text-red-800 border-red-300"
-                      }`}
-                    >
-                      {r.status === "PRESENT" && <CheckCircle2 className="w-3 h-3" />}
-                      {r.status === "LATE" && <Clock className="w-3 h-3" />}
-                      {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
-                      {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
-                      {(r.status as string) === "HOLIDAY" && <CalendarDays className="w-3 h-3" />}
-                      {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
-                      {(r.status as string) === "HOLIDAY" ? "HOLIDAY" : r.status}
-                    </span>
                   </td>
 
                   {/* Notes / Leave Reason */}
@@ -394,76 +393,49 @@ function AttendanceGridView({
                     </div>
                   </div>
 
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 tracking-wide ${
-                      r.status === "PRESENT"
-                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                        : r.status === "LATE"
-                        ? "bg-amber-50 text-amber-800 border-amber-200"
-                        : r.status === "MEDICAL"
-                        ? "bg-rose-50 text-rose-800 border-rose-200"
-                        : r.status === "ON_LEAVE"
-                        ? "bg-purple-50 text-purple-800 border-purple-200"
-                        : (r.status as string) === "HOLIDAY"
-                        ? "bg-amber-50 text-amber-900 border-amber-200"
-                        : r.status === "NOT_MARKED"
-                        ? "bg-slate-100 text-slate-700 border-slate-200"
-                        : "bg-red-50 text-red-800 border-red-200"
-                    }`}
-                  >
-                    {r.status === "PRESENT" && <CheckCircle2 className="w-3 h-3" />}
-                    {r.status === "LATE" && <Clock className="w-3 h-3" />}
-                    {r.status === "MEDICAL" && <Stethoscope className="w-3 h-3" />}
-                    {r.status === "ON_LEAVE" && <FileCheck2 className="w-3 h-3" />}
-                    {(r.status as string) === "HOLIDAY" && <CalendarDays className="w-3 h-3" />}
-                    {r.status === "ABSENT" && <XCircle className="w-3 h-3" />}
-                    {r.status === "NOT_MARKED" && <Timer className="w-3 h-3" />}
-                    <span>{(r.status as string) === "HOLIDAY" ? "HOLIDAY" : r.status.replace(/_/g, " ")}</span>
-                  </span>
+                  {(() => {
+                    const badge = getStatusBadgeConfig(r.status);
+                    const BadgeIcon = badge.icon;
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 tracking-wide ${badge.className}`}
+                      >
+                        <BadgeIcon className="w-3 h-3" />
+                        <span>{badge.label}</span>
+                      </span>
+                    );
+                  })()}
                 </div>
 
-                <div className="space-y-2 pt-1 border-t border-gray-100">
+                <div className="space-y-2 pt-2 border-t border-gray-100">
                   {(() => {
-                    const formatted = formatPreciseScanTime(r.checkInTime);
                     const isScanned = Boolean(r.source === "SCAN" || r.verificationMethod === "BIOMETRIC" || r.checkInTime);
-                    if (!formatted) {
-                      return (
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-gray-500 font-semibold">Scan Status</span>
-                            <span className="font-medium text-gray-400">⏳ Not Scanned</span>
-                          </div>
-                        </div>
-                      );
-                    }
+                    const verificationLabel =
+                      r.status === "ON_LEAVE"
+                        ? "Approved Leave"
+                        : r.status === "MEDICAL"
+                        ? "Medical Duty"
+                        : (r.status as string) === "HOLIDAY"
+                        ? "Sunday Holiday"
+                        : isScanned && r.verificationMethod !== "MANUAL"
+                        ? "MinMoe Device Scan"
+                        : "Manual Register";
+
                     return (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-semibold">Scan Time</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-gray-900 tabular-nums bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                              ⚡ {formatted.timeStr} IST
-                            </span>
-                            {formatted.isRecent && (
-                              <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.2 rounded-full font-black bg-emerald-500 text-white animate-pulse shadow-xs">
-                                Live
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-gray-400">Terminal Mode</span>
-                          <span className="font-bold text-emerald-800">
-                            {isScanned ? "MinMoe Device Punch" : "Manual Record"}
+                          <span className="text-gray-500 font-semibold">Verification Mode</span>
+                          <span className="font-bold text-gray-800 text-[11px]">
+                            {verificationLabel}
                           </span>
                         </div>
 
                         {/* Hijri Day */}
-                        <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-gray-100/80">
+                        <div className="flex items-center justify-between text-[10px] pt-1 border-t border-gray-100/80">
                           <span className="text-gray-400 flex items-center gap-1 font-semibold">
                             <Moon className="w-2.5 h-2.5 text-emerald-600" /> Hijri Day
                           </span>
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-semibold text-slate-700 bg-slate-100 border border-slate-200">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                             <span>{hijri.day} {hijri.monthNameShort}</span>
                           </span>
                         </div>
@@ -752,9 +724,9 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "ALL"}
           onClick={() => setActiveTab("ALL")}
-          label={logType === "HIKVISION" ? "Total Scans" : logType === "MANUAL" ? "Total Manual" : "Total Live"}
+          label={logType === "HIKVISION" ? "Total Scans" : logType === "MANUAL" ? "Total Manual" : "Total Logs"}
           value={summary.total}
-          sub={logType === "HIKVISION" ? `${summary.total} card punches` : `${pct(summary.present + summary.late)}% marked • live`}
+          sub={logType === "HIKVISION" ? `${summary.total} scans recorded` : `${pct(summary.present + summary.late)}% marked`}
           icon={Layers}
           activeClass="bg-gray-900 text-white border-gray-900 shadow-lg"
           inactiveClass="bg-white text-gray-900 border-gray-200 hover:border-gray-300 hover:shadow-sm"
@@ -763,9 +735,9 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "PRESENT"}
           onClick={() => setActiveTab("PRESENT")}
-          label={logType === "HIKVISION" ? "On-Time Scans" : "Present"}
+          label="Present"
           value={summary.present}
-          sub={`${pct(summary.present)}% on-time`}
+          sub={`${pct(summary.present)}% present`}
           icon={CheckCircle2}
           activeClass="bg-emerald-600 text-white border-emerald-600 shadow-lg"
           inactiveClass="bg-white text-emerald-800 border-gray-200 hover:border-emerald-200 hover:shadow-sm"
@@ -774,9 +746,9 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "LATE"}
           onClick={() => setActiveTab("LATE")}
-          label={logType === "HIKVISION" ? "Grace Window" : "Late"}
+          label="Late"
           value={summary.late}
-          sub="Grace window"
+          sub="Late arrival"
           icon={Clock}
           activeClass="bg-amber-500 text-white border-amber-500 shadow-lg"
           inactiveClass="bg-white text-amber-800 border-gray-200 hover:border-amber-200"
@@ -809,7 +781,7 @@ export function DailyStackedLogView({
           onClick={() => setActiveTab("MEDICAL")}
           label="Medical"
           value={summary.medical}
-          sub="Sick leave"
+          sub="Medical duty"
           icon={Stethoscope}
           activeClass="bg-rose-600 text-white border-rose-600 shadow-lg"
           inactiveClass="bg-white text-rose-800 border-gray-200 hover:border-rose-200"
@@ -818,9 +790,9 @@ export function DailyStackedLogView({
         <MetricCard
           active={activeTab === "ON_LEAVE"}
           onClick={() => setActiveTab("ON_LEAVE")}
-          label="On Leave"
+          label="Leave"
           value={summary.onLeave}
-          sub="Official excused"
+          sub="Official approved leave"
           icon={FileCheck2}
           activeClass="bg-purple-600 text-white border-purple-600 shadow-lg"
           inactiveClass="bg-white text-purple-800 border-gray-200 hover:border-purple-200"

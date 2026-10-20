@@ -253,6 +253,14 @@ router.get("/", requireAuth, async (req, res) => {
             include: { class: { select: { name: true } } },
             orderBy: [{ checkInTime: "desc" }],
           },
+          leaveRequests: {
+            where: { status: "APPROVED", startDate: { lte: dayEnd }, endDate: { gte: dayStart } },
+            take: 1,
+          },
+          medicalExemptions: {
+            where: { isActive: true, date: { gte: dayStart, lt: dayEnd } },
+            take: 1,
+          },
         },
         orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
       });
@@ -260,6 +268,8 @@ router.get("/", requireAuth, async (req, res) => {
       studentRecords = students.map((s) => {
         const registry = s.attendanceRegistries[0];
         const record = s.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || s.attendanceRecords[0];
+        const hasApprovedLeave = s.leaveRequests?.[0];
+        const hasMedical = s.medicalExemptions?.[0];
 
         let effectiveStatus: string = "NOT_MARKED";
         let effectiveSource: string = "MANUAL";
@@ -268,13 +278,40 @@ router.get("/", requireAuth, async (req, res) => {
         let remarks: string | null = null;
         let leaveDetails: any = null;
 
-        // Check if a biometric scan exists on record or registry
-        const hasBiometricScan = Boolean(
-          (record && (record.verificationMethod === "BIOMETRIC" || record.biometricHash)) ||
+        // Check if manual attendance was explicitly recorded on either model
+        const isManuallyRecorded = Boolean(
+          (registry && registry.source === "MANUAL") ||
+          (record && record.verificationMethod === "MANUAL")
+        );
+
+        // Biometric scan exists only if not manually recorded/overridden
+        const hasBiometricScan = !isManuallyRecorded && Boolean(
+          (record && record.verificationMethod === "BIOMETRIC") ||
           (registry && registry.source === "BIOMETRIC")
         );
 
-        if (registry) {
+        if (isManuallyRecorded) {
+          effectiveStatus = registry?.status || record?.status || "NOT_MARKED";
+          effectiveSource = "MANUAL";
+          checkInTime = registry?.checkInTime?.toISOString() || record?.checkInTime?.toISOString() || null;
+          checkOutTime = registry?.checkOutTime?.toISOString() || record?.checkOutTime?.toISOString() || null;
+          remarks = registry?.remarks || record?.justification || null;
+        } else if (hasApprovedLeave) {
+          effectiveStatus = "ON_LEAVE";
+          effectiveSource = "LEAVE_APPROVED";
+          remarks = hasApprovedLeave.reason || "Approved Official Leave";
+          leaveDetails = {
+            id: hasApprovedLeave.id,
+            type: hasApprovedLeave.type,
+            reason: hasApprovedLeave.reason,
+            startDate: hasApprovedLeave.startDate.toISOString(),
+            endDate: hasApprovedLeave.endDate.toISOString(),
+          };
+        } else if (hasMedical) {
+          effectiveStatus = "MEDICAL";
+          effectiveSource = "MEDICAL_LEAVE";
+          remarks = hasMedical.reason || "Medical Duty Exemption";
+        } else if (registry) {
           effectiveStatus = registry.status;
           checkInTime = registry.checkInTime?.toISOString() || null;
           checkOutTime = registry.checkOutTime?.toISOString() || null;
@@ -330,10 +367,10 @@ router.get("/", requireAuth, async (req, res) => {
           }
         }
 
-        const isManualScan = !hasBiometricScan;
+        const isManualScan = isManuallyRecorded || !hasBiometricScan;
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false, isManualScan) : null;
         const biometricMethod = record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
-        const verificationMethod = record?.verificationMethod || (hasBiometricScan ? "BIOMETRIC" : "MANUAL");
+        const verificationMethod = isManuallyRecorded ? "MANUAL" : (record?.verificationMethod || (hasBiometricScan ? "BIOMETRIC" : "MANUAL"));
 
         return {
           id: registry?.id || record?.id || `virtual-student-${s.id}`,
@@ -382,6 +419,10 @@ router.get("/", requireAuth, async (req, res) => {
             where: { date: { gte: dayStart, lt: dayEnd } },
             orderBy: [{ checkInTime: "desc" }],
           },
+          medicalExemptions: {
+            where: { isActive: true, date: { gte: dayStart, lt: dayEnd } },
+            take: 1,
+          },
         },
         orderBy: [{ department: "asc" }, { user: { firstName: "asc" } }],
       });
@@ -390,13 +431,23 @@ router.get("/", requireAuth, async (req, res) => {
 
       facultyRecords = teachers.map((t) => {
         const rec = t.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || t.attendanceRecords[0];
+        const hasMedical = t.medicalExemptions?.[0];
+        const isTeacherManual = rec?.verificationMethod === "MANUAL";
+
         let status = rec ? rec.status : "NOT_MARKED";
         const checkInTime = rec?.checkInTime?.toISOString() || null;
         const checkOutTime = rec?.checkOutTime?.toISOString() || null;
         let remarks = rec?.notes || null;
         let source = "MANUAL";
-        if (rec) {
-          if (rec.verificationMethod === "BIOMETRIC" || rec.biometricHash) {
+
+        if (isTeacherManual) {
+          source = "MANUAL";
+        } else if (hasMedical) {
+          status = "MEDICAL";
+          source = "MEDICAL_LEAVE";
+          remarks = remarks || hasMedical.reason || "Medical Duty Exemption";
+        } else if (rec) {
+          if (rec.verificationMethod === "BIOMETRIC" || (rec.biometricHash && rec.verificationMethod !== "MANUAL")) {
             source = "SCAN";
           } else if (rec.verificationMethod === "AUTO_SYSTEM") {
             source = "AUTO_ABSENT";
@@ -415,10 +466,10 @@ router.get("/", requireAuth, async (req, res) => {
           remarks = remarks || "Sunday Holiday";
         }
 
-        const isManualScan = source !== "SCAN" && source !== "BIOMETRIC";
+        const isManualScan = isTeacherManual || (source !== "SCAN" && source !== "BIOMETRIC");
         const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true, isManualScan) : null;
         const biometricMethod = rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
-        const verificationMethod = rec?.verificationMethod || (source === "SCAN" ? "BIOMETRIC" : "MANUAL");
+        const verificationMethod = isTeacherManual ? "MANUAL" : (rec?.verificationMethod || (source === "SCAN" ? "BIOMETRIC" : "MANUAL"));
 
         return {
           id: rec?.id || `virtual-faculty-${t.id}`,
@@ -457,12 +508,15 @@ router.get("/", requireAuth, async (req, res) => {
 
     // Hikvision vs Manual segregation with full roster visibility
     const isHikScan = (r: (typeof allRecords)[0]) => (r.source === "SCAN" || r.source === "BIOMETRIC") && Boolean(r.checkInTime);
-    const isManualEntry = (r: (typeof allRecords)[0]) => r.source !== "SCAN" && r.source !== "BIOMETRIC";
-
     const hikvisionPunched = allRecords.filter(isHikScan);
-    const manualMarked = allRecords.filter(isManualEntry);
     const hikvisionRecords = hikvisionPunched;
-    const manualRecords = manualMarked;
+
+    // Full manual records roster with roll-call statuses
+    const manualRecords = allRecords.map((r) => ({
+      ...r,
+      verificationMethod: "MANUAL",
+      source: r.source === "SCAN" || r.source === "BIOMETRIC" ? "MANUAL" : r.source,
+    }));
 
     let filteredRecords = allRecords;
 
@@ -480,23 +534,30 @@ router.get("/", requireAuth, async (req, res) => {
         return r;
       });
     } else if (logType === "MANUAL") {
-      // In MANUAL mode, ensure all applicable members for manual registers are shown
-      filteredRecords = allRecords;
+      // In MANUAL mode, ensure the full roster is presented with manual verification
+      filteredRecords = manualRecords;
     }
 
     // 3. Filter by Event Window if specified
     if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
       filteredRecords = filteredRecords.filter((r) => {
+        // In MANUAL mode, preserve the full roster for the selected audience
+        if (logType === "MANUAL") {
+          if (isFacultyOnlyWindow) return r.role === "FACULTY";
+          if (isStudentOnlyWindow) return r.role === "STUDENT";
+          return true;
+        }
+
         // If matched directly to this scheduled window
         if (r.scheduledEvent?.id === eventWindowId) return true;
         // If member matched a DIFFERENT scheduled window, they do not belong to this window
         if (r.scheduledEvent && r.scheduledEvent.id !== eventWindowId) return false;
         // If member already has a verified check-in for incompatible mode:
         const selectedWinType = selectedWindow ? getWindowType(selectedWindow as any) : null;
-        if (selectedWinType === "MANUAL" && (r.source === "SCAN" || r.source === "BIOMETRIC")) {
+        if (selectedWinType === "MANUAL" && logType === "HIKVISION" && (r.source === "SCAN" || r.source === "BIOMETRIC")) {
           return false;
         }
-        if (selectedWinType === "HIKVISION" && (r.source === "MANUAL" && r.status !== "NOT_MARKED")) {
+        if (selectedWinType === "HIKVISION" && logType === "HIKVISION" && (r.source === "MANUAL" && r.status !== "NOT_MARKED")) {
           return false;
         }
         // If full roster is being viewed for an event window, include applicable unscanned members
@@ -1440,7 +1501,9 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 
           const isScan = (source === "SCAN" || source === "BIOMETRIC") && Boolean(checkIn);
           if (logType === "HIKVISION" && !isScan) continue;
-          if (logType === "MANUAL" && isScan) continue;
+          if (logType === "MANUAL") {
+            source = "MANUAL";
+          }
 
           const name = `${s.user.firstName} ${s.user.lastName}`.trim();
           const itsVal = s.its || s.studentId;
@@ -1460,12 +1523,14 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
           const rec = findRecForDay(t.attendanceRecords, day);
           const status = rec ? (rec.status as string) : "ABSENT";
           const checkIn = rec?.checkInTime || null;
-          const source = rec ? ((rec as any).verificationMethod === "AUTO_SYSTEM" ? "AUTO_ABSENT" : ((rec as any).verificationMethod || "SCAN")) : "--";
+          let source = rec ? ((rec as any).verificationMethod === "AUTO_SYSTEM" ? "AUTO_ABSENT" : ((rec as any).verificationMethod || "SCAN")) : "--";
           const remarks = (rec as any)?.notes || "";
 
           const isScan = (source === "SCAN" || source === "BIOMETRIC") && Boolean(checkIn);
           if (logType === "HIKVISION" && !isScan) continue;
-          if (logType === "MANUAL" && isScan) continue;
+          if (logType === "MANUAL") {
+            source = "MANUAL";
+          }
 
           const name = `${t.user.firstName} ${t.user.lastName}`.trim();
           const empId = (t as any).employeeId || (t as any).its || t.id;
