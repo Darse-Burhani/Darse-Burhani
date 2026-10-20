@@ -5,7 +5,7 @@ import { requireRole } from "../../middleware";
 const router = Router();
 
 // GET /api/admin/timetable - Full matrix with optional filtering
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { classId, className, teacherId, dayOfWeek } = req.query as Record<string, string | undefined>;
 
@@ -125,7 +125,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 // ── BADAL (SUBSTITUTION) MANAGEMENT ENDPOINTS ──
 
 // GET /api/admin/timetable/badal - List badal records
-router.get("/badal", requireRole("ADMIN"), async (req, res) => {
+router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { date, status } = req.query as Record<string, string | undefined>;
     let targetDate: Date | undefined;
@@ -192,7 +192,7 @@ router.get("/badal", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/admin/timetable/badal/available-teachers - Intelligent Free Teacher Finder
-router.get("/badal/available-teachers", requireRole("ADMIN"), async (req, res) => {
+router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { dayOfWeek, period, date } = req.query as Record<string, string | undefined>;
     if (!dayOfWeek || !period) {

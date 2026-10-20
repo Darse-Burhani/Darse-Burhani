@@ -5,14 +5,20 @@ import { requireRole } from "../../middleware";
 const router = Router();
 
 // GET /api/teacher/timetable - Teacher's personal schedule + assigned classes + badals
-router.get("/", requireRole("TEACHER"), async (req, res) => {
+router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
 
-    const teacherProfile = await prisma.teacherProfile.findUnique({
+    let teacherProfile = await prisma.teacherProfile.findUnique({
       where: { userId: session.user.id },
       include: { user: true },
     });
+
+    if (!teacherProfile && session.user.role === "ADMIN") {
+      teacherProfile = await prisma.teacherProfile.findFirst({
+        include: { user: true },
+      });
+    }
 
     if (!teacherProfile) {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
