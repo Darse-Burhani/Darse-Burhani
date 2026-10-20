@@ -1,19 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Calendar,
   Clock,
   BookOpen,
-  MapPin,
   Trash2,
   Loader2,
   CalendarDays,
   ClipboardList,
-  UserCheck,
   CheckCircle2,
-  AlertCircle,
   Plus,
   RefreshCw,
   Search,
@@ -23,25 +20,16 @@ import {
   ChevronLeft,
   ShieldCheck,
   Users,
-  Award,
-  GraduationCap,
-  Filter,
   Check,
   X,
   FileSpreadsheet,
   Pencil,
   Printer,
-  HelpCircle,
   AlertTriangle,
-  Info,
-  Calendar as CalendarIcon,
   Layers,
-  Sparkle,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Modal,

@@ -179,6 +179,40 @@ const PERIOD_TIMES: Record<number, { startTime: string; endTime: string }> = {
   9: { startTime: "15:45", endTime: "16:15" },
 };
 
+const SLOT_INCLUDE = {
+  class: { select: { id: true, name: true, grade: true, section: true } },
+  teacher: {
+    select: {
+      id: true,
+      its: true,
+      employeeId: true,
+      user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+    },
+  },
+};
+
+function formatSlotResponse(slot: any) {
+  return {
+    id: slot.id,
+    classId: slot.classId,
+    className: slot.className || slot.class?.name || "Class",
+    classGrade: slot.class?.grade || "",
+    classSection: slot.class?.section || "",
+    teacherId: slot.teacherId,
+    teacherName: slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA"),
+    teacherAvatar: slot.teacher?.user?.avatarUrl || null,
+    teacherIts: slot.teacher?.its || null,
+    subject: slot.subject,
+    dayOfWeek: slot.dayOfWeek,
+    period: slot.period,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    roomNumber: slot.roomNumber,
+    isBreak: slot.isBreak,
+    breakName: slot.breakName,
+  };
+}
+
 // POST /api/admin/timetable - Create or upsert timetable slot
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
@@ -236,18 +270,6 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     const finalStart = startTime || defaultTimes.startTime;
     const finalEnd = endTime || defaultTimes.endTime;
 
-    const slotInclude = {
-      class: { select: { id: true, name: true, grade: true, section: true } },
-      teacher: {
-        select: {
-          id: true,
-          its: true,
-          employeeId: true,
-          user: { select: { firstName: true, lastName: true, avatarUrl: true } },
-        },
-      },
-    };
-
     let slot: any;
     if (id) {
       slot = await prisma.timetableSlot.update({
@@ -266,7 +288,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
           isBreak: Boolean(isBreak),
           breakName: isBreak ? (breakName || "Break") : null,
         },
-        include: slotInclude,
+        include: SLOT_INCLUDE,
       });
     } else {
       // Check if a slot already exists for this class at this day and period
@@ -290,7 +312,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
             isBreak: Boolean(isBreak),
             breakName: isBreak ? (breakName || "Break") : null,
           },
-          include: slotInclude,
+          include: SLOT_INCLUDE,
         });
       } else {
         slot = await prisma.timetableSlot.create({
@@ -308,32 +330,14 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
             isBreak: Boolean(isBreak),
             breakName: isBreak ? (breakName || "Break") : null,
           },
-          include: slotInclude,
+          include: SLOT_INCLUDE,
         });
       }
     }
 
     return res.json({
       success: true,
-      data: {
-        id: slot.id,
-        classId: slot.classId,
-        className: slot.className || slot.class?.name || "Class",
-        classGrade: slot.class?.grade || "",
-        classSection: slot.class?.section || "",
-        teacherId: slot.teacherId,
-        teacherName: slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA"),
-        teacherAvatar: slot.teacher?.user?.avatarUrl || null,
-        teacherIts: slot.teacher?.its || null,
-        subject: slot.subject,
-        dayOfWeek: slot.dayOfWeek,
-        period: slot.period,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        roomNumber: slot.roomNumber,
-        isBreak: slot.isBreak,
-        breakName: slot.breakName,
-      },
+      data: formatSlotResponse(slot),
     });
   } catch (error) {
     console.error("Timetable slot save error:", error);
@@ -377,9 +381,10 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
     const updated = await prisma.timetableSlot.update({
       where: { id },
       data,
+      include: SLOT_INCLUDE,
     });
 
-    return res.json({ success: true, data: updated });
+    return res.json({ success: true, data: formatSlotResponse(updated) });
   } catch (error) {
     console.error("Timetable slot update error:", error);
     return res.status(500).json({ success: false, error: "Failed to update timetable slot" });
@@ -387,22 +392,11 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/timetable/:id or DELETE /api/admin/timetable?id=... - Delete timetable slot
-router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+router.delete("/:id?", requireRole("ADMIN"), async (req, res) => {
   try {
-    const { id } = req.params;
-    await prisma.timetableSlot.delete({ where: { id } });
-    return res.json({ success: true, message: "Timetable slot deleted successfully" });
-  } catch (error) {
-    console.error("Timetable slot delete error:", error);
-    return res.status(500).json({ success: false, error: "Failed to delete timetable slot" });
-  }
-});
-
-router.delete("/", requireRole("ADMIN"), async (req, res) => {
-  try {
-    const id = req.query.id as string;
+    const id = req.params.id || (req.query.id as string);
     if (!id) {
-      return res.status(400).json({ success: false, error: "id parameter is required" });
+      return res.status(400).json({ success: false, error: "Slot id is required" });
     }
     await prisma.timetableSlot.delete({ where: { id } });
     return res.json({ success: true, message: "Timetable slot deleted successfully" });
