@@ -9,46 +9,19 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
-function extractFatherAndSurname(firstName: string, lastName: string): { fatherName: string; surname: string } {
-  const parts = lastName.split(/\s+/).filter(Boolean);
-  const filtered = parts.filter((p) => !/^(bhai)$/i.test(p));
-  if (filtered.length >= 2) {
-    const surname = filtered[filtered.length - 1];
-    const fatherParts = filtered.slice(0, -1);
-    return {
-      fatherName: fatherParts.map(capitalize).join(" "),
-      surname: capitalize(surname),
-    };
-  } else if (filtered.length === 1) {
-    return { fatherName: capitalize(filtered[0]), surname: "" };
-  }
-  return { fatherName: capitalize(lastName), surname: "" };
-}
-
-function extractMotherFirstName(email: string, studentFirstName: string): string {
-  const handle = email.split("@")[0] || "";
-  const clean = handle.replace(/[\d._\-+]/g, "").trim();
-  if (clean.length >= 3) {
-    const match = clean.match(
-      /^(fatema|batul|batool|jumana|rashida|sakina|mariam|munira|zainab|arwa|tasneem|tasnim|umme|durriya|ruqaiya|amatullah|zahra|khadija|insiyah|shirin|zenab|farida|fatima|alifiya|hafsah|hawra|asma|jameela|jamila|shirin)/i
-    );
-    if (match) {
-      return capitalize(match[1]);
-    }
-    return capitalize(clean.slice(0, 10));
-  }
-  return `Mother of ${capitalize(studentFirstName)}`;
+function getEmailName(email: string): string {
+  if (!email) return "";
+  return email.split("@")[0].trim();
 }
 
 async function getOrCreateParentUser(
   emailRaw: string,
-  firstName: string,
-  lastName: string,
   relationType: string,
   watan?: string | null,
   city?: string | null
 ): Promise<{ userId: string; parentProfileId: string }> {
   const email = emailRaw.toLowerCase().trim();
+  const emailName = getEmailName(email);
   const passwordHash = await bcrypt.hash(PARENT_PASSWORD, 10);
 
   // Check if User already exists
@@ -70,6 +43,16 @@ async function getOrCreateParentUser(
       });
       parentProfileId = newProfile.id;
     }
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        firstName: emailName,
+        lastName: "",
+        role: "PARENT",
+        plainPassword: PARENT_PASSWORD,
+        isActive: true,
+      },
+    });
     return { userId: existingUser.id, parentProfileId };
   }
 
@@ -79,8 +62,8 @@ async function getOrCreateParentUser(
       email,
       passwordHash,
       plainPassword: PARENT_PASSWORD,
-      firstName,
-      lastName,
+      firstName: emailName,
+      lastName: "",
       role: "PARENT",
       isActive: true,
       parentProfile: {
@@ -99,7 +82,7 @@ async function getOrCreateParentUser(
 
 async function main() {
   console.log("=========================================================");
-  console.log("  LINKING TALABAT TO PARENTS & CREATING PARENT USERS    ");
+  console.log("  LINKING TALABAT TO PARENTS (EMAIL NAME ONLY)           ");
   console.log("  Password standard: parent5253                          ");
   console.log("=========================================================\n");
 
@@ -117,37 +100,27 @@ async function main() {
   let studentsUpdated = 0;
 
   for (const student of students) {
-    const sFirstName = student.user.firstName;
-    const sLastName = student.user.lastName;
-    const { fatherName, surname } = extractFatherAndSurname(sFirstName, sLastName);
-    const fatherFullName = `${fatherName} ${surname}`.trim();
-
     const fEmail = student.fatherEmail?.toLowerCase().trim() || null;
     const mEmail = student.motherEmail?.toLowerCase().trim() || null;
 
-    let motherFullName = "Mother";
-    if (mEmail) {
-      const mFirst = extractMotherFirstName(mEmail, sFirstName);
-      motherFullName = `${mFirst} ${surname}`.trim();
-    }
+    const fatherEmailName = fEmail ? getEmailName(fEmail) : "";
+    const motherEmailName = mEmail ? getEmailName(mEmail) : "";
 
-    // 1. Update StudentProfile with clean parent names
+    // 1. Update StudentProfile with email name only
     await prisma.studentProfile.update({
       where: { id: student.id },
       data: {
-        fatherName: fatherFullName,
-        motherName: motherFullName,
+        fatherName: fatherEmailName || student.fatherName,
+        motherName: motherEmailName || student.motherName,
       },
     });
     studentsUpdated++;
 
     // 2. Link Parents
     if (fEmail && mEmail && fEmail === mEmail) {
-      // Shared Parent Account (both parents share the same email)
+      // Shared Parent Account
       const { parentProfileId } = await getOrCreateParentUser(
         fEmail,
-        fatherName,
-        surname,
         "FATHER & MOTHER",
         student.watan,
         student.residentCity
@@ -177,9 +150,7 @@ async function main() {
       if (fEmail) {
         const { parentProfileId: fatherProfileId } = await getOrCreateParentUser(
           fEmail,
-          fatherName,
-          surname,
-          "FATHER",
+          "Father",
           student.watan,
           student.residentCity
         );
@@ -205,12 +176,9 @@ async function main() {
       }
 
       if (mEmail) {
-        const mFirst = extractMotherFirstName(mEmail, sFirstName);
         const { parentProfileId: motherProfileId } = await getOrCreateParentUser(
           mEmail,
-          mFirst,
-          surname,
-          "MOTHER",
+          "Mother",
           student.watan,
           student.residentCity
         );
