@@ -28,10 +28,9 @@ function getPooledDatabaseUrl(): string | undefined {
     const [base, queryStr] = url.split("?");
     const params = new URLSearchParams(queryStr || "");
 
-    const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || "5", 10);
-    if (!params.has("connection_limit")) {
-      params.set("connection_limit", String(targetLimit));
-    }
+    const defaultLimit = process.env.RENDER ? "3" : "5";
+    const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || defaultLimit, 10);
+    params.set("connection_limit", String(targetLimit));
     const currentTimeout = parseInt(params.get("pool_timeout") || "0", 10);
     if (!params.has("pool_timeout") || currentTimeout < 30) {
       params.set("pool_timeout", "30");

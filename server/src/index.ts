@@ -19,24 +19,32 @@ process.on("unhandledRejection", (reason, promise) => {
   console.error("[server:fatal] Unhandled Promise Rejection at:", promise, "reason:", reason);
 });
 
-// Determine concurrency: In production cluster across available CPU cores (or WEB_CONCURRENCY)
+// Determine concurrency: On cloud platforms with connection pool limits (e.g. Supabase max 15 clients),
+// default to single-process (concurrency 1) to prevent worker processes from multiplying connection pools.
 const isDev = process.env.NODE_ENV !== "production" || process.env.DEV === "true";
+const isCloud = Boolean(
+  process.env.RENDER ||
+  process.env.VERCEL ||
+  process.env.FLY_APP_NAME ||
+  process.env.RAILWAY_ENVIRONMENT
+);
 const numCpus = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
-const concurrency = Number(process.env.WEB_CONCURRENCY || (isDev ? 1 : Math.max(1, numCpus)));
+const defaultConcurrency = isDev || isCloud ? 1 : Math.max(1, numCpus);
+const concurrency = Number(process.env.WEB_CONCURRENCY || defaultConcurrency);
 const useClustering = !isDev && concurrency > 1;
 
 if (useClustering && cluster.isPrimary) {
   console.log(`[cluster:primary] Master PID ${process.pid} running. Multi-core Load Balancer active across ${concurrency} workers...`);
 
+
   // Start background singletons on master only to prevent redundant polling across workers
-  const isCloud = Boolean(
-    process.env.RENDER ||
-    process.env.VERCEL ||
+  const isPollingCloud = Boolean(
+    isCloud ||
     process.env.DISABLE_DEVICE_POLLING === "true" ||
     (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
   );
 
-  if (!isCloud) {
+  if (!isPollingCloud) {
     startDevicePolling()
       .then(() => console.log("[hikvision] device poller started on cluster primary"))
       .catch((error) => console.error("[hikvision] failed to start device poller:", error));

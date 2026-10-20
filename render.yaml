@@ -10,10 +10,15 @@ services:
         value: 10000
       - key: NPM_CONFIG_PRODUCTION
         value: "false"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: DATABASE_CONNECTION_LIMIT
+        value: "3"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
         sync: false
       - key: NEXTAUTH_SECRET
         generateValue: true
+
 
