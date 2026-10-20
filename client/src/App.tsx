@@ -86,6 +86,7 @@ const TeacherLeave = lazy(() => import("@/app/teacher/leave/page"));
 const TeacherTakhteet = lazy(() => import("@/app/teacher/takhteet/page"));
 const TeacherProfile = lazy(() => import("@/app/teacher/profile/page"));
 const TeacherMedicalDuty = lazy(() => import("@/app/teacher/medical-duty/page"));
+const TeacherTimetable = lazy(() => import("@/app/teacher/timetable/page"));
 const TeacherProcurement = lazy(() => import("@/app/teacher/procurement/page"));
 const TeacherSettings = lazy(() => import("@/app/teacher/settings/page"));
 
@@ -345,7 +346,7 @@ export default function App() {
           <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
           <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
-          <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
+          <Route path="timetable" element={<TeacherTimetable />} />
           <Route path="tracking" element={<RequireAdminPageAccess pageKey="tracking"><AdminTracking /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><TeacherProcurement /></RequireAdminPageAccess>} />
