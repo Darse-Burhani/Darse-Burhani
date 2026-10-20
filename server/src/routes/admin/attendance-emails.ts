@@ -45,7 +45,7 @@ function resolveDateRange(query: {
 }
 
 // ── GET: Summary of all students ──
-router.get("/summary", requireRole("ADMIN"), async (req, res) => {
+router.get("/summary", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { periodType, start, end, label } = resolveDateRange(req.query);
     const grade = req.query.grade as string | undefined;
@@ -87,6 +87,24 @@ router.get("/summary", requireRole("ADMIN"), async (req, res) => {
       const total = s.attendanceRecords.length;
       const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
 
+      const parentEmails: string[] = [];
+      for (const link of s.parentLinks) {
+        const pEmail = link.parent?.user?.email?.trim().toLowerCase();
+        if (pEmail && !parentEmails.includes(pEmail)) {
+          parentEmails.push(pEmail);
+        }
+      }
+      if (s.fatherEmail?.trim()) {
+        const fe = s.fatherEmail.trim().toLowerCase();
+        if (!parentEmails.includes(fe)) parentEmails.push(fe);
+      }
+      if (s.motherEmail?.trim()) {
+        const me = s.motherEmail.trim().toLowerCase();
+        if (!parentEmails.includes(me)) parentEmails.push(me);
+      }
+
+      const hasParentEmail = parentEmails.length > 0;
+
       return {
         id: s.id,
         userId: s.userId,
@@ -102,11 +120,13 @@ router.get("/summary", requireRole("ADMIN"), async (req, res) => {
         absentCount: absent,
         earlyDepartureCount: early,
         attendanceRate: rate,
-        parentEmails: [],
-        hasParentEmail: false,
+        parentEmails,
+        hasParentEmail,
         studentEmail: s.user.email,
       };
     });
+
+    const withParentCount = summaryList.filter((s) => s.hasParentEmail).length;
 
     return res.json({
       success: true,
@@ -117,8 +137,8 @@ router.get("/summary", requireRole("ADMIN"), async (req, res) => {
         endDate: end.toISOString(),
         stats: {
           totalStudents: summaryList.length,
-          withParentEmail: 0,
-          withoutParentEmail: summaryList.length,
+          withParentEmail: withParentCount,
+          withoutParentEmail: summaryList.length - withParentCount,
           averageAttendanceRate: summaryList.length > 0 ? Math.round(summaryList.reduce((acc, s) => acc + s.attendanceRate, 0) / summaryList.length) : 0,
         },
         students: summaryList,

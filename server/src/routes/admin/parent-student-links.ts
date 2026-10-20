@@ -6,7 +6,7 @@ const router = Router();
 
 // GET /api/admin/parent-student-links
 // Returns all parents with their linked students, plus the full student list
-router.get("/", requireRole("ADMIN"), async (_req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   try {
     const [parents, students] = await Promise.all([
       prisma.parentProfile.findMany({
@@ -86,7 +86,7 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
 
 // POST /api/admin/parent-student-links
 // Body: { parentId, studentId, relationship? }
-router.post("/", requireRole("ADMIN"), async (req, res) => {
+router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const body = req.body as Record<string, any>;
     const { parentId, studentId, relationship } = body;
@@ -127,7 +127,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/parent-student-links?linkId=xxx or ?parentId=xxx&studentId=yyy
-router.delete("/", requireRole("ADMIN"), async (req, res) => {
+router.delete("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const linkId = req.query.linkId as string;
     const parentId = req.query.parentId as string;

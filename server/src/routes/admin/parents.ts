@@ -38,7 +38,7 @@ const avatarUpload = multer({
 });
 
 // GET /api/admin/parents - Full parent profiles list
-router.get("/", requireRole("ADMIN"), async (_req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   try {
     const parents = await prisma.parentProfile.findMany({
       where: {
@@ -137,7 +137,7 @@ router.get("/", requireRole("ADMIN"), async (_req, res) => {
 });
 
 // POST /api/admin/parents - Create new parent profile
-router.post("/", requireRole("ADMIN"), async (req, res) => {
+router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const body = req.body as Record<string, any>;
     const {
@@ -207,7 +207,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // PUT /api/admin/parents - Update parent profile
-router.put("/", requireRole("ADMIN"), async (req, res) => {
+router.put("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const body = req.body as Record<string, any>;
     const {
@@ -288,7 +288,7 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/parents/:userId/avatar - Upload profile picture for parent
-router.post("/:userId/avatar", requireRole("ADMIN"), (req, res) => {
+router.post("/:userId/avatar", requireRole("ADMIN", "TEACHER"), (req, res) => {
   const { userId } = req.params;
   avatarUpload.single("file")(req, res, async (err: unknown) => {
     if (err) {
@@ -328,7 +328,7 @@ router.post("/:userId/avatar", requireRole("ADMIN"), (req, res) => {
 });
 
 // DELETE /api/admin/parents?id=xxx or ?userId=xxx
-router.delete("/", requireRole("ADMIN"), async (req, res) => {
+router.delete("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const id = (req.query.id as string) || (req.query.parentId as string) || (req.body?.id as string);
     const userId = (req.query.userId as string) || (req.body?.userId as string);
@@ -357,7 +357,7 @@ router.delete("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/parents/:id
-router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+router.delete("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -382,7 +382,7 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/parents/reset-password
-router.post("/reset-password", requireRole("ADMIN"), async (req, res) => {
+router.post("/reset-password", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { userId, newPassword } = req.body as { userId?: string; newPassword?: string };
 

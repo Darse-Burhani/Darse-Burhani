@@ -7,23 +7,35 @@ import { getISTDetails, eventRangeForRole } from "../../lib/biometric";
 
 const router = Router();
 
-router.get("/", requireRole("PARENT"), async (req, res) => {
+router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
 
-    const parentProfile = await prisma.parentProfile.findUnique({
+    let parentProfile = await prisma.parentProfile.findUnique({
       where: { userId: session.user.id },
       include: {
         user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
       },
     });
 
+    if (!parentProfile && (session.user.role === "ADMIN" || session.user.role === "TEACHER")) {
+      const targetParentId = (req.query.parentId as string) || (req.query.parent as string);
+      parentProfile = await prisma.parentProfile.findFirst({
+        where: targetParentId ? { OR: [{ id: targetParentId }, { userId: targetParentId }] } : undefined,
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+        },
+      });
+    }
+
     if (!parentProfile) {
       return res.status(404).json({ success: false, error: "Parent profile not found" });
     }
 
+    const effectiveUserId = parentProfile.userId;
+
     const data = await cache.getOrSet(
-      `parent:dashboard:${session.user.id}`,
+      `parent:dashboard:${effectiveUserId}`,
       async () => {
         const links = await prisma.parentStudentLink.findMany({
           where: { parentId: parentProfile.id },

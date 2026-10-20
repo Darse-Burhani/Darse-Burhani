@@ -34,40 +34,50 @@ const avatarUpload = multer({
 });
 
 // GET /api/parent/profile - Current parent profile
-router.get("/", requireRole("PARENT"), async (req, res) => {
+router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
-    const userId = session.user.id;
+    let userId = session.user.id;
 
-    const parent = await prisma.parentProfile.findUnique({
-      where: { userId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
-          },
+    const includeClause = {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
         },
-        studentLinks: {
-          include: {
-            student: {
-              include: {
-                user: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    avatarUrl: true,
-                  },
+      },
+      studentLinks: {
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true,
                 },
               },
             },
           },
         },
       },
+    };
+
+    let parent = await prisma.parentProfile.findUnique({
+      where: { userId },
+      include: includeClause,
     });
+
+    if (!parent && (session.user.role === "ADMIN" || session.user.role === "TEACHER")) {
+      const targetParentId = (req.query.parentId as string) || (req.query.parent as string);
+      parent = await prisma.parentProfile.findFirst({
+        where: targetParentId ? { OR: [{ id: targetParentId }, { userId: targetParentId }] } : undefined,
+        include: includeClause,
+      });
+    }
 
     if (!parent) {
       return res.status(404).json({ success: false, error: "Parent profile not found" });

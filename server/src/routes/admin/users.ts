@@ -8,7 +8,7 @@ const { hash } = bcrypt;
 
 const router = Router();
 
-router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 30_000, tags: ["user"] }), async (req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), apiCacheMiddleware({ ttlMs: 30_000, tags: ["user"] }), async (req, res) => {
   try {
     
     const page = parseInt((req.query.page as string) || "1");

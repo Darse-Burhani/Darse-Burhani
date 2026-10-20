@@ -6,13 +6,20 @@ import { getISTDetails, eventRangeForRole } from "../../lib/biometric";
 
 const router = Router();
 
-router.get("/", requireRole("PARENT"), async (req, res) => {
+router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
 
-    const parentProfile = await prisma.parentProfile.findUnique({
+    let parentProfile = await prisma.parentProfile.findUnique({
       where: { userId: session.user.id },
     });
+
+    if (!parentProfile && (session.user.role === "ADMIN" || session.user.role === "TEACHER")) {
+      const targetParentId = (req.query.parentId as string) || (req.query.parent as string);
+      parentProfile = await prisma.parentProfile.findFirst({
+        where: targetParentId ? { OR: [{ id: targetParentId }, { userId: targetParentId }] } : undefined,
+      });
+    }
 
     if (!parentProfile) {
       return res.status(404).json({ success: false, error: "Parent profile not found" });
