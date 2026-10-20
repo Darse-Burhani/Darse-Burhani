@@ -58,6 +58,24 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           masool: {
             include: { user: true },
           },
+          enrollments: {
+            include: {
+              student: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      avatarUrl: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: [{ student: { rollNumber: "asc" } }, { student: { user: { firstName: "asc" } } }],
+          },
           _count: {
             select: { enrollments: true, timetableSlots: true },
           },
@@ -108,7 +126,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           isBreak: s.isBreak,
           breakName: s.breakName,
         })),
-        classes: classes.map((c) => ({
+        classes: classes.map((c: any) => ({
           id: c.id,
           name: c.name,
           grade: c.grade,
@@ -120,6 +138,14 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           masoolId: c.masoolId,
           studentCount: c._count.enrollments,
           slotCount: c._count.timetableSlots,
+          talabat: (c.enrollments || []).map((e: any) => ({
+            id: e.student.id,
+            userId: e.student.user?.id,
+            name: `${e.student.user?.firstName || ""} ${e.student.user?.lastName || ""}`.trim(),
+            its: e.student.its,
+            rollNumber: e.student.rollNumber || null,
+            avatarUrl: e.student.user?.avatarUrl || null,
+          })),
         })),
         teachers: teachers.map((t) => ({
           id: t.id,
@@ -214,7 +240,7 @@ function formatSlotResponse(slot: any) {
 }
 
 // POST /api/admin/timetable - Create or upsert timetable slot
-router.post("/", requireRole("ADMIN"), async (req, res) => {
+router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const {
       id,
@@ -346,7 +372,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // PUT /api/admin/timetable/:id - Update timetable slot
-router.put("/:id", requireRole("ADMIN"), async (req, res) => {
+router.put("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -392,7 +418,7 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/timetable/:id or DELETE /api/admin/timetable?id=... - Delete timetable slot
-router.delete("/:id?", requireRole("ADMIN"), async (req, res) => {
+router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const id = req.params.id || (req.query.id as string);
     if (!id) {
@@ -556,7 +582,7 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
 });
 
 // POST /api/admin/timetable/badal - Create Badal assignment
-router.post("/badal", requireRole("ADMIN"), async (req, res) => {
+router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const {
@@ -617,7 +643,7 @@ router.post("/badal", requireRole("ADMIN"), async (req, res) => {
 });
 
 // PUT /api/admin/timetable/badal/:id - Update badal status / fulfillment
-router.put("/badal/:id", requireRole("ADMIN"), async (req, res) => {
+router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, isFulfilled, badalTeacherId, badalTeacherName, instructions, notes } = req.body;
@@ -643,7 +669,7 @@ router.put("/badal/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/timetable/badal/:id - Cancel/remove badal assignment
-router.delete("/badal/:id", requireRole("ADMIN"), async (req, res) => {
+router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.timetableBadal.delete({ where: { id } });

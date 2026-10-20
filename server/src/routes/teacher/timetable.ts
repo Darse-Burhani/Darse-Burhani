@@ -141,6 +141,18 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
       include: {
         teacher: { include: { user: true } },
         masool: { include: { user: true } },
+        enrollments: {
+          include: {
+            student: {
+              include: {
+                user: {
+                  select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true },
+                },
+              },
+            },
+          },
+          orderBy: [{ student: { rollNumber: "asc" } }, { student: { user: { firstName: "asc" } } }],
+        },
         timetableSlots: {
           include: {
             teacher: {
@@ -196,6 +208,14 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
             its: targetClass.masool.its,
             avatarUrl: targetClass.masool.user.avatarUrl,
           } : null,
+          talabat: (targetClass.enrollments || []).map((e: any) => ({
+            id: e.student.id,
+            userId: e.student.user?.id,
+            name: `${e.student.user?.firstName || ""} ${e.student.user?.lastName || ""}`.trim(),
+            its: e.student.its,
+            rollNumber: e.student.rollNumber || null,
+            avatarUrl: e.student.user?.avatarUrl || null,
+          })),
         },
         slots: slots.map((s: any) => ({
           id: s.id,
