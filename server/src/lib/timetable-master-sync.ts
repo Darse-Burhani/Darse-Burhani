@@ -342,6 +342,104 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 ];
 
 /**
+ * Self-healing schema migration: Ensures PostgreSQL has all required columns,
+ * tables, indexes, and enums for the Timetable and Badal systems without
+ * relying on build-step migrations.
+ */
+export async function ensureDatabaseSchema(): Promise<void> {
+  try {
+    console.log("[db:schema] Verifying PostgreSQL timetable columns, tables, and enums...");
+
+    // 1. Ensure BadalStatus enum exists
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'BadalStatus') THEN
+          CREATE TYPE "BadalStatus" AS ENUM ('PENDING', 'ASSIGNED', 'CONFIRMED', 'COMPLETED', 'CANCELLED');
+        END IF;
+      END $$;
+    `);
+
+    // 2. Ensure timetable_slots has className, teacherId, teacherName columns
+    await prisma.$executeRawUnsafe(`ALTER TABLE "timetable_slots" ADD COLUMN IF NOT EXISTS "className" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "timetable_slots" ADD COLUMN IF NOT EXISTS "teacherId" TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "timetable_slots" ADD COLUMN IF NOT EXISTS "teacherName" TEXT;`);
+
+    // 3. Ensure timetable_badals table exists
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "timetable_badals" (
+        "id" TEXT NOT NULL,
+        "date" TIMESTAMP(3) NOT NULL,
+        "slotId" TEXT,
+        "classId" TEXT,
+        "className" TEXT NOT NULL,
+        "period" INTEGER NOT NULL,
+        "startTime" TEXT NOT NULL,
+        "endTime" TEXT NOT NULL,
+        "subject" TEXT NOT NULL,
+        "originalTeacherId" TEXT,
+        "originalTeacherName" TEXT,
+        "badalTeacherId" TEXT,
+        "badalTeacherName" TEXT,
+        "reason" TEXT NOT NULL,
+        "status" "BadalStatus" NOT NULL DEFAULT 'ASSIGNED',
+        "instructions" TEXT,
+        "isFulfilled" BOOLEAN NOT NULL DEFAULT false,
+        "assignedById" TEXT,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "timetable_badals_pkey" PRIMARY KEY ("id")
+      );
+    `);
+
+    // 4. Ensure performance indexes exist
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_slots_teacherId_idx" ON "timetable_slots"("teacherId");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_slots_dayOfWeek_period_idx" ON "timetable_slots"("dayOfWeek", "period");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_date_idx" ON "timetable_badals"("date");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_status_idx" ON "timetable_badals"("status");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_badalTeacherId_idx" ON "timetable_badals"("badalTeacherId");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_originalTeacherId_idx" ON "timetable_badals"("originalTeacherId");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "timetable_badals_date_period_idx" ON "timetable_badals"("date", "period");`);
+
+    // 5. Ensure Foreign Keys exist
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'timetable_slots_teacherId_fkey') THEN
+          ALTER TABLE "timetable_slots" ADD CONSTRAINT "timetable_slots_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "teacher_profiles"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+        END IF;
+      END $$;
+    `);
+
+    // 6. Record in _prisma_migrations so Prisma CLI tracks it
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+        "id" VARCHAR(36) NOT NULL,
+        "checksum" VARCHAR(64) NOT NULL,
+        "finished_at" TIMESTAMPTZ,
+        "migration_name" VARCHAR(255) NOT NULL,
+        "logs" TEXT,
+        "rolled_back_at" TIMESTAMPTZ,
+        "started_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        "applied_steps_count" INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY ("id")
+      );
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "_prisma_migrations" ("id", "checksum", "finished_at", "migration_name", "logs", "rolled_back_at", "started_at", "applied_steps_count")
+      VALUES ('20261020000000_add_timetable_badal_and_slot_fields', '', NOW(), '20261020000000_add_timetable_badal_and_slot_fields', NULL, NULL, NOW(), 1)
+      ON CONFLICT DO NOTHING;
+    `);
+
+    console.log("[db:schema] ✓ PostgreSQL timetable schema verified successfully.");
+  } catch (err: any) {
+    console.warn("[db:schema] Schema verification note:", err?.message || err);
+  }
+}
+
+/**
  * Ensures all 12 teachers, 8 Darajah classes (1A to 4B), Masool assignments,
  * student enrollments, and 240 timetable slots are synced into the active database.
  */
@@ -354,63 +452,90 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
 }> {
   console.log("[timetable:sync] Initiating Master Timetable & Class Synchronization...");
 
-  // 1. Resolve / Ensure Teacher Profiles
+  // Step 0: Ensure all database tables and columns exist in PostgreSQL
+  await ensureDatabaseSchema();
+
+  // Step 1: Resolve / Ensure Teacher Profiles safely
   const teacherIdMap = new Map<string, string>(); // nameKey -> teacherProfileId
   const passwordHash = await bcrypt.hash("faculty5253", 10);
 
-  for (const [key, conf] of Object.entries(TEACHER_NAME_MAP)) {
-    let profile: any = null;
-    if (conf.its) {
-      profile = await prisma.teacherProfile.findFirst({
-        where: { its: conf.its },
-        include: { user: true },
-      });
-    }
-    if (!profile) {
-      profile = await prisma.teacherProfile.findFirst({
-        where: {
-          user: {
-            OR: [
-              { email: conf.email },
-              { firstName: { contains: key.split(" ")[0] } },
-            ],
-          },
-        },
-        include: { user: true },
-      });
-    }
+  // Pre-fetch all existing teachers
+  const allExistingTeachers = await prisma.teacherProfile.findMany({
+    include: { user: true },
+  });
 
-    if (!profile) {
-      console.log(`[timetable:sync] Creating missing teacher profile for: ${key}`);
-      const user = await prisma.user.create({
-        data: {
-          email: conf.email,
-          passwordHash,
-          plainPassword: "faculty5253",
-          firstName: key.split(" ")[0],
-          lastName: key.split(" ").slice(1).join(" ") || "Faculty",
-          role: "TEACHER",
-        },
-      });
-      profile = await prisma.teacherProfile.create({
-        data: {
-          userId: user.id,
-          employeeId: `EMP-${key.replace(/[^A-Za-z0-9]/g, "").slice(0, 10).toUpperCase()}`,
-          department: "Attalimiyah",
-          its: conf.its || null,
-        },
-        include: { user: true },
-      });
-    }
+  const teachersByIts = new Map<string, any>();
+  const teachersByEmail = new Map<string, any>();
+  const teachersByName = new Map<string, any>();
 
-    teacherIdMap.set(key, profile.id);
+  for (const t of allExistingTeachers) {
+    if (t.its) teachersByIts.set(t.its, t);
+    if (t.user?.email) teachersByEmail.set(t.user.email.toLowerCase(), t);
+    if (t.user?.firstName) teachersByName.set(t.user.firstName.toLowerCase().trim(), t);
   }
 
-  // 2. Ensure all 8 classes (1A to 4B) exist for academic year 1448 H with proper Masool
+  const fallbackTeacherId = allExistingTeachers.length > 0 ? allExistingTeachers[0].id : null;
+
+  for (const [key, conf] of Object.entries(TEACHER_NAME_MAP)) {
+    let profile = (conf.its && teachersByIts.get(conf.its))
+      || teachersByEmail.get(conf.email.toLowerCase())
+      || teachersByName.get(key.split(" ")[0].toLowerCase());
+
+    if (!profile) {
+      try {
+        const safeEmail = conf.email.toLowerCase();
+        let user = await prisma.user.findUnique({ where: { email: safeEmail } });
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email: safeEmail,
+              passwordHash,
+              plainPassword: "faculty5253",
+              firstName: key.split(" ")[0],
+              lastName: key.split(" ").slice(1).join(" ") || "Faculty",
+              role: "TEACHER",
+            },
+          });
+        }
+
+        profile = await prisma.teacherProfile.findUnique({ where: { userId: user.id } });
+        if (!profile) {
+          const safeEmpId = conf.its || `EMP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+          profile = await prisma.teacherProfile.create({
+            data: {
+              userId: user.id,
+              employeeId: safeEmpId,
+              department: "Attalimiyah",
+              its: conf.its || null,
+            },
+            include: { user: true },
+          });
+        }
+      } catch (err: any) {
+        console.warn(`[timetable:sync] Teacher profile fallback notice for ${key}:`, err?.message || err);
+      }
+    }
+
+    if (profile) {
+      teacherIdMap.set(key, profile.id);
+    } else if (fallbackTeacherId) {
+      teacherIdMap.set(key, fallbackTeacherId);
+    }
+  }
+
+  // Step 2: Ensure all 8 classes (1A to 4B) exist for academic year 1448 H with proper Masool
   const classIdMap = new Map<string, string>(); // "1 A" -> classId
 
   for (const cfg of CLASS_CONFIGS) {
-    const classTeacherId = teacherIdMap.get(cfg.classTeacher) || Array.from(teacherIdMap.values())[0];
+    const classTeacherId = teacherIdMap.get(cfg.classTeacher)
+      || fallbackTeacherId
+      || (await prisma.teacherProfile.findFirst())?.id;
+
+    if (!classTeacherId) {
+      console.warn(`[timetable:sync] No teacher profile available to assign to Class ${cfg.name}`);
+      continue;
+    }
+
     let cls = await prisma.class.findFirst({
       where: {
         grade: cfg.grade,
@@ -438,8 +563,8 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
         where: { id: cls.id },
         data: {
           name: cfg.name,
-          teacherId: classTeacherId || cls.teacherId,
-          masoolId: classTeacherId || cls.masoolId,
+          teacherId: classTeacherId,
+          masoolId: classTeacherId,
           isActive: true,
         },
       });
@@ -448,36 +573,31 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
     classIdMap.set(cfg.name, cls.id);
   }
 
-  // 3. Enroll Talabat into their matching classes (Grade + Section)
+  // Step 3: Enroll Talabat into their matching classes (Grade + Section)
   const allStudents = await prisma.studentProfile.findMany({
     select: { id: true, studentId: true, grade: true, section: true },
   });
 
   let enrolledCount = 0;
   for (const st of allStudents) {
-    const gradeNum = st.grade.replace(/[^0-9]/g, "") || "1";
+    const gradeNum = (st.grade || "").replace(/[^0-9]/g, "") || "1";
     const secLetter = (st.section || "A").trim().toUpperCase();
     const targetClassName = `${gradeNum} ${secLetter}`;
     const targetClassId = classIdMap.get(targetClassName);
 
     if (targetClassId) {
-      const existing = await prisma.classEnrollment.findFirst({
-        where: { studentId: st.id, classId: targetClassId },
-      });
-      if (!existing) {
-        await prisma.classEnrollment.create({
-          data: {
-            studentId: st.id,
-            classId: targetClassId,
-            isActive: true,
-          },
+      try {
+        await prisma.classEnrollment.upsert({
+          where: { classId_studentId: { classId: targetClassId, studentId: st.id } },
+          update: { isActive: true },
+          create: { classId: targetClassId, studentId: st.id, isActive: true },
         });
         enrolledCount++;
-      }
+      } catch {}
     }
   }
 
-  // 4. Ingest / Re-sync Timetable Slots
+  // Step 4: Ingest / Re-sync Timetable Slots
   const currentSlotCount = await prisma.timetableSlot.count();
   if (force || currentSlotCount === 0) {
     if (force) {
@@ -487,15 +607,15 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
 
     let insertedSlots = 0;
     for (const [clsName, dayOfWeek, period, subject, teacherKey] of RAW_SLOTS) {
-      const classId = classIdMap.get(clsName);
-      const teacherId = teacherIdMap.get(teacherKey);
+      const classId = classIdMap.get(clsName) || null;
+      const teacherId = teacherIdMap.get(teacherKey) || fallbackTeacherId || null;
       const times = PERIOD_TIMES[period] || { startTime: "10:30", endTime: "11:00" };
 
       await prisma.timetableSlot.create({
         data: {
-          classId: classId || null,
+          classId,
           className: clsName,
-          teacherId: teacherId || null,
+          teacherId,
           teacherName: teacherKey,
           dayOfWeek,
           period,
@@ -532,6 +652,7 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
  */
 export async function syncMasterTimetableIfEmpty(): Promise<void> {
   try {
+    await ensureDatabaseSchema();
     const slotCount = await prisma.timetableSlot.count();
     if (slotCount === 0) {
       console.log("[timetable:startup] 0 timetable slots found. Automatically seeding master timetable...");

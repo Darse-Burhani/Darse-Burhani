@@ -76,7 +76,12 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
 
     // 2. Fetch all 30 timetable slots for this class
     const slots = await prisma.timetableSlot.findMany({
-      where: { classId: currentClass.id },
+      where: {
+        OR: [
+          { classId: currentClass.id },
+          { className: currentClass.name },
+        ],
+      },
       include: {
         teacher: {
           include: {

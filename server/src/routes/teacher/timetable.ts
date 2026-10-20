@@ -127,8 +127,17 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
 router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => {
   try {
     const { name } = req.params;
+    const cleanName = (name || "").replace(/\s+/g, " ").trim();
+    const noSpaceName = cleanName.replace(/\s+/g, "");
+
     const targetClass = await prisma.class.findFirst({
-      where: { name, academicYear: "1448 H" },
+      where: {
+        OR: [
+          { name: cleanName },
+          { name: noSpaceName },
+          { name: { contains: cleanName, mode: "insensitive" } },
+        ],
+      },
       include: {
         teacher: { include: { user: true } },
         masool: { include: { user: true } },
@@ -141,6 +150,20 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
 
     if (!targetClass) {
       return res.status(404).json({ success: false, error: "Class not found" });
+    }
+
+    let slots = targetClass.timetableSlots || [];
+    if (slots.length === 0) {
+      slots = await prisma.timetableSlot.findMany({
+        where: {
+          OR: [
+            { classId: targetClass.id },
+            { className: cleanName },
+            { className: noSpaceName },
+          ],
+        },
+        orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
+      });
     }
 
     return res.json({
@@ -160,7 +183,7 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
             avatarUrl: targetClass.masool.user.avatarUrl,
           } : null,
         },
-        slots: targetClass.timetableSlots,
+        slots,
       },
     });
   } catch (error) {

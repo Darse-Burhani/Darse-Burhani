@@ -49,7 +49,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }, { className: "asc" }],
       }),
       prisma.class.findMany({
-        where: { isActive: true, academicYear: "1448 H", grade: { in: ["1", "2", "3", "4"] } },
+        where: { isActive: true, grade: { in: ["1", "2", "3", "4"] } },
         include: {
           masool: {
             include: { user: true },

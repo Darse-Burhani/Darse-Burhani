@@ -206,12 +206,12 @@ export default function AdminTimetableMasterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ force: true }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
         toast({ variant: "success", title: "Master Timetable Synced", description: data.message || "240 slots generated across 8 classes." });
         await fetchTimetableData(true);
       } else {
-        toast({ variant: "destructive", title: "Sync Failed", description: data.error || "Failed to synchronize timetable." });
+        toast({ variant: "destructive", title: "Sync Failed", description: data?.error || `Server error (${res.status})` });
       }
     } catch {
       toast({ variant: "destructive", title: "Connection Error", description: "Could not connect to server." });
