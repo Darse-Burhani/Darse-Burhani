@@ -31,6 +31,20 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
             student: {
               include: {
                 user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+                classEnrollments: {
+                  where: { class: { academicYear: "1448 H", grade: { in: ["1", "2", "3", "4"] } } },
+                  include: {
+                    class: {
+                      include: {
+                        masool: {
+                          include: {
+                            user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
                 talabatProfile1447: {
                   select: {
                     id: true,
@@ -269,6 +283,22 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
             residentCity: student.residentCity || "",
             bloodGroup: student.bloodGroup || "",
             relationship: link.relationship || parentProfile.relationType || "Parent",
+
+            // Academic Class & Masool
+            academicClass: student.classEnrollments?.[0]?.class
+              ? {
+                  id: student.classEnrollments[0].class.id,
+                  name: student.classEnrollments[0].class.name,
+                  grade: student.classEnrollments[0].class.grade,
+                  section: student.classEnrollments[0].class.section,
+                  masoolName: student.classEnrollments[0].class.masool?.user
+                    ? `${student.classEnrollments[0].class.masool.user.firstName} ${student.classEnrollments[0].class.masool.user.lastName}`
+                    : null,
+                  masoolIts: student.classEnrollments[0].class.masool?.its || null,
+                  masoolEmail: student.classEnrollments[0].class.masool?.user?.email || null,
+                  masoolAvatar: student.classEnrollments[0].class.masool?.user?.avatarUrl || null,
+                }
+              : null,
 
             // Attendance details
             isCheckedIn,
