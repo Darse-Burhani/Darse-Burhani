@@ -142,6 +142,13 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
         teacher: { include: { user: true } },
         masool: { include: { user: true } },
         timetableSlots: {
+          include: {
+            teacher: {
+              include: {
+                user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+              },
+            },
+          },
           orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
         },
         _count: { select: { enrollments: true } },
@@ -161,6 +168,13 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
             { className: cleanName },
             { className: noSpaceName },
           ],
+        },
+        include: {
+          teacher: {
+            include: {
+              user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+            },
+          },
         },
         orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
       });
@@ -183,7 +197,22 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
             avatarUrl: targetClass.masool.user.avatarUrl,
           } : null,
         },
-        slots,
+        slots: slots.map((s: any) => ({
+          id: s.id,
+          classId: s.classId,
+          className: s.className || targetClass.name,
+          teacherId: s.teacherId,
+          teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
+          teacherAvatar: s.teacher?.user?.avatarUrl || null,
+          subject: s.subject,
+          dayOfWeek: s.dayOfWeek,
+          period: s.period,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          roomNumber: s.roomNumber || targetClass.roomNumber || `Room ${targetClass.name}`,
+          isBreak: s.isBreak,
+          breakName: s.breakName,
+        })),
       },
     });
   } catch (error) {

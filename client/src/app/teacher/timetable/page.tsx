@@ -378,10 +378,13 @@ export default function TeacherTimetablePage() {
             {classData?.class && (
               <div className="flex items-center gap-3 flex-wrap shrink-0">
                 {classData.class.masool && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80">
-                    <div className="w-6 h-6 rounded-md bg-[#06241a] text-amber-300 text-[10px] font-black flex items-center justify-center">
-                      مسؤول
-                    </div>
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80">
+                    <Avatar className="w-7 h-7 ring-1 ring-amber-400 shrink-0">
+                      {classData.class.masool.avatarUrl && <AvatarImage src={classData.class.masool.avatarUrl} alt={classData.class.masool.name} />}
+                      <AvatarFallback className="bg-[#06241a] text-amber-300 text-[10px] font-bold">
+                        {getInitials(classData.class.masool.name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div>
                       <div className="text-[9px] font-black uppercase text-amber-800">Class Masool:</div>
                       <div className="text-xs font-bold text-slate-900 truncate max-w-[200px]" title={classData.class.masool.name}>
@@ -443,8 +446,16 @@ export default function TeacherTimetablePage() {
                                   <div className="text-xs font-black text-slate-900 leading-tight">
                                     {slot.subject}
                                   </div>
-                                  <div className="text-[11px] text-slate-700 font-semibold mt-1 truncate" title={slot.teacherName}>
-                                    {slot.teacherName}
+                                  <div className="flex items-center gap-1.5 mt-1.5">
+                                    <Avatar className="w-5 h-5 ring-1 ring-emerald-600/30 shrink-0">
+                                      {slot.teacherAvatar && <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />}
+                                      <AvatarFallback className="text-[8px] font-black bg-[#06241a] text-amber-300">
+                                        {getInitials(slot.teacherName)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="text-[11px] text-slate-700 font-semibold truncate" title={slot.teacherName}>
+                                      {slot.teacherName}
+                                    </div>
                                   </div>
                                   {isTaughtByMe && (
                                     <div className="mt-1.5 pt-1 border-t border-emerald-200/60 flex items-center gap-1 text-[9px] font-black text-emerald-800">

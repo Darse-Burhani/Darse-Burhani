@@ -18,7 +18,11 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       if (!Number.isNaN(parsed)) where.dayOfWeek = parsed;
     }
 
-    const [slots, classes, teachers] = await Promise.all([
+    const today = new Date();
+    const startOfToday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
+    const endOfToday = new Date(startOfToday.getTime() + 86400000);
+
+    const [slots, classes, teachers, todayBadals] = await Promise.all([
       prisma.timetableSlot.findMany({
         where,
         include: {
@@ -70,6 +74,16 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         },
         orderBy: [{ timetableSlots: { _count: "desc" } }, { user: { firstName: "asc" } }],
       }),
+      prisma.timetableBadal.findMany({
+        where: {
+          date: { gte: startOfToday, lt: endOfToday },
+        },
+        include: {
+          originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+          badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+        },
+        orderBy: [{ period: "asc" }],
+      }),
     ]);
 
     return res.json({
@@ -102,6 +116,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           subject: c.subject,
           masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
           masoolIts: c.masool?.its || null,
+          masoolAvatar: c.masool?.user?.avatarUrl || null,
           masoolId: c.masoolId,
           studentCount: c._count.enrollments,
           slotCount: c._count.timetableSlots,
@@ -113,6 +128,23 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           its: t.its,
           avatarUrl: t.user?.avatarUrl || null,
           weeklyPeriods: t._count.timetableSlots,
+        })),
+        todayBadals: todayBadals.map((b) => ({
+          id: b.id,
+          date: b.date.toISOString().split("T")[0],
+          slotId: b.slotId,
+          classId: b.classId,
+          className: b.className,
+          period: b.period,
+          subject: b.subject,
+          originalTeacherId: b.originalTeacherId,
+          originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
+          originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
+          badalTeacherId: b.badalTeacherId,
+          badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName} ${b.badalTeacher.user.lastName}` : "TBA"),
+          badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
+          status: b.status,
+          isFulfilled: b.isFulfilled,
         })),
       },
     });
@@ -204,7 +236,19 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     const finalStart = startTime || defaultTimes.startTime;
     const finalEnd = endTime || defaultTimes.endTime;
 
-    let slot;
+    const slotInclude = {
+      class: { select: { id: true, name: true, grade: true, section: true } },
+      teacher: {
+        select: {
+          id: true,
+          its: true,
+          employeeId: true,
+          user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+        },
+      },
+    };
+
+    let slot: any;
     if (id) {
       slot = await prisma.timetableSlot.update({
         where: { id },
@@ -222,6 +266,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
           isBreak: Boolean(isBreak),
           breakName: isBreak ? (breakName || "Break") : null,
         },
+        include: slotInclude,
       });
     } else {
       // Check if a slot already exists for this class at this day and period
@@ -245,6 +290,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
             isBreak: Boolean(isBreak),
             breakName: isBreak ? (breakName || "Break") : null,
           },
+          include: slotInclude,
         });
       } else {
         slot = await prisma.timetableSlot.create({
@@ -262,11 +308,33 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
             isBreak: Boolean(isBreak),
             breakName: isBreak ? (breakName || "Break") : null,
           },
+          include: slotInclude,
         });
       }
     }
 
-    return res.json({ success: true, data: slot });
+    return res.json({
+      success: true,
+      data: {
+        id: slot.id,
+        classId: slot.classId,
+        className: slot.className || slot.class?.name || "Class",
+        classGrade: slot.class?.grade || "",
+        classSection: slot.class?.section || "",
+        teacherId: slot.teacherId,
+        teacherName: slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA"),
+        teacherAvatar: slot.teacher?.user?.avatarUrl || null,
+        teacherIts: slot.teacher?.its || null,
+        subject: slot.subject,
+        dayOfWeek: slot.dayOfWeek,
+        period: slot.period,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        roomNumber: slot.roomNumber,
+        isBreak: slot.isBreak,
+        breakName: slot.breakName,
+      },
+    });
   } catch (error) {
     console.error("Timetable slot save error:", error);
     return res.status(500).json({ success: false, error: "Failed to save timetable slot" });
