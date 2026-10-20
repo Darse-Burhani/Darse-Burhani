@@ -21,6 +21,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import http from 'node:http';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,6 +32,15 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../server/.env') });
 
 const prisma = new PrismaClient();
+
+// Operational stats for local 24/7 health inspection
+const stats = {
+  startedAt: new Date(),
+  totalPunches: 0,
+  renderSynced: 0,
+  dbDirectSynced: 0,
+  lastPunch: null,
+};
 
 const RENDER_BASE = (
   process.argv[2] ||
@@ -43,6 +53,7 @@ const RENDER_BASE = (
 
 const SECRET = process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253';
 const WEBHOOK_URL = `${RENDER_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`;
+
 
 // Terminal Device Roster
 const rawHosts = process.env.HIKVISION_HOSTS || process.env.HIKVISION_HOST || '192.168.0.4,192.168.0.5';
@@ -299,6 +310,9 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
     },
   };
 
+  stats.totalPunches++;
+  stats.lastPunch = { employeeNo, name, time: timeStr, currentVerifyMode, deviceHost };
+
   // 1. Send to Render Cloud Webhook
   let webhookSuccess = false;
   try {
@@ -314,6 +328,7 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
 
     if (res.ok) {
       webhookSuccess = true;
+      stats.renderSynced++;
       console.log(`   ☁️  [CLOUD WEBHOOK] Synced to Render (${res.status} OK)`);
     } else {
       console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Render returned HTTP ${res.status} (activating direct DB sync)`);
@@ -323,12 +338,15 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
   }
 
   // 2. Direct Supabase Database Write (Dual-Path Guarantee)
-  await recordDirectScanInDatabase({
+  const dbRes = await recordDirectScanInDatabase({
     employeeNo,
     time: timeStr,
     verifyMode: currentVerifyMode,
     deviceHost,
   });
+  if (dbRes?.ok) {
+    stats.dbDirectSynced++;
+  }
 }
 
 // Check and sync device clock with IST
@@ -545,6 +563,8 @@ async function pollDeviceEvents(dev, lookbackHours = 3) {
 }
 
 async function startBridge() {
+  await startStatusServer();
+
   console.log('\n════════════════════════════════════════════════════════════════════');
   console.log('  🏛️  DARSE BURHANI — HIKVISION CLOUD ATTENDANCE BRIDGE');
   console.log('════════════════════════════════════════════════════════════════════');
@@ -589,4 +609,112 @@ async function startBridge() {
   console.log('════════════════════════════════════════════════════════════════════\n');
 }
 
+const STATUS_PORT = parseInt(process.env.BRIDGE_STATUS_PORT || '8099', 10);
+
+function startStatusServer() {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      if (req.url === '/health' || req.url === '/api/status') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ONLINE',
+        uptimeSeconds: Math.round(process.uptime()),
+        startedAt: stats.startedAt,
+        totalPunches: stats.totalPunches,
+        renderSynced: stats.renderSynced,
+        dbDirectSynced: stats.dbDirectSynced,
+        lastPunch: stats.lastPunch,
+        devices: DEVICES.map((d) => ({ name: d.name, host: d.host, port: d.port })),
+        cloudUrl: RENDER_BASE,
+      }, null, 2));
+      return;
+    }
+
+    const uptimeMins = Math.floor(process.uptime() / 60);
+    const uptimeHours = Math.floor(uptimeMins / 60);
+    const uptimeDays = Math.floor(uptimeHours / 24);
+    const uptimeStr = uptimeDays > 0 
+      ? `${uptimeDays}d ${uptimeHours % 24}h ${uptimeMins % 60}m` 
+      : `${uptimeHours}h ${uptimeMins % 60}m ${Math.floor(process.uptime() % 60)}s`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Darse Burhani — Hikvision Bridge (24/7)</title>
+  <meta http-equiv="refresh" content="10">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+    .card { max-width: 680px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid #334155; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: #064e3b; color: #34d399; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 13px; }
+    .badge-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    h1 { margin: 8px 0 16px 0; font-size: 22px; font-weight: 700; color: #fff; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .metric { background: #0f172a; padding: 14px; border-radius: 8px; border: 1px solid #334155; }
+    .metric-val { font-size: 20px; font-weight: 700; color: #38bdf8; }
+    .metric-lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }
+    .list { margin-top: 16px; background: #0f172a; border-radius: 8px; padding: 12px; border: 1px solid #334155; font-size: 13px; }
+    .device-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1e293b; }
+    .device-item:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="badge"><span class="badge-dot"></span> LIVE 24/7 ACTIVE</span>
+      <span style="font-size:12px; color:#94a3b8;">Uptime: ${uptimeStr}</span>
+    </div>
+    <h1>🏛️ Darse Burhani — Hikvision Cloud Bridge</h1>
+    <p style="color:#94a3b8; font-size:14px; margin-top:-8px;">Local biometric hardware bridge syncing Hikvision terminals with live cloud.</p>
+    
+    <div class="grid">
+      <div class="metric"><div class="metric-val">${stats.totalPunches}</div><div class="metric-lbl">Total Scans Synced</div></div>
+      <div class="metric"><div class="metric-val">${stats.renderSynced}</div><div class="metric-lbl">Render Cloud Pushes</div></div>
+      <div class="metric"><div class="metric-val">${stats.dbDirectSynced}</div><div class="metric-lbl">Supabase Direct Records</div></div>
+      <div class="metric"><div class="metric-val">${stats.lastPunch ? (stats.lastPunch.name || stats.lastPunch.employeeNo) : 'None yet'}</div><div class="metric-lbl">Last Punch Person</div></div>
+    </div>
+
+    <div class="list">
+      <strong style="color:#cbd5e1;">Monitored Terminals:</strong>
+      ${DEVICES.map((d) => `<div class="device-item"><span>🟢 ${d.name} (${d.host})</span><span style="color:#34d399;">Active</span></div>`).join('')}
+    </div>
+
+    <div style="margin-top:16px; font-size:12px; color:#64748b; text-align:center;">
+      Target: ${RENDER_BASE} • Auto-refreshing every 10s
+    </div>
+  </div>
+</body>
+</html>`;
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(html);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`\n⚠️  [INSTANCE ALREADY ACTIVE] Port ${STATUS_PORT} is in use.`);
+      console.warn('   Another 24/7 Hikvision Bridge instance is already running on this PC.');
+      console.warn(`   View live dashboard at: http://localhost:${STATUS_PORT}\n`);
+      process.exit(42);
+    }
+  });
+
+  server.listen(STATUS_PORT, '127.0.0.1', () => {
+    console.log(`📊 Local Status Dashboard : http://localhost:${STATUS_PORT}`);
+    resolve(server);
+  });
+});
+}
+
+// 24/7 Resilience Guards: Prevent transient network drops/timeouts from terminating the process
+process.on('unhandledRejection', (reason) => {
+  console.warn('⚠️ [BRIDGE WARNING] Unhandled promise rejection caught (continuing 24/7 daemon):', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('🚨 [BRIDGE ERROR] Uncaught exception caught (recovering daemon):', err?.message || err);
+});
+
 startBridge();
+
+
