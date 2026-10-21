@@ -13,8 +13,11 @@ import {
   GraduationCap,
   Sparkles,
   Users,
+  UserCheck,
   QrCode,
   ArrowRight,
+  Check,
+  LogIn,
   Lock,
   Mail,
   CheckCircle2,
@@ -45,9 +48,9 @@ export const portals: PortalConfig[] = [
     label: "Administrative Portal",
     shortLabel: "Admin",
     badgeLabel: "Central Governance",
-    description: "Official institutional governance for academic operations, biometric terminals, scheduling, and admissions.",
+    description: "Official institutional governance for academic operations, academic records, examinations and administrative services.",
     instructions: "Sign in with your authorized administrator email and institutional password.",
-    placeholder: "e.g. admin@darseburhani.edu",
+    placeholder: "admin@darseburhani.edu",
     inputLabel: "Administrator Email",
     rolePath: "/admin",
     icon: ShieldCheck,
@@ -57,9 +60,9 @@ export const portals: PortalConfig[] = [
     label: "Faculty Portal",
     shortLabel: "Faculty",
     badgeLabel: "Academic Faculty",
-    description: "Classroom rosters, daily attendance register, Hifz Quran logbooks, and academic remarks.",
+    description: "Classroom instruction, daily attendance registers, Hifz Quran logbooks, and academic remarks.",
     instructions: "Sign in with your appointed faculty email address.",
-    placeholder: "e.g. faculty@mahadalzahra.com",
+    placeholder: "faculty@darseburhani.edu",
     inputLabel: "Faculty Email",
     rolePath: "/teacher",
     icon: GraduationCap,
@@ -71,10 +74,10 @@ export const portals: PortalConfig[] = [
     badgeLabel: "Enrolled Talabat",
     description: "Daily timetable, Hifz Quran progress, Sabaq assignments, and Maktabat book borrowings.",
     instructions: "Enter your 8-digit ITS number or click 'Scan ITS Card' with your camera.",
-    placeholder: "Enter 8-digit ITS or student email",
-    inputLabel: "8-Digit ITS or Student Email",
+    placeholder: "e.g. 50401234",
+    inputLabel: "Student ID / ITS",
     rolePath: "/talabat",
-    icon: Sparkles,
+    icon: Users,
   },
   {
     role: "PARENT",
@@ -83,10 +86,10 @@ export const portals: PortalConfig[] = [
     badgeLabel: "Parent Network",
     description: "Track your child's academic progress, review attendance records, and submit leave requests.",
     instructions: "Sign in with your registered parent email address.",
-    placeholder: "e.g. parent@example.com",
+    placeholder: "parent@example.com",
     inputLabel: "Parent Email",
     rolePath: "/parent",
-    icon: Users,
+    icon: UserCheck,
   },
 ];
 
@@ -111,6 +114,40 @@ function playScanSuccessChime() {
   } catch {
     // audio fallback
   }
+}
+
+/** Gold floral mandala ornament shown in the page corners (top-left / bottom-right). */
+function CornerMandala({ size = 170, style }: { size?: number; style?: React.CSSProperties }) {
+  const petalAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" style={style} aria-hidden="true">
+      <g stroke="rgba(212,175,80,0.5)" strokeWidth="0.7">
+        {petalAngles.map((a) => (
+          <ellipse key={a} cx="60" cy="40" rx="12.5" ry="21" transform={`rotate(${a} 60 60)`} />
+        ))}
+        {petalAngles.map((a) => (
+          <ellipse key={`i${a}`} cx="60" cy="50" rx="6" ry="11" transform={`rotate(${a} 60 60)`} />
+        ))}
+        <circle cx="60" cy="60" r="27" />
+        <circle cx="60" cy="60" r="31.5" strokeDasharray="1.5 4" />
+        <circle cx="60" cy="60" r="36" strokeDasharray="0.5 5" />
+        {petalAngles.map((a) => {
+          const rad = ((a - 90) * Math.PI) / 180;
+          return (
+            <circle
+              key={`d${a}`}
+              cx={60 + 42 * Math.cos(rad)}
+              cy={60 + 42 * Math.sin(rad)}
+              r="1.4"
+              fill="rgba(235,170,69,0.55)"
+              stroke="none"
+            />
+          );
+        })}
+        <circle cx="60" cy="60" r="3" fill="rgba(235,170,69,0.45)" stroke="none" />
+      </g>
+    </svg>
+  );
 }
 
 export default function LoginPage() {
@@ -408,209 +445,318 @@ export default function LoginPage() {
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Main Container - High Clarity Bright & Prestigious Theme */}
-      <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-[#ecfdf5] text-slate-800 flex flex-col justify-between px-4 py-3 sm:px-8 sm:py-5 relative overflow-x-hidden selection:bg-emerald-200 selection:text-emerald-900">
-        
-        {/* Soft Ambient Radiance Orbs */}
-        <div className="pointer-events-none absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-amber-500/15 blur-3xl" />
-        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full bg-emerald-600/5 blur-[120px]" />
+      {/* ── Full-Length Sunset Backdrop (entire panorama, no crop) ── */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none login-backdrop"
+        style={{
+          backgroundImage: `url('/login-bg-sunset.jpg'), linear-gradient(180deg, #3d4771 0%, #4a4f73 24%, #6b5d6e 40%, #4a3a38 62%, #241708 84%, #180f04 100%)`,
+        }}
+      />
+      {/* Cinematic overlay: indigo-to-ember tint picked from the backdrop photo */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          background: `
+            linear-gradient(180deg,
+              rgba(26,32,60,0.62) 0%,
+              rgba(26,32,60,0.22) 12%,
+              rgba(26,32,60,0.05) 30%,
+              rgba(26,32,60,0.06) 58%,
+              rgba(24,16,10,0.26) 80%,
+              rgba(18,12,6,0.66) 100%
+            )
+          `,
+        }}
+      />
 
-        {/* ── Top Header ── */}
-        <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200/80 relative z-10 shrink-0">
-          <div className="flex items-center gap-3.5 group">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white border-2 border-emerald-600/20 p-1.5 flex items-center justify-center shrink-0 shadow-md shadow-emerald-900/5 group-hover:border-emerald-600 transition-all">
-              {!logoFailed ? (
-                <img
-                  src="/logo.png"
-                  alt="Darse Burhani"
-                  onError={() => setLogoFailed(true)}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="font-serif text-sm font-black text-emerald-800">DB</span>
-              )}
-            </div>
+      {/* ── Full Page Layout ── */}
+      <div className="relative z-10 min-h-screen flex flex-col" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+
+        {/* ── Corner Mandala Ornaments ── */}
+        <CornerMandala size={190} style={{ position: "fixed", top: -54, left: -48, pointerEvents: "none", zIndex: 40, opacity: 0.85 }} />
+        <CornerMandala size={190} style={{ position: "fixed", bottom: -54, right: -48, pointerEvents: "none", zIndex: 40, opacity: 0.85 }} />
+
+        {/* ═══════════════ HEADER ═══════════════ */}
+        <header
+          className="w-full flex items-center justify-between px-8 py-3 shrink-0 relative"
+          style={{ background: "rgba(26,32,60,0.72)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+        >
+          {/* Gold gradient hairline at header bottom */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 1,
+              background:
+                "linear-gradient(90deg, rgba(201,146,74,0.05) 0%, rgba(235,170,69,0.45) 22%, rgba(247,203,110,0.9) 50%, rgba(235,170,69,0.45) 78%, rgba(201,146,74,0.05) 100%)",
+            }}
+          />
+          {/* Header content container */}
+          <div className="w-full mx-auto flex items-center justify-between" style={{ maxWidth: 1560 }}>
+          <div className="flex items-center gap-3">
+            {/* Wordmark */}
             <div>
-              <span className="font-serif text-xl sm:text-2xl font-black text-slate-900 tracking-tight block leading-tight">
-                Darse Burhani <span className="text-emerald-700 font-bold text-xs sm:text-sm tracking-normal">(Nisab)</span>
-              </span>
-              <span className="text-[11px] sm:text-xs font-bold tracking-[0.18em] uppercase text-amber-700 block mt-0.5">
-                Mahad al Zahra &bull; Aljamea-tus-Saifiyah
-              </span>
+              <div
+                className="leading-tight"
+                style={{ fontSize: "clamp(17px, 4.4vw, 25px)", fontWeight: 700, color: "#ffffff", fontFamily: "'Georgia', 'Times New Roman', serif", letterSpacing: "0.01em" }}
+              >
+                Darse Burhani <span style={{ color: "#ebaa45" }}>(Nisab)</span>
+              </div>
+              <div
+                style={{ fontSize: "clamp(8px, 2.1vw, 11px)", fontWeight: 600, color: "#c99349", letterSpacing: "0.22em", textTransform: "uppercase", marginTop: 2 }}
+              >
+                MAHAD AL ZAHRA
+              </div>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/90 border border-slate-200 shadow-xs text-xs font-semibold text-slate-700">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            <span>Academic Portal &bull; 1448 H</span>
           </div>
         </header>
 
-        {/* ── Center Main Card (Spacious, Pristine, Sized with Luxury Polish) ── */}
-        <main className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center py-4 sm:py-6 relative z-10">
-          <div className="rounded-3xl bg-white border border-slate-200/90 shadow-[0_20px_60px_-15px_rgba(6,78,59,0.12),0_10px_25px_-5px_rgba(0,0,0,0.04)] grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] overflow-hidden">
-            
-            {/* Left Showcase & Heritage Panel (Deep Royal Emerald with Warm Gold Trim) */}
-            <div className="p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#047857] text-white flex flex-col justify-between space-y-6 relative overflow-hidden">
-              {/* Subtle background arabesque watermark glow */}
-              <div className="pointer-events-none absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-emerald-400/10 blur-2xl" />
-              <div className="pointer-events-none absolute -left-10 -top-10 w-48 h-48 rounded-full bg-amber-400/15 blur-2xl" />
+        {/* ═══════════════ MAIN CENTER AREA ═══════════════ */}
+        <main className="flex-1 flex items-center justify-center px-4 py-6">
+          {/* Card */}
+          <div
+            className="w-full grid login-card-grid"
+            style={{
+              maxWidth: 1080,
+              gridTemplateColumns: "38% 62%",
+              borderRadius: 20,
+              border: "1px solid rgba(255,255,255,0.3)",
+              overflow: "hidden",
+              boxShadow:
+                "0 32px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,146,74,0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+            }}
+          >
 
-              <div className="space-y-4 relative z-10">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/60 border border-amber-400/50 text-amber-300 text-xs font-bold shadow-xs">
-                  <portal.icon className="w-4 h-4 text-amber-300" />
-                  <span>{portal.badgeLabel}</span>
+            {/* ── LEFT PANEL: Cream Photo Panel ── */}
+            <div
+              className="flex flex-col items-center justify-center p-10 relative overflow-hidden"
+              style={{
+                background: "linear-gradient(160deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)",
+                backdropFilter: "blur(22px) saturate(150%)",
+                WebkitBackdropFilter: "blur(22px) saturate(150%)",
+                borderRight: "1px solid rgba(255,255,255,0.18)",
+              }}
+            >
+              {/* Institutional Logo Photo on a soft cream card */}
+              {!logoFailed ? (
+                <div
+                  style={{
+                    width: "100%",
+                    maxWidth: 420,
+                    padding: "12px 16px",
+                    borderRadius: 16,
+                    background: "rgba(255,251,240,0.94)",
+                    border: "1px solid rgba(255,255,255,0.7)",
+                    boxShadow: "0 22px 55px rgba(0,0,0,0.35)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src="/logo.png"
+                    alt="Darse Burhani"
+                    onError={() => setLogoFailed(true)}
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                      objectFit: "contain",
+                      display: "block",
+                      transform: "scale(1.14)",
+                      transformOrigin: "center",
+                    }}
+                  />
                 </div>
-
-                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight drop-shadow-xs">
-                  {portal.label}
-                </h1>
-
-                <p className="text-sm text-emerald-100/95 leading-relaxed font-normal">
-                  {portal.description}
-                </p>
-
-                {/* Clear Instruction Card */}
-                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-xs space-y-1.5 shadow-inner">
-                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs uppercase tracking-wider">
-                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
-                    <span>Access Instructions</span>
-                  </div>
-                  <p className="leading-relaxed text-xs text-white/95">
-                    {portal.instructions}
-                  </p>
-                </div>
-              </div>
-
-              {/* Security & Support Guarantee */}
-              <div className="pt-4 border-t border-emerald-700/60 text-xs space-y-2 relative z-10">
-                <div className="flex items-center gap-2 text-emerald-200/90 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Integrated Biometric &amp; Central Identity Sync</span>
-                </div>
-                <p className="text-[11px] text-emerald-200/90 leading-relaxed">
-                  For password reset or biometric queries, contact:{" "}
-                  <a href="mailto:support.darseburhani.galiakot@gmail.com" className="underline font-bold text-amber-300 hover:text-white">
-                    support.darseburhani.galiakot@gmail.com
-                  </a>
-                </p>
-              </div>
+              ) : (
+                <span
+                  style={{
+                    fontFamily: "'Georgia', 'Times New Roman', serif",
+                    fontSize: 34,
+                    fontWeight: 700,
+                    color: "#8a6a1f",
+                  }}
+                >
+                  Darse Burhani
+                </span>
+              )}
             </div>
 
-            {/* Right Sign-In Form Panel (Crisp, High-Visibility, Bright White Canvas) */}
-            <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center bg-white">
-              
-              {/* 4-Role Segmented Tabs with Proper Sizing & High Contrast */}
-              <div className="space-y-2 mb-5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
-                    Choose Your Workspace
-                  </label>
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    4 Roles Available
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200" role="tablist">
-                  {portals.map((p) => {
-                    const active = p.role === selectedRole;
-                    const Icon = p.icon;
-                    return (
-                      <button
-                        key={p.role}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        onClick={() => handlePortalChange(p.role)}
-                        className={`relative py-2.5 px-2 rounded-xl text-xs text-center font-bold transition-all flex flex-col items-center justify-center gap-1 cursor-pointer select-none active:scale-[0.97] ${
-                          active
-                            ? "bg-emerald-700 text-white shadow-md shadow-emerald-900/20 ring-1 ring-emerald-800"
-                            : "bg-white text-slate-700 hover:bg-emerald-50/70 hover:text-emerald-900 border border-slate-200/80"
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 ${active ? "text-amber-300" : "text-slate-500"}`} />
-                        <span className="text-xs font-bold leading-tight">{p.shortLabel}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* ── RIGHT PANEL: Translucent Deep Navy ── */}
+            <div
+              className="flex flex-col justify-center p-10 gap-5"
+              style={{
+                background: "linear-gradient(160deg, rgba(30,36,66,0.56) 0%, rgba(18,22,44,0.68) 100%)",
+                backdropFilter: "blur(24px) saturate(140%)",
+                WebkitBackdropFilter: "blur(24px) saturate(140%)",
+              }}
+            >
+              {/* Workspace Header Row */}
+              <div className="flex items-center gap-3">
+                <span style={{ fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 700, color: "#ffffff", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+                  Choose your workspace
+                </span>
+                <div className="hidden sm:block" style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.16)" }} />
+                <span className="hidden sm:inline" style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.62)", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                  4 Roles Available
+                </span>
               </div>
 
-              {/* Sign-in Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                
+              {/* Role Tabs */}
+              <div className="grid grid-cols-4 gap-2.5">
+                {portals.map((p) => {
+                  const active = p.role === selectedRole;
+                  const Icon = p.icon;
+                  return (
+                    <button
+                      key={p.role}
+                      type="button"
+                      onClick={() => handlePortalChange(p.role)}
+                      aria-pressed={active}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 7,
+                        padding: "14px 6px",
+                        borderRadius: 12,
+                        border: active ? "1px solid rgba(252,211,77,0.6)" : "1px solid rgba(255,255,255,0.28)",
+                        background: active
+                          ? "linear-gradient(160deg, #fcd468 0%, #ef9f2e 55%, #dd6b27 100%)"
+                          : "rgba(12,16,34,0.55)",
+                        backdropFilter: active ? undefined : "blur(6px)",
+                        WebkitBackdropFilter: active ? undefined : "blur(6px)",
+                        cursor: "pointer",
+                        transition: "all 0.18s ease",
+                      }}
+                    >
+                      <Icon
+                        size={22}
+                        color={active ? "#1c1403" : "rgba(255,255,255,0.95)"}
+                        strokeWidth={active ? 2.2 : 1.8}
+                      />
+                      <span
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: active ? 700 : 600,
+                          color: active ? "#1c1403" : "rgba(255,255,255,0.95)",
+                          letterSpacing: "0.01em",
+                        }}
+                      >
+                        {p.shortLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+
                 {/* Error Banner */}
                 {error && (
                   <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      background: "rgba(127,29,29,0.7)",
+                      border: "1px solid rgba(239,68,68,0.45)",
+                      fontSize: 12,
+                      color: "#fca5a5",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
+                    }}
                     role="alert"
-                    className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-xs"
                   >
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                    <span>{error}</span>
+                    <AlertCircle size={14} color="#f87171" style={{ marginTop: 1, flexShrink: 0 }} />
+                    {error}
                   </div>
                 )}
 
-                {/* Email / ITS Input with Generous Sizing */}
-                <div className="space-y-1.5">
+                {/* Email Field */}
+                <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
-                    <label htmlFor="login-email" className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                      {portal.inputLabel}
+                    <label
+                      htmlFor="login-email"
+                      style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.16em", textTransform: "uppercase" }}
+                    >
+                      {portal.role === "ADMIN" ? "ADMINISTRATOR EMAIL" : portal.inputLabel.toUpperCase()}
                     </label>
-
-                    {/* Scan ITS Button */}
                     {portal.role === "STUDENT" && (
                       <button
                         type="button"
                         onClick={handleOpenScanner}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+                        style={{ fontSize: 10, fontWeight: 600, color: "#ebaa45", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
                       >
-                        <QrCode className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
-                        <span>Scan ITS Card</span>
+                        <QrCode size={11} color="#ebaa45" />
+                        Scan ITS Card
                       </button>
                     )}
                   </div>
-
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                      {portal.role === "STUDENT" ? <Sparkles size={18} /> : <Mail size={18} />}
+                  <div style={{ position: "relative" }}>
+                    <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                      <Mail size={16} color="rgba(255,255,255,0.35)" />
                     </div>
                     <input
                       id="login-email"
                       name="email"
                       type={portal.role === "STUDENT" ? "text" : "email"}
-                      inputMode={portal.role === "STUDENT" ? "text" : "email"}
                       autoCapitalize="none"
                       autoCorrect="off"
                       spellCheck={false}
                       required
                       autoComplete="username"
                       value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (error) setError("");
-                      }}
+                      onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
                       placeholder={portal.placeholder}
-                      className="w-full h-12 sm:h-13 rounded-2xl bg-white border border-slate-300 pl-11 pr-4 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/15 transition-all font-medium shadow-xs"
+                      style={{
+                        width: "100%",
+                        height: 46,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: "rgba(255,255,255,0.07)",
+                        paddingLeft: 42,
+                        paddingRight: 12,
+                        fontSize: 14.5,
+                        color: "#f1f5f9",
+                        outline: "none",
+                        transition: "border-color 0.18s, background 0.18s",
+                        backdropFilter: "blur(4px)",
+                        boxSizing: "border-box",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(212,152,74,0.7)";
+                        e.currentTarget.style.background = "rgba(255,255,255,0.10)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                        e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+                      }}
                     />
                   </div>
                 </div>
 
-                {/* Password Input with Generous Sizing */}
-                <div className="space-y-1.5">
+                {/* Password Field */}
+                <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
-                    <label htmlFor="login-password" className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                      Password
+                    <label
+                      htmlFor="login-password"
+                      style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.16em", textTransform: "uppercase" }}
+                    >
+                      PASSWORD
                     </label>
                     {capsLockOn && (
-                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1">
-                        <AlertCircle size={13} /> Caps Lock Active
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24", display: "flex", alignItems: "center", gap: 3 }}>
+                        <AlertCircle size={11} /> Caps Lock
                       </span>
                     )}
                   </div>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                      <Lock size={18} />
+                  <div style={{ position: "relative" }}>
+                    <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                      <Lock size={16} color="rgba(255,255,255,0.35)" />
                     </div>
                     <input
                       id="login-password"
@@ -624,248 +770,380 @@ export default function LoginPage() {
                       onKeyUp={checkCapsLock}
                       autoComplete="current-password"
                       value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (error) setError("");
+                      onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
+                      placeholder="••••••••"
+                      style={{
+                        width: "100%",
+                        height: 46,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: "rgba(255,255,255,0.07)",
+                        paddingLeft: 42,
+                        paddingRight: 42,
+                        fontSize: 14.5,
+                        color: "#f1f5f9",
+                        outline: "none",
+                        transition: "border-color 0.18s, background 0.18s",
+                        backdropFilter: "blur(4px)",
+                        boxSizing: "border-box",
+                        letterSpacing: showPassword ? "normal" : "0.12em",
                       }}
-                      placeholder="Enter account password"
-                      className="w-full h-12 sm:h-13 rounded-2xl bg-white border border-slate-300 pl-11 pr-12 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/15 transition-all font-medium shadow-xs"
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(212,152,74,0.7)";
+                        e.currentTarget.style.background = "rgba(255,255,255,0.10)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                        e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+                      }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                      style={{
+                        position: "absolute",
+                        right: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 4,
+                        color: "rgba(255,255,255,0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Options row */}
-                <div className="flex items-center justify-between pt-1 text-xs font-semibold">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
+                {/* Remember + Forgot */}
+                <div className="flex items-center justify-between">
+                  <label
+                    className="flex items-center gap-2.5 cursor-pointer"
+                    style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}
+                  >
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded accent-emerald-700 bg-white border-slate-300 cursor-pointer"
+                      style={{ position: "absolute", opacity: 0, width: 0, height: 0, cursor: "pointer" }}
                     />
-                    <span>Remember credentials</span>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 17,
+                        height: 17,
+                        borderRadius: 4,
+                        border: "1px solid rgba(235,170,69,0.85)",
+                        background: rememberMe
+                          ? "linear-gradient(160deg, #fcd468 0%, #eb9a35 100%)"
+                          : "rgba(255,255,255,0.06)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "background 0.15s",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {rememberMe && <Check size={12} color="#1c1403" strokeWidth={3.2} />}
+                    </span>
+                    Remember credentials
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="text-xs font-bold text-emerald-700 hover:text-emerald-900 hover:underline underline-offset-4 transition-colors cursor-pointer"
+                    style={{ fontSize: 13, color: "#ebaa45", background: "none", border: "none", cursor: "pointer", textDecoration: "none" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
                   >
                     Forgot password?
                   </button>
                 </div>
 
-                {/* Primary Sign-In Button with Radiant Shimmer */}
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                    className="relative w-full h-12 sm:h-13 rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 hover:from-emerald-800 hover:to-emerald-800 text-white font-black text-sm tracking-wide transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none cursor-pointer overflow-hidden flex items-center justify-center gap-2 group"
-                  >
-                    {/* Shimmer light sweep */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-
-                    {isLoading ? (
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Verifying credentials...
-                      </span>
-                    ) : isSuccess ? (
-                      <span className="flex items-center gap-2.5">
-                        <CheckCircle2 className="w-5 h-5 text-amber-300" />
-                        Authenticated! Entering portal...
-                      </span>
-                    ) : lockoutSeconds > 0 ? (
-                      `Account Locked (${lockoutSeconds}s)`
-                    ) : (
-                      <>
-                        <span>Sign In to {portal.shortLabel} Portal</span>
-                        <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                      </>
-                    )}
-                  </button>
-                </div>
+                {/* Sign In Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading || isSuccess || lockoutSeconds > 0}
+                  style={{
+                    width: "100%",
+                    height: 52,
+                    borderRadius: 12,
+                    border: "none",
+                    background: isLoading || isSuccess || lockoutSeconds > 0
+                      ? "rgba(180,140,30,0.5)"
+                      : "linear-gradient(90deg, #fcd468 0%, #ef9a33 52%, #dc6b27 100%)",
+                    color: "#1c1403",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    letterSpacing: "0.02em",
+                    cursor: isLoading || isSuccess || lockoutSeconds > 0 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    transition: "filter 0.18s, transform 0.1s",
+                    boxShadow: "0 4px 20px rgba(229,169,18,0.3)",
+                    marginTop: 4,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && !isSuccess && lockoutSeconds === 0) {
+                      e.currentTarget.style.filter = "brightness(1.1)";
+                    }
+                  }}
+                  onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
+                  onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.99)"; }}
+                  onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                >
+                  {isLoading ? (
+                    <>
+                      <span
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          border: "2.5px solid #1c1403",
+                          borderTopColor: "transparent",
+                          animation: "spin 0.75s linear infinite",
+                          display: "inline-block",
+                        }}
+                      />
+                      Verifying credentials...
+                    </>
+                  ) : isSuccess ? (
+                    <>
+                      <CheckCircle2 size={16} color="#1c1403" />
+                      Authenticated!
+                    </>
+                  ) : lockoutSeconds > 0 ? (
+                    `Account locked · ${lockoutSeconds}s`
+                  ) : (
+                    <>
+                      <LogIn size={17} color="#1c1403" strokeWidth={2.4} />
+                      Sign In to {portal.shortLabel} Portal
+                      <ArrowRight size={16} color="#1c1403" strokeWidth={2.5} />
+                    </>
+                  )}
+                </button>
               </form>
             </div>
           </div>
         </main>
 
-        {/* ── Bottom Footer ── */}
-        <footer className="w-full max-w-6xl mx-auto pt-3 sm:pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 relative z-10 shrink-0">
-          <p className="font-medium">© 2026 Darse Burhani (Nisab) &bull; Mahad al Zahra</p>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 font-semibold text-slate-600">
-            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="text-emerald-700 hover:underline underline-offset-2 transition-colors font-bold">
-              Support: support.darseburhani.galiakot@gmail.com
+        {/* ═══════════════ FOOTER ═══════════════ */}
+        <footer
+          className="w-full flex items-center justify-between px-8 py-6 shrink-0 relative"
+          style={{
+            background: "rgba(26,32,60,0.74)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+          }}
+        >
+          {/* Gold gradient hairline at footer top */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 1,
+              background:
+                "linear-gradient(90deg, rgba(201,146,74,0.05) 0%, rgba(235,170,69,0.45) 22%, rgba(247,203,110,0.9) 50%, rgba(235,170,69,0.45) 78%, rgba(201,146,74,0.05) 100%)",
+            }}
+          />
+
+          {/* Footer content container */}
+          <div className="w-full mx-auto flex items-center justify-between" style={{ maxWidth: 1450, position: "relative", zIndex: 1 }}>
+          {/* Copyright */}
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+            &copy; 2026 Darse Burhani (Nisab) &nbsp;&bull;&nbsp; Mahad Al Zahra
+          </p>
+
+          {/* Footer links */}
+          <div className="flex items-center gap-0">
+            <a
+              href="mailto:support.darseburhani.galiakot@gmail.com"
+              style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", textDecoration: "none", padding: "0 10px" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
+            >
+              Support
             </a>
-            <span className="hidden sm:inline">&bull;</span>
-            <Link to="/privacy" className="hover:text-emerald-700 hover:underline underline-offset-2 transition-colors">
+            <span style={{ color: "#c99349", fontSize: 12 }}>|</span>
+            <Link
+              to="/privacy"
+              style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", textDecoration: "none", padding: "0 10px" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
+            >
               Privacy Policy
             </Link>
-            <span>&bull;</span>
-            <Link to="/terms" className="hover:text-emerald-700 hover:underline underline-offset-2 transition-colors">
+            <span style={{ color: "#c99349", fontSize: 12 }}>|</span>
+            <Link
+              to="/terms"
+              style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", textDecoration: "none", padding: "0 10px" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
+            >
               Terms of Service
             </Link>
+          </div>
           </div>
         </footer>
       </div>
 
+      {/* CSS for spinner animation */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .login-backdrop {
+          background-size: 100% auto, cover;
+          background-position: center center, center center;
+          background-repeat: no-repeat, no-repeat;
+        }
+        @media (max-width: 768px) {
+          .login-card-grid { grid-template-columns: 1fr !important; }
+          .login-backdrop { background-size: cover, cover; }
+        }
+      `}</style>
+
       {/* ── ITS Card Scanner Modal ── */}
       {showScannerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 p-6 text-slate-900 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,26,48,0.75)", backdropFilter: "blur(6px)" }}>
+          <div className="w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl" style={{ background: "#ffffff", color: "#0f172a" }}>
+            <div className="flex items-center justify-between pb-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
-                  <QrCode size={19} />
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#fef3c7", border: "1px solid #fde68a" }}>
+                  <QrCode size={19} color="#b45309" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Scan ITS Card</h3>
-                  <p className="text-xs text-slate-500 font-medium">Instant camera &amp; barcode detection</p>
+                  <h3 style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Scan ITS Card</h3>
+                  <p style={{ fontSize: 11, color: "#64748b" }}>Instant camera &amp; barcode detection</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={handleCloseScanner}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
+              <button type="button" onClick={handleCloseScanner} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 8, color: "#94a3b8" }}>
                 <X size={18} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setScannerMode("camera");
-                  startCameraStream(cameraFacing);
-                }}
-                className={`py-2.5 px-3 rounded-xl text-center transition-all cursor-pointer ${
-                  scannerMode === "camera"
-                    ? "bg-emerald-700 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Use Camera
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setScannerMode("upload");
-                  stopCameraStream();
-                }}
-                className={`py-2.5 px-3 rounded-xl text-center transition-all cursor-pointer ${
-                  scannerMode === "upload"
-                    ? "bg-emerald-700 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Upload Photo
-              </button>
+            <div className="grid grid-cols-2 gap-2">
+              {(["camera", "upload"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    setScannerMode(mode);
+                    if (mode === "camera") startCameraStream(cameraFacing);
+                    else stopCameraStream();
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: scannerMode === mode ? "#065f46" : "#f1f5f9",
+                    color: scannerMode === mode ? "#ffffff" : "#374151",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {mode === "camera" ? "Use Camera" : "Upload Photo"}
+                </button>
+              ))}
             </div>
 
             {scannerMode === "camera" ? (
-              <div className="relative h-64 bg-slate-950 rounded-2xl overflow-hidden border border-slate-300 flex items-center justify-center shadow-inner">
+              <div style={{ position: "relative", height: 256, background: "#020617", borderRadius: 14, overflow: "hidden", border: "1px solid #e2e8f0" }}>
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className={`h-full w-full object-cover ${cameraFacing === "user" ? "scale-x-[-1]" : ""}`}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", transform: cameraFacing === "user" ? "scaleX(-1)" : "none" }}
                 />
-                {/* Laser animation */}
-                <div className="absolute inset-8 border-2 border-dashed border-amber-400/80 rounded-xl pointer-events-none flex flex-col justify-between p-2">
-                  <div className="w-full h-0.5 bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse" />
-                  <span className="text-xs text-center text-amber-300 bg-black/60 py-0.5 px-2 rounded-full self-center font-bold">
+                <div style={{ position: "absolute", inset: 24, border: "2px dashed rgba(251,191,36,0.8)", borderRadius: 10, pointerEvents: "none", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 8 }}>
+                  <div style={{ width: "100%", height: 2, background: "#fbbf24", boxShadow: "0 0 8px #f59e0b", animation: "pulse 2s infinite" }} />
+                  <span style={{ fontSize: 11, textAlign: "center", color: "#fde68a", background: "rgba(0,0,0,0.6)", padding: "2px 8px", borderRadius: 999, alignSelf: "center", fontWeight: 700 }}>
                     Align ITS card barcode here
                   </span>
-                  <div className="w-full h-0.5 bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse" />
+                  <div style={{ width: "100%", height: 2, background: "#fbbf24", boxShadow: "0 0 8px #f59e0b" }} />
                 </div>
                 {cameraError && (
-                  <p className="absolute bottom-3 inset-x-3 p-2 bg-rose-950 border border-rose-800 text-xs text-rose-200 rounded-xl text-center">
+                  <p style={{ position: "absolute", bottom: 12, left: 12, right: 12, padding: "6px 10px", background: "rgba(69,10,10,0.9)", border: "1px solid #7f1d1d", fontSize: 11, color: "#fca5a5", borderRadius: 10, textAlign: "center" }}>
                     {cameraError}
                   </p>
                 )}
                 {scannedItsResult && (
-                  <div className="absolute inset-0 bg-emerald-950/95 flex flex-col items-center justify-center gap-2">
-                    <span className="text-xs uppercase tracking-wider text-emerald-200 font-bold">Verified ITS</span>
-                    <span className="font-mono text-2xl font-black text-amber-300">{scannedItsResult}</span>
+                  <div style={{ position: "absolute", inset: 0, background: "rgba(6,78,59,0.95)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#a7f3d0", fontWeight: 700 }}>Verified ITS</span>
+                    <span style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 900, color: "#fcd34d" }}>{scannedItsResult}</span>
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={flipCamera}
-                  className="absolute right-3 top-3 px-3 py-1.5 text-xs bg-black/70 hover:bg-black text-white font-bold rounded-xl border border-white/20 transition-all cursor-pointer"
+                  style={{ position: "absolute", right: 10, top: 10, padding: "4px 10px", fontSize: 11, background: "rgba(0,0,0,0.7)", color: "#ffffff", fontWeight: 700, borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer" }}
                 >
-                  Switch Camera
+                  Flip Camera
                 </button>
               </div>
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="h-64 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-emerald-600 hover:bg-emerald-50/50 transition-all group"
+                style={{ height: 256, borderRadius: 14, border: "2px dashed #cbd5e1", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", transition: "all 0.18s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#059669"; e.currentTarget.style.background = "#f0fdf4"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.background = "#f8fafc"; }}
               >
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                  <Upload size={24} />
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "#fef3c7", border: "1px solid #fde68a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Upload size={22} color="#92400e" />
                 </div>
-                <p className="text-xs font-black text-slate-800">Select ITS Card Photo</p>
-                <p className="text-xs text-slate-500 mt-0.5">Scans barcode and 8-digit ITS number</p>
+                <p style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>Select ITS Card Photo</p>
+                <p style={{ fontSize: 11, color: "#64748b" }}>Scans barcode and 8-digit ITS number</p>
               </div>
             )}
 
-            <p className="text-xs text-center text-slate-500 font-medium">{scannerStatus}</p>
+            <p style={{ fontSize: 11, textAlign: "center", color: "#64748b", fontWeight: 500 }}>{scannerStatus}</p>
           </div>
         </div>
       )}
 
       {/* ── Forgot Password Modal ── */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 p-6 text-slate-900 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,26,48,0.75)", backdropFilter: "blur(6px)" }}>
+          <div className="w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl" style={{ background: "#ffffff", color: "#0f172a" }}>
+            <div className="flex items-center justify-between pb-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
-                  <KeyRound size={19} />
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#fef3c7", border: "1px solid #fde68a" }}>
+                  <KeyRound size={19} color="#b45309" />
                 </div>
-                <h3 className="text-sm font-black text-slate-900">Password Assistance</h3>
+                <h3 style={{ fontSize: 13, fontWeight: 800 }}>Password Assistance</h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowForgotModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
+              <button type="button" onClick={() => setShowForgotModal(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 8, color: "#94a3b8" }}>
                 <X size={18} />
               </button>
             </div>
-            <div className="space-y-3 text-xs text-slate-600 leading-relaxed font-medium">
-              <p>
-                Institutional credentials are authenticated centrally to safeguard student and faculty records.
-              </p>
-              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-1.5 text-xs">
-                <span className="font-bold text-slate-900 block">Mahad al Zahra Administration Desk</span>
-                <p className="text-slate-800">
+            <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.7, display: "flex", flexDirection: "column", gap: 12 }}>
+              <p>Institutional credentials are authenticated centrally to safeguard student and faculty records.</p>
+              <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(6,95,70,0.06)", border: "1px solid #bbf7d0" }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", display: "block", marginBottom: 4 }}>Mahad al Zahra Administration Desk</span>
+                <p style={{ color: "#334155" }}>
                   Direct Support Email:{" "}
-                  <a href="mailto:support.darseburhani.galiakot@gmail.com" className="text-emerald-800 font-extrabold hover:underline">
+                  <a href="mailto:support.darseburhani.galiakot@gmail.com" style={{ color: "#065f46", fontWeight: 700 }}>
                     support.darseburhani.galiakot@gmail.com
                   </a>
                 </p>
-                <p className="text-slate-600">For password resets, credential assistance, and queries, email our support desk directly.</p>
+                <p style={{ color: "#64748b", marginTop: 4 }}>For password resets, credential assistance, and queries, email our support desk directly.</p>
               </div>
-              <p className="text-slate-500">
-                Talabat students may also approach their appointed class teacher directly for on-premises verification.
-              </p>
+              <p style={{ color: "#94a3b8" }}>Talabat students may also approach their appointed class teacher directly for on-premises verification.</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
-              className="w-full py-2.5 rounded-xl bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer shadow-sm"
+              style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "none", background: "#065f46", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
             >
               Close
             </button>
@@ -879,9 +1157,7 @@ export default function LoginPage() {
           mode="login_transition"
           minDurationMs={1400}
           portalName={transitionTarget.portalName}
-          onFinish={() => {
-            navigate(transitionTarget.path);
-          }}
+          onFinish={() => { navigate(transitionTarget.path); }}
         />
       )}
     </>
