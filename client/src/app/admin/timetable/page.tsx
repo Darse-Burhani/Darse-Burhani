@@ -28,8 +28,13 @@ import {
   AlertTriangle,
   Layers,
   Eye,
+  EyeOff,
+  SlidersHorizontal,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
+import { usePortalAccess } from "@/context/PortalAccessContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -117,6 +122,107 @@ function getSubjectBadgeStyle(subject: string) {
 }
 
 export default function AdminTimetableMasterPage() {
+  const { modules, refreshModules } = usePortalAccess();
+  const [togglingPortalRole, setTogglingPortalRole] = useState<"talabat" | "teacher" | null>(null);
+
+  // Tab Hide/Display controls
+  const [visibleTabs, setVisibleTabs] = useState<{
+    classes: boolean;
+    "master-overview": boolean;
+    teachers: boolean;
+    badal: boolean;
+    takhteet: boolean;
+  }>(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("admin_timetable_tabs_visible") : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      classes: true,
+      "master-overview": true,
+      teachers: true,
+      badal: true,
+      takhteet: true,
+    };
+  });
+  const [showTabSettingsModal, setShowTabSettingsModal] = useState(false);
+
+  const toggleTabVisibility = (tabKey: keyof typeof visibleTabs) => {
+    setVisibleTabs((prev) => {
+      const next = { ...prev, [tabKey]: !prev[tabKey] };
+      if (!Object.values(next).some(Boolean)) {
+        toast({ title: "At least one tab must remain visible", variant: "warning" });
+        return prev;
+      }
+      try {
+        localStorage.setItem("admin_timetable_tabs_visible", JSON.stringify(next));
+      } catch {}
+      if (tabKey === activeTab && !next[tabKey]) {
+        const firstVisible = (Object.keys(next) as Array<keyof typeof next>).find((k) => next[k]);
+        if (firstVisible) setActiveTab(firstVisible);
+      }
+      return next;
+    });
+  };
+
+  const showAllTabs = () => {
+    const allOn = {
+      classes: true,
+      "master-overview": true,
+      teachers: true,
+      badal: true,
+      takhteet: true,
+    };
+    setVisibleTabs(allOn);
+    try {
+      localStorage.setItem("admin_timetable_tabs_visible", JSON.stringify(allOn));
+    } catch {}
+    toast({ title: "All Timetable Tabs Displayed", variant: "success" });
+  };
+
+  const handleTogglePortalTimetable = async (targetRole: "talabat" | "teacher") => {
+    setTogglingPortalRole(targetRole);
+    try {
+      const currentVal = modules?.[targetRole]?.timetable !== false;
+      const nextVal = !currentVal;
+
+      const getRes = await fetch("/api/admin/profile-permissions");
+      const currentPerms = getRes.ok ? (await getRes.json()).data : null;
+
+      const updatedModules = {
+        ...modules,
+        [targetRole]: {
+          ...(modules?.[targetRole] || {}),
+          timetable: nextVal,
+        },
+      };
+
+      const putRes = await fetch("/api/admin/profile-permissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(currentPerms || {}),
+          modules: updatedModules,
+        }),
+      });
+
+      if (putRes.ok) {
+        await refreshModules();
+        toast({
+          title: `${targetRole === "talabat" ? "Talabat" : "Teacher"} Timetable Tab ${nextVal ? "Displayed" : "Hidden"}`,
+          description: `Timetable tab is now ${nextVal ? "visible" : "hidden"} in the ${targetRole === "talabat" ? "student" : "faculty"} portal navigation.`,
+          variant: "success",
+        });
+      } else {
+        toast({ title: "Failed to update portal permissions", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error updating visibility", variant: "destructive" });
+    } finally {
+      setTogglingPortalRole(null);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<ActiveTab>("classes");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -833,6 +939,14 @@ export default function AdminTimetableMasterPage() {
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2.5 self-start lg:self-center flex-wrap">
             <Button
+              onClick={() => setShowTabSettingsModal(true)}
+              className="bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/50 text-xs font-black gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
+              title="Configure which timetable tabs are displayed or hidden"
+            >
+              <Eye className="w-3.5 h-3.5 text-amber-300" />
+              Hide / Display Tabs
+            </Button>
+            <Button
               onClick={() => setAiFillModalOpen(true)}
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
             >
@@ -938,69 +1052,94 @@ export default function AdminTimetableMasterPage() {
 
         {/* Primary View Switcher Navigation Tabs */}
         <div className="mt-5 pt-4 border-t border-emerald-800/60 flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setActiveTab("classes")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === "classes"
-                ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
-                : "bg-white/10 text-white hover:bg-white/20"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>1. Darajah Schedule (1A–4B)</span>
-          </button>
+          {visibleTabs.classes && (
+            <button
+              onClick={() => setActiveTab("classes")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                activeTab === "classes"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>1. Darajah Schedule (1A–4B)</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab("master-overview")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === "master-overview"
-                ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
-                : "bg-white/10 text-white hover:bg-white/20"
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>2. All 8 Darajahs Master View</span>
-          </button>
+          {visibleTabs["master-overview"] && (
+            <button
+              onClick={() => setActiveTab("master-overview")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                activeTab === "master-overview"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>2. All 8 Darajahs Master View</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab("teachers")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === "teachers"
-                ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
-                : "bg-white/10 text-white hover:bg-white/20"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>3. Asatezah Individual Timetables</span>
-          </button>
+          {visibleTabs.teachers && (
+            <button
+              onClick={() => setActiveTab("teachers")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                activeTab === "teachers"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>3. Asatezah Individual Timetables</span>
+            </button>
+          )}
 
+          {visibleTabs.badal && (
+            <button
+              onClick={() => setActiveTab("badal")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                activeTab === "badal"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              <span>4. Badal Coverage Desk</span>
+              {badals.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-950 text-amber-300 font-mono font-bold">
+                  {badals.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {visibleTabs.takhteet && (
+            <button
+              onClick={() => setActiveTab("takhteet")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                activeTab === "takhteet"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              <ClipboardList className="w-4 h-4" />
+              <span>5. Takhteet Allocations ({takhteetList.length})</span>
+            </button>
+          )}
+
+          {/* Hide / Display Tabs Config Button */}
           <button
-            onClick={() => setActiveTab("badal")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === "badal"
-                ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
-                : "bg-white/10 text-white hover:bg-white/20"
-            }`}
+            onClick={() => setShowTabSettingsModal(true)}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 bg-white/10 hover:bg-white/20 text-amber-200 border border-dashed border-amber-400/40 cursor-pointer ml-auto"
+            title="Configure which timetable tabs are displayed or hidden"
           >
-            <ArrowRightLeft className="w-4 h-4" />
-            <span>4. Badal Coverage Desk</span>
-            {badals.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-950 text-amber-300 font-mono font-bold">
-                {badals.length}
+            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+            <span>Hide / Display Tabs</span>
+            {Object.values(visibleTabs).filter((v) => !v).length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-950 font-black">
+                {Object.values(visibleTabs).filter((v) => !v).length} hidden
               </span>
             )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("takhteet")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === "takhteet"
-                ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
-                : "bg-white/10 text-white hover:bg-white/20"
-            }`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            <span>5. Takhteet Allocations ({takhteetList.length})</span>
           </button>
         </div>
       </motion.div>
@@ -1212,7 +1351,7 @@ export default function AdminTimetableMasterPage() {
                       className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer transition-colors mt-0.5"
                     >
                       <Users className="w-3 h-3 text-emerald-700" />
-                      View Talabat Roster
+                      View Talabat Directory
                     </button>
                   </div>
                 </div>
@@ -1231,7 +1370,7 @@ export default function AdminTimetableMasterPage() {
                   className="bg-white/90 hover:bg-emerald-50 text-emerald-900 border-emerald-300 font-bold text-xs gap-1.5 rounded-xl shadow-2xs"
                 >
                   <Users className="w-3.5 h-3.5 text-emerald-700" />
-                  Talabat Roster ({(activeClassObj.talabat?.length || activeClassObj.studentCount || 0)})
+                  Talabat Directory ({(activeClassObj.talabat?.length || activeClassObj.studentCount || 0)})
                 </Button>
                 <Button
                   onClick={() => openNewSlotModal(activeClassObj.name)}
@@ -2847,6 +2986,274 @@ export default function AdminTimetableMasterPage() {
               </Button>
             </ModalClose>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL: TIMETABLE TAB HIDE / DISPLAY MANAGEMENT
+         ───────────────────────────────────────────────────────────── */}
+      <Modal open={showTabSettingsModal} onOpenChange={setShowTabSettingsModal}>
+        <ModalContent className="max-w-2xl p-0 overflow-hidden bg-white rounded-3xl border border-slate-200 shadow-2xl">
+          <div className="relative bg-[#06241a] p-5 sm:p-6 text-white border-b border-emerald-800/80">
+            <button
+              type="button"
+              onClick={() => setShowTabSettingsModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-amber-400/30">
+                Administrative Controls
+              </span>
+            </div>
+            <h3 className="text-xl font-extrabold text-white mt-1.5 flex items-center gap-2">
+              <SlidersHorizontal className="w-5 h-5 text-amber-400" />
+              Timetable Hide / Display Tab Functions
+            </h3>
+            <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
+              Control which timetable tabs are visible in the Admin Hub, and toggle timetable module access live across the Talabat (Student) and Teacher (Faculty) portals.
+            </p>
+          </div>
+
+          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+            {/* Section 1: Admin Hub Timetable Tabs Visibility */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-700" />
+                    Admin Timetable Sub-Tabs (Show / Hide)
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Customize your timetable working view. Toggle tabs on or off according to your workflow.
+                  </p>
+                </div>
+                <Button
+                  onClick={showAllTabs}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs font-bold text-emerald-800 hover:bg-emerald-50 h-8"
+                >
+                  <Eye className="w-3.5 h-3.5 mr-1" /> Show All Tabs
+                </Button>
+              </div>
+
+              <div className="space-y-2.5">
+                {[
+                  {
+                    key: "classes" as const,
+                    num: "1",
+                    label: "Darajah Schedule (1A–4B)",
+                    desc: "Interactive schedule grid per darajah, subject color tags & period slots",
+                    icon: BookOpen,
+                  },
+                  {
+                    key: "master-overview" as const,
+                    num: "2",
+                    label: "All 8 Darajahs Master View",
+                    desc: "Unified day-by-day cross-darajah master grid (all classes simultaneously)",
+                    icon: Layers,
+                  },
+                  {
+                    key: "teachers" as const,
+                    num: "3",
+                    label: "Asatezah Individual Timetables",
+                    desc: "Faculty-centric schedules, teaching hours breakdown & free-period finder",
+                    icon: Users,
+                  },
+                  {
+                    key: "badal" as const,
+                    num: "4",
+                    label: "Badal Coverage Desk",
+                    desc: "Proxy/substitution management, emergency leaves & cover assignments",
+                    icon: ArrowRightLeft,
+                  },
+                  {
+                    key: "takhteet" as const,
+                    num: "5",
+                    label: "Takhteet Allocations",
+                    desc: "Curriculum portion pacing, textbook milestones & lesson plans",
+                    icon: ClipboardList,
+                  },
+                ].map((tab) => {
+                  const isVisible = visibleTabs[tab.key] !== false;
+                  const Icon = tab.icon;
+                  return (
+                    <div
+                      key={tab.key}
+                      onClick={() => toggleTabVisibility(tab.key)}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
+                        isVisible
+                          ? "bg-white border-emerald-200/90 shadow-2xs hover:border-emerald-400"
+                          : "bg-slate-50/80 border-slate-200 opacity-60 hover:opacity-90"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
+                            isVisible ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-500"
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-900">{tab.label}</span>
+                            <span className="text-[10px] font-mono text-slate-400">Tab {tab.num}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 line-clamp-1">{tab.desc}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTabVisibility(tab.key);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          isVisible
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                            : "bg-slate-200 text-slate-600 border border-slate-300 hover:bg-slate-300"
+                        }`}
+                      >
+                        {isVisible ? (
+                          <>
+                            <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Displayed</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Hidden</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section 2: Student & Teacher Portal Timetable Tab Visibility (Live System Locks) */}
+            <div className="space-y-3 pt-4 border-t border-slate-200">
+              <div className="pb-2 border-b border-slate-200">
+                <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  Portal Navigation Timetable Tab (Student &amp; Faculty Access)
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Control whether the Timetable tab is displayed or hidden in the navigation menus for Students and Teachers.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Talabat Portal Timetable Toggle */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-emerald-700" />
+                      Talabat (Student) Portal
+                    </span>
+                    {modules?.talabat?.timetable !== false ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Visible
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                        Hidden
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Controls /talabat/timetable tab in student sidebar.
+                  </p>
+                  <Button
+                    onClick={() => handleTogglePortalTimetable("talabat")}
+                    disabled={togglingPortalRole === "talabat"}
+                    size="sm"
+                    className={`w-full text-xs font-bold rounded-xl gap-1.5 cursor-pointer ${
+                      modules?.talabat?.timetable !== false
+                        ? "bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100"
+                        : "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {togglingPortalRole === "talabat" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : modules?.talabat?.timetable !== false ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5" />
+                        <span>Hide for Students</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Display for Students</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Teacher Portal Timetable Toggle */}
+                <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-teal-700" />
+                      Teacher (Faculty) Portal
+                    </span>
+                    {modules?.teacher?.timetable !== false ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Visible
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                        Hidden
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Controls /teacher/timetable tab in faculty sidebar.
+                  </p>
+                  <Button
+                    onClick={() => handleTogglePortalTimetable("teacher")}
+                    disabled={togglingPortalRole === "teacher"}
+                    size="sm"
+                    className={`w-full text-xs font-bold rounded-xl gap-1.5 cursor-pointer ${
+                      modules?.teacher?.timetable !== false
+                        ? "bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100"
+                        : "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {togglingPortalRole === "teacher" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : modules?.teacher?.timetable !== false ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5" />
+                        <span>Hide for Teachers</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Display for Teachers</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              Preferences are saved automatically in your browser and system database.
+            </span>
+            <Button
+              onClick={() => setShowTabSettingsModal(false)}
+              className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 text-xs font-bold rounded-xl px-5 cursor-pointer"
+            >
+              Done
+            </Button>
+          </div>
         </ModalContent>
       </Modal>
 
