@@ -20,6 +20,10 @@ import {
   CheckCircle2,
   AlertCircle,
   GraduationCap,
+  Zap,
+  Mail,
+  AlertTriangle,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -272,13 +276,35 @@ export default function TeacherTimetablePage() {
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
 
   const todayDutiesMap = new Map<number, any>();
+  const badalDutiesByDayPeriod = new Map<string, any>();
   badalDuties.forEach((b: any) => {
-    if (b.date === todayIso) todayDutiesMap.set(b.period, b);
+    if (b.date === todayIso) {
+      todayDutiesMap.set(b.period, b);
+    }
+    if (b.date) {
+      const parts = b.date.split("-").map(Number);
+      if (parts.length === 3) {
+        const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const bDow = dObj.getDay() === 0 ? 7 : dObj.getDay();
+        badalDutiesByDayPeriod.set(`${bDow}_${b.period}`, b);
+      }
+    }
   });
 
   const todayCoveredMap = new Map<number, any>();
+  const badalsForMeByDayPeriod = new Map<string, any>();
   badalsForMe.forEach((b: any) => {
-    if (b.date === todayIso) todayCoveredMap.set(b.period, b);
+    if (b.date === todayIso) {
+      todayCoveredMap.set(b.period, b);
+    }
+    if (b.date) {
+      const parts = b.date.split("-").map(Number);
+      if (parts.length === 3) {
+        const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const bDow = dObj.getDay() === 0 ? 7 : dObj.getDay();
+        badalsForMeByDayPeriod.set(`${bDow}_${b.period}`, b);
+      }
+    }
   });
 
   return (
@@ -443,37 +469,119 @@ export default function TeacherTimetablePage() {
         <div className="space-y-6">
           {/* Badal Duties Alert Notice if assigned */}
           {badalDuties.length > 0 && (
-            <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl flex items-start gap-3 shadow-xs">
-              <ArrowRightLeft className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider">
-                  Assigned Badal (Substitute) Duties ({badalDuties.length})
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                  {badalDuties.map((b: any) => {
-                    const bTheme = getSubjectTheme(b.subject);
-                    return (
-                      <div key={b.id} className="p-3 bg-white rounded-xl border border-amber-200 text-xs flex items-center justify-between">
-                        <div>
-                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                            <span>Class {b.className}</span>
-                            <span className={`px-2 py-0.2 rounded text-[10.5px] font-bold ${bTheme.badge}`}>{b.subject}</span>
-                            <span className="text-slate-500 font-normal">(Period {b.period})</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 mt-1">
-                            Date: {b.date} • Covering for {b.originalTeacher}
-                          </div>
-                          {b.instructions && <div className="text-[10.5px] text-amber-800 italic mt-0.5">&ldquo;{b.instructions}&rdquo;</div>}
-                        </div>
-                        <Badge variant={b.isFulfilled ? "default" : "secondary"} className="shrink-0">
-                          {b.isFulfilled ? "Fulfilled" : "Pending"}
-                        </Badge>
-                      </div>
-                    );
-                  })}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative overflow-hidden rounded-3xl border-2 border-amber-400 bg-gradient-to-r from-amber-500/15 via-yellow-400/10 to-amber-500/20 p-5 sm:p-6 shadow-xl shadow-amber-500/10 space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-md ring-4 ring-amber-300/60 animate-pulse">
+                    <Zap className="w-6 h-6 fill-current" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded-full shadow-xs animate-bounce">
+                        🚨 URGENT / تكليف عاجل
+                      </span>
+                      <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                        Assigned Badal (Substitute) Duties ({badalDuties.length})
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-900/90 mt-1 max-w-2xl font-medium">
+                      You have been assigned substitute teaching duty (Badal). An urgent email notification and portal alert have been dispatched to you. Please review your class and period assignments below.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-slate-950 shadow-xs">
+                    <Mail className="w-3.5 h-3.5" /> Email Dispatched
+                  </span>
                 </div>
               </div>
-            </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                {badalDuties.map((b: any) => {
+                  const bTheme = getSubjectTheme(b.subject);
+                  const isTodayDuty = b.date === todayIso;
+                  return (
+                    <div
+                      key={b.id}
+                      className={`p-4 rounded-2xl bg-white border-2 transition-all flex flex-col justify-between space-y-3 ${
+                        isTodayDuty
+                          ? "border-amber-500 ring-4 ring-amber-400/40 shadow-lg shadow-amber-500/15"
+                          : "border-amber-200 hover:border-amber-300 shadow-sm"
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${bTheme.badge}`}>
+                            {b.subject}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                              isTodayDuty
+                                ? "bg-amber-500 text-slate-950 ring-2 ring-amber-300 animate-pulse"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {isTodayDuty ? "⚡ Today's Duty" : b.date}
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="text-base font-black text-slate-950 flex items-center gap-2">
+                            <span>Class {b.className}</span>
+                            <span className="text-xs text-slate-400 font-normal">•</span>
+                            <span className="text-xs text-amber-950 font-bold">
+                              Period {b.period}
+                            </span>
+                          </div>
+                          <div className="text-xs font-mono text-slate-600 mt-0.5">
+                            ⏱️ {b.startTime} – {b.endTime}
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-slate-700 bg-amber-50/80 rounded-xl p-2.5 border border-amber-200/80 space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-950 text-[11px]">
+                            <ArrowRightLeft className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                            <span>Covering for: {b.originalTeacher}</span>
+                          </div>
+                          {b.reason && (
+                            <div className="text-[10.5px] text-slate-600">
+                              <span className="font-semibold text-slate-800">Reason:</span> {b.reason}
+                            </div>
+                          )}
+                          {b.instructions && (
+                            <div className="text-[10.5px] text-amber-900 font-medium italic">
+                              &ldquo;{b.instructions}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          Attendance synced
+                        </span>
+                        <Badge
+                          variant={b.isFulfilled ? "default" : "secondary"}
+                          className={
+                            b.isFulfilled
+                              ? "bg-emerald-600 text-white"
+                              : "bg-amber-100 text-amber-950 border border-amber-300 font-bold"
+                          }
+                        >
+                          {b.isFulfilled ? "✓ Fulfilled" : "⚡ Action Required"}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
           )}
 
           {/* Timetable Matrix */}
@@ -487,7 +595,11 @@ export default function TeacherTimetablePage() {
                   • {data?.slots?.length || 0} active periods across Monday to Saturday
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                <div className="flex items-center gap-1.5 font-bold text-amber-950 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-300 animate-pulse" />
+                  <span>⚡ Urgent Badal Duty</span>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-300" />
                   <span>Recently Updated Slot</span>
@@ -528,26 +640,54 @@ export default function TeacherTimetablePage() {
                         {PERIOD_DEFS.map((p) => {
                           const slot = slotsMap.get(`${d.day}_${p.period}`);
                           const badalDutyToday = isToday ? todayDutiesMap.get(p.period) : null;
+                          const badalDutySlot = badalDutyToday || badalDutiesByDayPeriod.get(`${d.day}_${p.period}`);
                           const coveredToday = isToday ? todayCoveredMap.get(p.period) : null;
+                          const coveredSlot = coveredToday || badalsForMeByDayPeriod.get(`${d.day}_${p.period}`);
                           const theme = slot ? getSubjectTheme(slot.subject) : null;
                           const isChanged = Boolean(slot?.isRecentlyChanged);
+                          const isUrgentToday = Boolean(badalDutyToday || (badalDutySlot && (badalDutySlot.date === todayIso || isToday)));
 
                           return (
                             <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
-                              {badalDutyToday ? (
-                                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 shadow-2xs">
-                                  <div className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
-                                    <ArrowRightLeft className="w-2.5 h-2.5 text-amber-700" /> Badal Duty
+                              {badalDutySlot ? (
+                                <div
+                                  className={`p-2.5 rounded-2xl border-2 transition-all relative overflow-hidden ${
+                                    isUrgentToday
+                                      ? "bg-gradient-to-br from-amber-400/30 via-yellow-300/20 to-amber-500/25 border-amber-500 ring-2 ring-amber-400/80 shadow-[0_0_18px_rgba(245,158,11,0.4)] animate-[pulse_3s_ease-in-out_infinite]"
+                                      : "bg-amber-50/95 border-amber-400/90 shadow-2xs"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span className="px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 flex items-center gap-1 shadow-2xs">
+                                      <Zap className="w-2.5 h-2.5 fill-current" />
+                                      {isUrgentToday ? "URGENT BADAL" : "BADAL DUTY"}
+                                    </span>
+                                    {isUrgentToday ? (
+                                      <span className="text-[8px] font-black uppercase text-amber-950 bg-amber-200/90 px-1 py-0.2 rounded border border-amber-300">
+                                        TODAY
+                                      </span>
+                                    ) : (
+                                      <span className="text-[8px] font-mono text-slate-500">
+                                        {badalDutySlot.date}
+                                      </span>
+                                    )}
                                   </div>
-                                  <div className="text-xs font-black text-slate-900 leading-tight mt-0.5">
-                                    {badalDutyToday.subject}
+                                  <div className="text-xs font-black text-slate-900 leading-tight">
+                                    {badalDutySlot.subject}
                                   </div>
-                                  <div className="text-[11px] text-amber-900 font-bold mt-1">
-                                    Class {badalDutyToday.className}
+                                  <div className="text-[11px] text-amber-950 font-bold mt-1 flex items-center justify-between">
+                                    <span>Class {badalDutySlot.className}</span>
+                                    <span className="text-[9px] font-mono text-slate-500">{badalDutySlot.startTime || p.time}</span>
                                   </div>
-                                  <div className="text-[9.5px] text-slate-500 mt-0.5 italic">
-                                    For {badalDutyToday.originalTeacher}
+                                  <div className="text-[9.5px] font-semibold text-amber-900 mt-1 flex items-center gap-1 bg-amber-100/70 px-1.5 py-0.5 rounded">
+                                    <ArrowRightLeft className="w-2.5 h-2.5 shrink-0 text-amber-700" />
+                                    <span className="truncate">For: {badalDutySlot.originalTeacher}</span>
                                   </div>
+                                  {badalDutySlot.instructions && (
+                                    <div className="text-[9px] text-amber-800 italic mt-1 line-clamp-2" title={badalDutySlot.instructions}>
+                                      &ldquo;{badalDutySlot.instructions}&rdquo;
+                                    </div>
+                                  )}
                                 </div>
                               ) : slot && theme ? (
                                 <div
@@ -555,7 +695,7 @@ export default function TeacherTimetablePage() {
                                   className={`p-2.5 rounded-xl border shadow-2xs transition-all ${
                                     isChanged
                                       ? "bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/80 shadow-md"
-                                      : coveredToday
+                                      : coveredSlot
                                       ? "bg-slate-50 border-slate-300 opacity-75"
                                       : `${theme.bgLight} ${theme.border}`
                                   }`}
@@ -576,9 +716,10 @@ export default function TeacherTimetablePage() {
                                       {slot.changeDescription}
                                     </div>
                                   )}
-                                  {coveredToday ? (
-                                    <div className="text-[9.5px] font-bold text-amber-800 mt-1 flex items-center gap-1">
-                                      <ArrowRightLeft className="w-2.5 h-2.5" /> Covered by {coveredToday.badalTeacher}
+                                  {coveredSlot ? (
+                                    <div className="text-[9.5px] font-bold text-amber-800 mt-1 flex items-center gap-1 bg-amber-100/60 px-1.5 py-0.5 rounded">
+                                      <ArrowRightLeft className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                      <span className="truncate">Covered by {coveredSlot.substituteTeacher || coveredSlot.badalTeacher}</span>
                                     </div>
                                   ) : (
                                     <div className="text-[9.5px] font-mono text-slate-500 mt-1">

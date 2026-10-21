@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { cache } from "./cache";
+import { sendEmail } from "./email";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -234,3 +235,227 @@ export async function notifyTimetableChange(payload: TimetableChangeNotification
     return { success: false, error: (error as Error)?.message };
   }
 }
+
+export interface BadalNotificationPayload {
+  id: string;
+  date: Date | string;
+  className: string;
+  period: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  originalTeacherId?: string | null;
+  originalTeacherName?: string | null;
+  badalTeacherId?: string | null;
+  badalTeacherName?: string | null;
+  reason?: string | null;
+  instructions?: string | null;
+  notes?: string | null;
+  originalTeacher?: any;
+  badalTeacher?: any;
+}
+
+export async function notifyBadalAssignment(badal: BadalNotificationPayload, actorName?: string) {
+  try {
+    let substituteUser: { id: string; email: string; firstName: string; lastName: string } | null = null;
+
+    if (badal.badalTeacher?.user?.email) {
+      substituteUser = badal.badalTeacher.user;
+    } else if (badal.badalTeacherId) {
+      const tp = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: badal.badalTeacherId }, { userId: badal.badalTeacherId }] },
+        include: { user: { select: { id: true, email: true, firstName: true, lastName: true } } },
+      });
+      if (tp?.user) {
+        substituteUser = tp.user;
+      }
+    }
+
+    const d = new Date(badal.date);
+    const dateFormatted = isNaN(d.getTime())
+      ? String(badal.date).split("T")[0]
+      : new Intl.DateTimeFormat("en-IN", {
+          timeZone: "Asia/Kolkata",
+          weekday: "long",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }).format(d);
+
+    const subName = substituteUser
+      ? `${substituteUser.firstName} ${substituteUser.lastName}`.trim()
+      : badal.badalTeacherName || "Respected Faculty Member";
+    const origTeacher = badal.originalTeacherName || (badal.originalTeacher?.user ? `${badal.originalTeacher.user.firstName} ${badal.originalTeacher.user.lastName}`.trim() : "Faculty Member");
+    const reasonText = badal.reason || "Official Substitution / Leave Coverage";
+    const instructionsText = badal.instructions || "Please conduct the assigned portion and maintain classroom discipline.";
+    const appUrl = process.env.APP_URL || "https://darse-burhani.onrender.com";
+
+    // 1. Send Urgent Email Notification
+    let emailSent = false;
+    if (substituteUser?.email) {
+      const emailSubject = `🚨 [URGENT / تكليف عاجل] Substitute Assignment (Badal): Period ${badal.period} (${badal.startTime}–${badal.endTime}) in Class ${badal.className}`;
+
+      const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urgent Badal Assignment</title>
+</head>
+<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.06);">
+    <!-- Urgent Alert Banner -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); padding: 14px 24px; text-align: center;">
+        <span style="color: #ffffff; font-size: 13px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;">
+          🚨 URGENT BADAL (SUBSTITUTE) ASSIGNMENT • تكليف بدل عاجل
+        </span>
+      </td>
+    </tr>
+
+    <!-- Institutional Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021f18 100%); padding: 28px 32px; border-bottom: 3px solid #d4af37;">
+        <div style="color: #d4af37; font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase;">
+          AL-JAMEA-TUS-SAIFIYAH • IDARAH DARSE BURHANI
+        </div>
+        <h1 style="color: #ffffff; margin: 8px 0 0 0; font-size: 22px; font-weight: 800; line-height: 1.3;">
+          Immediate Class Substitution Notice
+        </h1>
+        <div style="color: #a7f3d0; font-size: 13px; margin-top: 4px;">
+          Academic Session 1448 H • Faculty Timetable Dispatch
+        </div>
+      </td>
+    </tr>
+
+    <!-- Content Body -->
+    <tr>
+      <td style="padding: 32px 32px 24px 32px;">
+        <p style="font-size: 15px; line-height: 1.6; margin: 0 0 18px 0; color: #0f172a;">
+          <strong>Afzalus Salam Janab ${subName},</strong>
+        </p>
+        <p style="font-size: 14px; line-height: 1.6; margin: 0 0 24px 0; color: #334155;">
+          You have been officially assigned by the administration (${actorName || "Academic Coordinator"}) to cover an urgent substitute duty (Badal) for the following class session:
+        </p>
+
+        <!-- Details Card -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border-radius: 16px; border: 1px solid #cbd5e1; margin-bottom: 24px; overflow: hidden;">
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; font-weight: 600; width: 35%;">
+              📅 Target Date
+            </td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; font-weight: 800;">
+              ${dateFormatted}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; font-weight: 600;">
+              ⏰ Period &amp; Time
+            </td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #b45309; font-weight: 900;">
+              Period ${badal.period} (${badal.startTime} – ${badal.endTime})
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; font-weight: 600;">
+              🏫 Class / Darajah
+            </td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #047857; font-weight: 800;">
+              Class ${badal.className}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; font-weight: 600;">
+              📖 Subject
+            </td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; font-weight: 800;">
+              ${badal.subject}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; font-weight: 600;">
+              👤 Covering For
+            </td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; font-weight: 700;">
+              ${origTeacher}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; font-weight: 600;">
+              📋 Reason
+            </td>
+            <td style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155;">
+              ${reasonText}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 18px; font-size: 13px; color: #64748b; font-weight: 600;">
+              📌 Instructions
+            </td>
+            <td style="padding: 14px 18px; font-size: 13px; color: #0f172a; font-style: italic;">
+              ${instructionsText}
+            </td>
+          </tr>
+        </table>
+
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 30px 0 20px 0;">
+          <a href="${appUrl}/teacher/timetable" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%); color: #021f18; font-weight: 900; font-size: 14px; padding: 14px 32px; border-radius: 14px; text-decoration: none; box-shadow: 0 4px 16px rgba(212,175,55,0.4); text-transform: uppercase; letter-spacing: 0.05em;">
+            Open Faculty Timetable on Portal →
+          </a>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <p style="font-size: 11px; color: #64748b; margin: 0; line-height: 1.5;">
+          This is an urgent academic dispatch from <strong>Darse Burhani Portal</strong>.<br>
+          Al-Jamea-tus-Saifiyah • Faculty Timetable &amp; Roll-Call Management.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `;
+
+      emailSent = await sendEmail({
+        to: substituteUser.email,
+        subject: emailSubject,
+        html: emailHtml,
+      });
+    }
+
+    // 2. Create High-Priority In-Portal Notification
+    if (substituteUser?.id) {
+      await prisma.notification.create({
+        data: {
+          userId: substituteUser.id,
+          title: `🚨 [URGENT] Badal Substitute Duty: Class ${badal.className} (P${badal.period})`,
+          body: `You are assigned to substitute for ${origTeacher} in Class ${badal.className} for Period ${badal.period} (${badal.startTime}–${badal.endTime}) - ${badal.subject}.`,
+          type: "BADAL_ASSIGNED",
+          link: "/teacher/timetable",
+          priority: "URGENT",
+        },
+      });
+    }
+
+    // 3. Invalidate caches so the portal reflects changes immediately
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+    cache.invalidateTag("timetablebadal");
+
+    return {
+      success: true,
+      emailSent,
+      substituteEmail: substituteUser?.email || null,
+    };
+  } catch (error) {
+    console.error("[timetable-notify] Error notifying badal assignment:", error);
+    return { success: false, error: (error as Error)?.message };
+  }
+}
+

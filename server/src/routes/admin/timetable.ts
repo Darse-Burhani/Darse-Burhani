@@ -2,7 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
-import { notifyTimetableChange, getRecentTimetableChanges, isSlotRecentlyChanged } from "../../lib/timetable-notify";
+import { notifyTimetableChange, getRecentTimetableChanges, isSlotRecentlyChanged, notifyBadalAssignment } from "../../lib/timetable-notify";
 
 const router = Router();
 
@@ -804,13 +804,19 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         assignedById: session.user.id,
       },
       include: {
-        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
-        badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+        badalTeacher: { include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } } } },
       },
     });
 
     cache.invalidateTag("timetablebadal");
     cache.invalidateTag("timetable");
+
+    if (badal.badalTeacherId) {
+      notifyBadalAssignment(badal, session.user.firstName || "Administration").catch((err) =>
+        console.error("[timetable] Failed to send badal notification:", err)
+      );
+    }
 
     return res.json({ success: true, data: badal });
   } catch (error) {
@@ -822,6 +828,7 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // PUT /api/admin/timetable/badal/:id - Update badal status / fulfillment
 router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    const session = req.auth!;
     const { id } = req.params;
     const { status, isFulfilled, badalTeacherId, badalTeacherName, instructions, notes } = req.body;
 
@@ -836,10 +843,20 @@ router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     const updated = await prisma.timetableBadal.update({
       where: { id },
       data,
+      include: {
+        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+        badalTeacher: { include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+      },
     });
 
     cache.invalidateTag("timetablebadal");
     cache.invalidateTag("timetable");
+
+    if (badalTeacherId || (data.status && data.status === "ASSIGNED")) {
+      notifyBadalAssignment(updated, session.user.firstName || "Administration").catch((err) =>
+        console.error("[timetable] Failed to send badal update notification:", err)
+      );
+    }
 
     return res.json({ success: true, data: updated });
   } catch (error) {
@@ -847,6 +864,7 @@ router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     return res.status(500).json({ success: false, error: "Failed to update badal assignment" });
   }
 });
+
 
 // DELETE /api/admin/timetable/badal/:id - Cancel/remove badal assignment
 router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
