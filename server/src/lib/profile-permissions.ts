@@ -3,6 +3,7 @@ import prisma from "./prisma";
 export interface PortalModulesState {
   talabat: {
     dashboard: boolean;
+    timetable: boolean;
     attendance: boolean;
     scans: boolean;
     calendar: boolean;
@@ -16,6 +17,7 @@ export interface PortalModulesState {
   teacher: {
     dashboard: boolean;
     classes: boolean;
+    timetable: boolean;
     takhteet: boolean;
     attendance: boolean;
     faculty: boolean;
@@ -73,6 +75,7 @@ export interface ProfilePermissionsState {
 const defaultModules: PortalModulesState = {
   talabat: {
     dashboard: true,
+    timetable: true,
     attendance: true,
     scans: true,
     calendar: true,
@@ -85,6 +88,7 @@ const defaultModules: PortalModulesState = {
   teacher: {
     dashboard: true,
     classes: true,
+    timetable: true,
     takhteet: true,
     attendance: true,
     faculty: true,

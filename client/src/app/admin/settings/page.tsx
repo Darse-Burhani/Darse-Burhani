@@ -106,7 +106,7 @@ const DEFAULT_TEACHER_ITEMS: Array<{ num: number; key: string; label: string; de
   { num: 5, key: "khidmatMauze", label: "KhidmatMauze", desc: "Mauze / Location of Khidmat" },
   { num: 6, key: "subCategory", label: "Sub-Category", desc: "Khidmat sub-category designation" },
   { num: 7, key: "role", label: "Role", desc: "Teacher institutional role title" },
-  { num: 8, key: "farigYear", label: "FarigYear", desc: "Al-Jamea Farig year" },
+  { num: 8, key: "farigYear", label: "FarigYear", desc: "Graduation Farig year" },
   { num: 9, key: "farigDarajah", label: "FarigDarajah", desc: "Darajah upon graduation" },
   { num: 10, key: "aljameaDegree", label: "AljameaDegree", desc: "Sanad / Degree awarded" },
   { num: 11, key: "hifzStatus", label: "Hifz Status", desc: "Hafiz / Non-Hafiz / Mutim" },
@@ -122,6 +122,7 @@ const DEFAULT_TEACHER_ITEMS: Array<{ num: number; key: string; label: string; de
 const TEACHER_MODULES_LIST = [
   { key: "dashboard", label: "Dashboard", desc: "Overview, quick metrics & daily schedule", icon: Activity },
   { key: "classes", label: "My Classes", desc: "Classes, student list & grading", icon: BookOpen },
+  { key: "timetable", label: "Timetable Matrix", desc: "Master schedule, lesson slots, darajah & badal coverage", icon: CalendarDays },
   { key: "takhteet", label: "Takhteet", desc: "Lesson plans, syllabus tracking & curriculum", icon: ClipboardList },
   { key: "attendance", label: "Attendance", desc: "Session attendance marking & registers", icon: Clock },
   { key: "faculty", label: "Faculty Portal", desc: "Teacher biometric clock-in & faculty attendance", icon: ClipboardCheck },
@@ -131,6 +132,7 @@ const TEACHER_MODULES_LIST = [
 
 const TALABAT_MODULES_LIST = [
   { key: "dashboard", label: "Dashboard", desc: "Student dashboard, stats & daily highlights", icon: Activity },
+  { key: "timetable", label: "Class Timetable", desc: "Weekly darajah timetable, daily period slots & teacher allocations", icon: CalendarDays },
   { key: "attendance", label: "Attendance", desc: "Personal attendance record & statistics", icon: Clock },
   { key: "scans", label: "My Scans", desc: "Biometric & RFID punch scan timeline", icon: Fingerprint },
   { key: "calendar", label: "Calendar", desc: "Darse Burhani Hijri calendar, miqaats & schedules", icon: CalendarDays },
@@ -144,6 +146,7 @@ const INITIAL_PERMS: PermissionsData = {
   modules: {
     talabat: {
       dashboard: true,
+      timetable: true,
       attendance: true,
       scans: true,
       calendar: true,
@@ -156,6 +159,7 @@ const INITIAL_PERMS: PermissionsData = {
     teacher: {
       dashboard: true,
       classes: true,
+      timetable: true,
       takhteet: true,
       attendance: true,
       faculty: true,
