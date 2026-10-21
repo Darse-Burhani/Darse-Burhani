@@ -241,6 +241,46 @@ export default function LoginPage() {
     return `mailto:support.darseburhani.galiakot@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
   }, [forgotProfile, forgotIdentifier]);
 
+  // ── Backdrop Parallax ──
+  // The panorama drifts subtly with the cursor (desktop, motion-safe only) so the
+  // full-length photo feels alive without ever cropping it. Touch devices skip it.
+  useEffect(() => {
+    const photo = document.querySelector<HTMLElement>(".login-backdrop-photo");
+    if (!photo) return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let raf = 0;
+    let targetX = 0;
+    let targetY = 0;
+    let curX = 0;
+    let curY = 0;
+
+    const tick = () => {
+      curX += (targetX - curX) * 0.06;
+      curY += (targetY - curY) * 0.06;
+      photo.style.setProperty("--login-parallax-x", `${curX.toFixed(2)}px`);
+      photo.style.setProperty("--login-parallax-y", `${curY.toFixed(2)}px`);
+      if (Math.abs(targetX - curX) > 0.08 || Math.abs(targetY - curY) > 0.08) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        raf = 0;
+      }
+    };
+
+    const handleMove = (e: MouseEvent) => {
+      targetX = (e.clientX / window.innerWidth - 0.5) * 14;
+      targetY = (e.clientY / window.innerHeight - 0.5) * 10;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener("mousemove", handleMove, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   // ITS Scanner State
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [scannerMode, setScannerMode] = useState<"camera" | "upload">("camera");
@@ -518,13 +558,20 @@ export default function LoginPage() {
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* ── Full-Length Sunset Backdrop (entire panorama, no crop) ── */}
+      {/* ── Twilight Palace Backdrop ──
+          Layered cinematic composition:
+          1. Fill wash — photo-sampled gradient covering the full viewport
+          2. Photo — entire panorama, no crop (centered on desktop, hero band on mobile)
+          3. Seam fade — melts the photo edge into the wash on mobile
+          4. Sun glow — breathing amber light where the sun sets in the photo
+          5. Parallax — the panorama drifts with the cursor (desktop, motion-safe) */}
+      <div className="fixed inset-0 z-0 pointer-events-none login-backdrop-fill" />
       <div
-        className="fixed inset-0 z-0 pointer-events-none login-backdrop"
-        style={{
-          backgroundImage: `url('/login-bg-sunset.jpg'), linear-gradient(180deg, #3d4771 0%, #4a4f73 24%, #6b5d6e 40%, #4a3a38 62%, #241708 84%, #180f04 100%)`,
-        }}
+        className="fixed inset-0 z-0 pointer-events-none login-backdrop-photo"
+        style={{ backgroundImage: "url('/login-bg-sunset.jpg')" }}
       />
+      <div className="fixed inset-0 z-0 pointer-events-none login-photo-fade" aria-hidden="true" />
+      <div className="fixed z-0 pointer-events-none login-sun-glow" aria-hidden="true" />
       {/* Cinematic overlay: indigo-to-ember tint picked from the backdrop photo */}
       <div
         className="fixed inset-0 z-0 pointer-events-none"
@@ -1068,17 +1115,54 @@ export default function LoginPage() {
         </footer>
       </div>
 
-      {/* CSS for spinner animation */}
+      {/* Backdrop CSS: layered Twilight Palace composition */}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        .login-backdrop {
-          background-size: 100% auto, cover;
-          background-position: center center, center center;
-          background-repeat: no-repeat, no-repeat;
+        @keyframes login-sun-breathe {
+          0%, 100% { opacity: 0.72; transform: translateY(-50%) scale(1); }
+          50% { opacity: 1; transform: translateY(-50%) scale(1.07); }
+        }
+        /* 1. Fill wash — sky indigo melting into warm ember ground */
+        .login-backdrop-fill {
+          background: linear-gradient(180deg, #3d4771 0%, #4a4f73 24%, #6b5d6e 40%, #4a3a38 62%, #241708 84%, #180f04 100%);
+        }
+        /* 2. Photo — full-length panorama, drifts with the cursor via CSS vars */
+        .login-backdrop-photo {
+          background-size: 100% auto;
+          background-position: center center;
+          background-repeat: no-repeat;
+          transform: translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
+          transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        /* 3. Seam fade — hidden on desktop, melts photo into wash on mobile */
+        .login-photo-fade { display: none; }
+        /* 4. Sun glow — breathing amber light at the sunset's position */
+        .login-sun-glow {
+          right: 2.5%;
+          top: 54%;
+          width: 320px;
+          height: 320px;
+          background: radial-gradient(circle, rgba(255, 214, 152, 0.5) 0%, rgba(242, 130, 55, 0.28) 32%, rgba(242, 104, 39, 0) 70%);
+          mix-blend-mode: screen;
+          animation: login-sun-breathe 7s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-sun-glow { animation: none; opacity: 0.85; }
+          .login-backdrop-photo { transition: none; }
         }
         @media (max-width: 768px) {
           .login-card-grid { grid-template-columns: 1fr !important; }
-          .login-backdrop { background-size: cover, cover; }
+          /* Hero band: full panorama pinned to the top — never cropped */
+          .login-backdrop-photo { background-position: center top; }
+          /* Wash continues below the band in the photo's own foreground tones */
+          .login-backdrop-fill { background: linear-gradient(180deg, #261809 0%, #1a1108 34%, #140d05 64%, #100a04 100%); }
+          .login-photo-fade {
+            display: block;
+            top: calc(33.35vw - 56px);
+            height: 84px;
+            background: linear-gradient(180deg, rgba(22, 14, 5, 0) 0%, rgba(26, 17, 8, 0.7) 60%, #1a1108 100%);
+          }
+          .login-sun-glow { right: 3%; top: 18.3vw; width: 150px; height: 150px; }
         }
       `}</style>
 
