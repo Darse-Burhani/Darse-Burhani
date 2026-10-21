@@ -1140,6 +1140,14 @@
     background: rgba(212, 175, 55, 0.4);
     border-radius: 9999px;
   }
+  /* Utility to hide scrollbar while allowing scrolling */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 /* PWA Standalone Mode adjustments */
@@ -1148,5 +1156,6 @@
     -webkit-touch-callout: none;
   }
 }
+
 
 
