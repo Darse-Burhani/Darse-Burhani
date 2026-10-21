@@ -1005,8 +1005,8 @@ export async function processBiometricScan(
             }, when, false);
           }
 
-          // Not checked in yet today -> mark LATE so scan is reliably recorded!
-          teacherStatus = "LATE";
+          // Unscanned during event window was marked ABSENT -> scanning in premises marks PRESENT!
+          teacherStatus = "PRESENT";
         } else {
           teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
         }
@@ -1040,20 +1040,9 @@ export async function processBiometricScan(
             }, when, true);
           }
         }
-
-        teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
       } else {
-        return pushEvent({
-          type: "WINDOW_CLOSED",
-          fingerprint,
-          deviceId: deviceId ?? null,
-          role: "TEACHER",
-          teacher: teacherInfo,
-          message: facultyWindowStatus.isDisabled
-            ? `Faculty scanning is DISABLED by Admin schedule. Attendance not recorded.`
-            : `Faculty scan window is CLOSED. Attendance not recorded.`,
-          verifyMode: method,
-        }, when, false);
+        // Post-event premises arrival: Any scan in premises marks PRESENT
+        teacherStatus = "PRESENT";
       }
 
       // Check if faculty member is on active Medical Exemption today
@@ -1112,8 +1101,7 @@ export async function processBiometricScan(
 
       if (
         existingTeacherRecord &&
-        existingTeacherRecord.status === "ABSENT" &&
-        existingTeacherRecord.verificationMethod === "AUTO_SYSTEM"
+        existingTeacherRecord.status === "ABSENT"
       ) {
         const corrected = await prisma.teacherAttendanceRecord.update({
           where: { teacherId_date: { teacherId: teacher.id, date } },
@@ -1123,7 +1111,7 @@ export async function processBiometricScan(
             verificationMethod: "BIOMETRIC",
             biometricMethod: method === "BIOMETRIC" ? null : method,
             biometricHash: fingerprint,
-            notes: `Late scan corrected auto-absent (${timeFormatted12} IST via ${method})`,
+            notes: `Premises check-in scan (${timeFormatted12} IST via ${method})`,
           },
         });
 
@@ -1367,8 +1355,8 @@ export async function processBiometricScan(
         }, when, false);
       }
 
-      // Not checked in yet today -> mark LATE so scan is reliably recorded!
-      status = "LATE";
+      // Unscanned during event window was marked ABSENT -> scanning in premises marks PRESENT!
+      status = "PRESENT";
     } else {
       status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
     }
@@ -1405,20 +1393,9 @@ export async function processBiometricScan(
         }, when, true);
       }
     }
-
-    status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
   } else {
-    return pushEvent({
-      type: "WINDOW_CLOSED",
-      fingerprint,
-      deviceId: deviceId ?? null,
-      role: "STUDENT",
-      student: studentInfo,
-      message: studentWindowStatus.isDisabled
-        ? `Talabat scanning is DISABLED by Admin schedule. Attendance not recorded.`
-        : `Talabat scan window is CLOSED. Attendance not recorded.`,
-      verifyMode: method,
-    }, when, false);
+    // Post-event premises arrival: Any scan in premises marks PRESENT
+    status = "PRESENT";
   }
 
   // Check if attendance is already recorded for this talabat today

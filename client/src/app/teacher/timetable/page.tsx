@@ -482,7 +482,7 @@ export default function TeacherTimetablePage() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded-full shadow-xs animate-bounce">
-                        🚨 URGENT / تكليف عاجل
+                        🚨 URGENT NOTICE
                       </span>
                       <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
                         Assigned Badal (Substitute) Duties ({badalDuties.length})

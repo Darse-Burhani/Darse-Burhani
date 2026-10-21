@@ -293,7 +293,7 @@ export async function notifyBadalAssignment(badal: BadalNotificationPayload, act
     // 1. Send Urgent Email Notification
     let emailSent = false;
     if (substituteUser?.email) {
-      const emailSubject = `🚨 [URGENT / تكليف عاجل] Substitute Assignment (Badal): Period ${badal.period} (${badal.startTime}–${badal.endTime}) in Class ${badal.className}`;
+      const emailSubject = `🚨 [URGENT] Substitute Assignment (Badal): Period ${badal.period} (${badal.startTime}–${badal.endTime}) in Class ${badal.className}`;
 
       const emailHtml = `
 <!DOCTYPE html>
@@ -309,7 +309,7 @@ export async function notifyBadalAssignment(badal: BadalNotificationPayload, act
     <tr>
       <td style="background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); padding: 14px 24px; text-align: center;">
         <span style="color: #ffffff; font-size: 13px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;">
-          🚨 URGENT BADAL (SUBSTITUTE) ASSIGNMENT • تكليف بدل عاجل
+          🚨 URGENT BADAL (SUBSTITUTE) ASSIGNMENT
         </span>
       </td>
     </tr>
