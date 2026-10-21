@@ -48,15 +48,15 @@ const navItems: PortalNavItem[] = [
     category: "Operations",
   },
   {
-    label: "Manual Attendance",
-    href: "/admin/manual-attendance",
-    icon: ClipboardCheck,
+    label: "Hikvision Scans",
+    href: "/admin/attendance-hik",
+    icon: Fingerprint,
     category: "Operations",
   },
   {
-    label: "Attendance Logs",
-    href: "/admin/attendance-logs",
-    icon: Layers,
+    label: "Manual Logs",
+    href: "/admin/attendance-manual",
+    icon: ClipboardCheck,
     category: "Operations",
   },
   {

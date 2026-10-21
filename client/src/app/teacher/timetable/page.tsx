@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   CalendarDays,
   Clock,
@@ -14,6 +15,11 @@ import {
   Users,
   Search,
   X,
+  ShieldCheck,
+  ClipboardCheck,
+  CheckCircle2,
+  AlertCircle,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,17 +63,27 @@ export default function TeacherTimetablePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewTab, setViewTab] = useState<"my-schedule" | "classes">("my-schedule");
+  const [viewTab, setViewTab] = useState<"my-schedule" | "masool-class" | "classes">("my-schedule");
+
+  // Masool Class Selection
+  const [selectedMasoolIndex, setSelectedMasoolIndex] = useState(0);
+  const [masoolClassData, setMasoolClassData] = useState<any>(null);
+  const [loadingMasoolClass, setLoadingMasoolClass] = useState(false);
 
   // TableMaster Spotlight & Talabat State
   const [spotlightSubject, setSpotlightSubject] = useState<string | null>(null);
   const [talabatModalOpen, setTalabatModalOpen] = useState(false);
   const [talabatSearch, setTalabatSearch] = useState("");
+  const [activeRosterClass, setActiveRosterClass] = useState<any>(null);
 
   // Darajah Class Explorer State
   const [selectedClassName, setSelectedClassName] = useState<string>("1 A");
   const [classData, setClassData] = useState<any>(null);
   const [loadingClass, setLoadingClass] = useState(false);
+
+  const masoolClasses = data?.masoolClasses || [];
+  const isClassMasool = Boolean(data?.isClassMasool || masoolClasses.length > 0);
+  const currentMasoolClass = masoolClasses[selectedMasoolIndex] || masoolClasses[0] || null;
 
   const fetchTimetable = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -104,17 +120,36 @@ export default function TeacherTimetablePage() {
     }
   };
 
+  const fetchMasoolClassTimetable = async (className: string, silent = false) => {
+    if (!silent) setLoadingMasoolClass(true);
+    try {
+      const res = await fetch(`/api/teacher/timetable/class/${encodeURIComponent(className)}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setMasoolClassData(json.data);
+      } else {
+        setMasoolClassData(null);
+      }
+    } catch {
+      setMasoolClassData(null);
+    } finally {
+      if (!silent) setLoadingMasoolClass(false);
+    }
+  };
+
   useEffect(() => {
     fetchTimetable();
-    // Live dynamic synchronization: auto-refreshes every 20 seconds so changes made by other faculty appear live
     const interval = setInterval(() => {
       fetchTimetable(false);
       if (viewTab === "classes" && selectedClassName) {
         fetchClassTimetable(selectedClassName, true);
       }
+      if (viewTab === "masool-class" && currentMasoolClass?.name) {
+        fetchMasoolClassTimetable(currentMasoolClass.name, true);
+      }
     }, 20000);
     return () => clearInterval(interval);
-  }, [viewTab, selectedClassName]);
+  }, [viewTab, selectedClassName, currentMasoolClass?.name]);
 
   useEffect(() => {
     if (viewTab === "classes") {
@@ -122,7 +157,13 @@ export default function TeacherTimetablePage() {
     }
   }, [viewTab, selectedClassName]);
 
-  // My Slots Map
+  useEffect(() => {
+    if (viewTab === "masool-class" && currentMasoolClass?.name) {
+      fetchMasoolClassTimetable(currentMasoolClass.name);
+    }
+  }, [viewTab, currentMasoolClass?.name]);
+
+  // My Personal Slots Map
   const slotsMap = useMemo(() => {
     const map = new Map<string, any>();
     if (data?.slots) {
@@ -133,7 +174,7 @@ export default function TeacherTimetablePage() {
     return map;
   }, [data]);
 
-  // Class Slots Map
+  // Class Explorer Slots Map
   const classSlotsMap = useMemo(() => {
     const map = new Map<string, any>();
     if (classData?.slots) {
@@ -144,7 +185,18 @@ export default function TeacherTimetablePage() {
     return map;
   }, [classData]);
 
-  // TableMaster Subject Load Distribution & Stats for selected class
+  // Masool Class Slots Map
+  const masoolSlotsMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (masoolClassData?.slots) {
+      masoolClassData.slots.forEach((s: any) => {
+        map.set(`${s.dayOfWeek}_${s.period}`, s);
+      });
+    }
+    return map;
+  }, [masoolClassData]);
+
+  // Subject Stats for Explorer Class
   const classSubjectStats = useMemo(() => {
     const classSlots = (Array.isArray(classData?.slots) ? classData.slots : []).filter(
       (s: any) => s && !s.isBreak && s.subject
@@ -166,13 +218,35 @@ export default function TeacherTimetablePage() {
       .sort((a, b) => b.count - a.count);
   }, [classData]);
 
+  // Subject Stats for Masool Class
+  const masoolSubjectStats = useMemo(() => {
+    const mSlots = (Array.isArray(masoolClassData?.slots) ? masoolClassData.slots : []).filter(
+      (s: any) => s && !s.isBreak && s.subject
+    );
+    const countMap: Record<string, number> = {};
+    mSlots.forEach((s: any) => {
+      const sub = s.subject.trim();
+      countMap[sub] = (countMap[sub] || 0) + 1;
+    });
+
+    const total = mSlots.length || 1;
+    return Object.entries(countMap)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: Math.round((count / total) * 100),
+        theme: getSubjectTheme(name),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [masoolClassData]);
+
   const toggleSpotlight = (subjectName: string) => {
     setSpotlightSubject((prev) => (prev?.toLowerCase() === subjectName.toLowerCase() ? null : subjectName));
   };
 
-  // Filtered Talabat for Roster Modal
+  // Filtered Talabat for Active Roster Modal
   const filteredTalabat = useMemo(() => {
-    const list: any[] = classData?.class?.talabat || [];
+    const list: any[] = activeRosterClass?.talabat || [];
     const q = talabatSearch.toLowerCase().trim();
     if (!q) return list;
     return list.filter((s: any) =>
@@ -180,7 +254,13 @@ export default function TeacherTimetablePage() {
       s.its?.toLowerCase().includes(q) ||
       (s.rollNumber && String(s.rollNumber).toLowerCase().includes(q))
     );
-  }, [classData, talabatSearch]);
+  }, [activeRosterClass, talabatSearch]);
+
+  const openRosterModal = (classObj: any) => {
+    setActiveRosterClass(classObj);
+    setTalabatSearch("");
+    setTalabatModalOpen(true);
+  };
 
   const badalDuties = data?.badalDuties || [];
   const badalsForMe = data?.badalsForMe || [];
@@ -203,7 +283,7 @@ export default function TeacherTimetablePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Header Banner */}
+      {/* ── Header Banner ── */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -221,15 +301,21 @@ export default function TeacherTimetablePage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shadow-xs">
-                  Academic Timetable Matrix
+                  Academic Timetable Hub
                 </span>
+                {isClassMasool && (
+                  <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-500/30 text-amber-300 border border-amber-400/50 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                    <ShieldCheck className="w-3 h-3 text-amber-300" /> Class Masool
+                  </span>
+                )}
                 <span className="text-xs text-emerald-200 font-mono">Term I • 1448 H</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-                Faculty &amp; Class Timetable Hub
+                Faculty &amp; Class Timetable Matrix
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100/90 mt-0.5">
                 {data?.teacher?.name ? `${data.teacher.name} • ${data?.slots?.length || 0} Teaching Sessions / Week` : "Weekly Academic Timetable"}
+                {isClassMasool && currentMasoolClass ? ` • Masool of Class ${currentMasoolClass.name}` : ""}
               </p>
             </div>
           </div>
@@ -269,8 +355,25 @@ export default function TeacherTimetablePage() {
             }`}
           >
             <Clock className="w-4 h-4" />
-            <span>1. My Personal Schedule ({data?.slots?.length || 0} Periods)</span>
+            <span>1. My Teaching Schedule ({data?.slots?.length || 0} Periods)</span>
           </button>
+
+          {/* Dedicated Tab for Class Masool */}
+          {isClassMasool && (
+            <button
+              onClick={() => setViewTab("masool-class")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                viewTab === "masool-class"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-emerald-900/60 text-amber-300 hover:bg-emerald-800/80 border border-amber-400/30"
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>
+                2. 👑 My Masool Class Timetable ({currentMasoolClass ? `Class ${currentMasoolClass.name}` : "Assigned Class"})
+              </span>
+            </button>
+          )}
 
           <button
             onClick={() => setViewTab("classes")}
@@ -281,13 +384,60 @@ export default function TeacherTimetablePage() {
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>2. Darajah Class Timetables &amp; Talabat (1A–4B)</span>
+            <span>{isClassMasool ? "3. All Darajah Classes (1A–4B)" : "2. All Darajah Classes (1A–4B)"}</span>
           </button>
         </div>
       </motion.div>
 
+      {/* ── Official Timetable Changes Alert Banner ── */}
+      {data?.recentChanges && data.recentChanges.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 sm:p-5 rounded-3xl bg-amber-50/95 border border-amber-300 shadow-sm flex items-start gap-3.5"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-amber-400/30 border border-amber-400/60 flex items-center justify-center shrink-0 text-amber-950 mt-0.5">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
+                Official Timetable Update Notice ({data.recentChanges.length} Recent Changes)
+              </h4>
+              <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                Highlighted With Glow Below
+              </Badge>
+            </div>
+            <p className="text-xs text-amber-900/90 mt-1">
+              The Administration or assigned academic coordinators updated timetable periods. Changed slots are highlighted with an amber glow and badge across your views:
+            </p>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {data.recentChanges.map((change: any) => (
+                <div
+                  key={change.id}
+                  className="text-xs text-slate-800 font-semibold p-2.5 rounded-xl bg-white/90 border border-amber-200/90 shadow-2xs flex flex-col justify-between gap-1"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      Class {change.className} • {change.dayName} P{change.period}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {new Date(change.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-700 truncate" title={change.changeDescription}>
+                    {change.changeDescription}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* ─────────────────────────────────────────────────────────────
-          TAB 1: MY PERSONAL SCHEDULE
+          TAB 1: MY PERSONAL SCHEDULE (TEACHER'S SUBJECTS)
          ───────────────────────────────────────────────────────────── */}
       {viewTab === "my-schedule" && (
         <div className="space-y-6">
@@ -328,6 +478,27 @@ export default function TeacherTimetablePage() {
 
           {/* Timetable Matrix */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  Weekly Teaching Matrix
+                </span>
+                <span className="text-xs text-slate-500">
+                  • {data?.slots?.length || 0} active periods across Monday to Saturday
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-300" />
+                  <span>Recently Updated Slot</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <span>Regular Session</span>
+                </div>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
@@ -359,6 +530,7 @@ export default function TeacherTimetablePage() {
                           const badalDutyToday = isToday ? todayDutiesMap.get(p.period) : null;
                           const coveredToday = isToday ? todayCoveredMap.get(p.period) : null;
                           const theme = slot ? getSubjectTheme(slot.subject) : null;
+                          const isChanged = Boolean(slot?.isRecentlyChanged);
 
                           return (
                             <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
@@ -379,19 +551,31 @@ export default function TeacherTimetablePage() {
                                 </div>
                               ) : slot && theme ? (
                                 <div
-                                  style={{ borderLeftColor: theme.accent, borderLeftWidth: "3px" }}
-                                  className={`p-2.5 rounded-xl border shadow-2xs ${
-                                    coveredToday
+                                  style={{ borderLeftColor: isChanged ? "#f59e0b" : theme.accent, borderLeftWidth: isChanged ? "4px" : "3px" }}
+                                  className={`p-2.5 rounded-xl border shadow-2xs transition-all ${
+                                    isChanged
+                                      ? "bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/80 shadow-md"
+                                      : coveredToday
                                       ? "bg-slate-50 border-slate-300 opacity-75"
                                       : `${theme.bgLight} ${theme.border}`
                                   }`}
                                 >
+                                  {isChanged && (
+                                    <div className="mb-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-2xs">
+                                      <Sparkles className="w-2 h-2 text-slate-950" /> Updated
+                                    </div>
+                                  )}
                                   <div className={`text-xs font-black leading-tight ${theme.text}`}>
                                     {slot.subject}
                                   </div>
                                   <div className="text-[11px] font-bold mt-1 text-slate-800">
                                     Class {slot.className}
                                   </div>
+                                  {isChanged && slot.changeDescription && (
+                                    <div className="text-[9px] font-bold text-amber-900 bg-amber-100/80 px-1.5 py-0.5 rounded mt-1 leading-tight">
+                                      {slot.changeDescription}
+                                    </div>
+                                  )}
                                   {coveredToday ? (
                                     <div className="text-[9.5px] font-bold text-amber-800 mt-1 flex items-center gap-1">
                                       <ArrowRightLeft className="w-2.5 h-2.5" /> Covered by {coveredToday.badalTeacher}
@@ -421,7 +605,270 @@ export default function TeacherTimetablePage() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          TAB 2: DARAJAH CLASS TIMETABLES EXPLORER (WITH TALABAT ROSTER)
+          TAB 2: CLASS MASOOL DEDICATED TIMETABLE & DESK
+         ───────────────────────────────────────────────────────────── */}
+      {viewTab === "masool-class" && isClassMasool && (
+        <div className="space-y-6">
+          {/* Masool Header & Controls */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-amber-400/50"
+                  style={{ background: "linear-gradient(135deg, #06241a 0%, #0a3d2c 100%)" }}
+                >
+                  <ShieldCheck className="w-8 h-8 text-amber-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shadow-2xs">
+                      Masool al-Fasl Desk
+                    </span>
+                    <span className="text-xs font-mono text-emerald-800 font-bold">
+                      {currentMasoolClass ? `Darajah ${currentMasoolClass.darajah} • Section ${currentMasoolClass.section}` : ""}
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
+                    Class {currentMasoolClass?.name || ""} Master Timetable
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    As Class Masool, monitor all weekly periods, subject teachers, and student rosters for your assigned class.
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Actions for Masool */}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {masoolClassData?.class && (
+                  <Button
+                    onClick={() => openRosterModal(masoolClassData.class)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white hover:bg-emerald-50 text-emerald-900 border-emerald-300 font-bold text-xs gap-1.5 rounded-xl shadow-2xs"
+                  >
+                    <Users className="w-3.5 h-3.5 text-emerald-700" />
+                    Talabat Roster ({(masoolClassData.class.talabat?.length || masoolClassData.class.studentCount || 0)})
+                  </Button>
+                )}
+
+                <Link href="/teacher/attendance">
+                  <Button
+                    size="sm"
+                    className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-bold text-xs gap-1.5 rounded-xl shadow-xs"
+                  >
+                    <ClipboardCheck className="w-3.5 h-3.5 text-amber-300" />
+                    Take Class Attendance
+                  </Button>
+                </Link>
+
+                {masoolClasses.length > 1 && (
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                    {masoolClasses.map((cls: any, idx: number) => (
+                      <button
+                        key={cls.id || idx}
+                        onClick={() => setSelectedMasoolIndex(idx)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                          selectedMasoolIndex === idx
+                            ? "bg-[#06241a] text-amber-300 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        {cls.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Masool Class Information Bar */}
+            {masoolClassData?.class && (
+              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="font-bold text-slate-500 uppercase text-[10px]">Room:</span>
+                    <span className="font-extrabold text-slate-900 px-2 py-0.5 rounded-md bg-slate-100">
+                      {masoolClassData.class.roomNumber || `Room ${masoolClassData.class.name}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="font-bold text-slate-500 uppercase text-[10px]">Total Talabat:</span>
+                    <span className="font-extrabold text-emerald-800">
+                      {(masoolClassData.class.talabat?.length || masoolClassData.class.studentCount || 0)} Students
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500">
+                  ⚡ All schedule changes made in Admin or Assign Portal are live and instantly updated here.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* TableMaster Subject Load for Masool Class */}
+          {masoolSubjectStats.length > 0 && (
+            <div className="bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    Curriculum Load ({masoolSubjectStats.length} Subjects):
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Click any subject to spotlight across your class schedule
+                  </span>
+                </div>
+                {spotlightSubject && (
+                  <button
+                    onClick={() => setSpotlightSubject(null)}
+                    className="text-[10.5px] font-black text-amber-900 hover:text-amber-950 bg-amber-100 px-2.5 py-0.5 rounded-lg flex items-center gap-1 border border-amber-300 transition-colors"
+                  >
+                    <X className="w-3 h-3" /> Clear Spotlight: {spotlightSubject}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {masoolSubjectStats.map((item) => {
+                  const isSpotlighted = spotlightSubject?.toLowerCase() === item.name.toLowerCase();
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => toggleSpotlight(item.name)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 border ${
+                        isSpotlighted
+                          ? "ring-2 ring-amber-400 shadow-md scale-105 font-black " + item.theme.badge
+                          : "hover:scale-[1.02] " + item.theme.bgLight + " " + item.theme.text + " " + item.theme.border
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${item.theme.dot}`} />
+                      <span>{item.name}</span>
+                      <span className="text-[10px] opacity-80 font-mono font-bold">
+                        {item.count}p ({item.percentage}%)
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Masool Class Timetable Matrix */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+            {loadingMasoolClass ? (
+              <div className="p-16 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
+                <p className="text-xs text-slate-500 mt-2">Loading Class {currentMasoolClass?.name} Timetable...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-[#06241a] text-white">
+                      <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
+                        Day / Period
+                      </th>
+                      {PERIOD_DEFS.map((p) => (
+                        <th key={p.period} className="p-2.5 text-center border-r border-emerald-900/60 last:border-r-0 min-w-[110px]">
+                          <div className="text-xs font-black text-amber-300">{p.label}</div>
+                          <div className="text-[10px] font-mono opacity-80 mt-0.5">{p.time}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DAYS.map((d) => (
+                      <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                        <td className="p-3 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/80">
+                          {d.name}
+                        </td>
+                        {PERIOD_DEFS.map((p) => {
+                          const slot = masoolSlotsMap.get(`${d.day}_${p.period}`);
+                          const isTaughtByMe = slot && data?.teacher && slot.teacherId === data.teacher.id;
+                          const theme = slot ? getSubjectTheme(slot.subject) : null;
+                          const isMatch = !spotlightSubject || (slot && slot.subject && slot.subject.toLowerCase() === spotlightSubject.toLowerCase());
+                          const isChanged = Boolean(slot?.isRecentlyChanged);
+
+                          return (
+                            <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
+                              {slot && theme ? (
+                                <div
+                                  style={{
+                                    borderLeftColor: isChanged ? "#f59e0b" : theme.accent,
+                                    borderLeftWidth: isChanged ? "4px" : "3px",
+                                  }}
+                                  className={`p-2.5 rounded-2xl border shadow-2xs transition-all ${
+                                    isChanged
+                                      ? "bg-amber-50/95 border-amber-400 ring-2 ring-amber-400/80 shadow-md"
+                                      : isTaughtByMe
+                                      ? "ring-2 ring-emerald-500/40 shadow-sm " + theme.bgLight + " " + theme.border
+                                      : `${theme.bgLight} ${theme.border}`
+                                  } ${
+                                    !isMatch ? "opacity-30 grayscale-[40%] scale-98" : spotlightSubject ? "ring-2 ring-amber-400 shadow-md scale-[1.02]" : ""
+                                  }`}
+                                >
+                                  {isChanged && (
+                                    <div className="mb-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-2xs">
+                                      <Sparkles className="w-2 h-2 text-slate-950" /> Updated
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-start justify-between gap-1">
+                                    <button
+                                      onClick={() => toggleSpotlight(slot.subject)}
+                                      className={`text-[10.5px] font-extrabold px-2 py-0.5 rounded-md leading-tight text-left cursor-pointer transition-transform hover:scale-105 ${theme.badge}`}
+                                      title="Click to spotlight this subject"
+                                    >
+                                      {slot.subject}
+                                    </button>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 mt-2">
+                                    {slot.teacherAvatar ? (
+                                      <Avatar className="w-5 h-5 ring-1 ring-emerald-600/30 shrink-0">
+                                        <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />
+                                        <AvatarFallback className="text-[8px] bg-slate-900 text-amber-200">
+                                          {getInitials(slot.teacherName)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ) : null}
+                                    <div className="text-[11px] text-slate-700 font-semibold truncate" title={slot.teacherName}>
+                                      {slot.teacherName}
+                                    </div>
+                                  </div>
+
+                                  {isChanged && slot.changeDescription && (
+                                    <div className="text-[9px] font-bold text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded mt-1.5 leading-tight">
+                                      {slot.changeDescription}
+                                    </div>
+                                  )}
+
+                                  {isTaughtByMe && (
+                                    <div className="mt-1.5 pt-1 border-t border-emerald-200/60 flex items-center gap-1 text-[9px] font-black text-emerald-800">
+                                      <Sparkles className="w-2.5 h-2.5 text-amber-600" /> Taught by You
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="h-16 flex items-center justify-center text-[10px] text-slate-300 font-medium">
+                                  —
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 3: ALL DARAJAH CLASSES EXPLORER (WITH TALABAT ROSTER)
          ───────────────────────────────────────────────────────────── */}
       {viewTab === "classes" && (
         <div className="space-y-6">
@@ -473,6 +920,9 @@ export default function TeacherTimetablePage() {
                         <div className="text-sm font-extrabold text-slate-900 truncate max-w-[200px]" title={classData.class.masool.name}>
                           {classData.class.masool.name}
                         </div>
+                        {classData.class.masool.its && (
+                          <div className="text-[10px] font-mono text-slate-500">ITS: {classData.class.masool.its}</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -494,7 +944,7 @@ export default function TeacherTimetablePage() {
                         {(classData.class.talabat?.length || classData.class.studentCount || 0)} Talabat Enrolled
                       </div>
                       <button
-                        onClick={() => setTalabatModalOpen(true)}
+                        onClick={() => openRosterModal(classData.class)}
                         className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer transition-colors mt-0.5"
                       >
                         <Users className="w-3 h-3 text-emerald-700" />
@@ -506,7 +956,7 @@ export default function TeacherTimetablePage() {
 
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => setTalabatModalOpen(true)}
+                    onClick={() => openRosterModal(classData.class)}
                     variant="outline"
                     size="sm"
                     className="bg-white hover:bg-emerald-50 text-emerald-900 border-emerald-300 font-bold text-xs gap-1.5 rounded-xl shadow-2xs"
@@ -515,7 +965,7 @@ export default function TeacherTimetablePage() {
                     Talabat Roster ({(classData.class.talabat?.length || classData.class.studentCount || 0)})
                   </Button>
                   <div className="text-xs font-semibold text-emerald-900 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                    {classData.class.roomNumber}
+                    {classData.class.roomNumber || `Room ${classData.class.name}`}
                   </div>
                 </div>
               </div>
@@ -603,20 +1053,32 @@ export default function TeacherTimetablePage() {
                           const isTaughtByMe = slot && data?.teacher && slot.teacherId === data.teacher.id;
                           const theme = slot ? getSubjectTheme(slot.subject) : null;
                           const isMatch = !spotlightSubject || (slot && slot.subject && slot.subject.toLowerCase() === spotlightSubject.toLowerCase());
+                          const isChanged = Boolean(slot?.isRecentlyChanged);
 
                           return (
                             <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
                               {slot && theme ? (
                                 <div
-                                  style={{ borderLeftColor: theme.accent, borderLeftWidth: "4px" }}
+                                  style={{
+                                    borderLeftColor: isChanged ? "#f59e0b" : theme.accent,
+                                    borderLeftWidth: isChanged ? "4px" : "3px",
+                                  }}
                                   className={`p-2.5 rounded-2xl border shadow-2xs transition-all ${
-                                    isTaughtByMe
+                                    isChanged
+                                      ? "bg-amber-50/95 border-amber-400 ring-2 ring-amber-400/80 shadow-md"
+                                      : isTaughtByMe
                                       ? "ring-2 ring-emerald-500/40 shadow-sm " + theme.bgLight + " " + theme.border
                                       : `${theme.bgLight} ${theme.border}`
                                   } ${
                                     !isMatch ? "opacity-30 grayscale-[40%] scale-98" : spotlightSubject ? "ring-2 ring-amber-400 shadow-md scale-[1.02]" : ""
                                   }`}
                                 >
+                                  {isChanged && (
+                                    <div className="mb-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-2xs">
+                                      <Sparkles className="w-2 h-2 text-slate-950" /> Updated
+                                    </div>
+                                  )}
+
                                   <div className="flex items-start justify-between gap-1">
                                     <button
                                       onClick={() => toggleSpotlight(slot.subject)}
@@ -631,12 +1093,21 @@ export default function TeacherTimetablePage() {
                                     {slot.teacherAvatar ? (
                                       <Avatar className="w-5 h-5 ring-1 ring-emerald-600/30 shrink-0">
                                         <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />
+                                        <AvatarFallback className="text-[8px] bg-slate-900 text-amber-200">
+                                          {getInitials(slot.teacherName)}
+                                        </AvatarFallback>
                                       </Avatar>
                                     ) : null}
                                     <div className="text-[11px] text-slate-700 font-semibold truncate" title={slot.teacherName}>
                                       {slot.teacherName}
                                     </div>
                                   </div>
+
+                                  {isChanged && slot.changeDescription && (
+                                    <div className="text-[9px] font-bold text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded mt-1.5 leading-tight">
+                                      {slot.changeDescription}
+                                    </div>
+                                  )}
 
                                   {isTaughtByMe && (
                                     <div className="mt-1.5 pt-1 border-t border-emerald-200/60 flex items-center gap-1 text-[9px] font-black text-emerald-800">
@@ -674,10 +1145,10 @@ export default function TeacherTimetablePage() {
               </div>
               <div>
                 <div className="text-base font-extrabold text-slate-900">
-                  Enrolled Talabat — Class {classData?.class?.name || selectedClassName}
+                  Enrolled Talabat — Class {activeRosterClass?.name || selectedClassName}
                 </div>
                 <div className="text-xs text-slate-500 font-normal">
-                  {filteredTalabat.length} of {classData?.class?.talabat?.length || classData?.class?.studentCount || 0} Talabat enrolled in Darajah {classData?.class?.grade || ""}{classData?.class?.section || ""}
+                  {filteredTalabat.length} of {activeRosterClass?.talabat?.length || activeRosterClass?.studentCount || 0} Talabat enrolled in Darajah {activeRosterClass?.grade || ""}{activeRosterClass?.section || ""}
                 </div>
               </div>
             </ModalTitle>
@@ -701,7 +1172,7 @@ export default function TeacherTimetablePage() {
           <div className="p-6 overflow-y-auto max-h-[50vh] divide-y divide-slate-100">
             {filteredTalabat.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">
-                No students match your search in Class {classData?.class?.name || selectedClassName}.
+                No students match your search in Class {activeRosterClass?.name || selectedClassName}.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -739,7 +1210,7 @@ export default function TeacherTimetablePage() {
 
           <ModalFooter className="flex items-center justify-between">
             <span className="text-xs text-slate-500 font-mono">
-              Class {classData?.class?.name || selectedClassName} • Room {classData?.class?.name || selectedClassName}
+              Class {activeRosterClass?.name || selectedClassName} • Room {activeRosterClass?.roomNumber || activeRosterClass?.name || selectedClassName}
             </span>
             <ModalClose asChild>
               <Button variant="outline" size="sm" className="text-xs">

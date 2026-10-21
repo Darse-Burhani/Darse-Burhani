@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { getRecentTimetableChanges, isSlotRecentlyChanged } from "../../lib/timetable-notify";
 
 const router = Router();
 
@@ -120,6 +121,16 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
 
     const formattedSlots = slots.map((s) => {
       const badal = s.dayOfWeek === todayDow ? badalByPeriod.get(s.period) : null;
+      const changeInfo = isSlotRecentlyChanged(s);
+      const updatedAtTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+      const createdAtTime = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+      const isRecentByDate = Boolean(
+        updatedAtTime &&
+        Date.now() - updatedAtTime < 3 * 24 * 60 * 60 * 1000 &&
+        updatedAtTime - createdAtTime > 5000
+      );
+      const isRecent = Boolean(changeInfo || isRecentByDate);
+
       return {
         id: s.id,
         dayOfWeek: s.dayOfWeek,
@@ -132,6 +143,9 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         teacherName: s.teacher ? `${s.teacher.user.firstName} ${s.teacher.user.lastName}` : s.teacherName,
         teacherAvatar: s.teacher?.user.avatarUrl || null,
         teacherIts: s.teacher?.its || null,
+        updatedAt: s.updatedAt,
+        isRecentlyChanged: isRecent,
+        changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${s.subject}` : null),
         badal: badal
           ? {
               id: badal.id,
@@ -175,6 +189,10 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
     // 6. Today's schedule slots
     const todaySlots = formattedSlots.filter((s) => s.dayOfWeek === todayDow).sort((a, b) => a.period - b.period);
 
+    const classRecentChanges = getRecentTimetableChanges().filter(
+      (c) => c.className === currentClass.name || c.classId === currentClass.id || !c.className
+    );
+
     return res.json({
       success: true,
       data: {
@@ -198,6 +216,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         isWeekend: todayDow === 7,
         todaySlots,
         slots: formattedSlots,
+        recentChanges: classRecentChanges,
         subjectTeachers,
         badals: badals.map((b) => ({
           period: b.period,

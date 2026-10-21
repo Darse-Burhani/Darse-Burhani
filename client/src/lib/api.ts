@@ -85,6 +85,7 @@ export interface AttendanceLogRecordItem {
   checkInTime?: string | null;
   checkOutTime?: string | null;
   remarks?: string | null;
+  isDefaultPresent?: boolean;
   leave?: {
     id: string;
     type: string;
@@ -709,6 +710,20 @@ export async function overrideAttendanceLog(payload: {
 
 export const overrideAttendanceRegistry = overrideAttendanceLog;
 
+export async function quickMarkAttendance(payload: {
+  studentId?: string;
+  teacherId?: string;
+  date: string;
+  status: "PRESENT" | "LATE" | "ABSENT" | "MEDICAL" | "ON_LEAVE";
+  remarks?: string;
+  scheduleId?: string;
+}): Promise<any> {
+  return request<any>("/api/admin/attendance-logs/quick-mark", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function pollHikvisionDevicesNow(): Promise<{
   success: boolean;
   message: string;
@@ -944,5 +959,43 @@ export function getExportAttendanceLogsUrl(params?: {
   if (params?.audience) query.set("audience", params.audience);
   return `/api/admin/attendance-logs/export?${query.toString()}`;
 }
+
+export async function aiFillTimetable(payload: {
+  classId?: string;
+  className?: string;
+  preserveExisting?: boolean;
+  periodsPerDay?: number;
+}): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    createdCount: number;
+    skippedFreeTimeCount: number;
+    slots: any[];
+  };
+}> {
+  return request<any>("/api/admin/timetable/ai-fill", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function quickToggleTeacherFreeTime(payload: {
+  teacherId: string;
+  dayOfWeek: number;
+  period: number;
+  classId?: string;
+  className?: string;
+}): Promise<{
+  success: boolean;
+  message: string;
+  data: any;
+}> {
+  return request<any>("/api/admin/timetable/quick-free-time", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 
 

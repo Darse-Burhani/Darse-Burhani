@@ -70,7 +70,7 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "hifz-marhala" || clean === "hifz_marhala" || clean === "marhala") return "hifz-marhala";
   if (clean === "attendance" || clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance_manual" || clean === "manual_attendance" || clean === "manual") return "manual-attendance";
   if (clean === "attendance-emails" || clean === "attendance-email" || clean === "email-reports" || clean === "email_reports" || clean === "emails") return "email-reports";
-  if (clean === "attendance-log" || clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry") return "attendance-logs";
+  if (clean === "attendance-log" || clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry" || clean === "attendance-hik" || clean === "hik") return "attendance-logs";
   if (clean === "schedule" || clean === "attendance-schedule" || clean === "attendance_schedule") return "attendance-schedule";
   if (clean === "biometric" || clean === "biometrics" || clean === "scanners") return "biometric";
   if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return "medical-duty";

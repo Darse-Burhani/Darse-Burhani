@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
+import { notifyTimetableChange, getRecentTimetableChanges, isSlotRecentlyChanged } from "../../lib/timetable-notify";
 
 const router = Router();
 
@@ -124,25 +125,11 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         ]);
 
         return {
-          slots: slots.map((s) => ({
-            id: s.id,
-            classId: s.classId,
-            className: s.className || s.class?.name || "Class",
-            classGrade: s.class?.grade || "",
-            classSection: s.class?.section || "",
-            teacherId: s.teacherId,
-            teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
-            teacherAvatar: s.teacher?.user?.avatarUrl || s.teacher?.photoUrl || null,
-            teacherIts: s.teacher?.its || null,
-            subject: s.subject,
-            dayOfWeek: s.dayOfWeek,
-            period: s.period,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            roomNumber: s.roomNumber,
-            isBreak: s.isBreak,
-            breakName: s.breakName,
-          })),
+          slots: slots.map((s) => {
+            const formatted = formatSlotResponse(s);
+            return formatted;
+          }),
+          recentChanges: getRecentTimetableChanges(),
           classes: classes.map((c: any) => ({
             id: c.id,
             name: c.name,
@@ -244,6 +231,16 @@ const SLOT_INCLUDE = {
 };
 
 function formatSlotResponse(slot: any) {
+  const changeInfo = isSlotRecentlyChanged(slot);
+  const updatedAtTime = slot.updatedAt ? new Date(slot.updatedAt).getTime() : 0;
+  const createdAtTime = slot.createdAt ? new Date(slot.createdAt).getTime() : 0;
+  const isRecentByDate = Boolean(
+    updatedAtTime &&
+    Date.now() - updatedAtTime < 3 * 24 * 60 * 60 * 1000 &&
+    updatedAtTime - createdAtTime > 5000
+  );
+  const isRecent = Boolean(changeInfo || isRecentByDate);
+
   return {
     id: slot.id,
     classId: slot.classId,
@@ -262,8 +259,19 @@ function formatSlotResponse(slot: any) {
     roomNumber: slot.roomNumber,
     isBreak: slot.isBreak,
     breakName: slot.breakName,
+    updatedAt: slot.updatedAt,
+    isRecentlyChanged: isRecent,
+    changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${slot.subject} (${slot.teacherName || "Assigned Teacher"})` : null),
   };
 }
+
+// GET /api/admin/timetable/recent-changes - List recent timetable changes
+router.get("/recent-changes", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
+  return res.json({
+    success: true,
+    data: getRecentTimetableChanges(),
+  });
+});
 
 // POST /api/admin/timetable - Create or upsert timetable slot
 router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
@@ -323,7 +331,21 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     const finalEnd = endTime || defaultTimes.endTime;
 
     let slot: any;
+    let changeType: "CREATED" | "UPDATED" = "CREATED";
+    let oldDetails: any = null;
+
     if (id) {
+      const existing = await prisma.timetableSlot.findUnique({ where: { id } });
+      if (existing) {
+        changeType = "UPDATED";
+        oldDetails = {
+          subject: existing.subject,
+          teacherName: existing.teacherName || undefined,
+          roomNumber: existing.roomNumber || undefined,
+          startTime: existing.startTime,
+          endTime: existing.endTime,
+        };
+      }
       slot = await prisma.timetableSlot.update({
         where: { id },
         data: {
@@ -343,14 +365,26 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         include: SLOT_INCLUDE,
       });
     } else {
-      // Check if a slot already exists for this class at this day and period
+      // Check if a slot already exists for this class (or teacher) at this day and period
       const existing = resolvedClassId
         ? await prisma.timetableSlot.findFirst({
             where: { classId: resolvedClassId, dayOfWeek: dow, period: p },
           })
+        : resolvedTeacherId
+        ? await prisma.timetableSlot.findFirst({
+            where: { teacherId: resolvedTeacherId, dayOfWeek: dow, period: p },
+          })
         : null;
 
       if (existing) {
+        changeType = "UPDATED";
+        oldDetails = {
+          subject: existing.subject,
+          teacherName: existing.teacherName || undefined,
+          roomNumber: existing.roomNumber || undefined,
+          startTime: existing.startTime,
+          endTime: existing.endTime,
+        };
         slot = await prisma.timetableSlot.update({
           where: { id: existing.id },
           data: {
@@ -367,6 +401,7 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           include: SLOT_INCLUDE,
         });
       } else {
+        changeType = "CREATED";
         slot = await prisma.timetableSlot.create({
           data: {
             classId: resolvedClassId,
@@ -389,6 +424,24 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 
     cache.invalidateTag("timetableslot");
     cache.invalidateTag("timetable");
+
+    // Broadcast notifications to assigned teacher and enrolled students
+    notifyTimetableChange({
+      slotId: slot.id,
+      classId: slot.classId,
+      className: slot.className,
+      dayOfWeek: slot.dayOfWeek,
+      period: slot.period,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      subject: slot.subject,
+      teacherId: slot.teacherId,
+      teacherName: slot.teacherName,
+      roomNumber: slot.roomNumber,
+      changeType,
+      oldDetails,
+      actorName: req.auth?.user ? `${req.auth.user.firstName} ${req.auth.user.lastName}` : "Admin",
+    }).catch((err) => console.error("Async timetable notification error:", err));
 
     return res.json({
       success: true,
@@ -419,6 +472,17 @@ router.put("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       breakName,
     } = req.body;
 
+    const existing = await prisma.timetableSlot.findUnique({ where: { id } });
+    const oldDetails = existing
+      ? {
+          subject: existing.subject,
+          teacherName: existing.teacherName || undefined,
+          roomNumber: existing.roomNumber || undefined,
+          startTime: existing.startTime,
+          endTime: existing.endTime,
+        }
+      : undefined;
+
     const data: any = {};
     if (classId !== undefined) data.classId = classId;
     if (className !== undefined) data.className = className;
@@ -442,6 +506,24 @@ router.put("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     cache.invalidateTag("timetableslot");
     cache.invalidateTag("timetable");
 
+    // Broadcast notifications to assigned teacher and enrolled students
+    notifyTimetableChange({
+      slotId: updated.id,
+      classId: updated.classId,
+      className: updated.className,
+      dayOfWeek: updated.dayOfWeek,
+      period: updated.period,
+      startTime: updated.startTime,
+      endTime: updated.endTime,
+      subject: updated.subject,
+      teacherId: updated.teacherId,
+      teacherName: updated.teacherName,
+      roomNumber: updated.roomNumber,
+      changeType: "UPDATED",
+      oldDetails,
+      actorName: req.auth?.user ? `${req.auth.user.firstName} ${req.auth.user.lastName}` : "Admin",
+    }).catch((err) => console.error("Async timetable notification error:", err));
+
     return res.json({ success: true, data: formatSlotResponse(updated) });
   } catch (error) {
     console.error("Timetable slot update error:", error);
@@ -456,9 +538,31 @@ router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, error: "Slot id is required" });
     }
+
+    const existing = await prisma.timetableSlot.findUnique({ where: { id } });
+
     await prisma.timetableSlot.delete({ where: { id } });
     cache.invalidateTag("timetableslot");
     cache.invalidateTag("timetable");
+
+    if (existing) {
+      notifyTimetableChange({
+        slotId: existing.id,
+        classId: existing.classId,
+        className: existing.className,
+        dayOfWeek: existing.dayOfWeek,
+        period: existing.period,
+        startTime: existing.startTime,
+        endTime: existing.endTime,
+        subject: existing.subject,
+        teacherId: existing.teacherId,
+        teacherName: existing.teacherName,
+        roomNumber: existing.roomNumber,
+        changeType: "DELETED",
+        actorName: req.auth?.user ? `${req.auth.user.firstName} ${req.auth.user.lastName}` : "Admin",
+      }).catch((err) => console.error("Async timetable delete notification error:", err));
+    }
+
     return res.json({ success: true, message: "Timetable slot deleted successfully" });
   } catch (error) {
     console.error("Timetable slot delete error:", error);
@@ -755,6 +859,278 @@ router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) =>
   } catch (error) {
     console.error("Delete badal error:", error);
     return res.status(500).json({ success: false, error: "Failed to delete badal assignment" });
+  }
+});
+
+// POST /api/admin/timetable/ai-fill - AI auto-fill slots assigned to teachers, respecting Free Time
+router.post("/ai-fill", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const {
+      classId,
+      className,
+      preserveExisting = true,
+      periodsPerDay = 9,
+    } = req.body;
+
+    const classWhere: any = { isActive: true };
+    if (classId) {
+      classWhere.id = classId;
+    } else if (className && className !== "ALL") {
+      classWhere.name = className;
+    } else {
+      classWhere.grade = { in: ["1", "2", "3", "4"] };
+    }
+
+    const [activeClasses, activeTeachers, existingSlots] = await Promise.all([
+      prisma.class.findMany({
+        where: classWhere,
+        include: {
+          masool: { include: { user: true } },
+        },
+        orderBy: [{ grade: "asc" }, { section: "asc" }],
+      }),
+      prisma.teacherProfile.findMany({
+        where: { isActive: true },
+        include: {
+          user: true,
+          classes: true,
+          masoolClasses: true,
+        },
+      }),
+      prisma.timetableSlot.findMany({
+        include: {
+          class: true,
+          teacher: { include: { user: true } },
+        },
+      }),
+    ]);
+
+    if (activeClasses.length === 0) {
+      return res.status(400).json({ success: false, error: "No active classes found for AI generation" });
+    }
+
+    const classSlotMap = new Map<string, any>();
+    const teacherBusyMap = new Map<string, any>();
+    const teacherFreeTimeMap = new Map<string, boolean>();
+
+    for (const slot of existingSlots) {
+      if (slot.classId) {
+        classSlotMap.set(`${slot.classId}_${slot.dayOfWeek}_${slot.period}`, slot);
+      }
+      if (slot.teacherId) {
+        teacherBusyMap.set(`${slot.teacherId}_${slot.dayOfWeek}_${slot.period}`, slot);
+        if (slot.isBreak || (slot.breakName && /free|استقبال|receiving/i.test(slot.breakName))) {
+          teacherFreeTimeMap.set(`${slot.teacherId}_${slot.dayOfWeek}_${slot.period}`, true);
+        }
+      }
+    }
+
+    const MORNING_SUBJECTS = ["Quran Hifz", "Lisan Arabi", "Daim al-Islam", "Sharhal akhbar"];
+    const MID_SUBJECTS = ["Tamreen", "Tadreeb", "Insha", "Science", "Maths"];
+    const AFTERNOON_SUBJECTS = ["English", "Physics", "Chemistry", "Biology", "Geography", "Hist/Civ", "Raudat Hidayat", "Mukhtasar al-Asar"];
+
+    const teacherLoad = new Map<string, number>();
+    for (const t of activeTeachers) {
+      let count = 0;
+      for (const slot of existingSlots) {
+        if (slot.teacherId === t.id && !slot.isBreak) count++;
+      }
+      teacherLoad.set(t.id, count);
+    }
+
+    const createdSlots: any[] = [];
+    let skippedFreeTimeCount = 0;
+
+    for (let day = 1; day <= 6; day++) {
+      for (let p = 1; p <= Math.min(periodsPerDay, 9); p++) {
+        for (const cls of activeClasses) {
+          const slotKey = `${cls.id}_${day}_${p}`;
+          const existing = classSlotMap.get(slotKey);
+
+          if (existing) {
+            if (existing.isBreak || (existing.breakName && /free|استقبال|receiving/i.test(existing.breakName))) {
+              skippedFreeTimeCount++;
+              continue;
+            }
+            if (preserveExisting) {
+              continue;
+            }
+          }
+
+          let candidateSubjects: string[];
+          if (p <= 2) candidateSubjects = MORNING_SUBJECTS;
+          else if (p <= 5) candidateSubjects = MID_SUBJECTS;
+          else candidateSubjects = AFTERNOON_SUBJECTS;
+
+          const subjectIdx = (cls.name.charCodeAt(0) * 7 + day * 3 + p) % candidateSubjects.length;
+          const chosenSubject = candidateSubjects[subjectIdx];
+
+          let selectedTeacher: (typeof activeTeachers)[0] | null = null;
+
+          const specialists = activeTeachers.filter((t) => {
+            const hasSubject = t.subjects?.some((s) => s.toLowerCase() === chosenSubject.toLowerCase());
+            const hasDept = t.department && chosenSubject.toLowerCase().includes(t.department.toLowerCase());
+            const isBusy = teacherBusyMap.has(`${t.id}_${day}_${p}`);
+            const isFreeTime = teacherFreeTimeMap.has(`${t.id}_${day}_${p}`);
+            return (hasSubject || hasDept) && !isBusy && !isFreeTime;
+          });
+
+          if (specialists.length > 0) {
+            specialists.sort((a, b) => (teacherLoad.get(a.id) || 0) - (teacherLoad.get(b.id) || 0));
+            selectedTeacher = specialists[0];
+          }
+
+          if (!selectedTeacher && cls.masoolId) {
+            const masool = activeTeachers.find((t) => t.id === cls.masoolId);
+            if (masool && !teacherBusyMap.has(`${masool.id}_${day}_${p}`) && !teacherFreeTimeMap.has(`${masool.id}_${day}_${p}`)) {
+              selectedTeacher = masool;
+            }
+          }
+
+          if (!selectedTeacher) {
+            const available = activeTeachers.filter((t) => {
+              const isBusy = teacherBusyMap.has(`${t.id}_${day}_${p}`);
+              const isFreeTime = teacherFreeTimeMap.has(`${t.id}_${day}_${p}`);
+              return !isBusy && !isFreeTime;
+            });
+            if (available.length > 0) {
+              available.sort((a, b) => (teacherLoad.get(a.id) || 0) - (teacherLoad.get(b.id) || 0));
+              selectedTeacher = available[0];
+            }
+          }
+
+          if (!selectedTeacher) continue;
+
+          const times = PERIOD_TIMES[p] || { startTime: "10:30", endTime: "11:00" };
+
+          const newSlot = existing
+            ? await prisma.timetableSlot.update({
+                where: { id: existing.id },
+                data: {
+                  teacherId: selectedTeacher.id,
+                  teacherName: `${selectedTeacher.user.firstName} ${selectedTeacher.user.lastName}`.trim(),
+                  subject: chosenSubject,
+                  roomNumber: `Room ${cls.name}`,
+                  isBreak: false,
+                  breakName: null,
+                },
+                include: SLOT_INCLUDE,
+              })
+            : await prisma.timetableSlot.create({
+                data: {
+                  classId: cls.id,
+                  className: cls.name,
+                  teacherId: selectedTeacher.id,
+                  teacherName: `${selectedTeacher.user.firstName} ${selectedTeacher.user.lastName}`.trim(),
+                  dayOfWeek: day,
+                  period: p,
+                  startTime: times.startTime,
+                  endTime: times.endTime,
+                  subject: chosenSubject,
+                  roomNumber: `Room ${cls.name}`,
+                  isBreak: false,
+                  breakName: null,
+                },
+                include: SLOT_INCLUDE,
+              });
+
+          teacherBusyMap.set(`${selectedTeacher.id}_${day}_${p}`, newSlot);
+          teacherLoad.set(selectedTeacher.id, (teacherLoad.get(selectedTeacher.id) || 0) + 1);
+          classSlotMap.set(slotKey, newSlot);
+          createdSlots.push(formatSlotResponse(newSlot));
+        }
+      }
+    }
+
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
+    return res.json({
+      success: true,
+      message: `AI generated and assigned ${createdSlots.length} lesson slot(s) successfully. Protected ${skippedFreeTimeCount} designated free time period(s).`,
+      data: {
+        createdCount: createdSlots.length,
+        skippedFreeTimeCount,
+        slots: createdSlots,
+      },
+    });
+  } catch (error: any) {
+    console.error("AI timetable fill error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to execute AI timetable fill" });
+  }
+});
+
+// POST /api/admin/timetable/quick-free-time - Set a teacher slot as Free Time / Receiving Period
+router.post("/quick-free-time", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { teacherId, dayOfWeek, period, classId, className } = req.body;
+    if (!teacherId || !dayOfWeek || period === undefined) {
+      return res.status(400).json({ success: false, error: "teacherId, dayOfWeek, and period are required" });
+    }
+
+    const dow = Number(dayOfWeek);
+    const p = Number(period);
+
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { id: teacherId },
+      include: { user: true },
+    });
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Teacher not found" });
+    }
+
+    const times = PERIOD_TIMES[p] || { startTime: "10:30", endTime: "11:00" };
+    const teacherName = `${teacher.user.firstName} ${teacher.user.lastName}`.trim();
+
+    const existing = await prisma.timetableSlot.findFirst({
+      where: { teacherId, dayOfWeek: dow, period: p },
+    });
+
+    let slot: any;
+    if (existing) {
+      const willBeBreak = !existing.isBreak;
+      slot = await prisma.timetableSlot.update({
+        where: { id: existing.id },
+        data: {
+          isBreak: willBeBreak,
+          breakName: willBeBreak ? "Free Time / Receiving Period (استقبال وتفرغ)" : null,
+          subject: willBeBreak ? "" : "General Lesson", // On free time don't assign any subject!
+        },
+        include: SLOT_INCLUDE,
+      });
+    } else {
+      slot = await prisma.timetableSlot.create({
+        data: {
+          classId: classId || null,
+          className: className || null,
+          teacherId,
+          teacherName,
+          dayOfWeek: dow,
+          period: p,
+          startTime: times.startTime,
+          endTime: times.endTime,
+          subject: "", // On free time don't assign any subject!
+          roomNumber: "Faculty Desk",
+          isBreak: true,
+          breakName: "Free Time / Receiving Period (استقبال وتفرغ)",
+        },
+        include: SLOT_INCLUDE,
+      });
+    }
+
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
+    return res.json({
+      success: true,
+      message: slot.isBreak
+        ? `Marked Period ${p} as Free Time / Receiving Period for ${teacherName}`
+        : `Removed Free Time from Period ${p} for ${teacherName}`,
+      data: formatSlotResponse(slot),
+    });
+  } catch (error: any) {
+    console.error("Quick free time error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to set free time slot" });
   }
 });
 

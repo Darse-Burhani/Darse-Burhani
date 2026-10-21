@@ -512,11 +512,17 @@ router.get("/", requireAuth, async (req, res) => {
     const hikvisionRecords = hikvisionPunched;
 
     // Full manual records roster with roll-call statuses
-    const manualRecords = allRecords.map((r) => ({
-      ...r,
-      verificationMethod: "MANUAL",
-      source: r.source === "SCAN" || r.source === "BIOMETRIC" ? "MANUAL" : r.source,
-    }));
+    // In manual all student by default mark present; user can mark/change to LATE, ABSENT, MEDICAL, ON_LEAVE
+    const manualRecords = allRecords.map((r) => {
+      const isStudentUnmarked = r.role === "STUDENT" && (r.status === "NOT_MARKED" || !r.status);
+      return {
+        ...r,
+        status: isStudentUnmarked ? "PRESENT" : r.status,
+        isDefaultPresent: isStudentUnmarked,
+        verificationMethod: "MANUAL",
+        source: r.source === "SCAN" || r.source === "BIOMETRIC" ? "MANUAL" : (isStudentUnmarked ? "MANUAL" : r.source),
+      };
+    });
 
     let filteredRecords = allRecords;
 
@@ -534,7 +540,7 @@ router.get("/", requireAuth, async (req, res) => {
         return r;
       });
     } else if (logType === "MANUAL") {
-      // In MANUAL mode, ensure the full roster is presented with manual verification
+      // In MANUAL mode, ensure the full roster is presented with default PRESENT for all students
       filteredRecords = manualRecords;
     }
 
@@ -676,8 +682,116 @@ router.post("/poll-now", requireAuth, async (_req, res) => {
   }
 });
 
+// POST /api/admin/attendance-logs/quick-mark — Quick one-tap inline status change for manual roll-call
+router.post("/quick-mark", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { memberId, studentId, teacherId, role = "STUDENT", date, status, remarks } = req.body;
+
+    const targetStudentId = studentId || (role === "STUDENT" ? memberId : null);
+    const targetTeacherId = teacherId || (role === "FACULTY" ? memberId : null);
+    const targetDate = getStartOfDayIST(date ? new Date(date) : new Date());
+
+    const validStatus = Object.values(AttendanceStatus).includes(status);
+    if (!validStatus) {
+      return res.status(400).json({ success: false, error: "Invalid attendance status" });
+    }
+
+    const actorName = `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.email;
+    const note = remarks?.trim() || `Marked ${status} via Manual Register by ${actorName}`;
+
+    if (targetStudentId) {
+      await prisma.attendanceRegistry.upsert({
+        where: { studentId_date: { studentId: targetStudentId, date: targetDate } },
+        create: {
+          studentId: targetStudentId,
+          date: targetDate,
+          status: status as AttendanceStatus,
+          source: AttendanceSource.MANUAL,
+          remarks: note,
+          recordedById: session.user.id,
+        },
+        update: {
+          status: status as AttendanceStatus,
+          source: AttendanceSource.MANUAL,
+          remarks: note,
+          recordedById: session.user.id,
+        },
+      });
+
+      // Dual-sync class attendance records
+      const enrollments = await prisma.classEnrollment.findMany({
+        where: { studentId: targetStudentId, isActive: true },
+        select: { classId: true },
+      });
+
+      for (const e of enrollments) {
+        await prisma.attendanceRecord.upsert({
+          where: { studentId_classId_date: { studentId: targetStudentId, classId: e.classId, date: targetDate } },
+          create: {
+            studentId: targetStudentId,
+            classId: e.classId,
+            date: targetDate,
+            status: status as AttendanceStatus,
+            source: AttendanceSource.MANUAL,
+            verificationMethod: "MANUAL",
+            justification: note,
+            recordedById: session.user.id,
+          },
+          update: {
+            status: status as AttendanceStatus,
+            source: AttendanceSource.MANUAL,
+            verificationMethod: "MANUAL",
+            justification: note,
+            recordedById: session.user.id,
+          },
+        }).catch(() => {});
+      }
+
+      broadcastAttendanceEvent({
+        type: "MANUAL_ENTRY",
+        studentId: targetStudentId,
+        status,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, memberId: targetStudentId, status, role: "STUDENT" });
+    } else if (targetTeacherId) {
+      await prisma.teacherAttendanceRecord.upsert({
+        where: { teacherId_date: { teacherId: targetTeacherId, date: targetDate } },
+        create: {
+          teacherId: targetTeacherId,
+          date: targetDate,
+          status: status as AttendanceStatus,
+          verificationMethod: "MANUAL",
+          notes: note,
+        },
+        update: {
+          status: status as AttendanceStatus,
+          verificationMethod: "MANUAL",
+          notes: note,
+        },
+      });
+
+      broadcastAttendanceEvent({
+        type: "MANUAL_ENTRY",
+        teacherId: targetTeacherId,
+        status,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, memberId: targetTeacherId, status, role: "FACULTY" });
+    }
+
+    return res.status(400).json({ success: false, error: "Missing studentId or teacherId" });
+  } catch (error: any) {
+    console.error("[attendance-logs] /quick-mark error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to update attendance" });
+  }
+});
+
 // POST /api/admin/attendance-logs/override — Manual log override
-router.post("/override", requireRole("ADMIN"), async (req, res) => {
+router.post("/override", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { studentId, teacherId, date, status, source, remarks } = req.body;

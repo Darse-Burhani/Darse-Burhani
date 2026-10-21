@@ -21,6 +21,10 @@ import {
   Clipboard,
   Key,
   AlertTriangle,
+  Fingerprint,
+  Clock,
+  Activity,
+  Mail,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -372,10 +376,12 @@ export default function GoogleSheetsAdminPage() {
         hubTitle="Google Sheets Synchronization"
         hubDescription="Centralized cloud spreadsheet synchronization for Daily Attendance, Monthly Registers, Talabat Directory, and Faculty Rosters."
         tabs={[
-          { label: "Google Sheets Center", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Central" },
-          { label: "Attendance Logs & Registry", href: "/admin/attendance-logs", icon: Layers },
-          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
-          { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Calendar },
+          { label: "Hikvision Scans", href: "/admin/attendance-hik", icon: Fingerprint, badge: "Hardware" },
+          { label: "Manual Logs", href: "/admin/attendance-manual", icon: ClipboardCheck, badge: "Register" },
+          { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Device Hub", href: "/admin/biometric", icon: Activity },
+          { label: "Google Sheets", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Sync" },
+          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
 

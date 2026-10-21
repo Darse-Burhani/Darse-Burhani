@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
+import { getRecentTimetableChanges, isSlotRecentlyChanged } from "../../lib/timetable-notify";
 
 const router = Router();
 
@@ -12,12 +13,28 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
 
     let teacherProfile = await prisma.teacherProfile.findUnique({
       where: { userId: session.user.id },
-      include: { user: { select: { id: true, firstName: true, lastName: true } } },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true } },
+        masoolClasses: {
+          where: { isActive: true },
+          include: {
+            _count: { select: { enrollments: true, timetableSlots: true } },
+          },
+        },
+      },
     });
 
     if (!teacherProfile && session.user.role === "ADMIN") {
       teacherProfile = await prisma.teacherProfile.findFirst({
-        include: { user: { select: { id: true, firstName: true, lastName: true } } },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true } },
+          masoolClasses: {
+            where: { isActive: true },
+            include: {
+              _count: { select: { enrollments: true, timetableSlots: true } },
+            },
+          },
+        },
       });
     }
 
@@ -75,23 +92,51 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           }),
         ]);
 
+        const masoolClassesList = (teacherProfile.masoolClasses || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          grade: c.grade,
+          section: c.section,
+          roomNumber: c.roomNumber || `Room ${c.name}`,
+          studentCount: c._count.enrollments,
+          slotCount: c._count.timetableSlots,
+        }));
+
         return {
           teacher: {
             id: teacherProfile.id,
             name: `${teacherProfile.user.firstName} ${teacherProfile.user.lastName}`,
             its: teacherProfile.its,
           },
-          slots: mySlots.map((s) => ({
-            id: s.id,
-            classId: s.classId,
-            className: s.className || s.class?.name || "Class",
-            period: s.period,
-            dayOfWeek: s.dayOfWeek,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            subject: s.subject,
-            roomNumber: s.roomNumber,
-          })),
+          isClassMasool: masoolClassesList.length > 0,
+          masoolClasses: masoolClassesList,
+          recentChanges: getRecentTimetableChanges(),
+          slots: mySlots.map((s) => {
+            const changeInfo = isSlotRecentlyChanged(s);
+            const updatedAtTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+            const createdAtTime = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+            const isRecentByDate = Boolean(
+              updatedAtTime &&
+              Date.now() - updatedAtTime < 3 * 24 * 60 * 60 * 1000 &&
+              updatedAtTime - createdAtTime > 5000
+            );
+            const isRecent = Boolean(changeInfo || isRecentByDate);
+
+            return {
+              id: s.id,
+              classId: s.classId,
+              className: s.className || s.class?.name || "Class",
+              period: s.period,
+              dayOfWeek: s.dayOfWeek,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              subject: s.subject,
+              roomNumber: s.roomNumber,
+              updatedAt: s.updatedAt,
+              isRecentlyChanged: isRecent,
+              changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${s.subject}` : null),
+            };
+          }),
           badalDuties: myBadalDuties.map((b) => ({
             id: b.id,
             date: b.date.toISOString().split("T")[0],
@@ -229,22 +274,37 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
               avatarUrl: e.student.user?.avatarUrl || null,
             })),
           },
-          slots: slots.map((s: any) => ({
-            id: s.id,
-            classId: s.classId,
-            className: s.className || targetClass.name,
-            teacherId: s.teacherId,
-            teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
-            teacherAvatar: s.teacher?.user?.avatarUrl || null,
-            subject: s.subject,
-            dayOfWeek: s.dayOfWeek,
-            period: s.period,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            roomNumber: s.roomNumber || targetClass.roomNumber || `Room ${targetClass.name}`,
-            isBreak: s.isBreak,
-            breakName: s.breakName,
-          })),
+          slots: slots.map((s: any) => {
+            const changeInfo = isSlotRecentlyChanged(s);
+            const updatedAtTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+            const createdAtTime = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+            const isRecentByDate = Boolean(
+              updatedAtTime &&
+              Date.now() - updatedAtTime < 3 * 24 * 60 * 60 * 1000 &&
+              updatedAtTime - createdAtTime > 5000
+            );
+            const isRecent = Boolean(changeInfo || isRecentByDate);
+
+            return {
+              id: s.id,
+              classId: s.classId,
+              className: s.className || targetClass.name,
+              teacherId: s.teacherId,
+              teacherName: s.teacherName || (s.teacher?.user ? `${s.teacher.user.firstName || ""} ${s.teacher.user.lastName || ""}`.trim() : "TBA"),
+              teacherAvatar: s.teacher?.user?.avatarUrl || null,
+              subject: s.subject,
+              dayOfWeek: s.dayOfWeek,
+              period: s.period,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              roomNumber: s.roomNumber || targetClass.roomNumber || `Room ${targetClass.name}`,
+              isBreak: s.isBreak,
+              breakName: s.breakName,
+              updatedAt: s.updatedAt,
+              isRecentlyChanged: isRecent,
+              changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${s.subject} (${s.teacherName || "Assigned Teacher"})` : null),
+            };
+          }),
         };
       },
       { ttl: 15_000, tags: ["timetableslot", "timetable", "class"] }

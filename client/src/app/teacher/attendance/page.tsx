@@ -26,6 +26,7 @@ import {
   GraduationCap,
   ChevronDown,
   FileText,
+  Activity,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Button } from "@/components/ui/button";
@@ -461,11 +462,11 @@ export default function TeacherAttendancePage() {
           hubTitle="Attendance & Biometric Center"
           hubDescription="Quick classroom roster marking, daily timing schedules, and biometric scanner status."
           tabs={[
-            { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck, badge: "Active" },
-            { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
+            { label: "Manual Logs", href: "/admin/attendance-manual", icon: ClipboardCheck, badge: "Register" },
+            { label: "Hikvision Scans", href: "/admin/attendance-hik", icon: Fingerprint, badge: "Hardware" },
             { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
-            { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint },
-                      ]}
+            { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Activity },
+          ]}
         />
       </div>
 

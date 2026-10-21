@@ -43,6 +43,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 import { getSubjectTheme, SUBJECT_PALETTE } from "@/lib/timetable-theme";
+import { aiFillTimetable, quickToggleTeacherFreeTime } from "@/lib/api";
 
 type ActiveTab = "classes" | "master-overview" | "teachers" | "badal" | "takhteet";
 
@@ -213,6 +214,12 @@ export default function AdminTimetableMasterPage() {
   const [takhteetSearch, setTakhteetSearch] = useState("");
   const [takhteetClassFilter, setTakhteetClassFilter] = useState("ALL");
 
+  // AI Timetable Auto-Fill state
+  const [aiFillModalOpen, setAiFillModalOpen] = useState(false);
+  const [aiFilling, setAiFilling] = useState(false);
+  const [aiFillScope, setAiFillScope] = useState<"ALL" | "SELECTED">("ALL");
+  const [aiPreserveExisting, setAiPreserveExisting] = useState(true);
+
   // Load core data
   const fetchTimetableData = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -378,32 +385,81 @@ export default function AdminTimetableMasterPage() {
   };
 
   // ── SLOT CRUD ACTIONS (ADD / EDIT / DELETE) ──
-  const openNewSlotModal = (presetClass?: string, presetDay?: number, presetPeriod?: number) => {
-    const targetClass = presetClass || selectedClassName;
+  const openNewSlotModal = (
+    presetClass?: string,
+    presetDay?: number,
+    presetPeriod?: number,
+    presetTeacherId?: string,
+    isFreeTimePreset?: boolean
+  ) => {
+    const targetClass = presetClass !== undefined ? presetClass : selectedClassName;
     const targetDay = presetDay !== undefined ? presetDay : 1;
     const targetPeriod = presetPeriod !== undefined ? presetPeriod : 1;
 
     const pDef = PERIOD_DEFS.find((p) => p.period === targetPeriod);
     const times = pDef ? pDef.time.split(" – ") : ["10:30", "11:00"];
     const activeCls = classes.find((c) => c.name === targetClass);
+    const targetTeacher = presetTeacherId ? teachers.find((t) => t.id === presetTeacherId) : (teachers[0] || null);
 
     setSlotFormData({
       id: "",
       classId: activeCls?.id || "",
-      className: targetClass,
-      teacherId: teachers[0]?.id || "",
-      teacherName: teachers[0]?.name || "",
+      className: targetClass || "",
+      teacherId: targetTeacher?.id || teachers[0]?.id || "",
+      teacherName: targetTeacher?.name || teachers[0]?.name || "",
       dayOfWeek: targetDay,
       period: targetPeriod,
       subject: "",
       startTime: times[0] ? times[0].trim() : "10:30",
       endTime: times[1] ? times[1].trim() : "11:00",
-      roomNumber: `Room ${targetClass}`,
-      isBreak: false,
-      breakName: "",
+      roomNumber: targetClass ? `Room ${targetClass}` : "Faculty Desk",
+      isBreak: Boolean(isFreeTimePreset),
+      breakName: isFreeTimePreset ? "Free Time / Receiving Period (استقبال وتفرغ)" : "",
     });
     setIsEditingExistingSlot(false);
     setSlotModalOpen(true);
+  };
+
+  const handleRunAiFill = async () => {
+    setAiFilling(true);
+    try {
+      const payload = {
+        className: aiFillScope === "SELECTED" ? selectedClassName : "ALL",
+        preserveExisting: aiPreserveExisting,
+      };
+      const res = await aiFillTimetable(payload);
+      if (res.success) {
+        toast({
+          variant: "success",
+          title: "✨ AI Timetable Auto-Fill Complete",
+          description: res.message || `Successfully assigned ${res.data.createdCount} lesson slots! Protected ${res.data.skippedFreeTimeCount} free periods.`,
+        });
+        setAiFillModalOpen(false);
+        await fetchTimetableData(true);
+      } else {
+        toast({ variant: "destructive", title: "AI Fill Failed", description: res.message || "Failed to fill timetable slots" });
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "AI Error", description: err.message || "Failed to execute AI timetable fill" });
+    } finally {
+      setAiFilling(false);
+    }
+  };
+
+  const handleQuickToggleFreeTime = async (teacherId: string, dayOfWeek: number, period: number) => {
+    try {
+      const res = await quickToggleTeacherFreeTime({ teacherId, dayOfWeek, period });
+      if (res.success) {
+        toast({
+          variant: "success",
+          title: "Free Time Updated",
+          description: res.message,
+        });
+        await fetchTimetableData(true);
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message || "Failed to toggle free time" });
+    }
   };
 
   const openEditSlotModal = (slot: any) => {
@@ -428,15 +484,20 @@ export default function AdminTimetableMasterPage() {
 
   const handleSaveSlot = async () => {
     if (!slotFormData.subject && !slotFormData.isBreak) {
-      toast({ variant: "warning", title: "Subject Required", description: "Please enter a subject name or mark as Break." });
+      toast({ variant: "warning", title: "Subject Required", description: "Please enter a subject name or select Free Time / Receiving Period." });
       return;
     }
     setSavingSlot(true);
     try {
+      const payload = {
+        ...slotFormData,
+        subject: slotFormData.isBreak ? "" : slotFormData.subject,
+        breakName: slotFormData.isBreak ? (slotFormData.breakName || "Free Time / Receiving Period (استقبال وتفرغ)") : null,
+      };
       const res = await fetch("/api/admin/timetable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(slotFormData),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.success && json.data) {
@@ -772,8 +833,15 @@ export default function AdminTimetableMasterPage() {
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2.5 self-start lg:self-center flex-wrap">
             <Button
+              onClick={() => setAiFillModalOpen(true)}
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              ✨ AI Smart-Fill Slots
+            </Button>
+            <Button
               onClick={() => openNewSlotModal(selectedClassName)}
-              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs gap-1.5 shadow-md px-3.5 py-2 rounded-xl"
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 text-slate-950" />
               New Lesson Slot
@@ -1266,90 +1334,124 @@ export default function AdminTimetableMasterPage() {
 
                         return (
                           <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
-                            {slot && theme ? (
-                              <div
-                                style={{ borderLeftColor: theme.accent, borderLeftWidth: "4px" }}
-                                className={`p-2.5 rounded-2xl bg-gradient-to-br ${theme.bgGradient} border ${theme.border} hover:shadow-md transition-all shadow-2xs group relative flex flex-col justify-between min-h-[114px] ${
-                                  !isMatch ? "opacity-30 grayscale-[40%] scale-98" : spotlightSubject ? "ring-2 ring-amber-400 shadow-md scale-[1.02]" : ""
-                                }`}
-                              >
-                                <div>
-                                  {/* Subject Badge */}
-                                  <div className="flex items-start justify-between gap-1">
-                                    <button
-                                      onClick={() => toggleSpotlight(slot.subject)}
-                                      title="Click to spotlight this subject"
-                                      className={`text-[10.5px] font-extrabold px-2 py-0.5 rounded-md leading-tight text-left cursor-pointer transition-transform hover:scale-105 ${theme.badge}`}
-                                    >
-                                      {slot.subject}
-                                    </button>
-
-                                    {/* Action buttons on hover */}
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
-                                      <button
-                                        onClick={() => openEditSlotModal(slot)}
-                                        className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900"
-                                        title="Edit lesson details"
-                                      >
-                                        <Pencil className="w-2.5 h-2.5" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteSlot(slot.id)}
-                                        className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600"
-                                        title="Delete slot"
-                                      >
-                                        <Trash2 className="w-2.5 h-2.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Asatezah Profile Picture & Name */}
-                                  <div className="flex items-center gap-2 mt-2 pt-1">
-                                    <Avatar className="w-6 h-6 ring-1 ring-emerald-600/40 shrink-0 shadow-2xs">
-                                      {slot.teacherAvatar && <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />}
-                                      <AvatarFallback className="bg-emerald-950 text-amber-300 text-[9px] font-black">
-                                        {getInitials(slot.teacherName)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="min-w-0 flex-1">
-                                      <div
-                                        className="text-[11px] text-slate-900 font-bold truncate leading-tight"
-                                        title={slot.teacherName}
-                                      >
-                                        {slot.teacherName}
+                            {slot ? (
+                              slot.isBreak ? (
+                                <div className="p-2.5 rounded-2xl bg-amber-50/80 border border-dashed border-amber-300 hover:shadow-md transition-all shadow-2xs group relative flex flex-col justify-between min-h-[114px]">
+                                  <div>
+                                    <div className="flex items-start justify-between gap-1">
+                                      <span className="text-[10px] font-black px-2 py-0.5 rounded-md leading-tight text-left bg-amber-200/90 text-amber-950 border border-amber-300">
+                                        ☕ {slot.breakName || "Free / Receiving"}
+                                      </span>
+                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
+                                        <button
+                                          onClick={() => openEditSlotModal(slot)}
+                                          className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
+                                          title="Edit slot details"
+                                        >
+                                          <Pencil className="w-2.5 h-2.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteSlot(slot.id)}
+                                          className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
+                                          title="Delete slot"
+                                        >
+                                          <Trash2 className="w-2.5 h-2.5" />
+                                        </button>
                                       </div>
-                                      {slot.teacherIts && (
-                                        <div className="text-[9px] font-mono text-slate-400">
-                                          ITS: {slot.teacherIts}
-                                        </div>
-                                      )}
+                                    </div>
+                                    <div className="text-[11px] font-bold text-amber-900 mt-2">
+                                      {slot.teacherName ? `${slot.teacherName} (Receiving)` : "Free Period"}
                                     </div>
                                   </div>
+                                  <div className="text-[9px] font-mono text-slate-500 pt-1 border-t border-amber-200/60">
+                                    {slot.roomNumber || "Faculty Desk"}
+                                  </div>
+                                </div>
+                              ) : theme ? (
+                                <div
+                                  style={{ borderLeftColor: theme.accent, borderLeftWidth: "4px" }}
+                                  className={`p-2.5 rounded-2xl bg-gradient-to-br ${theme.bgGradient} border ${theme.border} hover:shadow-md transition-all shadow-2xs group relative flex flex-col justify-between min-h-[114px] ${
+                                    !isMatch ? "opacity-30 grayscale-[40%] scale-98" : spotlightSubject ? "ring-2 ring-amber-400 shadow-md scale-[1.02]" : ""
+                                  }`}
+                                >
+                                  <div>
+                                    {/* Subject Badge */}
+                                    <div className="flex items-start justify-between gap-1">
+                                      <button
+                                        onClick={() => toggleSpotlight(slot.subject)}
+                                        title="Click to spotlight this subject"
+                                        className={`text-[10.5px] font-extrabold px-2 py-0.5 rounded-md leading-tight text-left cursor-pointer transition-transform hover:scale-105 ${theme.badge}`}
+                                      >
+                                        {slot.subject}
+                                      </button>
 
-                                  {/* Active Badal Alert Tag if substituted today */}
-                                  {todayBadal && (
-                                    <div className="mt-1.5 p-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[9.5px] font-bold text-amber-950 flex items-center gap-1">
-                                      <ArrowRightLeft className="w-3 h-3 text-amber-700 shrink-0" />
-                                      <span className="truncate">Badal: {todayBadal.badalTeacherName}</span>
+                                      {/* Action buttons on hover */}
+                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
+                                        <button
+                                          onClick={() => openEditSlotModal(slot)}
+                                          className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
+                                          title="Edit lesson details"
+                                        >
+                                          <Pencil className="w-2.5 h-2.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteSlot(slot.id)}
+                                          className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
+                                          title="Delete slot"
+                                        >
+                                          <Trash2 className="w-2.5 h-2.5" />
+                                        </button>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
 
-                                {/* Bottom bar: Room & "Get Help in Badal" Button */}
-                                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
-                                  <span className="text-[9px] font-mono text-slate-500 font-medium">
-                                    {slot.roomNumber || `Room ${slot.className}`}
-                                  </span>
-                                  <button
-                                    onClick={() => openBadalModalForSlot(slot)}
-                                    className="px-2 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                                    title="Get Badal help or assign substitute for this lesson"
-                                  >
-                                    <ArrowRightLeft className="w-2.5 h-2.5" />
-                                    <span>Badal Help</span>
-                                  </button>
+                                    {/* Asatezah Profile Picture & Name */}
+                                    <div className="flex items-center gap-2 mt-2 pt-1">
+                                      <Avatar className="w-6 h-6 ring-1 ring-emerald-600/40 shrink-0 shadow-2xs">
+                                        {slot.teacherAvatar && <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />}
+                                        <AvatarFallback className="bg-emerald-950 text-amber-300 text-[9px] font-black">
+                                          {getInitials(slot.teacherName)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="min-w-0 flex-1">
+                                        <div
+                                          className="text-[11px] text-slate-900 font-bold truncate leading-tight"
+                                          title={slot.teacherName}
+                                        >
+                                          {slot.teacherName}
+                                        </div>
+                                        {slot.teacherIts && (
+                                          <div className="text-[9px] font-mono text-slate-400">
+                                            ITS: {slot.teacherIts}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Active Badal Alert Tag if substituted today */}
+                                    {todayBadal && (
+                                      <div className="mt-1.5 p-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[9.5px] font-bold text-amber-950 flex items-center gap-1">
+                                        <ArrowRightLeft className="w-3 h-3 text-amber-700 shrink-0" />
+                                        <span className="truncate">Badal: {todayBadal.badalTeacherName}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Bottom bar: Room & "Get Help in Badal" Button */}
+                                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
+                                    <span className="text-[9px] font-mono text-slate-500 font-medium">
+                                      {slot.roomNumber || `Room ${slot.className}`}
+                                    </span>
+                                    <button
+                                      onClick={() => openBadalModalForSlot(slot)}
+                                      className="px-2 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                                      title="Get Badal help or assign substitute for this lesson"
+                                    >
+                                      <ArrowRightLeft className="w-2.5 h-2.5" />
+                                      <span>Badal Help</span>
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
+                              ) : null
                             ) : (
                               <button
                                 onClick={() => openNewSlotModal(selectedClassName, d.day, p.period)}
@@ -1532,10 +1634,28 @@ export default function AdminTimetableMasterPage() {
                   </div>
 
                   <Button
+                    onClick={() => openNewSlotModal("", 1, 1, activeTeacherObj.id)}
+                    size="sm"
+                    className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold gap-1 rounded-xl shadow-xs cursor-pointer"
+                    title="Schedule a new lesson for this teacher"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> + Lesson
+                  </Button>
+
+                  <Button
+                    onClick={() => openNewSlotModal("", 1, 1, activeTeacherObj.id, true)}
+                    size="sm"
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black gap-1 rounded-xl shadow-xs cursor-pointer"
+                    title="Designate a free time / receiving period for this teacher"
+                  >
+                    ☕ Free Period
+                  </Button>
+
+                  <Button
                     onClick={() => window.print()}
                     variant="outline"
                     size="sm"
-                    className="text-xs font-bold gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 rounded-xl"
+                    className="text-xs font-bold gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 rounded-xl cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5 text-slate-500" /> Print
                   </Button>
@@ -1648,35 +1768,96 @@ export default function AdminTimetableMasterPage() {
                       </td>
                       {PERIOD_DEFS.map((p) => {
                         const slot = teacherSlotsMap.get(`${d.day}_${p.period}`);
-                        const theme = slot ? getSubjectTheme(slot.subject) : null;
+                        const theme = slot && !slot.isBreak ? getSubjectTheme(slot.subject) : null;
                         return (
                           <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
-                            {slot && theme ? (
-                              <div
-                                style={{ borderLeftColor: theme.accent, borderLeftWidth: "3px" }}
-                                className={`p-2.5 rounded-xl border hover:shadow-md transition-all shadow-2xs group relative ${theme.bgLight} ${theme.border}`}
-                              >
-                                <div className={`text-xs font-black leading-tight ${theme.text}`}>
-                                  {slot.subject}
+                            {slot ? (
+                              slot.isBreak ? (
+                                <div className="p-2.5 rounded-xl border border-dashed border-amber-300 bg-amber-50/80 hover:shadow-md transition-all shadow-2xs group relative">
+                                  <div className="flex items-center justify-between">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-200/90 text-amber-950 border border-amber-300">
+                                      ☕ {slot.breakName || "Free / Receiving"}
+                                    </span>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
+                                      <button
+                                        onClick={() => openEditSlotModal(slot)}
+                                        className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
+                                        title="Edit slot"
+                                      >
+                                        <Pencil className="w-2.5 h-2.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteSlot(slot.id)}
+                                        className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
+                                        title="Delete slot"
+                                      >
+                                        <Trash2 className="w-2.5 h-2.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="text-[10.5px] text-amber-900 font-bold mt-1">
+                                    Receiving &amp; Free Time
+                                  </div>
+                                  <div className="text-[9px] font-mono text-slate-500 mt-1">
+                                    {slot.roomNumber || "Faculty Desk"}
+                                  </div>
                                 </div>
-                                <div className="text-[11px] text-slate-700 font-bold mt-1">
-                                  Class {slot.className}
+                              ) : (
+                                <div
+                                  style={{ borderLeftColor: theme?.accent || "#059669", borderLeftWidth: "3px" }}
+                                  className={`p-2.5 rounded-xl border hover:shadow-md transition-all shadow-2xs group relative ${theme?.bgLight || "bg-emerald-50"} ${theme?.border || "border-emerald-200"}`}
+                                >
+                                  <div className="flex items-start justify-between gap-1">
+                                    <div className={`text-xs font-black leading-tight ${theme?.text || "text-emerald-950"}`}>
+                                      {slot.subject}
+                                    </div>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
+                                      <button
+                                        onClick={() => openEditSlotModal(slot)}
+                                        className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
+                                        title="Edit lesson details"
+                                      >
+                                        <Pencil className="w-2.5 h-2.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="text-[11px] text-slate-700 font-bold mt-1">
+                                    Class {slot.className}
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-200/60">
+                                    <span className="text-[9px] font-mono text-slate-500 font-medium">Room {slot.className}</span>
+                                    <button
+                                      onClick={() => openBadalModalForSlot(slot)}
+                                      className="px-1.5 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9px] font-black shrink-0 flex items-center gap-1 shadow-2xs cursor-pointer"
+                                      title="Assign substitute for this lesson"
+                                    >
+                                      <ArrowRightLeft className="w-2.5 h-2.5" />
+                                      Badal
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-200/60">
-                                  <span className="text-[9px] font-mono text-slate-500 font-medium">Room {slot.className}</span>
-                                  <button
-                                    onClick={() => openBadalModalForSlot(slot)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9px] font-black shrink-0 flex items-center gap-1 shadow-2xs cursor-pointer"
-                                    title="Assign substitute for this lesson"
-                                  >
-                                    <ArrowRightLeft className="w-2.5 h-2.5" />
-                                    Badal
-                                  </button>
-                                </div>
-                              </div>
+                              )
                             ) : (
-                              <div className="h-16 flex items-center justify-center text-[10px] text-slate-300 font-medium">
-                                Free
+                              <div className="h-16 flex flex-col items-center justify-center p-1 rounded-xl border border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 transition-all group relative">
+                                <span className="text-[10px] text-slate-300 font-medium group-hover:hidden">Free</span>
+                                <div className="hidden group-hover:flex items-center gap-1">
+                                  <button
+                                    onClick={() => openNewSlotModal("", d.day, p.period, activeTeacherObj?.id)}
+                                    className="px-1.5 py-1 rounded bg-emerald-600 text-white text-[9px] font-bold hover:bg-emerald-700 shadow-2xs cursor-pointer"
+                                    title="Add lesson slot"
+                                  >
+                                    + Lesson
+                                  </button>
+                                  {activeTeacherObj && (
+                                    <button
+                                      onClick={() => handleQuickToggleFreeTime(activeTeacherObj.id, d.day, p.period)}
+                                      className="px-1.5 py-1 rounded bg-amber-400 text-slate-950 text-[9px] font-black hover:bg-amber-300 shadow-2xs cursor-pointer"
+                                      title="Mark as Free Time / Receiving Period"
+                                    >
+                                      ☕ Free
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </td>
@@ -2350,108 +2531,89 @@ export default function AdminTimetableMasterPage() {
               </div>
             </div>
 
-            {/* Subject Selector & Quick Subject Chips */}
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">4. Subject / Sabaq Name</label>
-              <input
-                type="text"
-                value={slotFormData.subject}
-                onChange={(e) => setSlotFormData({ ...slotFormData, subject: e.target.value })}
-                placeholder="e.g. Quran Hifz, Lisan ud Dawat, Sharhal akhbar, Maths"
-                disabled={slotFormData.isBreak}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none"
-              />
-
-              {/* Quick Select Subject Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none mt-2">
-                <span className="text-[10px] font-bold text-slate-400 shrink-0">Quick Subjects:</span>
-                {POPULAR_SUBJECTS.slice(0, 8).map((sub) => (
-                  <button
-                    type="button"
-                    key={sub}
-                    onClick={() => setSlotFormData({ ...slotFormData, subject: sub })}
-                    className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-[10px] font-bold text-slate-700 shrink-0 border border-slate-200 hover:border-emerald-300"
-                  >
-                    {sub}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Asatezah (Teacher) Selector with Avatar Preview */}
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">5. Teaching Ustad (Faculty)</label>
-              <select
-                value={slotFormData.teacherId}
-                onChange={(e) => {
-                  const t = teachers.find((item) => item.id === e.target.value);
-                  setSlotFormData({ ...slotFormData, teacherId: e.target.value, teacherName: t ? t.name : "" });
-                }}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none"
+            {/* Slot Mode Switcher */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSlotFormData({ ...slotFormData, isBreak: false, breakName: "" })}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  !slotFormData.isBreak
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
               >
-                <option value="">Unassigned / Free Period</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} (ITS: {t.its || "—"} • {t.weeklyPeriods} lessons/week)
-                  </option>
-                ))}
-              </select>
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Academic Subject Lesson</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setSlotFormData({
+                    ...slotFormData,
+                    isBreak: true,
+                    breakName: "Free Time / Receiving Period (استقبال وتفرغ)",
+                    subject: "",
+                  })
+                }
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  slotFormData.isBreak
+                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-sm font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>☕ Free Time / Receiving Period</span>
+              </button>
             </div>
 
-            {/* Timings & Room Number */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Start Time</label>
-                <input
-                  type="time"
-                  value={slotFormData.startTime}
-                  onChange={(e) => setSlotFormData({ ...slotFormData, startTime: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none"
-                />
+            {/* Conditional form fields based on Slot Mode */}
+            {slotFormData.isBreak ? (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-extrabold text-amber-900">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>Free Time &amp; Receiving Period (استقبال وتفرغ) Active</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                  No academic subject is assigned to this period. This slot is designated for teacher student/parent reception, lesson planning, and recess.
+                </p>
+                <div>
+                  <label className="text-[11px] font-bold text-amber-950 block mb-1">
+                    Designation Label
+                  </label>
+                  <input
+                    type="text"
+                    value={slotFormData.breakName}
+                    onChange={(e) => setSlotFormData({ ...slotFormData, breakName: e.target.value })}
+                    placeholder="Free Time / Receiving Period (استقبال وتفرغ)"
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-bold text-amber-950 outline-none"
+                  />
+                </div>
               </div>
+            ) : (
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">End Time</label>
-                <input
-                  type="time"
-                  value={slotFormData.endTime}
-                  onChange={(e) => setSlotFormData({ ...slotFormData, endTime: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Room</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">4. Lesson Subject</label>
                 <input
                   type="text"
-                  value={slotFormData.roomNumber}
-                  onChange={(e) => setSlotFormData({ ...slotFormData, roomNumber: e.target.value })}
-                  placeholder="e.g. Room 1 A"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Break / Recess Checkbox */}
-            <div className="pt-1">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={slotFormData.isBreak}
-                  onChange={(e) => setSlotFormData({ ...slotFormData, isBreak: e.target.checked })}
-                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                Mark as Break / Recess Period (e.g. Zohr Namaz, Lunch)
-              </label>
-            </div>
-            {slotFormData.isBreak && (
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Break Title</label>
-                <input
-                  type="text"
-                  value={slotFormData.breakName}
-                  onChange={(e) => setSlotFormData({ ...slotFormData, breakName: e.target.value })}
-                  placeholder="e.g. Namaz & Recess, Lunch Break"
+                  value={slotFormData.subject}
+                  onChange={(e) => setSlotFormData({ ...slotFormData, subject: e.target.value })}
+                  placeholder="e.g. Quran Hifz, Lisan ud Dawat, Sharhal akhbar, Maths"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none"
                 />
+
+                {/* Quick Select Subject Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none mt-2">
+                  <span className="text-[10px] font-bold text-slate-400 shrink-0">Quick Subjects:</span>
+                  {POPULAR_SUBJECTS.slice(0, 8).map((sub) => (
+                    <button
+                      type="button"
+                      key={sub}
+                      onClick={() => setSlotFormData({ ...slotFormData, subject: sub })}
+                      className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-[10px] font-bold text-slate-700 shrink-0 border border-slate-200 hover:border-emerald-300 cursor-pointer"
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -2486,6 +2648,116 @@ export default function AdminTimetableMasterPage() {
                 {isEditingExistingSlot ? "Save Changes" : "Save & Add Slot"}
               </Button>
             </div>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* ─────────────────────────────────────────────────────────────
+          AI TIMETABLE AUTO-FILL MODAL
+         ───────────────────────────────────────────────────────────── */}
+      <Modal open={aiFillModalOpen} onOpenChange={setAiFillModalOpen}>
+        <ModalContent className="max-w-lg rounded-3xl p-6 bg-white border border-slate-200 shadow-2xl">
+          <ModalHeader className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2.5 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black shadow-xs">
+                <Sparkles className="w-5 h-5" />
+              </span>
+              <div>
+                <ModalTitle className="text-lg font-black text-slate-900">
+                  AI Timetable Smart-Fill Assistant
+                </ModalTitle>
+                <p className="text-xs text-slate-500 font-medium">
+                  Auto-distribute curriculum subjects, prevent teacher clashes, and protect free time.
+                </p>
+              </div>
+            </div>
+          </ModalHeader>
+
+          <div className="space-y-4 py-3">
+            {/* Scope Selector */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                1. Target Classes Scope
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAiFillScope("ALL")}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    aiFillScope === "ALL"
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/30"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="text-xs font-black">All Darajah Classes</div>
+                  <div className="text-[10.5px] text-slate-500 mt-0.5">Classes 1A to 4B (8 Classes)</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAiFillScope("SELECTED")}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    aiFillScope === "SELECTED"
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/30"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="text-xs font-black">Selected Class Only</div>
+                  <div className="text-[10.5px] text-slate-500 mt-0.5">Class {selectedClassName}</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Preserve Existing Lessons Toggle */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <label className="flex items-center gap-2.5 text-xs font-bold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={aiPreserveExisting}
+                  onChange={(e) => setAiPreserveExisting(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span>Fill Empty Slots Only (Preserve Existing Lessons)</span>
+              </label>
+              <p className="text-[11px] text-slate-500 pl-6.5">
+                Preserves all current subject assignments. Only unassigned periods will be populated by AI.
+              </p>
+            </div>
+
+            {/* Strict Free Time Protection Notice */}
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Strict Free Time &amp; Receiving Period Protection</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                On free time, AI will NOT assign any subject. Designated teacher receiving periods and breaks remain completely protected.
+              </p>
+            </div>
+          </div>
+
+          <ModalFooter className="flex items-center justify-between">
+            <ModalClose asChild>
+              <Button variant="outline" size="sm" className="text-xs border-slate-300 cursor-pointer">
+                Cancel
+              </Button>
+            </ModalClose>
+            <Button
+              onClick={handleRunAiFill}
+              disabled={aiFilling}
+              className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs gap-1.5 px-4 py-2 rounded-xl shadow-md cursor-pointer"
+            >
+              {aiFilling ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>AI Analyzing &amp; Scheduling...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Execute AI Auto-Fill</span>
+                </>
+              )}
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

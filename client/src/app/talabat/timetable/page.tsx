@@ -203,6 +203,41 @@ export default function TalabatTimetablePage() {
         <div className="absolute -top-12 -right-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
       </motion.div>
 
+      {/* ── Recent Timetable Changes Alert Banner ── */}
+      {data?.recentChanges && data.recentChanges.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-3xl bg-amber-50/90 border border-amber-300 shadow-sm flex items-start gap-3"
+        >
+          <div className="w-9 h-9 rounded-2xl bg-amber-400/30 border border-amber-400/50 flex items-center justify-center shrink-0 text-amber-900 mt-0.5">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
+                Official Timetable Update Notice ({data.recentChanges.length})
+              </h4>
+              <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                Highlighted Below
+              </Badge>
+            </div>
+            <p className="text-xs text-amber-900/80 mt-0.5">
+              The administration or faculty updated the following period(s) for your class:
+            </p>
+            <div className="mt-2 space-y-1">
+              {data.recentChanges.map((change: any) => (
+                <div key={change.id} className="text-xs text-slate-800 font-semibold flex items-center gap-2 bg-white/70 p-2 rounded-xl border border-amber-200/80">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span className="font-bold text-amber-950">{change.dayName} P{change.period}:</span>
+                  <span className="truncate">{change.changeDescription}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Masool / Class Teacher Card & Today's Summary ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Class Teacher (Masool al-Fasl) */}
@@ -442,10 +477,19 @@ export default function TalabatTimetablePage() {
                           >
                             {slot ? (
                               <div
+                                title={slot.isRecentlyChanged ? (slot.changeDescription || "Recently updated slot") : undefined}
                                 className={`p-2.5 rounded-2xl border ${
-                                  isBadal ? "border-amber-300 bg-amber-50/90" : `${style?.border} ${style?.bg}`
-                                } shadow-2xs relative`}
+                                  slot.isRecentlyChanged
+                                    ? "border-amber-400 ring-2 ring-amber-400/60 bg-amber-50/90 shadow-md"
+                                    : isBadal ? "border-amber-300 bg-amber-50/90" : `${style?.border} ${style?.bg}`
+                                } shadow-2xs relative transition-all`}
                               >
+                                {slot.isRecentlyChanged && (
+                                  <div className="mb-1 inline-flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded shadow-2xs animate-pulse">
+                                    <Sparkles className="w-2.5 h-2.5" /> Updated
+                                  </div>
+                                )}
+
                                 <div className="text-xs font-extrabold text-slate-900 leading-tight">
                                   {slot.subject}
                                 </div>

@@ -17,12 +17,16 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: 
         include: {
           teacher: {
             select: {
-              user: { select: { firstName: true, lastName: true } },
+              its: true,
+              photoUrl: true,
+              user: { select: { firstName: true, lastName: true, avatarUrl: true } },
             },
           },
           masool: {
             select: {
-              user: { select: { firstName: true, lastName: true } },
+              its: true,
+              photoUrl: true,
+              user: { select: { firstName: true, lastName: true, avatarUrl: true } },
             },
           },
           _count: { select: { enrollments: true, timetableSlots: true } },
@@ -44,7 +48,11 @@ router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: 
         subject: c.subject,
         roomNumber: c.roomNumber,
         teacherName: c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned",
+        teacherAvatar: c.teacher?.user?.avatarUrl || c.teacher?.photoUrl || null,
+        teacherIts: c.teacher?.its || null,
         masoolName: c.masool?.user ? `${c.masool.user.firstName} ${c.masool.user.lastName}` : null,
+        masoolAvatar: c.masool?.user?.avatarUrl || c.masool?.photoUrl || null,
+        masoolIts: c.masool?.its || null,
         masoolId: c.masoolId,
         teacherId: c.teacherId,
         studentCount: c._count.enrollments,
@@ -394,7 +402,7 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// DELETE /api/admin/classes/:id - Delete a class (blocked if it has history)
+// DELETE /api/admin/classes/:id - Delete a class (supports force deletion)
 router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
   try {
     const cls = await prisma.class.findUnique({ where: { id: req.params.id } });
@@ -402,22 +410,40 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Class not found" });
     }
 
+    const force = req.query.force === "true" || (req.body && (req.body as any).force === true);
+
     const [attendanceCount, pointLogCount] = await Promise.all([
       prisma.attendanceRecord.count({ where: { classId: cls.id } }),
       prisma.pointLog.count({ where: { classId: cls.id } }),
     ]);
 
-    if (attendanceCount > 0 || pointLogCount > 0) {
+    if ((attendanceCount > 0 || pointLogCount > 0) && !force) {
       return res.status(400).json({
         success: false,
-        error: `Cannot delete this class — it has ${attendanceCount} attendance record(s) and ${pointLogCount} point log(s). Mark it inactive instead.`,
+        hasHistory: true,
+        attendanceCount,
+        pointLogCount,
+        error: `Cannot delete class "${cls.name}" because it has ${attendanceCount} attendance record(s) and ${pointLogCount} point log(s). Use force delete or mark it inactive instead.`,
       });
+    }
+
+    // If force is requested and historical records exist, clean them up
+    if (force) {
+      await Promise.all([
+        prisma.attendanceRecord.deleteMany({ where: { classId: cls.id } }),
+        prisma.pointLog.deleteMany({ where: { classId: cls.id } }),
+      ]);
     }
 
     // Enrollments + timetable slots cascade on delete.
     await prisma.class.delete({ where: { id: cls.id } });
 
-    return res.json({ success: true });
+    cache.invalidateTag("class");
+    cache.invalidateTag("classes");
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
+    return res.json({ success: true, message: `Class ${cls.name} deleted successfully` });
   } catch (error) {
     console.error("Class delete error:", error);
     return res.status(500).json({ success: false, error: "Failed to delete class" });

@@ -25,6 +25,7 @@ import {
   ClipboardCheck,
   Moon,
   CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import { AttendanceLogRecordItem, AttendanceLogsSummary } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +46,11 @@ interface DailyStackedLogViewProps {
   onGradeChange: (grade: string) => void;
   onSectionChange: (section: string) => void;
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
+  onQuickMark?: (
+    memberId: string,
+    role: "STUDENT" | "FACULTY",
+    status: "PRESENT" | "LATE" | "ABSENT" | "MEDICAL" | "ON_LEAVE"
+  ) => Promise<void>;
   audience: "STUDENT" | "FACULTY" | "ALL";
   livePulse?: boolean;
   lastUpdatedAt?: string | null;
@@ -99,6 +105,32 @@ function getStatusBadgeConfig(status: string) {
         className: "bg-slate-100 text-slate-700 border-slate-300",
       };
   }
+}
+
+function formatScanTimeIST(timeStr?: string | Date | null): string {
+  if (!timeStr) return "—";
+  const d = new Date(timeStr);
+  if (isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  }).format(d);
+}
+
+function formatRelative(iso: string | null) {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 5000) return "just now";
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 // Animated number with live pulse
@@ -174,11 +206,19 @@ function AttendanceTableView({
   records,
   role,
   onMemberClick,
+  onQuickMark,
+  logType,
   selectedDate,
 }: {
   records: AttendanceLogRecordItem[];
   role: "STUDENT" | "FACULTY";
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
+  onQuickMark?: (
+    memberId: string,
+    role: "STUDENT" | "FACULTY",
+    status: "PRESENT" | "LATE" | "ABSENT" | "MEDICAL" | "ON_LEAVE"
+  ) => Promise<void>;
+  logType?: "HIKVISION" | "MANUAL" | "ALL";
   selectedDate?: string;
 }) {
   const isFaculty = role === "FACULTY";
@@ -193,7 +233,10 @@ function AttendanceTableView({
               <th scope="col" className="px-4 py-3">{isFaculty ? "Faculty Member" : "Talib (Student)"}</th>
               <th scope="col" className="px-3 py-3 font-mono">{isFaculty ? "Employee ID" : "ITS / ID"}</th>
               <th scope="col" className="px-3 py-3">{isFaculty ? "Department / Roles" : "Grade & Section"}</th>
-              <th scope="col" className="px-3 py-3 text-center">Attendance Status</th>
+              <th scope="col" className="px-3 py-3 text-center">Scan Time (IST)</th>
+              <th scope="col" className="px-3 py-3 text-center min-w-[200px]">
+                {logType === "MANUAL" ? "Attendance & Quick Roll-Call" : "Attendance Status"}
+              </th>
               <th scope="col" className="px-3 py-3">Verification Mode</th>
               <th scope="col" className="px-4 py-3">Notes / Remarks</th>
               <th scope="col" className="px-3 py-3 text-right">Action</th>
@@ -205,6 +248,7 @@ function AttendanceTableView({
               const hijri = getHijriFromDate(r.checkInTime || selectedDate);
               const badge = getStatusBadgeConfig(r.status);
               const StatusIcon = badge.icon;
+              const targetId = r.memberId || (r as any).studentId || (r as any).id;
 
               return (
                 <tr
@@ -262,14 +306,109 @@ function AttendanceTableView({
                     </div>
                   </td>
 
-                  {/* Attendance Status Badge (PRESENT, LATE, ABSENT, LEAVE, MEDICAL) */}
+                  {/* Scan Time (IST) */}
+                  <td className="px-3 py-2.5 text-center bg-slate-50/50">
+                    {r.checkInTime ? (
+                      <div className="inline-flex flex-col items-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-50 text-emerald-950 border border-emerald-300 font-mono shadow-2xs">
+                          <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span>{formatScanTimeIST(r.checkInTime)}</span>
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                          {formatRelative(r.checkInTime)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-300 font-mono italic">—</span>
+                    )}
+                  </td>
+
+                  {/* Attendance Status & Inline Roll-Call Selector */}
                   <td className="px-3 py-2.5 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border tracking-wide shadow-2xs ${badge.className}`}
-                    >
-                      <StatusIcon className="w-3.5 h-3.5" />
-                      <span>{badge.label}</span>
-                    </span>
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black border tracking-wide shadow-2xs ${badge.className}`}
+                        >
+                          <StatusIcon className="w-3 h-3" />
+                          <span>{badge.label}</span>
+                        </span>
+                        {r.isDefaultPresent && (
+                          <span
+                            className="px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300"
+                            title="Default Present: automatically marked present for roll-call"
+                          >
+                            Default
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Quick Status Buttons (P / L / A / M / Leave) */}
+                      {onQuickMark && (
+                        <div className="inline-flex items-center gap-1 mt-1 p-0.5 rounded-lg bg-slate-100/80 border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => onQuickMark(targetId, role, "PRESENT")}
+                            title="Mark Present"
+                            className={`px-1.5 py-0.5 rounded text-[9.5px] font-black transition-all ${
+                              r.status === "PRESENT"
+                                ? "bg-emerald-600 text-white shadow-xs scale-105"
+                                : "text-emerald-800 hover:bg-emerald-100"
+                            }`}
+                          >
+                            P
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onQuickMark(targetId, role, "LATE")}
+                            title="Mark Late"
+                            className={`px-1.5 py-0.5 rounded text-[9.5px] font-black transition-all ${
+                              r.status === "LATE"
+                                ? "bg-amber-500 text-white shadow-xs scale-105"
+                                : "text-amber-800 hover:bg-amber-100"
+                            }`}
+                          >
+                            L
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onQuickMark(targetId, role, "ABSENT")}
+                            title="Mark Absent"
+                            className={`px-1.5 py-0.5 rounded text-[9.5px] font-black transition-all ${
+                              r.status === "ABSENT"
+                                ? "bg-red-600 text-white shadow-xs scale-105"
+                                : "text-red-800 hover:bg-red-100"
+                            }`}
+                          >
+                            A
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onQuickMark(targetId, role, "MEDICAL")}
+                            title="Mark Medical"
+                            className={`px-1.5 py-0.5 rounded text-[9.5px] font-black transition-all ${
+                              r.status === "MEDICAL"
+                                ? "bg-rose-600 text-white shadow-xs scale-105"
+                                : "text-rose-800 hover:bg-rose-100"
+                            }`}
+                          >
+                            M
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onQuickMark(targetId, role, "ON_LEAVE")}
+                            title="Mark On Leave"
+                            className={`px-1.5 py-0.5 rounded text-[9.5px] font-black transition-all ${
+                              r.status === "ON_LEAVE"
+                                ? "bg-purple-600 text-white shadow-xs scale-105"
+                                : "text-purple-800 hover:bg-purple-100"
+                            }`}
+                          >
+                            Leave
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   {/* Verification Mode */}
@@ -315,7 +454,7 @@ function AttendanceTableView({
                   <td className="px-3 py-2.5 text-right">
                     <button
                       type="button"
-                      onClick={() => onMemberClick(r.memberId || (r as any).studentId, r.role || "STUDENT")}
+                      onClick={() => onMemberClick(targetId, r.role || "STUDENT")}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
                         isFaculty
                           ? "text-indigo-900 bg-indigo-50/50 hover:bg-indigo-100 border-indigo-200"
@@ -341,11 +480,17 @@ function AttendanceGridView({
   records,
   role,
   onMemberClick,
+  onQuickMark,
   selectedDate,
 }: {
   records: AttendanceLogRecordItem[];
   role: "STUDENT" | "FACULTY";
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
+  onQuickMark?: (
+    memberId: string,
+    role: "STUDENT" | "FACULTY",
+    status: "PRESENT" | "LATE" | "ABSENT" | "MEDICAL" | "ON_LEAVE"
+  ) => Promise<void>;
   selectedDate?: string;
 }) {
   const isFaculty = role === "FACULTY";
@@ -354,6 +499,10 @@ function AttendanceGridView({
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
       {records.map((r) => {
         const hijri = getHijriFromDate(r.checkInTime || selectedDate);
+        const targetId = r.memberId || (r as any).studentId || (r as any).id;
+        const badge = getStatusBadgeConfig(r.status);
+        const BadgeIcon = badge.icon;
+
         return (
           <motion.div
             key={r.id || r.memberId}
@@ -393,19 +542,74 @@ function AttendanceGridView({
                     </div>
                   </div>
 
-                  {(() => {
-                    const badge = getStatusBadgeConfig(r.status);
-                    const BadgeIcon = badge.icon;
-                    return (
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 tracking-wide ${badge.className}`}
-                      >
-                        <BadgeIcon className="w-3 h-3" />
-                        <span>{badge.label}</span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wide ${badge.className}`}
+                    >
+                      <BadgeIcon className="w-3 h-3" />
+                      <span>{badge.label}</span>
+                    </span>
+                    {r.isDefaultPresent && (
+                      <span className="px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        Default
                       </span>
-                    );
-                  })()}
+                    )}
+                  </div>
                 </div>
+
+                {/* Quick Inline Status Changer for Grid */}
+                {onQuickMark && (
+                  <div className="mb-2 p-1 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-1">
+                    <span className="text-[9px] font-black uppercase text-slate-400 pl-1">Mark:</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onQuickMark(targetId, role, "PRESENT")}
+                        className={`px-2 py-0.5 rounded text-[10px] font-black transition-all ${
+                          r.status === "PRESENT" ? "bg-emerald-600 text-white shadow-2xs" : "text-emerald-800 hover:bg-emerald-100"
+                        }`}
+                      >
+                        Present
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onQuickMark(targetId, role, "LATE")}
+                        className={`px-2 py-0.5 rounded text-[10px] font-black transition-all ${
+                          r.status === "LATE" ? "bg-amber-500 text-white shadow-2xs" : "text-amber-800 hover:bg-amber-100"
+                        }`}
+                      >
+                        Late
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onQuickMark(targetId, role, "ABSENT")}
+                        className={`px-2 py-0.5 rounded text-[10px] font-black transition-all ${
+                          r.status === "ABSENT" ? "bg-red-600 text-white shadow-2xs" : "text-red-800 hover:bg-red-100"
+                        }`}
+                      >
+                        Absent
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onQuickMark(targetId, role, "MEDICAL")}
+                        className={`px-2 py-0.5 rounded text-[10px] font-black transition-all ${
+                          r.status === "MEDICAL" ? "bg-rose-600 text-white shadow-2xs" : "text-rose-800 hover:bg-rose-100"
+                        }`}
+                      >
+                        Med
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onQuickMark(targetId, role, "ON_LEAVE")}
+                        className={`px-2 py-0.5 rounded text-[10px] font-black transition-all ${
+                          r.status === "ON_LEAVE" ? "bg-purple-600 text-white shadow-2xs" : "text-purple-800 hover:bg-purple-100"
+                        }`}
+                      >
+                        Leave
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2 pt-2 border-t border-gray-100">
                   {(() => {
@@ -462,7 +666,7 @@ function AttendanceGridView({
                 )}
                 <button
                   type="button"
-                  onClick={() => onMemberClick(r.memberId || (r as any).studentId, r.role || "STUDENT")}
+                  onClick={() => onMemberClick(targetId, r.role || "STUDENT")}
                   className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer group-hover:border-gray-200 border ${
                     isFaculty
                       ? "text-indigo-900 hover:bg-indigo-50 border-transparent hover:border-indigo-200"
@@ -491,6 +695,7 @@ function AttendanceSectionBlock({
   records,
   viewMode,
   onMemberClick,
+  onQuickMark,
   logType,
   selectedDate,
 }: {
@@ -501,6 +706,11 @@ function AttendanceSectionBlock({
   records: AttendanceLogRecordItem[];
   viewMode: "table" | "grid";
   onMemberClick: (memberId: string, role: "STUDENT" | "FACULTY") => void;
+  onQuickMark?: (
+    memberId: string,
+    role: "STUDENT" | "FACULTY",
+    status: "PRESENT" | "LATE" | "ABSENT" | "MEDICAL" | "ON_LEAVE"
+  ) => Promise<void>;
   logType?: "HIKVISION" | "MANUAL" | "ALL";
   selectedDate?: string;
 }) {
@@ -560,9 +770,22 @@ function AttendanceSectionBlock({
           </div>
         </div>
       ) : viewMode === "table" ? (
-        <AttendanceTableView records={records} role={role} onMemberClick={onMemberClick} selectedDate={selectedDate} />
+        <AttendanceTableView
+          records={records}
+          role={role}
+          onMemberClick={onMemberClick}
+          onQuickMark={onQuickMark}
+          logType={logType}
+          selectedDate={selectedDate}
+        />
       ) : (
-        <AttendanceGridView records={records} role={role} onMemberClick={onMemberClick} selectedDate={selectedDate} />
+        <AttendanceGridView
+          records={records}
+          role={role}
+          onMemberClick={onMemberClick}
+          onQuickMark={onQuickMark}
+          selectedDate={selectedDate}
+        />
       )}
     </div>
   );
@@ -582,6 +805,7 @@ export function DailyStackedLogView({
   onGradeChange,
   onSectionChange,
   onMemberClick,
+  onQuickMark,
   audience,
   livePulse,
   lastUpdatedAt,
@@ -640,45 +864,45 @@ export function DailyStackedLogView({
     <div className="space-y-4">
       {/* ── Strict Subsystem Mode Notification Banner ── */}
       {logType === "HIKVISION" && (
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-teal-950/80 to-emerald-900/90 border border-emerald-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-teal-950/80 to-emerald-900/90 border border-emerald-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
-              <Zap className="w-4 h-4" />
+            <span className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
+              <Zap className="w-5 h-5" />
             </span>
             <div>
               <p className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
-                Hikvision Hardware Card Scan Stream
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">Strict</span>
+                Part 1: Hikvision Biometric Device Scan Stream
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">Live Hardware</span>
               </p>
               <p className="text-[11px] text-emerald-100/70">
-                Displaying only RFID card swipes and terminal punches verified against scheduled scan windows.
+                Displaying RFID card swipes, biometric facial scans, and terminal logs matched to scheduled event windows.
               </p>
             </div>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-black/30 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-            <Fingerprint className="w-3.5 h-3.5" /> Terminal Hardware Sync
+            <Fingerprint className="w-3.5 h-3.5" /> Hardware Biometrics Active
           </span>
         </div>
       )}
 
       {logType === "MANUAL" && (
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-950/90 via-indigo-950/80 to-blue-900/90 border border-blue-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/90 via-indigo-950/80 to-blue-900/90 border border-blue-500/30 text-white flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
-              <UserCheck className="w-4 h-4" />
+            <span className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+              <UserCheck className="w-5 h-5" />
             </span>
             <div>
               <p className="text-xs font-black text-blue-200 uppercase tracking-wider flex items-center gap-1.5">
-                Manual Classroom Attendance Register
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black bg-blue-400/20 text-blue-300 border border-blue-400/30">Faculty</span>
+                Part 2: Manual Classroom Attendance Register
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black bg-amber-400 text-slate-950 font-black">All Default Present</span>
               </p>
-              <p className="text-[11px] text-blue-100/70">
-                Displaying teacher roll-call entries, manual status overrides, medical exemptions, and approved leaves.
+              <p className="text-[11px] text-blue-100/90 mt-0.5">
+                All students are marked <span className="font-bold text-emerald-300">PRESENT by default</span>. Use the inline buttons (<span className="text-amber-300 font-bold">[P] Present, [L] Late, [A] Absent, [M] Medical, [Leave] Leave</span>) to change any student&apos;s status instantly.
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-blue-300 bg-black/30 px-3 py-1.5 rounded-xl border border-blue-500/20">
-            <ClipboardCheck className="w-3.5 h-3.5" /> Classroom Register
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-black/30 px-3 py-1.5 rounded-xl border border-amber-400/30">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" /> One-Tap Quick Mark
           </span>
         </div>
       )}
@@ -692,7 +916,7 @@ export function DailyStackedLogView({
                 <GraduationCap className="w-4 h-4" />
               </span>
               <div>
-                <div className="text-[11px] font-black uppercase tracking-wider text-emerald-900">Talabat Live Register</div>
+                <div className="text-[11px] font-black uppercase tracking-wider text-emerald-900">Talabat Register</div>
                 <div className="text-[11px] text-emerald-700 font-medium">{talabatSummary.present} present • {talabatSummary.late} late • {talabatSummary.absent} absent</div>
               </div>
             </div>
@@ -707,7 +931,7 @@ export function DailyStackedLogView({
                 <Briefcase className="w-4 h-4" />
               </span>
               <div>
-                <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900">Faculty Live Register</div>
+                <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900">Faculty Register</div>
                 <div className="text-[11px] text-indigo-700 font-medium">{facultySummary.present} present • {facultySummary.late} late • {facultySummary.absent} absent</div>
               </div>
             </div>
@@ -891,6 +1115,7 @@ export function DailyStackedLogView({
             records={talabatRecords}
             viewMode={viewMode}
             onMemberClick={onMemberClick}
+            onQuickMark={onQuickMark}
             logType={logType}
             selectedDate={selectedDate}
           />
@@ -906,6 +1131,7 @@ export function DailyStackedLogView({
             records={facultyRecords}
             viewMode={viewMode}
             onMemberClick={onMemberClick}
+            onQuickMark={onQuickMark}
             logType={logType}
             selectedDate={selectedDate}
           />

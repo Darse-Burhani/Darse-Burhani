@@ -47,6 +47,8 @@ import {
   Table as TableIcon,
   HelpCircle,
   FileSpreadsheet,
+  Activity,
+  Mail,
   ExternalLink,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
@@ -551,11 +553,12 @@ export default function AdminManualAttendancePage() {
         hubTitle="Attendance & Biometric Center"
         hubDescription="Dedicated separate workspaces for Automated Hardware Scanning and Manual Roll-Call Registers."
         tabs={[
-          { label: "Google Sheets Center", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Cloud Sync" },
-          { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
-          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck, badge: "Active" },
-          { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
+          { label: "Hikvision Scans", href: "/admin/attendance-hik", icon: Fingerprint, badge: "Hardware" },
+          { label: "Manual Logs", href: "/admin/attendance-manual", icon: ClipboardCheck, badge: "Register" },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Device Hub", href: "/admin/biometric", icon: Activity },
+          { label: "Google Sheets", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Sync" },
+          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
 

@@ -30,6 +30,8 @@ import {
   Megaphone,
   Package,
   Layers,
+  ClipboardCheck,
+  Fingerprint,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -145,7 +147,8 @@ export function NavigationBar() {
         ...(isModuleVisible("classes", "TEACHER") ? [{ label: "Classes", href: "/teacher/classes", icon: BookOpen }] : []),
         ...(isModuleVisible("quran", "TEACHER") ? [{ label: "Quran (Hifz)", href: "/teacher/hifz", icon: FileText }] : []),
         ...(isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
-        ...(isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Manual Attendance Logs", href: "/teacher/attendance-logs", icon: FileText }] : []),
+        ...(isModuleVisible("manual-attendance", "TEACHER") ? [{ label: "Manual Logs", href: "/teacher/attendance", icon: ClipboardCheck }] : []),
+        ...(isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Hikvision Scans", href: "/teacher/attendance-hik", icon: Fingerprint }] : []),
         ...(isModuleVisible("attendance-schedule", "TEACHER") ? [{ label: "Attendance Schedule", href: "/admin/attendance-schedule", icon: Clock }] : []),
         ...(isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/admin/leave", icon: UserCheck }] : []),
         ...(isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/admin/procurement", icon: Package }] : []),

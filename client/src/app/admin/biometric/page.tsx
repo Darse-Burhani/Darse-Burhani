@@ -28,6 +28,7 @@ import {
   ClipboardCheck,
   FileText,
   Video,
+  Mail,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import IvmsControlStation, { type BiometricDevice } from "@/components/admin/biometric/IvmsControlStation";
@@ -400,10 +401,12 @@ export default function BiometricAdminPage() {
         hubTitle="Attendance & Biometric Center"
         hubDescription="Dedicated separate workspaces for Automated Hikvision Hardware and Manual Classroom Registers."
         tabs={[
-          { label: "Hikvision Device Hub", href: "/admin/biometric", icon: Fingerprint, badge: "Automated" },
-          { label: "Manual Classroom Register", href: "/admin/manual-attendance", icon: ClipboardCheck },
-          { label: "Attendance Logs & Verification", href: "/admin/attendance-logs", icon: FileText },
+          { label: "Hikvision Scans", href: "/admin/attendance-hik", icon: Fingerprint, badge: "Hardware" },
+          { label: "Manual Logs", href: "/admin/attendance-manual", icon: ClipboardCheck, badge: "Register" },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
+          { label: "Device Hub", href: "/admin/biometric", icon: Activity },
+          { label: "Google Sheets", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Sync" },
+          { label: "Email Reports", href: "/admin/attendance-emails", icon: Mail },
         ]}
       />
 
