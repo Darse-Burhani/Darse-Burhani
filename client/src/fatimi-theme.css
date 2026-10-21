@@ -402,3 +402,85 @@
 .animate-pulse-ring {
   animation: pulse-ring 2.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   TWILIGHT PALACE THEME — sign-in inspired (sunset indigo + amber)
+   Palette sampled from the login backdrop photo:
+   sky #354971 · indigo #1a2038 · amber glow #ebaa45 · ember #dc6b27
+   ───────────────────────────────────────────────────────────── */
+
+[data-fatimi-theme="twilight-palace"] {
+  --fatimi-primary: #1a2038;
+  --fatimi-primary-dark: #0c1026;
+  --fatimi-primary-light: #2a3358;
+  --fatimi-secondary: #2a3358;
+  --fatimi-gold: #ebaa45;
+  --fatimi-gold-light: #fcd468;
+  --fatimi-gold-dark: #c99349;
+  --fatimi-surface: #ffffff;
+  --fatimi-bg-subtle: #f6f4f8;
+  --fatimi-border: #e5e2ec;
+  --fatimi-border-subtle: #f1eef5;
+  --fatimi-glow: rgba(235, 170, 69, 0.18);
+  --fatimi-accent: #ebaa45;
+  --fatimi-sidebar-bg: linear-gradient(180deg, #10142a 0%, #1a2038 55%, #2a3358 100%);
+  --fatimi-banner-bg: linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%);
+  --fatimi-header-line: linear-gradient(90deg, #1a2038, #ebaa45, #1a2038);
+}
+
+/* Sunset texture on the portal canvas: indigo sky wash + warm window glows */
+body[data-fatimi-theme="twilight-palace"] {
+  background-color: #f6f4f8;
+  background-image:
+    radial-gradient(1100px 480px at 12% -8%, rgba(61, 71, 113, 0.16), transparent 62%),
+    radial-gradient(900px 420px at 92% -4%, rgba(235, 170, 69, 0.14), transparent 58%),
+    radial-gradient(1000px 560px at 50% 115%, rgba(220, 107, 39, 0.10), transparent 60%);
+  background-attachment: fixed;
+}
+
+body[data-fatimi-theme="twilight-palace"] ::selection {
+  background: rgba(235, 170, 69, 0.25);
+  color: #1a2038;
+}
+
+body[data-fatimi-theme="twilight-palace"] ::-webkit-scrollbar-thumb {
+  background: rgba(235, 170, 69, 0.4);
+}
+
+/* Amber-tinted surfaces & focus states */
+[data-fatimi-theme="twilight-palace"] .fatimi-card:hover {
+  border-color: rgba(235, 170, 69, 0.4);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(235, 170, 69, 0.12);
+}
+
+[data-fatimi-theme="twilight-palace"] .fatimi-input:focus {
+  border-color: #ebaa45;
+  box-shadow: 0 0 0 3px rgba(235, 170, 69, 0.18);
+}
+
+[data-fatimi-theme="twilight-palace"] .admin-hub-card:hover {
+  border-color: rgba(235, 170, 69, 0.4);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(235, 170, 69, 0.12);
+}
+
+/* Indigo glass primary button (emerald → twilight indigo) */
+[data-fatimi-theme="twilight-palace"] .btn-fatimi-primary {
+  background: linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%) !important;
+  border: 1px solid rgba(12, 16, 38, 0.9);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 3px 10px rgba(26, 32, 56, 0.28);
+}
+
+/* Sunset amber action button (matches the sign-in CTA) */
+[data-fatimi-theme="twilight-palace"] .btn-fatimi-gold {
+  background: linear-gradient(90deg, #fcd468 0%, #ef9a33 52%, #dc6b27 100%) !important;
+  color: #1c1403 !important;
+  border: 1px solid rgba(220, 107, 39, 0.55);
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.45), 0 4px 14px rgba(229, 169, 18, 0.28);
+}
+
+[data-fatimi-theme="twilight-palace"] .btn-fatimi-outline:hover {
+  border-color: rgba(235, 170, 69, 0.55);
+  color: #1a2038;
+  box-shadow: 0 4px 12px rgba(235, 170, 69, 0.14);
+}
