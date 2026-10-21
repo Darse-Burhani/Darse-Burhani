@@ -175,7 +175,7 @@ export function useAutoRouteSEO() {
         const sub = pathname.replace("/admin/", "").replace(/-/g, " ");
         matchedMeta = {
           title: `Admin · ${sub.charAt(0).toUpperCase() + sub.slice(1)}`,
-          description: "Administrative console operations for Aljamea-tus-Saifiyah.",
+          description: "Administrative console operations for Darse Burhani.",
           noIndex: true,
         };
       } else if (pathname.startsWith("/teacher")) {

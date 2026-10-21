@@ -190,7 +190,7 @@ export function SplashScreen({
               <div className="flex items-center justify-center gap-2.5">
                 <span className="w-8 h-[1.5px] bg-amber-500/60 rounded-full" />
                 <p className="text-[11px] font-black uppercase tracking-[0.26em] text-amber-800">
-                  Mahad al Zahra &bull; Aljamea
+                  Mahad al Zahra
                 </p>
                 <span className="w-8 h-[1.5px] bg-amber-500/60 rounded-full" />
               </div>

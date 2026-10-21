@@ -974,7 +974,7 @@ export default function AdminClassesPage() {
           {/* Navigation Tabs */}
           <div className="flex gap-2 px-6 pt-2 pb-3 border-b border-slate-100">
             {([
-              { key: "students", label: "Talabat Roster", icon: Users, count: roster.length },
+              { key: "students", label: "Talabat Directory", icon: Users, count: roster.length },
               { key: "details", label: "Class Details", icon: Pencil, count: null },
               { key: "timetable", label: "Timetable Slots", icon: Calendar, count: slots.length },
             ] as const).map((tab) => (

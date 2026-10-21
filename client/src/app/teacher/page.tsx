@@ -842,7 +842,7 @@ export default function ExpertTeacherDashboard() {
                 <div className="flex items-center gap-2.5">
                   <h2 className="font-display text-lg font-black text-gray-900 flex items-center gap-2">
                     <Users className="w-5 h-5 text-emerald-700" />
-                    Talabat Roster
+                    Talabat Directory
                   </h2>
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-900 border-emerald-300 font-black text-xs px-2.5 py-0.5">
                     {filteredStudents.length} {filteredStudents.length === 1 ? "student" : "students"}

@@ -537,7 +537,7 @@ export default function BiometricAdminPage() {
           {[
             { id: "live", label: "Live Terminal Feeds", icon: Video },
             { id: "terminals", label: "MinMoe Terminals", icon: Server, count: devices.length },
-            { id: "talabat", label: "Talabat Roster", icon: GraduationCap, count: students.length },
+            { id: "talabat", label: "Talabat Directory", icon: GraduationCap, count: students.length },
             { id: "teachers", label: "Faculty Roster", icon: Users, count: teachers.length },
             { id: "unmatched", label: "Unmatched Scans", icon: AlertTriangle, count: unmatched.length },
           ].map((tab) => {
