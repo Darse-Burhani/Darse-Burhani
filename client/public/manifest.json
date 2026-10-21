@@ -1,13 +1,24 @@
 {
+  "id": "/",
   "name": "Darse Burhani (Nisab) — Mahad al Zahra",
   "short_name": "Darse Burhani",
   "description": "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student engagement platform for Mahad al Zahra.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#022c22",
-  "theme_color": "#022c22",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#021f18",
+  "theme_color": "#021f18",
+  "categories": [
+    "education",
+    "productivity",
+    "management"
+  ],
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -38,6 +49,36 @@
       "sizes": "any",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Hikvision Scans",
+      "short_name": "Hik Scans",
+      "description": "View live biometric terminal scans with precise timestamps",
+      "url": "/admin/attendance-hik",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Manual Attendance Logs",
+      "short_name": "Manual Logs",
+      "description": "Daily roster roll-call and quick status marking",
+      "url": "/admin/attendance-manual",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Timetable Management",
+      "short_name": "Timetable",
+      "description": "Manage class and teacher timetables and AI slot filling",
+      "url": "/admin/timetable",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Class Management",
+      "short_name": "Classes",
+      "description": "Class directory, students, and masool assignments",
+      "url": "/admin/classes",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

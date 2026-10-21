@@ -19,6 +19,7 @@ const ThankYouPage = lazy(() => import("@/app/thank-you/page"));
 
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { CommandPalette } from "@/components/CommandPalette";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useAutoRouteSEO } from "@/components/SEO";
 import { SplashScreen } from "@/components/SplashScreen";
 import { WaitingInterface } from "@/components/WaitingInterface";
@@ -406,6 +407,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <CookieConsentBanner />
+      <PWAInstallBanner />
       <CommandPalette />
     </DevLockGuard>
   </ErrorBoundary>

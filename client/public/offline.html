@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <title>Offline | Darse Burhani</title>
+    <meta name="theme-color" content="#021f18" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #021f18 0%, #064e3b 50%, #022c22 100%);
+        color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        border-radius: 28px;
+        padding: 36px 28px;
+        max-width: 420px;
+        width: 100%;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      }
+      .emblem {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        background: #ffffff;
+        border: 2px solid #d4af37;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        box-shadow: 0 12px 30px rgba(212, 175, 55, 0.3);
+      }
+      .emblem img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      h1 {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+        color: #ffffff;
+      }
+      .sub {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: #fbbf24;
+        margin-bottom: 16px;
+      }
+      p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.78);
+        margin-bottom: 28px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 14px 24px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #d4af37, #b8860b);
+        color: #021f18;
+        font-size: 14px;
+        font-weight: 800;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.2s, opacity 0.2s;
+        box-shadow: 0 10px 25px rgba(212, 175, 55, 0.35);
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .footer-note {
+        margin-top: 24px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="emblem">
+        <img src="/logo.png" alt="Darse Burhani" />
+      </div>
+      <h1>Offline Mode</h1>
+      <div class="sub">Mahad al Zahra • Darse Burhani</div>
+      <p>
+        You are currently disconnected from the network. Your previously cached attendance and timetable records remain accessible once you reconnect.
+      </p>
+      <button class="btn" onclick="window.location.reload()">
+        Try Reconnecting
+      </button>
+      <div class="footer-note">
+        Check your Wi-Fi or cellular network connection.
+      </div>
+    </div>
+  </body>
+</html>
