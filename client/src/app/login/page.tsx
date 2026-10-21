@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signIn, getSession, signOut } from "next-auth/react";
 import {
@@ -40,6 +40,14 @@ export interface PortalConfig {
   inputLabel: string;
   rolePath: string;
   icon: React.ElementType;
+}
+
+export interface ForgotProfile {
+  displayName: string;
+  role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
+  portal: string;
+  its: string | null;
+  matchedVia: "email" | "its";
 }
 
 export const portals: PortalConfig[] = [
@@ -167,6 +175,71 @@ export default function LoginPage() {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [transitionTarget, setTransitionTarget] = useState<{ path: string; portalName: string } | null>(null);
+
+  // ── Forgot-Password Profile Catch ──
+  // When the user types their email or ITS, resolve which profile it belongs to
+  // (Administrator / Faculty / Talabat / Parent) so the support email auto-fills.
+  const [forgotIdentifier, setForgotIdentifier] = useState("");
+  const [forgotProfile, setForgotProfile] = useState<ForgotProfile | null>(null);
+  const [forgotChecking, setForgotChecking] = useState(false);
+  const forgotLookupSeq = useRef(0);
+
+  useEffect(() => {
+    const id = forgotIdentifier.trim();
+    const seq = ++forgotLookupSeq.current;
+    if (!showForgotModal || id.length < 3) {
+      setForgotProfile(null);
+      setForgotChecking(false);
+      return;
+    }
+    setForgotChecking(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/auth/profile-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: id }),
+          credentials: "include",
+        });
+        const json = res.ok ? await res.json() : null;
+        if (seq === forgotLookupSeq.current) {
+          setForgotProfile(json?.success && json?.data?.found ? (json.data.profile as ForgotProfile) : null);
+        }
+      } catch {
+        if (seq === forgotLookupSeq.current) setForgotProfile(null);
+      } finally {
+        if (seq === forgotLookupSeq.current) setForgotChecking(false);
+      }
+    }, 550);
+    return () => clearTimeout(timer);
+  }, [forgotIdentifier, showForgotModal]);
+
+  // Auto-composed support mailto, pre-filled with the caught profile details.
+  const forgotSupportMailto = useMemo(() => {
+    const ident = forgotIdentifier.trim();
+    const subject = forgotProfile
+      ? `Password Reset Request — ${forgotProfile.portal} — ${forgotProfile.displayName}`
+      : "Password Reset Request — Darse Burhani (Nisab)";
+    const lines = [
+      "Assalamu Alaikum,",
+      "",
+      "I request a password reset for my Darse Burhani (Nisab) account.",
+      "",
+      `Request Date: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}`,
+      "",
+    ];
+    if (forgotProfile) {
+      lines.push(`Full Name: ${forgotProfile.displayName}`);
+      lines.push(`Portal / Role: ${forgotProfile.portal}`);
+      if (forgotProfile.its) lines.push(`ITS Number: ${forgotProfile.its}`);
+      lines.push(`Account matched via: ${forgotProfile.matchedVia === "email" ? "email address" : "ITS number"}`);
+    } else if (ident) {
+      lines.push(`Identifier entered on sign-in page: ${ident}`);
+    }
+    lines.push("", "Please reset my password at your earliest convenience.", "", "Jazak Allah,");
+    if (forgotProfile) lines.push(forgotProfile.displayName);
+    return `mailto:support.darseburhani.galiakot@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+  }, [forgotProfile, forgotIdentifier]);
 
   // ITS Scanner State
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -855,7 +928,7 @@ export default function LoginPage() {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setShowForgotModal(true)}
+                    onClick={() => { setForgotIdentifier(email.trim()); setShowForgotModal(true); }}
                     style={{ fontSize: 13, color: "#ebaa45", background: "none", border: "none", cursor: "pointer", textDecoration: "none" }}
                     onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
@@ -1128,7 +1201,60 @@ export default function LoginPage() {
             </div>
             <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.7, display: "flex", flexDirection: "column", gap: 12 }}>
               <p>Institutional credentials are authenticated centrally to safeguard student and faculty records.</p>
-              <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(6,95,70,0.06)", border: "1px solid #bbf7d0" }}>
+
+              {/* Email / ITS input → auto-catches the profile behind it */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  htmlFor="forgot-identifier"
+                  style={{ fontSize: 10.5, fontWeight: 800, color: "#0f172a", letterSpacing: "0.14em", textTransform: "uppercase" }}
+                >
+                  Your Email or ITS Number
+                </label>
+                <input
+                  id="forgot-identifier"
+                  name="identifier"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={forgotIdentifier}
+                  onChange={(e) => setForgotIdentifier(e.target.value)}
+                  placeholder="e.g. 40444603 or name@darseburhani.edu"
+                  style={{
+                    width: "100%",
+                    height: 42,
+                    borderRadius: 10,
+                    border: "1px solid #e2e8f0",
+                    background: "#f8fafc",
+                    padding: "0 12px",
+                    fontSize: 13.5,
+                    color: "#0f172a",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#d4963e"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; }}
+                />
+                {/* Live profile-catch status */}
+                {forgotIdentifier.trim().length >= 3 && (
+                  <div role="status" aria-live="polite" style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6, minHeight: 16 }}>
+                    {forgotChecking ? (
+                      <span style={{ color: "#94a3b8" }}>Catching profile…</span>
+                    ) : forgotProfile ? (
+                      <span style={{ color: "#065f46", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <CheckCircle2 size={13} />
+                        {forgotProfile.displayName} · {forgotProfile.portal}
+                        {forgotProfile.its ? ` · ITS ${forgotProfile.its}` : ""}
+                      </span>
+                    ) : (
+                      <span style={{ color: "#94a3b8" }}>No matching profile found — you can still email support below.</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: "12px 14px", borderRadius: 12, background: forgotProfile ? "rgba(6,95,70,0.08)" : "rgba(6,95,70,0.06)", border: forgotProfile ? "1px solid #86efac" : "1px solid #bbf7d0" }}>
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", display: "block", marginBottom: 4 }}>Mahad al Zahra Administration Desk</span>
                 <p style={{ color: "#334155" }}>
                   Direct Support Email:{" "}
@@ -1138,6 +1264,40 @@ export default function LoginPage() {
                 </p>
                 <p style={{ color: "#64748b", marginTop: 4 }}>For password resets, credential assistance, and queries, email our support desk directly.</p>
               </div>
+
+              {/* Auto-filled support email CTA */}
+              <a
+                href={forgotSupportMailto}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "11px 0",
+                  borderRadius: 10,
+                  background: "#065f46",
+                  color: "#ffffff",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  transition: "filter 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.12)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
+              >
+                <Mail size={15} />
+                {forgotProfile
+                  ? `Email support — ${forgotProfile.displayName}'s reset request`
+                  : "Email support — password reset request"}
+              </a>
+              {forgotProfile && (
+                <p style={{ fontSize: 11, color: "#94a3b8", marginTop: -4 }}>
+                  Opens your mail app with name, portal ({forgotProfile.portal})
+                  {forgotProfile.its ? `, ITS ${forgotProfile.its}` : ""} and date pre-filled.
+                </p>
+              )}
+
               <p style={{ color: "#94a3b8" }}>Talabat students may also approach their appointed class teacher directly for on-premises verification.</p>
             </div>
             <button

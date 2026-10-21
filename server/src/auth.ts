@@ -609,3 +609,115 @@ export function logoutHandler(_req: Request, res: Response): void {
   clearSessionCookie(res);
   res.json({ success: true });
 }
+
+// ── Public Profile Lookup (Forgot-Password flow) ──
+// Resolves the account type (Administrator / Faculty / Talabat / Parent) for an email
+// or ITS number so the support mailto can be pre-composed with the caller's profile.
+// Exposes display identity and portal assignment only — never credentials or hashes.
+export async function profileLookupHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const identifier = String((req.body?.identifier as string | undefined) ?? "").trim();
+    if (!identifier) {
+      res.status(400).json({ success: false, error: "Email or ITS number is required" });
+      return;
+    }
+
+    const identitySelect = { firstName: true, lastName: true, role: true } as const;
+
+    interface MatchedIdentity {
+      firstName: string;
+      lastName: string;
+      role: Role;
+      its: string | null;
+      matchedVia: "email" | "its";
+    }
+
+    let match: MatchedIdentity | null = null;
+
+    // 1. Email lookup (case-insensitive on user.email or teacherProfile.tEmail)
+    if (identifier.includes("@")) {
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: identifier, mode: "insensitive" } },
+            { teacherProfile: { tEmail: { equals: identifier, mode: "insensitive" } } },
+          ],
+        },
+        select: {
+          ...identitySelect,
+          teacherProfile: { select: { its: true } },
+          studentProfile: { select: { its: true } },
+          parentProfile: { select: { its: true } },
+        },
+      });
+      if (user) {
+        match = {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          its: user.teacherProfile?.its ?? user.studentProfile?.its ?? user.parentProfile?.its ?? null,
+          matchedVia: "email",
+        };
+      }
+    }
+
+    // 2. ITS lookup: Talabat → Faculty → Parent
+    if (!match) {
+      const rawId = identifier.includes("@") ? identifier.split("@")[0].trim() : identifier;
+      if (/^\d+$/.test(rawId)) {
+        const studentProfile = await prisma.studentProfile.findFirst({
+          where: { OR: [{ studentId: rawId }, { its: rawId }] },
+          select: { its: true, user: { select: identitySelect } },
+        });
+        const teacherProfile = studentProfile
+          ? null
+          : await prisma.teacherProfile.findFirst({
+              where: { OR: [{ employeeId: rawId }, { its: rawId }] },
+              select: { its: true, user: { select: identitySelect } },
+            });
+        const parentProfile =
+          !studentProfile && !teacherProfile
+            ? await prisma.parentProfile.findFirst({
+                where: { its: rawId },
+                select: { its: true, user: { select: identitySelect } },
+              })
+            : null;
+        const source = studentProfile ?? teacherProfile ?? parentProfile;
+        if (source?.user) {
+          match = { ...source.user, its: source.its, matchedVia: "its" };
+        }
+      }
+    }
+
+    if (!match) {
+      res.json({ success: true, data: { found: false } });
+      return;
+    }
+
+    const portalName =
+      match.role === "ADMIN"
+        ? "Administrator Portal"
+        : match.role === "TEACHER"
+          ? "Faculty Portal"
+          : match.role === "STUDENT"
+            ? "Talabat Portal"
+            : "Parent Portal";
+
+    res.json({
+      success: true,
+      data: {
+        found: true,
+        profile: {
+          displayName: `${match.firstName} ${match.lastName}`.trim(),
+          role: match.role,
+          portal: portalName,
+          its: match.its,
+          matchedVia: match.matchedVia,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Profile lookup error:", error);
+    res.status(500).json({ success: false, error: "Profile lookup failed. Please try again." });
+  }
+}

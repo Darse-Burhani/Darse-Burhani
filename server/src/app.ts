@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import path from "path";
 import { fileURLToPath } from "node:url";
-import { loginHandler, sessionHandler, logoutHandler, changePasswordHandler, verify2FaHandler } from "./auth";
+import { loginHandler, sessionHandler, logoutHandler, changePasswordHandler, verify2FaHandler, profileLookupHandler } from "./auth";
 
 import pointsRoutes from "./routes/points";
 import attendanceRoutes from "./routes/attendance";
@@ -248,6 +248,7 @@ export function createApp() {
   // ── Auth with rate limiting (20 attempts per minute) ──
   const authLimiter = createRateLimiter(60000, 20, "auth_login", { isAuthLockout: true, burstMultiplier: 1.5 });
   const passwordLimiter = createRateLimiter(60000, 10, "auth_password", { isAuthLockout: true, burstMultiplier: 1.2 });
+  const lookupLimiter = createRateLimiter(60000, 30, "auth_lookup", { burstMultiplier: 2.0 });
   // Admin APIs: 600 req/min baseline with 2.0x burst (role multiplier scales this up to 6,000 req/min for admins, never stutters)
   const adminLimiter = createRateLimiter(60000, 600, "admin_api", { burstMultiplier: 2.0 });
   const uploadLimiter = createRateLimiter(60000, 180, "upload_api", { burstMultiplier: 1.5 });
@@ -256,6 +257,7 @@ export function createApp() {
   app.post("/api/auth/verify-2fa", authLimiter, verify2FaHandler);
   app.post("/api/auth/logout", logoutHandler);
   app.post("/api/auth/change-password", passwordLimiter, changePasswordHandler);
+  app.post("/api/auth/profile-lookup", lookupLimiter, profileLookupHandler);
 
   // Protect all admin APIs with dedicated rate limiter
   app.use("/api/admin", adminLimiter);
