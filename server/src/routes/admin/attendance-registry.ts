@@ -247,10 +247,10 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 router.post("/override", requireRole("ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
-    const { studentId, date, status, source, remarks } = req.body;
+    const { studentId, teacherId, date, status, source, remarks } = req.body;
 
-    if (!studentId || !date || !status) {
-      return res.status(400).json({ success: false, error: "studentId, date, and status are required" });
+    if ((!studentId && !teacherId) || !date || !status) {
+      return res.status(400).json({ success: false, error: "studentId or teacherId, date, and status are required" });
     }
 
     const targetDate = normalizeDateToUTC(date);
@@ -262,6 +262,31 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
     }
 
     const effectiveSource: AttendanceSource = validSource && source ? source : AttendanceSource.MANUAL;
+
+    if (teacherId) {
+      const updated = await prisma.teacherAttendanceRecord.upsert({
+        where: {
+          teacherId_date: {
+            teacherId,
+            date: targetDate,
+          },
+        },
+        create: {
+          teacherId,
+          date: targetDate,
+          status: status as AttendanceStatus,
+          verificationMethod: String(effectiveSource),
+          notes: remarks || `Manual override by Admin (${session.user.firstName || ""})`,
+        },
+        update: {
+          status: status as AttendanceStatus,
+          verificationMethod: String(effectiveSource),
+          notes: remarks || `Manual override by Admin (${session.user.firstName || ""})`,
+        },
+      });
+
+      return res.json({ success: true, data: updated });
+    }
 
     const updated = await prisma.attendanceRegistry.upsert({
       where: {
@@ -359,6 +384,103 @@ router.get("/student/:studentId", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("[admin-attendance-registry] Student audit history error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch student audit history" });
+  }
+});
+
+// GET /api/admin/attendance-registry/faculty/:teacherId — Faculty audit timeline
+router.get("/faculty/:teacherId", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { id: req.params.teacherId },
+      include: {
+        user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+        attendanceRecords: {
+          take: 30,
+          orderBy: { date: "desc" },
+        },
+      },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Faculty member not found" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        teacher: {
+          id: teacher.id,
+          name: `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
+          avatarUrl: teacher.user.avatarUrl || teacher.photoUrl,
+          its: teacher.its || teacher.employeeId,
+          department: teacher.department,
+          roleTitle: teacher.roleTitle,
+          employeeId: teacher.employeeId,
+        },
+        registries: teacher.attendanceRecords.map((r) => ({
+          id: r.id,
+          date: r.date.toISOString(),
+          status: r.status,
+          source: r.verificationMethod || "MANUAL",
+          checkInTime: r.checkInTime?.toISOString() || null,
+          checkOutTime: r.checkOutTime?.toISOString() || null,
+          remarks: r.notes,
+          leave: null,
+        })),
+        recentLeaves: [],
+      },
+    });
+  } catch (error) {
+    console.error("[admin-attendance-registry] Faculty audit history error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch faculty audit history" });
+  }
+});
+
+router.get("/teacher/:teacherId", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { id: req.params.teacherId },
+      include: {
+        user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+        attendanceRecords: {
+          take: 30,
+          orderBy: { date: "desc" },
+        },
+      },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Faculty member not found" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        teacher: {
+          id: teacher.id,
+          name: `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
+          avatarUrl: teacher.user.avatarUrl || teacher.photoUrl,
+          its: teacher.its || teacher.employeeId,
+          department: teacher.department,
+          roleTitle: teacher.roleTitle,
+          employeeId: teacher.employeeId,
+        },
+        registries: teacher.attendanceRecords.map((r) => ({
+          id: r.id,
+          date: r.date.toISOString(),
+          status: r.status,
+          source: r.verificationMethod || "MANUAL",
+          checkInTime: r.checkInTime?.toISOString() || null,
+          checkOutTime: r.checkOutTime?.toISOString() || null,
+          remarks: r.notes,
+          leave: null,
+        })),
+        recentLeaves: [],
+      },
+    });
+  } catch (error) {
+    console.error("[admin-attendance-registry] Teacher audit history error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch teacher audit history" });
   }
 });
 

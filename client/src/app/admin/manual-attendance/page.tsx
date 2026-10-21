@@ -187,7 +187,6 @@ const STATUS_CONFIG: {
 ];
 
 export default function AdminManualAttendancePage() {
-  const targetType = "STUDENT";
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [scheduledWindows, setScheduledWindows] = useState<ScheduledWindow[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -195,6 +194,7 @@ export default function AdminManualAttendancePage() {
   const [sections, setSections] = useState<string[]>([]);
 
   // Filters & Layout Mode
+  const [targetType, setTargetType] = useState<"STUDENT" | "TEACHER">("STUDENT");
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("");
   const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
   const [selectedGrade, setSelectedGrade] = useState<string>("ALL");
@@ -254,13 +254,15 @@ export default function AdminManualAttendancePage() {
     try {
       setLoadingRoster(true);
       const params = new URLSearchParams({
-        targetType: "STUDENT",
+        targetType,
         date,
       });
       if (selectedScheduleId) params.set("scheduleId", selectedScheduleId);
-      if (selectedClassId && selectedClassId !== "ALL") params.set("classId", selectedClassId);
-      if (selectedGrade && selectedGrade !== "ALL") params.set("grade", selectedGrade);
-      if (selectedSection && selectedSection !== "ALL") params.set("section", selectedSection);
+      if (targetType === "STUDENT") {
+        if (selectedClassId && selectedClassId !== "ALL") params.set("classId", selectedClassId);
+        if (selectedGrade && selectedGrade !== "ALL") params.set("grade", selectedGrade);
+        if (selectedSection && selectedSection !== "ALL") params.set("section", selectedSection);
+      }
 
       const res = await fetch(`/api/attendance/manual/roster?${params.toString()}`, {
         headers: { "Content-Type": "application/json" },
@@ -268,7 +270,7 @@ export default function AdminManualAttendancePage() {
       const json = await res.json();
       if (json.success && json.data?.roster) {
         const list: RosterMember[] = json.data.roster
-          .filter((m: any) => m.targetType === "STUDENT" || !m.targetType)
+          .filter((m: any) => (targetType === "TEACHER" ? m.targetType === "TEACHER" : (m.targetType === "STUDENT" || !m.targetType)))
           .map((m: any) => ({
             ...m,
             originalStatus: m.status,
@@ -286,7 +288,7 @@ export default function AdminManualAttendancePage() {
     } finally {
       setLoadingRoster(false);
     }
-  }, [date, selectedScheduleId, selectedClassId, selectedGrade, selectedSection]);
+  }, [date, targetType, selectedScheduleId, selectedClassId, selectedGrade, selectedSection]);
 
   useEffect(() => {
     loadRoster();
@@ -587,10 +589,10 @@ export default function AdminManualAttendancePage() {
               </span>
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-display">
-                  Manual Classroom Attendance — Talabat
+                  Manual Classroom Attendance — {targetType === "TEACHER" ? "Faculty Staff" : "Talabat"}
                 </h1>
                 <p className="text-xs sm:text-sm text-emerald-100/90 font-medium mt-1">
-                  High-speed roll call for Talabat students with instant one-touch marking (Present, Late, Absent, Leave) and cloud sync.
+                  High-speed roll call and attendance overrides for {targetType === "TEACHER" ? "Faculty teachers and staff members" : "Talabat students"} with instant one-touch marking (Present, Late, Absent, Leave) and cloud sync.
                 </p>
               </div>
             </div>
@@ -761,14 +763,34 @@ export default function AdminManualAttendancePage() {
       </AnimatePresence>
 
 
-      {/* ── Active Session Window Status Strip (No timestamps shown) ── */}
-      <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* ── Active Session Window Status Strip (with Audience Switcher) ── */}
+      <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-bold text-gray-500">Audience Scope:</span>
-          <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-black text-xs px-2.5 py-0.5">
-            Talabat Students Only
-          </Badge>
+          <span className="text-xs font-black uppercase tracking-wider text-gray-500">Audience Scope:</span>
+          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setTargetType("STUDENT")}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                targetType === "STUDENT"
+                  ? "bg-emerald-700 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Talabat Students
+            </button>
+            <button
+              type="button"
+              onClick={() => setTargetType("TEACHER")}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                targetType === "TEACHER"
+                  ? "bg-indigo-700 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Faculty Staff
+            </button>
+          </div>
         </div>
 
         {activeWindow && (

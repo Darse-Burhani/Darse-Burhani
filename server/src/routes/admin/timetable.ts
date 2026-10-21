@@ -890,7 +890,7 @@ router.post("/ai-fill", requireRole("ADMIN"), async (req, res) => {
         orderBy: [{ grade: "asc" }, { section: "asc" }],
       }),
       prisma.teacherProfile.findMany({
-        where: { isActive: true },
+        where: { user: { isActive: true } },
         include: {
           user: true,
           classes: true,

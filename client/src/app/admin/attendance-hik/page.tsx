@@ -34,6 +34,7 @@ import {
   Building2,
   XCircle,
   HelpCircle,
+  Edit3,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -145,7 +146,11 @@ export default function AdminAttendanceHikPage() {
 
   // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<{ id: string; role: "STUDENT" | "FACULTY" } | null>(null);
+  const [selectedMember, setSelectedMember] = useState<{
+    id: string;
+    role: "STUDENT" | "FACULTY";
+    openOverride?: boolean;
+  } | null>(null);
 
   // Fetch events
   useEffect(() => {
@@ -247,8 +252,8 @@ export default function AdminAttendanceHikPage() {
   };
 
   // Open Drawer
-  const handleMemberClick = (memberId: string, role: "STUDENT" | "FACULTY") => {
-    setSelectedMember({ id: memberId, role });
+  const handleMemberClick = (memberId: string, role: "STUDENT" | "FACULTY", openOverride = false) => {
+    setSelectedMember({ id: memberId, role, openOverride });
     setDrawerOpen(true);
   };
 
@@ -1099,13 +1104,26 @@ export default function AdminAttendanceHikPage() {
                       <span className="text-[10px] text-slate-400 font-medium">
                         {hijri.day} {hijri.monthNameShort} {hijri.year}H
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleMemberClick(r.memberId, r.role)}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
-                      >
-                        <span>Audit / View Logs</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {isFacultyMember && (
+                          <button
+                            type="button"
+                            onClick={() => handleMemberClick(r.memberId, r.role, true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10.5px] font-black text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer shadow-2xs"
+                            title="Direct Faculty Attendance Override"
+                          >
+                            <Edit3 className="w-3 h-3 text-indigo-600 shrink-0" />
+                            <span>Override</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleMemberClick(r.memberId, r.role, false)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
+                        >
+                          <span>Audit / View Logs</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1272,13 +1290,26 @@ export default function AdminAttendanceHikPage() {
 
                         {/* Action */}
                         <td className="px-3 py-2.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleMemberClick(r.memberId, r.role)}
-                            className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
-                          >
-                            View Logs
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            {isFacultyMember && (
+                              <button
+                                type="button"
+                                onClick={() => handleMemberClick(r.memberId, r.role, true)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10.5px] font-black text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer shadow-2xs"
+                                title="Direct Faculty Attendance Override"
+                              >
+                                <Edit3 className="w-3 h-3 text-indigo-600 shrink-0" />
+                                <span>Override</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleMemberClick(r.memberId, r.role, false)}
+                              className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
+                            >
+                              View Logs
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1293,8 +1324,11 @@ export default function AdminAttendanceHikPage() {
       {/* ── Student / Faculty Drawer ── */}
       {selectedMember && drawerOpen && (
         <DayDetailDrawer
-          studentId={selectedMember.id}
+          studentId={selectedMember.role === "STUDENT" ? selectedMember.id : undefined}
+          teacherId={selectedMember.role === "FACULTY" ? selectedMember.id : undefined}
+          role={selectedMember.role}
           targetDate={date}
+          initialOverrideOpen={selectedMember.openOverride || false}
           onClose={() => {
             setDrawerOpen(false);
             setSelectedMember(null);

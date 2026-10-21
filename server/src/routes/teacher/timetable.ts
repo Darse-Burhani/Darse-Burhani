@@ -210,7 +210,7 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
                   },
                 },
               },
-              orderBy: [{ student: { rollNumber: "asc" } }, { student: { user: { firstName: "asc" } } }],
+              orderBy: [{ student: { its: "asc" } }, { student: { user: { firstName: "asc" } } }],
             },
             timetableSlots: {
               include: {

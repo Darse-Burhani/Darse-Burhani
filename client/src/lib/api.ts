@@ -183,6 +183,59 @@ export interface StudentAuditHistory {
   }>;
 }
 
+export interface FacultyAuditHistory {
+  teacher: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+    its: string;
+    department?: string | null;
+    roleTitle?: string | null;
+    employeeId?: string;
+  };
+  registries: Array<{
+    id: string;
+    date: string;
+    status: string;
+    source: string;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    remarks?: string | null;
+    leave?: {
+      id: string;
+      type: string;
+      reason: string;
+      status: string;
+    } | null;
+  }>;
+  recentLeaves: Array<{
+    id: string;
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    status: string;
+    createdAt: string;
+  }>;
+}
+
+export type MemberAuditHistory = {
+  student?: StudentAuditHistory["student"];
+  teacher?: FacultyAuditHistory["teacher"];
+  registries: Array<{
+    id: string;
+    date: string;
+    status: string;
+    source: string;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    remarks?: string | null;
+    leave?: any;
+  }>;
+  recentLeaves: Array<any>;
+};
+
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     headers: {
@@ -943,6 +996,11 @@ export async function syncAllRecordsSheet(params?: { date?: string; month?: stri
 export async function getStudentAuditTimeline(studentId: string): Promise<StudentAuditHistory> {
   return request<StudentAuditHistory>(`/api/admin/attendance-registry/student/${studentId}`);
 }
+
+export async function getFacultyAuditTimeline(teacherId: string): Promise<FacultyAuditHistory> {
+  return request<FacultyAuditHistory>(`/api/admin/attendance-registry/faculty/${teacherId}`);
+}
+
 
 export function getExportAttendanceLogsUrl(params?: {
   startDate?: string;
