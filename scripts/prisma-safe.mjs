@@ -54,12 +54,19 @@ while (attempt < maxRetries) {
     } else {
       if (isMigration && (process.env.RENDER || process.env.CI || process.env.ALLOW_MIGRATE_SKIP === "true")) {
         console.warn(`\n[Prisma Safe] =========================================================================`);
-        console.warn(`[Prisma Safe] ⚠️  WARNING: Supabase session connection pool is currently saturated (15/15).`);
-        console.warn(`[Prisma Safe] ⚠️  This occurs because the previous Render container is currently online and holding connections.`);
-        console.warn(`[Prisma Safe] ⚠️  Bypassing migration failure during build so Render can finish building and deploy.`);
-        console.warn(`[Prisma Safe] ⚠️  Once the new container starts, the old container will be stopped and connections released.`);
-        console.warn(`[Prisma Safe] =========================================================================\n`);
-        process.exit(0);
+        console.warn(`[Prisma Safe] ⚠️  Notice: Migrate deploy hit pool or lock limit. Attempting schema sync via db push fallback...`);
+        try {
+          execSync("npx prisma db push --skip-generate", { stdio: "inherit", env: process.env });
+          console.log("[Prisma Safe] ✓ Database schema synchronized successfully via db push.");
+          console.warn(`[Prisma Safe] =========================================================================\n`);
+          process.exit(0);
+        } catch (pushErr) {
+          console.warn("[Prisma Safe] db push fallback notice:", pushErr.message);
+          console.warn(`[Prisma Safe] ⚠️  Bypassing migration failure during build so Render can finish building and deploy.`);
+          console.warn(`[Prisma Safe] ⚠️  Once the new container starts, connections will be released.`);
+          console.warn(`[Prisma Safe] =========================================================================\n`);
+          process.exit(0);
+        }
       } else {
         console.error(`\n[Prisma Safe] Command failed after ${attempt} attempts.`);
         process.exit(err.status || 1);

@@ -29,6 +29,7 @@ function getPooledDatabaseUrl(): string | undefined {
     const params = new URLSearchParams(queryStr || "");
 
     const isSupabasePooler = url.includes("pooler.supabase.com") || url.includes("supabase.co");
+    const isLocal = url.includes("localhost") || url.includes("127.0.0.1") || url.includes("host.docker.internal");
     const isPort6543 = url.includes(":6543");
     const isPort5432 = url.includes(":5432");
 
@@ -38,13 +39,18 @@ function getPooledDatabaseUrl(): string | undefined {
     const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || defaultLimit, 10);
     params.set("connection_limit", String(targetLimit));
 
-    // Connect & Pool timeouts
+    // Connect & Pool timeouts — generous 30s timeouts for cloud cold-starts
     const currentTimeout = parseInt(params.get("pool_timeout") || "0", 10);
     if (!params.has("pool_timeout") || currentTimeout < 30) {
       params.set("pool_timeout", "30");
     }
-    if (!params.has("connect_timeout")) {
-      params.set("connect_timeout", "15");
+    if (!params.has("connect_timeout") || parseInt(params.get("connect_timeout") || "0", 10) < 30) {
+      params.set("connect_timeout", "30");
+    }
+
+    // Cloud Postgres requires SSL (e.g. Supabase, Render, Neon, etc.)
+    if (!isLocal && !params.has("sslmode")) {
+      params.set("sslmode", "require");
     }
 
     // Handle PgBouncer transaction mode vs session mode
@@ -69,38 +75,65 @@ const prismaClientSingleton = () => {
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
-  const cacheExtension: any = {
+  const resilientExtension: any = {
     query: {
       async $allOperations({ model, operation, args, query }: any) {
-        const result = await query(args);
+        let attempts = 0;
+        while (true) {
+          try {
+            const result = await query(args);
 
-        // Invalidate cache on write operations — reads are fast & cached
-        if (model && WRITE_OPERATIONS.has(operation)) {
-          const tag = model.toLowerCase();
-          cache.invalidateTag(tag);
+            // Invalidate cache on write operations — reads are fast & cached
+            if (model && WRITE_OPERATIONS.has(operation)) {
+              const tag = model.toLowerCase();
+              cache.invalidateTag(tag);
 
-          // Clear global dashboards/stats
-          if (["pointlog", "studentprofile", "attendancerecord"].includes(tag)) {
-            cache.invalidateTag("dashboard");
-            cache.invalidateTag("stats");
-          }
+              // Clear global dashboards/stats
+              if (["pointlog", "studentprofile", "attendancerecord"].includes(tag)) {
+                cache.invalidateTag("dashboard");
+                cache.invalidateTag("stats");
+              }
 
-          // Clear timetable & class caches
-          if (["timetableslot", "timetablebadal", "class", "classenrollment", "teacherprofile", "user"].includes(tag)) {
-            cache.invalidateTag("timetable");
-            cache.invalidateTag("timetableslot");
-            cache.invalidateTag("class");
-            cache.invalidateTag("classes");
-            cache.invalidateTag("teachers");
+              // Clear timetable & class caches
+              if (["timetableslot", "timetablebadal", "class", "classenrollment", "teacherprofile", "user"].includes(tag)) {
+                cache.invalidateTag("timetable");
+                cache.invalidateTag("timetableslot");
+                cache.invalidateTag("class");
+                cache.invalidateTag("classes");
+                cache.invalidateTag("teachers");
+              }
+            }
+
+            return result;
+          } catch (error: any) {
+            attempts++;
+            const isTransient =
+              attempts <= 2 &&
+              (error?.code === "P1001" ||
+                error?.code === "P1002" ||
+                error?.code === "P1008" ||
+                error?.code === "P1017" ||
+                error?.message?.includes("Connection terminated") ||
+                error?.message?.includes("Server has closed the connection") ||
+                error?.message?.includes("ECONNRESET") ||
+                error?.message?.includes("socket hang up") ||
+                error?.message?.includes("connection reset"));
+
+            if (isTransient) {
+              console.warn(
+                `[prisma:retry] Transient database glitch on ${model || "query"}.${operation} (attempt ${attempts}/2). Retrying in ${attempts * 150}ms...`
+              );
+              await new Promise((resolve) => setTimeout(resolve, attempts * 150));
+              continue;
+            }
+            throw error;
           }
         }
-
-        return result;
       },
     },
   };
 
-  let extended = client.$extends(cacheExtension);
+  let extended = client.$extends(resilientExtension);
 
   if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
     const sentryExtension: any = {

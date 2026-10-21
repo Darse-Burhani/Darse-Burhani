@@ -10,11 +10,12 @@ const MIGRATION_MESSAGE =
  */
 export function isMissingTableError(e: unknown): boolean {
   const code = (e as { code?: unknown })?.code;
-  if (code === "P2021") return true;
+  if (code === "P2021" || code === "P2022") return true;
   const msg = String((e as { message?: unknown })?.message || "");
   return (
-    /does not exist/i.test(msg) &&
-    /assignment|student_hobb|skill_assessment/i.test(msg)
+    /does not exist/i.test(msg) ||
+    /relation .* does not exist/i.test(msg) ||
+    /column .* does not exist/i.test(msg)
   );
 }
 
