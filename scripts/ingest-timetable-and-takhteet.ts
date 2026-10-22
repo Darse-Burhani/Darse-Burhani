@@ -8,9 +8,10 @@ const prisma = new PrismaClient();
 // Teacher mapping helper
 const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
   "Burhanddin Sir Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
-  "Mustafa Tailor": { name: "Mustafa Tailor", email: "mustafa.tailor@darseburhani.com" },
-  "Mustafa Sir Tailor": { name: "Mustafa Tailor", email: "mustafa.tailor@darseburhani.com" },
   "Mustafa Manpurwala": { its: "40444603", name: "Mustafa bhai Moiz bhai Manpurwala", email: "mustafa.manpurwala@mahadalzahra.com" },
+  "Mustafa bhai Moiz bhai Manpurwala": { its: "40444603", name: "Mustafa bhai Moiz bhai Manpurwala", email: "mustafa.manpurwala@mahadalzahra.com" },
+  "Mustafa Tailor": { its: "40444603", name: "Mustafa bhai Moiz bhai Manpurwala", email: "mustafa.manpurwala@mahadalzahra.com" },
+  "Mustafa Sir Tailor": { its: "40444603", name: "Mustafa bhai Moiz bhai Manpurwala", email: "mustafa.manpurwala@mahadalzahra.com" },
   "Mulla Aliasgar bhai Husainali bhai Khandwala": { its: "60406964", name: "Mulla Aliasgar bhai Husainali bhai Khandwala", email: "aliasgar.khandwala@darseburhani.com" },
   "Mulla Husain bhai Mulla Fakhruddin Habib": { its: "30384792", name: "Mulla Husain bhai Mulla Fakhruddin bhai Habib", email: "husain.habib@darseburhani.com" },
   "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala": { its: "60472254", name: "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala", email: "husain.kanchwala@darseburhani.com" },
@@ -90,9 +91,9 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   // ── 1 B ──
   ["1 B", 1, 1, "Qasaid", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 1, 2, "Dirasat Uloom il-Quran", "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy"],
-  ["1 B", 1, 3, "Science", "Mustafa Tailor"],
+  ["1 B", 1, 3, "Science", "Mustafa bhai Moiz bhai Manpurwala"],
   ["1 B", 1, 6, "Hist/Civ", "Burhanddin Sir Kundli"],
-  ["1 B", 1, 7, "Maths", "Mustafa Tailor"],
+  ["1 B", 1, 7, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
 
   ["1 B", 2, 1, "Qasaid", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 2, 2, "Tamreen", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
@@ -102,9 +103,9 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 
   ["1 B", 3, 1, "Qasaid", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 3, 2, "English", "Mulla Husain bhai Mulla Fakhruddin Habib"],
-  ["1 B", 3, 3, "Science", "Mustafa Tailor"],
+  ["1 B", 3, 3, "Science", "Mustafa bhai Moiz bhai Manpurwala"],
   ["1 B", 3, 6, "Tadreeb", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
-  ["1 B", 3, 7, "Maths", "Mustafa Tailor"],
+  ["1 B", 3, 7, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
 
   ["1 B", 4, 1, "Insha", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 4, 2, "Kitab al-Taharat", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
@@ -114,7 +115,7 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 
   ["1 B", 5, 1, "Raudat Hidayat", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
   ["1 B", 5, 2, "Kitab al-Taharat", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
-  ["1 B", 5, 3, "Science", "Mustafa Tailor"],
+  ["1 B", 5, 3, "Science", "Mustafa bhai Moiz bhai Manpurwala"],
   ["1 B", 5, 6, "Sharhal akhbar", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
   ["1 B", 5, 7, "English", "Mulla Husain bhai Mulla Fakhruddin Habib"],
 
@@ -134,7 +135,7 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["2 A", 2, 3, "Qasaid", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
   ["2 A", 2, 4, "English", "Burhanddin Sir Kundli"],
   ["2 A", 2, 5, "Mukhtasar al-Asar", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
-  ["2 A", 2, 8, "Maths", "Mustafa Tailor"],
+  ["2 A", 2, 8, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["2 A", 2, 9, "Tamreen", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
 
   ["2 A", 3, 3, "Dirasat Uloom il-Quran", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
@@ -155,7 +156,7 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["2 A", 5, 8, "Tamreen", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["2 A", 5, 9, "Qasaid", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
 
-  ["2 A", 6, 1, "Maths", "Mustafa Tailor"],
+  ["2 A", 6, 1, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["2 A", 6, 2, "Sharhal akhbar", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
   ["2 A", 6, 3, "Qasaid", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
   ["2 A", 6, 4, "Dirasat Uloom il-Quran", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
@@ -202,7 +203,7 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 A", 1, 3, "Biology", "Burhanddin Sir Kundli"],
   ["3 A", 1, 4, "English", "Burhanddin Sir Kundli"],
   ["3 A", 1, 5, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
-  ["3 A", 1, 8, "Physics", "Mustafa Tailor"],
+  ["3 A", 1, 8, "Physics", "Mustafa bhai Moiz bhai Manpurwala"],
   ["3 A", 1, 9, "Qasaid", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
 
   ["3 A", 2, 3, "Raudat Hidayat", "Mulla Husain bhai Mulla Fakhruddin Habib"],
@@ -226,12 +227,12 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 A", 5, 3, "Dirasat Uloom il-Quran", "Mulla Juzer bhai Abbas bhai Bundiwala"],
   ["3 A", 5, 4, "Tamreen", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["3 A", 5, 5, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
-  ["3 A", 5, 8, "Maths", "Mustafa Tailor"],
+  ["3 A", 5, 8, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["3 A", 5, 9, "Sharhal akhbar", "Shaikh Kumail bhai Shaikh Mustafa bhai Raj"],
 
   ["3 A", 6, 1, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
   ["3 A", 6, 2, "Raudat Hidayat", "Mulla Husain bhai Mulla Fakhruddin Habib"],
-  ["3 A", 6, 3, "Maths", "Mustafa Tailor"],
+  ["3 A", 6, 3, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["3 A", 6, 4, "Sharhal akhbar", "Shaikh Kumail bhai Shaikh Mustafa bhai Raj"],
   ["3 A", 6, 5, "Chemistry", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
 
@@ -251,7 +252,7 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 B", 3, 3, "English", "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy"],
   ["3 B", 3, 4, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
   ["3 B", 3, 5, "Insha", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
-  ["3 B", 3, 8, "Maths", "Mustafa Tailor"],
+  ["3 B", 3, 8, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["3 B", 3, 9, "Hist/Civ", "Mulla Husain bhai Mulla Fakhruddin Habib"],
 
   ["3 B", 4, 3, "Sharhal akhbar", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
@@ -267,10 +268,10 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 B", 5, 9, "Dirasat Uloom il-Quran", "Mulla Juzer bhai Abbas bhai Bundiwala"],
 
   ["3 B", 6, 1, "Qasaid", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
-  ["3 B", 6, 2, "Maths", "Mustafa Tailor"],
+  ["3 B", 6, 2, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["3 B", 6, 3, "Tadreeb", "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy"],
   ["3 B", 6, 4, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
-  ["3 B", 6, 5, "Physics", "Mustafa Tailor"],
+  ["3 B", 6, 5, "Physics", "Mustafa bhai Moiz bhai Manpurwala"],
 
   // ── 4 A ──
   ["4 A", 1, 1, "Sharhal akhbar", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
@@ -318,7 +319,7 @@ const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 
   ["4 B", 2, 1, "Qasaid", "Shaikh Kumail bhai Shaikh Mustafa bhai Raj"],
   ["4 B", 2, 2, "Daim al-Islam", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
-  ["4 B", 2, 3, "Maths", "Mustafa Tailor"],
+  ["4 B", 2, 3, "Maths", "Mustafa bhai Moiz bhai Manpurwala"],
   ["4 B", 2, 6, "Geography", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
   ["4 B", 2, 7, "Risalah B", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
 
@@ -487,7 +488,7 @@ async function main() {
         classId: classId || null,
         className: clsName,
         teacherId: teacherId || null,
-        teacherName: teacherKey,
+        teacherName: TEACHER_NAME_MAP[teacherKey]?.name || teacherKey,
         dayOfWeek,
         period,
         startTime: times.startTime,
