@@ -526,19 +526,9 @@ router.get("/", requireAuth, async (req, res) => {
 
     let filteredRecords = allRecords;
 
-    // In HIKVISION mode, ensure all applicable members for biometric scanning are shown
+    // In HIKVISION mode, show only members who actually scanned on the biometric terminal
     if (logType === "HIKVISION") {
-      filteredRecords = allRecords.map((r) => {
-        // If they haven't scanned on hardware, keep them visible with NOT_MARKED status
-        if (r.source !== "SCAN" && r.source !== "BIOMETRIC") {
-          return {
-            ...r,
-            verificationMethod: "BIOMETRIC",
-            source: r.status === "NOT_MARKED" ? "BIOMETRIC" : r.source,
-          };
-        }
-        return r;
-      });
+      filteredRecords = hikvisionRecords;
     } else if (logType === "MANUAL") {
       // In MANUAL mode, ensure the full roster is presented with default PRESENT for all students
       filteredRecords = manualRecords;

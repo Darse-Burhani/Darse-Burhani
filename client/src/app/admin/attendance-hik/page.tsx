@@ -125,11 +125,10 @@ export default function AdminAttendanceHikPage() {
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [audience, setAudience] = useState<"STUDENT" | "FACULTY" | "ALL">("ALL");
+  const [audience, setAudience] = useState<"STUDENT" | "FACULTY" | "ALL">("STUDENT");
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>("ALL");
   const [sortBy, setSortBy] = useState<SortOptionType>("time-desc");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [showPunchedOnly, setShowPunchedOnly] = useState<boolean>(true);
 
   const [data, setData] = useState<AttendanceLogsResponse | null>(null);
   const [events, setEvents] = useState<ScheduledEventWindow[]>([]);
@@ -257,18 +256,8 @@ export default function AdminAttendanceHikPage() {
     setDrawerOpen(true);
   };
 
-  // Roster records from server
+  // Scanned biometric records from server
   const allRecords = useMemo(() => data?.records || [], [data?.records]);
-
-  // Total Students & Faculty in full roster
-  const totalRosterStudents = useMemo(
-    () => allRecords.filter((r) => r.role === "STUDENT").length,
-    [allRecords]
-  );
-  const totalRosterFaculty = useMemo(
-    () => allRecords.filter((r) => r.role === "FACULTY").length,
-    [allRecords]
-  );
 
   // Audience scoped records (for computing status counts)
   const audienceRecords = useMemo(() => {
@@ -276,74 +265,35 @@ export default function AdminAttendanceHikPage() {
     return allRecords.filter((r) => r.role === audience);
   }, [allRecords, audience]);
 
-  // Aggregated KPI Stats and Status Counts
+  // Aggregated KPI Stats
   const stats = useMemo(() => {
-    const punched = allRecords.filter((r) => Boolean(r.checkInTime));
-    const studentsPunched = punched.filter((r) => r.role === "STUDENT");
-    const facultyPunched = punched.filter((r) => r.role === "FACULTY");
+    const studentsPunched = allRecords.filter((r) => r.role === "STUDENT").length;
+    const facultyPunched = allRecords.filter((r) => r.role === "FACULTY").length;
 
-    // Status counts scoped to active audience (or all)
     let presentCount = 0;
     let lateCount = 0;
-    let absentCount = 0;
-    let notMarkedCount = 0;
-    let medicalCount = 0;
-    let leaveCount = 0;
 
     audienceRecords.forEach((r) => {
       if (r.status === "PRESENT") presentCount++;
       else if (r.status === "LATE") lateCount++;
-      else if (r.status === "ABSENT") absentCount++;
-      else if (r.status === "MEDICAL") medicalCount++;
-      else if (r.status === "ON_LEAVE") leaveCount++;
-      else notMarkedCount++;
     });
 
     return {
-      totalPunched: punched.length,
-      studentPunched: studentsPunched.length,
-      facultyPunched: facultyPunched.length,
-      totalStudents: totalRosterStudents,
-      totalFaculty: totalRosterFaculty,
-      totalExpected: allRecords.length,
+      totalPunched: allRecords.length,
+      studentPunched: studentsPunched,
+      facultyPunched: facultyPunched,
       presentCount,
       lateCount,
-      absentCount,
-      notMarkedCount,
-      medicalCount,
-      leaveCount,
     };
-  }, [allRecords, audienceRecords, totalRosterStudents, totalRosterFaculty]);
+  }, [allRecords, audienceRecords]);
 
-  // When user clicks a non-punched status, automatically ensure showPunchedOnly doesn't hide them
   const handleStatusFilterChange = (newStatus: StatusFilterType) => {
     setStatusFilter(newStatus);
-    if (
-      (newStatus === "ABSENT" ||
-        newStatus === "NOT_MARKED" ||
-        newStatus === "MEDICAL" ||
-        newStatus === "ON_LEAVE") &&
-      showPunchedOnly
-    ) {
-      setShowPunchedOnly(false);
-    }
   };
 
   // Filter and Sort Records
   const displayRecords = useMemo(() => {
     let list = allRecords;
-
-    // Filter Punched vs Full Roster
-    if (showPunchedOnly && statusFilter === "ALL") {
-      list = list.filter(
-        (r) =>
-          Boolean(r.checkInTime) &&
-          (r.source === "SCAN" ||
-            r.source === "BIOMETRIC" ||
-            r.verificationMethod === "BIOMETRIC" ||
-            (r.status !== "NOT_MARKED" && r.status !== "ABSENT"))
-      );
-    }
 
     // Role filter
     if (audience !== "ALL") {
@@ -428,7 +378,7 @@ export default function AdminAttendanceHikPage() {
       }
       return 0;
     });
-  }, [allRecords, showPunchedOnly, audience, statusFilter, searchQuery, sortBy]);
+  }, [allRecords, audience, statusFilter, searchQuery, sortBy]);
 
   // Helper for Status Badge Styling
   const getStatusBadge = (status: string, hasScan: boolean) => {
@@ -551,9 +501,9 @@ export default function AdminAttendanceHikPage() {
           </div>
         </div>
 
-        {/* Live Terminal & Scan Stats Counter Cards (Responsive 2 / 3 / 6 column grid) */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
-          {/* Card 1: Total Punches */}
+        {/* Live Terminal & Scan Stats Counter Cards (Responsive 2 / 3 / 5 column grid) */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
+          {/* Card 1: Total Scans */}
           <div className="p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 min-w-0">
             <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/80 truncate">Total Scans</div>
             <div className="text-xl sm:text-2xl font-black text-white mt-0.5 truncate">{stats.totalPunched}</div>
@@ -570,13 +520,13 @@ export default function AdminAttendanceHikPage() {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300/90 truncate">Students</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300/90 truncate">Talabat</span>
               <GraduationCap className="w-3 h-3 text-amber-300 shrink-0" />
             </div>
             <div className="text-xl sm:text-2xl font-black text-amber-200 mt-0.5 truncate">
-              {stats.studentPunched} <span className="text-xs text-amber-300/70 font-semibold">/ {stats.totalStudents}</span>
+              {stats.studentPunched}
             </div>
-            <div className="text-[10px] text-white/60 font-medium truncate">Total Talabat</div>
+            <div className="text-[10px] text-white/60 font-medium truncate">Scanned today</div>
           </div>
 
           {/* Card 3: Total Faculty */}
@@ -593,9 +543,9 @@ export default function AdminAttendanceHikPage() {
               <Briefcase className="w-3 h-3 text-sky-300 shrink-0" />
             </div>
             <div className="text-xl sm:text-2xl font-black text-sky-200 mt-0.5 truncate">
-              {stats.facultyPunched} <span className="text-xs text-sky-300/70 font-semibold">/ {stats.totalFaculty}</span>
+              {stats.facultyPunched}
             </div>
-            <div className="text-[10px] text-white/60 font-medium truncate">Total Faculty</div>
+            <div className="text-[10px] text-white/60 font-medium truncate">Scanned today</div>
           </div>
 
           {/* Card 4: Present vs Late */}
@@ -607,16 +557,7 @@ export default function AdminAttendanceHikPage() {
             <div className="text-[10px] text-white/50 font-medium truncate">Scan timing breakdown</div>
           </div>
 
-          {/* Card 5: Absent / Unscanned */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-rose-300/90 truncate">Absent / Unmarked</div>
-            <div className="text-xl sm:text-2xl font-black text-rose-300 mt-0.5 truncate">
-              {stats.absentCount} <span className="text-xs text-slate-300 font-bold">/ {stats.notMarkedCount}</span>
-            </div>
-            <div className="text-[10px] text-white/50 font-medium truncate">Requires attention</div>
-          </div>
-
-          {/* Card 6: Hardware Status */}
+          {/* Card 5: Hardware Status */}
           <div className="p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 min-w-0">
             <div className="text-[10px] font-bold uppercase tracking-wider text-teal-300/80 truncate">Terminals</div>
             <div className="text-xl sm:text-2xl font-black text-teal-200 mt-0.5 truncate">2 Online</div>
@@ -668,37 +609,6 @@ export default function AdminAttendanceHikPage() {
               </button>
             )}
           </div>
-
-          {/* Roster Mode Switcher: Punched Scans vs Full Biometric Roster */}
-          <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setShowPunchedOnly(true);
-                if (statusFilter === "ABSENT" || statusFilter === "NOT_MARKED") {
-                  setStatusFilter("ALL");
-                }
-              }}
-              className={`px-3 py-1.5 rounded-xl text-center text-xs font-black transition-all cursor-pointer truncate ${
-                showPunchedOnly
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              Punched Scans ({stats.totalPunched})
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowPunchedOnly(false)}
-              className={`px-3 py-1.5 rounded-xl text-center text-xs font-black transition-all cursor-pointer truncate ${
-                !showPunchedOnly
-                  ? "bg-slate-900 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              Full Roster ({stats.totalExpected})
-            </button>
-          </div>
         </div>
 
         {/* Row 2: Audience Toggle Buttons (All, Students, Faculty) */}
@@ -731,7 +641,7 @@ export default function AdminAttendanceHikPage() {
               }`}
             >
               <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-              <span>Talabat ({stats.totalStudents})</span>
+              <span>Talabat ({stats.studentPunched})</span>
             </button>
 
             <button
@@ -744,7 +654,7 @@ export default function AdminAttendanceHikPage() {
               }`}
             >
               <Briefcase className="w-3.5 h-3.5 shrink-0" />
-              <span>Faculty ({stats.totalFaculty})</span>
+              <span>Faculty ({stats.facultyPunched})</span>
             </button>
           </div>
         </div>
@@ -819,74 +729,6 @@ export default function AdminAttendanceHikPage() {
                 {stats.lateCount}
               </span>
             </button>
-
-            {/* Chip: Absent */}
-            <button
-              type="button"
-              onClick={() => handleStatusFilterChange("ABSENT")}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                statusFilter === "ABSENT"
-                  ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-                  : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
-              }`}
-            >
-              <XCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Absent</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "ABSENT" ? "bg-white/20 text-white" : "bg-rose-200 text-rose-900 font-bold"}`}>
-                {stats.absentCount}
-              </span>
-            </button>
-
-            {/* Chip: Not Marked */}
-            <button
-              type="button"
-              onClick={() => handleStatusFilterChange("NOT_MARKED")}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                statusFilter === "NOT_MARKED"
-                  ? "bg-slate-800 text-white border-slate-800 shadow-xs"
-                  : "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
-              }`}
-            >
-              <HelpCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Not Marked</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "NOT_MARKED" ? "bg-white/20 text-white" : "bg-slate-300 text-slate-800 font-bold"}`}>
-                {stats.notMarkedCount}
-              </span>
-            </button>
-
-            {/* Chip: Medical */}
-            <button
-              type="button"
-              onClick={() => handleStatusFilterChange("MEDICAL")}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                statusFilter === "MEDICAL"
-                  ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                  : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
-              }`}
-            >
-              <Activity className="w-3.5 h-3.5 shrink-0" />
-              <span>Medical</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "MEDICAL" ? "bg-white/20 text-white" : "bg-purple-200 text-purple-900 font-bold"}`}>
-                {stats.medicalCount}
-              </span>
-            </button>
-
-            {/* Chip: On Leave */}
-            <button
-              type="button"
-              onClick={() => handleStatusFilterChange("ON_LEAVE")}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                statusFilter === "ON_LEAVE"
-                  ? "bg-sky-600 text-white border-sky-600 shadow-xs"
-                  : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5 shrink-0" />
-              <span>On Leave</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "ON_LEAVE" ? "bg-white/20 text-white" : "bg-sky-200 text-sky-900 font-bold"}`}>
-                {stats.leaveCount}
-              </span>
-            </button>
           </div>
         </div>
 
@@ -946,7 +788,7 @@ export default function AdminAttendanceHikPage() {
           <div className="flex items-center gap-2 min-w-0">
             <Fingerprint className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="text-xs font-black uppercase tracking-wider truncate">
-              {showPunchedOnly ? "Punched Biometric Scan Feed" : "Hardware Attendance Roster"}
+              Biometric Scan Feed
             </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-emerald-300 shrink-0">
               {displayRecords.length} {displayRecords.length === 1 ? "record" : "records"}
@@ -981,9 +823,7 @@ export default function AdminAttendanceHikPage() {
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
               {statusFilter !== "ALL"
                 ? `No attendance records found with status "${statusFilter}". Try selecting "All Statuses" or clearing your search.`
-                : showPunchedOnly
-                ? "No hardware punches recorded yet for this date. Click 'Poll Today\'s Scans Now' to sync with physical terminals or switch to Full Roster."
-                : "No members matched the active filter criteria."}
+                : "No hardware punches recorded yet for this date. Click 'Poll Today\'s Scans Now' to sync with physical terminals."}
             </p>
             <div className="flex items-center justify-center gap-2 pt-2">
               {statusFilter !== "ALL" && (

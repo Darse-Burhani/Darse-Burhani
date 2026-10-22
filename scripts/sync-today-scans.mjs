@@ -354,28 +354,6 @@ async function processScan(empNo, scanDate, host, verifyMode) {
       }
     });
 
-    // Also forward to Render Webhook API so Render server live cache, stats & SSE are immediately refreshed
-    try {
-      const renderUrl = (process.env.RENDER_URL || 'https://darse-burhani.onrender.com').replace(/\/+$/, '');
-      const pushPayload = {
-        fingerprint: empNo,
-        timestamp: scanDate.toISOString(),
-        deviceId: `hikvision:${host}`,
-        verifyMode: verifyMode || "FACIAL",
-      };
-      await fetch(`${renderUrl}/api/hikvision/events`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-biometric-secret': process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253',
-        },
-        body: JSON.stringify(pushPayload),
-      });
-      console.log(`     🌐 Pushed to Render Cloud Webhook: ${empNo} (${timeStr})`);
-    } catch (pushErr) {
-      console.warn(`     ⚠️ Render push notice: ${pushErr.message}`);
-    }
-
     return true;
   }
 
@@ -411,28 +389,6 @@ async function processScan(empNo, scanDate, host, verifyMode) {
         checkOutTime: scanDate,
       },
     });
-
-    // Also forward to Render Webhook API so Render server live cache, stats & SSE are immediately refreshed
-    try {
-      const renderUrl = (process.env.RENDER_URL || 'https://darse-burhani.onrender.com').replace(/\/+$/, '');
-      const pushPayload = {
-        fingerprint: empNo,
-        timestamp: scanDate.toISOString(),
-        deviceId: `hikvision:${host}`,
-        verifyMode: verifyMode || "FACIAL",
-      };
-      await fetch(`${renderUrl}/api/hikvision/events`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-biometric-secret': process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253',
-        },
-        body: JSON.stringify(pushPayload),
-      });
-      console.log(`     🌐 Pushed to Render Cloud Webhook: ${empNo} (${timeStr})`);
-    } catch (pushErr) {
-      console.warn(`     ⚠️ Render push notice: ${pushErr.message}`);
-    }
 
     return true;
   }

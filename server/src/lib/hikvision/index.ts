@@ -807,22 +807,6 @@ export async function pollDevice(
           ev.currentVerifyMode,
         );
         scansProcessed++;
-
-        // Forward to Render Cloud Webhook in background so cloud portal & SSE update in real time
-        const renderUrl = (process.env.RENDER_URL || "https://darse-burhani.onrender.com").replace(/\/+$/, "");
-        fetch(`${renderUrl}/api/hikvision/events`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-biometric-secret": process.env.BIOMETRIC_SECRET || "DARSEBURHANI5253",
-          },
-          body: JSON.stringify({
-            fingerprint: empNo,
-            timestamp: time.toISOString(),
-            deviceId: `hikvision:${device.host}`,
-            verifyMode: ev.currentVerifyMode || "FACIAL",
-          }),
-        }).catch(() => {});
       } catch (err) {
         console.error(`[hikvision] scan processing error for ${device.host}:`, err);
       }
