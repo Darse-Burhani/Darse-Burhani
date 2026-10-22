@@ -37,6 +37,7 @@ import {
   Info,
   QrCode,
   Printer,
+  ArrowRightLeft,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import Link from "next/link";
@@ -91,6 +92,14 @@ export default function AdminUsersPage() {
   // Create User Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createRole, setCreateRole] = useState("STUDENT");
+  // ── Faculty Reassignment (transfer subjects + all periods between ustazs) ──
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignForm, setReassignForm] = useState({
+    sourceId: "",
+    targetId: "",
+    deactivateSource: true,
+  });
+  const [reassigning, setReassigning] = useState(false);
   const [createForm, setCreateForm] = useState({
     email: "",
     password: "",
@@ -541,6 +550,56 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Active faculty (TEACHER accounts with a profile) for the reassignment selects
+  const facultyList = useMemo(
+    () => users.filter((u: any) => u.role === "TEACHER" && u.teacherProfile && u.isActive),
+    [users]
+  );
+
+  const handleReassignFaculty = async () => {
+    if (!reassignForm.sourceId || !reassignForm.targetId) {
+      toast({ variant: "warning", title: "Select Faculty", description: "Choose both the outgoing and incoming faculty member." });
+      return;
+    }
+    if (reassignForm.sourceId === reassignForm.targetId) {
+      toast({ variant: "warning", title: "Same Faculty", description: "Source and target must be different faculty members." });
+      return;
+    }
+    setReassigning(true);
+    try {
+      const res = await fetch("/api/admin/users/reassign-faculty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceTeacherId: reassignForm.sourceId,
+          targetTeacherId: reassignForm.targetId,
+          deactivateSource: reassignForm.deactivateSource,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Faculty Reassigned", description: data.message, variant: "success" });
+        setShowReassignModal(false);
+        setReassignForm({ sourceId: "", targetId: "", deactivateSource: true });
+        await loadAllUsers();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Reassignment Failed",
+          description: data.error || "Could not reassign faculty workload.",
+        });
+      }
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Network Error",
+        description: "Failed to communicate with server. Please try again.",
+      });
+    } finally {
+      setReassigning(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* People & Directory Hub Navigation Tabs */}
@@ -608,6 +667,14 @@ export default function AdminUsersPage() {
                 title="Remove unwanted profile photos and switch to clean monogram initials"
               >
                 <Trash2 className="w-3.5 h-3.5 text-amber-300" /> Remove Unwanted Photos
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowReassignModal(true)}
+                className="bg-white/10 hover:bg-white/20 text-white border-white/25 font-semibold px-4 py-2.5 rounded-xl transition-all text-xs flex items-center gap-1.5 backdrop-blur-sm"
+                title="Transfer all subjects, timetable periods & modules from one ustaz to another"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5 text-amber-300" /> Reassign Faculty
               </Button>
               <Button
                 className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold shadow-lg shadow-amber-900/30 border border-amber-400/40 px-5 py-2.5 rounded-xl transition-all text-xs"
@@ -1461,6 +1528,88 @@ export default function AdminUsersPage() {
               </Button>
             </ModalFooter>
           </form>
+        </ModalContent>
+      </Modal>
+
+      {/* Faculty Reassignment Modal */}
+      <Modal open={showReassignModal} onOpenChange={setShowReassignModal}>
+        <ModalContent className="max-w-lg">
+          <ModalHeader>
+            <ModalTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <ArrowRightLeft className="w-4 h-4" />
+              </div>
+              Reassign Faculty Workload
+            </ModalTitle>
+          </ModalHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-gray-600 bg-emerald-50 border border-emerald-100 rounded-xl p-3 leading-relaxed">
+              Transfers <b>all subjects, timetable periods, classes, takhteet plans, hifz assignments, badal duties and portal authority</b> from one ustaz to another — so every subject and period follows the new faculty member everywhere (timetable, badal dropdown, takhteet &amp; all portal modules).
+            </p>
+
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                1. Outgoing Faculty (to be replaced)
+              </label>
+              <select
+                value={reassignForm.sourceId}
+                onChange={(e) => setReassignForm((p) => ({ ...p, sourceId: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-emerald-600 outline-none bg-white"
+              >
+                <option value="">Select outgoing faculty…</option>
+                {facultyList.map((u: any) => (
+                  <option key={u.id} value={u.teacherProfile.id}>
+                    {u.firstName} {u.lastName}
+                    {u.teacherProfile.employeeId ? ` (${u.teacherProfile.employeeId})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                2. Incoming Faculty (receives everything)
+              </label>
+              <select
+                value={reassignForm.targetId}
+                onChange={(e) => setReassignForm((p) => ({ ...p, targetId: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-emerald-600 outline-none bg-white"
+              >
+                <option value="">Select incoming faculty…</option>
+                {facultyList
+                  .filter((u: any) => u.teacherProfile.id !== reassignForm.sourceId)
+                  .map((u: any) => (
+                    <option key={u.id} value={u.teacherProfile.id}>
+                      {u.firstName} {u.lastName}
+                      {u.teacherProfile.employeeId ? ` (${u.teacherProfile.employeeId})` : ""}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={reassignForm.deactivateSource}
+                onChange={(e) => setReassignForm((p) => ({ ...p, deactivateSource: e.target.checked }))}
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Deactivate the outgoing faculty&apos;s login after transfer
+            </label>
+          </div>
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => setShowReassignModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReassignFaculty}
+              disabled={reassigning || !reassignForm.sourceId || !reassignForm.targetId}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5"
+            >
+              {reassigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+              Reassign Workload
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 

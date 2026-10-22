@@ -37,6 +37,24 @@ let lastSheetSyncRunDate: string | null = null;
 // Track which windows have already finalized attendance today (Key: "YYYY-MM-DD:windowId:role")
 const finalizedWindowsToday = new Set<string>();
 
+const AUTO_PRESENT_REMARKS = "Auto-present — no device scans recorded today";
+
+/**
+ * Counts *real* biometric scans for the given IST day. Registry rows written by
+ * device processing always carry a check-in time; auto-generated rows
+ * (auto-present / holiday / leave) never do, so they can't mask an outage.
+ */
+async function countRealScansToday(dayStart: Date): Promise<number> {
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  return prisma.attendanceRegistry.count({
+    where: {
+      date: { gte: dayStart, lt: dayEnd },
+      source: "BIOMETRIC",
+      checkInTime: { not: null },
+    },
+  });
+}
+
 /** Called by manual sync or automated triggers */
 export function markSheetSyncRan(dateStr = new Date().toISOString().slice(0, 10)) {
   lastSheetSyncRunDate = dateStr;
@@ -65,6 +83,7 @@ export async function runMonthlyAttendanceReportJob(_targetDate?: Date): Promise
  */
 export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   markedCount: number;
+  defaultPresentMode: boolean;
   alreadyLoggedCount: number;
   totalStudents: number;
   medicalCount?: number;
@@ -178,6 +197,7 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
 
     return {
       markedCount: 0,
+      defaultPresentMode: false,
       alreadyLoggedCount: holidayCount,
       totalStudents: students.length,
       medicalCount: 0,
@@ -210,6 +230,15 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
     const exemptIds = ((w as any).exemptStudentIds ?? []) as string[];
     classIds.forEach((id) => allowedClassIds.add(id));
     exemptIds.forEach((id) => globalExemptStudentIds.add(id));
+  }
+
+  // Default-present fallback: when the biometric terminals recorded ZERO
+  // scans today (devices offline / LAN unreachable from the cloud), every
+  // unscanned talib is finalized PRESENT instead of ABSENT so a hardware
+  // outage never fails the students.
+  const defaultPresentMode = (await countRealScansToday(dayStart)) === 0;
+  if (defaultPresentMode) {
+    console.log("[attendance-scheduler] ⚠️ No real biometric scans recorded today — unscanned talabat will be finalized PRESENT (default-present fallback).");
   }
 
   for (const s of students) {
@@ -308,6 +337,63 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       continue;
     }
 
+    // Default-present fallback (no device scans today): finalize PRESENT
+    // instead of ABSENT so an offline scanner never fails the talib.
+    if (defaultPresentMode) {
+      await prisma.attendanceRegistry.upsert({
+        where: { studentId_date: { studentId: s.id, date: dayStart } },
+        create: {
+          studentId: s.id,
+          date: dayStart,
+          status: "PRESENT",
+          source: "BIOMETRIC",
+          remarks: AUTO_PRESENT_REMARKS,
+          recordedById: "system-default-present",
+        },
+        update: {
+          status: "PRESENT",
+          source: "BIOMETRIC",
+          remarks: AUTO_PRESENT_REMARKS,
+        },
+      });
+
+      await prisma.attendanceRecord.upsert({
+        where: {
+          studentId_classId_date: {
+            studentId: s.id,
+            classId: assignedClass.id,
+            date: dayStart,
+          },
+        },
+        create: {
+          studentId: s.id,
+          classId: assignedClass.id,
+          date: dayStart,
+          status: "PRESENT",
+          source: "BIOMETRIC",
+          verificationMethod: "BIOMETRIC",
+          recordedById: "system-default-present",
+          justification: AUTO_PRESENT_REMARKS,
+          justificationStatus: "APPROVED",
+        },
+        update: {
+          status: "PRESENT",
+          source: "BIOMETRIC",
+          verificationMethod: "BIOMETRIC",
+          justification: AUTO_PRESENT_REMARKS,
+          justificationStatus: "APPROVED",
+        },
+      });
+
+      markedStudents.push({
+        id: s.id,
+        name: `${s.user.firstName} ${s.user.lastName}`,
+        grade: s.grade,
+        section: s.section,
+      });
+      continue;
+    }
+
     // Create ABSENT attendance record
     await prisma.attendanceRecord.upsert({
       where: {
@@ -357,9 +443,14 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
     });
   }
 
-  console.log(`[attendance-scheduler] Auto-mark absent job completed: ${markedStudents.length} marked absent, ${alreadyLoggedCount} already logged (${medicalCount} medical/leave), ${exemptCount} exempt.`);
+  console.log(
+    defaultPresentMode
+      ? `[attendance-scheduler] Auto-finalize completed in DEFAULT-PRESENT mode: ${markedStudents.length} talabat finalized PRESENT (no device scans today), ${alreadyLoggedCount} already logged (${medicalCount} medical/leave), ${exemptCount} exempt.`
+      : `[attendance-scheduler] Auto-mark absent job completed: ${markedStudents.length} marked absent, ${alreadyLoggedCount} already logged (${medicalCount} medical/leave), ${exemptCount} exempt.`
+  );
   return {
     markedCount: markedStudents.length,
+    defaultPresentMode,
     alreadyLoggedCount,
     medicalCount,
     exemptCount,
@@ -579,6 +670,10 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
 
       // Only process periods that have concluded
       if (nowMin >= slotEndMin) {
+        // Default-present fallback: with zero device scans today, unlogged
+        // students are propagated as PRESENT (not ABSENT) into class records.
+        const defaultPresentMode = (await countRealScansToday(dayStart)) === 0;
+
         const enrollments = await prisma.classEnrollment.findMany({
           where: { classId: slot.classId, isActive: true },
         });
@@ -606,7 +701,7 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
               },
             });
 
-            const initialStatus = gateLog?.status || "ABSENT";
+            const initialStatus = gateLog?.status || (defaultPresentMode ? "PRESENT" : "ABSENT");
 
             await prisma.attendanceRecord.create({
               data: {
@@ -616,6 +711,9 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
                 status: initialStatus as any,
                 verificationMethod: "AUTO_TIMETABLE_SYNC",
                 recordedById: "system-timetable-sync",
+                ...(defaultPresentMode && !gateLog
+                  ? { justification: AUTO_PRESENT_REMARKS, justificationStatus: "APPROVED" as any }
+                  : {}),
               },
             });
           }
@@ -656,14 +754,16 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
         finalizedWindowsToday.add(studentKey);
         console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Talabat window "${w.name}" (Cutoff ${w.lateEndTime || w.endTime} IST passed)...`);
 
-        await runAutoMarkAbsentJob(now);
+        const finalizeResult = await runAutoMarkAbsentJob(now);
 
         broadcastAttendanceEvent({
           type: "ATTENDANCE_AUTO_FINALIZED",
           windowId: w.id,
           windowName: w.name,
           role: "STUDENT",
-          message: `Talabat Attendance window "${w.name}" closed. Unscanned learners automatically finalized as ABSENT.`,
+          message: finalizeResult.defaultPresentMode
+            ? `Talabat attendance window "${w.name}" closed with no device scans recorded today — all unscanned talabat finalized as PRESENT (default-present fallback).`
+            : `Talabat Attendance window "${w.name}" closed. Unscanned learners automatically finalized as ABSENT.`,
         });
 
         // Trigger Google Sheet sync & Parent Daily Email

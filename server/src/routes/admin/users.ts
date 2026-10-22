@@ -647,4 +647,161 @@ router.post("/cleanup-orphaned", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
+// POST /api/admin/users/reassign-faculty — Transfer one faculty member's
+// workload to another (subjects, timetable periods, classes, takhteet,
+// portal authority, hifz assignments, badals). Used when an ustaz is
+// replaced so no timetable period or module is left orphaned.
+router.post("/reassign-faculty", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { sourceTeacherId, targetTeacherId, deactivateSource } = req.body as {
+      sourceTeacherId?: string;
+      targetTeacherId?: string;
+      deactivateSource?: boolean;
+    };
+
+    if (!sourceTeacherId || !targetTeacherId) {
+      return res.status(400).json({ success: false, error: "sourceTeacherId and targetTeacherId are required" });
+    }
+    if (sourceTeacherId === targetTeacherId) {
+      return res.status(400).json({ success: false, error: "Source and target faculty must be different" });
+    }
+
+    const [source, target] = await Promise.all([
+      prisma.teacherProfile.findUnique({
+        where: { id: sourceTeacherId },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+      }),
+      prisma.teacherProfile.findUnique({
+        where: { id: targetTeacherId },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+      }),
+    ]);
+    if (!source || !target) {
+      return res.status(404).json({ success: false, error: "Faculty profile not found" });
+    }
+
+    const sourceName = `${source.user.firstName || ""} ${source.user.lastName || ""}`.trim();
+    const targetName = `${target.user.firstName || ""} ${target.user.lastName || ""}`.trim();
+
+    // Union of subjects — the target inherits everything the source taught
+    const mergedSubjects = Array.from(
+      new Set([...(target.subjects || []), ...(source.subjects || [])])
+    ).sort();
+
+    const summary = await prisma.$transaction(async (tx) => {
+      const timetableSlots = await tx.timetableSlot.updateMany({
+        where: { teacherId: source.id },
+        data: { teacherId: target.id },
+      });
+      const teachingClasses = await tx.class.updateMany({
+        where: { teacherId: source.id },
+        data: { teacherId: target.id },
+      });
+      const masoolClasses = await tx.class.updateMany({
+        where: { masoolId: source.id },
+        data: { masoolId: target.id },
+      });
+      const takhteetPlans = await tx.takhteetPlan.updateMany({
+        where: { teacherId: source.id },
+        data: { teacherId: target.id },
+      });
+      const hifzMuhaffiz = await tx.hifzMarhalaAssignment.updateMany({
+        where: { facultyId: source.id },
+        data: { facultyId: target.id },
+      });
+      const hifzMusaid = await tx.hifzMarhalaAssignment.updateMany({
+        where: { musaidId: source.id },
+        data: { musaidId: target.id },
+      });
+      const badalsOriginal = await tx.timetableBadal.updateMany({
+        where: { originalTeacherId: source.id },
+        data: { originalTeacherId: target.id },
+      });
+      const badalsSubstitute = await tx.timetableBadal.updateMany({
+        where: { badalTeacherId: source.id },
+        data: { badalTeacherId: target.id },
+      });
+      const medicalExemptions = await tx.medicalExemption.updateMany({
+        where: { teacherId: source.id },
+        data: { teacherId: target.id },
+      });
+
+      // Portal authority — unique per (teacher, portalType): re-point rows
+      // the target doesn't hold yet, deactivate the rest.
+      const sourcePortals = await tx.teacherPortalAssignment.findMany({
+        where: { teacherId: source.id },
+      });
+      let portalTransferred = 0;
+      for (const pa of sourcePortals) {
+        const targetHas = await tx.teacherPortalAssignment.findUnique({
+          where: { teacherId_portalType: { teacherId: target.id, portalType: pa.portalType } },
+        });
+        if (!targetHas) {
+          await tx.teacherPortalAssignment.update({
+            where: { id: pa.id },
+            data: { teacherId: target.id },
+          });
+          portalTransferred++;
+        } else {
+          await tx.teacherPortalAssignment.update({
+            where: { id: pa.id },
+            data: { isActive: false },
+          });
+        }
+      }
+
+      // Subjects: the target inherits the full merged list
+      await tx.teacherProfile.update({
+        where: { id: target.id },
+        data: { subjects: mergedSubjects },
+      });
+
+      return {
+        timetableSlots: timetableSlots.count,
+        teachingClasses: teachingClasses.count,
+        masoolClasses: masoolClasses.count,
+        takhteetPlans: takhteetPlans.count,
+        hifzAssignments: hifzMuhaffiz.count + hifzMusaid.count,
+        badals: badalsOriginal.count + badalsSubstitute.count,
+        medicalExemptions: medicalExemptions.count,
+        portalAssignments: portalTransferred,
+        subjects: mergedSubjects.length,
+      };
+    });
+
+    if (deactivateSource) {
+      await prisma.user.update({
+        where: { id: source.userId },
+        data: { isActive: false },
+      });
+    }
+
+    // Invalidate the caches that surface any of the moved records
+    for (const tag of [
+      "user",
+      "teacherprofile",
+      "timetable",
+      "timetablebadal",
+      "takhteet",
+      "class",
+      "portal",
+      "hifz",
+      "dashboard",
+      "stats",
+    ]) {
+      cache.invalidateTag(tag);
+    }
+    cache.invalidateKey("admin:takhteet");
+
+    return res.json({
+      success: true,
+      message: `Reassigned ${summary.timetableSlots} timetable period(s) and ${summary.subjects} subject(s) from ${sourceName} to ${targetName}.`,
+      data: { summary, sourceName, targetName, mergedSubjects },
+    });
+  } catch (error) {
+    console.error("Reassign faculty error:", error);
+    return res.status(500).json({ success: false, error: "Failed to reassign faculty workload" });
+  }
+});
+
 export default router;

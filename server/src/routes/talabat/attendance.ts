@@ -3,7 +3,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
-import { getScanWindow } from "../../lib/biometric";
+import { getScanWindow, getStartOfDayIST } from "../../lib/biometric";
 import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
 
 const router = Router();
@@ -82,10 +82,22 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         const monthTotal = monthRecords.length;
         const monthPercentage = monthTotal > 0 ? Math.round(((monthPresent + monthLate) / monthTotal) * 100) : 0;
 
+        // Default-present fallback: zero device scans today system-wide
+        // (device outage) → today's Tilawat al Dua cell counts as PRESENT.
+        const todayIstStart = getStartOfDayIST(new Date());
+        const todayStrIST = todayIstStart.toISOString().slice(0, 10);
+        const anyRealScanToday = await prisma.attendanceRegistry.count({
+          where: { date: todayIstStart, source: "BIOMETRIC", checkInTime: { not: null } },
+        });
+        const studentHasBiometricToday = biometricRecords.some(
+          (r) => r.date.toISOString().slice(0, 10) === todayStrIST
+        );
+        const defaultPresentToday = anyRealScanToday === 0 && !studentHasBiometricToday;
+
         // Biometric (Tilawat al Dua) stats
-        const biometricPresent = biometricRecords.filter((r) => r.status === "PRESENT").length;
+        const biometricPresent = biometricRecords.filter((r) => r.status === "PRESENT").length + (defaultPresentToday ? 1 : 0);
         const biometricLate = biometricRecords.filter((r) => r.status === "LATE").length;
-        const biometricTotal = biometricRecords.length;
+        const biometricTotal = biometricRecords.length + (defaultPresentToday ? 1 : 0);
         const biometricPercentage = biometricTotal > 0 ? Math.round(((biometricPresent + biometricLate) / biometricTotal) * 100) : 0;
 
         // Map all-time stats excluding Rabi ul Akhar
@@ -112,10 +124,14 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
             ? biometricRecords.find((r) => r.date.toISOString().slice(0, 10) === dateStr)
             : null;
 
+          const tilawatStatus =
+            biometricRecord?.status ||
+            (defaultPresentToday && !isRabiDay && dateStr === todayStrIST ? "PRESENT" : null);
+
           calendar.push({
             day: d,
             status: record?.status || null,
-            tilawatStatus: biometricRecord?.status || null,
+            tilawatStatus,
           });
         }
 

@@ -5,22 +5,68 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Theme-aware green family ──────────────────────────────────
+        // emerald/teal/green compile to `rgb(var(--db-c-*) / <alpha-value>)`,
+        // so the active [data-fatimi-theme] repaints every green utility
+        // (text/bg/border/ring/gradient/shadow + hover & opacity modifiers)
+        // without a single per-class override. Defaults live in :root
+        // (emerald green theme); twilight-palace redefines them to sunset.
+        emerald: {
+          50: "rgb(var(--db-c-emerald-50) / <alpha-value>)",
+          100: "rgb(var(--db-c-emerald-100) / <alpha-value>)",
+          200: "rgb(var(--db-c-emerald-200) / <alpha-value>)",
+          300: "rgb(var(--db-c-emerald-300) / <alpha-value>)",
+          400: "rgb(var(--db-c-emerald-400) / <alpha-value>)",
+          500: "rgb(var(--db-c-emerald-500) / <alpha-value>)",
+          600: "rgb(var(--db-c-emerald-600) / <alpha-value>)",
+          700: "rgb(var(--db-c-emerald-700) / <alpha-value>)",
+          800: "rgb(var(--db-c-emerald-800) / <alpha-value>)",
+          900: "rgb(var(--db-c-emerald-900) / <alpha-value>)",
+          950: "rgb(var(--db-c-emerald-950) / <alpha-value>)",
+        },
+        teal: {
+          50: "rgb(var(--db-c-teal-50) / <alpha-value>)",
+          100: "rgb(var(--db-c-teal-100) / <alpha-value>)",
+          200: "rgb(var(--db-c-teal-200) / <alpha-value>)",
+          300: "rgb(var(--db-c-teal-300) / <alpha-value>)",
+          400: "rgb(var(--db-c-teal-400) / <alpha-value>)",
+          500: "rgb(var(--db-c-teal-500) / <alpha-value>)",
+          600: "rgb(var(--db-c-teal-600) / <alpha-value>)",
+          700: "rgb(var(--db-c-teal-700) / <alpha-value>)",
+          800: "rgb(var(--db-c-teal-800) / <alpha-value>)",
+          900: "rgb(var(--db-c-teal-900) / <alpha-value>)",
+          950: "rgb(var(--db-c-teal-950) / <alpha-value>)",
+        },
+        green: {
+          50: "rgb(var(--db-c-green-50) / <alpha-value>)",
+          100: "rgb(var(--db-c-green-100) / <alpha-value>)",
+          200: "rgb(var(--db-c-green-200) / <alpha-value>)",
+          300: "rgb(var(--db-c-green-300) / <alpha-value>)",
+          400: "rgb(var(--db-c-green-400) / <alpha-value>)",
+          500: "rgb(var(--db-c-green-500) / <alpha-value>)",
+          600: "rgb(var(--db-c-green-600) / <alpha-value>)",
+          700: "rgb(var(--db-c-green-700) / <alpha-value>)",
+          800: "rgb(var(--db-c-green-800) / <alpha-value>)",
+          900: "rgb(var(--db-c-green-900) / <alpha-value>)",
+          950: "rgb(var(--db-c-green-950) / <alpha-value>)",
+        },
         // Brand scale — emerald-based so every `darse-burhani-*` utility
         // renders on-theme (deep emerald + champagne gold). Canonical shell
         // is PortalShell; NavigationBar reuses these same tokens.
         // Brand scale — vibrant emerald-based palette with radiant jewel undertones
+        // (tracks the emerald family 1:1, so it inherits the same theme remap)
         "darse-burhani": {
-          50: "#ecfdf5",
-          100: "#d1fae5",
-          200: "#a7f3d0",
-          300: "#6ee7b7",
-          400: "#34d399",
-          500: "#10b981", // Bright vibrant emerald
-          600: "#059669",
-          700: "#047857",
-          800: "#065f46",
-          900: "#064e3b",
-          950: "#022c22",
+          50: "rgb(var(--db-c-emerald-50) / <alpha-value>)",
+          100: "rgb(var(--db-c-emerald-100) / <alpha-value>)",
+          200: "rgb(var(--db-c-emerald-200) / <alpha-value>)",
+          300: "rgb(var(--db-c-emerald-300) / <alpha-value>)",
+          400: "rgb(var(--db-c-emerald-400) / <alpha-value>)",
+          500: "rgb(var(--db-c-emerald-500) / <alpha-value>)", // Bright vibrant emerald
+          600: "rgb(var(--db-c-emerald-600) / <alpha-value>)",
+          700: "rgb(var(--db-c-emerald-700) / <alpha-value>)",
+          800: "rgb(var(--db-c-emerald-800) / <alpha-value>)",
+          900: "rgb(var(--db-c-emerald-900) / <alpha-value>)",
+          950: "rgb(var(--db-c-emerald-950) / <alpha-value>)",
         },
         admin: {
           primary: "#6366f1",
@@ -39,12 +85,12 @@ const config: Config = {
           vibrant: "#eab308",
         },
         student: {
-          primary: "#10b981",
-          secondary: "#34d399",
-          accent: "#6ee7b7",
-          light: "#ecfdf5",
-          dark: "#059669",
-          vibrant: "#00f090",
+          primary: "rgb(var(--db-c-emerald-500) / <alpha-value>)",
+          secondary: "rgb(var(--db-c-emerald-400) / <alpha-value>)",
+          accent: "rgb(var(--db-c-emerald-300) / <alpha-value>)",
+          light: "rgb(var(--db-c-emerald-50) / <alpha-value>)",
+          dark: "rgb(var(--db-c-emerald-600) / <alpha-value>)",
+          vibrant: "rgb(var(--db-c-student-vibrant) / <alpha-value>)",
         },
         parent: {
           primary: "#ec4899",
@@ -55,22 +101,22 @@ const config: Config = {
           vibrant: "#f43f5e",
         },
         fatimi: {
-          deep: "#047857",
-          "deep-dark": "#064e3b",
+          deep: "rgb(var(--db-c-emerald-700) / <alpha-value>)",
+          "deep-dark": "rgb(var(--db-c-emerald-900) / <alpha-value>)",
           gold: "#d4af37",
           "gold-bright": "#facc15",
           "gold-light": "#fef08a",
           "gold-dark": "#b8860b",
-          bg: "#f0fdf4",
-          border: "#a7f3d0",
-          accent: "#10b981",
-          obsidian: "#031b14",
-          emerald: "#059669",
-          luminous: "#34d399",
+          bg: "rgb(var(--db-c-green-50) / <alpha-value>)",
+          border: "rgb(var(--db-c-emerald-200) / <alpha-value>)",
+          accent: "rgb(var(--db-c-emerald-500) / <alpha-value>)",
+          obsidian: "rgb(var(--db-c-fatimi-obsidian) / <alpha-value>)",
+          emerald: "rgb(var(--db-c-emerald-600) / <alpha-value>)",
+          luminous: "rgb(var(--db-c-emerald-400) / <alpha-value>)",
         },
         // Premium luminous jewel tokens
         luminous: {
-          emerald: "#10b981",
+          emerald: "rgb(var(--db-c-emerald-500) / <alpha-value>)",
           gold: "#f59e0b",
           amber: "#fbbf24",
           cyan: "#06b6d4",
@@ -125,7 +171,7 @@ const config: Config = {
         glass: {
           light: "rgba(255, 255, 255, 0.75)",
           DEFAULT: "rgba(255, 255, 255, 0.3)",
-          dark: "rgba(2, 44, 34, 0.7)",
+          dark: "var(--db-glass-dark)",
           card: "rgba(255, 255, 255, 0.85)",
         },
       },
@@ -153,10 +199,10 @@ const config: Config = {
       },
       boxShadow: {
         soft: "0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)",
-        glow: "0 0 20px rgba(5, 150, 105, 0.15)",
-        "glow-lg": "0 0 40px rgba(5, 150, 105, 0.2)",
+        glow: "0 0 20px rgb(var(--db-c-emerald-600) / 0.15)",
+        "glow-lg": "0 0 40px rgb(var(--db-c-emerald-600) / 0.2)",
         "glow-amber": "0 0 20px rgba(245, 158, 11, 0.15)",
-        "glow-emerald": "0 0 20px rgba(16, 185, 129, 0.15)",
+        "glow-emerald": "0 0 20px rgb(var(--db-c-emerald-500) / 0.15)",
         "glow-pink": "0 0 20px rgba(236, 72, 153, 0.15)",
         "fatimi-glow": "0 0 30px rgba(212, 175, 55, 0.15)",
         inner: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)",
@@ -184,8 +230,8 @@ const config: Config = {
       },
       keyframes: {
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 5px rgba(5, 150, 105, 0.5)" },
-          "50%": { boxShadow: "0 0 20px rgba(5, 150, 105, 0.8)" },
+          "0%, 100%": { boxShadow: "0 0 5px rgb(var(--db-c-emerald-600) / 0.5)" },
+          "50%": { boxShadow: "0 0 20px rgb(var(--db-c-emerald-600) / 0.8)" },
         },
         "slide-up": {
           "0%": { transform: "translateY(100%)", opacity: "0" },

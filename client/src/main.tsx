@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./fatimi-theme.css";
 import "./globals.css";
+import "./twilight-overrides.css";
 import { Providers } from "@/components/Providers";
 import { registerServiceWorker } from "@/lib/pwa";
 import App from "./App";

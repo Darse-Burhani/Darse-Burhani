@@ -629,3 +629,107 @@ body[data-fatimi-theme="twilight-palace"] ::-webkit-scrollbar-thumb {
   color: #1a2038;
   box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.2);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   THEME-AWARE COLOR TOKENS
+   The Tailwind emerald/teal/green scales (plus the brand, student,
+   fatimi and luminous tokens) compile to rgb(var(--db-c-*) /
+   <alpha-value>) — see tailwind.config.ts. Every green utility class
+   (text/bg/border/ring/divide/gradient/shadow + hover & opacity
+   modifiers) reads these variables, so the active [data-fatimi-theme]
+   repaints the whole UI with zero per-class overrides.
+
+   :root holds the exact Tailwind green defaults (emerald themes stay
+   pixel-identical); each theme below redefines only its own family.
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  /* Emerald — exact Tailwind v3 palette (green theme default) */
+  --db-c-emerald-50: 236 253 245;
+  --db-c-emerald-100: 209 250 229;
+  --db-c-emerald-200: 167 243 208;
+  --db-c-emerald-300: 110 231 183;
+  --db-c-emerald-400: 52 211 153;
+  --db-c-emerald-500: 16 185 129;
+  --db-c-emerald-600: 5 150 105;
+  --db-c-emerald-700: 4 120 87;
+  --db-c-emerald-800: 6 95 70;
+  --db-c-emerald-900: 6 78 59;
+  --db-c-emerald-950: 2 44 34;
+
+  /* Teal */
+  --db-c-teal-50: 240 253 250;
+  --db-c-teal-100: 204 251 241;
+  --db-c-teal-200: 153 246 228;
+  --db-c-teal-300: 94 234 212;
+  --db-c-teal-400: 45 212 191;
+  --db-c-teal-500: 20 184 166;
+  --db-c-teal-600: 13 148 136;
+  --db-c-teal-700: 15 118 110;
+  --db-c-teal-800: 17 94 89;
+  --db-c-teal-900: 19 78 74;
+  --db-c-teal-950: 4 47 46;
+
+  /* Green */
+  --db-c-green-50: 240 253 244;
+  --db-c-green-100: 220 252 231;
+  --db-c-green-200: 187 247 208;
+  --db-c-green-300: 134 239 172;
+  --db-c-green-400: 74 222 128;
+  --db-c-green-500: 34 197 94;
+  --db-c-green-600: 22 163 74;
+  --db-c-green-700: 21 128 61;
+  --db-c-green-800: 22 101 52;
+  --db-c-green-900: 20 83 45;
+  --db-c-green-950: 5 46 22;
+
+  /* Accent extras */
+  --db-c-student-vibrant: 0 240 144;
+  --db-c-fatimi-obsidian: 3 27 20;
+  --db-glass-dark: rgba(2, 44, 34, 0.7);
+}
+
+[data-fatimi-theme="twilight-palace"] {
+  /* Sunset amber replaces the emerald family */
+  --db-c-emerald-50: 255 251 235;
+  --db-c-emerald-100: 254 243 199;
+  --db-c-emerald-200: 253 230 138;
+  --db-c-emerald-300: 252 211 77;
+  --db-c-emerald-400: 251 191 36;
+  --db-c-emerald-500: 245 158 11;
+  --db-c-emerald-600: 217 119 6;
+  --db-c-emerald-700: 180 83 9;
+  --db-c-emerald-800: 146 64 14;
+  --db-c-emerald-900: 120 53 15;
+  --db-c-emerald-950: 69 26 3;
+
+  /* Teal → warm copper / bronze */
+  --db-c-teal-50: 253 248 239;
+  --db-c-teal-100: 250 237 212;
+  --db-c-teal-200: 243 216 168;
+  --db-c-teal-300: 233 188 115;
+  --db-c-teal-400: 221 154 62;
+  --db-c-teal-500: 201 127 31;
+  --db-c-teal-600: 168 100 22;
+  --db-c-teal-700: 134 77 20;
+  --db-c-teal-800: 107 61 20;
+  --db-c-teal-900: 87 51 19;
+  --db-c-teal-950: 48 26 10;
+
+  /* Green → same sunset family (success = amber under twilight) */
+  --db-c-green-50: 255 251 235;
+  --db-c-green-100: 254 243 199;
+  --db-c-green-200: 253 230 138;
+  --db-c-green-300: 252 211 77;
+  --db-c-green-400: 251 191 36;
+  --db-c-green-500: 245 158 11;
+  --db-c-green-600: 217 119 6;
+  --db-c-green-700: 180 83 9;
+  --db-c-green-800: 146 64 14;
+  --db-c-green-900: 120 53 15;
+  --db-c-green-950: 69 26 3;
+
+  /* Accent extras */
+  --db-c-student-vibrant: 255 176 32;
+  --db-c-fatimi-obsidian: 20 16 31;
+  --db-glass-dark: rgba(20, 16, 31, 0.7);
+}

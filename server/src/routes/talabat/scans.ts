@@ -95,6 +95,32 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           });
         }
 
+        // Default-present fallback: if the terminals recorded ZERO scans
+        // system-wide today (device outage), the talib's day still shows as
+        // PRESENT — the scheduler persists the same row by window cutoff.
+        const hasTodayRow = rows.some((r) => r.date.getTime() === todayStart.getTime());
+        if (!hasTodayRow) {
+          const anyRealScanToday = await prisma.attendanceRegistry.count({
+            where: { date: todayStart, source: "BIOMETRIC", checkInTime: { not: null } },
+          });
+          if (anyRealScanToday === 0) {
+            const enrollment = await prisma.classEnrollment.findFirst({
+              where: { studentId: profile.id, isActive: true },
+              include: { class: { select: { name: true, subject: true } } },
+            });
+            rows.push({
+              id: `auto-present-${todayStart.toISOString()}`,
+              date: todayStart,
+              status: "PRESENT",
+              checkInTime: null,
+              checkOutTime: null,
+              className: enrollment?.class?.name ?? "",
+              subject: enrollment?.class?.subject ?? "",
+              biometricHash: null,
+            });
+          }
+        }
+
         rows.sort(
           (a, b) =>
             (b.checkInTime?.getTime() ?? b.date.getTime()) -
