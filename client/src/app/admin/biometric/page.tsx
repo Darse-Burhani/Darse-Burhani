@@ -78,6 +78,14 @@ export default function BiometricAdminPage() {
   const [teachers, setTeachers] = useState<BiometricTeacher[]>([]);
   const [unmatched, setUnmatched] = useState<UnmatchedItem[]>([]);
   const [webhookUrl, setWebhookUrl] = useState<string>("");
+  const [cloudStatus, setCloudStatus] = useState<{
+    secretSet?: boolean;
+    received?: number;
+    processed?: number;
+    ignored?: number;
+    lastAt?: string | null;
+  } | null>(null);
+  const [syncingAllClocks, setSyncingAllClocks] = useState(false);
 
   // Stats
   const [statsMetrics, setStatsMetrics] = useState({
@@ -169,13 +177,14 @@ export default function BiometricAdminPage() {
     refreshAllData();
   }, [refreshAllData]);
 
-  // Fetch Public Webhook URL
+  // Fetch Public Webhook URL + live cloud-push health
   useEffect(() => {
     fetch("/api/hikvision/status")
       .then((r) => r.json())
       .then((data) => {
         if (data.success && data.data?.webhookUrl) {
           setWebhookUrl(data.data.webhookUrl);
+          setCloudStatus(data.data);
         } else {
           const origin = typeof window !== "undefined" ? window.location.origin : "";
           setWebhookUrl(`${origin}/api/hikvision/events`);
@@ -254,6 +263,36 @@ export default function BiometricAdminPage() {
       }
     } catch {
       toast.info(`Clock sync requested`);
+    }
+  };
+
+  // Copy the exact URL the terminals must push to
+  const handleCopyWebhook = async () => {
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      toast.success("Cloud webhook URL copied");
+    } catch {
+      toast.error("Could not copy — select the URL manually");
+    }
+  };
+
+  // Sync IST clock on every enabled terminal (works when this server can reach the LAN)
+  const handleSyncAllClocks = async () => {
+    setSyncingAllClocks(true);
+    toast.loading("Synchronizing IST clock on all terminals...");
+    try {
+      const res = await fetch("/api/biometric/devices/bulk/sync-time", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Clock sync requested for all terminals");
+      } else {
+        toast.error(data.error || "Clock sync failed");
+      }
+    } catch {
+      toast.info("Clock sync requested — the local bridge will correct drift automatically");
+    } finally {
+      setSyncingAllClocks(false);
+      refreshAllData();
     }
   };
 
@@ -531,6 +570,93 @@ export default function BiometricAdminPage() {
             </div>
           </Card>
         </div>
+
+        {/* ── CLOUD CONNECTION COCKPIT ── */}
+        <Card className="rounded-3xl border-emerald-100 bg-gradient-to-r from-emerald-50/80 via-white to-sky-50/70 shadow-xs p-5">
+          <div className="flex flex-col lg:flex-row gap-5">
+            <div className="flex-1 min-w-0 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-black text-gray-950">Hikvision → Cloud Connection</h3>
+                <Badge className="rounded-full bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold">
+                  HTTPS 443
+                </Badge>
+                <Badge className="rounded-full bg-sky-100 text-sky-800 border-sky-200 text-[10px] font-bold">
+                  IST +05:30
+                </Badge>
+              </div>
+
+              <p className="text-xs text-gray-600 leading-relaxed max-w-3xl">
+                On each MinMoe terminal open <span className="font-semibold text-gray-900">Configuration → Network → Advanced → HTTP Listening</span> and set this exact address as the Alarm Server / Notification host. The terminal pushes every punch to the cloud instantly; the school-PC bridge adds LAN polling plus automatic IST clock correction as a 24/7 backup.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <code className="flex-1 min-w-0 rounded-xl bg-slate-900 text-emerald-300 px-3 py-2.5 text-[11px] font-mono truncate">
+                  {webhookUrl}
+                </code>
+                <Button
+                  type="button"
+                  onClick={handleCopyWebhook}
+                  className="rounded-xl h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shrink-0"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
+                  Copy URL
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="rounded-xl bg-white/80 border border-emerald-100 px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Push Secret</div>
+                  <div className={cn("text-xs font-black mt-0.5 flex items-center gap-1", cloudStatus?.secretSet ? "text-emerald-700" : "text-amber-700")}>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    {cloudStatus?.secretSet ? "Configured" : "Fallback key"}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-white/80 border border-emerald-100 px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Pushes Received</div>
+                  <div className="text-xs font-black text-gray-900 mt-0.5">{cloudStatus?.received ?? 0}</div>
+                </div>
+                <div className="rounded-xl bg-white/80 border border-emerald-100 px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Processed</div>
+                  <div className="text-xs font-black text-gray-900 mt-0.5">{cloudStatus?.processed ?? 0}</div>
+                </div>
+                <div className="rounded-xl bg-white/80 border border-emerald-100 px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Last Push</div>
+                  <div className="text-xs font-black text-gray-900 mt-0.5 truncate">
+                    {cloudStatus?.lastAt
+                      ? new Date(cloudStatus.lastAt).toLocaleString("en-IN", {
+                          timeZone: "Asia/Kolkata",
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                          hour12: true,
+                        })
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:w-64 shrink-0 flex flex-col justify-center gap-2">
+              <Button
+                type="button"
+                onClick={handleSyncAllClocks}
+                disabled={syncingAllClocks}
+                className="rounded-xl h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
+              >
+                <Clock className={cn("w-3.5 h-3.5 mr-1.5", syncingAllClocks && "animate-spin")} />
+                {syncingAllClocks ? "Syncing Clocks..." : "Sync All Clocks (IST)"}
+              </Button>
+              <p className="text-[10px] text-gray-500 leading-relaxed">
+                Timestamps are stored in UTC and displayed in Asia/Kolkata. Drift above 45 seconds is auto-corrected by the bridge and on every poll.
+              </p>
+            </div>
+          </div>
+        </Card>
 
         {/* ── REDESIGNED SUB-NAVIGATION TABS (MATCHING SIDEBAR LUCIDE ICONS) ── */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none bg-white p-2 rounded-2xl border border-gray-100 shadow-xs">

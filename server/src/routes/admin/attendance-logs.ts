@@ -172,8 +172,10 @@ router.get("/", requireAuth, async (req, res) => {
 
     let { grade, section, status, source, search, eventWindowId, audience = "ALL", logType = "ALL" } = req.query as Record<string, string>;
 
-    // If teacher/faculty is accessing the portal, enforce MANUAL attendance log only
-    if (isTeacher) {
+    // If teacher/faculty is accessing the portal, default to the MANUAL register.
+    // The dedicated Hikvision scans page explicitly requests HIKVISION and is
+    // read-only, so it must be allowed through for faculty accounts too.
+    if (isTeacher && logType !== "HIKVISION") {
       logType = "MANUAL";
     }
 
@@ -495,9 +497,11 @@ router.get("/", requireAuth, async (req, res) => {
       });
     }
 
-    // For Tilawat Dua or Faculty-only windows, show faculty scanning attendance only
-    if (isTilawatFilter || isFacultyOnlyWindow) {
-      facultyRecords = facultyRecords.filter((r) => r.source === "SCAN" || r.status !== "NOT_MARKED" || !logType || logType === "ALL" || logType === "HIKVISION");
+    // For Tilawat Dua or Faculty-only windows, show faculty scanning attendance only.
+    // Hikvision mode is exempt: it always renders the full strength roster so the
+    // Present / Absent / Medical / Leave KPIs stay complete.
+    if ((isTilawatFilter || isFacultyOnlyWindow) && logType !== "HIKVISION") {
+      facultyRecords = facultyRecords.filter((r) => r.source === "SCAN" || r.status !== "NOT_MARKED" || !logType || logType === "ALL");
     }
 
     const allRecords = isFacultyOnlyWindow
@@ -526,9 +530,12 @@ router.get("/", requireAuth, async (req, res) => {
 
     let filteredRecords = allRecords;
 
-    // In HIKVISION mode, show only members who actually scanned on the biometric terminal
+    // In HIKVISION mode, render the full-strength roster. Members who scanned keep
+    // their PRESENT/LATE scan status; everyone else keeps their approved
+    // MEDICAL / ON_LEAVE status or falls back to ABSENT (NOT_MARKED). This keeps
+    // Full Strength = Present + Late + Absent + Medical + On Leave.
     if (logType === "HIKVISION") {
-      filteredRecords = hikvisionRecords;
+      filteredRecords = allRecords;
     } else if (logType === "MANUAL") {
       // In MANUAL mode, ensure the full roster is presented with default PRESENT for all students
       filteredRecords = manualRecords;
@@ -606,6 +613,28 @@ router.get("/", requireAuth, async (req, res) => {
     const hikvisionSummary = countSummary(hikvisionRecords);
     const manualSummary = countSummary(manualRecords);
 
+    // Full Strength (total enrolled roster, regardless of scan/filter)
+    const totalRosterStudents = studentRecords.length;
+    const totalRosterFaculty = facultyRecords.length;
+    const totalRoster = allRecords.length;
+
+    // Overall roster counts for the audience tabs. These stay global even when
+    // the table is scoped to STUDENT or FACULTY, so "All" never shows a
+    // filtered count. They still respect grade/section/search filters.
+    const overallTeacherWhere: any = { user: { isActive: true } };
+    if (search && typeof search === "string" && search.trim()) {
+      const q = search.trim();
+      overallTeacherWhere.OR = [
+        { user: { firstName: { contains: q, mode: "insensitive" } } },
+        { user: { lastName: { contains: q, mode: "insensitive" } } },
+        { employeeId: { contains: q, mode: "insensitive" } },
+      ];
+    }
+    const [overallRosterStudents, overallRosterFaculty] = await Promise.all([
+      prisma.studentProfile.count({ where: studentWhere }),
+      prisma.teacherProfile.count({ where: overallTeacherWhere }),
+    ]);
+
     // Per-event live counts strictly aligned with active logType
     const eventLiveCounts: Record<string, number> = {};
     const countSourceRecords = logType === "HIKVISION" 
@@ -643,6 +672,21 @@ router.get("/", requireAuth, async (req, res) => {
         isFacultyOnly: isFacultyOnlyWindow,
         isStudentOnly: isStudentOnlyWindow,
         selectedEventAudience: isFacultyOnlyWindow ? "FACULTY" : isStudentOnlyWindow ? "STUDENT" : isBothWindow ? "BOTH" : null,
+        // Full Strength roster counts (total enrolled, independent of logType filter)
+        rosterSize: {
+          total: totalRoster,
+          students: totalRosterStudents,
+          faculty: totalRosterFaculty,
+        },
+        overallRosterSize: {
+          total: isFacultyOnlyWindow
+            ? overallRosterFaculty
+            : isStudentOnlyWindow
+            ? overallRosterStudents
+            : overallRosterStudents + overallRosterFaculty,
+          students: isFacultyOnlyWindow ? 0 : overallRosterStudents,
+          faculty: isStudentOnlyWindow ? 0 : overallRosterFaculty,
+        },
         filters: {
           grades: distinctGrades,
           sections: distinctSections,

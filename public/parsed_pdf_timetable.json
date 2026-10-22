@@ -1,0 +1,4182 @@
+{
+  "teacherSummaries": [
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "count": 28,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Biology",
+          "className": "3 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 4,
+          "subject": "English",
+          "className": "3 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 5,
+          "subject": "Chemistry",
+          "className": "3 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 6,
+          "subject": "Hist/Civ",
+          "className": "1 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 7,
+          "subject": "Physics",
+          "className": "4 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Science",
+          "className": "2 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 4,
+          "subject": "English",
+          "className": "2 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 5,
+          "subject": "Biology",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 6,
+          "subject": "Biology",
+          "className": "4 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 7,
+          "subject": "English",
+          "className": "4 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Hist/Civ",
+          "className": "3 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 4,
+          "subject": "Science",
+          "className": "2 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 6,
+          "subject": "Chemistry",
+          "className": "4 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 7,
+          "subject": "Physics",
+          "className": "4 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "English",
+          "className": "3 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 4,
+          "subject": "Geography",
+          "className": "3 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 5,
+          "subject": "English",
+          "className": "2 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 6,
+          "subject": "English",
+          "className": "1 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 7,
+          "subject": "English",
+          "className": "4 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "English",
+          "className": "1 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 4,
+          "subject": "Science",
+          "className": "2 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 5,
+          "subject": "English",
+          "className": "2 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 6,
+          "subject": "Chemistry",
+          "className": "4 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 7,
+          "subject": "Biology",
+          "className": "4 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "English",
+          "className": "1 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Hist/Civ",
+          "className": "1 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Geography",
+          "className": "4 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Hist/Civ",
+          "className": "4 A"
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "count": 22,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Hist/Civ",
+          "className": "4 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 4,
+          "subject": "English",
+          "className": "2 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 6,
+          "subject": "Geography",
+          "className": "1 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 8,
+          "subject": "Dirasat Uloom i...",
+          "className": "2 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 9,
+          "subject": "Raudat Hidayat",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Kitab al-Taharat",
+          "className": "1 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 4,
+          "subject": "Geography",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 6,
+          "subject": "Geography",
+          "className": "4 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Dirasat Uloom i...",
+          "className": "2 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 5,
+          "subject": "English",
+          "className": "2 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 6,
+          "subject": "Dirasat Uloom i...",
+          "className": "1 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 2,
+          "subject": "Kitab al-Taharat",
+          "className": "1 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "Insha",
+          "className": "2 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 5,
+          "subject": "Raudat Hidayat",
+          "className": "3 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 6,
+          "subject": "Raudat Hidayat",
+          "className": "1 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 1,
+          "subject": "Raudat Hidayat",
+          "className": "1 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 2,
+          "subject": "Kitab al-Taharat",
+          "className": "1 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "English",
+          "className": "2 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Dirasat Uloom i...",
+          "className": "1 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Kitab al-Taharat",
+          "className": "1 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Dirasat Uloom i...",
+          "className": "2 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Chemistry",
+          "className": "3 A"
+        }
+      ]
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "count": 21,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "1 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 9,
+          "subject": "Raudat Hidayat",
+          "className": "2 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "1 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Raudat Hidayat",
+          "className": "3 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "1 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 2,
+          "subject": "English",
+          "className": "1 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 9,
+          "subject": "Hist/Civ",
+          "className": "3 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 1,
+          "subject": "Insha",
+          "className": "1 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 2,
+          "subject": "Tadreeb",
+          "className": "4 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "English",
+          "className": "4 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 8,
+          "subject": "Tadreeb",
+          "className": "2 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 9,
+          "subject": "Raudat Hidayat",
+          "className": "2 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 7,
+          "subject": "English",
+          "className": "1 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 8,
+          "subject": "Tadreeb",
+          "className": "2 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "English",
+          "className": "1 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Raudat Hidayat",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "English",
+          "className": "4 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 B"
+        }
+      ]
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "count": 24,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "1 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Kitab al-Taharat",
+          "className": "1 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 4,
+          "subject": "Tamreen",
+          "className": "2 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 7,
+          "subject": "Tamreen",
+          "className": "1 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 8,
+          "subject": "Raudat Hidayat",
+          "className": "2 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "1 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Tamreen",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 5,
+          "subject": "Tamreen",
+          "className": "3 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 6,
+          "subject": "Tamreen",
+          "className": "1 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 9,
+          "subject": "Tamreen",
+          "className": "2 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "1 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Kitab al-Taharat",
+          "className": "1 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 7,
+          "subject": "Kitab al-Iqtisar",
+          "className": "4 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 9,
+          "subject": "Maths",
+          "className": "2 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 1,
+          "subject": "Insha",
+          "className": "1 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 5,
+          "subject": "Raudat Hidayat",
+          "className": "2 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 8,
+          "subject": "Tamreen",
+          "className": "3 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 2,
+          "subject": "Kitab al-Taharat",
+          "className": "1 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 4,
+          "subject": "Tamreen",
+          "className": "3 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 6,
+          "subject": "Tamreen",
+          "className": "1 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 8,
+          "subject": "Tamreen",
+          "className": "2 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 9,
+          "subject": "Maths",
+          "className": "2 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Kitab al-Taharat",
+          "className": "1 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Tadreeb",
+          "className": "2 A"
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "count": 9,
+      "periods": [
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 4,
+          "subject": "Dirasat Uloom i...",
+          "className": "2 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 5,
+          "subject": "Sharhal akhbar",
+          "className": "2 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 4,
+          "subject": "Dirasat Uloom i...",
+          "className": "3 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "Sharhal akhbar",
+          "className": "2 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 9,
+          "subject": "Dirasat Uloom i...",
+          "className": "3 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "Dirasat Uloom i...",
+          "className": "3 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 9,
+          "subject": "Dirasat Uloom i...",
+          "className": "3 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Sharhal akhbar",
+          "className": "2 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Dirasat Uloom i...",
+          "className": "2 B"
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "count": 25,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 2,
+          "subject": "Science",
+          "className": "1 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 9,
+          "subject": "Qasaid",
+          "className": "3 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 2,
+          "subject": "Tamreen",
+          "className": "1 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Science",
+          "className": "1 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 8,
+          "subject": "Qasaid",
+          "className": "3 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 2,
+          "subject": "Sharhal akhbar",
+          "className": "4 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 8,
+          "subject": "Qasaid",
+          "className": "3 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 9,
+          "subject": "Insha",
+          "className": "3 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 2,
+          "subject": "Sharhal akhbar",
+          "className": "4 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "Tamreen",
+          "className": "1 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 8,
+          "subject": "Qasaid",
+          "className": "3 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 1,
+          "subject": "Science",
+          "className": "1 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "Dirasat Uloom i...",
+          "className": "4 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Sharhal akhbar",
+          "className": "4 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Tamreen",
+          "className": "1 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "3 B"
+        }
+      ]
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "count": 14,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Science",
+          "className": "1 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 7,
+          "subject": "Maths",
+          "className": "1 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 8,
+          "subject": "Physics",
+          "className": "3 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Maths",
+          "className": "4 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 8,
+          "subject": "Maths",
+          "className": "2 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Science",
+          "className": "1 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 7,
+          "subject": "Maths",
+          "className": "1 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 8,
+          "subject": "Maths",
+          "className": "3 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "Science",
+          "className": "1 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 8,
+          "subject": "Maths",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Maths",
+          "className": "2 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Maths",
+          "className": "3 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Maths",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Physics",
+          "className": "3 B"
+        }
+      ]
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "count": 22,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Qasaid",
+          "className": "2 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 6,
+          "subject": "Lisan Arabi",
+          "className": "4 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 7,
+          "subject": "Risalah B",
+          "className": "4 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 9,
+          "subject": "Insha",
+          "className": "2 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Qasaid",
+          "className": "2 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 6,
+          "subject": "Tadreeb",
+          "className": "1 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 7,
+          "subject": "Sharhal akhbar",
+          "className": "1 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 8,
+          "subject": "Hist/Civ",
+          "className": "2 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 6,
+          "subject": "Tadreeb",
+          "className": "1 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 8,
+          "subject": "Sharhal akhbar",
+          "className": "2 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 9,
+          "subject": "Qasaid",
+          "className": "2 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "Sharhal akhbar",
+          "className": "1 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 6,
+          "subject": "Tadreeb",
+          "className": "4 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 8,
+          "subject": "Sharhal akhbar",
+          "className": "2 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 9,
+          "subject": "Qasaid",
+          "className": "2 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "Sharhal akhbar",
+          "className": "2 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 6,
+          "subject": "Risalah B",
+          "className": "4 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 7,
+          "subject": "Sharhal akhbar",
+          "className": "1 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 9,
+          "subject": "Qasaid",
+          "className": "2 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "2 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Sharhal akhbar",
+          "className": "2 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Qasaid",
+          "className": "2 A"
+        }
+      ]
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "count": 20,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "4 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 2,
+          "subject": "Kitab al-Iqtisar",
+          "className": "4 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Daim al-Islam",
+          "className": "4 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "4 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 2,
+          "subject": "Daim al-Islam",
+          "className": "4 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 9,
+          "subject": "Sharhal akhbar",
+          "className": "3 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "4 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 2,
+          "subject": "Daim al-Islam",
+          "className": "4 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Qasaid",
+          "className": "4 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 1,
+          "subject": "Lisan Arabi",
+          "className": "4 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 2,
+          "subject": "Tadreeb",
+          "className": "1 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "Daim al-Islam",
+          "className": "4 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 9,
+          "subject": "Sharhal akhbar",
+          "className": "3 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 1,
+          "subject": "Insha",
+          "className": "4 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 2,
+          "subject": "Qasaid",
+          "className": "4 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 9,
+          "subject": "Sharhal akhbar",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "4 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Daim al-Islam",
+          "className": "4 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Sharhal akhbar",
+          "className": "3 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Tadreeb",
+          "className": "1 A"
+        }
+      ]
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "count": 21,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 6,
+          "subject": "Risalah A",
+          "className": "4 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 8,
+          "subject": "Qasaid",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 2,
+          "subject": "Maths",
+          "className": "1 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 3,
+          "subject": "Muntaza al-Akhbar",
+          "className": "4 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 5,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 9,
+          "subject": "Qasaid",
+          "className": "3 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 2,
+          "subject": "Maths",
+          "className": "1 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 5,
+          "subject": "Insha",
+          "className": "3 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 6,
+          "subject": "Muntaza al-Akhbar",
+          "className": "4 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 4,
+          "subject": "Mukhtasar al-Asar",
+          "className": "2 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 6,
+          "subject": "Muntaza al-Akhbar",
+          "className": "4 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 7,
+          "subject": "Sharhal akhbar",
+          "className": "1 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 1,
+          "subject": "Muntaza al-Akhbar",
+          "className": "4 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 2,
+          "subject": "Muntaza al-Akhbar",
+          "className": "4 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 6,
+          "subject": "Sharhal akhbar",
+          "className": "1 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Qasaid",
+          "className": "3 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Risalah A",
+          "className": "4 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Muntaza al-Akhbar",
+          "className": "4 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Sharhal akhbar",
+          "className": "1 B"
+        }
+      ]
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "count": 16,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 2,
+          "subject": "Dirasat Uloom i...",
+          "className": "1 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 5,
+          "subject": "Geography",
+          "className": "2 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 4,
+          "subject": "Tadreeb",
+          "className": "3 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 7,
+          "subject": "Geography",
+          "className": "1 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "English",
+          "className": "3 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 5,
+          "subject": "Hist/Civ",
+          "className": "2 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 7,
+          "subject": "Raudat Hidayat",
+          "className": "1 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 4,
+          "subject": "Geography",
+          "className": "2 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 7,
+          "subject": "Raudat Hidayat",
+          "className": "1 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "Tadreeb",
+          "className": "3 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 4,
+          "subject": "Science",
+          "className": "2 A"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 5,
+          "subject": "English",
+          "className": "3 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 7,
+          "subject": "Maths",
+          "className": "4 A"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 3,
+          "subject": "Tadreeb",
+          "className": "3 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 4,
+          "subject": "Dirasat Uloom i...",
+          "className": "1 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 5,
+          "subject": "Dirasat Uloom i...",
+          "className": "4 B"
+        }
+      ]
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "count": 18,
+      "periods": [
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 1,
+          "subject": "Sharhal akhbar",
+          "className": "4 A"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 2,
+          "subject": "Daim al-Islam",
+          "className": "4 B"
+        },
+        {
+          "day": "Mon",
+          "dayOfWeek": 1,
+          "period": 3,
+          "subject": "Sharhal akhbar",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 1,
+          "subject": "Sharhal akhbar",
+          "className": "4 A"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 2,
+          "subject": "Daim al-Islam",
+          "className": "4 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 7,
+          "subject": "Risalah B",
+          "className": "4 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 8,
+          "subject": "Sharhal akhbar",
+          "className": "3 B"
+        },
+        {
+          "day": "Tue",
+          "dayOfWeek": 2,
+          "period": 9,
+          "subject": "Tamreen",
+          "className": "2 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 1,
+          "subject": "Sharhal akhbar",
+          "className": "4 A"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 3,
+          "subject": "Daim al-Islam",
+          "className": "4 B"
+        },
+        {
+          "day": "Wed",
+          "dayOfWeek": 3,
+          "period": 8,
+          "subject": "Tamreen",
+          "className": "2 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 1,
+          "subject": "Insha",
+          "className": "4 A"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 3,
+          "subject": "Sharhal akhbar",
+          "className": "3 B"
+        },
+        {
+          "day": "Thu",
+          "dayOfWeek": 4,
+          "period": 7,
+          "subject": "Risalah B",
+          "className": "4 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 3,
+          "subject": "Daim al-Islam",
+          "className": "4 B"
+        },
+        {
+          "day": "Fri",
+          "dayOfWeek": 5,
+          "period": 8,
+          "subject": "Sharhal akhbar",
+          "className": "3 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 1,
+          "subject": "Daim al-Islam",
+          "className": "4 B"
+        },
+        {
+          "day": "Sat",
+          "dayOfWeek": 6,
+          "period": 2,
+          "subject": "Tamreen",
+          "className": "2 B"
+        }
+      ]
+    }
+  ],
+  "allAssignments": [
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Biology",
+      "className": "3 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 4,
+      "subject": "English",
+      "className": "3 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 5,
+      "subject": "Chemistry",
+      "className": "3 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 6,
+      "subject": "Hist/Civ",
+      "className": "1 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 7,
+      "subject": "Physics",
+      "className": "4 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Science",
+      "className": "2 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 4,
+      "subject": "English",
+      "className": "2 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 5,
+      "subject": "Biology",
+      "className": "3 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 6,
+      "subject": "Biology",
+      "className": "4 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 7,
+      "subject": "English",
+      "className": "4 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Hist/Civ",
+      "className": "3 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 4,
+      "subject": "Science",
+      "className": "2 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 6,
+      "subject": "Chemistry",
+      "className": "4 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 7,
+      "subject": "Physics",
+      "className": "4 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "English",
+      "className": "3 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 4,
+      "subject": "Geography",
+      "className": "3 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 5,
+      "subject": "English",
+      "className": "2 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 6,
+      "subject": "English",
+      "className": "1 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 7,
+      "subject": "English",
+      "className": "4 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "English",
+      "className": "1 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 4,
+      "subject": "Science",
+      "className": "2 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 5,
+      "subject": "English",
+      "className": "2 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 6,
+      "subject": "Chemistry",
+      "className": "4 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 7,
+      "subject": "Biology",
+      "className": "4 B"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "English",
+      "className": "1 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Hist/Civ",
+      "className": "1 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Geography",
+      "className": "4 A"
+    },
+    {
+      "page": 1,
+      "teacher": "Burhanddin Sir Kundli",
+      "rawTeacher": "Burhanddin Sir Kundli",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Hist/Civ",
+      "className": "4 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Hist/Civ",
+      "className": "4 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 4,
+      "subject": "English",
+      "className": "2 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 6,
+      "subject": "Geography",
+      "className": "1 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 8,
+      "subject": "Dirasat Uloom i...",
+      "className": "2 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 9,
+      "subject": "Raudat Hidayat",
+      "className": "3 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Kitab al-Taharat",
+      "className": "1 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 4,
+      "subject": "Geography",
+      "className": "3 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 6,
+      "subject": "Geography",
+      "className": "4 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Dirasat Uloom i...",
+      "className": "2 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 5,
+      "subject": "English",
+      "className": "2 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 6,
+      "subject": "Dirasat Uloom i...",
+      "className": "1 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 2,
+      "subject": "Kitab al-Taharat",
+      "className": "1 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "Insha",
+      "className": "2 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 5,
+      "subject": "Raudat Hidayat",
+      "className": "3 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 6,
+      "subject": "Raudat Hidayat",
+      "className": "1 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 1,
+      "subject": "Raudat Hidayat",
+      "className": "1 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 2,
+      "subject": "Kitab al-Taharat",
+      "className": "1 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "English",
+      "className": "2 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Dirasat Uloom i...",
+      "className": "1 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Kitab al-Taharat",
+      "className": "1 B"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Dirasat Uloom i...",
+      "className": "2 A"
+    },
+    {
+      "page": 2,
+      "teacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "rawTeacher": "Mulla Aliasgar bhai Husainali bhai Khandwala",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Chemistry",
+      "className": "3 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "1 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 9,
+      "subject": "Raudat Hidayat",
+      "className": "2 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "1 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Raudat Hidayat",
+      "className": "3 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "1 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 2,
+      "subject": "English",
+      "className": "1 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 9,
+      "subject": "Hist/Civ",
+      "className": "3 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 1,
+      "subject": "Insha",
+      "className": "1 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 2,
+      "subject": "Tadreeb",
+      "className": "4 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "English",
+      "className": "4 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 8,
+      "subject": "Tadreeb",
+      "className": "2 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 9,
+      "subject": "Raudat Hidayat",
+      "className": "2 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 7,
+      "subject": "English",
+      "className": "1 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 8,
+      "subject": "Tadreeb",
+      "className": "2 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "English",
+      "className": "1 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Raudat Hidayat",
+      "className": "3 A"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "English",
+      "className": "4 B"
+    },
+    {
+      "page": 3,
+      "teacher": "Mulla Husain bhai Mulla Fakhruddin Habib",
+      "rawTeacher": "Mulla Husain bhai Mulla Fakhruddin Habib (Class Teacher of 1 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "1 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Kitab al-Taharat",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 4,
+      "subject": "Tamreen",
+      "className": "2 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 7,
+      "subject": "Tamreen",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 8,
+      "subject": "Raudat Hidayat",
+      "className": "2 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "1 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Tamreen",
+      "className": "3 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 5,
+      "subject": "Tamreen",
+      "className": "3 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 6,
+      "subject": "Tamreen",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 9,
+      "subject": "Tamreen",
+      "className": "2 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "1 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Kitab al-Taharat",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 7,
+      "subject": "Kitab al-Iqtisar",
+      "className": "4 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 9,
+      "subject": "Maths",
+      "className": "2 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 1,
+      "subject": "Insha",
+      "className": "1 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 5,
+      "subject": "Raudat Hidayat",
+      "className": "2 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 8,
+      "subject": "Tamreen",
+      "className": "3 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 2,
+      "subject": "Kitab al-Taharat",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 4,
+      "subject": "Tamreen",
+      "className": "3 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 6,
+      "subject": "Tamreen",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 8,
+      "subject": "Tamreen",
+      "className": "2 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 9,
+      "subject": "Maths",
+      "className": "2 B"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Kitab al-Taharat",
+      "className": "1 A"
+    },
+    {
+      "page": 4,
+      "teacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala",
+      "rawTeacher": "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala (Class Teacher of 1 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Tadreeb",
+      "className": "2 A"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 4,
+      "subject": "Dirasat Uloom i...",
+      "className": "2 B"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 5,
+      "subject": "Sharhal akhbar",
+      "className": "2 B"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 4,
+      "subject": "Dirasat Uloom i...",
+      "className": "3 A"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "Sharhal akhbar",
+      "className": "2 B"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 9,
+      "subject": "Dirasat Uloom i...",
+      "className": "3 B"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "Dirasat Uloom i...",
+      "className": "3 A"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 9,
+      "subject": "Dirasat Uloom i...",
+      "className": "3 B"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Sharhal akhbar",
+      "className": "2 B"
+    },
+    {
+      "page": 5,
+      "teacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "rawTeacher": "Mulla Juzer bhai Abbas bhai Bundiwala",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Dirasat Uloom i...",
+      "className": "2 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 2,
+      "subject": "Science",
+      "className": "1 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 9,
+      "subject": "Qasaid",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 2,
+      "subject": "Tamreen",
+      "className": "1 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Science",
+      "className": "1 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 8,
+      "subject": "Qasaid",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 2,
+      "subject": "Sharhal akhbar",
+      "className": "4 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 8,
+      "subject": "Qasaid",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 9,
+      "subject": "Insha",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 2,
+      "subject": "Sharhal akhbar",
+      "className": "4 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "Tamreen",
+      "className": "1 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 8,
+      "subject": "Qasaid",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 1,
+      "subject": "Science",
+      "className": "1 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "Dirasat Uloom i...",
+      "className": "4 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 A"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Sharhal akhbar",
+      "className": "4 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Tamreen",
+      "className": "1 B"
+    },
+    {
+      "page": 6,
+      "teacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir",
+      "rawTeacher": "Mulla Taher bhai Shaikh Muslim bhai Shakir (Class Teacher of 3 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "3 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Science",
+      "className": "1 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 7,
+      "subject": "Maths",
+      "className": "1 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 8,
+      "subject": "Physics",
+      "className": "3 A"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Maths",
+      "className": "4 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 8,
+      "subject": "Maths",
+      "className": "2 A"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Science",
+      "className": "1 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 7,
+      "subject": "Maths",
+      "className": "1 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 8,
+      "subject": "Maths",
+      "className": "3 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "Science",
+      "className": "1 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 8,
+      "subject": "Maths",
+      "className": "3 A"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Maths",
+      "className": "2 A"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Maths",
+      "className": "3 B"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Maths",
+      "className": "3 A"
+    },
+    {
+      "page": 7,
+      "teacher": "Mustafa Sir Tailor",
+      "rawTeacher": "Mustafa Sir Tailor",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Physics",
+      "className": "3 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Qasaid",
+      "className": "2 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 6,
+      "subject": "Lisan Arabi",
+      "className": "4 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 7,
+      "subject": "Risalah B",
+      "className": "4 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 9,
+      "subject": "Insha",
+      "className": "2 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Qasaid",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 6,
+      "subject": "Tadreeb",
+      "className": "1 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 7,
+      "subject": "Sharhal akhbar",
+      "className": "1 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 8,
+      "subject": "Hist/Civ",
+      "className": "2 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 6,
+      "subject": "Tadreeb",
+      "className": "1 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 8,
+      "subject": "Sharhal akhbar",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 9,
+      "subject": "Qasaid",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "Sharhal akhbar",
+      "className": "1 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 6,
+      "subject": "Tadreeb",
+      "className": "4 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 8,
+      "subject": "Sharhal akhbar",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 9,
+      "subject": "Qasaid",
+      "className": "2 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "Sharhal akhbar",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 6,
+      "subject": "Risalah B",
+      "className": "4 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 7,
+      "subject": "Sharhal akhbar",
+      "className": "1 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 9,
+      "subject": "Qasaid",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "2 B"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Sharhal akhbar",
+      "className": "2 A"
+    },
+    {
+      "page": 8,
+      "teacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala",
+      "rawTeacher": "Shaikh Juzer bhai Shaikh Taher bhai Presswala (Class Teacher of 2 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Qasaid",
+      "className": "2 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "4 B"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 2,
+      "subject": "Kitab al-Iqtisar",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Daim al-Islam",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "4 B"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 2,
+      "subject": "Daim al-Islam",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 9,
+      "subject": "Sharhal akhbar",
+      "className": "3 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "4 B"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 2,
+      "subject": "Daim al-Islam",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Qasaid",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 1,
+      "subject": "Lisan Arabi",
+      "className": "4 B"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 2,
+      "subject": "Tadreeb",
+      "className": "1 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "Daim al-Islam",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 9,
+      "subject": "Sharhal akhbar",
+      "className": "3 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 1,
+      "subject": "Insha",
+      "className": "4 B"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 2,
+      "subject": "Qasaid",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 9,
+      "subject": "Sharhal akhbar",
+      "className": "3 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Daim al-Islam",
+      "className": "4 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Sharhal akhbar",
+      "className": "3 A"
+    },
+    {
+      "page": 9,
+      "teacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj",
+      "rawTeacher": "Shaikh Kumail bhai Shaikh Mustafa bhai Raj (Class Teacher of 4 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Tadreeb",
+      "className": "1 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 6,
+      "subject": "Risalah A",
+      "className": "4 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 8,
+      "subject": "Qasaid",
+      "className": "3 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 2,
+      "subject": "Maths",
+      "className": "1 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 3,
+      "subject": "Muntaza al-Akhbar",
+      "className": "4 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 5,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 9,
+      "subject": "Qasaid",
+      "className": "3 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 2,
+      "subject": "Maths",
+      "className": "1 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 5,
+      "subject": "Insha",
+      "className": "3 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 6,
+      "subject": "Muntaza al-Akhbar",
+      "className": "4 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 4,
+      "subject": "Mukhtasar al-Asar",
+      "className": "2 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 6,
+      "subject": "Muntaza al-Akhbar",
+      "className": "4 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 7,
+      "subject": "Sharhal akhbar",
+      "className": "1 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 1,
+      "subject": "Muntaza al-Akhbar",
+      "className": "4 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 2,
+      "subject": "Muntaza al-Akhbar",
+      "className": "4 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 6,
+      "subject": "Sharhal akhbar",
+      "className": "1 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Qasaid",
+      "className": "3 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Risalah A",
+      "className": "4 A"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Muntaza al-Akhbar",
+      "className": "4 B"
+    },
+    {
+      "page": 10,
+      "teacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali",
+      "rawTeacher": "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali (Class Teacher of 3 B)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Sharhal akhbar",
+      "className": "1 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 2,
+      "subject": "Dirasat Uloom i...",
+      "className": "1 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 5,
+      "subject": "Geography",
+      "className": "2 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 4,
+      "subject": "Tadreeb",
+      "className": "3 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 7,
+      "subject": "Geography",
+      "className": "1 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "English",
+      "className": "3 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 5,
+      "subject": "Hist/Civ",
+      "className": "2 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 7,
+      "subject": "Raudat Hidayat",
+      "className": "1 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 4,
+      "subject": "Geography",
+      "className": "2 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 7,
+      "subject": "Raudat Hidayat",
+      "className": "1 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "Tadreeb",
+      "className": "3 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 4,
+      "subject": "Science",
+      "className": "2 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 5,
+      "subject": "English",
+      "className": "3 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 7,
+      "subject": "Maths",
+      "className": "4 A"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 3,
+      "subject": "Tadreeb",
+      "className": "3 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 4,
+      "subject": "Dirasat Uloom i...",
+      "className": "1 B"
+    },
+    {
+      "page": 11,
+      "teacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "rawTeacher": "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 5,
+      "subject": "Dirasat Uloom i...",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 1,
+      "subject": "Sharhal akhbar",
+      "className": "4 A"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 2,
+      "subject": "Daim al-Islam",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Mon",
+      "dayOfWeek": 1,
+      "period": 3,
+      "subject": "Sharhal akhbar",
+      "className": "3 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 1,
+      "subject": "Sharhal akhbar",
+      "className": "4 A"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 2,
+      "subject": "Daim al-Islam",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 7,
+      "subject": "Risalah B",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 8,
+      "subject": "Sharhal akhbar",
+      "className": "3 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Tue",
+      "dayOfWeek": 2,
+      "period": 9,
+      "subject": "Tamreen",
+      "className": "2 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 1,
+      "subject": "Sharhal akhbar",
+      "className": "4 A"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 3,
+      "subject": "Daim al-Islam",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Wed",
+      "dayOfWeek": 3,
+      "period": 8,
+      "subject": "Tamreen",
+      "className": "2 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 1,
+      "subject": "Insha",
+      "className": "4 A"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 3,
+      "subject": "Sharhal akhbar",
+      "className": "3 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Thu",
+      "dayOfWeek": 4,
+      "period": 7,
+      "subject": "Risalah B",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 3,
+      "subject": "Daim al-Islam",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Fri",
+      "dayOfWeek": 5,
+      "period": 8,
+      "subject": "Sharhal akhbar",
+      "className": "3 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 1,
+      "subject": "Daim al-Islam",
+      "className": "4 B"
+    },
+    {
+      "page": 12,
+      "teacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir",
+      "rawTeacher": "Shaikh Shabbir bhai Mohsinali bhai Shakir (Class Teacher of 4 A)",
+      "day": "Sat",
+      "dayOfWeek": 6,
+      "period": 2,
+      "subject": "Tamreen",
+      "className": "2 B"
+    }
+  ]
+}

@@ -42,17 +42,31 @@ const stats = {
   lastPunch: null,
 };
 
+// Cloud target. Prefer an explicit CLI/RENDER_URL, then the same public
+// HIKVISION_PUSH_URL the server advertises to the terminals, so the bridge and
+// the device webhook can never point at two different deployments.
+const PUSH_URL_ENV = (process.env.HIKVISION_PUSH_URL || '').trim();
+function originOf(url) {
+  try {
+    return url ? new URL(url).origin : null;
+  } catch {
+    return null;
+  }
+}
 const RENDER_BASE = (
   process.argv[2] ||
   process.env.RENDER_URL ||
   process.env.RENDER_APP_URL ||
+  originOf(PUSH_URL_ENV) ||
   (process.env.PUBLIC_APP_URL && !process.env.PUBLIC_APP_URL.includes('localhost') && !process.env.PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.PUBLIC_APP_URL : null) ||
   (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost') && !process.env.NEXT_PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.NEXT_PUBLIC_APP_URL : null) ||
   'https://darse-burhani.onrender.com'
 ).replace(/\/+$/, '');
 
 const SECRET = process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253';
-const WEBHOOK_URL = `${RENDER_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`;
+const WEBHOOK_URL = PUSH_URL_ENV
+  ? `${PUSH_URL_ENV}${PUSH_URL_ENV.includes('?') ? '&' : '?'}secret=${encodeURIComponent(SECRET)}`
+  : `${RENDER_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`;
 
 
 // Terminal Device Roster
@@ -150,15 +164,52 @@ function isDuplicate(key) {
   return false;
 }
 
+/**
+ * IST wall-clock parts regardless of the PC's own timezone. The school PC may
+ * be set to UTC (or have a dead CMOS battery), so never use getHours()/getDate()
+ * when generating the clock value written to a Hikvision terminal.
+ */
+function getIstParts(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type) => parts.find((p) => p.type === type)?.value || '00';
+  let hour = get('hour');
+  if (hour === '24') hour = '00';
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour,
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
+
 function getHikvisionTime(d = new Date()) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  const seconds = pad(d.getSeconds());
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+05:30`;
+  const p = getIstParts(d);
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}+05:30`;
+}
+
+/**
+ * Parse an ISAPI <localTime> value. Terminals frequently omit the timezone
+ * offset; in that case the value is IST wall-clock and must be anchored with
+ * +05:30 explicitly. Parsing it with `new Date(raw)` would use the bridge PC's
+ * local timezone and produce a bogus 5h30m "drift".
+ */
+function parseDeviceLocalTime(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().replace(/\//g, '-').replace(' ', 'T');
+  const hasOffset = /[Zz]|([+-]\d{2}:?\d{2})$/.test(s);
+  const parsed = new Date(hasOffset ? s : `${s}+05:30`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function normalizeDeviceTime(raw) {
@@ -417,23 +468,30 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
 async function syncDeviceClock(dev) {
   const url = `http://${dev.host}:${dev.port}/ISAPI/System/time`;
   try {
+    const requestStartedAt = Date.now();
     const res = await digestFetch(url, {
       username: dev.username,
       password: dev.password,
       timeoutMs: 5000,
     });
-    if (!res.ok) return;
+    const requestFinishedAt = Date.now();
+    if (!res.ok) return { ok: false, driftSeconds: null };
 
     const xml = await res.text();
     const timeMatch = xml.match(/<localTime>([^<]+)<\/localTime>/);
-    if (!timeMatch) return;
+    if (!timeMatch) return { ok: false, driftSeconds: null };
 
-    const devTime = new Date(timeMatch[1]);
-    const now = new Date();
-    const driftSeconds = Math.round(Math.abs(devTime.getTime() - now.getTime()) / 1000);
+    const devTime = parseDeviceLocalTime(timeMatch[1]);
+    if (!devTime) return { ok: false, driftSeconds: null };
 
-    if (driftSeconds > 45) {
+    // Compensate for network round-trip so a slow LAN link is not reported as
+    // clock drift on the terminal.
+    const serverMidpoint = (requestStartedAt + requestFinishedAt) / 2;
+    const driftSeconds = Math.round((devTime.getTime() - serverMidpoint) / 1000);
+
+    if (Math.abs(driftSeconds) > 45) {
       console.log(`⏰ [CLOCK DRIFT] ${dev.name} (${dev.host}) drifted by ${driftSeconds}s. Synchronizing to IST (+05:30)...`);
+      const now = new Date();
       const istTime = getHikvisionTime(now);
       const putBody = `<?xml version="1.0" encoding="UTF-8"?>
 <Time version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
@@ -442,7 +500,7 @@ async function syncDeviceClock(dev) {
 <timeZone>CST-5:30:00</timeZone>
 </Time>`;
 
-      await digestFetch(url, {
+      const putRes = await digestFetch(url, {
         method: 'PUT',
         username: dev.username,
         password: dev.password,
@@ -450,9 +508,18 @@ async function syncDeviceClock(dev) {
         body: putBody,
         timeoutMs: 5000,
       });
-      console.log(`✅ [CLOCK SYNCED] ${dev.name} (${dev.host}) time updated to ${istTime}`);
+      if (putRes.ok) {
+        console.log(`✅ [CLOCK SYNCED] ${dev.name} (${dev.host}) time updated to ${istTime}`);
+        return { ok: true, driftSeconds, synced: true };
+      }
+      console.warn(`⚠️ [CLOCK SYNC FAILED] ${dev.name} (${dev.host}) returned HTTP ${putRes.status}`);
+      return { ok: false, driftSeconds, synced: false };
     }
-  } catch {}
+
+    return { ok: true, driftSeconds, synced: false };
+  } catch (err) {
+    return { ok: false, driftSeconds: null, error: err?.message || String(err) };
+  }
 }
 
 // Parse XML event block from alertStream
@@ -655,10 +722,14 @@ async function startBridge() {
   console.log(`🖥️  Monitored Terminals:\n   ${DEVICES.map((d) => `• ${d.name} (http://${d.host}:${d.port})`).join('\n   ')}`);
   console.log('────────────────────────────────────────────────────────────────────');
 
-  // 1. Initial 24h scan catch-up on all terminals with deep pagination
+  // 1. Initial 24h scan catch-up on all terminals with deep pagination.
+  // Clock is corrected BEFORE querying so event-window and scan timestamps are IST-accurate.
   console.log('🔄 Checking physical terminals & catching up today\'s scans...');
   for (const dev of DEVICES) {
-    syncDeviceClock(dev).catch(() => {});
+    const clock = await syncDeviceClock(dev);
+    if (clock.ok && clock.driftSeconds !== null && Math.abs(clock.driftSeconds) <= 45) {
+      console.log(`🕒 [CLOCK OK] ${dev.name} (${dev.host}) drift ${clock.driftSeconds}s`);
+    }
     pollDeviceEvents(dev, 24, 60).catch(() => {});
   }
 

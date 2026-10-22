@@ -138,6 +138,18 @@ export interface AttendanceLogsResponse {
   logType?: "HIKVISION" | "MANUAL" | "ALL";
   isTeacherView?: boolean;
   isTilawatDua?: boolean;
+  // Full Strength: total enrolled roster regardless of scan status
+  rosterSize?: {
+    total: number;
+    students: number;
+    faculty: number;
+  };
+  // Global roster counts for the audience tabs (not scoped to the selected audience)
+  overallRosterSize?: {
+    total: number;
+    students: number;
+    faculty: number;
+  };
   filters: {
     grades: string[];
     sections: string[];

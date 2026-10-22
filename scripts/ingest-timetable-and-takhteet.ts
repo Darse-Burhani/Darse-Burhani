@@ -8,19 +8,20 @@ const prisma = new PrismaClient();
 // Teacher mapping helper
 const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
   "Burhanddin Sir Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
+  "Burhanuddin Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
   "Mustafa Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mustafa bhai Moiz bhai Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mustafa Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mustafa Sir Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mulla Aliasgar bhai Husainali bhai Khandwala": { its: "60406964", name: "Mulla Aliasgar bhai Husainali bhai Khandwala", email: "aliasgar.khandwala@darseburhani.com" },
-  "Mulla Husain bhai Mulla Fakhruddin Habib": { its: "30384792", name: "Mulla Husain bhai Mulla Fakhruddin bhai Habib", email: "husain.habib@darseburhani.com" },
+  "Mulla Husain bhai Mulla Fakhruddin Habib": { its: "30384792", name: "Mulla Husain bhai Mulla Fakhruddin Habib", email: "husain.habib@darseburhani.com" },
   "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala": { its: "60472254", name: "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala", email: "husain.kanchwala@darseburhani.com" },
   "Mulla Juzer bhai Abbas bhai Bundiwala": { its: "30434547", name: "Mulla Juzer bhai Abbas bhai Bundiwala", email: "juzer.bundiwala@darseburhani.com" },
   "Mulla Taher bhai Shaikh Muslim bhai Shakir": { its: "30394078", name: "Mulla Taher bhai Shaikh Muslim bhai Shakir", email: "taher.shakir@darseburhani.com" },
   "Shaikh Juzer bhai Shaikh Taher bhai Presswala": { its: "20359148", name: "Shaikh Juzer bhai Shaikh Taher bhai Presswala", email: "juzer.presswala@darseburhani.com" },
   "Shaikh Kumail bhai Shaikh Mustafa bhai Raj": { its: "20433286", name: "Shaikh Kumail bhai Shaikh Mustafa bhai Raj", email: "kumail.raj@darseburhani.com" },
   "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali": { its: "30387984", name: "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali", email: "murtaza.jamali@darseburhani.com" },
-  "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy": { its: "20359538", name: "Shaikh Qutbuddin bhai Mulla Zainuddin bhai Ezzy", email: "qutbuddin.ezzy@darseburhani.com" },
+  "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy": { its: "20359538", name: "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy", email: "qutbuddin.ezzy@darseburhani.com" },
   "Shaikh Shabbir bhai Mohsinali bhai Shakir": { its: "20378107", name: "Shaikh Shabbir bhai Mohsinali bhai Shakir", email: "shabbir.shakir@darseburhani.com" },
 };
 

@@ -298,6 +298,20 @@ function getIstTimeXml() {
 }
 
 /**
+ * Parse an ISAPI <localTime>. Hikvision firmware often returns a bare
+ * "YYYY-MM-DDTHH:mm:ss" with no offset; that value is IST wall-clock, so it
+ * must be anchored to +05:30. `new Date(raw)` would interpret it in the
+ * server's timezone (usually UTC on Render) and report a fake 5h30m drift.
+ */
+function parseDeviceIstTime(raw?: string | null): Date | null {
+  if (!raw) return null;
+  const s = String(raw).trim().replace(/\//g, "-").replace(" ", "T");
+  const hasOffset = /[Zz]|([+-]\d{2}:?\d{2})$/.test(s);
+  const parsed = new Date(hasOffset ? s : `${s}+05:30`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
  * Hikvision terminals are notorious for losing their clock (dead CMOS battery,
  * reboot, NTP failure). A drifted clock silently breaks polling (the event
  * window is queried in wall-clock time) AND corrupts scan timestamps, so every
@@ -321,8 +335,8 @@ export async function syncDeviceTime(conn: HikConnection): Promise<number> {
   const xml = await res.text();
   const m = xml.match(/<localTime>([^<]+)<\/localTime>/);
   if (!m) return 0;
-  const devNow = new Date(m[1]);
-  if (Number.isNaN(devNow.getTime())) return 0;
+  const devNow = parseDeviceIstTime(m[1]);
+  if (!devNow) return 0;
 
   // Compensate for roughly half the round-trip time.
   const rttHalf = (Date.now() - t0) / 2;
@@ -367,17 +381,26 @@ export async function forceSyncDeviceTime(id: string): Promise<{ ok: boolean; dr
 
   // Read current device time & schema parameters first to ensure 100% ISAPI schema compatibility
   let timeMode = "manual";
+  let driftSeconds = 0;
 
   try {
+    const readStartedAt = Date.now();
     const getRes = await digestFetch(`${base}/ISAPI/System/time`, {
       username: conn.username,
       password: conn.password,
       timeoutMs: 5000,
     });
+    const readFinishedAt = Date.now();
     if (getRes.ok) {
       const xml = await getRes.text();
       const modeMatch = xml.match(/<timeMode>([^<]+)<\/timeMode>/);
       if (modeMatch) timeMode = modeMatch[1];
+      const localMatch = xml.match(/<localTime>([^<]+)<\/localTime>/);
+      const deviceBefore = parseDeviceIstTime(localMatch?.[1]);
+      if (deviceBefore) {
+        const midpoint = (readStartedAt + readFinishedAt) / 2;
+        driftSeconds = Math.round((deviceBefore.getTime() - midpoint) / 1000);
+      }
     }
   } catch {
     // fallback to defaults
@@ -411,7 +434,7 @@ export async function forceSyncDeviceTime(id: string): Promise<{ ok: boolean; dr
 
   return {
     ok: true,
-    driftSeconds: 0,
+    driftSeconds,
     deviceTime: localTime,
     serverTime: new Date().toISOString(),
   };

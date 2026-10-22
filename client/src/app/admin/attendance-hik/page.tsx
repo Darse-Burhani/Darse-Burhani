@@ -91,11 +91,14 @@ function formatRelative(iso?: string | null) {
 }
 
 function getTodayDateString(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  // Always use the school's IST calendar day, even if an admin opens the page
+  // from another timezone. en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 type StatusFilterType =
@@ -283,14 +286,32 @@ export default function AdminAttendanceHikPage() {
 
   // Aggregated KPI Stats
   const stats = useMemo(() => {
-    const studentsPunched = allRecords.filter((r) => r.role === "STUDENT").length;
-    const facultyPunched = allRecords.filter((r) => r.role === "FACULTY").length;
+    // A member counts as scanned only when a real terminal scan produced the
+    // check-in. Manual roll-call entries must not inflate the "Scanned" card.
+    const isScanned = (r: AttendanceLogRecordItem) =>
+      Boolean(r.checkInTime) && (r.source === "SCAN" || r.source === "BIOMETRIC" || r.verificationMethod === "BIOMETRIC");
+
+    const studentsPunched = allRecords.filter((r) => r.role === "STUDENT" && isScanned(r)).length;
+    const facultyPunched = allRecords.filter((r) => r.role === "FACULTY" && isScanned(r)).length;
+
+    // Full Strength from server (total enrolled roster, independent of logType)
+    const rosterStudents = data?.rosterSize?.students ?? allRecords.filter((r) => r.role === "STUDENT").length;
+    const rosterFaculty = data?.rosterSize?.faculty ?? allRecords.filter((r) => r.role === "FACULTY").length;
+    const rosterTotal = data?.rosterSize?.total ?? allRecords.length;
+
+    // Global counts for the audience tabs, so they stay correct while the
+    // table is scoped to Talabat or Faculty.
+    const overallRosterStudents = data?.overallRosterSize?.students ?? rosterStudents;
+    const overallRosterFaculty = data?.overallRosterSize?.faculty ?? rosterFaculty;
+    const overallRosterTotal = data?.overallRosterSize?.total ?? rosterTotal;
 
     let presentCount = 0;
     let lateCount = 0;
     let absentCount = 0;
     let medicalCount = 0;
     let leaveCount = 0;
+    let notMarkedCount = 0;
+    let holidayCount = 0;
 
     audienceRecords.forEach((r) => {
       if (r.status === "PRESENT") presentCount++;
@@ -298,19 +319,48 @@ export default function AdminAttendanceHikPage() {
       else if (r.status === "ABSENT") absentCount++;
       else if (r.status === "MEDICAL") medicalCount++;
       else if (r.status === "ON_LEAVE") leaveCount++;
+      else if (r.status === "HOLIDAY") holidayCount++;
+      else notMarkedCount++;
     });
 
+    // Hikvision view is full-strength: anyone with no scan and no approved
+    // medical/leave is absent for the day, even if the register has not been
+    // finalised yet. This is what makes the Absent KPI reliable at any hour.
+    const effectiveAbsentCount = absentCount + notMarkedCount;
+
+    // Arrival rate: (present + late) / full strength for selected audience
+    const audienceFullStrength =
+      audience === "STUDENT" ? rosterStudents
+      : audience === "FACULTY" ? rosterFaculty
+      : rosterTotal;
+    const arrivedCount = presentCount + lateCount;
+    const arrivalPct = audienceFullStrength > 0 ? Math.round((arrivedCount / audienceFullStrength) * 100) : 0;
+    const presentPct = audienceFullStrength > 0 ? Math.round((presentCount / audienceFullStrength) * 100) : 0;
+
     return {
-      totalPunched: allRecords.length,
+      totalPunched: studentsPunched + facultyPunched,
       studentPunched: studentsPunched,
       facultyPunched: facultyPunched,
+      rosterStudents,
+      rosterFaculty,
+      rosterTotal,
+      overallRosterStudents,
+      overallRosterFaculty,
+      overallRosterTotal,
+      audienceFullStrength,
+      arrivedCount,
+      arrivalPct,
+      presentPct,
       presentCount,
       lateCount,
-      absentCount,
+      absentCount: effectiveAbsentCount,
+      rawAbsentCount: absentCount,
+      notMarkedCount,
       medicalCount,
       leaveCount,
+      holidayCount,
     };
-  }, [allRecords, audienceRecords]);
+  }, [allRecords, audienceRecords, data, audience]);
 
   const handleStatusFilterChange = (newStatus: StatusFilterType) => {
     setStatusFilter(newStatus);
@@ -338,6 +388,10 @@ export default function AdminAttendanceHikPage() {
               r.status !== "MEDICAL" &&
               r.status !== "ON_LEAVE")
         );
+      } else if (statusFilter === "ABSENT") {
+        // In the full-strength Hikvision view an unmarked member is absent:
+        // no terminal scan, no approved leave, no medical exemption.
+        list = list.filter((r) => r.status === "ABSENT" || r.status === "NOT_MARKED");
       } else {
         list = list.filter((r) => r.status === statusFilter);
       }
@@ -443,9 +497,16 @@ export default function AdminAttendanceHikPage() {
           dot: "bg-sky-500",
           icon: Briefcase,
         };
+      case "HOLIDAY":
+        return {
+          label: "HOLIDAY",
+          bg: "bg-slate-100 text-slate-700 border-slate-300",
+          dot: "bg-slate-400",
+          icon: Calendar,
+        };
       default:
         return {
-          label: hasScan ? "SCANNED" : "NOT MARKED",
+          label: hasScan ? "SCANNED" : "ABSENT · NO SCAN",
           bg: "bg-slate-100 text-slate-700 border-slate-300",
           dot: "bg-slate-400",
           icon: HelpCircle,
@@ -492,12 +553,12 @@ export default function AdminAttendanceHikPage() {
             </div>
 
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white flex flex-wrap items-baseline gap-2">
-              <span>Hikvision Biometric Scanning Logs</span>
+              <span>Hikvision Full-Strength Attendance</span>
               <span className="text-xs sm:text-sm font-arabic font-normal text-amber-300/80">سجلات البصمة والأجهزة</span>
             </h1>
 
             <p className="text-xs sm:text-sm text-emerald-100/80 max-w-2xl font-medium leading-relaxed">
-              Real-time attendance punched from MinMoe face recognition &amp; fingerprint terminals. All timestamps recorded in Indian Standard Time (Asia/Kolkata).
+              Full enrolled strength with live terminal scans, absentees, medical exemptions and approved leave. All timestamps are recorded and displayed in Indian Standard Time (Asia/Kolkata).
             </p>
           </div>
 
@@ -532,67 +593,100 @@ export default function AdminAttendanceHikPage() {
           </div>
         </div>
 
-        {/* Live Terminal & Scan Stats Counter Cards (Responsive 2 / 3 / 5 column grid) */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
-          {/* Card 1: Total Scans */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/80 truncate">Total Scans</div>
-            <div className="text-xl sm:text-2xl font-black text-white mt-0.5 truncate">{stats.totalPunched}</div>
-            <div className="text-[10px] text-white/50 font-medium truncate">Punched today</div>
+        {/* Live Terminal & Scan Stats Counter Cards (Responsive 2 / 3 / 4 / 7 column grid) */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
+          {/* Card 1: Full Strength */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 border border-[#d4af37]/40 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#f5e6b3] truncate">Full Strength</span>
+              <Users className="w-3 h-3 text-[#d4af37] shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-[#f5e6b3] mt-0.5 truncate">
+              {stats.audienceFullStrength}
+            </div>
+            <div className="text-[10px] text-[#d4af37]/70 font-bold truncate">
+              {stats.overallRosterStudents} Talabat · {stats.overallRosterFaculty} Faculty
+            </div>
           </div>
 
-          {/* Card 2: Total Talabat (Students) */}
-          <div
-            onClick={() => setAudience("STUDENT")}
-            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer min-w-0 ${
-              audience === "STUDENT"
-                ? "bg-amber-400/20 border-amber-400/60 shadow-xs"
-                : "bg-white/5 border-white/10 hover:bg-white/10"
-            }`}
-          >
+          {/* Card 2: Present */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300/90 truncate">Talabat</span>
-              <GraduationCap className="w-3 h-3 text-amber-300 shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 truncate">Present</span>
+              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
             </div>
-            <div className="text-xl sm:text-2xl font-black text-amber-200 mt-0.5 truncate">
-              {stats.studentPunched}
+            <div className="text-xl sm:text-2xl font-black text-emerald-200 mt-0.5 truncate">
+              {stats.presentCount}
             </div>
-            <div className="text-[10px] text-white/60 font-medium truncate">Scanned today</div>
+            <div className="text-[10px] text-emerald-300/70 font-bold truncate">{stats.presentPct}% of strength</div>
           </div>
 
-          {/* Card 3: Total Faculty */}
-          <div
-            onClick={() => setAudience("FACULTY")}
-            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer min-w-0 ${
-              audience === "FACULTY"
-                ? "bg-sky-400/20 border-sky-400/60 shadow-xs"
-                : "bg-white/5 border-white/10 hover:bg-white/10"
-            }`}
-          >
+          {/* Card 3: Absent (includes not-yet-scanned) */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-rose-500/15 border border-rose-400/40 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300/90 truncate">Faculty</span>
-              <Briefcase className="w-3 h-3 text-sky-300 shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-300 truncate">Absent</span>
+              <XCircle className="w-3 h-3 text-rose-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-rose-200 mt-0.5 truncate">
+              {stats.absentCount}
+            </div>
+            <div className="text-[10px] text-rose-300/70 font-bold truncate">
+              {stats.notMarkedCount} unscanned
+            </div>
+          </div>
+
+          {/* Card 4: Medical */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-purple-500/15 border border-purple-400/40 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 truncate">Medical</span>
+              <Activity className="w-3 h-3 text-purple-400 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-purple-200 mt-0.5 truncate">
+              {stats.medicalCount}
+            </div>
+            <div className="text-[10px] text-purple-300/70 font-bold truncate">Approved exemption</div>
+          </div>
+
+          {/* Card 5: On Leave */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-sky-500/15 border border-sky-400/40 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300 truncate">On Leave</span>
+              <Briefcase className="w-3 h-3 text-sky-400 shrink-0" />
             </div>
             <div className="text-xl sm:text-2xl font-black text-sky-200 mt-0.5 truncate">
-              {stats.facultyPunched}
+              {stats.leaveCount}
             </div>
-            <div className="text-[10px] text-white/60 font-medium truncate">Scanned today</div>
+            <div className="text-[10px] text-sky-300/70 font-bold truncate">Approved leave</div>
           </div>
 
-          {/* Card 4: Present vs Late */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 truncate">On-Time / Late</div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-300 mt-0.5 truncate">
-              {stats.presentCount} <span className="text-xs text-amber-300 font-bold">/ {stats.lateCount} late</span>
+          {/* Card 6: Late */}
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-amber-500/15 border border-amber-400/40 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 truncate">Late</span>
+              <Clock className="w-3 h-3 text-amber-400 shrink-0" />
             </div>
-            <div className="text-[10px] text-white/50 font-medium truncate">Scan timing breakdown</div>
+            <div className="text-xl sm:text-2xl font-black text-amber-200 mt-0.5 truncate">
+              {stats.lateCount}
+            </div>
+            <div className="text-[10px] text-amber-300/70 font-bold truncate">Scanned after cut-off</div>
           </div>
 
-          {/* Card 5: Hardware Status */}
+          {/* Card 7: Scanned */}
           <div className="p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-300/80 truncate">Terminals</div>
-            <div className="text-xl sm:text-2xl font-black text-teal-200 mt-0.5 truncate">2 Online</div>
-            <div className="text-[10px] text-white/50 font-mono truncate">192.168.0.4 &amp; .5</div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300/90 truncate">Scanned</span>
+              <Fingerprint className="w-3 h-3 text-sky-300 shrink-0" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-sky-200 mt-0.5 truncate">
+              {stats.totalPunched}
+            </div>
+            <div className="text-[10px] text-sky-300/70 font-bold truncate">
+              {stats.arrivalPct}% arrived · {audience === "STUDENT"
+                ? `${stats.studentPunched} Talabat`
+                : audience === "FACULTY"
+                ? `${stats.facultyPunched} Faculty`
+                : `${stats.studentPunched} T / ${stats.facultyPunched} F`}
+            </div>
           </div>
         </div>
       </div>
@@ -659,7 +753,7 @@ export default function AdminAttendanceHikPage() {
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              All ({allRecords.length})
+              All ({stats.overallRosterTotal} enrolled)
             </button>
 
             <button
@@ -672,7 +766,7 @@ export default function AdminAttendanceHikPage() {
               }`}
             >
               <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-              <span>Talabat ({stats.studentPunched})</span>
+              <span>Talabat ({stats.overallRosterStudents})</span>
             </button>
 
             <button
@@ -685,7 +779,7 @@ export default function AdminAttendanceHikPage() {
               }`}
             >
               <Briefcase className="w-3.5 h-3.5 shrink-0" />
-              <span>Faculty ({stats.facultyPunched})</span>
+              <span>Faculty ({stats.overallRosterFaculty})</span>
             </button>
           </div>
         </div>
@@ -870,10 +964,10 @@ export default function AdminAttendanceHikPage() {
           <div className="flex items-center gap-2 min-w-0">
             <Fingerprint className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="text-xs font-black uppercase tracking-wider truncate">
-              Biometric Scan Feed
+              Full Strength Roster
             </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-emerald-300 shrink-0">
-              {displayRecords.length} {displayRecords.length === 1 ? "record" : "records"}
+              {stats.totalPunched} scanned / {stats.audienceFullStrength} enrolled
             </span>
           </div>
 
@@ -901,11 +995,11 @@ export default function AdminAttendanceHikPage() {
             <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <Fingerprint className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">No Biometric Scans Found</h3>
+            <h3 className="text-sm font-bold text-slate-900">No Full-Strength Records Found</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
               {statusFilter !== "ALL"
                 ? `No attendance records found with status "${statusFilter}". Try selecting "All Statuses" or clearing your search.`
-                : `No hardware punches recorded yet for ${date === todayStr ? "today" : date}. Click "Poll ${date === todayStr ? "Today's" : date} Scans Now" to sync with physical terminals.`}
+                : `No roster or terminal punches recorded yet for ${date === todayStr ? "today" : date}. Click "Poll ${date === todayStr ? "Today's" : date} Scans Now" to sync with physical terminals.`}
             </p>
             <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
               {statusFilter !== "ALL" && (
