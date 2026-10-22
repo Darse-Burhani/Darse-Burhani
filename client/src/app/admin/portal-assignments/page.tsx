@@ -40,6 +40,8 @@ import {
   Settings,
   ClipboardList,
   Palette,
+  FileSpreadsheet,
+  ShieldOff,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
@@ -61,8 +63,6 @@ export interface PageDefinition {
   category: "Academics" | "Hifz" | "Attendance" | "Operations" | "Communications" | "Library" | "General" | "Community" | "Systems";
   description: string;
   icon: React.ElementType;
-  badgeColor: string;
-  cardColor: string;
 }
 
 // Canonical catalog — must match TEACHER_AVAILABLE_PAGES on the server
@@ -74,8 +74,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Attendance",
     description: "Mark manual attendance for classes, biometric scan windows & daily registry",
     icon: CheckSquare,
-    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "medical-duty",
@@ -83,17 +81,13 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Operations",
     description: "Mark Talabat & Faculty on Medical Leave / Exemption for events or full day",
     icon: Stethoscope,
-    badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
-    cardColor: "hover:border-blue-400 hover:bg-blue-50/40",
   },
   {
     id: "attendance-logs",
-    label: "Manual Attendance Logs",
+    label: "Hikvision Scans & Logs",
     category: "Attendance",
-    description: "View student roll-call registers, manual class entries & attendance logs (Faculty View)",
-    icon: FileText,
-    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
+    description: "Live Hikvision scans, manual logs, exports & audit timeline",
+    icon: Fingerprint,
   },
   {
     id: "attendance-schedule",
@@ -101,8 +95,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Attendance",
     description: "Punch time windows, shifts, period cutoff timers & rules",
     icon: Clock,
-    badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
-    cardColor: "hover:border-teal-400 hover:bg-teal-50/40",
   },
   {
     id: "email-reports",
@@ -110,8 +102,13 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Attendance",
     description: "Automated daily/weekly attendance digest & notification emails",
     icon: Mail,
-    badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
-    cardColor: "hover:border-teal-400 hover:bg-teal-50/40",
+  },
+  {
+    id: "google-sheets",
+    label: "Google Sheets Sync",
+    category: "Attendance",
+    description: "Cloud spreadsheet sync, daily/monthly exports & configuration",
+    icon: FileSpreadsheet,
   },
   {
     id: "biometric",
@@ -119,8 +116,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Attendance",
     description: "Device status, hardware telemetry & scanner sync management",
     icon: Fingerprint,
-    badgeColor: "bg-slate-100 text-slate-800 border-slate-200",
-    cardColor: "hover:border-slate-400 hover:bg-slate-50/40",
   },
   {
     id: "leave",
@@ -128,8 +123,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Operations",
     description: "Faculty & talabat leave requests, approvals and history",
     icon: CalendarCheck,
-    badgeColor: "bg-rose-100 text-rose-800 border-rose-200",
-    cardColor: "hover:border-rose-400 hover:bg-rose-50/40",
   },
   {
     id: "procurement",
@@ -137,8 +130,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Operations",
     description: "Stationery requests, supply requisitions & approvals",
     icon: ShoppingBag,
-    badgeColor: "bg-orange-100 text-orange-800 border-orange-200",
-    cardColor: "hover:border-orange-400 hover:bg-orange-50/40",
   },
   {
     id: "classes",
@@ -146,8 +137,13 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Student rosters, enrollment, timetable & masool duties",
     icon: BookOpen,
-    badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
-    cardColor: "hover:border-blue-400 hover:bg-blue-50/40",
+  },
+  {
+    id: "talabat-profiles",
+    label: "Yearly Profile (1447 H)",
+    category: "Community",
+    description: "Talabat yearly profile, remarks & 1447 H records",
+    icon: GraduationCap,
   },
   {
     id: "timetable",
@@ -155,8 +151,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Master timetable & schedule",
     icon: CalendarDays,
-    badgeColor: "bg-sky-100 text-sky-800 border-sky-200",
-    cardColor: "hover:border-sky-400 hover:bg-sky-50/40",
   },
   {
     id: "quran",
@@ -164,8 +158,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Hifz",
     description: "Memorization ajza tracking, marhala grading & weekly slips",
     icon: Sparkles,
-    badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200",
-    cardColor: "hover:border-cyan-400 hover:bg-cyan-50/40",
   },
   {
     id: "hifz-marhala",
@@ -173,8 +165,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Hifz",
     description: "Marhala progress & exams",
     icon: GraduationCap,
-    badgeColor: "bg-cyan-100 text-cyan-800 border-cyan-200",
-    cardColor: "hover:border-cyan-400 hover:bg-cyan-50/40",
   },
   {
     id: "takhteet",
@@ -182,8 +172,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Curriculum pacing, portion milestones & syllabus planning",
     icon: Layers,
-    badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
-    cardColor: "hover:border-amber-400 hover:bg-amber-50/40",
   },
   {
     id: "makhzan",
@@ -191,8 +179,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Operations",
     description: "School asset inventory, depot storage & equipment tracking",
     icon: Package,
-    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "library",
@@ -200,8 +186,41 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Library",
     description: "Book repository, digital catalog & student loans",
     icon: Library,
-    badgeColor: "bg-purple-100 text-purple-800 border-purple-200",
-    cardColor: "hover:border-purple-400 hover:bg-purple-50/40",
+  },
+  {
+    id: "library-overview",
+    label: "Library Overview",
+    category: "Library",
+    description: "Library dashboard, circulation metrics & quick actions",
+    icon: Library,
+  },
+  {
+    id: "library-shelves",
+    label: "Library Shelves",
+    category: "Library",
+    description: "Physical shelves, book locations & catalog management",
+    icon: Library,
+  },
+  {
+    id: "library-checkout",
+    label: "Library Checkout",
+    category: "Library",
+    description: "Issue books, scan borrowers & manage active loans",
+    icon: Library,
+  },
+  {
+    id: "library-overdue",
+    label: "Library Overdue",
+    category: "Library",
+    description: "Overdue loans, reminder emails & return tracking",
+    icon: Library,
+  },
+  {
+    id: "library-auditor",
+    label: "Library Auditor",
+    category: "Library",
+    description: "Inventory audit, missing books & shelf reconciliation",
+    icon: Library,
   },
   {
     id: "students",
@@ -209,8 +228,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Community",
     description: "Student directory, biodata & class enrollment details",
     icon: GraduationCap,
-    badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
-    cardColor: "hover:border-blue-400 hover:bg-blue-50/40",
   },
   {
     id: "parents",
@@ -218,8 +235,13 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Community",
     description: "Parent contacts, guardian directory & student linking",
     icon: Heart,
-    badgeColor: "bg-pink-100 text-pink-800 border-pink-200",
-    cardColor: "hover:border-pink-400 hover:bg-pink-50/40",
+  },
+  {
+    id: "parents-assign",
+    label: "Assign Talabat to Parent",
+    category: "Community",
+    description: "Link talabat profiles to parent guardian accounts",
+    icon: Link2,
   },
   {
     id: "users",
@@ -227,8 +249,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Community",
     description: "Staff directory, user accounts & credential management",
     icon: Users,
-    badgeColor: "bg-violet-100 text-violet-800 border-violet-200",
-    cardColor: "hover:border-violet-400 hover:bg-violet-50/40",
   },
   {
     id: "passwords",
@@ -236,8 +256,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Community",
     description: "Direct password resets, credentials & access recovery",
     icon: KeyRound,
-    badgeColor: "bg-stone-100 text-stone-800 border-stone-200",
-    cardColor: "hover:border-stone-400 hover:bg-stone-50/40",
   },
   {
     id: "tracking",
@@ -245,8 +263,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Operations",
     description: "Student performance tracking, point trends & metrics",
     icon: BarChart3,
-    badgeColor: "bg-teal-100 text-teal-800 border-teal-200",
-    cardColor: "hover:border-teal-400 hover:bg-teal-50/40",
   },
   {
     id: "point-matrix",
@@ -254,8 +270,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Systems",
     description: "Star point rules, rubrics, point multipliers & matrix",
     icon: Award,
-    badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
-    cardColor: "hover:border-amber-400 hover:bg-amber-50/40",
   },
   {
     id: "portal-assignments",
@@ -263,8 +277,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Systems",
     description: "Assign portal pages to teachers (delegates administrative authority)",
     icon: UserCheck,
-    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "notifications",
@@ -272,8 +284,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Systems",
     description: "Broadcast announcements & targeted notification studio",
     icon: Bell,
-    badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    cardColor: "hover:border-indigo-400 hover:bg-indigo-50/40",
   },
   {
     id: "security",
@@ -281,8 +291,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Systems",
     description: "Audit logs, active sessions & security preferences",
     icon: Shield,
-    badgeColor: "bg-red-100 text-red-800 border-red-200",
-    cardColor: "hover:border-red-400 hover:bg-red-50/40",
   },
   {
     id: "settings",
@@ -290,8 +298,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Systems",
     description: "Global portal module locks & permission matrix",
     icon: Settings,
-    badgeColor: "bg-slate-100 text-slate-800 border-slate-200",
-    cardColor: "hover:border-slate-400 hover:bg-slate-50/40",
   },
   {
     id: "student-assignments",
@@ -299,8 +305,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Create assignments, grade talabat & view skill assessment scores",
     icon: ClipboardList,
-    badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    cardColor: "hover:border-indigo-400 hover:bg-indigo-50/40",
   },
   {
     id: "hobbies",
@@ -308,8 +312,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Community",
     description: "View & manage talabat hobbies, interests and skills",
     icon: Palette,
-    badgeColor: "bg-pink-100 text-pink-800 border-pink-200",
-    cardColor: "hover:border-pink-400 hover:bg-pink-50/40",
   },
   {
     id: "talabat-skills",
@@ -317,8 +319,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Every talabat's skill %, Q&A scores, assignment marks & hobbies",
     icon: Sparkles,
-    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "dashboard",
@@ -326,8 +326,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "General",
     description: "Teacher main overview HUD, quick shortcuts & points",
     icon: Activity,
-    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    cardColor: "hover:border-emerald-400 hover:bg-emerald-50/40",
   },
   {
     id: "profile",
@@ -335,53 +333,58 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "General",
     description: "Biographical details, ITS credentials & security preferences",
     icon: User,
-    badgeColor: "bg-sky-100 text-sky-800 border-sky-200",
-    cardColor: "hover:border-sky-400 hover:bg-sky-50/40",
   },
 ];
+
+// 70/30/10 tone system: neutral slate carries structure, emerald and gold
+// are reserved for the small set of focal accents.
+const CATEGORY_TONES: Record<PageDefinition["category"], { badge: string; icon: string; dot: string }> = {
+  General: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
+  Academics: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
+  Hifz: { badge: "bg-emerald-50 text-emerald-800 border-emerald-200", icon: "text-emerald-700", dot: "bg-emerald-500" },
+  Attendance: { badge: "bg-emerald-50 text-emerald-800 border-emerald-200", icon: "text-emerald-700", dot: "bg-emerald-500" },
+  Operations: { badge: "bg-amber-50 text-amber-800 border-amber-200", icon: "text-amber-700", dot: "bg-amber-500" },
+  Communications: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
+  Library: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
+  Community: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
+  Systems: { badge: "bg-amber-50 text-amber-800 border-amber-200", icon: "text-amber-700", dot: "bg-amber-500" },
+};
 
 const PRESETS = [
   {
     name: "Full Authority (All Modules)",
     description: "Grants unconditional access to all portal modules",
     pages: AVAILABLE_PAGES.map((p) => p.id),
-    color: "from-emerald-700 to-teal-800",
   },
   {
     name: "Standard Academic Faculty",
-    description: "Dashboard, Classes, Timetable, Quran, Takhteet, Manual Attendance, Profile",
-    pages: ["dashboard", "classes", "timetable", "quran", "takhteet", "manual-attendance", "profile"],
-    color: "from-blue-700 to-indigo-800",
+    description: "Dashboard, Classes, Yearly Profile, Timetable, Quran, Takhteet, Manual Attendance, Profile",
+    pages: ["dashboard", "classes", "talabat-profiles", "timetable", "quran", "takhteet", "manual-attendance", "profile"],
   },
   {
     name: "Health & Medical In-Charge",
     description: "Dashboard, Medical & Health Duty, Manual Attendance, Attendance Logs, Leave, Profile",
     pages: ["dashboard", "medical-duty", "manual-attendance", "attendance-logs", "leave", "profile"],
-    color: "from-blue-800 to-cyan-900",
   },
   {
     name: "Attendance & Scanners Officer",
-    description: "Dashboard, Manual Attendance, Attendance Logs, Attendance Schedule, Email Reports, Biometric, Leave, Profile",
-    pages: ["dashboard", "manual-attendance", "attendance-logs", "attendance-schedule", "email-reports", "biometric", "leave", "profile"],
-    color: "from-emerald-800 to-green-900",
+    description: "Dashboard, Manual Attendance, Hikvision Logs, Attendance Schedule, Email Reports, Google Sheets, Biometric, Leave, Profile",
+    pages: ["dashboard", "manual-attendance", "attendance-logs", "attendance-schedule", "email-reports", "google-sheets", "biometric", "leave", "profile"],
   },
   {
     name: "Hifz Department (Muhaffiz)",
     description: "Dashboard, Quran, Hifz Marhala, Manual Attendance, Leave, Profile",
     pages: ["dashboard", "quran", "hifz-marhala", "manual-attendance", "leave", "profile"],
-    color: "from-cyan-700 to-teal-800",
   },
   {
     name: "Operations & Makhzan",
     description: "Dashboard, Procurement, Makhzan, Library, Leave, Profile",
     pages: ["dashboard", "procurement", "makhzan", "library", "leave", "profile"],
-    color: "from-orange-700 to-amber-800",
   },
   {
     name: "Talabat & Community In-Charge",
-    description: "Dashboard, Talabat (Students), Parents Directory, Staff & Users, Tracking, Point Matrix, Profile",
-    pages: ["dashboard", "students", "parents", "users", "tracking", "point-matrix", "profile"],
-    color: "from-purple-700 to-indigo-800",
+    description: "Dashboard, Talabat, Yearly Profile, Parents Directory, Parent Assignments, Staff & Users, Tracking, Point Matrix, Profile",
+    pages: ["dashboard", "students", "talabat-profiles", "parents", "parents-assign", "users", "tracking", "point-matrix", "profile"],
   },
 ];
 
@@ -403,6 +406,8 @@ export default function AdminPortalAssignmentsPage() {
   const [modalTargetTeacherIds, setModalTargetTeacherIds] = useState<string[]>([]);
   const [modalSelectedPages, setModalSelectedPages] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [grantingId, setGrantingId] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const fetchData = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -535,7 +540,7 @@ export default function AdminPortalAssignmentsPage() {
         toast({
           variant: "success",
           title: "Portal Permissions Updated",
-          description: `Assigned ${pagesArray.length} modules to ${modalTargetTeacherIds.length} faculty member(s).`,
+          description: `Assigned ${pagesArray.length} of ${AVAILABLE_PAGES.length} modules to ${modalTargetTeacherIds.length} faculty member(s). In-app notifications were delivered.`,
         });
         setShowConfigModal(false);
         setSelectedFacultyIds([]);
@@ -547,6 +552,67 @@ export default function AdminPortalAssignmentsPage() {
       toast({ variant: "destructive", title: "Network Error", description: "Failed to connect to server." });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGrantAll = async (teacher: any) => {
+    if (!window.confirm(`Grant full portal authority to ${teacher.name}? They will receive every admin tab and feature.`)) {
+      return;
+    }
+    setGrantingId(teacher.id);
+    try {
+      const res = await fetch("/api/admin/portal-assignments/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherIds: [teacher.id],
+          pages: AVAILABLE_PAGES.map((page) => page.id),
+          grantAll: true,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        toast({
+          variant: "success",
+          title: "Full Authority Granted",
+          description: `${teacher.name} now has all ${AVAILABLE_PAGES.length} modules. A notification was sent to their portal.`,
+        });
+        await fetchData();
+      } else {
+        toast({ variant: "destructive", title: "Grant Failed", description: json.error || "Could not grant full access." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network Error", description: "Could not reach the server." });
+    } finally {
+      setGrantingId(null);
+    }
+  };
+
+  const handleRevokeAll = async (teacher: any) => {
+    if (!window.confirm(`Revoke all delegated portal access for ${teacher.name}? Dashboard and Profile will remain available.`)) {
+      return;
+    }
+    setRevokingId(teacher.id);
+    try {
+      const res = await fetch(`/api/admin/portal-assignments?teacherId=${encodeURIComponent(teacher.id)}&all=true`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        toast({
+          variant: "warning",
+          title: "Portal Access Revoked",
+          description: `${teacher.name} now has Dashboard and Profile only. A notification was sent to their portal.`,
+        });
+        setSelectedFacultyIds((prev) => prev.filter((id) => id !== teacher.id));
+        await fetchData();
+      } else {
+        toast({ variant: "destructive", title: "Revoke Failed", description: json.error || "Could not revoke access." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network Error", description: "Could not reach the server." });
+    } finally {
+      setRevokingId(null);
     }
   };
 
@@ -580,38 +646,32 @@ export default function AdminPortalAssignmentsPage() {
         ]}
       />
 
-      {/* Fatimi Luxury Hero Banner */}
+      {/* 70% canvas / 30% structure / 10% accent authority panel */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <div
-          className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-2xl"
-          style={{ background: "linear-gradient(135deg, #022c22 0%, #064e3b 40%, #047857 100%)" }}
-        >
-          {/* Decorative Pattern Background */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path d="M0,0 L100,100 M100,0 L0,100" stroke="#d4af37" strokeWidth="0.5" />
-            </svg>
-          </div>
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-emerald-700 via-emerald-500 to-amber-500" />
+          <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-emerald-50 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 right-24 h-36 w-36 rounded-full bg-amber-50/80 blur-3xl" />
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-start sm:items-center gap-4">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-white/20"
-                style={{ background: "linear-gradient(135deg, #d4af37 0%, #b8972e 100%)" }}
-              >
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-emerald-200 bg-emerald-700">
                 <Shield className="w-8 h-8 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
                     Teacher Portal Authority Control
                   </h1>
-                  <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs text-white font-bold border border-white/20">
+                  <span className="px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-700 font-bold border border-slate-200">
                     {stats.total} Active Faculty
                   </span>
+                  <span className="px-3 py-1 rounded-full bg-amber-50 text-[10px] text-amber-800 font-bold border border-amber-200 uppercase tracking-wider">
+                    70 · 30 · 10
+                  </span>
                 </div>
-                <p className="text-emerald-100 text-sm mt-1.5 max-w-2xl">
-                  Granular control to assign, grant full authority, or completely hide any of the {AVAILABLE_PAGES.length} core modules for any faculty member. Inactive or deleted profiles are strictly excluded from all directories.
+                <p className="text-slate-600 text-sm mt-1.5 max-w-2xl">
+                  Manage every admin tab in one place — {AVAILABLE_PAGES.length} modules across attendance, academics, community, library and governance. Grant all authority, configure individual tabs, or revoke access instantly. Teachers receive an in-app notification for every change.
                 </p>
               </div>
             </div>
@@ -621,7 +681,7 @@ export default function AdminPortalAssignmentsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm backdrop-blur-md h-10 px-4 rounded-xl"
+                className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm h-10 px-4 rounded-xl"
                 onClick={() => fetchData(true)}
                 disabled={refreshing || loading}
               >
@@ -629,51 +689,51 @@ export default function AdminPortalAssignmentsPage() {
               </Button>
 
               <Button
-                className="bg-[#d4af37] hover:bg-[#b8972e] text-white font-bold shadow-lg shadow-black/20 h-10 px-5 rounded-xl transition-transform active:scale-95"
-                onClick={() => openModalForTeachers(teachers.map((t) => t.id))}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold shadow-sm h-10 px-5 rounded-xl transition-transform active:scale-95"
+                onClick={() => openModalForTeachers(teachers.map((t) => t.id), AVAILABLE_PAGES.map((p) => p.id))}
               >
-                <Sparkles className="w-4 h-4 mr-2" /> Bulk Assign All Faculty
+                <Sparkles className="w-4 h-4 mr-2" /> Bulk Grant All Features
               </Button>
             </div>
           </div>
 
           {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/15">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <span className="text-[11px] text-emerald-200 font-medium block">Total Active Faculty</span>
-              <span className="text-xl font-bold text-white mt-0.5 block">{stats.total}</span>
+          <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-200">
+            <div className="rounded-2xl p-3 border border-slate-200 bg-slate-50/70">
+              <span className="text-[11px] text-slate-500 font-medium block">Total Active Faculty</span>
+              <span className="text-xl font-bold text-slate-900 mt-0.5 block">{stats.total}</span>
             </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <span className="text-[11px] text-emerald-200 font-medium block">Full Authority Access</span>
-              <span className="text-xl font-bold text-emerald-300 mt-0.5 block">{stats.fullAuth}</span>
+            <div className="rounded-2xl p-3 border border-emerald-200 bg-emerald-50/60">
+              <span className="text-[11px] text-emerald-800/80 font-medium block">Full Authority Access</span>
+              <span className="text-xl font-bold text-emerald-700 mt-0.5 block">{stats.fullAuth}</span>
             </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <span className="text-[11px] text-emerald-200 font-medium block">Custom Module Access</span>
-              <span className="text-xl font-bold text-amber-300 mt-0.5 block">{stats.partial}</span>
+            <div className="rounded-2xl p-3 border border-amber-200 bg-amber-50/60">
+              <span className="text-[11px] text-amber-800/80 font-medium block">Custom Module Access</span>
+              <span className="text-xl font-bold text-amber-700 mt-0.5 block">{stats.partial}</span>
             </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <span className="text-[11px] text-emerald-200 font-medium block">Total Modules Controlled</span>
-              <span className="text-xl font-bold text-white mt-0.5 block">{AVAILABLE_PAGES.length} Core Pages</span>
+            <div className="rounded-2xl p-3 border border-slate-200 bg-slate-50/70">
+              <span className="text-[11px] text-slate-500 font-medium block">Total Modules Controlled</span>
+              <span className="text-xl font-bold text-slate-900 mt-0.5 block">{AVAILABLE_PAGES.length} Core Pages</span>
             </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent opacity-90" />
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
         </div>
       </motion.div>
 
       {/* ── Modules Quick-Filter Bar ── */}
-      <div className="bg-white p-5 rounded-3xl border border-emerald-100 shadow-sm space-y-3">
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-emerald-700" />
-            <span className="text-xs font-bold text-[#065f46] uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Filter Faculty by Assigned Module ({AVAILABLE_PAGES.length} Core Pages):
             </span>
           </div>
           {activeModuleFilter !== "ALL" && (
             <button
               onClick={() => setActiveModuleFilter("ALL")}
-              className="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline"
+              className="text-xs text-slate-600 hover:text-slate-900 font-bold hover:underline"
             >
               Reset to All Faculty
             </button>
@@ -685,8 +745,8 @@ export default function AdminPortalAssignmentsPage() {
             onClick={() => setActiveModuleFilter("ALL")}
             className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
               activeModuleFilter === "ALL"
-                ? "bg-[#064e3b] text-white border-[#064e3b] shadow-sm scale-105"
-                : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                ? "bg-emerald-700 text-white border-emerald-700 shadow-sm scale-105"
+                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
             }`}
           >
             All Faculty ({teachers.length})
@@ -696,20 +756,21 @@ export default function AdminPortalAssignmentsPage() {
             const Icon = page.icon;
             const count = teachers.filter((t) => t.assignedPages?.includes(page.id)).length;
             const isSelected = activeModuleFilter === page.id;
+            const tone = CATEGORY_TONES[page.category];
             return (
               <button
                 key={page.id}
                 onClick={() => setActiveModuleFilter(isSelected ? "ALL" : page.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                   isSelected
-                    ? "bg-[#047857] text-white border-[#047857] shadow-md scale-105 font-bold"
-                    : `${page.badgeColor} hover:opacity-95`
+                    ? "bg-emerald-700 text-white border-emerald-700 shadow-md scale-105 font-bold"
+                    : `${tone.badge} hover:border-emerald-300 hover:bg-white`
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : tone.icon}`} />
                 <span>{page.label}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isSelected ? "bg-white/20 text-white" : "bg-white/60 text-gray-800"
+                  isSelected ? "bg-white/20 text-white" : "bg-white/70 text-slate-700"
                 }`}>
                   {count}
                 </span>
@@ -823,7 +884,7 @@ export default function AdminPortalAssignmentsPage() {
                 }`}
               >
                 {/* Faculty Card Header */}
-                <div className="p-5 border-b border-gray-100 bg-gradient-to-br from-emerald-50/60 via-white to-amber-50/20">
+                <div className="p-5 border-b border-slate-200 bg-slate-50/70">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3.5 min-w-0">
                       {/* Checkbox for batch multi-select */}
@@ -840,21 +901,21 @@ export default function AdminPortalAssignmentsPage() {
                       </button>
 
                       {/* Avatar */}
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#047857] to-[#064e3b] text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0 border border-emerald-600/30">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0 border border-emerald-600/30">
                         {getInitials(teacher.name.split(" ")[0], teacher.name.split(" ")[1] || "")}
                       </div>
 
                       {/* Info */}
                       <div className="min-w-0">
-                        <h3 className="font-display font-bold text-gray-900 text-base truncate">
+                        <h3 className="font-display font-bold text-slate-900 text-base truncate">
                           {teacher.name}
                         </h3>
-                        <p className="text-xs text-gray-500 truncate">{teacher.email}</p>
+                        <p className="text-xs text-slate-500 truncate">{teacher.email}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-200/70 px-2 py-0.5 rounded-md">
                             ID: {teacher.employeeId}
                           </span>
-                          <span className="text-[10px] text-gray-500 font-medium truncate">
+                          <span className="text-[10px] text-slate-500 font-medium truncate">
                             {teacher.department}
                           </span>
                         </div>
@@ -912,13 +973,35 @@ export default function AdminPortalAssignmentsPage() {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2">
+                  <div className="pt-4 mt-4 border-t border-slate-200 flex flex-wrap items-center gap-2">
                     <Button
                       size="sm"
                       onClick={() => openModalForTeachers([teacher.id], teacher.assignedPages)}
-                      className="w-full bg-[#047857] hover:bg-[#065f46] text-white font-bold text-xs h-9 rounded-xl shadow-sm transition-all"
+                      className="flex-1 min-w-[150px] bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 rounded-xl shadow-sm transition-all"
                     >
-                      <Shield className="w-3.5 h-3.5 mr-1.5" /> Configure Authority & Modules
+                      <Shield className="w-3.5 h-3.5 mr-1.5" /> Configure Modules
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleGrantAll(teacher)}
+                      disabled={grantingId === teacher.id || revokingId === teacher.id}
+                      className="h-9 px-3 rounded-xl border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-bold"
+                      title="Grant every admin tab"
+                    >
+                      {grantingId === teacher.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      <span className="ml-1.5">Grant All</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRevokeAll(teacher)}
+                      disabled={grantingId === teacher.id || revokingId === teacher.id}
+                      className="h-9 px-3 rounded-xl border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-rose-700 text-xs font-bold"
+                      title="Revoke all delegated access"
+                    >
+                      {revokingId === teacher.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                      <span className="ml-1.5">Revoke</span>
                     </Button>
                   </div>
                 </div>
@@ -935,7 +1018,7 @@ export default function AdminPortalAssignmentsPage() {
         <ModalContent className="max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:p-8">
           <ModalHeader>
             <ModalTitle className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#047857] to-[#064e3b] text-white flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shadow-sm">
                 <Shield className="w-5 h-5" />
               </div>
               <div>
@@ -953,10 +1036,10 @@ export default function AdminPortalAssignmentsPage() {
 
           <div className="space-y-6 py-4">
             {/* Quick Presets */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-amber-50/40 border border-emerald-100/80 shadow-sm">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-[#065f46] uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> One-Click Role Presets:
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" /> One-Click Role Presets:
                 </span>
                 <span className="text-[10px] text-gray-500 font-medium">Click any preset to auto-select modules</span>
               </div>
@@ -1030,7 +1113,7 @@ export default function AdminPortalAssignmentsPage() {
                           <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2 leading-tight">
                             {page.description}
                           </p>
-                          <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold ${page.badgeColor}`}>
+                          <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold border ${CATEGORY_TONES[page.category].badge}`}>
                             {page.category}
                           </span>
                         </div>
@@ -1064,7 +1147,7 @@ export default function AdminPortalAssignmentsPage() {
                 <Button
                   onClick={handleSaveAssignments}
                   disabled={saving}
-                  className="bg-[#047857] hover:bg-[#065f46] text-white font-bold rounded-xl px-5 shadow-md"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl px-5 shadow-sm"
                 >
                   {saving ? (
                     <>

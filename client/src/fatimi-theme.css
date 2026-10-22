@@ -16,9 +16,9 @@
   --fatimi-primary-dark: #022c22;
   --fatimi-primary-light: #059669;
   --fatimi-secondary: #047857;
-  --fatimi-gold: #059669;
-  --fatimi-gold-light: #a7f3d0;
-  --fatimi-gold-dark: #065f46;
+  --fatimi-gold: #d97706;
+  --fatimi-gold-light: #fef3c7;
+  --fatimi-gold-dark: #b45309;
   --fatimi-surface: #ffffff;
   --fatimi-bg-subtle: #f8fafc;
   --fatimi-border: #e2e8f0;
@@ -28,6 +28,18 @@
   --fatimi-sidebar-bg: linear-gradient(180deg, #011f18 0%, #022c22 55%, #064e3b 100%);
   --fatimi-banner-bg: linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%);
   --fatimi-header-line: linear-gradient(90deg, #022c22, #059669, #022c22);
+
+  /* Explicit 70 / 30 / 10 ratio contract used by shared utilities. */
+  --ratio-70-canvas: #f8fafc;
+  --ratio-70-surface: #ffffff;
+  --ratio-70-subtle: #f1f5f9;
+  --ratio-30-ink: #0f172a;
+  --ratio-30-body: #334155;
+  --ratio-30-muted: #64748b;
+  --ratio-30-border: #e2e8f0;
+  --ratio-10-accent: #059669;
+  --ratio-10-accent-soft: #ecfdf5;
+  --ratio-10-gold: #d97706;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -107,7 +119,7 @@
   box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
 }
 
-/* 60% Clean White Card Surface with 10% Accent on Hover */
+/* 70% Clean White Card Surface with 10% Accent on Hover */
 .fatimi-card {
   background: var(--fatimi-surface);
   border: 1px solid var(--fatimi-border, #e2e8f0);

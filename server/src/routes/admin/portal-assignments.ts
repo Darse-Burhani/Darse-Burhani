@@ -10,14 +10,16 @@ const router = Router();
 export const TEACHER_AVAILABLE_PAGES = [
   { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main HUD & point analytics", path: "/teacher", icon: "LayoutDashboard" },
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
+  { id: "talabat-profiles", label: "Yearly Profile (1447 H)", category: "Community", description: "Talabat yearly profile, remarks & 1447 H records", path: "/teacher/talabat-profiles", icon: "GraduationCap" },
   { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
   { id: "quran", label: "Quran (Hifz)", category: "Hifz", description: "Ajza progress, marhala & weekly slips", path: "/teacher/hifz", icon: "Sparkles" },
   { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala progress & exams", path: "/teacher/hifz-marhala", icon: "GraduationCap" },
   { id: "takhteet", label: "Takhteet", category: "Academics", description: "Curriculum pacing & syllabus tracking", path: "/teacher/takhteet", icon: "Layers" },
   { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
-  { id: "attendance-logs", label: "Manual Attendance Logs", category: "Attendance", description: "View student roll-call registers, manual class entries & attendance logs (Faculty View)", path: "/teacher/attendance-logs", icon: "FileText" },
+  { id: "attendance-logs", label: "Hikvision Scans & Logs", category: "Attendance", description: "Live Hikvision scans, manual logs, exports & audit timeline", path: "/teacher/attendance-hik", icon: "Fingerprint" },
   { id: "attendance-schedule", label: "Attendance Schedule", category: "Attendance", description: "Scan windows, shifts & period timers", path: "/teacher/attendance-schedule", icon: "Clock" },
   { id: "email-reports", label: "Email Attendance Reports", category: "Attendance", description: "Automated attendance summaries & email delivery", path: "/teacher/attendance-emails", icon: "Mail" },
+  { id: "google-sheets", label: "Google Sheets Sync", category: "Attendance", description: "Cloud spreadsheet sync, daily/monthly exports & configuration", path: "/teacher/google-sheets", icon: "FileSpreadsheet" },
   { id: "biometric", label: "Biometric Scanners", category: "Attendance", description: "Device status & scanner management", path: "/teacher/biometric", icon: "Fingerprint" },
   { id: "medical-duty", label: "Medical & Health Duty", category: "Operations", description: "Mark Talabat & Faculty on Medical Leave / Exemption", path: "/teacher/medical-duty", icon: "Stethoscope" },
   { id: "leave", label: "Leave Management", category: "Operations", description: "Talabat & faculty leave approvals", path: "/teacher/leave", icon: "CalendarCheck" },
@@ -25,8 +27,14 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "procurement", label: "Procurement", category: "Operations", description: "Stationery & supply requisitions", path: "/teacher/procurement", icon: "ShoppingBag" },
   { id: "makhzan", label: "Makhzan", category: "Operations", description: "School inventory, assets & physical equipment", path: "/teacher/makhzn", icon: "Package" },
   { id: "library", label: "Library", category: "Library", description: "Digital catalog, 3D shelf & loans", path: "/teacher/library", icon: "Library" },
+  { id: "library-overview", label: "Library Overview", category: "Library", description: "Library dashboard, circulation metrics & quick actions", path: "/teacher/library/overview", icon: "Library" },
+  { id: "library-shelves", label: "Library Shelves", category: "Library", description: "Physical shelves, book locations & catalog management", path: "/teacher/library/shelves", icon: "Library" },
+  { id: "library-checkout", label: "Library Checkout", category: "Library", description: "Issue books, scan borrowers & manage active loans", path: "/teacher/library/checkout", icon: "Library" },
+  { id: "library-overdue", label: "Library Overdue", category: "Library", description: "Overdue loans, reminder emails & return tracking", path: "/teacher/library/overdue", icon: "Library" },
+  { id: "library-auditor", label: "Library Auditor", category: "Library", description: "Inventory audit, missing books & shelf reconciliation", path: "/teacher/library/auditor", icon: "Library" },
   { id: "students", label: "Talabat (Students)", category: "Community", description: "Student directory & details", path: "/teacher/students", icon: "GraduationCap" },
   { id: "parents", label: "Parents Directory", category: "Community", description: "Parent contacts & directory", path: "/teacher/parents", icon: "Heart" },
+  { id: "parents-assign", label: "Assign Talabat to Parent", category: "Community", description: "Link talabat profiles to parent guardian accounts", path: "/teacher/parents/assign", icon: "Link2" },
   { id: "users", label: "Staff & Users", category: "Community", description: "Staff directory & accounts", path: "/teacher/users", icon: "Users" },
   { id: "passwords", label: "User Passwords", category: "Community", description: "Password resets & credentials", path: "/teacher/passwords", icon: "KeyRound" },
   { id: "point-matrix", label: "Point Matrix", category: "Systems", description: "Star point rules & matrix", path: "/teacher/point-matrix", icon: "Award" },
@@ -45,13 +53,19 @@ const PAGE_IDS = new Set(TEACHER_AVAILABLE_PAGES.map((p) => p.id));
 // Normalizes any stored portalType or page name to one or more canonical page ids.
 export function normalizeCanonicalPageId(raw: string): string[] {
   if (!raw) return [];
-  const clean = raw.trim().toLowerCase().replace(/^page:/, "");
+  const clean = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^page:/, "")
+    .replace(/^\/?(admin|teacher)\//, "")
+    .replace(/\/+$/, "");
   if (clean === "all" || clean === "*") return ["ALL"];
   if (clean === "attendance" || clean === "attendance_all") return ["manual-attendance", "attendance-logs", "attendance-schedule"];
   if (clean === "manual-attendance" || clean === "manual_attendance" || clean === "attendance-manual" || clean === "attendance_manual" || clean === "manual") return ["manual-attendance"];
-  if (clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance-log" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry") return ["attendance-logs"];
+  if (clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance-log" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry" || clean === "attendance-hik" || clean === "hikvision" || clean === "hik") return ["attendance-logs"];
   if (clean === "attendance-schedule" || clean === "attendance_schedule" || clean === "schedule") return ["attendance-schedule"];
   if (clean === "email-reports" || clean === "email_reports" || clean === "attendance-emails" || clean === "attendance_emails" || clean === "emails" || clean === "attendance-email") return ["email-reports"];
+  if (clean === "google-sheets" || clean === "google_sheets" || clean === "google-sheet" || clean === "sheets" || clean === "sheet-sync" || clean === "sheet_sync") return ["google-sheets"];
   if (clean === "biometric" || clean === "biometrics" || clean === "scanners") return ["biometric"];
   if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return ["medical-duty"];
   if (clean === "quran" || clean === "hifz" || clean === "hifz-reports" || clean === "weekly-slips") return ["quran"];
@@ -62,13 +76,25 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "passwords" || clean === "credentials") return ["passwords"];
   if (clean === "tracking" || clean === "analytics") return ["tracking"];
   if (clean === "classes" || clean === "class") return ["classes"];
+  if (clean === "talabat-profiles" || clean === "talabat_profiles" || clean === "talabat-profile" || clean === "yearly-profile" || clean === "profile-1447" || clean === "profile1447") return ["talabat-profiles"];
   if (clean === "timetable") return ["timetable"];
   if (clean === "takhteet") return ["takhteet"];
   if (clean === "leave" || clean === "leaves") return ["leave"];
   if (clean === "procurement") return ["procurement"];
   if (clean === "library") return ["library"];
+  if (clean === "library-overview" || clean === "library_overview" || clean === "library/overview") return ["library-overview"];
+  if (clean === "library-shelves" || clean === "library_shelves" || clean === "library/shelves") return ["library-shelves"];
+  if (clean === "library-checkout" || clean === "library_checkout" || clean === "library/checkout") return ["library-checkout"];
+  if (clean === "library-overdue" || clean === "library_overdue" || clean === "library/overdue") return ["library-overdue"];
+  if (clean === "library-auditor" || clean === "library_auditor" || clean === "library/auditor") return ["library-auditor"];
+  if (clean.startsWith("library/")) {
+    const sub = clean.split("/")[1];
+    const candidate = `library-${sub}`;
+    if (PAGE_IDS.has(candidate)) return [candidate];
+  }
   if (clean === "students" || clean === "talabat") return ["students"];
   if (clean === "parents") return ["parents"];
+  if (clean === "parents-assign" || clean === "parents_assign" || clean === "parents/assign" || clean === "parent-links") return ["parents-assign"];
   if (clean === "users" || clean === "staff") return ["users"];
   if (clean === "notifications" || clean === "broadcasts") return ["notifications"];
   if (clean === "security" || clean === "audit") return ["security"];
@@ -134,6 +160,42 @@ export function toAssignedPageIds(portalTypes: string[]): string[] {
 // When a teacher has no explicit portal assignments, only give them the safe minimum.
 // All other pages must be explicitly assigned.
 const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "profile"];
+
+function describePortalPages(pageIds: string[]): string {
+  const labels = pageIds
+    .filter((id) => id !== "ALL")
+    .map((id) => TEACHER_AVAILABLE_PAGES.find((page) => page.id === id)?.label || id);
+  if (labels.length === 0) return "Dashboard and Profile";
+  if (labels.length <= 5) return labels.join(", ");
+  return `${labels.slice(0, 5).join(", ")} +${labels.length - 5} more`;
+}
+
+async function notifyPortalAccessChange(
+  recipientUserIds: string[],
+  options: {
+    title: string;
+    body: string;
+    priority?: "NORMAL" | "HIGH";
+  },
+) {
+  const recipients = Array.from(new Set(recipientUserIds.filter(Boolean)));
+  if (recipients.length === 0) return;
+  try {
+    await prisma.notification.createMany({
+      data: recipients.map((userId) => ({
+        userId,
+        title: options.title,
+        body: options.body,
+        type: "PORTAL_ACCESS",
+        link: "/teacher",
+        priority: options.priority || "NORMAL",
+      })),
+    });
+  } catch (notificationError) {
+    // Permission changes must still succeed if notification delivery fails.
+    console.error("Portal access notification error:", notificationError);
+  }
+}
 
 // GET /api/admin/portal-assignments - List all teachers and their assigned pages
 router.get("/", requireAuth, async (req, res) => {
@@ -319,6 +381,17 @@ router.post("/", requireAuth, async (req, res) => {
       },
     });
 
+    const pageId = toPageId(cleanPortalType) || (cleanPortalType === "ALL" ? "ALL" : cleanPortalType);
+    const pageLabel = pageId === "ALL"
+      ? `all ${TEACHER_AVAILABLE_PAGES.length} modules`
+      : describePortalPages([pageId]);
+
+    await notifyPortalAccessChange([teacherProfile.userId], {
+      title: cleanPortalType === "ALL" ? "Full Portal Authority Granted" : "Portal Access Granted",
+      body: `Administrator granted you ${pageLabel}. Open your portal to review the new navigation.`,
+      priority: cleanPortalType === "ALL" ? "HIGH" : "NORMAL",
+    });
+
     cache.invalidateTag("permissions");
     cache.invalidateTag("portal-assignments");
 
@@ -390,13 +463,32 @@ router.post("/batch", requireAuth, async (req, res) => {
       });
     }
 
+    const grantedPageIds = fullGrant
+      ? ["ALL"]
+      : (pages || [])
+          .map((page) => toPageId(page))
+          .filter((value): value is string => !!value && PAGE_IDS.has(value));
+    const notificationTitle = fullGrant ? "Full Portal Authority Granted" : "Portal Access Updated";
+    const notificationBody = fullGrant
+      ? `Administrator granted you all ${TEACHER_AVAILABLE_PAGES.length} portal modules. Open your portal to review the complete navigation.`
+      : `Administrator updated your portal access (${grantedPageIds.length} modules): ${describePortalPages(grantedPageIds)}.`;
+
+    await notifyPortalAccessChange(
+      profiles.map((profile) => profile.userId),
+      {
+        title: notificationTitle,
+        body: notificationBody,
+        priority: fullGrant ? "HIGH" : "NORMAL",
+      },
+    );
+
     cache.invalidateTag("permissions");
     cache.invalidateTag("portal-assignments");
 
     return res.json({
       success: true,
       message: `Updated page permissions for ${profiles.length} teacher(s)`,
-      data: { updatedCount: profiles.length },
+      data: { updatedCount: profiles.length, modulesGranted: fullGrant ? TEACHER_AVAILABLE_PAGES.length : grantedPageIds.length },
     });
   } catch (error) {
     console.error("Batch portal assignments error:", error);
@@ -414,19 +506,49 @@ router.delete("/", requireAuth, async (req, res) => {
     const id = req.query.id as string;
     const teacherId = req.query.teacherId as string;
     const page = req.query.page as string;
+    const revokeAll = req.query.all === "true" || page === "ALL" || page === "*";
 
     if (id) {
-      await prisma.teacherPortalAssignment.delete({ where: { id } });
+      const assignment = await prisma.teacherPortalAssignment.findUnique({
+        where: { id },
+        include: { teacher: { select: { userId: true } } },
+      });
+      if (assignment) {
+        await prisma.teacherPortalAssignment.delete({ where: { id } });
+        const pageId = toPageId(assignment.portalType);
+        await notifyPortalAccessChange([assignment.teacher.userId], {
+          title: pageId === "ALL" ? "Full Portal Authority Revoked" : "Portal Access Revoked",
+          body: pageId === "ALL"
+            ? "Administrator revoked full portal authority. Dashboard and Profile access remain available."
+            : `Administrator revoked access to ${describePortalPages(pageId ? [pageId] : [])}.`,
+          priority: pageId === "ALL" ? "HIGH" : "NORMAL",
+        });
+      }
       cache.invalidateTag("permissions");
       cache.invalidateTag("portal-assignments");
       return res.json({ success: true });
     }
 
-    if (teacherId && page) {
+    if (teacherId && (revokeAll || page)) {
       const profile = await prisma.teacherProfile.findFirst({
         where: { OR: [{ userId: teacherId }, { id: teacherId }] },
+        select: { id: true, userId: true },
       });
       if (profile) {
+        if (revokeAll) {
+          const result = await prisma.teacherPortalAssignment.deleteMany({
+            where: { teacherId: profile.id },
+          });
+          await notifyPortalAccessChange([profile.userId], {
+            title: "Full Portal Authority Revoked",
+            body: "Administrator revoked all delegated portal access. Dashboard and Profile remain available.",
+            priority: "HIGH",
+          });
+          cache.invalidateTag("permissions");
+          cache.invalidateTag("portal-assignments");
+          return res.json({ success: true, data: { revokedCount: result.count } });
+        }
+
         const portalType = toPortalType(page);
         // Also match legacy rows (HIFZ, unprefixed lowercase) for the same page.
         const pageId = toPageId(page) ?? page.toLowerCase();
@@ -435,13 +557,18 @@ router.delete("/", requireAuth, async (req, res) => {
             [portalType, `PAGE:${pageId}`, pageId.toUpperCase(), pageId].filter(Boolean) as string[]
           )
         );
-        await prisma.teacherPortalAssignment.deleteMany({
+        const result = await prisma.teacherPortalAssignment.deleteMany({
           where: { teacherId: profile.id, portalType: { in: candidates } },
+        });
+        await notifyPortalAccessChange([profile.userId], {
+          title: "Portal Access Revoked",
+          body: `Administrator revoked access to ${describePortalPages([pageId])}.`,
         });
         cache.invalidateTag("permissions");
         cache.invalidateTag("portal-assignments");
+        return res.json({ success: true, data: { revokedCount: result.count } });
       }
-      return res.json({ success: true });
+      return res.json({ success: true, data: { revokedCount: 0 } });
     }
 
     return res.status(400).json({ success: false, error: "Assignment ID or teacherId + page required" });

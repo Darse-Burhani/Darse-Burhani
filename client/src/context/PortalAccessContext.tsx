@@ -75,6 +75,15 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "biometric" || clean === "biometrics" || clean === "scanners") return "biometric";
   if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return "medical-duty";
   if (clean === "makhzn" || clean === "makhzan" || clean === "warehouse" || clean === "inventory") return "makhzan";
+  if (clean === "talabat-profiles" || clean === "talabat-profile" || clean === "yearly-profile" || clean === "profile-1447" || clean === "profile1447") return "talabat-profiles";
+  if (clean === "google-sheets" || clean === "google_sheets" || clean === "sheets" || clean === "sheet-sync") return "google-sheets";
+  if (clean === "parents/assign" || clean === "parents-assign" || clean === "parent-links") return "parents-assign";
+  if (clean.startsWith("library/")) return `library-${clean.split("/")[1]}`;
+  if (clean === "library-overview" || clean === "library_overview") return "library-overview";
+  if (clean === "library-shelves" || clean === "library_shelves") return "library-shelves";
+  if (clean === "library-checkout" || clean === "library_checkout") return "library-checkout";
+  if (clean === "library-overdue" || clean === "library_overdue") return "library-overdue";
+  if (clean === "library-auditor" || clean === "library_auditor") return "library-auditor";
   if (clean.startsWith("library")) return "library";
   if (clean.startsWith("parents")) return "parents";
   if (clean === "credentials" || clean === "passwords") return "passwords";
@@ -97,6 +106,7 @@ function navKeyToModuleConfigKey(navKey: string): string {
     navKey === "attendance-logs" ||
     navKey === "attendance-schedule" ||
     navKey === "email-reports" ||
+    navKey === "google-sheets" ||
     navKey === "biometric"
   )
     return "attendance";
@@ -206,6 +216,11 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       if (normalizedAssigned.includes(key)) return true;
       if (assignedPages.includes(key)) return true;
       if (assignedPages.includes(pageIdOrPath)) return true;
+
+      // Parent permissions open their child tabs (Library hub, Parents hub).
+      if (key.startsWith("library-") && normalizedAssigned.includes("library")) return true;
+      if (key === "library" && normalizedAssigned.some((p) => p.startsWith("library-"))) return true;
+      if (key === "parents-assign" && normalizedAssigned.includes("parents")) return true;
 
       // Direct checks on raw strings
       const rawLower = (pageIdOrPath || "").toLowerCase().replace(/^page:/, "");

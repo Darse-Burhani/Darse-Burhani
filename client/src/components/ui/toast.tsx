@@ -102,9 +102,13 @@ ToastDescription.displayName = ToastPrimitives.Description.displayName;
 
 export type ToastActionElement = React.ReactElement<typeof ToastPrimitives.Action>;
 
-// Toast hook
+// Toast store — a single source of truth so multiple notifications stack
+// instead of replacing each other, and each dismissal removes only its own toast.
 let toastCount = 0;
-const listeners: Array<(state: ToastState) => void> = [];
+const MAX_VISIBLE_TOASTS = 5;
+const listeners = new Set<(state: ToastState) => void>();
+const timers = new Map<string, ReturnType<typeof setTimeout>>();
+let toastState: ToastState = { toasts: [] };
 
 interface ToastData {
   id?: string;
@@ -119,20 +123,41 @@ interface ToastState {
   toasts: ToastData[];
 }
 
+function emitToastState() {
+  const snapshot: ToastState = { toasts: [...toastState.toasts] };
+  listeners.forEach((listener) => listener(snapshot));
+}
+
+function dismissToast(id?: string) {
+  if (!id) return;
+  const timer = timers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    timers.delete(id);
+  }
+  const next = toastState.toasts.filter((item) => item.id !== id);
+  if (next.length === toastState.toasts.length) return;
+  toastState = { toasts: next };
+  emitToastState();
+}
+
 function toast(data: ToastData | string) {
   const payload: ToastData = typeof data === "string" ? { title: data } : data;
-  const id = `toast-${++toastCount}`;
+  const id = payload.id || `toast-${++toastCount}`;
   const newToast = { ...payload, id };
-  listeners.forEach((listener) =>
-    listener({ toasts: [newToast] }),
-  );
+
+  toastState = {
+    toasts: [...toastState.toasts, newToast].slice(-MAX_VISIBLE_TOASTS),
+  };
+  emitToastState();
+
   if (payload.duration !== Infinity) {
-    setTimeout(() => {
-      listeners.forEach((listener) =>
-        listener({ toasts: [] }),
-      );
-    }, payload.duration ?? 4000);
+    timers.set(
+      id,
+      setTimeout(() => dismissToast(id), payload.duration ?? 4500),
+    );
   }
+
   return id;
 }
 
@@ -151,14 +176,16 @@ toast.info = (title: string, description?: string) =>
 toast.loading = (title: string, description?: string | { id?: string }) =>
   toast({ title, description: typeof description === "string" ? description : undefined, variant: "default", duration: 3000 });
 
+toast.dismiss = dismissToast;
+
 function useToast() {
-  const [state, setState] = React.useState<ToastState>({ toasts: [] });
+  const [state, setState] = React.useState<ToastState>(toastState);
 
   React.useEffect(() => {
-    listeners.push(setState);
+    listeners.add(setState);
+    setState(toastState);
     return () => {
-      const index = listeners.indexOf(setState);
-      if (index > -1) listeners.splice(index, 1);
+      listeners.delete(setState);
     };
   }, []);
 
@@ -169,9 +196,17 @@ function Toaster() {
   const { toasts } = useToast();
 
   return (
-    <ToastProvider>
+    <ToastProvider swipeDirection="right">
       {toasts.map((t) => (
-        <Toast key={t.id} variant={t.variant} onUndo={t.onUndo}>
+        <Toast
+          key={t.id}
+          variant={t.variant}
+          onUndo={t.onUndo}
+          duration={Infinity}
+          onOpenChange={(open) => {
+            if (!open) dismissToast(t.id);
+          }}
+        >
           {t.title && <ToastTitle>{t.title}</ToastTitle>}
           {t.description && (
             <ToastDescription>{t.description}</ToastDescription>

@@ -652,29 +652,61 @@ export default function AdminTimetableMasterPage() {
   };
 
   // ── BADAL ASSISTANT: FETCH FREE TEACHERS & ALLOCATE ──
-  const fetchAvailableTeachersForSlot = async (dayOfWeek: number, period: number, dateStr: string) => {
+  const fetchAvailableTeachersForSlot = async (
+    dayOfWeek: number,
+    period: number,
+    dateStr: string,
+    subject?: string,
+    originalTeacherId?: string,
+  ) => {
     setLoadingAvailable(true);
     try {
+      const params = new URLSearchParams({
+        dayOfWeek: String(dayOfWeek),
+        period: String(period),
+      });
+      if (dateStr) params.set("date", dateStr);
+      if (subject?.trim()) params.set("subject", subject.trim());
+      if (originalTeacherId) params.set("originalTeacherId", originalTeacherId);
       const res = await fetch(
-        `/api/admin/timetable/badal/available-teachers?dayOfWeek=${dayOfWeek}&period=${period}&date=${encodeURIComponent(dateStr || "")}`
+        `/api/admin/timetable/badal/available-teachers?${params.toString()}`
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setAvailableTeachers(data.data);
-        if (data.data.length > 0) {
-          const firstFree = data.data.find((t: any) => t.isFree) || data.data[0];
+        const firstFree = data.data.find((t: any) => t.isFree);
+        if (firstFree) {
           setBadalForm((prev) => ({
             ...prev,
             badalTeacherId: firstFree.id,
             badalTeacherName: firstFree.name,
             badalTeacherAvatar: firstFree.avatarUrl || "",
           }));
+        } else {
+          setBadalForm((prev) => ({
+            ...prev,
+            badalTeacherId: "",
+            badalTeacherName: "",
+            badalTeacherAvatar: "",
+          }));
         }
       } else {
         setAvailableTeachers([]);
+        setBadalForm((prev) => ({
+          ...prev,
+          badalTeacherId: "",
+          badalTeacherName: "",
+          badalTeacherAvatar: "",
+        }));
       }
     } catch {
       setAvailableTeachers([]);
+      setBadalForm((prev) => ({
+        ...prev,
+        badalTeacherId: "",
+        badalTeacherName: "",
+        badalTeacherAvatar: "",
+      }));
       toast({ variant: "destructive", title: "Error", description: "Failed to query available teachers." });
     } finally {
       setLoadingAvailable(false);
@@ -705,7 +737,27 @@ export default function AdminTimetableMasterPage() {
     });
 
     setShowBadalModal(true);
-    fetchAvailableTeachersForSlot(slot.dayOfWeek, slot.period, chosenDate);
+    fetchAvailableTeachersForSlot(
+      slot.dayOfWeek,
+      slot.period,
+      chosenDate,
+      slot.subject,
+      slot.teacherId,
+    );
+  };
+
+  const openBadalForCurrentSelection = (targetDate?: string) => {
+    const candidate =
+      slots.find((slot) => slot.className === selectedClassName) || slots[0];
+    if (!candidate) {
+      toast({
+        variant: "warning",
+        title: "No Timetable Slot",
+        description: "Create or select a lesson slot before assigning Badal.",
+      });
+      return;
+    }
+    openBadalModalForSlot(candidate, targetDate);
   };
 
   const handleSaveBadal = async () => {
@@ -961,28 +1013,7 @@ export default function AdminTimetableMasterPage() {
               New Lesson Slot
             </Button>
             <Button
-              onClick={() => {
-                setBadalForm({
-                  date: badalDate,
-                  slotId: "",
-                  classId: classes[0]?.id || "",
-                  className: selectedClassName,
-                  period: 1,
-                  startTime: "10:30",
-                  endTime: "11:00",
-                  subject: "Qasaid",
-                  originalTeacherId: teachers[0]?.id || "",
-                  originalTeacherName: teachers[0]?.name || "",
-                  originalTeacherAvatar: teachers[0]?.avatarUrl || "",
-                  badalTeacherId: teachers[1]?.id || "",
-                  badalTeacherName: teachers[1]?.name || "",
-                  badalTeacherAvatar: teachers[1]?.avatarUrl || "",
-                  reason: "Medical / Sick Leave",
-                  instructions: "Cover lesson and review homework.",
-                  notes: "",
-                });
-                setShowBadalModal(true);
-              }}
+              onClick={() => openBadalForCurrentSelection(badalDate)}
               className="bg-emerald-900/80 hover:bg-emerald-800 text-amber-300 border border-amber-400/30 font-bold text-xs gap-1.5 px-3 py-2 rounded-xl"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" />
@@ -2032,30 +2063,13 @@ export default function AdminTimetableMasterPage() {
               {/* Action Button */}
               <Button
                 onClick={() => {
-                  const initialDate = badalDateMode === "custom" ? badalDate : new Date().toISOString().split("T")[0];
-                  setBadalForm({
-                    date: initialDate,
-                    slotId: "",
-                    classId: classes[0]?.id || "",
-                    className: "1 A",
-                    period: 1,
-                    startTime: "10:30",
-                    endTime: "11:00",
-                    subject: "Qasaid",
-                    originalTeacherId: teachers[0]?.id || "",
-                    originalTeacherName: teachers[0]?.name || "",
-                    originalTeacherAvatar: teachers[0]?.avatarUrl || "",
-                    badalTeacherId: teachers[1]?.id || "",
-                    badalTeacherName: teachers[1]?.name || "",
-                    badalTeacherAvatar: teachers[1]?.avatarUrl || "",
-                    reason: "Medical / Sick Leave",
-                    instructions: "Cover sabaq and check homework.",
-                    notes: "",
-                  });
-                  setShowBadalModal(true);
-                  if (teachers[0]) {
-                    fetchAvailableTeachersForSlot(1, 1, initialDate);
-                  }
+                  const initialDate =
+                    badalDateMode === "custom"
+                      ? badalDate
+                      : badalDateMode === "tomorrow"
+                        ? new Date(Date.now() + 86400000).toISOString().split("T")[0]
+                        : new Date().toISOString().split("T")[0];
+                  openBadalForCurrentSelection(initialDate);
                 }}
                 className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-bold text-xs gap-1.5 shadow-sm rounded-xl px-4 py-2 cursor-pointer"
               >
@@ -2443,7 +2457,13 @@ export default function AdminTimetableMasterPage() {
                       if (selectedSlotForBadal) {
                         const dt = new Date(newD);
                         const dayIdx = dt.getDay() === 0 ? 1 : dt.getDay();
-                        fetchAvailableTeachersForSlot(dayIdx, badalForm.period, newD);
+                        fetchAvailableTeachersForSlot(
+                          dayIdx,
+                          badalForm.period,
+                          newD,
+                          badalForm.subject,
+                          badalForm.originalTeacherId,
+                        );
                       }
                     }}
                     className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
@@ -2471,16 +2491,17 @@ export default function AdminTimetableMasterPage() {
               {/* Free Available Teachers Selection */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  2. Choose Substitute Teacher (Free Teachers Prioritized)
+                  2. Eligible Substitutes — {badalForm.subject || "Subject"} faculty free in Period {badalForm.period}
                 </label>
                 {loadingAvailable ? (
                   <div className="p-3 text-center bg-slate-50 rounded-xl border border-slate-200">
                     <Loader2 className="w-4 h-4 animate-spin text-amber-600 mx-auto" />
-                    <span className="text-[10px] text-slate-500 mt-1 block">Calculating faculty availability matrix...</span>
+                    <span className="text-[10px] text-slate-500 mt-1 block">Matching subject faculty with free periods...</span>
                   </div>
                 ) : availableTeachers.length === 0 ? (
                   <div className="p-3 text-center bg-rose-50 text-rose-800 rounded-xl border border-rose-200 text-xs">
-                    No faculty found. Please verify teacher rosters or assign manually.
+                    No free faculty are assigned to {badalForm.subject || "this subject"} for Period {badalForm.period}.
+                    Adjust the timetable allocation or choose another date.
                   </div>
                 ) : (
                   <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
@@ -2512,12 +2533,10 @@ export default function AdminTimetableMasterPage() {
                             <div>
                               <div className="font-extrabold text-slate-900 text-xs">{t.name}</div>
                               <div className="text-[10px] text-slate-500 font-mono">
-                                {t.isFree ? (
-                                  <span className="text-emerald-700 font-bold">Free in Period {badalForm.period}</span>
-                                ) : (
-                                  <span className="text-amber-700 font-bold">Has Class in Period {badalForm.period}</span>
-                                )}{" "}
-                                • {t.badalCount || 0} Badals taken
+                                <span className="text-emerald-700 font-bold">
+                                  {t.subjects?.length ? t.subjects.join(", ") : badalForm.subject}
+                                </span>
+                                {" "}• Free Period {badalForm.period} • {t.badalCount || 0} Badals taken
                               </div>
                             </div>
                           </div>

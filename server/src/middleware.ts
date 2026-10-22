@@ -35,8 +35,9 @@ export function getRouteRequiredPages(req: Request): string[] {
   const url = (req.originalUrl || req.baseUrl || req.path || "").toLowerCase();
 
   if (url.includes("/api/admin/users") || url.includes("/api/users")) return ["users", "passwords"];
-  if (url.includes("/api/admin/students") || url.includes("/api/teacher/students") || url.includes("/api/students")) return ["students"];
-  if (url.includes("/api/admin/parents") || url.includes("/api/admin/parent-student-links") || url.includes("/api/parents")) return ["parents"];
+  if (url.includes("/api/admin/students") || url.includes("/api/teacher/students") || url.includes("/api/students")) return ["students", "talabat-profiles"];
+  if (url.includes("/api/talabat-profile")) return ["talabat-profiles", "students", "profile"];
+  if (url.includes("/api/admin/parents") || url.includes("/api/admin/parent-student-links") || url.includes("/api/parents")) return ["parents", "parents-assign"];
   if (url.includes("/api/admin/classes") || url.includes("/api/teacher/classes") || url.includes("/api/classes")) return ["classes"];
   if (url.includes("/api/admin/timetable") || url.includes("/api/timetable")) return ["timetable"];
   if (url.includes("/api/admin/point-rules") || url.includes("/api/points")) return ["point-matrix"];
@@ -45,8 +46,10 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/admin/takhteet") || url.includes("/api/teacher/takhteet") || url.includes("/api/takhteet")) return ["takhteet"];
   if (url.includes("/api/admin/hifz-marhala") || url.includes("/api/teacher/hifz-marhala")) return ["hifz-marhala", "quran"];
   if (url.includes("/api/admin/hifz") || url.includes("/api/teacher/hifz") || url.includes("/api/teacher/hifz-weekly-slip")) return ["quran", "hifz-marhala"];
-  if (url.includes("/api/admin/library/shelves") || url.includes("/api/admin/makhz")) return ["makhzan", "library"];
-  if (url.includes("/api/admin/library")) return ["library", "makhzan"];
+  if (url.includes("/api/admin/library/shelves") || url.includes("/api/admin/makhz"))
+    return ["makhzan", "library", "library-overview", "library-shelves", "library-checkout", "library-overdue", "library-auditor"];
+  if (url.includes("/api/admin/library"))
+    return ["library", "makhzan", "library-overview", "library-shelves", "library-checkout", "library-overdue", "library-auditor"];
   if (
     url.includes("/api/admin/tracking") ||
     url.includes("/api/admin/stats") ||
@@ -63,7 +66,7 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/admin/attendance-emails") || url.includes("/api/admin/attendance/email-reports") || url.includes("/api/attendance/email-reports"))
     return ["email-reports", "attendance-logs"];
   if (url.includes("/api/admin/attendance-logs") || url.includes("/api/admin/attendance-registry") || url.includes("/api/attendance/logs"))
-    return ["attendance-logs", "manual-attendance"];
+    return ["attendance-logs", "manual-attendance", "google-sheets"];
   if (url.includes("/api/admin/attendance/manual") || url.includes("/api/attendance/manual") || url.includes("/api/attendance"))
     return ["manual-attendance", "attendance-logs"];
   if (url.includes("/api/biometric")) return ["biometric", "attendance-logs"];
@@ -119,7 +122,9 @@ export async function hasTeacherPageAuthority(userId: string, reqOrPages: Reques
         p === "dashboard" ||
         p === "profile" ||
         (p === "quran" && assignedPages.has("quran")) ||
-        (p === "passwords" && assignedPages.has("users"))
+        (p === "passwords" && assignedPages.has("users")) ||
+        (p.startsWith("library-") && assignedPages.has("library")) ||
+        (p === "parents-assign" && assignedPages.has("parents"))
     );
   } catch (err) {
     console.error("Error checking teacher page authority:", err);

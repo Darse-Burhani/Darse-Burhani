@@ -59,6 +59,11 @@
     --border-subtle: #e2e8f0;
     --border-default: #cbd5e1;
 
+    /* Ratio aliases — use these when a component must state its role explicitly. */
+    --ratio-70-canvas: var(--bg-canvas);
+    --ratio-70-surface: var(--bg-surface);
+    --ratio-70-subtle: var(--bg-subtle);
+
     /* ── 30% Structure & Content Typography ── */
     --text-primary: #0f172a;
     --text-body: #334155;
@@ -66,6 +71,11 @@
     --text-muted: #64748b;
     --text-inverted: #ffffff;
     --border-hairline: rgba(226, 232, 240, 0.8);
+
+    --ratio-30-ink: var(--text-primary);
+    --ratio-30-body: var(--text-body);
+    --ratio-30-muted: var(--text-muted);
+    --ratio-30-border: var(--border-subtle);
 
     /* ── 10% Intentional Accent & Focal Highlight (Important Text & Accents) ── */
     --highlight-accent: #059669;
@@ -87,10 +97,14 @@
     --highlight-cyan-light: #ecfeff;
     --highlight-cyan-border: #a5f3fc;
 
+    --ratio-10-accent: var(--highlight-accent);
+    --ratio-10-accent-soft: var(--highlight-accent-light);
+    --ratio-10-gold: var(--highlight-gold);
+
     /* Shadcn / Radix token mappings calibrated to 70-30-10 */
-    --background: 210 40% 98%;     /* #f8fafc (60% canvas) */
+    --background: 210 40% 98%;     /* #f8fafc (70% canvas) */
     --foreground: 222.2 84% 4.9%;  /* #0f172a (30% primary text) */
-    --card: 0 0% 100%;             /* #ffffff (60% surface) */
+    --card: 0 0% 100%;             /* #ffffff (70% surface) */
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
@@ -137,8 +151,12 @@
   }
 
   body {
-    background-color: var(--bg-canvas, #f8fafc);
-    color: var(--text-body, #334155);
+    background-color: var(--ratio-70-canvas, #f8fafc);
+    background-image:
+      radial-gradient(1100px 520px at 8% -8%, rgba(5, 150, 105, 0.055), transparent 62%),
+      radial-gradient(900px 460px at 96% 2%, rgba(217, 119, 6, 0.045), transparent 58%);
+    background-attachment: fixed;
+    color: var(--ratio-30-body, #334155);
     font-family: var(--font-body);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "salt", "calt", "kern";
     font-optical-sizing: auto;
@@ -390,24 +408,26 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     THE 60-30-10 DESIGN RULE SUITE
-     60% Canvas & Surface | 30% Content Typography | 10% Important Text Highlight
+     THE 70-30-10 DESIGN RULE SUITE
+     70% Canvas & Surface | 30% Content Typography | 10% Important Text Highlight
      ═══════════════════════════════════════════════════════════════════ */
 
-  /* ── 60% Dominant Background & Surface Foundations ── */
-  .rule-canvas {
-    background-color: var(--bg-canvas, #f8fafc) !important;
+  /* ── 70% Dominant Background & Surface Foundations ── */
+  .rule-canvas,
+  .ratio-canvas-70 {
+    background-color: var(--ratio-70-canvas, #f8fafc) !important;
   }
 
-  .rule-surface {
-    background-color: var(--bg-surface, #ffffff) !important;
-    border: 1px solid var(--border-subtle, #e2e8f0);
+  .rule-surface,
+  .ratio-surface-70 {
+    background-color: var(--ratio-70-surface, #ffffff) !important;
+    border: 1px solid var(--ratio-30-border, #e2e8f0);
     box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
   }
 
   .rule-card {
-    background-color: var(--bg-surface, #ffffff) !important;
-    border: 1px solid var(--border-subtle, #e2e8f0);
+    background-color: var(--ratio-70-surface, #ffffff) !important;
+    border: 1px solid var(--ratio-30-border, #e2e8f0);
     border-radius: 1.125rem;
     box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -419,9 +439,45 @@
     transform: translateY(-1px);
   }
 
-  .rule-subtle {
-    background-color: var(--bg-subtle, #f1f5f9) !important;
-    border: 1px solid var(--border-subtle, #e2e8f0);
+  .rule-subtle,
+  .ratio-subtle-70 {
+    background-color: var(--ratio-70-subtle, #f1f5f9) !important;
+    border: 1px solid var(--ratio-30-border, #e2e8f0);
+  }
+
+  /* ── 30% Structure & Readable Content ── */
+  .ratio-ink-30 {
+    color: var(--ratio-30-ink, #0f172a) !important;
+  }
+
+  .ratio-body-30 {
+    color: var(--ratio-30-body, #334155) !important;
+  }
+
+  .ratio-muted-30 {
+    color: var(--ratio-30-muted, #64748b) !important;
+  }
+
+  .ratio-border-30 {
+    border-color: var(--ratio-30-border, #e2e8f0) !important;
+  }
+
+  /* ── 10% Accent & Focal Highlight ── */
+  .ratio-accent-10 {
+    color: var(--ratio-10-accent, #059669) !important;
+  }
+
+  .ratio-accent-bg-10 {
+    background-color: var(--ratio-10-accent, #059669) !important;
+    color: #ffffff !important;
+  }
+
+  .ratio-gold-10 {
+    color: var(--ratio-10-gold, #d97706) !important;
+  }
+
+  .ratio-gold-line-10 {
+    background: linear-gradient(90deg, transparent, var(--ratio-10-gold, #d97706), transparent);
   }
 
   /* ── 30% Secondary Structure & Content Typography ── */

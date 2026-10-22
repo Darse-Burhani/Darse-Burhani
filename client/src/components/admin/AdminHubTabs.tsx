@@ -40,13 +40,24 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
   }, [isTeacherContext]);
 
   const getPageKeyFromHref = (href: string) => {
-    const clean = href.replace(/^\/(admin|teacher)\//, "").split("/")[0].split("?")[0];
-    if (clean === "google-sheets" || clean === "sheets" || clean === "attendance-hik") return "attendance-logs";
+    const clean = href
+      .replace(/^\/(admin|teacher)\//, "")
+      .split("?")[0]
+      .replace(/\/+$/, "");
+    if (clean === "google-sheets" || clean === "sheets" || clean === "sheet-sync") return "google-sheets";
+    if (
+      clean === "attendance-hik" ||
+      clean === "attendance-logs" ||
+      clean === "attendance-log" ||
+      clean === "attendance-registry"
+    ) return "attendance-logs";
     if (clean === "attendance-emails") return "email-reports";
     if (clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance") return "manual-attendance";
     if (clean === "makhzn" || clean === "makhzan") return "makhzan";
     if (clean === "hifz") return "quran";
-    if (clean === "talabat-profiles") return "classes";
+    if (clean === "talabat-profiles" || clean === "yearly-profile" || clean === "profile-1447") return "talabat-profiles";
+    if (clean === "parents/assign" || clean === "parents-assign") return "parents-assign";
+    if (clean.startsWith("library/")) return `library-${clean.split("/")[1]}`;
     if (clean === "skills") return "talabat-skills";
     if (clean === "assignments") return "student-assignments";
     return clean;

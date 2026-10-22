@@ -56,6 +56,8 @@ const AdminAttendanceLogs = lazy(() => import("@/app/admin/attendance-logs/page"
 const AdminAttendanceHik = lazy(() => import("@/app/admin/attendance-hik/page"));
 const AdminManualAttendance = lazy(() => import("@/app/admin/manual-attendance/page"));
 const AdminGoogleSheets = lazy(() => import("@/app/admin/google-sheets/page"));
+const AdminHifz = lazy(() => import("@/app/admin/hifz/page"));
+const AdminHifzMarhala = lazy(() => import("@/app/admin/hifz-marhala/page"));
 const AdminSettings = lazy(() => import("@/app/admin/settings/page"));
 
 // ── Talabat (Student) Portal Pages ──
@@ -91,6 +93,9 @@ const TeacherMedicalDuty = lazy(() => import("@/app/teacher/medical-duty/page"))
 const TeacherTimetable = lazy(() => import("@/app/teacher/timetable/page"));
 const TeacherProcurement = lazy(() => import("@/app/teacher/procurement/page"));
 const TeacherSettings = lazy(() => import("@/app/teacher/settings/page"));
+const TeacherHifz = lazy(() => import("@/app/teacher/hifz/page"));
+const TeacherHifzMarhala = lazy(() => import("@/app/teacher/hifz-marhala/page"));
+const TeacherHifzWeeklySlip = lazy(() => import("@/app/teacher/hifz-weekly-slip/page"));
 
 // ── Faculty Portal Pages ──
 const FacultyLayout = lazy(() => import("@/app/faculty/layout"));
@@ -223,26 +228,26 @@ export default function App() {
           <Route index element={<RequireAdminPageAccess pageKey="dashboard"><AdminDashboard /></RequireAdminPageAccess>} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><AdminClasses /></RequireAdminPageAccess>} />
           <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
-          <Route path="hifz" element={<Navigate to="/admin" replace />} />
-          <Route path="hifz-marhala" element={<Navigate to="/admin" replace />} />
-          <Route path="hifz-marhala/*" element={<Navigate to="/admin" replace />} />
+          <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><AdminHifz /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><AdminHifzMarhala /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala/*" element={<RequireAdminPageAccess pageKey="hifz-marhala"><AdminHifzMarhala /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
           <Route path="credentials" element={<Navigate to="/admin/passwords" replace />} />
           <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
           <Route path="parents" element={<RequireAdminPageAccess pageKey="parents"><AdminParents /></RequireAdminPageAccess>} />
-          <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents"><AdminParentsAssign /></RequireAdminPageAccess>} />
+          <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents-assign"><AdminParentsAssign /></RequireAdminPageAccess>} />
           <Route path="makhzn" element={<RequireAdminPageAccess pageKey="makhzan"><AdminMakhzan /></RequireAdminPageAccess>} />
           <Route path="makhzan" element={<Navigate to="/admin/makhzn" replace />} />
           <Route path="library/makhzn" element={<Navigate to="/admin/makhzn" replace />} />
           <Route path="library/makhzan" element={<Navigate to="/admin/makhzn" replace />} />
           <Route path="library" element={<RequireAdminPageAccess pageKey="library"><AdminLibrary /></RequireAdminPageAccess>} />
-          <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryOverview /></RequireAdminPageAccess>} />
-          <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryShelves /></RequireAdminPageAccess>} />
-          <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
-          <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
-          <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryAuditor /></RequireAdminPageAccess>} />
+          <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
+          <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
+          <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
+          <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library-overdue"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
+          <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library-auditor"><AdminLibraryAuditor /></RequireAdminPageAccess>} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><AdminTakhteet /></RequireAdminPageAccess>} />
           <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
@@ -255,7 +260,7 @@ export default function App() {
           <Route path="attendance-registry" element={<Navigate to="/admin/attendance-manual" replace />} />
           <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><AdminLeave /></RequireAdminPageAccess>} />
           <Route path="attendance-schedule" element={<RequireAdminPageAccess pageKey="attendance-schedule"><AdminAttendanceSchedule /></RequireAdminPageAccess>} />
-          <Route path="google-sheets" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminGoogleSheets /></RequireAdminPageAccess>} />
+          <Route path="google-sheets" element={<RequireAdminPageAccess pageKey="google-sheets"><AdminGoogleSheets /></RequireAdminPageAccess>} />
           <Route path="sheets" element={<Navigate to="/admin/google-sheets" replace />} />
           <Route path="sheet-sync" element={<Navigate to="/admin/google-sheets" replace />} />
           <Route path="schedule" element={<Navigate to="/admin/attendance-schedule" replace />} />
@@ -270,7 +275,7 @@ export default function App() {
           <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
           <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
-          <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="students"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
+          <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="talabat-profiles"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="profile-1447" element={<Navigate to="/admin/talabat-profiles" replace />} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
           <Route path="portal-locks" element={<Navigate to="/admin/settings" replace />} />
@@ -322,7 +327,7 @@ export default function App() {
         >
           <Route index element={<TeacherDashboard />} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><TeacherClasses /></RequireAdminPageAccess>} />
-          <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="classes"><TeacherTalabatProfiles /></RequireAdminPageAccess>} />
+          <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="talabat-profiles"><TeacherTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="profile-1447" element={<Navigate to="/teacher/talabat-profiles" replace />} />
           <Route path="yearly-profile" element={<Navigate to="/teacher/talabat-profiles" replace />} />
           <Route path="attendance" element={<RequireAdminPageAccess pageKey="manual-attendance"><TeacherAttendance /></RequireAdminPageAccess>} />
@@ -332,30 +337,35 @@ export default function App() {
           <Route path="leave-request" element={<Navigate to="/teacher/leave" replace />} />
           <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
           <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
-          <Route path="hifz" element={<Navigate to="/teacher" replace />} />
-          <Route path="hifz-reports" element={<Navigate to="/teacher" replace />} />
-          <Route path="hifz-marhala" element={<Navigate to="/teacher" replace />} />
-          <Route path="hifz-weekly-slip" element={<Navigate to="/teacher" replace />} />
-          <Route path="hifz-marhala/*" element={<Navigate to="/teacher" replace />} />
+          <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifz /></RequireAdminPageAccess>} />
+          <Route path="hifz-reports" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifz /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
+          <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala/*" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
           <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="parents" element={<RequireAdminPageAccess pageKey="parents"><AdminParents /></RequireAdminPageAccess>} />
-          <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents"><AdminParentsAssign /></RequireAdminPageAccess>} />
+          <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents-assign"><AdminParentsAssign /></RequireAdminPageAccess>} />
           <Route path="attendance-hik" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminAttendanceHik /></RequireAdminPageAccess>} />
           <Route path="attendance-manual" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="attendance-logs" element={<Navigate to="/teacher/attendance-hik" replace />} />
           <Route path="attendance-schedule" element={<RequireAdminPageAccess pageKey="attendance-schedule"><AdminAttendanceSchedule /></RequireAdminPageAccess>} />
-          <Route path="google-sheets" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminGoogleSheets /></RequireAdminPageAccess>} />
+          <Route path="google-sheets" element={<RequireAdminPageAccess pageKey="google-sheets"><AdminGoogleSheets /></RequireAdminPageAccess>} />
           <Route path="attendance-emails" element={<RequireAdminPageAccess pageKey="email-reports"><AdminAttendanceEmails /></RequireAdminPageAccess>} />
           <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
           <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
-          <Route path="timetable" element={<TeacherTimetable />} />
+          <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><TeacherTimetable /></RequireAdminPageAccess>} />
           <Route path="tracking" element={<RequireAdminPageAccess pageKey="tracking"><AdminTracking /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><TeacherProcurement /></RequireAdminPageAccess>} />
           <Route path="library" element={<RequireAdminPageAccess pageKey="library"><AdminLibrary /></RequireAdminPageAccess>} />
+          <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
+          <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
+          <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
+          <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library-overdue"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
+          <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library-auditor"><AdminLibraryAuditor /></RequireAdminPageAccess>} />
           <Route path="makhzn" element={<RequireAdminPageAccess pageKey="makhzan"><AdminMakhzan /></RequireAdminPageAccess>} />
           <Route path="makhzan" element={<Navigate to="/teacher/makhzn" replace />} />
           <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />

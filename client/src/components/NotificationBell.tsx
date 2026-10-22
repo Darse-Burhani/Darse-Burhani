@@ -16,6 +16,7 @@ import {
   Zap,
   X,
   ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn, timeAgo } from "@/lib/utils";
@@ -39,6 +40,7 @@ const typeIconMap: Record<string, React.ElementType> = {
   POINTS: Award,
   ALERT: AlertTriangle,
   PROCUREMENT: ShoppingBag,
+  PORTAL_ACCESS: ShieldCheck,
 };
 
 function getTypeIcon(type: string) {
@@ -53,6 +55,7 @@ const typeColorMap: Record<string, string> = {
   POINTS: "text-yellow-700 bg-yellow-50",
   ALERT: "text-red-500 bg-red-50",
   PROCUREMENT: "text-emerald-700 bg-emerald-100",
+  PORTAL_ACCESS: "text-emerald-700 bg-emerald-50 border-emerald-200",
 };
 
 function getTypeColor(type: string) {

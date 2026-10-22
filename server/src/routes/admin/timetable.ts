@@ -674,7 +674,7 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // GET /api/admin/timetable/badal/available-teachers - Intelligent Free Teacher Finder
 router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    const { dayOfWeek, period, date } = req.query as Record<string, string | undefined>;
+    const { dayOfWeek, period, date, subject, originalTeacherId } = req.query as Record<string, string | undefined>;
     if (!dayOfWeek || !period) {
       return res.status(400).json({ success: false, error: "dayOfWeek and period are required" });
     }
@@ -694,6 +694,17 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
     }
     const startOfDay = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), 0, 0, 0, 0));
     const endOfDay = new Date(startOfDay.getTime() + 86400000);
+    const normalizedSubject = (subject || "").trim();
+
+    // The scheduled teacher can be sent as either a profile id or a user id.
+    let originalProfileId: string | null = originalTeacherId?.trim() || null;
+    if (originalProfileId) {
+      const original = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: originalProfileId }, { userId: originalProfileId }] },
+        select: { id: true },
+      });
+      originalProfileId = original?.id || originalProfileId;
+    }
 
     // 1. Find all teachers busy teaching in this period on this day
     const busySlots = await prisma.timetableSlot.findMany({
@@ -720,34 +731,73 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
       if (b.badalTeacherId) busyTeacherIds.add(b.badalTeacherId);
     }
 
-    // 3. Find all active teachers, prioritizing those who are completely free
+    // 3. Faculty who are already timetabled for this subject are the only
+    //    eligible substitutes. This prevents the picker from dumping the
+    //    entire faculty roster into the Badal modal.
+    let subjectTeacherIds = new Set<string>();
+    if (normalizedSubject) {
+      const subjectSlots = await prisma.timetableSlot.findMany({
+        where: {
+          subject: { equals: normalizedSubject, mode: "insensitive" },
+          teacherId: { not: null },
+        },
+        select: { teacherId: true },
+        distinct: ["teacherId"],
+      });
+      subjectTeacherIds = new Set(subjectSlots.map((s) => s.teacherId!));
+    }
+    const normalizedSubjectKey = normalizedSubject.toLowerCase();
+
+    // 4. Return only free, subject-qualified faculty.
     const allTeachers = await prisma.teacherProfile.findMany({
       where: {
         user: { isActive: true, deletedAt: null },
       },
-      include: {
+      select: {
+        id: true,
+        its: true,
+        department: true,
+        subjects: true,
         user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
         _count: { select: { substituteBadals: true } },
       },
-      orderBy: [{ substituteBadals: { _count: "asc" } }, { user: { firstName: "asc" } }],
     });
+
+    const eligibleTeachers = allTeachers
+      .filter((t) => t.id !== originalProfileId)
+      .filter((t) => {
+        if (!normalizedSubjectKey) return true;
+        if (subjectTeacherIds.has(t.id)) return true;
+        return t.subjects.some((s) => s.trim().toLowerCase() === normalizedSubjectKey);
+      })
+      .map((t) => ({
+        id: t.id,
+        name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+        email: t.user?.email || "",
+        its: t.its,
+        department: t.department || "Faculty",
+        subjects: t.subjects,
+        avatarUrl: t.user?.avatarUrl || null,
+        badalCount: t._count.substituteBadals,
+        isFree: !busyTeacherIds.has(t.id),
+        teachesSubject: true,
+      }))
+      .sort(
+        (a, b) =>
+          Number(b.isFree) - Number(a.isFree) ||
+          a.badalCount - b.badalCount ||
+          a.name.localeCompare(b.name),
+      );
 
     return res.json({
       success: true,
-      data: allTeachers
-        .map((t) => {
-          const isFree = !busyTeacherIds.has(t.id);
-          return {
-            id: t.id,
-            name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
-            email: t.user?.email || "",
-            its: t.its,
-            avatarUrl: t.user?.avatarUrl || null,
-            badalCount: t._count.substituteBadals,
-            isFree,
-          };
-        })
-        .sort((a, b) => (a.isFree === b.isFree ? 0 : a.isFree ? -1 : 1)),
+      data: eligibleTeachers,
+      meta: {
+        subject: normalizedSubject || null,
+        period: p,
+        date: startOfDay.toISOString().split("T")[0],
+        eligibleCount: eligibleTeachers.length,
+      },
     });
   } catch (error) {
     console.error("Available teachers error:", error);
@@ -781,7 +831,99 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing required fields (date, className, period, subject)" });
     }
 
+    const periodNumber = Number(period);
+    if (!Number.isInteger(periodNumber) || periodNumber < 1) {
+      return res.status(400).json({ success: false, error: "period must be a positive integer" });
+    }
+
     const dateObj = new Date(`${date}T00:00:00.000Z`);
+    if (Number.isNaN(dateObj.getTime())) {
+      return res.status(400).json({ success: false, error: "Invalid substitution date" });
+    }
+    const startOfDay = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
+    const endOfDay = new Date(startOfDay.getTime() + 86400000);
+
+    let originalProfileId: string | null = originalTeacherId || null;
+    if (originalProfileId) {
+      const original = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: originalProfileId }, { userId: originalProfileId }] },
+        select: { id: true },
+      });
+      originalProfileId = original?.id || originalProfileId;
+    }
+
+    // Validate the substitute is a real, active teacher and is genuinely free
+    // for this day/period. This is the server-side guard behind the filtered
+    // Badal picker, so a stale browser cannot assign a busy teacher.
+    let substituteProfile: {
+      id: string;
+      user: { firstName: string; lastName: string };
+    } | null = null;
+
+    if (badalTeacherId) {
+      substituteProfile = await prisma.teacherProfile.findFirst({
+        where: {
+          OR: [{ id: badalTeacherId }, { userId: badalTeacherId }],
+          user: { isActive: true, deletedAt: null },
+        },
+        select: {
+          id: true,
+          user: { select: { firstName: true, lastName: true } },
+        },
+      });
+
+      if (!substituteProfile) {
+        return res.status(400).json({ success: false, error: "Selected substitute teacher is not active or was not found" });
+      }
+      if (originalProfileId && substituteProfile.id === originalProfileId) {
+        return res.status(400).json({ success: false, error: "A teacher cannot substitute for their own lesson" });
+      }
+
+      const alreadyAssigned = await prisma.timetableBadal.findFirst({
+        where: {
+          date: { gte: startOfDay, lt: endOfDay },
+          period: periodNumber,
+          badalTeacherId: substituteProfile.id,
+          status: { in: ["ASSIGNED", "CONFIRMED"] },
+        },
+        select: { id: true },
+      });
+      if (alreadyAssigned) {
+        return res.status(409).json({ success: false, error: "This teacher is already assigned as Badal for this period" });
+      }
+
+      let substituteDayOfWeek: number | null = null;
+      if (slotId) {
+        const slot = await prisma.timetableSlot.findUnique({
+          where: { id: slotId },
+          select: { dayOfWeek: true },
+        });
+        substituteDayOfWeek = slot?.dayOfWeek ?? null;
+      }
+      if (substituteDayOfWeek === null) {
+        const day = startOfDay.getUTCDay();
+        substituteDayOfWeek = day === 0 ? 1 : day;
+      }
+
+      const teachingClash = await prisma.timetableSlot.findFirst({
+        where: {
+          dayOfWeek: substituteDayOfWeek,
+          period: periodNumber,
+          teacherId: substituteProfile.id,
+        },
+        select: { id: true },
+      });
+      if (teachingClash) {
+        return res.status(409).json({ success: false, error: "This teacher already has a class in the selected period" });
+      }
+    }
+
+    const resolvedBadalTeacherId = substituteProfile?.id || null;
+    const resolvedBadalTeacherName =
+      badalTeacherName ||
+      (substituteProfile
+        ? `${substituteProfile.user.firstName || ""} ${substituteProfile.user.lastName || ""}`.trim()
+        : null);
 
     const badal = await prisma.timetableBadal.create({
       data: {
@@ -789,16 +931,16 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         slotId: slotId || null,
         classId: classId || null,
         className,
-        period: Number(period),
+        period: periodNumber,
         startTime: startTime || "10:30",
         endTime: endTime || "11:00",
         subject,
-        originalTeacherId: originalTeacherId || null,
+        originalTeacherId: originalProfileId,
         originalTeacherName: originalTeacherName || null,
-        badalTeacherId: badalTeacherId || null,
-        badalTeacherName: badalTeacherName || null,
+        badalTeacherId: resolvedBadalTeacherId,
+        badalTeacherName: resolvedBadalTeacherName,
         reason: reason || "Unplanned Absence / Leave",
-        status: badalTeacherId ? "ASSIGNED" : "PENDING",
+        status: resolvedBadalTeacherId ? "ASSIGNED" : "PENDING",
         instructions: instructions || null,
         notes: notes || null,
         assignedById: session.user.id,
