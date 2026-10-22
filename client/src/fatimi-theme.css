@@ -10,7 +10,8 @@
 [data-fatimi-theme="green"],
 [data-fatimi-theme="fatimi-rawdah-marmar"],
 [data-fatimi-theme="fatimi-mishkat-nur"],
-[data-fatimi-theme="fatimi-kufa-zari"] {
+[data-fatimi-theme="fatimi-kufa-zari"],
+[data-fatimi-theme="twilight-palace"] {
   --fatimi-primary: #064e3b;
   --fatimi-primary-dark: #022c22;
   --fatimi-primary-light: #059669;

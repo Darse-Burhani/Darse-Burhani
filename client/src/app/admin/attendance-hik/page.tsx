@@ -288,10 +288,16 @@ export default function AdminAttendanceHikPage() {
 
     let presentCount = 0;
     let lateCount = 0;
+    let absentCount = 0;
+    let medicalCount = 0;
+    let leaveCount = 0;
 
     audienceRecords.forEach((r) => {
       if (r.status === "PRESENT") presentCount++;
       else if (r.status === "LATE") lateCount++;
+      else if (r.status === "ABSENT") absentCount++;
+      else if (r.status === "MEDICAL") medicalCount++;
+      else if (r.status === "ON_LEAVE") leaveCount++;
     });
 
     return {
@@ -300,6 +306,9 @@ export default function AdminAttendanceHikPage() {
       facultyPunched: facultyPunched,
       presentCount,
       lateCount,
+      absentCount,
+      medicalCount,
+      leaveCount,
     };
   }, [allRecords, audienceRecords]);
 
@@ -749,6 +758,57 @@ export default function AdminAttendanceHikPage() {
               <span>Late</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "LATE" ? "bg-slate-900/20 text-slate-950 font-black" : "bg-amber-200 text-amber-900 font-bold"}`}>
                 {stats.lateCount}
+              </span>
+            </button>
+
+            {/* Chip: Absent */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterChange("ABSENT")}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                statusFilter === "ABSENT"
+                  ? "bg-rose-600 text-white border-rose-600 shadow-xs"
+                  : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
+              }`}
+            >
+              <XCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>Absent</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "ABSENT" ? "bg-white/20 text-white" : "bg-rose-200 text-rose-900 font-bold"}`}>
+                {stats.absentCount}
+              </span>
+            </button>
+
+            {/* Chip: Medical */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterChange("MEDICAL")}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                statusFilter === "MEDICAL"
+                  ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                  : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 shrink-0" />
+              <span>Medical</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "MEDICAL" ? "bg-white/20 text-white" : "bg-purple-200 text-purple-900 font-bold"}`}>
+                {stats.medicalCount}
+              </span>
+            </button>
+
+            {/* Chip: On Leave */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterChange("ON_LEAVE")}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                statusFilter === "ON_LEAVE"
+                  ? "bg-sky-600 text-white border-sky-600 shadow-xs"
+                  : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5 shrink-0" />
+              <span>On Leave</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "ON_LEAVE" ? "bg-white/20 text-white" : "bg-sky-200 text-sky-900 font-bold"}`}>
+                {stats.leaveCount}
               </span>
             </button>
           </div>

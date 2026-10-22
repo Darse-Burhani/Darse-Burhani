@@ -245,36 +245,36 @@ export default function MedicalDutyPage() {
   }, [exemptions, filterType]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 space-y-8">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 p-4 md:p-8 space-y-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border border-emerald-500/20 p-6 md:p-8 shadow-2xl">
-        <div className="absolute -right-12 -top-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#059669] border border-emerald-600/30 p-6 md:p-8 shadow-xl text-white">
+        <div className="absolute -right-12 -top-12 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-emerald-100 text-xs font-semibold uppercase tracking-wider">
               <HeartPulse className="w-3.5 h-3.5 animate-pulse" />
-              Health Duty & Medical Operations
+              Health Duty &amp; Medical Operations
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-              <Stethoscope className="w-8 h-8 text-emerald-400" />
-              Medical Leave & Biometric Exemption Hub
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+              <Stethoscope className="w-8 h-8 text-emerald-200" />
+              Medical Leave &amp; Biometric Exemption Hub
             </h1>
-            <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Assigned Medical Teachers & Admins can mark Talabat or Faculty on medical leave for Tilawat al-Dua or specific class periods.
-              <span className="text-emerald-300 font-semibold block mt-1">
+            <p className="text-sm text-emerald-50 max-w-2xl leading-relaxed">
+              Assigned Medical Teachers &amp; Admins can mark Talabat or Faculty on medical leave for Tilawat al-Dua or specific class periods.
+              <span className="text-amber-200 font-semibold block mt-1">
                 🛡️ Guaranteed Rule: When on medical leave, unscanned members are marked <u>MEDICAL</u> — NEVER <u>ABSENT</u>.
               </span>
             </p>
           </div>
 
           {/* Quick Counter */}
-          <div className="flex items-center gap-3 bg-slate-900/80 backdrop-blur border border-emerald-500/30 rounded-xl p-4 shadow-lg">
-            <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-xl">
+          <div className="flex items-center gap-3 bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4 shadow-lg text-white shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-white font-black text-2xl shadow-inner">
               {exemptions.length}
             </div>
             <div>
-              <div className="text-xs text-slate-400 uppercase font-semibold">Today&apos;s Active Exemptions</div>
-              <div className="text-sm font-medium text-white">
+              <div className="text-[11px] text-emerald-100 uppercase font-black tracking-wider">Today&apos;s Active Exemptions</div>
+              <div className="text-sm font-bold text-white">
                 {exemptions.filter((e) => e.personType === "STUDENT").length} Talabat · {exemptions.filter((e) => e.personType === "TEACHER").length} Faculty
               </div>
             </div>
@@ -286,20 +286,20 @@ export default function MedicalDutyPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Medical Desk Form */}
         <div className="lg:col-span-5 space-y-6">
-          <Card className="bg-slate-900/90 border-slate-800 shadow-xl backdrop-blur">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-emerald-400" />
+          <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="pb-4 border-b border-slate-100 bg-slate-50/50">
+              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-emerald-600" />
                 Assign Medical Exemption
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500 font-medium">
                 1-Click Medical Leave recording with instant biometric waiver
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-5">
               {/* Step 1: Choose Role Type */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   1. Member Category
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -310,10 +310,10 @@ export default function MedicalDutyPage() {
                       setSelectedMember(null);
                       setSearchResults([]);
                     }}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
                       personType === "STUDENT"
-                        ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/30"
-                        : "bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                        ? "bg-emerald-600 border-emerald-600 text-white shadow-xs"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                     }`}
                   >
                     <GraduationCap className="w-4 h-4" />
@@ -326,10 +326,10 @@ export default function MedicalDutyPage() {
                       setSelectedMember(null);
                       setSearchResults([]);
                     }}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
                       personType === "TEACHER"
-                        ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/30"
-                        : "bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                        ? "bg-emerald-600 border-emerald-600 text-white shadow-xs"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                     }`}
                   >
                     <Briefcase className="w-4 h-4" />
@@ -340,8 +340,8 @@ export default function MedicalDutyPage() {
 
               {/* Step 2: Search Member */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  2. Search & Select {personType === "STUDENT" ? "Student" : "Faculty"}
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  2. Search &amp; Select {personType === "STUDENT" ? "Student" : "Faculty"}
                 </label>
                 {!selectedMember ? (
                   <div className="relative">
@@ -351,7 +351,7 @@ export default function MedicalDutyPage() {
                       placeholder={personType === "STUDENT" ? "Search by Name, ITS, Student ID, Grade..." : "Search by Name, Employee ID, Department..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                      className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                     />
 
                     {/* Search Dropdown */}
@@ -361,31 +361,31 @@ export default function MedicalDutyPage() {
                           initial={{ opacity: 0, y: -6 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -6 }}
-                          className="absolute z-50 left-0 right-0 mt-2 max-h-64 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 divide-y divide-slate-800"
+                          className="absolute z-50 left-0 right-0 mt-2 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 divide-y divide-slate-100"
                         >
                           {searchResults.map((m) => (
                             <button
                               key={m.id}
                               type="button"
                               onClick={() => handleSelectMember(m)}
-                              className="w-full text-left p-2.5 rounded-lg hover:bg-slate-800/80 transition-colors flex items-center justify-between group"
+                              className="w-full text-left p-2.5 rounded-lg hover:bg-emerald-50 transition-colors flex items-center justify-between group cursor-pointer"
                             >
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/30">
+                                <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-200">
                                   {getInitials(m.name)}
                                 </div>
                                 <div>
-                                  <div className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                                  <div className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
                                     {m.name}
                                   </div>
-                                  <div className="text-xs text-slate-400">
+                                  <div className="text-xs text-slate-500">
                                     {m.personType === "STUDENT"
                                       ? `${m.className || `Grade ${m.grade}-${m.section}`} · ITS: ${m.its || m.studentId}`
                                       : `${m.department || "Faculty"} · ID: ${m.employeeId}`}
                                   </div>
                                 </div>
                               </div>
-                              <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
                             </button>
                           ))}
                         </motion.div>
@@ -393,19 +393,19 @@ export default function MedicalDutyPage() {
                     </AnimatePresence>
                   </div>
                 ) : (
-                  <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3.5 flex items-center justify-between">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-sm flex items-center justify-center border border-emerald-500/40">
+                      <div className="w-10 h-10 rounded-full bg-emerald-600 text-white font-black text-sm flex items-center justify-center shadow-xs">
                         {getInitials(selectedMember.name)}
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-white flex items-center gap-2">
+                        <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
                           {selectedMember.name}
-                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-300 border-emerald-500/30 text-[10px]">
+                          <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold">
                             {selectedMember.personType}
                           </Badge>
                         </div>
-                        <div className="text-xs text-slate-300">
+                        <div className="text-xs text-slate-600">
                           {selectedMember.personType === "STUDENT"
                             ? `${selectedMember.className || `Grade ${selectedMember.grade}-${selectedMember.section}`} · ITS: ${selectedMember.its || selectedMember.studentId}`
                             : `${selectedMember.department || "Faculty"} · ID: ${selectedMember.employeeId}`}
@@ -416,7 +416,7 @@ export default function MedicalDutyPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setSelectedMember(null)}
-                      className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 h-8 w-8 p-0 rounded-lg"
+                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 h-8 w-8 p-0 rounded-lg cursor-pointer"
                     >
                       <XCircle className="w-4 h-4" />
                     </Button>
@@ -426,7 +426,7 @@ export default function MedicalDutyPage() {
 
               {/* Step 3: Event / Session Scope */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   3. Exemption Event / Session
                 </label>
                 <div className="grid grid-cols-1 gap-2">
@@ -438,7 +438,7 @@ export default function MedicalDutyPage() {
                       const matched = scheduleEvents.find((ev) => ev.id === val);
                       setSelectedEventName(matched ? matched.name : "Tilawat al Dua");
                     }}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium cursor-pointer"
                   >
                     {scheduleEvents.length > 0 ? (
                       scheduleEvents.map((ev) => (
@@ -458,7 +458,7 @@ export default function MedicalDutyPage() {
 
               {/* Step 4: Medical Reason & Quick Chips */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   4. Reason / Clinic Symptoms
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -467,10 +467,10 @@ export default function MedicalDutyPage() {
                       key={r}
                       type="button"
                       onClick={() => setCustomReason(r)}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-all cursor-pointer ${
                         customReason === r
-                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-300"
-                          : "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700/60"
+                          ? "bg-emerald-600 border-emerald-600 text-white font-bold shadow-2xs"
+                          : "bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200"
                       }`}
                     >
                       {r}
@@ -482,7 +482,7 @@ export default function MedicalDutyPage() {
                   placeholder="E.g., High fever reported at clinic, given medication and resting in infirmary..."
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
                 />
               </div>
 
@@ -491,7 +491,7 @@ export default function MedicalDutyPage() {
                 type="button"
                 disabled={!selectedMember || !customReason.trim() || submitting}
                 onClick={handleMarkMedical}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
                   <>
@@ -511,41 +511,41 @@ export default function MedicalDutyPage() {
 
         {/* Right Column: Active Exemptions Roster */}
         <div className="lg:col-span-7 space-y-6">
-          <Card className="bg-slate-900/90 border-slate-800 shadow-xl backdrop-blur">
-            <CardHeader className="pb-4">
+          <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="pb-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-                    <HeartPulse className="w-5 h-5 text-emerald-400" />
+                  <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <HeartPulse className="w-5 h-5 text-emerald-600" />
                     Today&apos;s Active Medical Leaves ({filteredExemptions.length})
                   </CardTitle>
-                  <CardDescription className="text-xs text-slate-400">
+                  <CardDescription className="text-xs text-slate-500 font-medium">
                     Live registry of all scan-exempt students and faculty for today
                   </CardDescription>
                 </div>
 
                 {/* Filter Pills */}
-                <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-1">
+                <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-xl p-1">
                   <button
                     onClick={() => setFilterType("ALL")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                      filterType === "ALL" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      filterType === "ALL" ? "bg-slate-900 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     All ({exemptions.length})
                   </button>
                   <button
                     onClick={() => setFilterType("STUDENT")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                      filterType === "STUDENT" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      filterType === "STUDENT" ? "bg-emerald-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Talabat ({exemptions.filter((e) => e.personType === "STUDENT").length})
                   </button>
                   <button
                     onClick={() => setFilterType("TEACHER")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                      filterType === "TEACHER" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      filterType === "TEACHER" ? "bg-indigo-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Faculty ({exemptions.filter((e) => e.personType === "TEACHER").length})
@@ -554,16 +554,16 @@ export default function MedicalDutyPage() {
               </div>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="pt-5">
               {loadingExemptions ? (
                 <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-                  <RotateCcw className="w-6 h-6 animate-spin text-emerald-400" />
-                  <span className="text-sm">Loading today&apos;s medical records...</span>
+                  <RotateCcw className="w-6 h-6 animate-spin text-emerald-600" />
+                  <span className="text-sm font-medium">Loading today&apos;s medical records...</span>
                 </div>
               ) : filteredExemptions.length === 0 ? (
-                <div className="py-16 text-center text-slate-400 border border-dashed border-slate-800 rounded-2xl p-8">
-                  <Stethoscope className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <div className="text-base font-medium text-slate-300">No Medical Exemptions Logged for Today</div>
+                <div className="py-16 text-center text-slate-500 border border-dashed border-slate-200 rounded-2xl p-8 bg-slate-50/50">
+                  <Stethoscope className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <div className="text-base font-bold text-slate-700">No Medical Exemptions Logged for Today</div>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                     Use the desk on the left to mark students or faculty on medical duty. When marked, they are protected from absence marks.
                   </p>
@@ -581,43 +581,43 @@ export default function MedicalDutyPage() {
                     return (
                       <div
                         key={item.id}
-                        className="bg-slate-950/60 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                        className="bg-white border border-slate-200 hover:border-emerald-300 rounded-xl p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-2xs hover:shadow-xs"
                       >
                         <div className="flex items-start gap-3.5">
-                          <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/20 shrink-0 mt-0.5">
+                          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs border border-emerald-200 shrink-0 mt-0.5">
                             {getInitials(name)}
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm text-white">{name}</span>
-                              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                              <span className="font-bold text-sm text-slate-900">{name}</span>
+                              <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-bold">
                                 {item.personType}
                               </Badge>
-                              <Badge variant="outline" className="bg-slate-900 text-slate-300 border-slate-700 text-[10px]">
-                                <Clock className="w-3 h-3 mr-1 text-emerald-400 inline" />
+                              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-[10px] font-semibold">
+                                <Clock className="w-3 h-3 mr-1 text-emerald-600 inline" />
                                 {item.eventName}
                               </Badge>
                             </div>
-                            <div className="text-xs text-slate-400">{identifier}</div>
-                            <div className="text-xs text-slate-300 italic bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 inline-block mt-1">
+                            <div className="text-xs text-slate-500 font-medium">{identifier}</div>
+                            <div className="text-xs text-slate-700 italic bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 inline-block mt-1 font-medium">
                               &ldquo;{item.reason}&rdquo;
                             </div>
-                            <div className="text-[11px] text-slate-500">
-                              Assigned by: <span className="text-slate-400 font-medium">{item.assignedByName || "Medical In-Charge"}</span>
+                            <div className="text-[11px] text-slate-400">
+                              Assigned by: <span className="text-slate-600 font-medium">{item.assignedByName || "Medical In-Charge"}</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800">
-                          <div className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                          <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-2xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             Medical Protected
                           </div>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleRevokeExemption(item.id, name)}
-                            className="text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 h-7 px-2.5 rounded-lg"
+                            className="text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50 h-7 px-2.5 rounded-lg cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5 mr-1" />
                             Revoke

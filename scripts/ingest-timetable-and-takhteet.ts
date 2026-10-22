@@ -8,10 +8,10 @@ const prisma = new PrismaClient();
 // Teacher mapping helper
 const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
   "Burhanddin Sir Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
-  "Mustafa Manpurwala": { its: "40444603", name: "Mustafa bhai Moiz bhai Manpurwala", email: "mustafa.manpurwala@mahadalzahra.com" },
-  "Mustafa bhai Moiz bhai Manpurwala": { its: "40444603", name: "Mustafa bhai Moiz bhai Manpurwala", email: "mustafa.manpurwala@mahadalzahra.com" },
-  "Mustafa Tailor": { name: "Mustafa Tailor", email: "mustafa.tailor@darseburhani.com" },
-  "Mustafa Sir Tailor": { name: "Mustafa Tailor", email: "mustafa.tailor@darseburhani.com" },
+  "Mustafa Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
+  "Mustafa bhai Moiz bhai Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
+  "Mustafa Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
+  "Mustafa Sir Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mulla Aliasgar bhai Husainali bhai Khandwala": { its: "60406964", name: "Mulla Aliasgar bhai Husainali bhai Khandwala", email: "aliasgar.khandwala@darseburhani.com" },
   "Mulla Husain bhai Mulla Fakhruddin Habib": { its: "30384792", name: "Mulla Husain bhai Mulla Fakhruddin bhai Habib", email: "husain.habib@darseburhani.com" },
   "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala": { its: "60472254", name: "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala", email: "husain.kanchwala@darseburhani.com" },
