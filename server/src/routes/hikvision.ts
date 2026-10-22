@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import crypto from "node:crypto";
 import { requireRole } from "../middleware";
 import { processBiometricScan } from "../lib/biometric";
 import {
@@ -38,8 +39,6 @@ function buildPushUrl(req: import("express").Request, deviceIp?: string): string
   const lanIp = getLocalLanIp(deviceIp);
   return `http://${lanIp}:4000/api/hikvision/events`;
 }
-
-import crypto from "node:crypto";
 
 function authorizePush(req: import("express").Request): boolean {
   const secret = process.env.BIOMETRIC_SECRET || "DARSEBURHANI5253";
