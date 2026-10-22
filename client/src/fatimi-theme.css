@@ -484,3 +484,148 @@ body[data-fatimi-theme="twilight-palace"] ::-webkit-scrollbar-thumb {
   color: #1a2038;
   box-shadow: 0 4px 12px rgba(235, 170, 69, 0.14);
 }
+
+/* ─────────────────────────────────────────────────────────────
+   TWILIGHT PALACE · SHARED CONTROL TOKENS
+   Every focusable control inherits the theme's focus ring instead of
+   a hardcoded emerald one.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --db-focus-ring: rgba(5, 150, 105, 0.8);
+}
+
+[data-fatimi-theme="twilight-palace"] {
+  --db-focus-ring: #d97706;
+  --highlight-accent: #d97706;
+  --highlight-accent-hover: #c2410c;
+  --highlight-accent-dark: #1a2038;
+  --highlight-ring: rgba(217, 119, 6, 0.45);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   TWILIGHT PALACE · SHARED UI BUTTON SYSTEM (components/ui/button.tsx)
+   The theme's primary action is the sunset CTA (matches the sign-in
+   button and SUNSET_THEME.btnPrimaryClass); structural variants stay
+   light with amber-tinted interaction states.
+   ───────────────────────────────────────────────────────────── */
+
+/* Primary action family → sunset CTA */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="default"],
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="admin"],
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="teacher"],
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="student"],
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="parent"],
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-emerald"],
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-gold"] {
+  background-color: #ef9a33;
+  background-image: linear-gradient(90deg, #fcd468 0%, #ef9a33 52%, #dc6b27 100%);
+  color: #1c1403;
+  border-color: rgba(220, 107, 39, 0.55);
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.45), 0 4px 14px rgba(229, 169, 18, 0.3);
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="default"]:hover,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="admin"]:hover,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="teacher"]:hover,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="student"]:hover,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="parent"]:hover,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-emerald"]:hover,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-gold"]:hover {
+  background-image: linear-gradient(90deg, #fcd468 0%, #f0a63f 52%, #e0742d 100%);
+  color: #1c1403;
+  border-color: rgba(220, 107, 39, 0.8);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 8px 22px rgba(220, 107, 39, 0.42);
+  transform: translateY(-1px);
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="default"]:active,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="admin"]:active,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="teacher"]:active,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="student"]:active,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="parent"]:active,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-emerald"]:active,
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-gold"]:active {
+  box-shadow: inset 0 2px 6px rgba(120, 53, 15, 0.35), 0 1px 4px rgba(220, 107, 39, 0.3);
+}
+
+/* Indigo glass — the theme's secondary (cool) action */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-lapis"] {
+  background-color: #1a2038;
+  background-image: linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%);
+  border-color: rgba(12, 16, 38, 0.9);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 4px 14px rgba(26, 32, 56, 0.35);
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-lapis"]:hover {
+  background-image: linear-gradient(135deg, #1e2542 0%, #303a63 55%, #44507f 100%);
+  border-color: rgba(235, 170, 69, 0.5);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.28), 0 8px 22px rgba(26, 32, 56, 0.45);
+}
+
+/* Outline → amber-tinted structure */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="outline"] {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(26, 32, 56, 0.16);
+  color: #1a2038;
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="outline"]:hover {
+  background-color: rgba(255, 248, 236, 0.98);
+  border-color: rgba(235, 170, 69, 0.75);
+  color: #1a2038;
+  box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.22);
+}
+
+/* Secondary → warm neutral */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="secondary"] {
+  background-color: rgba(26, 32, 56, 0.07);
+  border-color: rgba(26, 32, 56, 0.12);
+  color: #1a2038;
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="secondary"]:hover {
+  background-color: rgba(235, 170, 69, 0.16);
+  border-color: rgba(235, 170, 69, 0.45);
+  color: #1a2038;
+}
+
+/* Ghost → amber wash on hover */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="ghost"] {
+  color: #33384f;
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="ghost"]:hover {
+  background-color: rgba(235, 170, 69, 0.16);
+  color: #1a2038;
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="ghost"]:active {
+  background-color: rgba(235, 170, 69, 0.26);
+}
+
+/* Link → ember underline */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="link"] {
+  color: #b45309;
+  text-decoration-color: rgba(220, 107, 39, 0.65);
+}
+
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="link"]:hover {
+  color: #9a3412;
+}
+
+/* Focus visibility for text inputs — theme-matched halo */
+[data-fatimi-theme="twilight-palace"] .db-input:focus-visible {
+  border-color: #d97706;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 0 0 2px var(--bg-surface, #ffffff),
+    0 0 0 4px rgba(217, 119, 6, 0.28);
+}
+
+/* Subtle / glass → keep neutral, warm the hover */
+[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-subtle"]:hover {
+  background-color: rgba(255, 247, 235, 0.95);
+  border-color: rgba(235, 170, 69, 0.75);
+  color: #1a2038;
+  box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.2);
+}

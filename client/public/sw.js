@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────
 // Darse Burhani (Nisab) — Service Worker
-// Version: 1.1.0
+// Version: 1.2.0
 // Caches core app shell & static assets for instant load and offline resilience
 // ─────────────────────────────────────────────────────────────
 
-const CACHE_NAME = "darse-burhani-pwa-v1";
+const CACHE_NAME = "darse-burhani-pwa-v2";
 const OFFLINE_URL = "/offline.html";
 
 // Essential static shell assets to pre-cache on install
@@ -73,6 +73,13 @@ self.addEventListener("fetch", (event) => {
 
   // Skip non-GET requests and internal schemes
   if (request.method !== "GET" || !url.protocol.startsWith("http")) {
+    return;
+  }
+
+  // Same-origin only. Third-party assets (fonts.gstatic.com, fonts.googleapis.com)
+  // must be fetched by the browser itself: a service-worker fetch() counts as a
+  // `connect-src` connection and the CSP ("connect-src 'self' ws: wss:") blocks it.
+  if (url.origin !== self.location.origin) {
     return;
   }
 
@@ -161,8 +168,10 @@ self.addEventListener("fetch", (event) => {
             return networkResponse;
           })
           .catch(() => {
-            // Return placeholder if appropriate
-            return new Response("", { status: 408, statusText: "Request Timed Out" });
+            // No cached copy and the network failed: surface a real network error.
+            // (Fabricating a 408 only pollutes the console — the asset is simply
+            // unavailable while offline.)
+            return Response.error();
           });
       })
     );

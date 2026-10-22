@@ -661,14 +661,23 @@ router.post("/poll-now", requireAuth, async (_req, res) => {
   try {
     const todayStart = getStartOfTodayIST();
     const result = await pullAllDevicesScansForRange(todayStart, new Date());
+    const unreachable = result.devices.filter((d) => !d.success);
+    const summary = `Pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;
     return res.json({
       success: true,
-      message: `Pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`,
+      message: unreachable.length
+        ? `${summary} ${unreachable.length} terminal(s) unreachable: ${unreachable
+            .map((d) => `${d.name || d.host} — ${d.error || "no response"}`)
+            .join(" | ")}`
+        : summary,
       data: result,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[attendance-logs] /poll-now error:", error);
-    return res.status(500).json({ success: false, error: error?.message || "Failed to poll hardware devices" });
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to poll hardware devices",
+    });
   }
 });
 

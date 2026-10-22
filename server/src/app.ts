@@ -240,7 +240,17 @@ export function createApp() {
   app.get("/api/auth/session", sessionHandler);
 
   // 7. Request Timeout Guard on API routes (30 seconds)
-  app.use("/api", requestTimeoutMiddleware(30000));
+  //    Hardware scan polling legitimately talks to LAN terminals (serial device
+  //    pulls), so it is exempted from the global budget and guarded by its own,
+  //    longer budget below instead of returning a premature 504.
+  app.use(
+    "/api",
+    requestTimeoutMiddleware(30000, {
+      exemptPaths: ["/api/admin/attendance-logs/poll-now", "/api/biometric/pull-range"],
+    })
+  );
+  app.use("/api/admin/attendance-logs/poll-now", requestTimeoutMiddleware(75000));
+  app.use("/api/biometric/pull-range", requestTimeoutMiddleware(75000));
 
   // 8. Global API Rate Limiter for load smoothing
   app.use("/api", globalApiRateLimiter);

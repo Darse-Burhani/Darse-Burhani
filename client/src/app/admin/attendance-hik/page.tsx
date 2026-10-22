@@ -208,12 +208,25 @@ export default function AdminAttendanceHikPage() {
     setPollingHardware(true);
     try {
       const res = await pollHikvisionDevicesNow();
+      const devices = res.data?.devices || [];
+      const unreachable = devices.filter((d) => !d.success);
+
       if (res.success) {
-        toast({
-          variant: "success",
-          title: "Hardware Scans Synchronized",
-          description: `Pulled ${res.data.totalFetched} live scans across ${res.data.devices.length} terminal(s) (${res.data.totalProcessed} processed into attendance).`,
-        });
+        if (unreachable.length > 0) {
+          toast({
+            variant: "destructive",
+            title: "Some terminals did not answer",
+            description: `${unreachable
+              .map((d) => `${d.name || d.host}: ${d.error || "no response"}`)
+              .join(" · ")}. The pull keeps running — refreshed scans appear within seconds.`,
+          });
+        } else {
+          toast({
+            variant: "success",
+            title: "Hardware Scans Synchronized",
+            description: `Pulled ${res.data.totalFetched} live scans across ${devices.length} terminal(s) (${res.data.totalProcessed} processed into attendance).`,
+          });
+        }
         await loadAttendance(true);
       } else {
         toast({
@@ -223,11 +236,17 @@ export default function AdminAttendanceHikPage() {
         });
       }
     } catch (err: any) {
+      const message = err.message || "Failed to communicate with Hikvision terminals";
+      const timedOut = /timed out|504/i.test(message);
       toast({
         variant: "destructive",
-        title: "Connection Error",
-        description: err.message || "Failed to communicate with Hikvision terminals",
+        title: timedOut ? "Hardware Sync Timed Out" : "Connection Error",
+        description: timedOut
+          ? `${message} Terminals did not answer inside the sync window — the pull continues in the background and the table refreshes automatically.`
+          : message,
       });
+      // Partial results may still have landed: pull the table again shortly.
+      if (timedOut) window.setTimeout(() => loadAttendance(true), 4000);
     } finally {
       setPollingHardware(false);
     }

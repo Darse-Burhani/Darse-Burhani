@@ -553,18 +553,25 @@ export default function LoginPage() {
   return (
     <>
       <SEO
-        title="Sign In | Darse Burhani"
-        description="Official sign-in portal for Darse Burhani students, faculty, administration, and parents."
+        title="Sign In | Darse Burhani (Nisab)"
+        description="Official sign-in portal for Darse Burhani (Nisab) — Mahad al Zahra talabat, faculty, administration, and parents."
       />
       <canvas ref={canvasRef} className="hidden" />
 
       {/* ── Twilight Palace Backdrop ──
           Layered cinematic composition:
-          1. Fill wash — photo-sampled gradient covering the full viewport
-          2. Photo — entire panorama, no crop (centered on desktop, hero band on mobile)
-          3. Seam fade — melts the photo edge into the wash on mobile
-          4. Sun glow — breathing amber light where the sun sets in the photo
-          5. Parallax — the panorama drifts with the cursor (desktop, motion-safe) */}
+          1. Blurred full-bleed fill — same panorama, cover-scaled and defocused, so
+             the backdrop reaches every screen edge with no letterbox gaps
+          2. Tint wash — photo-sampled gradient that unifies the composition
+          3. Photo — entire panorama, no crop (centered on desktop, hero band on mobile)
+          4. Seam fade — melts the photo edge into the wash on desktop and mobile
+          5. Sun glow — breathing amber light where the sun sets in the photo
+          6. Parallax — the panorama drifts with the cursor (desktop, motion-safe) */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none login-backdrop-blur"
+        style={{ backgroundImage: "url('/login-bg-sunset.jpg')" }}
+        aria-hidden="true"
+      />
       <div className="fixed inset-0 z-0 pointer-events-none login-backdrop-fill" />
       <div
         className="fixed inset-0 z-0 pointer-events-none login-backdrop-photo"
@@ -650,18 +657,37 @@ export default function LoginPage() {
                     }}
                   />
                 </div>
-              ) : (
+              ) : null}
+
+              {/* Institution wordmark — Darse Burhani (Nisab) */}
+              <div style={{ marginTop: logoFailed ? 0 : 22, textAlign: "center" }}>
                 <span
                   style={{
-                    fontFamily: "'Georgia', 'Times New Roman', serif",
-                    fontSize: 34,
+                    display: "block",
+                    fontFamily: "'Cormorant Garamond', 'Georgia', 'Times New Roman', serif",
+                    fontSize: logoFailed ? 38 : 30,
                     fontWeight: 700,
-                    color: "#8a6a1f",
+                    lineHeight: 1.15,
+                    color: "#fffaf0",
+                    textShadow: "0 2px 16px rgba(0,0,0,0.55)",
                   }}
                 >
-                  Darse Burhani
+                  Darse Burhani <span style={{ color: "#ebaa45" }}>(Nisab)</span>
                 </span>
-              )}
+                <span
+                  style={{
+                    display: "block",
+                    marginTop: 7,
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.3em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.72)",
+                  }}
+                >
+                  Mahad al Zahra
+                </span>
+              </div>
             </div>
 
             {/* ── RIGHT PANEL: Translucent Deep Navy ── */}
@@ -674,13 +700,9 @@ export default function LoginPage() {
               }}
             >
               {/* Workspace Header Row */}
-              <div className="flex items-center gap-3">
-                <span style={{ fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 700, color: "#ffffff", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+              <div className="flex items-center justify-center">
+                <span style={{ fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 700, color: "#ffffff", letterSpacing: "0.02em", textAlign: "center" }}>
                   Choose your workspace
-                </span>
-                <div className="hidden sm:block" style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.16)" }} />
-                <span className="hidden sm:inline" style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.62)", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-                  4 Roles Available
                 </span>
               </div>
 
@@ -1010,6 +1032,49 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+
+              {/* ── Assistance & Legal Row ── */}
+              <div
+                className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5"
+                style={{
+                  marginTop: 2,
+                  paddingTop: 14,
+                  borderTop: "1px solid rgba(255,255,255,0.12)",
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.62)",
+                  textAlign: "center",
+                }}
+              >
+                <span style={{ whiteSpace: "nowrap" }}>
+                  Need help?{" "}
+                  <a
+                    href="mailto:support.darseburhani.galiakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                    style={{ color: "#ebaa45", fontWeight: 700, textDecoration: "none" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                  >
+                    Contact Support
+                  </a>
+                </span>
+                <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
+                <Link
+                  to="/privacy"
+                  style={{ color: "rgba(255,255,255,0.78)", fontWeight: 600, textDecoration: "none" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.78)"; }}
+                >
+                  Privacy Policy
+                </Link>
+                <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
+                <Link
+                  to="/terms"
+                  style={{ color: "rgba(255,255,255,0.78)", fontWeight: 600, textDecoration: "none" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.78)"; }}
+                >
+                  Terms of Service
+                </Link>
+              </div>
             </div>
           </div>
         </main>
@@ -1022,11 +1087,25 @@ export default function LoginPage() {
           0%, 100% { opacity: 0.72; transform: translateY(-50%) scale(1); }
           50% { opacity: 1; transform: translateY(-50%) scale(1.07); }
         }
-        /* 1. Fill wash — sky indigo melting into warm ember ground */
-        .login-backdrop-fill {
-          background: linear-gradient(180deg, #3d4771 0%, #4a4f73 24%, #6b5d6e 40%, #4a3a38 62%, #241708 84%, #180f04 100%);
+        /* 1. Blurred full-bleed fill — the same panorama at cover scale so the
+              backdrop always reaches every edge, on any aspect ratio, uncropped */
+        .login-backdrop-blur {
+          background-size: cover;
+          background-position: center center;
+          background-repeat: no-repeat;
+          filter: blur(34px) brightness(0.82) saturate(1.08);
+          transform: scale(1.14);
+          transform-origin: center center;
         }
-        /* 2. Photo — full-length panorama, drifts with the cursor via CSS vars */
+        /* 2. Tint wash — photo-sampled gradient unifying blur + panorama */
+        .login-backdrop-fill {
+          background: linear-gradient(180deg,
+            rgba(46,54,92,0.40) 0%,
+            rgba(74,66,80,0.22) 38%,
+            rgba(38,26,16,0.32) 74%,
+            rgba(18,12,6,0.60) 100%);
+        }
+        /* 3. Photo — full-length panorama, drifts with the cursor via CSS vars */
         .login-backdrop-photo {
           background-size: 100% auto;
           background-position: center center;
@@ -1034,9 +1113,15 @@ export default function LoginPage() {
           transform: translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
           transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        /* 3. Seam fade — hidden on desktop, melts photo into wash on mobile */
-        .login-photo-fade { display: none; }
-        /* 4. Sun glow — breathing amber light at the sunset's position */
+        /* 4. Seam fade — melts the panorama's top & bottom edges into the blurred
+              base, so the uncropped photo never shows a hard letterbox line */
+        .login-photo-fade {
+          display: block;
+          background:
+            linear-gradient(180deg, rgba(30,36,64,0.58) 0%, rgba(30,36,64,0) 15%),
+            linear-gradient(0deg, rgba(20,13,6,0.64) 0%, rgba(20,13,6,0) 17%);
+        }
+        /* 5. Sun glow — breathing amber light at the sunset's position */
         .login-sun-glow {
           right: 2.5%;
           top: 54%;
@@ -1054,13 +1139,19 @@ export default function LoginPage() {
           .login-card-grid { grid-template-columns: 1fr !important; }
           /* Hero band: full panorama pinned to the top — never cropped */
           .login-backdrop-photo { background-position: center top; }
-          /* Wash continues below the band in the photo's own foreground tones */
-          .login-backdrop-fill { background: linear-gradient(180deg, #261809 0%, #1a1108 34%, #140d05 64%, #100a04 100%); }
+          /* Wash continues below the band in the photo's own foreground tones,
+             kept translucent so the blurred fill still carries the composition */
+          .login-backdrop-fill {
+            background: linear-gradient(180deg,
+              rgba(38,24,9,0.74) 0%,
+              rgba(26,17,8,0.86) 40%,
+              rgba(16,10,4,0.92) 100%);
+          }
           .login-photo-fade {
-            display: block;
             top: calc(33.35vw - 56px);
+            bottom: auto;
             height: 84px;
-            background: linear-gradient(180deg, rgba(22, 14, 5, 0) 0%, rgba(26, 17, 8, 0.7) 60%, #1a1108 100%);
+            background: linear-gradient(180deg, rgba(22, 14, 5, 0) 0%, rgba(26, 17, 8, 0.7) 60%, rgba(26, 17, 8, 0.95) 100%);
           }
           .login-sun-glow { right: 3%; top: 18.3vw; width: 150px; height: 150px; }
         }

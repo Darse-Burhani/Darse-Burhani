@@ -439,6 +439,31 @@ export async function pullDeviceScansForRange(
   }
 }
 
+/** Overall deadline for a single terminal pull — beyond this the request returns
+ *  a per-device error while the (already started) background pull keeps going and
+ *  lands its scans in the next live refresh. Prevents serial LAN timeouts from
+ *  stacking up into a 504. */
+const DEVICE_PULL_DEADLINE_MS = 28_000;
+
+function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} did not respond within ${Math.round(ms / 1000)}s`)),
+      ms
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export async function pullAllDevicesScansForRange(
   fromDate: Date,
   toDate: Date = new Date(),
@@ -462,32 +487,37 @@ export async function pullAllDevicesScansForRange(
   });
   const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
 
-  let totalFetched = 0;
-  let totalProcessed = 0;
-  const results: Array<{
-    id: string;
-    name: string;
-    host: string;
-    success: boolean;
-    scansFetched: number;
-    scansProcessed: number;
-    error?: string;
-  }> = [];
+  // Terminals are pulled CONCURRENTLY: serial polling multiplied every device's
+  // connect timeout and was the main reason /poll-now crossed the API budget.
+  const results = await Promise.all(
+    targetDevices.map(async (dev) => {
+      const res = await withDeadline(
+        pullDeviceScansForRange(dev.id, fromDate, toDate),
+        DEVICE_PULL_DEADLINE_MS,
+        `${dev.name || dev.host}`
+      ).catch(
+        (err: unknown): { success: boolean; scansFetched: number; scansProcessed: number; error?: string } => ({
+          success: false,
+          scansFetched: 0,
+          scansProcessed: 0,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
 
-  for (const dev of targetDevices) {
-    const res = await pullDeviceScansForRange(dev.id, fromDate, toDate);
-    totalFetched += res.scansFetched;
-    totalProcessed += res.scansProcessed;
-    results.push({
-      id: dev.id,
-      name: dev.name,
-      host: dev.host,
-      success: res.success,
-      scansFetched: res.scansFetched,
-      scansProcessed: res.scansProcessed,
-      error: res.error,
-    });
-  }
+      return {
+        id: dev.id,
+        name: dev.name,
+        host: dev.host,
+        success: res.success,
+        scansFetched: res.scansFetched,
+        scansProcessed: res.scansProcessed,
+        error: res.error,
+      };
+    })
+  );
+
+  const totalFetched = results.reduce((sum, r) => sum + r.scansFetched, 0);
+  const totalProcessed = results.reduce((sum, r) => sum + r.scansProcessed, 0);
 
   return {
     success: true,

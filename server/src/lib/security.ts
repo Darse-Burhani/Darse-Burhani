@@ -731,9 +731,28 @@ export function corsGuardMiddleware(req: Request, res: Response, next: NextFunct
 
 /**
  * Request timeout middleware (prevents Slowloris & hung requests from blocking connection pool)
+ *
+ * @param timeoutMs  Budget before a 504 is returned
+ * @param options.exemptPaths  Full request paths (query stripped) that must keep
+ *                             their own guard instead of this one — e.g. hardware
+ *                             polling endpoints that legitimately talk to LAN
+ *                             terminals and need a longer budget.
  */
-export function requestTimeoutMiddleware(timeoutMs: number = 30000): RequestHandler {
+export function requestTimeoutMiddleware(
+  timeoutMs: number = 30000,
+  options: { exemptPaths?: string[] } = {}
+): RequestHandler {
+  const exemptPaths = options.exemptPaths ?? [];
+
   return (req: Request, res: Response, next: NextFunction): void => {
+    if (exemptPaths.length > 0) {
+      const originalPath = (req.originalUrl || "").split("?")[0];
+      if (exemptPaths.includes(req.path) || exemptPaths.includes(originalPath)) {
+        next();
+        return;
+      }
+    }
+
     const timer = setTimeout(() => {
       if (!res.headersSent) {
         res.status(504).json({

@@ -95,7 +95,7 @@ export const FATIMI_THEMES: Record<string, FatimiThemeConfig> = {
 };
 
 // Distinct, selectable themes surfaced in the portal Appearance switcher.
-export const AVAILABLE_THEMES: FatimiThemeConfig[] = [GREEN_THEME, SUNSET_THEME];
+export const AVAILABLE_THEMES: FatimiThemeConfig[] = [SUNSET_THEME, GREEN_THEME];
 
 interface FatimiThemeContextValue {
   currentThemeId: FatimiThemeId;
@@ -106,7 +106,7 @@ interface FatimiThemeContextValue {
 
 const FatimiThemeContext = createContext<FatimiThemeContextValue | null>(null);
 
-const STORAGE_KEY = "db_fatimi_active_theme";
+const STORAGE_KEY = "db_fatimi_active_theme_v2";
 
 function readStoredThemeId(): FatimiThemeId {
   try {
@@ -115,14 +115,17 @@ function readStoredThemeId(): FatimiThemeId {
   } catch {
     // ignore storage failures (private mode etc.)
   }
-  return "fatimi-rawdah-marmar";
+  // Twilight Palace is the product's signature theme — every fresh visitor and
+  // every previously-green profile lands on it (the old key is deliberately
+  // ignored so the migration actually happens).
+  return "twilight-palace";
 }
 
 export function FatimiThemeProvider({ children }: { children: React.ReactNode }) {
   const [currentThemeId, setCurrentThemeId] = useState<FatimiThemeId>(readStoredThemeId);
 
   useEffect(() => {
-    const active = FATIMI_THEMES[currentThemeId] ?? GREEN_THEME;
+    const active = FATIMI_THEMES[currentThemeId] ?? SUNSET_THEME;
     const root = document.documentElement;
     root.setAttribute("data-fatimi-theme", active.id);
     if (document.body) {
@@ -167,8 +170,8 @@ export function useFatimiTheme() {
   const context = useContext(FatimiThemeContext);
   if (!context) {
     return {
-      currentThemeId: "fatimi-rawdah-marmar" as FatimiThemeId,
-      theme: GREEN_THEME,
+      currentThemeId: "twilight-palace" as FatimiThemeId,
+      theme: SUNSET_THEME,
       setTheme: () => {},
       availableThemes: AVAILABLE_THEMES,
     };
