@@ -51,27 +51,10 @@ type ParentTab = "overview" | "tracking" | "timetable" | "leave";
 
 const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.ElementType }> = [
   { id: "overview", label: "Overview", labelAr: "نظرة عامة", icon: Heart },
-  { id: "tracking", label: "Live Tracking", labelAr: "الحضور والبصمة", icon: Navigation },
+  { id: "tracking", label: "Attendance", labelAr: "الحضور والغياب", icon: Navigation },
   { id: "timetable", label: "Class Timetable & Masool", labelAr: "الجدول والمسؤول", icon: BookOpen },
   { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
 ];
-
-const isRabeaGrade = (grade?: string | null) => {
-  if (!grade) return false;
-  const g = grade.trim().toLowerCase();
-  return (
-    g === "4" ||
-    g === "iv" ||
-    g === "4th" ||
-    g.includes("rabea") ||
-    g.includes("rabi'a") ||
-    g.includes("الرابعة") ||
-    g.includes("رابعة") ||
-    g.includes("grade 4") ||
-    g.includes("class 4") ||
-    g.includes("darajah 4")
-  );
-};
 
 export default function ParentDashboard() {
   const [data, setData] = useState<any>(null);
@@ -389,51 +372,6 @@ export default function ParentDashboard() {
               })}
             </div>
           </div>
-
-          {/* ═══ Rabea (Grade 4) Yearly Profile Notice & Link (Read-Only for Parents) ═══ */}
-          {selectedChild && isRabeaGrade(selectedChild.grade) && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/10 via-amber-100/30 to-amber-500/10 p-4 sm:p-5 shadow-sm"
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-400 text-amber-800 shadow-inner">
-                    <GraduationCap className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-gradient-to-r from-[#06241a] to-[#0a3d2c] border border-amber-400/40 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300 shadow-2xs">
-                        Yearly Profile 1447 H
-                      </span>
-                      <span className="text-xs font-bold text-amber-900 font-alkanz">
-                        توجيه الطالب – الدرجة الرابعة
-                      </span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
-                        Official Document • Read-Only
-                      </span>
-                    </div>
-                    <h3 className="mt-1 text-sm sm:text-base font-extrabold text-slate-900">
-                      Official Yearly Profile Document for {selectedChild.firstName}
-                    </h3>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      View and print the complete official academic records, hifz milestones, and comprehensive student profile. (View-only mode for parents).
-                    </p>
-                  </div>
-                </div>
-
-                <Link
-                  href={`/parent/yearly-profile?studentId=${selectedChild.studentProfileId || selectedChild.id}`}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#06241a] via-[#0a3d2c] to-[#041a13] hover:from-[#0a3d2c] hover:to-[#06241a] border border-amber-400/40 px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg cursor-pointer"
-                >
-                  <Eye className="h-4 w-4 text-amber-300" />
-                  <span>View Yearly Profile</span>
-                  <ChevronRight className="h-4 w-4 text-emerald-300" />
-                </Link>
-              </div>
-            </motion.div>
-          )}
 
           {/* ═══ Navigation Tabs ═══ */}
           <div className="sticky top-0 z-20 bg-slate-50/80 backdrop-blur-md py-2">

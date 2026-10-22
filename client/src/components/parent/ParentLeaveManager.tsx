@@ -15,6 +15,9 @@ import {
   HeartPulse,
   RefreshCw,
   Trash2,
+  Paperclip,
+  ExternalLink,
+  UploadCloud,
 } from "lucide-react";
 import {
   getParentLeaves,
@@ -82,6 +85,8 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
   const [reason, setReason] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -142,8 +147,10 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
         startDate,
         endDate,
         reason: reason.trim(),
+        attachmentUrl: attachmentUrl.trim() || undefined,
       });
       setReason("");
+      setAttachmentUrl("");
       setStartDate(todayStr);
       setEndDate(todayStr);
       setFormOpen(false);
@@ -276,6 +283,20 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
                       <span className="font-bold text-slate-600">School note: </span>{l.reviewerNotes}
                     </p>
                   )}
+                  {l.attachmentUrl && (
+                    <div className="mt-2">
+                      <a
+                        href={l.attachmentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+                      >
+                        <Paperclip size={12} className="text-emerald-600" />
+                        <span>Supporting Document</span>
+                        <ExternalLink size={11} className="text-slate-400" />
+                      </a>
+                    </div>
+                  )}
                 </div>
                 {l.status === "PENDING" && (
                   <button
@@ -395,6 +416,80 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
                   placeholder="e.g. Family wedding in native town, travelling for 3 days…"
                   className="w-full resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-[14px] focus:border-emerald-600 focus:outline-none"
                 />
+              </div>
+
+              {/* Related Documents Attachment */}
+              <div>
+                <label className="mb-1.5 block text-[11.5px] font-bold uppercase tracking-wider text-slate-500">
+                  Related Documents (Optional)
+                </label>
+                {attachmentUrl ? (
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-[12.5px]">
+                    <div className="flex items-center gap-2 truncate font-semibold text-emerald-800">
+                      <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
+                      <span className="truncate">Document attached</span>
+                      <a
+                        href={attachmentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 underline hover:text-emerald-900"
+                      >
+                        Preview <ExternalLink size={11} />
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachmentUrl("")}
+                      className="ml-2 shrink-0 text-[11.5px] font-bold text-rose-600 hover:text-rose-800"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 p-3.5 cursor-pointer transition hover:bg-slate-50">
+                    <div className="flex items-center gap-2 text-[12.5px] font-medium text-slate-600">
+                      {uploading ? (
+                        <Loader2 size={16} className="animate-spin text-emerald-600" />
+                      ) : (
+                        <UploadCloud size={16} className="text-slate-400" />
+                      )}
+                      <span>{uploading ? "Uploading document…" : "Attach travel ticket, invitation or letter (PDF, JPG, PNG up to 10MB)"}</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      disabled={uploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) {
+                          setFormError("File exceeds maximum allowed size (10 MB)");
+                          return;
+                        }
+                        setUploading(true);
+                        setFormError(null);
+                        try {
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          const res = await fetch("/api/upload", {
+                            method: "POST",
+                            body: formData,
+                          });
+                          const json = await res.json();
+                          if (!res.ok || !json.success) {
+                            throw new Error(json.error || "File upload failed");
+                          }
+                          setAttachmentUrl(json.data?.url || json.url);
+                        } catch (err: any) {
+                          setFormError(err.message || "Failed to upload document");
+                        } finally {
+                          setUploading(false);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">

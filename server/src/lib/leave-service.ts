@@ -39,6 +39,53 @@ export function getDateRangeArray(startDate: Date, endDate: Date): Date[] {
   return dates;
 }
 
+async function notifyAdmins(title: string, body: string, link: string = "/admin/leave") {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", isActive: true },
+      select: { id: true },
+    });
+    if (admins.length > 0) {
+      await prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title,
+          body,
+          type: "ALERT",
+          link,
+          priority: "HIGH",
+        })),
+      });
+    }
+  } catch (err) {
+    console.error("[leave-service] Failed to notify admins:", err);
+  }
+}
+
+async function notifyParents(studentId: string, title: string, body: string, link: string = "/parent") {
+  try {
+    const links = await prisma.parentStudentLink.findMany({
+      where: { studentId },
+      include: { parent: { select: { userId: true } } },
+    });
+    const parentUserIds = Array.from(new Set(links.map((l) => l.parent.userId).filter(Boolean)));
+    if (parentUserIds.length > 0) {
+      await prisma.notification.createMany({
+        data: parentUserIds.map((userId) => ({
+          userId,
+          title,
+          body,
+          type: "ALERT",
+          link,
+          priority: "HIGH",
+        })),
+      });
+    }
+  } catch (err) {
+    console.error("[leave-service] Failed to notify parents:", err);
+  }
+}
+
 /**
  * Create a new leave request for a student.
  */
@@ -123,6 +170,15 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
   } catch (e) {
     console.error("[leave-service] Notification error:", e);
   }
+
+  // Notify School Administration
+  const studentFullName = `${student.user.firstName} ${student.user.lastName}`.trim();
+  const dateRangeStr = `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  await notifyAdmins(
+    "New Leave Application",
+    `${studentFullName} applied for ${input.type.toLowerCase().replace(/_/g, " ")} leave (${dateRangeStr}).`,
+    "/admin/leave"
+  );
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
@@ -250,6 +306,16 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     console.error("[leave-service] Notification error:", e);
   }
 
+  // Notify Parent(s)
+  const approvedStudentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+  const approvedDatesStr = `${leave.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${leave.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  await notifyParents(
+    leave.studentId,
+    "Leave Request Approved",
+    `Leave application for ${approvedStudentName} (${approvedDatesStr}) has been approved.${input.reviewerNotes ? ` Note: ${input.reviewerNotes}` : ""}`,
+    "/parent"
+  );
+
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
@@ -303,6 +369,15 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
     console.error("[leave-service] Notification error:", e);
   }
 
+  // Notify Parent(s)
+  const rejectedStudentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+  await notifyParents(
+    leave.studentId,
+    "Leave Request Rejected",
+    `Leave application for ${rejectedStudentName} was rejected.${input.reviewerNotes ? ` Note: ${input.reviewerNotes}` : ""}`,
+    "/parent"
+  );
+
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
 
@@ -317,7 +392,7 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
 export async function cancelLeaveRequest(leaveId: string, studentId?: string, isAdmin: boolean = false) {
   const leave = await prisma.leaveRequest.findUnique({
     where: { id: leaveId },
-    include: { student: true },
+    include: { student: { include: { user: true } } },
   });
 
   if (!leave) {
@@ -346,8 +421,17 @@ export async function cancelLeaveRequest(leaveId: string, studentId?: string, is
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
-
   queueAutoSheetSync(leave.startDate);
+
+  if (isAdmin) {
+    const studentName = leave.student ? `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim() : "Student";
+    await notifyParents(
+      leave.studentId,
+      "Leave Request Cancelled",
+      `The leave application for ${studentName} was cancelled by school administration.`,
+      "/parent"
+    );
+  }
 
   return updatedLeave;
 }

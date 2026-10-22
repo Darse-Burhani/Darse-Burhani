@@ -178,7 +178,10 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
   if (!rawId) return { ok: false, error: 'Empty ID' };
 
   const strippedNum = rawId.replace(/^0+/, '');
-  const candidateIds = Array.from(new Set([rawId, strippedNum])).filter(Boolean);
+  const prefixMatch = rawId.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
+  const innerNum = prefixMatch && prefixMatch[1] ? prefixMatch[1].trim() : '';
+  const innerStripped = innerNum ? innerNum.replace(/^0+/, '') : '';
+  const candidateIds = Array.from(new Set([rawId, strippedNum, innerNum, innerStripped])).filter(Boolean);
 
   const scanDate = new Date(time);
   const istFormatter = new Intl.DateTimeFormat('en-IN', {
@@ -201,9 +204,10 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
   const scanMinutes = hours * 60 + minutes;
   const calendarDayUTC = new Date(Date.UTC(year, month, day));
 
-  // Determine status (PRESENT vs LATE)
+  // Determine initial status (PRESENT vs LATE)
   const isLate = scanMinutes > 8 * 60 + 1; // After 08:01 AM IST
-  const status = isLate ? 'LATE' : 'PRESENT';
+  const initialStatus = isLate ? 'LATE' : 'PRESENT';
+  const biometricMethod = String(verifyMode || '').toLowerCase().includes('face') ? 'FACIAL' : 'FINGERPRINT';
 
   try {
     // 1. Try matching Student
@@ -215,11 +219,26 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
           { studentId: { in: candidateIds } },
         ],
       },
-      include: { user: true },
+      include: {
+        user: true,
+        classEnrollments: { include: { class: true } },
+      },
     });
 
     if (student) {
-      // Upsert student daily attendance registry
+      // Check for existing registry on this date
+      const existingRegistry = await prisma.attendanceRegistry.findUnique({
+        where: {
+          studentId_date: {
+            studentId: student.id,
+            date: calendarDayUTC,
+          },
+        },
+      });
+
+      // Preserve early arrival or morning PRESENT; later checkout punches must never degrade status to LATE
+      const registryStatus = existingRegistry && existingRegistry.status === 'PRESENT' ? 'PRESENT' : initialStatus;
+
       await prisma.attendanceRegistry.upsert({
         where: {
           studentId_date: {
@@ -230,19 +249,55 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
         create: {
           studentId: student.id,
           date: calendarDayUTC,
-          status,
+          status: registryStatus,
           source: 'BIOMETRIC',
           checkInTime: scanDate,
+          checkOutTime: scanDate,
           recordedById: student.userId,
         },
         update: {
-          status,
-          source: 'BIOMETRIC',
-          checkInTime: scanDate,
+          checkOutTime: scanDate,
+          ...(existingRegistry && existingRegistry.status === 'PRESENT' ? {} : { status: registryStatus }),
         },
       });
 
-      console.log(`   💾 [DIRECT DB SYNC] Recorded Talabat attendance: ${student.user.firstName} ${student.user.lastName} (${status})`);
+      // Also record AttendanceRecord for their enrolled class
+      const activeEnrollment = student.classEnrollments.find((e) => e.isActive) || student.classEnrollments[0];
+      let classId = activeEnrollment?.classId;
+      if (!classId && student.grade) {
+        const cls = await prisma.class.findFirst({ where: { grade: student.grade, isActive: true } });
+        classId = cls?.id;
+      }
+
+      if (classId) {
+        await prisma.attendanceRecord.upsert({
+          where: {
+            studentId_classId_date: {
+              studentId: student.id,
+              classId,
+              date: calendarDayUTC,
+            },
+          },
+          create: {
+            studentId: student.id,
+            classId,
+            date: calendarDayUTC,
+            status: registryStatus,
+            source: 'BIOMETRIC',
+            checkInTime: scanDate,
+            checkOutTime: scanDate,
+            verificationMethod: 'BIOMETRIC',
+            biometricMethod,
+            biometricHash: rawId,
+            recordedById: student.userId,
+          },
+          update: {
+            checkOutTime: scanDate,
+          },
+        });
+      }
+
+      console.log(`   💾 [DIRECT DB SYNC] Recorded Talabat attendance: ${student.user.firstName} ${student.user.lastName} (${registryStatus})`);
       return { ok: true, matchedType: 'STUDENT', name: `${student.user.firstName} ${student.user.lastName}` };
     }
 
@@ -259,6 +314,17 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
     });
 
     if (teacher) {
+      const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
+        where: {
+          teacherId_date: {
+            teacherId: teacher.id,
+            date: calendarDayUTC,
+          },
+        },
+      });
+
+      const teacherStatus = existingTeacherRecord && existingTeacherRecord.status === 'PRESENT' ? 'PRESENT' : initialStatus;
+
       await prisma.teacherAttendanceRecord.upsert({
         where: {
           teacherId_date: {
@@ -269,23 +335,21 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
         create: {
           teacherId: teacher.id,
           date: calendarDayUTC,
-          status,
+          status: teacherStatus,
           checkInTime: scanDate,
+          checkOutTime: scanDate,
           verificationMethod: 'BIOMETRIC',
-          biometricMethod: verifyMode?.includes('face') ? 'FACIAL' : 'FINGERPRINT',
+          biometricMethod,
           biometricHash: rawId,
           notes: `Direct sync from MinMoe (${deviceHost})`,
         },
         update: {
-          status,
-          checkInTime: scanDate,
-          verificationMethod: 'BIOMETRIC',
-          biometricMethod: verifyMode?.includes('face') ? 'FACIAL' : 'FINGERPRINT',
-          biometricHash: rawId,
+          checkOutTime: scanDate,
+          ...(existingTeacherRecord && existingTeacherRecord.status === 'PRESENT' ? {} : { status: teacherStatus }),
         },
       });
 
-      console.log(`   💾 [DIRECT DB SYNC] Recorded Faculty attendance: ${teacher.user.firstName} ${teacher.user.lastName} (${status})`);
+      console.log(`   💾 [DIRECT DB SYNC] Recorded Faculty attendance: ${teacher.user.firstName} ${teacher.user.lastName} (${teacherStatus})`);
       return { ok: true, matchedType: 'TEACHER', name: `${teacher.user.firstName} ${teacher.user.lastName}` };
     }
 
