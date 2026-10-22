@@ -777,7 +777,7 @@ export async function quickMarkAttendance(payload: {
   });
 }
 
-export async function pollHikvisionDevicesNow(): Promise<{
+export async function pollHikvisionDevicesNow(date?: string): Promise<{
   success: boolean;
   message: string;
   data: {
@@ -794,7 +794,10 @@ export async function pollHikvisionDevicesNow(): Promise<{
     }>;
   };
 }> {
-  return request<any>("/api/admin/attendance-logs/poll-now", {
+  const url = date
+    ? `/api/admin/attendance-logs/poll-now?date=${encodeURIComponent(date)}`
+    : "/api/admin/attendance-logs/poll-now";
+  return request<any>(url, {
     method: "POST",
   });
 }

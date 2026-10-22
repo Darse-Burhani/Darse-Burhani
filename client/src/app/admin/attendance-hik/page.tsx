@@ -203,11 +203,11 @@ export default function AdminAttendanceHikPage() {
     };
   }, [isLive, date, todayStr, loadAttendance]);
 
-  // Immediate Hardware Polling Handler
+  // Immediate Hardware Polling Handler (supports today or selected date)
   const handlePollDevicesNow = async () => {
     setPollingHardware(true);
     try {
-      const res = await pollHikvisionDevicesNow();
+      const res = await pollHikvisionDevicesNow(date);
       const devices = res.data?.devices || [];
       const unreachable = devices.filter((d) => !d.success);
 
@@ -224,7 +224,7 @@ export default function AdminAttendanceHikPage() {
           toast({
             variant: "success",
             title: "Hardware Scans Synchronized",
-            description: `Pulled ${res.data.totalFetched} live scans across ${devices.length} terminal(s) (${res.data.totalProcessed} processed into attendance).`,
+            description: `Pulled ${res.data.totalFetched} live scans for ${date === todayStr ? "today" : date} across ${devices.length} terminal(s) (${res.data.totalProcessed} processed into attendance).`,
           });
         }
         await loadAttendance(true);
@@ -252,22 +252,19 @@ export default function AdminAttendanceHikPage() {
     }
   };
 
-  // Date controls
-  const handlePrevDay = () => {
-    const cur = new Date(date);
-    cur.setDate(cur.getDate() - 1);
-    setDate(cur.toISOString().split("T")[0]);
+  // Date controls (pure numeric timezone-safe arithmetic)
+  const shiftDate = (currentDateStr: string, deltaDays: number): string => {
+    const [y, m, d] = currentDateStr.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + deltaDays, 12, 0, 0));
+    const year = dt.getUTCFullYear();
+    const month = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(dt.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  const handleNextDay = () => {
-    const cur = new Date(date);
-    cur.setDate(cur.getDate() + 1);
-    setDate(cur.toISOString().split("T")[0]);
-  };
-
-  const handleToday = () => {
-    setDate(todayStr);
-  };
+  const handlePrevDay = () => setDate((prev) => shiftDate(prev, -1));
+  const handleNextDay = () => setDate((prev) => shiftDate(prev, 1));
+  const handleToday = () => setDate(todayStr);
 
   // Open Drawer
   const handleMemberClick = (memberId: string, role: "STUDENT" | "FACULTY", openOverride = false) => {
@@ -501,11 +498,17 @@ export default function AdminAttendanceHikPage() {
               type="button"
               onClick={handlePollDevicesNow}
               disabled={pollingHardware || refreshing}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-slate-950 font-black text-xs shadow-lg hover:shadow-amber-400/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
-              title="Poll MinMoe hardware terminals for today's scans"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              title={date === todayStr ? "Poll MinMoe hardware terminals for today's scans" : `Poll MinMoe hardware terminals for ${date}'s scans`}
             >
               <RefreshCw className={`w-4 h-4 shrink-0 ${pollingHardware ? "animate-spin" : ""}`} />
-              <span className="truncate">{pollingHardware ? "Polling Devices..." : "Poll Today's Scans Now"}</span>
+              <span className="truncate">
+                {pollingHardware
+                  ? "Polling Devices..."
+                  : date === todayStr
+                  ? "Poll Today's Scans Now"
+                  : `Poll ${date} Scans Now`}
+              </span>
             </button>
 
             <a
@@ -842,9 +845,9 @@ export default function AdminAttendanceHikPage() {
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
               {statusFilter !== "ALL"
                 ? `No attendance records found with status "${statusFilter}". Try selecting "All Statuses" or clearing your search.`
-                : "No hardware punches recorded yet for this date. Click 'Poll Today\'s Scans Now' to sync with physical terminals."}
+                : `No hardware punches recorded yet for ${date === todayStr ? "today" : date}. Click "Poll ${date === todayStr ? "Today's" : date} Scans Now" to sync with physical terminals.`}
             </p>
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
               {statusFilter !== "ALL" && (
                 <button
                   type="button"
@@ -854,12 +857,23 @@ export default function AdminAttendanceHikPage() {
                   Clear Status Filter
                 </button>
               )}
+              {date !== todayStr && (
+                <button
+                  type="button"
+                  onClick={handleToday}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Go to Today
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handlePollDevicesNow}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer"
+                disabled={pollingHardware}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center gap-1.5"
               >
-                Poll Devices Now
+                <RefreshCw className={`w-3.5 h-3.5 ${pollingHardware ? "animate-spin" : ""}`} />
+                <span>{pollingHardware ? "Polling..." : date === todayStr ? "Poll Today's Scans Now" : `Poll ${date} Scans Now`}</span>
               </button>
             </div>
           </div>

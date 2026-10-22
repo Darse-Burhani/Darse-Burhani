@@ -656,13 +656,18 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/admin/attendance-logs/poll-now — Instant sync & pull hardware biometric scans
-router.post("/poll-now", requireAuth, async (_req, res) => {
+// POST /api/admin/attendance-logs/poll-now — Instant sync & pull hardware biometric scans (supports today or past dates)
+router.post("/poll-now", requireAuth, async (req, res) => {
   try {
-    const todayStart = getStartOfTodayIST();
-    const result = await pullAllDevicesScansForRange(todayStart, new Date());
+    const targetDateStr = (req.query.date || req.body?.date) as string | undefined;
+    const isToday = !targetDateStr || targetDateStr === new Date().toISOString().split("T")[0];
+    const rangeStart = targetDateStr ? getStartOfDayIST(targetDateStr) : getStartOfTodayIST();
+    const rangeEnd = isToday ? new Date() : new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const result = await pullAllDevicesScansForRange(rangeStart, rangeEnd);
     const unreachable = result.devices.filter((d) => !d.success);
-    const summary = `Pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;
+    const dateLabel = isToday ? "today" : targetDateStr;
+    const summary = `Pulled ${result.totalFetched} scans for ${dateLabel} across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;
     return res.json({
       success: true,
       message: unreachable.length

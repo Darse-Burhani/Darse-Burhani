@@ -567,63 +567,81 @@ async function listenAlertStream(dev) {
   }
 }
 
-// Rapid background poller (every 3 seconds)
-async function pollDeviceEvents(dev, lookbackHours = 3) {
+// Rapid background poller with complete pagination loop
+async function pollDeviceEvents(dev, lookbackHours = 3, maxPages = 10) {
   const now = new Date();
   const past = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const startTime = getHikvisionTime(past);
   const endTime = getHikvisionTime(now);
 
-  const payload = JSON.stringify({
-    AcsEventCond: {
-      searchID: `bridge-${Date.now()}`,
-      searchResultPosition: 0,
-      maxResults: 150,
-      major: 0,
-      minor: 0,
-      startTime,
-      endTime,
-    },
-  });
+  let position = 0;
+  let pageCount = 0;
+  let hasMore = true;
 
-  try {
-    const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
-    const res = await digestFetch(url, {
-      method: 'POST',
-      username: dev.username,
-      password: dev.password,
-      headers: { 'Content-Type': 'application/json' },
-      body: payload,
-      timeoutMs: 6000,
+  while (hasMore && pageCount < maxPages) {
+    pageCount++;
+    const payload = JSON.stringify({
+      AcsEventCond: {
+        searchID: `bridge-${Date.now()}`,
+        searchResultPosition: position,
+        maxResults: 30,
+        major: 0,
+        minor: 0,
+        startTime,
+        endTime,
+      },
     });
 
-    if (!res.ok) return;
-    const data = await res.json();
-    const matches = data?.AcsEvent?.InfoList || [];
-
-    for (const item of matches) {
-      const employeeNo = item.employeeNoString || item.cardNo;
-      if (!employeeNo) continue;
-
-      const timeStr = normalizeDeviceTime(item.time);
-      const serial = item.serialNo || item.serial || `${employeeNo}-${timeStr}`;
-      const dedupeKey = `${dev.host}:${serial}`;
-      if (isDuplicate(dedupeKey)) continue;
-
-      const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
-      console.log(`\n📥 [DEVICE SCAN POLLED] ${dev.name} (${dev.host}) -> ID: ${employeeNo} at ${timeStr} [${verifyMode}]`);
-
-      await processAndForwardScan({
-        employeeNo,
-        name: item.name,
-        cardNo: item.cardNo,
-        time: timeStr,
-        currentVerifyMode: verifyMode,
-        serialNo: serial,
-        deviceHost: dev.host,
+    try {
+      const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
+      const res = await digestFetch(url, {
+        method: 'POST',
+        username: dev.username,
+        password: dev.password,
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        timeoutMs: 6000,
       });
+
+      if (!res.ok) break;
+      const data = await res.json();
+      const acs = data?.AcsEvent;
+      const matches = acs?.InfoList || [];
+      if (matches.length === 0) break;
+
+      for (const item of matches) {
+        const employeeNo = item.employeeNoString || item.cardNo;
+        if (!employeeNo) continue;
+
+        const timeStr = normalizeDeviceTime(item.time);
+        const serial = item.serialNo || item.serial || `${employeeNo}-${timeStr}`;
+        const dedupeKey = `${dev.host}:${serial}`;
+        if (isDuplicate(dedupeKey)) continue;
+
+        const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
+        console.log(`\n📥 [DEVICE SCAN POLLED] ${dev.name} (${dev.host}) -> ID: ${employeeNo} at ${timeStr} [${verifyMode}]`);
+
+        await processAndForwardScan({
+          employeeNo,
+          name: item.name,
+          cardNo: item.cardNo,
+          time: timeStr,
+          currentVerifyMode: verifyMode,
+          serialNo: serial,
+          deviceHost: dev.host,
+        });
+      }
+
+      position += matches.length;
+      if (acs.totalMatches && position >= acs.totalMatches) {
+        hasMore = false;
+      } else if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') {
+        hasMore = false;
+      }
+    } catch {
+      break;
     }
-  } catch {}
+  }
 }
 
 async function startBridge() {
@@ -637,11 +655,11 @@ async function startBridge() {
   console.log(`🖥️  Monitored Terminals:\n   ${DEVICES.map((d) => `• ${d.name} (http://${d.host}:${d.port})`).join('\n   ')}`);
   console.log('────────────────────────────────────────────────────────────────────');
 
-  // 1. Initial 24h scan catch-up on all terminals
+  // 1. Initial 24h scan catch-up on all terminals with deep pagination
   console.log('🔄 Checking physical terminals & catching up today\'s scans...');
   for (const dev of DEVICES) {
     syncDeviceClock(dev).catch(() => {});
-    pollDeviceEvents(dev, 24).catch(() => {});
+    pollDeviceEvents(dev, 24, 60).catch(() => {});
   }
 
   // 2. Launch persistent AlertStream listeners
@@ -654,19 +672,26 @@ async function startBridge() {
     })();
   }
 
-  // 3. Launch 3-second rapid poller
+  // 3. Launch rapid poller
   setInterval(() => {
     for (const dev of DEVICES) {
-      pollDeviceEvents(dev, 3).catch(() => {});
+      pollDeviceEvents(dev, 1, 3).catch(() => {});
     }
-  }, 3000);
+  }, 4000);
 
-  // 4. Keep-alive heartbeat & clock checks every 30s
+  // 4. Clock checks every 30s
   setInterval(() => {
     for (const dev of DEVICES) {
       syncDeviceClock(dev).catch(() => {});
     }
   }, 30000);
+
+  // 5. Render Keep-Alive ping every 3 minutes
+  setInterval(async () => {
+    try {
+      await fetch(`${RENDER_BASE}/api/health`);
+    } catch {}
+  }, 180000);
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');
   console.log('   All biometric punches from physical terminals are syncing to Render.');

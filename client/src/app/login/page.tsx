@@ -57,9 +57,9 @@ export const portals: PortalConfig[] = [
     shortLabel: "Admin",
     badgeLabel: "Central Governance",
     description: "Official institutional governance for academic operations, academic records, examinations and administrative services.",
-    instructions: "Sign in with your authorized administrator email and institutional password.",
-    placeholder: "admin@darseburhani.edu",
-    inputLabel: "Administrator Email",
+    instructions: "Sign in with your administrator email or 'admin' and password.",
+    placeholder: "admin or admin@darseburhani.edu",
+    inputLabel: "Admin Email or Username",
     rolePath: "/admin",
     icon: ShieldCheck,
   },
@@ -303,6 +303,7 @@ export default function LoginPage() {
 
   const isEightDigitIts = /^\d{8}$/.test(email.trim());
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isAdminAlias = /^(admin|administrator|superadmin)$/i.test(email.trim());
   const isStudentInputValid = isEightDigitIts || isEmail;
 
   useEffect(() => {
@@ -486,7 +487,11 @@ export default function LoginPage() {
       setError("Please enter a valid 8-digit ITS number or student email.");
       return;
     }
-    if (portal.role !== "STUDENT" && !isEmail) {
+    if (portal.role === "ADMIN" && !isEmail && !isAdminAlias) {
+      setError("Please enter your administrator email address or 'admin'.");
+      return;
+    }
+    if (portal.role !== "STUDENT" && portal.role !== "ADMIN" && !isEmail) {
       setError("Please enter a valid official email address.");
       return;
     }
@@ -806,7 +811,7 @@ export default function LoginPage() {
                     <input
                       id="login-email"
                       name="email"
-                      type={portal.role === "STUDENT" ? "text" : "email"}
+                      type={portal.role === "STUDENT" || portal.role === "ADMIN" ? "text" : "email"}
                       autoCapitalize="none"
                       autoCorrect="off"
                       spellCheck={false}

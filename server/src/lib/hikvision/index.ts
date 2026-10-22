@@ -443,7 +443,7 @@ export async function pullDeviceScansForRange(
  *  a per-device error while the (already started) background pull keeps going and
  *  lands its scans in the next live refresh. Prevents serial LAN timeouts from
  *  stacking up into a 504. */
-const DEVICE_PULL_DEADLINE_MS = 28_000;
+const DEVICE_PULL_DEADLINE_MS = 65_000;
 
 function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {

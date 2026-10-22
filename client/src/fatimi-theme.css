@@ -1,8 +1,8 @@
 /* ─────────────────────────────────────────────────────────────
-   DARSE BURHANI THEME: 60-30-10 HARMONY SYSTEM
-   60% Neutral Canvas & Clean Surfaces
-   30% Deep Slate Content & Structural Hairlines
-   10% Intentional Emerald & Gold Highlights
+   DARSE BURHANI THEME: 70-30-10 HARMONY SYSTEM
+   70% Dominant Background & Airy Surfaces (Generous Whitespace, Glare-Free)
+   30% Deep Slate Structural Text & Hairlines (High Legibility, Content)
+   10% Intentional Emerald & Gold Highlights (Key Metrics, Badges & Focus)
    ───────────────────────────────────────────────────────────── */
 
 :root,
@@ -22,7 +22,7 @@
   --fatimi-bg-subtle: #f8fafc;
   --fatimi-border: #e2e8f0;
   --fatimi-border-subtle: #f1f5f9;
-  --fatimi-glow: rgba(5, 150, 105, 0.15);
+  --fatimi-glow: rgba(5, 150, 105, 0.18);
   --fatimi-accent: #059669;
   --fatimi-sidebar-bg: linear-gradient(180deg, #011f18 0%, #022c22 55%, #064e3b 100%);
   --fatimi-banner-bg: linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%);
@@ -30,7 +30,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-   GLOBAL THEME BINDINGS FOR ALL PORTALS (60-30-10 CALIBRATED)
+   GLOBAL THEME BINDINGS FOR ALL PORTALS (70-30-10 CALIBRATED)
    ───────────────────────────────────────────────────────────── */
 
 ::selection {

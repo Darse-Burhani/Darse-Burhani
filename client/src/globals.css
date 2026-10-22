@@ -43,17 +43,19 @@
 @layer base {
   :root {
     /* ═══════════════════════════════════════════════════════════════
-       THE 60-30-10 COLOR HARMONY SYSTEM
-       60% Dominant Background & Surfaces (Base Canvas, Negative Space)
-       30% Secondary Structure & Content (Typography, Borders, Forms)
-       10% Intentional Highlight & Accent (Important Text & Focal Points)
+       THE 70-30-10 DESIGN HARMONY SYSTEM
+       70% Dominant Background & Surfaces (Base Canvas, Negative Space, Airy Surfaces)
+       30% Secondary Structure & Content (Typography, Borders, Row Data, Forms)
+       10% Intentional Accent & Focal Highlight (Important Text, Status Badges & Metrics)
        ═══════════════════════════════════════════════════════════════ */
 
-    /* ── 60% Dominant Background & Surfaces ── */
+    /* ── 70% Dominant Background & Surfaces ── */
     --bg-canvas: #f8fafc;
     --bg-surface: #ffffff;
     --bg-subtle: #f1f5f9;
     --bg-card: #ffffff;
+    --bg-card-elevated: #ffffff;
+    --bg-glass: rgba(255, 255, 255, 0.85);
     --border-subtle: #e2e8f0;
     --border-default: #cbd5e1;
 
@@ -63,14 +65,15 @@
     --text-secondary: #475569;
     --text-muted: #64748b;
     --text-inverted: #ffffff;
+    --border-hairline: rgba(226, 232, 240, 0.8);
 
-    /* ── 10% Intentional Accent & Focal Highlight (Important Text) ── */
+    /* ── 10% Intentional Accent & Focal Highlight (Important Text & Accents) ── */
     --highlight-accent: #059669;
     --highlight-accent-hover: #047857;
     --highlight-accent-dark: #064e3b;
     --highlight-accent-light: #ecfdf5;
     --highlight-accent-border: #a7f3d0;
-    --highlight-ring: rgba(5, 150, 105, 0.4);
+    --highlight-ring: rgba(5, 150, 105, 0.35);
 
     --highlight-gold: #d97706;
     --highlight-gold-light: #fef3c7;
@@ -80,7 +83,11 @@
     --highlight-critical-light: #ffe4e6;
     --highlight-critical-border: #fecdd3;
 
-    /* Shadcn / Radix token mappings calibrated to 60-30-10 */
+    --highlight-cyan: #0891b2;
+    --highlight-cyan-light: #ecfeff;
+    --highlight-cyan-border: #a5f3fc;
+
+    /* Shadcn / Radix token mappings calibrated to 70-30-10 */
     --background: 210 40% 98%;     /* #f8fafc (60% canvas) */
     --foreground: 222.2 84% 4.9%;  /* #0f172a (30% primary text) */
     --card: 0 0% 100%;             /* #ffffff (60% surface) */
