@@ -102,6 +102,42 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           slotCount: c._count.timetableSlots,
         }));
 
+        // Pre-fetch timetables for all masool classes
+        const masoolClassTimetables = await Promise.all(
+          masoolClassesList.map(async (mc) => {
+            const slots = await prisma.timetableSlot.findMany({
+              where: { classId: mc.id },
+              include: {
+                teacher: {
+                  include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+                },
+              },
+              orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
+            });
+            return {
+              classId: mc.id,
+              className: mc.name,
+              grade: mc.grade,
+              section: mc.section,
+              slots: slots.map((s) => ({
+                id: s.id,
+                classId: s.classId,
+                className: s.className || mc.name,
+                period: s.period,
+                dayOfWeek: s.dayOfWeek,
+                startTime: s.startTime,
+                endTime: s.endTime,
+                subject: s.subject,
+                roomNumber: s.roomNumber,
+                teacherId: s.teacherId,
+                teacherName: s.teacher ? `${s.teacher.user.firstName} ${s.teacher.user.lastName}` : "TBA",
+                teacherAvatar: s.teacher?.user?.avatarUrl || null,
+                updatedAt: s.updatedAt,
+              })),
+            };
+          })
+        );
+
         return {
           teacher: {
             id: teacherProfile.id,
@@ -110,6 +146,7 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           },
           isClassMasool: masoolClassesList.length > 0,
           masoolClasses: masoolClassesList,
+          masoolClassTimetables,
           recentChanges: getRecentTimetableChanges(),
           slots: mySlots.map((s) => {
             const changeInfo = isSlotRecentlyChanged(s);
@@ -321,6 +358,170 @@ router.get("/class/:name", requireRole("TEACHER", "ADMIN"), async (req, res) => 
   } catch (error) {
     console.error("Teacher class timetable error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch class timetable" });
+  }
+});
+
+// GET /api/teacher/timetable/tomorrow-hikvision - Next day's Hikvision scan schedule
+router.get("/tomorrow-hikvision", requireRole("TEACHER", "ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const teacherProfile = await prisma.teacherProfile.findUnique({
+      where: { userId: session.user.id },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+    if (!teacherProfile) {
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    }
+
+    // Get tomorrow's date in IST
+    const now = new Date();
+    const istTomorrow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    istTomorrow.setDate(istTomorrow.getDate() + 1);
+    const startOfDay = new Date(Date.UTC(istTomorrow.getUTCFullYear(), istTomorrow.getUTCMonth(), istTomorrow.getUTCDate(), 0, 0, 0));
+    const endOfDay = new Date(startOfDay.getTime() + 86400000);
+
+    // Get all classes this teacher teaches
+    const teacherSlots = await prisma.timetableSlot.findMany({
+      where: { teacherId: teacherProfile.id },
+      include: {
+        class: { select: { id: true, name: true, grade: true, section: true } },
+      },
+    });
+    const classIds = [...new Set(teacherSlots.map((s) => s.classId).filter(Boolean))];
+
+    // Get tomorrow's scans for these classes
+    const scans = await prisma.hikvisionScan.findMany({
+      where: {
+        classId: { in: classIds },
+        scanTime: { gte: startOfDay, lt: endOfDay },
+      },
+      include: {
+        student: { select: { id: true, its: true, user: { select: { firstName: true, lastName: true } } } },
+        class: { select: { name: true, grade: true, section: true } },
+      },
+      orderBy: { scanTime: "asc" },
+    });
+
+    // Group by class and period
+    const scansByClass = new Map<string, any[]>();
+    for (const scan of scans) {
+      const key = scan.classId || "unknown";
+      if (!scansByClass.has(key)) scansByClass.set(key, []);
+      scansByClass.get(key)!.push(scan);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        date: startOfDay.toISOString().split("T")[0],
+        scans: scans.map((s) => ({
+          id: s.id,
+          studentName: `${s.student.user.firstName} ${s.student.user.lastName}`,
+          studentIts: s.student.its,
+          className: s.class.name,
+          grade: s.class.grade,
+          section: s.class.section,
+          scanTime: s.scanTime.toISOString(),
+          status: s.status,
+          biometricMethod: s.biometricMethod,
+        })),
+        summary: {
+          totalScans: scans.length,
+          classesCovered: scansByClass.size,
+          present: scans.filter((s) => s.status === "PRESENT").length,
+          late: scans.filter((s) => s.status === "LATE").length,
+          absent: scans.filter((s) => s.status === "ABSENT").length,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Tomorrow Hikvision scans error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch tomorrow's Hikvision scans" });
+  }
+});
+
+// GET /api/teacher/timetable/masool-class/:id - Full timetable with badals for a masool class
+router.get("/masool-class/:id", requireRole("TEACHER", "ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetClass = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        masool: { include: { user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } } } },
+        timetableSlots: {
+          include: {
+            teacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+          },
+          orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
+        },
+        _count: { select: { enrollments: true } },
+      },
+    });
+    if (!targetClass) {
+      return res.status(404).json({ success: false, error: "Class not found" });
+    }
+
+    // Get today's badals for this class
+    const now = new Date();
+    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+    const endOfDay = new Date(startOfDay.getTime() + 86400000);
+
+    const badals = await prisma.timetableBadal.findMany({
+      where: { classId: id, date: { gte: startOfDay, lt: endOfDay } },
+      include: { badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } } },
+    });
+
+    const badalByPeriod = new Map<number, any>();
+    badals.forEach((b) => badalByPeriod.set(b.period, b));
+
+    const todayDow = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata", weekday: "short" });
+    const dowMap: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+    const todayDowNum = dowMap[todayDow] || 1;
+
+    return res.json({
+      success: true,
+      data: {
+        class: {
+          id: targetClass.id,
+          name: targetClass.name,
+          grade: targetClass.grade,
+          section: targetClass.section,
+          roomNumber: targetClass.roomNumber || `Room ${targetClass.name}`,
+          studentCount: targetClass._count.enrollments,
+          masool: targetClass.masool ? {
+            name: `${targetClass.masool.user.firstName} ${targetClass.masool.user.lastName}`,
+            email: targetClass.masool.user.email,
+            its: targetClass.masool.its,
+            avatarUrl: targetClass.masool.user.avatarUrl,
+          } : null,
+        },
+        slots: targetClass.timetableSlots.map((s) => {
+          const badal = s.dayOfWeek === todayDowNum ? badalByPeriod.get(s.period) : null;
+          return {
+            id: s.id,
+            period: s.period,
+            dayOfWeek: s.dayOfWeek,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            subject: s.subject,
+            roomNumber: s.roomNumber || targetClass.roomNumber || `Room ${targetClass.name}`,
+            teacherId: s.teacherId,
+            teacherName: s.teacher ? `${s.teacher.user.firstName} ${s.teacher.user.lastName}` : "TBA",
+            teacherAvatar: s.teacher?.user?.avatarUrl || null,
+            badal: badal ? {
+              id: badal.id,
+              badalTeacherName: badal.badalTeacher ? `${badal.badalTeacher.user.firstName} ${badal.badalTeacher.user.lastName}` : badal.badalTeacherName,
+              badalTeacherAvatar: badal.badalTeacher?.user?.avatarUrl || null,
+              reason: badal.reason,
+              status: badal.status,
+            } : null,
+          };
+        }),
+      },
+    });
+  } catch (error) {
+    console.error("Masool class timetable error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch masool class timetable" });
   }
 });
 
