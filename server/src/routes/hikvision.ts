@@ -148,6 +148,17 @@ const handleWebhookEvents = async (req: import("express").Request, res: import("
       data: { status: "ONLINE", lastSeenAt: new Date(), lastError: null, lastPolledAt: new Date() },
     }).catch(() => {});
 
+    // Ensure Tilawat al Dua window applies to ALL Talabat without restrictive class filters
+    prisma.biometricScanWindow.updateMany({
+      where: {
+        OR: [
+          { id: "default" },
+          { name: { contains: "Tilawat", mode: "insensitive" } },
+        ],
+      },
+      data: { applicableClassIds: [] },
+    }).catch(() => {});
+
     const contentType = String(req.headers["content-type"] ?? "application/json");
     console.log(`[hikvision] push received (${contentType}, ${Buffer.isBuffer(req.body) ? req.body.length : JSON.stringify(req.body ?? {}).length} bytes)`);
 

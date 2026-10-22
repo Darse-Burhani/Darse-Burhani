@@ -14,6 +14,17 @@ loadSheetConfigFromDb().catch((err) =>
   console.warn("[google-sheets] Startup config load notice:", (err as any)?.message || err)
 );
 
+// Ensure Tilawat al Dua schedule window applies to ALL Talabat without restrictive class filters
+prisma.biometricScanWindow.updateMany({
+  where: {
+    OR: [
+      { id: "default" },
+      { name: { contains: "Tilawat", mode: "insensitive" } },
+    ],
+  },
+  data: { applicableClassIds: [] },
+}).catch((err) => console.warn("[startup] Scan window initialization notice:", (err as any)?.message || err));
+
 const port = Number(process.env.PORT || 4000);
 const host = "0.0.0.0";
 

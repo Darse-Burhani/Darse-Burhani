@@ -893,6 +893,23 @@ async function ensureStudentEnrollment(student: ResolvedStudent) {
     });
   }
 
+  if (!targetClass) {
+    const defaultTeacher = await prisma.teacherProfile.findFirst({ select: { id: true } });
+    if (defaultTeacher) {
+      targetClass = await prisma.class.create({
+        data: {
+          name: `Grade ${student.grade || "1"}-${student.section || "A"}`,
+          grade: student.grade || "1",
+          section: student.section || "A",
+          subject: "General",
+          academicYear: "1446-1447",
+          teacherId: defaultTeacher.id,
+          isActive: true,
+        },
+      }).catch(() => null);
+    }
+  }
+
   if (targetClass) {
     try {
       const newEnrollment = await prisma.classEnrollment.upsert({
@@ -1361,8 +1378,11 @@ export async function processBiometricScan(
       status = resolveScanStatus(studentWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
     }
 
-    // Strict Exemption: Excluded from schedule session
-    if (studentWindow.exemptStudentIds && studentWindow.exemptStudentIds.includes(student.id)) {
+    // Strict Exemption: Excluded from schedule session (filter out metadata tags like TYPE_HIKVISION)
+    const validExemptStudentIds = (studentWindow.exemptStudentIds || []).filter(
+      (id: string) => !id.startsWith("TYPE_")
+    );
+    if (validExemptStudentIds.length > 0 && validExemptStudentIds.includes(student.id)) {
       return pushEvent({
         type: "SYSTEM",
         fingerprint,
@@ -1375,22 +1395,19 @@ export async function processBiometricScan(
       }, when, true);
     }
 
-    // Strict Class Applicability: If specific classes are assigned, verify student's enrollment
-    if (studentWindow.applicableClassIds && studentWindow.applicableClassIds.length > 0) {
+    // Class Applicability: Whole-school assemblies / general daily check-in (like Tilawat al Dua or default event) apply to ALL students unconditionally.
+    const isWholeSchoolWindow =
+      studentWindow.eventId === "default" ||
+      /tilawat|dua|assembly|morning|general|check-?in/i.test(studentWindow.eventName);
+
+    if (!isWholeSchoolWindow && studentWindow.applicableClassIds && studentWindow.applicableClassIds.length > 0) {
       const isEnrolledInApplicable = activeClasses.some((c) =>
         studentWindow.applicableClassIds!.includes(c.classId),
       );
       if (!isEnrolledInApplicable) {
-        return pushEvent({
-          type: "SYSTEM",
-          fingerprint,
-          deviceId: deviceId ?? null,
-          role: "STUDENT",
-          student: studentInfo,
-          message: `Student ${studentInfo.name} is not enrolled in classes assigned to "${studentWindow.eventName}".`,
-          verifyMode: method,
-          scanWindow: windowPayload(studentWindow),
-        }, when, true);
+        console.log(
+          `[biometric] Student ${studentInfo.name} scanned during class-specific event "${studentWindow.eventName}" — recording general daily attendance.`
+        );
       }
     }
   } else {
