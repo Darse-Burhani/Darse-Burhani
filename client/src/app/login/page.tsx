@@ -596,45 +596,6 @@ export default function LoginPage() {
         <CornerMandala size={190} style={{ position: "fixed", top: -54, left: -48, pointerEvents: "none", zIndex: 40, opacity: 0.85 }} />
         <CornerMandala size={190} style={{ position: "fixed", bottom: -54, right: -48, pointerEvents: "none", zIndex: 40, opacity: 0.85 }} />
 
-        {/* ═══════════════ HEADER ═══════════════ */}
-        <header
-          className="w-full flex items-center justify-between px-8 py-3 shrink-0 relative"
-          style={{ background: "rgba(26,32,60,0.72)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
-        >
-          {/* Gold gradient hairline at header bottom */}
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 1,
-              background:
-                "linear-gradient(90deg, rgba(201,146,74,0.05) 0%, rgba(235,170,69,0.45) 22%, rgba(247,203,110,0.9) 50%, rgba(235,170,69,0.45) 78%, rgba(201,146,74,0.05) 100%)",
-            }}
-          />
-          {/* Header content container */}
-          <div className="w-full mx-auto flex items-center justify-between" style={{ maxWidth: 1560 }}>
-          <div className="flex items-center gap-3">
-            {/* Wordmark */}
-            <div>
-              <div
-                className="leading-tight"
-                style={{ fontSize: "clamp(17px, 4.4vw, 25px)", fontWeight: 700, color: "#ffffff", fontFamily: "'Georgia', 'Times New Roman', serif", letterSpacing: "0.01em" }}
-              >
-                Darse Burhani <span style={{ color: "#ebaa45" }}>(Nisab)</span>
-              </div>
-              <div
-                style={{ fontSize: "clamp(8px, 2.1vw, 11px)", fontWeight: 600, color: "#c99349", letterSpacing: "0.22em", textTransform: "uppercase", marginTop: 2 }}
-              >
-                MAHAD AL ZAHRA
-              </div>
-            </div>
-          </div>
-
-          </div>
-        </header>
-
         {/* ═══════════════ MAIN CENTER AREA ═══════════════ */}
         <main className="flex-1 flex items-center justify-center px-4 py-6">
           {/* Card */}
@@ -1052,67 +1013,6 @@ export default function LoginPage() {
             </div>
           </div>
         </main>
-
-        {/* ═══════════════ FOOTER ═══════════════ */}
-        <footer
-          className="w-full flex items-center justify-between px-8 py-6 shrink-0 relative"
-          style={{
-            background: "rgba(26,32,60,0.74)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-          }}
-        >
-          {/* Gold gradient hairline at footer top */}
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 1,
-              background:
-                "linear-gradient(90deg, rgba(201,146,74,0.05) 0%, rgba(235,170,69,0.45) 22%, rgba(247,203,110,0.9) 50%, rgba(235,170,69,0.45) 78%, rgba(201,146,74,0.05) 100%)",
-            }}
-          />
-
-          {/* Footer content container */}
-          <div className="w-full mx-auto flex items-center justify-between" style={{ maxWidth: 1450, position: "relative", zIndex: 1 }}>
-          {/* Copyright */}
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-            &copy; 2026 Darse Burhani (Nisab) &nbsp;&bull;&nbsp; Mahad Al Zahra
-          </p>
-
-          {/* Footer links */}
-          <div className="flex items-center gap-0">
-            <a
-              href="mailto:support.darseburhani.galiakot@gmail.com"
-              style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", textDecoration: "none", padding: "0 10px" }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
-            >
-              Support
-            </a>
-            <span style={{ color: "#c99349", fontSize: 12 }}>|</span>
-            <Link
-              to="/privacy"
-              style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", textDecoration: "none", padding: "0 10px" }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
-            >
-              Privacy Policy
-            </Link>
-            <span style={{ color: "#c99349", fontSize: 12 }}>|</span>
-            <Link
-              to="/terms"
-              style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", textDecoration: "none", padding: "0 10px" }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
-            >
-              Terms of Service
-            </Link>
-          </div>
-          </div>
-        </footer>
       </div>
 
       {/* Backdrop CSS: layered Twilight Palace composition */}
