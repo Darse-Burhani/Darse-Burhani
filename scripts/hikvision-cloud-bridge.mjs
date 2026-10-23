@@ -246,6 +246,22 @@ function normalizeDeviceTime(raw) {
   return s;
 }
 
+// ── Identity aliases ─────────────────────────────────────────────
+// Terminals may enrol a person under a display name instead of a numeric
+// employee number. The official Galiakot kgs staff list identifies this teacher
+// as "Mustafa bhai Moiz bhai Manpurwala" — the same person the device enrolls
+// as "Mustafa Bhai Moiz Bhai Manpur" and the app shows as "Mustafa Tailor".
+// All variants must resolve to his canonical ITS employee number.
+const MUSTAFA_TAILOR_ITS = '40444603';
+
+function canonicalizeEmployeeNo(rawId, name) {
+  const id = String(rawId || '').trim();
+  if (/^\d+$/.test(id)) return id; // numeric employee numbers stay as-is
+  const combined = `${id} ${String(name || '')}`;
+  if (/manpur|mustafa\s*tailor/i.test(combined)) return MUSTAFA_TAILOR_ITS;
+  return id;
+}
+
 // Direct Database Sync fallback (guarantees real-time record in Supabase)
 async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, deviceHost }) {
   const rawId = String(employeeNo || '').trim();
@@ -435,6 +451,10 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
 
 // Dual-path forwarder: Sends to Render Webhook + records to Supabase Database
 async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVerifyMode, serialNo, deviceHost }) {
+  // Identity alias resolution: device-enrolled display names
+  // (e.g. "Mustafa Bhai Moiz Bhai Manpur") map to the canonical ITS number
+  // so attendance always lands on the right person.
+  employeeNo = canonicalizeEmployeeNo(employeeNo, name);
   const timeStr = normalizeDeviceTime(time);
   const payload = {
     AccessControllerEvent: {

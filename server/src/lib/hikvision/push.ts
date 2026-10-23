@@ -3,6 +3,7 @@ import prisma from "../prisma";
 import { processBiometricScan, type BiometricEvent } from "../biometric";
 import { authFailureHint, digestFetch } from "./digest";
 import { BIOMETRIC_PASS_MINORS, BIOMETRIC_VERIFY_MODES, type HikConnection } from "./isapi";
+import { resolveAliasIts } from "./identity-aliases";
 import { toConnection } from ".";
 
 /**
@@ -508,6 +509,12 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
     // Resolve employee reference: if employeeNoString was not passed but cardNo was passed during a Face/Biometric scan, use cardNo
     if (!employee && ev.cardNo && isBioScan) {
       employee = String(ev.cardNo).trim();
+    }
+
+    // Device may report only the enrolled display NAME — resolve known identity
+    // aliases (e.g. "Mustafa Bhai Moiz Bhai Manpur" → ITS 40444603)
+    if (!employee && isBioScan) {
+      employee = resolveAliasIts(ev.name) ?? employee;
     }
 
     if (!employee) {

@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import prisma from "../prisma";
 import { processBiometricScan, parseScanTime } from "../biometric";
 import { digestFetch } from "./digest";
+import { resolveAliasIts } from "./identity-aliases";
 import {
   getAcsEvents,
   getDeviceInfo,
@@ -643,6 +644,18 @@ export async function fetchMembersFromDevice(id: string): Promise<FetchMembersRe
       },
       include: { user: true },
     });
+
+    // 2b. Device may display enrolled NAMES — resolve via identity aliases
+    //     (e.g. "Mustafa Bhai Moiz Bhai Manpur" → ITS 40444603)
+    if (!teacher) {
+      const aliasIts = resolveAliasIts(u.name);
+      if (aliasIts) {
+        teacher = await prisma.teacherProfile.findFirst({
+          where: { OR: [{ its: aliasIts }, { employeeId: aliasIts }, { biometricHash: aliasIts }] },
+          include: { user: true },
+        });
+      }
+    }
 
     if (teacher) {
       teachersMatched++;

@@ -2,6 +2,7 @@ import prisma from "./prisma";
 import { cache } from "./cache";
 import { appendLocalScanLog } from "./attendance-local-log";
 import { queueAutoSheetSync } from "./google-attendance-sync";
+import { resolveAliasIts } from "./hikvision/identity-aliases";
 
 export type ScanOutcome = "MATCHED" | "UNKNOWN" | "NO_CLASS" | "DUPLICATE" | "TOO_EARLY" | "WINDOW_CLOSED";
 
@@ -847,7 +848,17 @@ export async function resolveTeacher(ref: string): Promise<ResolvedTeacher | nul
     if (byPrefix) return byPrefix as any;
   }
 
-  // 4. Case-insensitive employeeId / its check
+  // 4. Device-enrolled alias names (e.g. "Mustafa Bhai Moiz Bhai Manpur") → canonical ITS
+  const aliasIts = resolveAliasIts(raw);
+  if (aliasIts) {
+    const byAlias = await prisma.teacherProfile.findFirst({
+      where: { OR: [{ its: aliasIts }, { employeeId: aliasIts }, { biometricHash: aliasIts }] },
+      select: teacherSelect,
+    });
+    if (byAlias) return byAlias as any;
+  }
+
+  // 5. Case-insensitive employeeId / its check
   return prisma.teacherProfile.findFirst({
     where: {
       OR: [

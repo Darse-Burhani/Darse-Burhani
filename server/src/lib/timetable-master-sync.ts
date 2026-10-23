@@ -1,6 +1,7 @@
 import prisma from "./prisma";
 import bcrypt from "bcryptjs";
 import { cache } from "./cache";
+import { MUSTAFA_TAILOR_ITS } from "./hikvision/identity-aliases";
 
 // Official Teacher ITS & Email Mapping
 export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
@@ -8,6 +9,8 @@ export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; emai
   "Burhanuddin Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
   "Mustafa Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mustafa bhai Moiz bhai Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
+  "Mustafa Bhai Moiz Bhai Manpur": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
+  "Mustafa bhai Moiz bhai Manpur": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mustafa Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mustafa Sir Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
   "Mulla Aliasgar bhai Husainali bhai Khandwala": { its: "60406964", name: "Mulla Aliasgar bhai Husainali bhai Khandwala", email: "aliasgar.khandwala@darseburhani.com" },
@@ -91,15 +94,79 @@ export async function repairMustafaTailorMigration(): Promise<void> {
 
     // Defensive: any slot text still carrying the legacy alias, and the
     // canonical Mustafa Tailor profile must stay picture-less with the
-    // official employee id (TCH-1792673352057).
+    // official employee id (TCH-1792673352057) and canonical biometric id
+    // (ITS 40444603 — the number the Hikvision terminals enroll him as
+    // "Mustafa Bhai Moiz Bhai Manpur").
     await prisma.timetableSlot.updateMany({
       where: { teacherName: { contains: "Manpur", mode: "insensitive" } },
       data: { teacherName: "Mustafa Tailor" },
     }).catch(() => {});
     await prisma.teacherProfile.updateMany({
       where: { its: "40444603" },
-      data: { photoUrl: null, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
+      data: { photoUrl: null, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID, biometricHash: MUSTAFA_TAILOR_ITS },
     }).catch(() => {});
+
+    // Consolidate identity: if the person was re-created (e.g. as "Mustafa Bhai
+    // Moiz Bhai Manpur") while the old profile also exists, ALL profiles
+    // carrying ITS 40444603 must converge into ONE. The twin holding the most
+    // attendance records keeps the history; the rest donate their attendance,
+    // timetable slots and badals, then retire (deactivated, ITS cleared).
+    try {
+      const twins = await prisma.teacherProfile.findMany({ where: { its: "40444603" } });
+      if (twins.length > 1) {
+        const counts = await Promise.all(
+          twins.map((t) => prisma.teacherAttendanceRecord.count({ where: { teacherId: t.id } }))
+        );
+        let canonical = twins[0];
+        counts.forEach((c, i) => {
+          if (c > counts[twins.indexOf(canonical)]) canonical = twins[i];
+        });
+        console.log(
+          `[timetable:repair] Consolidating ${twins.length} profiles sharing ITS 40444603 → ${canonical.id} (attendance per twin: ${counts.join(", ")})`
+        );
+
+        for (const duplicate of twins.filter((t) => t.id !== canonical.id)) {
+          const dupRecords = await prisma.teacherAttendanceRecord.findMany({ where: { teacherId: duplicate.id } });
+          for (const rec of dupRecords) {
+            const existing = await prisma.teacherAttendanceRecord.findUnique({
+              where: { teacherId_date: { teacherId: canonical.id, date: rec.date } },
+            });
+            if (existing) {
+              await prisma.teacherAttendanceRecord.delete({ where: { id: rec.id } }).catch(() => {});
+            } else {
+              await prisma.teacherAttendanceRecord.update({
+                where: { id: rec.id },
+                data: { teacherId: canonical.id },
+              }).catch(() => {});
+            }
+          }
+          await prisma.timetableSlot.updateMany({
+            where: { teacherId: duplicate.id },
+            data: { teacherId: canonical.id },
+          }).catch(() => {});
+          await prisma.timetableBadal.updateMany({
+            where: { originalTeacherId: duplicate.id },
+            data: { originalTeacherId: canonical.id },
+          }).catch(() => {});
+          await prisma.timetableBadal.updateMany({
+            where: { badalTeacherId: duplicate.id },
+            data: { badalTeacherId: canonical.id },
+          }).catch(() => {});
+          // Retire the duplicate so biometric scans can no longer split.
+          await prisma.teacherProfile.update({
+            where: { id: duplicate.id },
+            data: { its: null, biometricHash: null },
+          }).catch(() => {});
+          await prisma.user.update({
+            where: { id: duplicate.userId },
+            data: { isActive: false },
+          }).catch(() => {});
+          console.log(`[timetable:repair] Profile ${duplicate.id} merged into ${canonical.id} and retired.`);
+        }
+      }
+    } catch (err: any) {
+      console.warn("[timetable:repair] Identity consolidation skipped:", err?.message || err);
+    }
   } catch (err: any) {
     console.warn("[timetable:repair] Mustafa Tailor migration skipped:", err?.message || err);
   }
