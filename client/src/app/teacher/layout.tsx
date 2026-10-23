@@ -50,6 +50,7 @@ const rawNavItems = [
 
   // ── Attendance & Scanners ──
   { key: "manual-attendance", label: "Manual Attendance", href: "/teacher/attendance", icon: ClipboardCheck, category: "Attendance" },
+  { key: "my-attendance", label: "My Attendance Record", href: "/teacher/my-attendance", icon: Activity, category: "Attendance" },
   { key: "attendance-logs", label: "Hikvision Scans & Logs", href: "/teacher/attendance-hik", icon: Fingerprint, category: "Attendance" },
   { key: "attendance-schedule", label: "Attendance Schedule", href: "/teacher/attendance-schedule", icon: Clock, category: "Attendance" },
   { key: "email-reports", label: "Email Reports", href: "/teacher/attendance-emails", icon: Mail, category: "Attendance" },

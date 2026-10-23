@@ -15,23 +15,26 @@ function sanitizeSkill(skill: unknown): string | null {
   return (SKILL_CATEGORIES as readonly string[]).includes(skill) ? skill : null;
 }
 
-// Helper: resolve teacher's assigned classes and enrolled student IDs
+// Helper: resolve teacher's assigned classes, subjects, and enrolled student IDs
 async function getTeacherScope(userId: string) {
   const teacher = await prisma.teacherProfile.findUnique({
     where: { userId },
-    select: { id: true },
+    select: { id: true, subjects: true },
   });
   if (!teacher) return null;
 
-  const classes = await prisma.class.findMany({
+  // 1. Classes where teacher is primary teacher or masool
+  const directClasses = await prisma.class.findMany({
     where: {
       OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
       isActive: true,
     },
     select: {
       id: true,
+      name: true,
       grade: true,
       section: true,
+      subject: true,
       enrollments: {
         where: { isActive: true },
         select: { studentId: true },
@@ -39,22 +42,84 @@ async function getTeacherScope(userId: string) {
     },
   });
 
-  const classIds = classes.map((c) => c.id);
+  // 2. Classes where teacher teaches timetable slots (subject teacher)
+  const timetableSlots = await prisma.timetableSlot.findMany({
+    where: { teacherId: teacher.id },
+    select: {
+      classId: true,
+      subject: true,
+      className: true,
+      class: {
+        select: {
+          id: true,
+          name: true,
+          grade: true,
+          section: true,
+          subject: true,
+          enrollments: {
+            where: { isActive: true },
+            select: { studentId: true },
+          },
+        },
+      },
+    },
+  });
+
+  const classMap = new Map<string, { id: string; name: string; grade: string; section: string; studentIds: string[] }>();
+  const subjects = new Set<string>(teacher.subjects || []);
+
+  for (const c of directClasses) {
+    if (c.subject) subjects.add(c.subject);
+    const studentIds = c.enrollments.map((e) => e.studentId);
+    classMap.set(c.id, {
+      id: c.id,
+      name: c.name,
+      grade: c.grade,
+      section: c.section,
+      studentIds,
+    });
+  }
+
+  for (const s of timetableSlots) {
+    if (s.subject) subjects.add(s.subject);
+    if (s.class && !classMap.has(s.class.id)) {
+      if (s.class.subject) subjects.add(s.class.subject);
+      const studentIds = s.class.enrollments.map((e) => e.studentId);
+      classMap.set(s.class.id, {
+        id: s.class.id,
+        name: s.class.name,
+        grade: s.class.grade,
+        section: s.class.section,
+        studentIds,
+      });
+    }
+  }
+
   const enrolledStudentIds = new Set<string>();
   const classKeys = new Set<string>(); // "Grade-Section"
   const grades = new Set<string>();
+  const classesList: Array<{ id: string; name: string; grade: string; section: string; studentCount: number }> = [];
 
-  for (const c of classes) {
+  for (const c of classMap.values()) {
     if (c.grade && c.section) classKeys.add(`${c.grade}-${c.section}`.toUpperCase());
     if (c.grade) grades.add(c.grade.toUpperCase());
-    for (const e of c.enrollments) {
-      enrolledStudentIds.add(e.studentId);
+    for (const sid of c.studentIds) {
+      enrolledStudentIds.add(sid);
     }
+    classesList.push({
+      id: c.id,
+      name: c.name,
+      grade: c.grade,
+      section: c.section,
+      studentCount: c.studentIds.length,
+    });
   }
 
   return {
     teacherId: teacher.id,
-    classIds,
+    classIds: Array.from(classMap.keys()),
+    classes: classesList,
+    subjects: Array.from(subjects).filter(Boolean),
     enrolledStudentIds: Array.from(enrolledStudentIds),
     classKeys,
     grades: Array.from(grades),
@@ -249,6 +314,57 @@ router.get("/students", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     return res.json({ success: true, data: filtered });
   } catch (error) {
     return sendDbError(res, error, "[assignments] students error", "Failed to fetch students");
+  }
+});
+
+// GET /api/assignments/meta — Return teacher's assigned classes and subjects (or all classes for admin)
+router.get("/meta", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    if (session.user.role === "TEACHER") {
+      const scope = await getTeacherScope(session.user.id);
+      return res.json({
+        success: true,
+        data: {
+          classes: scope?.classes || [],
+          subjects: scope?.subjects || [],
+        },
+      });
+    }
+
+    // ADMIN: Return all active classes
+    const allClasses = await prisma.class.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        grade: true,
+        section: true,
+        subject: true,
+        _count: { select: { enrollments: true } },
+      },
+      orderBy: [{ grade: "asc" }, { section: "asc" }],
+    });
+    const subjects = new Set<string>();
+    allClasses.forEach((c) => {
+      if (c.subject) subjects.add(c.subject);
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        classes: allClasses.map((c) => ({
+          id: c.id,
+          name: c.name,
+          grade: c.grade,
+          section: c.section,
+          studentCount: c._count.enrollments,
+        })),
+        subjects: Array.from(subjects).filter(Boolean),
+      },
+    });
+  } catch (error) {
+    return sendDbError(res, error, "[assignments] meta error", "Failed to fetch assignment metadata");
   }
 });
 

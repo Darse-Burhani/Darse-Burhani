@@ -83,6 +83,7 @@ import teacherLeaveRoutes from "./routes/teacher/leave";
 import teacherHifzMarhalaRoutes from "./routes/teacher/hifz-marhala";
 import teacherHifzWeeklySlipRoutes from "./routes/teacher/hifz-weekly-slip";
 import teacherTimetableRoutes from "./routes/teacher/timetable";
+import teacherMyAttendanceRoutes from "./routes/teacher/my-attendance";
 
 // ── Talabat (Student) routes ──
 import talabatSkillTreeRoutes from "./routes/talabat/skill-tree";
@@ -351,6 +352,7 @@ export function createApp() {
   app.use("/api/teacher/hifz-marhala", teacherHifzMarhalaRoutes);
   app.use("/api/teacher/hifz-weekly-slip", teacherHifzWeeklySlipRoutes);
   app.use("/api/teacher/timetable", teacherTimetableRoutes);
+  app.use("/api/teacher/my-attendance", teacherMyAttendanceRoutes);
 
   // ── Talabat (Student) routes ──
   app.use("/api/talabat-profile", talabatProfile1447Routes);

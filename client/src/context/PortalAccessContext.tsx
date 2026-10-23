@@ -39,8 +39,14 @@ const defaultModules: PortalModulesConfig = {
   },
 };
 
-// Minimal safe defaults while permissions load — prevents nav flash for non-assigned pages.
-const DEFAULT_TEACHER_BASE_PAGES = ["dashboard", "profile"];
+// Minimal safe defaults while permissions load — keeps core faculty tools open.
+const DEFAULT_TEACHER_BASE_PAGES = [
+  "dashboard",
+  "profile",
+  "timetable",
+  "my-attendance",
+  "student-assignments",
+];
 
 interface PortalAccessContextType {
   modules: PortalModulesConfig;
@@ -90,7 +96,10 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "credentials" || clean === "passwords") return "passwords";
   if (clean === "analytics" || clean === "tracking") return "tracking";
   if (clean === "point-rules" || clean === "point-matrix" || clean === "point_matrix" || clean === "points") return "point-matrix";
-  if (clean === "portal-assignments" || clean === "portal_assignments" || clean === "assignments") return "portal-assignments";
+  if (clean === "portal-assignments" || clean === "portal_assignments") return "portal-assignments";
+  if (clean === "assignments" || clean === "student-assignments" || clean === "student_assignments" || clean === "teacher-assignments") return "student-assignments";
+  if (clean === "my-attendance" || clean === "my_attendance") return "my-attendance";
+  if (clean === "timetable" || clean === "schedule-matrix") return "timetable";
   if (clean === "notifications" || clean === "broadcasts") return "notifications";
   if (clean === "security" || clean === "audit") return "security";
   return clean;
@@ -197,10 +206,16 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       if (role === "ADMIN") return true;
       if (role !== "TEACHER") return false;
 
-      // While permissions are still loading, only allow dashboard and profile (no nav flash)
+      // While permissions are still loading, allow base teacher tools (no nav flash)
       if (loading) {
         const key = normalizePageKey(pageIdOrPath);
-        return key === "dashboard" || key === "profile";
+        return (
+          key === "dashboard" ||
+          key === "profile" ||
+          key === "timetable" ||
+          key === "my-attendance" ||
+          key === "student-assignments"
+        );
       }
 
       // If teacher has ALL pages assigned
@@ -209,8 +224,16 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       }
 
       const key = normalizePageKey(pageIdOrPath);
-      // Dashboard and profile are always accessible
-      if (key === "dashboard" || key === "profile") return true;
+      // Core individual faculty tools are always accessible to teachers
+      if (
+        key === "dashboard" ||
+        key === "profile" ||
+        key === "timetable" ||
+        key === "my-attendance" ||
+        key === "student-assignments"
+      ) {
+        return true;
+      }
 
       // Check normalized key against normalized assigned pages
       const normalizedAssigned = assignedPages.map((p) => normalizePageKey(p));

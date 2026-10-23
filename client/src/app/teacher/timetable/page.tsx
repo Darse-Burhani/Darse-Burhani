@@ -269,6 +269,21 @@ export default function TeacherTimetablePage() {
   const badalDuties = data?.badalDuties || [];
   const badalsForMe = data?.badalsForMe || [];
 
+  // Unique classes taught by this teacher with their Class Masool
+  const classesTaughtWithMasool = useMemo(() => {
+    const map = new Map<string, { className: string; masool: string | null; masoolIts: string | null }>();
+    (data?.slots || []).forEach((s: any) => {
+      if (s.className && !map.has(s.className)) {
+        map.set(s.className, {
+          className: s.className,
+          masool: s.classMasool || null,
+          masoolIts: s.classMasoolIts || null,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [data?.slots]);
+
   const now = new Date();
   const istDayStr = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "short" }).format(now);
   const dowMap: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
@@ -584,6 +599,33 @@ export default function TeacherTimetablePage() {
             </motion.div>
           )}
 
+          {/* Assigned Classes & Class Masools Banner */}
+          {classesTaughtWithMasool.length > 0 && (
+            <div className="bg-white p-4 rounded-3xl border border-slate-200/90 shadow-2xs flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5 shrink-0">
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                Assigned Classes &amp; Class Masool:
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {classesTaughtWithMasool.map((cls) => (
+                  <div
+                    key={cls.className}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-xs shadow-2xs"
+                  >
+                    <span className="font-extrabold text-slate-900">Class {cls.className}</span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-amber-900 font-bold flex items-center gap-1">
+                      👑 Masool: {cls.masool || "Assigned by Admin"}
+                    </span>
+                    {cls.masoolIts && (
+                      <span className="text-[10px] font-mono text-slate-500">({cls.masoolIts})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Timetable Matrix */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
             <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
@@ -711,6 +753,15 @@ export default function TeacherTimetablePage() {
                                   <div className="text-[11px] font-bold mt-1 text-slate-800">
                                     Class {slot.className}
                                   </div>
+                                  {slot.classMasool && (
+                                    <div
+                                      className="text-[9px] font-bold text-amber-900 bg-amber-100/70 px-1.5 py-0.5 rounded mt-1 flex items-center gap-1"
+                                      title={`Class Masool: ${slot.classMasool}${slot.classMasoolIts ? ` (ITS: ${slot.classMasoolIts})` : ""}`}
+                                    >
+                                      <ShieldCheck className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                      <span className="truncate">Masool: {slot.classMasool}</span>
+                                    </div>
+                                  )}
                                   {isChanged && slot.changeDescription && (
                                     <div className="text-[9px] font-bold text-amber-900 bg-amber-100/80 px-1.5 py-0.5 rounded mt-1 leading-tight">
                                       {slot.changeDescription}

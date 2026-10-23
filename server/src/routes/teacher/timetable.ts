@@ -56,7 +56,21 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           prisma.timetableSlot.findMany({
             where: { teacherId: teacherProfile.id },
             include: {
-              class: { select: { id: true, name: true, grade: true, section: true } },
+              class: {
+                select: {
+                  id: true,
+                  name: true,
+                  grade: true,
+                  section: true,
+                  masool: {
+                    select: {
+                      id: true,
+                      its: true,
+                      user: { select: { firstName: true, lastName: true } },
+                    },
+                  },
+                },
+              },
             },
             orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
           }),
@@ -185,6 +199,10 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
               updatedAt: s.updatedAt,
               isRecentlyChanged: isRecent,
               changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${s.subject}` : null),
+              classMasool: s.class?.masool
+                ? `${s.class.masool.user.firstName} ${s.class.masool.user.lastName}`.trim()
+                : null,
+              classMasoolIts: s.class?.masool?.its || null,
             };
           }),
           badalDuties: myBadalDuties.map((b) => ({
