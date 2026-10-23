@@ -21,12 +21,12 @@ const gradientMap: Record<
     id: "fatimiDefault",
     primary: "#d4af37",
     secondary: "#b8860b",
-    accent: "#047857",
+    accent: "#b8541e",
     stops: [
       { offset: "0%", color: "#fef08a" },
       { offset: "35%", color: "#d4af37" },
       { offset: "75%", color: "#b8860b" },
-      { offset: "100%", color: "#065f46" },
+      { offset: "100%", color: "#8a3e14" },
     ],
   },
   gold: {
@@ -45,12 +45,12 @@ const gradientMap: Record<
     id: "fatimiAdmin",
     primary: "#d4af37",
     secondary: "#b8860b",
-    accent: "#047857",
+    accent: "#b8541e",
     stops: [
       { offset: "0%", color: "#fde047" },
       { offset: "40%", color: "#d4af37" },
       { offset: "75%", color: "#b8860b" },
-      { offset: "100%", color: "#047857" },
+      { offset: "100%", color: "#b8541e" },
     ],
   },
   teacher: {
@@ -67,14 +67,14 @@ const gradientMap: Record<
   },
   student: {
     id: "fatimiStudent",
-    primary: "#34d399",
-    secondary: "#10b981",
-    accent: "#047857",
+    primary: "#fcd468",
+    secondary: "#f3b833",
+    accent: "#b8541e",
     stops: [
-      { offset: "0%", color: "#ecfdf5" },
-      { offset: "40%", color: "#34d399" },
-      { offset: "75%", color: "#059669" },
-      { offset: "100%", color: "#064e3b" },
+      { offset: "0%", color: "#fff8e7" },
+      { offset: "40%", color: "#fcd468" },
+      { offset: "75%", color: "#ef9a33" },
+      { offset: "100%", color: "#8a3e14" },
     ],
   },
   parent: {
@@ -260,8 +260,8 @@ export function FatimiWordmark({
         className="rounded-2xl p-1.5 flex items-center justify-center shadow-md ring-1 ring-amber-400/30 shrink-0 transition-transform duration-200 group-hover:scale-105"
         style={{
           background: isDark
-            ? "linear-gradient(135deg, #022c22 0%, #064e3b 100%)"
-            : "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+            ? "linear-gradient(135deg, #1c1c1c 0%, #8a3e14 100%)"
+            : "linear-gradient(135deg, #8a3e14 0%, #1c1c1c 100%)",
         }}
       >
         <FatimiLogo size={size} variant={variant} />

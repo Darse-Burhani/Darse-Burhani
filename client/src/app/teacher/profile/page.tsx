@@ -319,7 +319,7 @@ export default function TeacherProfilePage() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-[#047857] mb-3" />
+        <Loader2 className="w-10 h-10 animate-spin text-[#b8541e] mb-3" />
         <p className="text-sm font-medium text-gray-500">Loading Teacher Profile…</p>
       </div>
     );
@@ -333,7 +333,7 @@ export default function TeacherProfilePage() {
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-100/80 text-[#047857] shadow-sm">
+            <div className="p-2 rounded-xl bg-emerald-100/80 text-[#b8541e] shadow-sm">
               <User className="w-6 h-6" />
             </div>
             <div>
@@ -402,7 +402,7 @@ export default function TeacherProfilePage() {
                           onError={() => setImgError(true)}
                         />
                       ) : (
-                        <span className="flex w-full h-full items-center justify-center bg-gradient-to-br from-[#047857] to-[#022c22] text-3xl sm:text-4xl font-extrabold text-amber-200 tracking-wider select-none">
+                        <span className="flex w-full h-full items-center justify-center bg-gradient-to-br from-[#b8541e] to-[#1c1c1c] text-3xl sm:text-4xl font-extrabold text-amber-200 tracking-wider select-none">
                           {getInitials(form.firstName || "U", form.lastName || "T")}
                         </span>
                       )}

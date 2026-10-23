@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#01140f" />
-      <stop offset="50%" stop-color="#022c22" />
-      <stop offset="100%" stop-color="#064e3b" />
+      <stop offset="0%" stop-color="#0d0d0d" />
+      <stop offset="50%" stop-color="#1c1c1c" />
+      <stop offset="100%" stop-color="#8a3e14" />
     </linearGradient>
     <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#fbbf24" />
@@ -11,8 +11,8 @@
       <stop offset="100%" stop-color="#b8860b" />
     </linearGradient>
     <radialGradient id="centerAura" cx="50%" cy="45%" r="50%">
-      <stop offset="0%" stop-color="#059669" stop-opacity="0.4" />
-      <stop offset="100%" stop-color="#01140f" stop-opacity="0" />
+      <stop offset="0%" stop-color="#ef9a33" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#0d0d0d" stop-opacity="0" />
     </radialGradient>
   </defs>
 
@@ -25,7 +25,7 @@
 
   <!-- Central Emblem Backdrop -->
   <g transform="translate(600, 210)">
-    <circle cx="0" cy="0" r="90" fill="#032018" stroke="url(#goldGrad)" stroke-width="3" />
+    <circle cx="0" cy="0" r="90" fill="#1c1c1c" stroke="url(#goldGrad)" stroke-width="3" />
     <!-- 8-Pointed Star -->
     <path d="M0 -65 L18 -20 L65 0 L18 20 L0 65 L-18 20 L-65 0 L-18 -20 Z" fill="none" stroke="url(#goldGrad)" stroke-width="3.5" />
     <path d="M0 -35 L10 -10 L35 0 L10 10 L0 35 L-10 10 L-35 0 L-10 -10 Z" fill="url(#goldGrad)" />

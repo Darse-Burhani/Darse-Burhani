@@ -213,7 +213,7 @@ export default function ParentDashboard() {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div
           className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-emerald-950/20"
-          style={{ background: "linear-gradient(135deg, #01241c 0%, #034433 50%, #065f46 100%)" }}
+          style={{ background: "linear-gradient(135deg, #0d0d0d 0%, #1c1c1c 50%, #8a3e14 100%)" }}
         >
           <div className="absolute -right-12 -top-12 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-12 -left-12 h-60 w-60 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
@@ -723,7 +723,7 @@ export default function ParentDashboard() {
                                 {timetableData.class.masool?.avatarUrl && (
                                   <AvatarImage src={timetableData.class.masool.avatarUrl} alt={timetableData.class.masool.name} />
                                 )}
-                                <AvatarFallback className="bg-[#06241a] text-amber-300 font-bold text-sm">
+                                <AvatarFallback className="bg-[#1c1c1c] text-amber-300 font-bold text-sm">
                                   {getInitials(timetableData.class.masool?.name || "Masool")}
                                 </AvatarFallback>
                               </Avatar>
@@ -797,7 +797,7 @@ export default function ParentDashboard() {
                           <div className="overflow-x-auto">
                             <table className="w-full border-collapse min-w-[900px]">
                               <thead>
-                                <tr className="bg-[#06241a] text-white">
+                                <tr className="bg-[#1c1c1c] text-white">
                                   <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
                                     Day / Period
                                   </th>

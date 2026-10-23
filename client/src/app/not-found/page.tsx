@@ -25,10 +25,10 @@ export default function NotFoundPage() {
         noIndex={true}
       />
 
-      <main className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#01140f] text-gray-100 relative overflow-hidden select-none">
+      <main className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#0d0d0d] text-gray-100 relative overflow-hidden select-none">
         {/* Ambient background glows */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full blur-[140px] bg-gradient-to-b from-[#047857]/30 via-[#022c22]/40 to-transparent" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full blur-[140px] bg-gradient-to-b from-[#b8541e]/30 via-[#1c1c1c]/40 to-transparent" />
           <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[120px] bg-[#d4af37]/20" />
         </div>
 
@@ -39,7 +39,7 @@ export default function NotFoundPage() {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="rounded-3xl p-1 bg-gradient-to-b from-white/30 via-[#d4af37]/45 to-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-2xl border border-white/20"
           >
-            <div className="relative rounded-[1.4rem] overflow-hidden bg-[#032018]/95 backdrop-blur-2xl p-6 sm:p-10 shadow-2xl border border-white/10 text-center">
+            <div className="relative rounded-[1.4rem] overflow-hidden bg-[#0d0d0d]/95 backdrop-blur-2xl p-6 sm:p-10 shadow-2xl border border-white/10 text-center">
               {/* Corner Decorative Ornaments */}
               <div className="absolute top-3.5 left-3.5 pointer-events-none">
                 <FatimiCornerBracket size={24} stroke="#d4af37" opacity={0.8} />
@@ -78,7 +78,7 @@ export default function NotFoundPage() {
                 href="/login"
                 className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-sm text-white shadow-lg transition-all active:scale-[0.98] mb-6"
                 style={{
-                  background: "linear-gradient(135deg, #022c22 0%, #047857 55%, #065f46 100%)",
+                  background: "linear-gradient(135deg, #1c1c1c 0%, #b8541e 55%, #8a3e14 100%)",
                   boxShadow: "0 8px 24px -4px rgba(4, 120, 87, 0.45)",
                 }}
               >

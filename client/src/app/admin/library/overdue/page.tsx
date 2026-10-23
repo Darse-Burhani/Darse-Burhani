@@ -342,7 +342,7 @@ export default function OverduePage() {
       {!loading && totalOverdue === 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="fatimi-card">
-            <div className="fatimi-card-header" style={{ background: "linear-gradient(90deg, #047857, #d4af37, #047857)" }} />
+            <div className="fatimi-card-header" style={{ background: "linear-gradient(90deg, #b8541e, #d4af37, #b8541e)" }} />
             <CardContent className="p-12 text-center">
               <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600" />

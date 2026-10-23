@@ -319,7 +319,7 @@ export default function TalabatProfilePage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-emerald-100">
-                    <Camera className="w-4 h-4 text-[#047857]" />
+                    <Camera className="w-4 h-4 text-[#b8541e]" />
                   </div>
                   Profile Photo
                 </CardTitle>
@@ -413,7 +413,7 @@ export default function TalabatProfilePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-100">
-                  <User className="w-4 h-4 text-[#047857]" />
+                  <User className="w-4 h-4 text-[#b8541e]" />
                 </div>
                 Personal Information
               </CardTitle>
@@ -551,7 +551,7 @@ export default function TalabatProfilePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-100">
-                  <ShieldCheck className="w-4 h-4 text-[#047857]" />
+                  <ShieldCheck className="w-4 h-4 text-[#b8541e]" />
                 </div>
                 Student Identification
               </CardTitle>
@@ -605,7 +605,7 @@ export default function TalabatProfilePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-100">
-                  <GraduationCap className="w-4 h-4 text-[#047857]" />
+                  <GraduationCap className="w-4 h-4 text-[#b8541e]" />
                 </div>
                 Academic Information
               </CardTitle>
@@ -744,7 +744,7 @@ export default function TalabatProfilePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-100">
-                  <MapPin className="w-4 h-4 text-[#047857]" />
+                  <MapPin className="w-4 h-4 text-[#b8541e]" />
                 </div>
                 Contact & Location
               </CardTitle>
@@ -827,7 +827,7 @@ export default function TalabatProfilePage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-100">
-                  <KeyRound className="w-4 h-4 text-[#047857]" />
+                  <KeyRound className="w-4 h-4 text-[#b8541e]" />
                 </div>
                 Change Password
               </CardTitle>
@@ -933,7 +933,7 @@ export default function TalabatProfilePage() {
           className="flex justify-end items-center gap-3"
         >
           {saved && (
-            <span className="text-sm text-[#047857] flex items-center gap-1 font-semibold">
+            <span className="text-sm text-[#b8541e] flex items-center gap-1 font-semibold">
               <CheckCircle2 className="w-4 h-4" /> Profile saved successfully!
             </span>
           )}

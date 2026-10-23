@@ -201,7 +201,7 @@ export default function FatimiCalendarPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="fatimi-header-banner" style={{ background: "linear-gradient(135deg, #064e3b 0%, #0d9488 100%)" }}>
+        <div className="fatimi-header-banner" style={{ background: "linear-gradient(135deg, #8a3e14 0%, #ef9a33 100%)" }}>
           <div className="absolute top-0 left-0 w-32 h-32 opacity-10">
             <svg viewBox="0 0 100 100" className="w-full h-full">
               <path d="M50 5L95 50L50 95L5 50Z" fill="none" stroke="#d4af37" strokeWidth="1" />

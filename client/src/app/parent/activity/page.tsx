@@ -104,7 +104,7 @@ export default function ParentActivityPage() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-3xl p-6 text-white shadow-xl relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #034430 0%, #047857 50%, #065f46 100%)" }}
+        style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #b8541e 50%, #8a3e14 100%)" }}
       >
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
@@ -146,7 +146,7 @@ export default function ParentActivityPage() {
                 onClick={() => setSelectedChildId("ALL")}
                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   selectedChildId === "ALL"
-                    ? "bg-[#047857] text-white shadow-xs"
+                    ? "bg-[#b8541e] text-white shadow-xs"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -159,8 +159,8 @@ export default function ParentActivityPage() {
                   onClick={() => setSelectedChildId(c.id)}
                   className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     selectedChildId === c.id
-                      ? "bg-[#047857] text-white shadow-xs"
-                      : "bg-emerald-50 text-[#047857] hover:bg-emerald-100 border border-emerald-200"
+                      ? "bg-[#b8541e] text-white shadow-xs"
+                      : "bg-emerald-50 text-[#b8541e] hover:bg-emerald-100 border border-emerald-200"
                   }`}
                 >
                   {c.name} (Grade {c.grade})
@@ -289,7 +289,7 @@ export default function ParentActivityPage() {
 
                       <div className="mt-2.5 flex items-center gap-2 flex-wrap text-xs">
                         {activity.childName && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#047857] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#b8541e] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                             <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
                             {activity.childName}
                           </span>

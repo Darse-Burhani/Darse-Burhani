@@ -31,13 +31,13 @@ export function InstitutionalFooter({
   }
 
   return (
-    <footer className={`mt-auto border-t border-slate-200 dark:border-[#1b3629] bg-[#0c1f17] text-[#f5f3ef] ${className}`}>
+    <footer className={`mt-auto border-t border-slate-200 dark:border-[#2a2a2a] bg-[#0d0d0d] text-[#f5f3ef] ${className}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8 border-b border-[#1b3629]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8 border-b border-[#2a2a2a]">
           {/* Column 1: Institution */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#122b20] border border-[#234937] p-1.5 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-[#1c1c1c] border border-[#2a2a2a] p-1.5 flex items-center justify-center shrink-0">
                 <img src="/logo.png" alt="Darse Burhani" className="w-full h-full object-contain" />
               </div>
               <div>

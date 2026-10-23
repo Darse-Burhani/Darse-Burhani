@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
 import { getRecentTimetableChanges, isSlotRecentlyChanged } from "../../lib/timetable-notify";
+import { canonicalizeTeacherDisplay } from "../../lib/timetable-master-sync";
 
 const router = Router();
 
@@ -119,31 +120,43 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
               className: mc.name,
               grade: mc.grade,
               section: mc.section,
-              slots: slots.map((s) => ({
-                id: s.id,
-                classId: s.classId,
-                className: s.className || mc.name,
-                period: s.period,
-                dayOfWeek: s.dayOfWeek,
-                startTime: s.startTime,
-                endTime: s.endTime,
-                subject: s.subject,
-                roomNumber: s.roomNumber,
-                teacherId: s.teacherId,
-                teacherName: s.teacher ? `${s.teacher.user.firstName} ${s.teacher.user.lastName}` : "TBA",
-                teacherAvatar: s.teacher?.user?.avatarUrl || null,
-                updatedAt: s.updatedAt,
-              })),
+              slots: slots.map((s) => {
+                const slotDisplay = canonicalizeTeacherDisplay(
+                  s.teacher ? `${s.teacher.user.firstName} ${s.teacher.user.lastName}` : "TBA",
+                  s.teacher?.user?.avatarUrl || null,
+                );
+                return {
+                  id: s.id,
+                  classId: s.classId,
+                  className: s.className || mc.name,
+                  period: s.period,
+                  dayOfWeek: s.dayOfWeek,
+                  startTime: s.startTime,
+                  endTime: s.endTime,
+                  subject: s.subject,
+                  roomNumber: s.roomNumber,
+                  teacherId: s.teacherId,
+                  teacherName: slotDisplay.name,
+                  teacherAvatar: slotDisplay.avatarUrl,
+                  updatedAt: s.updatedAt,
+                };
+              }),
             };
           })
         );
 
         return {
-          teacher: {
-            id: teacherProfile.id,
-            name: `${teacherProfile.user.firstName} ${teacherProfile.user.lastName}`,
-            its: teacherProfile.its,
-          },
+          teacher: (() => {
+            const selfDisplay = canonicalizeTeacherDisplay(
+              `${teacherProfile.user.firstName} ${teacherProfile.user.lastName}`.trim(),
+              null,
+            );
+            return {
+              id: teacherProfile.id,
+              name: selfDisplay.name,
+              its: teacherProfile.its,
+            };
+          })(),
           isClassMasool: masoolClassesList.length > 0,
           masoolClasses: masoolClassesList,
           masoolClassTimetables,

@@ -132,7 +132,7 @@ export default function AdminPointMatrixPage() {
     actionName: "",
     pointValue: "10",
     actionType: "POSITIVE" as "POSITIVE" | "NEGATIVE",
-    color: "#10b981",
+    color: "#f3b833",
     iconName: "star",
   });
 
@@ -431,7 +431,7 @@ export default function AdminPointMatrixPage() {
       actionName: "",
       pointValue: "10",
       actionType: "POSITIVE",
-      color: "#10b981",
+      color: "#f3b833",
       iconName: "star",
     });
     setShowRuleModal(true);
@@ -445,7 +445,7 @@ export default function AdminPointMatrixPage() {
       actionName: rule.actionName,
       pointValue: rule.pointValue.toString(),
       actionType: rule.actionType,
-      color: rule.color || (rule.actionType === "POSITIVE" ? "#10b981" : "#ef4444"),
+      color: rule.color || (rule.actionType === "POSITIVE" ? "#f3b833" : "#ef4444"),
       iconName: rule.iconName || "star",
     });
     setShowRuleModal(true);

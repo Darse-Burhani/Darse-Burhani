@@ -248,9 +248,9 @@ export default function TeacherHifzMarhalaReportForm({
                   style={{
                     width: `${overallPerformance}%`,
                     background: overallPerformance >= 80
-                      ? "linear-gradient(90deg, #059669, #10b981)"
+                      ? "linear-gradient(90deg, #ef9a33, #f3b833)"
                       : overallPerformance >= 60
-                      ? "linear-gradient(90deg, #0d9488, #14b8a6)"
+                      ? "linear-gradient(90deg, #ef9a33, #ef9a33)"
                       : overallPerformance >= 40
                       ? "linear-gradient(90deg, #d97706, #f59e0b)"
                       : "linear-gradient(90deg, #dc2626, #ef4444)",

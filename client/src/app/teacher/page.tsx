@@ -417,7 +417,7 @@ export default function ExpertTeacherDashboard() {
         <div
           className="relative overflow-hidden rounded-[2.2rem] p-6 sm:p-9 text-white"
           style={{
-            background: "linear-gradient(135deg, #011f18 0%, #022c22 40%, #064e3b 75%, #047857 100%)",
+            background: "linear-gradient(135deg, #0d0d0d 0%, #1c1c1c 40%, #8a3e14 75%, #b8541e 100%)",
             boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 20px 40px -15px rgba(2, 44, 34, 0.5)",
           }}
         >
@@ -439,10 +439,10 @@ export default function ExpertTeacherDashboard() {
                       <AvatarImage
                         src={teacher.avatarUrl}
                         alt={teacher ? `${teacher.firstName} ${teacher.lastName}` : "Faculty"}
-                        className="object-contain object-center bg-[#03180f]"
+                        className="object-contain object-center bg-[#0d0d0d]"
                       />
                     )}
-                    <AvatarFallback className="bg-gradient-to-br from-[#065f46] to-[#011f18] text-[#ffe082] text-xl sm:text-2xl font-bold font-display">
+                    <AvatarFallback className="bg-gradient-to-br from-[#8a3e14] to-[#0d0d0d] text-[#ffe082] text-xl sm:text-2xl font-bold font-display">
                       {teacher ? getInitials(teacher.firstName, teacher.lastName) : "DB"}
                     </AvatarFallback>
                   </Avatar>
@@ -538,7 +538,7 @@ export default function ExpertTeacherDashboard() {
               className="p-1 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-xs"
             >
               <div className="rounded-[calc(1.5rem-0.25rem)] bg-white p-4 sm:p-5 flex items-center gap-4 h-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)]">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#047857] border border-emerald-200/80 flex items-center justify-center shrink-0 shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#b8541e] border border-emerald-200/80 flex items-center justify-center shrink-0 shadow-xs">
                   <Users className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -688,7 +688,7 @@ export default function ExpertTeacherDashboard() {
                   onClick={() => setSelectedClassId("ALL")}
                   className={`px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 flex items-center gap-2 ${
                     selectedClassId === "ALL"
-                      ? "bg-[#047857] text-white shadow-md ring-2 ring-emerald-600/30"
+                      ? "bg-[#b8541e] text-white shadow-md ring-2 ring-emerald-600/30"
                       : "bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-800"
                   }`}
                 >
@@ -710,7 +710,7 @@ export default function ExpertTeacherDashboard() {
                       onClick={() => setSelectedClassId(cls.id)}
                       className={`px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 flex items-center gap-2 ${
                         isSelected
-                          ? "bg-[#047857] text-white shadow-md ring-2 ring-emerald-600/30"
+                          ? "bg-[#b8541e] text-white shadow-md ring-2 ring-emerald-600/30"
                           : "bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-800"
                       }`}
                     >
@@ -921,7 +921,7 @@ export default function ExpertTeacherDashboard() {
                                 <AvatarImage
                                   src={student.avatarUrl}
                                   alt={`${student.firstName} ${student.lastName}`}
-                                  className="object-contain object-center bg-[#03180f]"
+                                  className="object-contain object-center bg-[#0d0d0d]"
                                 />
                               )}
                               <AvatarFallback
@@ -1270,7 +1270,7 @@ export default function ExpertTeacherDashboard() {
                           }
                           className={`w-full py-3 rounded-2xl font-black text-xs shadow-lg transition-all active:scale-[0.98] ${
                             customActionType === "POSITIVE"
-                              ? "bg-[#047857] hover:bg-[#065f46] text-white"
+                              ? "bg-[#b8541e] hover:bg-[#8a3e14] text-white"
                               : "bg-rose-600 hover:bg-rose-700 text-white"
                           }`}
                         >
@@ -1319,7 +1319,7 @@ export default function ExpertTeacherDashboard() {
                                   <AvatarImage
                                     src={log.studentAvatar}
                                     alt={log.studentName}
-                                    className="object-contain object-center bg-[#03180f]"
+                                    className="object-contain object-center bg-[#0d0d0d]"
                                   />
                                 )}
                                 <AvatarFallback className="bg-emerald-100 text-emerald-900 text-[10px] font-black">
@@ -1381,7 +1381,7 @@ export default function ExpertTeacherDashboard() {
                 <div className="p-1 rounded-[2.2rem] bg-amber-950/5 ring-1 ring-amber-900/10 shadow-md hover:ring-amber-400/40 transition-all cursor-pointer group">
                   <div className="rounded-[calc(2.2rem-0.25rem)] bg-gradient-to-r from-emerald-50/50 via-white to-amber-50/40 p-6 sm:p-7 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)]">
                     <div className="flex items-center gap-4 sm:gap-5">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#011f18] to-[#047857] flex items-center justify-center text-[#ffe082] shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0d0d0d] to-[#b8541e] flex items-center justify-center text-[#ffe082] shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300">
                         <ClipboardList className="w-7 h-7" />
                       </div>
                       <div>
@@ -1425,7 +1425,7 @@ export default function ExpertTeacherDashboard() {
                           </div>
                         </div>
 
-                        <div className="hidden sm:flex items-center gap-2 text-xs font-black text-[#047857] group-hover:translate-x-1 transition-transform">
+                        <div className="hidden sm:flex items-center gap-2 text-xs font-black text-[#b8541e] group-hover:translate-x-1 transition-transform">
                           <span>Open Planner</span>
                           <ChevronRight className="w-4 h-4" />
                         </div>

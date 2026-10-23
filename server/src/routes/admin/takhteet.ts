@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
+import { canonicalizeTeacherDisplay, canonicalizeTeacherName } from "../../lib/timetable-master-sync";
 
 const router = Router();
 
@@ -130,23 +131,26 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         ]);
 
         return {
-          teachers: teachers.map((t) => ({
-            id: t.userId,
-            name: `${t.user.firstName} ${t.user.lastName}`,
-            email: t.user.email,
-            avatarUrl: t.user.avatarUrl,
-            employeeId: t.employeeId,
-            department: t.department,
-            subjects: t.subjects,
-            planCount: t._count.takhteetPlans,
-            classes: t.classes.map((c) => ({
-              classId: c.id,
-              className: c.name,
-              subject: c.subject,
-              academicYear: c.academicYear,
-              isActive: c.isActive,
-            })),
-          })),
+          teachers: teachers.map((t) => {
+            const takhteetDisplay = canonicalizeTeacherDisplay(`${t.user.firstName} ${t.user.lastName}`, t.user.avatarUrl);
+            return {
+              id: t.userId,
+              name: takhteetDisplay.name,
+              email: t.user.email,
+              avatarUrl: takhteetDisplay.avatarUrl,
+              employeeId: t.employeeId,
+              department: t.department,
+              subjects: t.subjects,
+              planCount: t._count.takhteetPlans,
+              classes: t.classes.map((c) => ({
+                classId: c.id,
+                className: c.name,
+                subject: c.subject,
+                academicYear: c.academicYear,
+                isActive: c.isActive,
+              })),
+            };
+          }),
           classes: classes.map((c) => ({
             id: c.id,
             name: c.name,
@@ -156,12 +160,12 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             academicYear: c.academicYear,
             isActive: c.isActive,
             teacherUserId: c.teacher?.user?.id || null,
-            teacherName: c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned",
+            teacherName: canonicalizeTeacherName(c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned") || "Unassigned",
           })),
           plans: plans.map((p) => ({
             id: p.id,
             teacherId: p.teacher?.user?.id || "",
-            teacherName: p.teacher?.user ? `${p.teacher.user.firstName} ${p.teacher.user.lastName}` : "Unassigned",
+            teacherName: canonicalizeTeacherName(p.teacher?.user ? `${p.teacher.user.firstName} ${p.teacher.user.lastName}` : "Unassigned") || "Unassigned",
             teacherEmail: p.teacher?.user?.email || "",
             classId: p.classId,
             className: p.class ? `${p.class.name} (${p.class.grade}${p.class.section})` : "Unassigned",

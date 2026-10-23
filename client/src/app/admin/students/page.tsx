@@ -330,7 +330,7 @@ export default function AdminStudentsPage() {
       {/* Search & Filters */}
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-6">
         <div className="relative flex-1 min-w-[220px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#047857]/50" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#b8541e]/50" />
           <input
             type="text"
             id="student-search"
@@ -372,7 +372,7 @@ export default function AdminStudentsPage() {
             onClick={() => setStatusFilter("SANAH")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === "SANAH"
-                ? "bg-[#047857] text-white shadow-sm shadow-emerald-700/20 border border-emerald-600"
+                ? "bg-[#b8541e] text-white shadow-sm shadow-emerald-700/20 border border-emerald-600"
                 : "text-emerald-800 hover:bg-emerald-100/50"
             }`}
           >
@@ -435,7 +435,7 @@ export default function AdminStudentsPage() {
                     style={{
                       background: isHafiz
                         ? "linear-gradient(90deg, #d4af37, #f59e0b, #d4af37)"
-                        : "linear-gradient(90deg, #047857, #10b981, #047857)"
+                        : "linear-gradient(90deg, #b8541e, #f3b833, #b8541e)"
                     }}
                   />
                   <CardContent className="p-5">
@@ -443,7 +443,7 @@ export default function AdminStudentsPage() {
                     <div className="flex items-center gap-4 mb-4">
                       <div className="relative">
                         <Avatar
-                          className={`w-16 h-16 border-4 shadow-sm ${isHafiz ? "border-[#d4af37]" : "border-[#047857]"}`}
+                          className={`w-16 h-16 border-4 shadow-sm ${isHafiz ? "border-[#d4af37]" : "border-[#b8541e]"}`}
                         >
                           {s.avatarUrl && (
                             <AvatarImage src={s.avatarUrl} alt={`${s.firstName} ${s.lastName}`} />
@@ -457,7 +457,7 @@ export default function AdminStudentsPage() {
                             <Sparkles className="w-3.5 h-3.5 text-white" />
                           </span>
                         ) : (
-                          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#047857] border-2 border-white flex items-center justify-center shadow-sm" title="Talabat (Sanah)">
+                          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#b8541e] border-2 border-white flex items-center justify-center shadow-sm" title="Talabat (Sanah)">
                             <BookOpen className="w-3 h-3 text-emerald-100" />
                           </span>
                         )}
@@ -472,8 +472,8 @@ export default function AdminStudentsPage() {
                               Hafiz {s.hafizYear ? `(${s.hafizYear})` : ""}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-[#047857] border border-emerald-200/80">
-                              <BookOpen className="w-3 h-3 text-[#047857]" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-[#b8541e] border border-emerald-200/80">
+                              <BookOpen className="w-3 h-3 text-[#b8541e]" />
                               Sanah
                             </span>
                           )}
@@ -481,7 +481,7 @@ export default function AdminStudentsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-[#047857] hover:bg-emerald-50" onClick={() => openEdit(s)} title="View / Edit profile">
+                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-[#b8541e] hover:bg-emerald-50" onClick={() => openEdit(s)} title="View / Edit profile">
                           <Pencil className="w-4 h-4" />
                         </Button>
                         <Button
@@ -501,7 +501,7 @@ export default function AdminStudentsPage() {
 
                     {/* ID badges */}
                     <div className="flex flex-wrap gap-1.5 mb-2">
-                      <span className="text-[10px] bg-emerald-50 text-[#047857] px-2 py-1 rounded-full font-medium border border-emerald-200/60">ITS: {s.its || "—"}</span>
+                      <span className="text-[10px] bg-emerald-50 text-[#b8541e] px-2 py-1 rounded-full font-medium border border-emerald-200/60">ITS: {s.its || "—"}</span>
                       {s.trNo && (
                         <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-1 rounded-full font-medium border border-amber-200/60">TR: {s.trNo}</span>
                       )}
@@ -643,7 +643,7 @@ export default function AdminStudentsPage() {
                 </Avatar>
                 {avatarUploading && (
                   <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border-2 border-emerald-200 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-[#047857]" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#b8541e]" />
                   </span>
                 )}
               </div>
@@ -871,7 +871,7 @@ export default function AdminStudentsPage() {
 
           <ModalFooter>
             {editSaved && (
-              <span className="text-sm text-[#047857] flex items-center gap-1 mr-auto">
+              <span className="text-sm text-[#b8541e] flex items-center gap-1 mr-auto">
                 <Save className="w-4 h-4" /> Saved successfully!
               </span>
             )}

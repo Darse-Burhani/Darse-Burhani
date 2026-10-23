@@ -62,7 +62,7 @@ export function InactivityLockModal({ isOpen, onUnlock, idleMinutes }: Inactivit
         <div
           className="absolute top-0 left-0 right-0 h-1"
           style={{
-            background: "linear-gradient(90deg, #064e3b, #d4af37, #064e3b)",
+            background: "linear-gradient(90deg, #8a3e14, #d4af37, #8a3e14)",
           }}
         />
 
@@ -135,7 +135,7 @@ export function InactivityLockModal({ isOpen, onUnlock, idleMinutes }: Inactivit
             disabled={loading}
             className="w-full py-3 px-4 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 hover:opacity-95 active:scale-98 disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, #064e3b 0%, #047857 50%, #b8860b 100%)",
+              background: "linear-gradient(135deg, #8a3e14 0%, #b8541e 50%, #b8860b 100%)",
             }}
           >
             {loading ? (

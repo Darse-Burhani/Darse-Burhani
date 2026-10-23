@@ -535,7 +535,7 @@ export default function AdminParentsPage() {
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div
           className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl"
-          style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 50%, #064e3b 100%)" }}
+          style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 50%, #8a3e14 100%)" }}
         >
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -604,7 +604,7 @@ export default function AdminParentsPage() {
       </motion.div>
 
       {/* Parent Access & Credentials Guide */}
-      <div className="mb-6 bg-gradient-to-r from-emerald-950 via-[#06241a] to-emerald-900 rounded-2xl p-5 text-white border border-emerald-700/50 shadow-md">
+      <div className="mb-6 bg-gradient-to-r from-emerald-950 via-[#1c1c1c] to-emerald-900 rounded-2xl p-5 text-white border border-emerald-700/50 shadow-md">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 font-bold mt-0.5">
@@ -660,8 +660,8 @@ export default function AdminParentsPage() {
         {/* Linked Talabat */}
         <div className="bg-white border border-emerald-100 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#047857]">Linked Talabat</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-[#047857]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#b8541e]">Linked Talabat</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-[#b8541e]">
               <GraduationCap className="w-4 h-4" />
             </div>
           </div>
@@ -737,7 +737,7 @@ export default function AdminParentsPage() {
             placeholder="Search by name, ITS, email, blood group, city..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-8 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-[#047857] focus:outline-none"
+            className="w-full pl-10 pr-8 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-[#b8541e] focus:outline-none"
           />
           {search && (
             <button
@@ -764,7 +764,7 @@ export default function AdminParentsPage() {
               onClick={() => setCategoryFilter(pill.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                 categoryFilter === pill.key
-                  ? "bg-[#047857] text-white shadow-xs"
+                  ? "bg-[#b8541e] text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
@@ -974,7 +974,7 @@ export default function AdminParentsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-emerald-200 text-[#047857] hover:bg-emerald-50 font-semibold text-xs gap-1.5 h-8 px-3"
+                          className="border-emerald-200 text-[#b8541e] hover:bg-emerald-50 font-semibold text-xs gap-1.5 h-8 px-3"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           Assign Talabat
@@ -1292,7 +1292,7 @@ export default function AdminParentsPage() {
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#047857] hover:bg-[#065f46] text-white font-medium shadow-xs"
+              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium shadow-xs"
               onClick={handleSaveProfile}
               disabled={saving}
             >
@@ -1550,7 +1550,7 @@ export default function AdminParentsPage() {
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#047857] hover:bg-[#065f46] text-white font-medium shadow-xs"
+              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium shadow-xs"
               onClick={handleCreateParent}
               disabled={creating}
             >

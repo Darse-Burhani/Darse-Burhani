@@ -68,7 +68,7 @@ export const MARHALA_COLORS: Record<string, MarhalaColor> = {
   MARHALA_4: { grad: "from-amber-500 to-orange-600", gradCss: "linear-gradient(135deg, #f59e0b, #ea580c)", solid: "bg-amber-600", soft: "bg-amber-50", softBorder: "border-amber-200", text: "text-amber-700", ring: "ring-amber-500", hex: "#d97706" },
   MARHALA_5: { grad: "from-rose-500 to-pink-600", gradCss: "linear-gradient(135deg, #f43f5e, #db2777)", solid: "bg-rose-600", soft: "bg-rose-50", softBorder: "border-rose-200", text: "text-rose-700", ring: "ring-rose-500", hex: "#e11d48" },
   MARHALA_6: { grad: "from-cyan-500 to-sky-600", gradCss: "linear-gradient(135deg, #06b6d4, #0284c7)", solid: "bg-cyan-600", soft: "bg-cyan-50", softBorder: "border-cyan-200", text: "text-cyan-700", ring: "ring-cyan-500", hex: "#0891b2" },
-  MARHALA_7: { grad: "from-lime-500 to-green-600", gradCss: "linear-gradient(135deg, #84cc16, #16a34a)", solid: "bg-lime-600", soft: "bg-lime-50", softBorder: "border-lime-200", text: "text-lime-700", ring: "ring-lime-500", hex: "#65a30d" },
+  MARHALA_7: { grad: "from-lime-500 to-green-600", gradCss: "linear-gradient(135deg, #ef9a33, #dc6b27)", solid: "bg-lime-600", soft: "bg-lime-50", softBorder: "border-lime-200", text: "text-lime-700", ring: "ring-lime-500", hex: "#dc6b27" },
   MARHALA_8: { grad: "from-fuchsia-500 to-purple-600", gradCss: "linear-gradient(135deg, #d946ef, #9333ea)", solid: "bg-fuchsia-600", soft: "bg-fuchsia-50", softBorder: "border-fuchsia-200", text: "text-fuchsia-700", ring: "ring-fuchsia-500", hex: "#c026d3" },
 };
 
@@ -97,8 +97,8 @@ export const slipStatus = (s?: string | null): SlipStatusCfg =>
 // ── Performance tiers ──
 export function perfTier(perf?: number | null): { label: string; color: string; grad: string } {
   const p = perf || 0;
-  if (p >= 80) return { label: "Excellent", color: "text-emerald-600", grad: "linear-gradient(90deg, #059669, #34d399)" };
-  if (p >= 60) return { label: "Very Good", color: "text-teal-600", grad: "linear-gradient(90deg, #0d9488, #2dd4bf)" };
+  if (p >= 80) return { label: "Excellent", color: "text-emerald-600", grad: "linear-gradient(90deg, #ef9a33, #fcd468)" };
+  if (p >= 60) return { label: "Very Good", color: "text-teal-600", grad: "linear-gradient(90deg, #ef9a33, #fcd468)" };
   if (p >= 40) return { label: "Needs Work", color: "text-amber-600", grad: "linear-gradient(90deg, #d97706, #fbbf24)" };
   return { label: "At Risk", color: "text-red-600", grad: "linear-gradient(90deg, #dc2626, #f87171)" };
 }

@@ -55,13 +55,13 @@ function FatimiProgressRing({ progress, size = 120, strokeWidth = 8 }: { progres
         />
         <defs>
           <linearGradient id="parentFatimiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#047857" />
+            <stop offset="0%" stopColor="#b8541e" />
             <stop offset="100%" stopColor="#d4af37" />
           </linearGradient>
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold" style={{ color: "#047857" }}>{progress}%</span>
+        <span className="text-2xl font-bold" style={{ color: "#b8541e" }}>{progress}%</span>
         <span className="text-xs" style={{ color: "#b8860b" }}>Completed</span>
       </div>
     </div>
@@ -74,9 +74,9 @@ function GeometricPattern() {
       <svg className="w-full h-full" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="parentFatimiPattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
-            <path d="M40 0L80 40L40 80L0 40Z" fill="none" stroke="#047857" strokeWidth="0.5" />
+            <path d="M40 0L80 40L40 80L0 40Z" fill="none" stroke="#b8541e" strokeWidth="0.5" />
             <circle cx="40" cy="40" r="15" fill="none" stroke="#d4af37" strokeWidth="0.5" />
-            <path d="M40 25L55 40L40 55L25 40Z" fill="none" stroke="#047857" strokeWidth="0.3" />
+            <path d="M40 25L55 40L40 55L25 40Z" fill="none" stroke="#b8541e" strokeWidth="0.3" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#parentFatimiPattern)" />
@@ -128,13 +128,13 @@ export default function ParentHifzPage() {
   };
 
   return (
-    <div className="min-h-screen relative" style={{ background: "linear-gradient(135deg, #faf5ff 0%, #ffffff 30%, #f0fdf4 60%, #ecfdf5 100%)" }}>
+    <div className="min-h-screen relative" style={{ background: "linear-gradient(135deg, #faf5ff 0%, #ffffff 30%, #fff8e7 60%, #fff8e7 100%)" }}>
       <GeometricPattern />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         {/* Fatimi Header */}
         <div className="animate-fade-in mb-8">
-          <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 50%, #064e3b 100%)" }}>
+          <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 50%, #8a3e14 100%)" }}>
             <GeometricPattern />
             <div className="absolute top-0 left-0 w-32 h-32 opacity-10">
               <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -227,7 +227,7 @@ export default function ParentHifzPage() {
                 >
                   {/* Card Header with Fatimi gradient */}
                   <div className="h-1.5" style={{
-                    background: progress >= 75 ? "linear-gradient(90deg, #059669, #d4af37)" :
+                    background: progress >= 75 ? "linear-gradient(90deg, #ef9a33, #d4af37)" :
                       progress >= 50 ? "linear-gradient(90deg, #2563eb, #d4af37)" :
                       progress >= 25 ? "linear-gradient(90deg, #6366f1, #d4af37)" :
                       "linear-gradient(90deg, #9ca3af, #d4af37)"
@@ -244,7 +244,7 @@ export default function ParentHifzPage() {
                         <div className="flex items-center gap-4 flex-1">
                           <div className="relative flex-shrink-0">
                             <Avatar className="w-20 h-20 border-3" style={{ borderColor: "#d4af37" }}>
-                              <AvatarFallback className="text-2xl font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37" }}>
+                              <AvatarFallback className="text-2xl font-bold" style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)", color: "#d4af37" }}>
                                 {child.studentName?.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
@@ -304,16 +304,16 @@ export default function ParentHifzPage() {
                     </div>
 
                     {/* Portal Links */}
-                    <div className="mt-4 p-4 rounded-xl border" style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", borderColor: "#a7f3d0" }}>
+                    <div className="mt-4 p-4 rounded-xl border" style={{ background: "linear-gradient(135deg, #fff8e7, #fff8e7)", borderColor: "#f3d9a0" }}>
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium" style={{ color: "#047857" }}>Portal Links</p>
+                        <p className="text-sm font-medium" style={{ color: "#b8541e" }}>Portal Links</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <a
                           href={`/talabat/hifz?studentId=${child.studentId}`}
                           target="_blank"
                           className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-lg text-sm transition-colors border"
-                          style={{ color: "#047857", borderColor: "#a7f3d0" }}
+                          style={{ color: "#b8541e", borderColor: "#f3d9a0" }}
                         >
                           <ExternalLink className="w-4 h-4" />
                           Student Portal
@@ -337,23 +337,23 @@ export default function ParentHifzPage() {
 
                     {/* Expanded Data Table */}
                     {isExpanded && child.parts.length > 0 && (
-                      <div className="mt-4 pt-4 border-t" style={{ borderColor: "#d1fae5" }}>
-                        <h4 className="text-base font-semibold mb-3 flex items-center gap-2" style={{ color: "#047857" }}>
+                      <div className="mt-4 pt-4 border-t" style={{ borderColor: "#fef4dc" }}>
+                        <h4 className="text-base font-semibold mb-3 flex items-center gap-2" style={{ color: "#b8541e" }}>
                           <Calendar className="w-5 h-5" />
                           Part Details
                         </h4>
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm border-collapse">
                             <thead>
-                              <tr style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)" }}>
-                                <th className="py-3 px-4 text-right font-semibold border-b" style={{ color: "#047857", borderColor: "#a7f3d0" }}>Part</th>
-                                <th className="py-3 px-4 text-right font-semibold border-b" style={{ color: "#047857", borderColor: "#a7f3d0" }}>Progress</th>
-                                <th className="py-3 px-4 text-right font-semibold border-b" style={{ color: "#047857", borderColor: "#a7f3d0" }}>Pages</th>
+                              <tr style={{ background: "linear-gradient(135deg, #fff8e7, #fff8e7)" }}>
+                                <th className="py-3 px-4 text-right font-semibold border-b" style={{ color: "#b8541e", borderColor: "#f3d9a0" }}>Part</th>
+                                <th className="py-3 px-4 text-right font-semibold border-b" style={{ color: "#b8541e", borderColor: "#f3d9a0" }}>Progress</th>
+                                <th className="py-3 px-4 text-right font-semibold border-b" style={{ color: "#b8541e", borderColor: "#f3d9a0" }}>Pages</th>
                               </tr>
                             </thead>
                             <tbody>
                               {child.parts.map((part: any) => (
-                                <tr key={part.partNumber} className="border-b hover:bg-gray-50/50" style={{ borderColor: "#f0fdf4" }}>
+                                <tr key={part.partNumber} className="border-b hover:bg-gray-50/50" style={{ borderColor: "#fff8e7" }}>
                                   <td className="py-3 px-4 font-medium">{part.partNumber}</td>
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-2">
@@ -362,7 +362,7 @@ export default function ParentHifzPage() {
                                           className="h-1.5 rounded-full"
                                           style={{
                                             width: `${part.progress}%`,
-                                            background: "linear-gradient(90deg, #047857, #d4af37)"
+                                            background: "linear-gradient(90deg, #b8541e, #d4af37)"
                                           }}
                                         />
                                       </div>

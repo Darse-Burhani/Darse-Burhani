@@ -34,8 +34,8 @@ export const TAKHTEET_STATUS_META: Record<
   },
   COMPLETED: {
     label: "Completed",
-    badge: "bg-emerald-100 text-[#047857] border-emerald-200",
-    bar: "bg-[#047857]",
+    badge: "bg-emerald-100 text-[#b8541e] border-emerald-200",
+    bar: "bg-[#b8541e]",
   },
 };
 

@@ -49,9 +49,9 @@ export function WaitingInterface({
   if (variant === "card") {
     return (
       <div
-        className={`rounded-xl border border-slate-200 dark:border-[#234937] bg-white dark:bg-[#0c1f17] p-8 text-center flex flex-col items-center justify-center ${className}`}
+        className={`rounded-xl border border-slate-200 dark:border-[#2a2a2a] bg-white dark:bg-[#0d0d0d] p-8 text-center flex flex-col items-center justify-center ${className}`}
       >
-        <div className="w-12 h-12 rounded-xl bg-[#122b20] border border-[#234937] p-2 flex items-center justify-center mb-4">
+        <div className="w-12 h-12 rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] p-2 flex items-center justify-center mb-4">
           <img src="/logo.png" alt="Loading" className="w-8 h-8 object-contain" />
         </div>
         <h4 className="text-sm font-bold text-slate-800 dark:text-[#fbf8f2]">{activeMsg}</h4>
@@ -69,7 +69,7 @@ export function WaitingInterface({
       className={`min-h-[70vh] flex flex-col items-center justify-center px-4 py-12 select-none ${className}`}
     >
       <div className="flex flex-col items-center text-center max-w-sm">
-        <div className="w-16 h-16 rounded-xl bg-[#122b20] border border-[#234937] p-2.5 flex items-center justify-center mb-5">
+        <div className="w-16 h-16 rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] p-2.5 flex items-center justify-center mb-5">
           <img
             src="/logo.png"
             alt="Darse Burhani"

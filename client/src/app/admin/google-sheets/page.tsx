@@ -386,7 +386,7 @@ export default function GoogleSheetsAdminPage() {
       />
 
       {/* ── UPPER SIDE: Primary Google Sheet Viewer & Status Cockpit ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-emerald-900/40 bg-white dark:bg-[#062016] p-6 sm:p-8 shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-emerald-900/40 bg-white dark:bg-[#0d0d0d] p-6 sm:p-8 shadow-xl">
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl" />
 
@@ -668,7 +668,7 @@ export default function GoogleSheetsAdminPage() {
       </div>
 
       {/* ── ALL-IN-ONE BATCH SYNC BANNER ── */}
-      <div className="rounded-3xl border border-emerald-300 dark:border-emerald-800/80 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-[#031d14] dark:via-[#05281b] dark:to-[#031d14] p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-3xl border border-emerald-300 dark:border-emerald-800/80 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-[#0d0d0d] dark:via-[#1c1c1c] dark:to-[#0d0d0d] p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
             <Zap className="w-6 h-6" />
@@ -707,7 +707,7 @@ export default function GoogleSheetsAdminPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {/* Card 1: Daily Attendance */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c2219] p-5 shadow-xs flex flex-col justify-between gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141414] p-5 shadow-xs flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -755,7 +755,7 @@ export default function GoogleSheetsAdminPage() {
           </div>
 
           {/* Card 2: Monthly Attendance Register */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c2219] p-5 shadow-xs flex flex-col justify-between gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141414] p-5 shadow-xs flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -803,7 +803,7 @@ export default function GoogleSheetsAdminPage() {
           </div>
 
           {/* Card 3: Manual Roll-Call Attendance */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c2219] p-5 shadow-xs flex flex-col justify-between gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141414] p-5 shadow-xs flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -851,7 +851,7 @@ export default function GoogleSheetsAdminPage() {
           </div>
 
           {/* Card 4: Talabat (Student) Directory */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c2219] p-5 shadow-xs flex flex-col justify-between gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141414] p-5 shadow-xs flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -887,7 +887,7 @@ export default function GoogleSheetsAdminPage() {
           </div>
 
           {/* Card 5: Faculty & Staff Roster */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c2219] p-5 shadow-xs flex flex-col justify-between gap-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141414] p-5 shadow-xs flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">

@@ -22,6 +22,85 @@ export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; emai
   "Shaikh Shabbir bhai Mohsinali bhai Shakir": { its: "20378107", name: "Shaikh Shabbir bhai Mohsinali bhai Shakir", email: "shabbir.shakir@darseburhani.com" },
 };
 
+/**
+ * Read-time canonicalization of teacher display names & avatars.
+ * Any legacy "Manpurwala" naming is always shown as "Mustafa Tailor"
+ * with NO profile picture (per academy display policy).
+ */
+export function canonicalizeTeacherDisplay(
+  name: string | null | undefined,
+  ...avatarCandidates: Array<string | null | undefined>
+): { name: string | null | undefined; avatarUrl: string | null | undefined } {
+  if (name && /manpur/i.test(name)) {
+    return { name: "Mustafa Tailor", avatarUrl: null };
+  }
+  return { name, avatarUrl: avatarCandidates.find((c) => c) ?? null };
+}
+
+export function canonicalizeTeacherName(name: string | null | undefined): string {
+  if (name && /manpur/i.test(name)) return "Mustafa Tailor";
+  return name ?? "";
+}
+
+/**
+ * One-shot database repair (runs at server startup before the slot check):
+ * renames any legacy Mustafa Manpurwala user to "Mustafa Tailor", blanks the
+ * profile picture, points timetable slots at the canonical name, and re-points
+ * ITS so attendance records keep matching.
+ */
+export async function repairMustafaTailorMigration(): Promise<void> {
+  try {
+    const legacyUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { firstName: { contains: "Manpur", mode: "insensitive" } },
+          { lastName: { contains: "Manpur", mode: "insensitive" } },
+          { email: { contains: "manpurwala", mode: "insensitive" } },
+        ],
+      },
+    });
+
+    for (const legacy of legacyUsers) {
+      await prisma.user.update({
+        where: { id: legacy.id },
+        data: {
+          firstName: "Mustafa",
+          lastName: "Tailor",
+          avatarUrl: null,
+          isActive: true,
+        },
+      });
+
+      const profile = await prisma.teacherProfile.findFirst({ where: { userId: legacy.id } });
+      if (profile) {
+        await prisma.teacherProfile.update({
+          where: { id: profile.id },
+          data: { its: "40444603", photoUrl: null },
+        }).catch(() => {});
+        await prisma.timetableSlot.updateMany({
+          where: { teacherId: profile.id },
+          data: { teacherName: "Mustafa Tailor" },
+        }).catch(() => {});
+      }
+
+      console.log(`[timetable:repair] Legacy Manpurwala user ${legacy.id} migrated to Mustafa Tailor (profile picture cleared).`);
+    }
+
+    // Defensive: any slot text still carrying the legacy alias, and the
+    // canonical Mustafa Tailor profile must stay picture-less.
+    await prisma.timetableSlot.updateMany({
+      where: { teacherName: { contains: "Manpur", mode: "insensitive" } },
+      data: { teacherName: "Mustafa Tailor" },
+    }).catch(() => {});
+    await prisma.teacherProfile.updateMany({
+      where: { its: "40444603" },
+      data: { photoUrl: null },
+    }).catch(() => {});
+  } catch (err: any) {
+    console.warn("[timetable:repair] Mustafa Tailor migration skipped:", err?.message || err);
+  }
+}
+
 // Period Timings
 export const PERIOD_TIMES: Record<number, { startTime: string; endTime: string }> = {
   1: { startTime: "10:30", endTime: "11:00" },
@@ -464,6 +543,7 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
   await ensureDatabaseSchema();
 
   // Step 0.5: Self-healing: Ensure Mustafa Manpurwala is replaced by Mustafa Tailor
+  await repairMustafaTailorMigration();
   try {
     const manpurProfile = await prisma.teacherProfile.findFirst({
       where: {
@@ -766,6 +846,7 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
 export async function syncMasterTimetableIfEmpty(): Promise<void> {
   try {
     await ensureDatabaseSchema();
+    await repairMustafaTailorMigration();
     const slotCount = await prisma.timetableSlot.count();
     if (slotCount === 0) {
       console.log("[timetable:startup] 0 timetable slots found. Automatically seeding master timetable...");

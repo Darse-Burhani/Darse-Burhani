@@ -69,7 +69,7 @@ export default function TeacherSettingsPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header Banner */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="fatimi-header-banner relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#034430] via-[#056046] to-[#047857] shadow-xl border border-emerald-500/20 text-white">
+        <div className="fatimi-header-banner relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#1c1c1c] via-[#8a3e14] to-[#b8541e] shadow-xl border border-emerald-500/20 text-white">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#d4af37] to-[#996515] shadow-lg border border-amber-300/40">
               <User className="w-7 h-7 text-white" />
@@ -95,11 +95,11 @@ export default function TeacherSettingsPage() {
         <Card className="rounded-3xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-center gap-4 pb-6 mb-6 border-b border-gray-100">
-              <Avatar className="w-16 h-16 rounded-2xl border-2 border-[#047857] ring-2 ring-emerald-100 shadow-md">
+              <Avatar className="w-16 h-16 rounded-2xl border-2 border-[#b8541e] ring-2 ring-emerald-100 shadow-md">
                 {(user as any)?.avatarUrl || (user as any)?.image ? (
                   <AvatarImage src={(user as any)?.avatarUrl || (user as any)?.image} alt={`${user?.firstName} ${user?.lastName}`} />
                 ) : null}
-                <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#064e3b] text-white font-bold text-xl">
+                <AvatarFallback className="bg-gradient-to-br from-[#b8541e] to-[#8a3e14] text-white font-bold text-xl">
                   {getInitials(user?.firstName || "", user?.lastName || "")}
                 </AvatarFallback>
               </Avatar>

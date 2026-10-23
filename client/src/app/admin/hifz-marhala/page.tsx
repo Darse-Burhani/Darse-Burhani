@@ -232,7 +232,7 @@ function StudentAssignmentCard({
               style={{
                 width: `${report.overallPerformance || 0}%`,
                 background: (report.overallPerformance || 0) >= 60
-                  ? "linear-gradient(90deg, #059669, #10b981)"
+                  ? "linear-gradient(90deg, #ef9a33, #f3b833)"
                   : "linear-gradient(90deg, #d97706, #f59e0b)",
               }}
             />
@@ -894,7 +894,7 @@ export default function AdminHifzMarhalaPage() {
                                         className="h-full rounded-full transition-all duration-700"
                                         style={{
                                           width: `${report.overallPerformance || 0}%`,
-                                          background: (report.overallPerformance || 0) >= 60 ? "#10b981" : "#f59e0b",
+                                          background: (report.overallPerformance || 0) >= 60 ? "#f3b833" : "#f59e0b",
                                         }}
                                       />
                                     </div>

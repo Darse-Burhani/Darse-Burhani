@@ -48,7 +48,7 @@ function ProgressRing({ progress, size = 64, strokeWidth = 5 }: { progress: numb
         <defs>
           <linearGradient id="teacherHifzGrad" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="100%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#f3b833" />
           </linearGradient>
         </defs>
       </svg>
@@ -221,8 +221,8 @@ export default function TeacherHifzPage() {
                 ? Math.round((completedCount / report.parts.length) * 100)
                 : 0;
               const barGrad =
-                progress >= 75 ? "linear-gradient(90deg, #059669, #10b981)" :
-                progress >= 50 ? "linear-gradient(90deg, #0d9488, #2dd4bf)" :
+                progress >= 75 ? "linear-gradient(90deg, #ef9a33, #f3b833)" :
+                progress >= 50 ? "linear-gradient(90deg, #ef9a33, #fcd468)" :
                 progress >= 25 ? "linear-gradient(90deg, #2563eb, #60a5fa)" :
                 "linear-gradient(90deg, #cbd5e1, #e2e8f0)";
 

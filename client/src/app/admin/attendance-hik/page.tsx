@@ -533,7 +533,7 @@ export default function AdminAttendanceHikPage() {
       )}
 
       {/* ── Fatimi Luxury Hero Cockpit (Mobile Adaptive) ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/40 bg-gradient-to-br from-[#021f18] via-[#05372b] to-[#01140f] p-4 sm:p-6 lg:p-8 shadow-[0_16px_40px_rgba(2,31,24,0.45)] text-white">
+      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/40 bg-gradient-to-br from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] p-4 sm:p-6 lg:p-8 shadow-[0_16px_40px_rgba(2,31,24,0.45)] text-white">
         <div className="pointer-events-none absolute -right-16 -bottom-16 w-72 sm:w-96 h-72 sm:h-96 rounded-full bg-[#d4af37]/15 blur-3xl" />
         <div className="pointer-events-none absolute -left-12 -top-12 w-60 sm:w-80 h-60 sm:h-80 rounded-full bg-emerald-500/10 blur-3xl" />
 

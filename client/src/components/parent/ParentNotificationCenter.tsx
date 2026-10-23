@@ -258,7 +258,7 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
               className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 border-l border-emerald-100"
             >
               {/* Drawer Header with Fatimi Motif */}
-              <div className="p-5 bg-gradient-to-r from-[#047857] via-[#065f46] to-[#064e3b] text-white">
+              <div className="p-5 bg-gradient-to-r from-[#b8541e] via-[#8a3e14] to-[#8a3e14] text-white">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300">
@@ -373,7 +373,7 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
 
                           {n.childName && (
                             <div className="mt-2 flex items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#047857]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#b8541e]">
                                 <Heart className="w-2.5 h-2.5 text-rose-500 fill-rose-500" />
                                 {n.childName}
                               </span>

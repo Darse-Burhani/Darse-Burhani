@@ -211,7 +211,7 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
           }
 
           .label {
-            border: 1.5px solid #064e3b;
+            border: 1.5px solid #8a3e14;
             border-radius: 6px;
             padding: 0.08in 0.08in;
             display: flex;
@@ -231,7 +231,7 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #d1fae5;
+            border-bottom: 1px solid #fef4dc;
             padding-bottom: 2px;
             margin-bottom: 4px;
           }
@@ -240,7 +240,7 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
             font-size: 8px;
             font-weight: 800;
             text-transform: uppercase;
-            color: #065f46;
+            color: #8a3e14;
             letter-spacing: 0.5px;
           }
 
@@ -296,9 +296,9 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
             font-family: monospace;
             font-size: 8px;
             font-weight: 800;
-            color: #022c22;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
+            color: #1c1c1c;
+            background: #fff8e7;
+            border: 1px solid #f3d9a0;
             padding: 1px 4px;
             border-radius: 3px;
             display: inline-block;
@@ -340,7 +340,7 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
           .footer-line {
             font-size: 6.5px;
             font-weight: 700;
-            color: #059669;
+            color: #ef9a33;
             text-align: center;
             border-top: 1px dashed #cbd5e1;
             padding-top: 2px;
@@ -387,7 +387,7 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
 
           @media print {
             body { background: white; }
-            .label { border: 1px solid #064e3b; }
+            .label { border: 1px solid #8a3e14; }
           }
         </style>
       </head>

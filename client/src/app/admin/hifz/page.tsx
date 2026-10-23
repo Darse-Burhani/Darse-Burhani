@@ -106,8 +106,8 @@ function PreviewProgressRing({ progress, size = 80, strokeWidth = 7 }: { progres
       <svg width={size} height={size} className="transform -rotate-90">
         <defs>
           <linearGradient id="previewGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#059669" />
-            <stop offset="50%" stopColor="#047857" />
+            <stop offset="0%" stopColor="#ef9a33" />
+            <stop offset="50%" stopColor="#b8541e" />
             <stop offset="100%" stopColor="#d4af37" />
           </linearGradient>
         </defs>
@@ -115,7 +115,7 @@ function PreviewProgressRing({ progress, size = 80, strokeWidth = 7 }: { progres
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="url(#previewGrad)" strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-500" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold" style={{ color: "#047857" }}>{progress}%</span>
+        <span className="text-lg font-bold" style={{ color: "#b8541e" }}>{progress}%</span>
       </div>
     </div>
   );
@@ -473,7 +473,7 @@ export default function AdminHifzPage() {
 
   const generatePrintHtml = (report: any, stats: any) => {
     return `<!DOCTYPE html><html><head><title>Hifz Report - ${report.studentName}</title>
-    <style>@font-face{font-family:'Al-Kanz';src:url('/Al-Kanz.ttf') format('truetype');font-display:swap;}*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:20px;background:#f5f5f5}.card{max-width:600px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1)}.header{background:linear-gradient(135deg,#047857,#065f46);padding:24px;color:white;text-align:center}.header h1{font-family:'Al-Kanz',Arial,sans-serif;font-size:26px;margin-bottom:4px}.header p{font-family:'Al-Kanz',Arial,sans-serif;color:#a7f3d0;font-size:16px}.content{padding:24px}.name{text-align:center;font-size:28px;font-weight:700;margin-bottom:4px}.details{text-align:center;color:#666;font-size:14px;margin-bottom:20px}.progress{text-align:center;margin-bottom:24px}.progress-value{font-size:48px;font-weight:700;color:#047857}.progress-label{font-size:14px;color:#666}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px}.stat{padding:16px;border-radius:12px;text-align:center}.stat.juz{background:#ecfdf5;border:1px solid #a7f3d0}.stat.page{background:#eff6ff;border:1px solid #bfdbfe}.stat.mem{background:#fffbeb;border:1px solid #fde68a}.stat.total{background:#fdf4ff;border:1px solid #e9d5ff}.stat-val{font-size:24px;font-weight:700}.stat.juz .stat-val{color:#047857}.stat.page .stat-val{color:#1d4ed8}.stat.mem .stat-val{color:#b45309}.stat.total .stat-val{color:#7c3aed}.stat-lbl{font-size:12px;color:#666;margin-top:4px}.footer{text-align:center;padding:16px;border-top:1px solid #eee;color:#999;font-size:12px}</style></head><body>
+    <style>@font-face{font-family:'Al-Kanz';src:url('/Al-Kanz.ttf') format('truetype');font-display:swap;}*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:20px;background:#f5f5f5}.card{max-width:600px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1)}.header{background:linear-gradient(135deg,#b8541e,#8a3e14);padding:24px;color:white;text-align:center}.header h1{font-family:'Al-Kanz',Arial,sans-serif;font-size:26px;margin-bottom:4px}.header p{font-family:'Al-Kanz',Arial,sans-serif;color:#f3d9a0;font-size:16px}.content{padding:24px}.name{text-align:center;font-size:28px;font-weight:700;margin-bottom:4px}.details{text-align:center;color:#666;font-size:14px;margin-bottom:20px}.progress{text-align:center;margin-bottom:24px}.progress-value{font-size:48px;font-weight:700;color:#b8541e}.progress-label{font-size:14px;color:#666}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px}.stat{padding:16px;border-radius:12px;text-align:center}.stat.juz{background:#fff8e7;border:1px solid #f3d9a0}.stat.page{background:#eff6ff;border:1px solid #bfdbfe}.stat.mem{background:#fffbeb;border:1px solid #fde68a}.stat.total{background:#fdf4ff;border:1px solid #e9d5ff}.stat-val{font-size:24px;font-weight:700}.stat.juz .stat-val{color:#b8541e}.stat.page .stat-val{color:#1d4ed8}.stat.mem .stat-val{color:#b45309}.stat.total .stat-val{color:#7c3aed}.stat-lbl{font-size:12px;color:#666;margin-top:4px}.footer{text-align:center;padding:16px;border-top:1px solid #eee;color:#999;font-size:12px}</style></head><body>
     <div class="card"><div class="header"><h1>Hifz Report</h1><p>In the name of Allah, the Most Gracious, the Most Merciful</p></div>
     <div class="content"><div class="name">${report.studentName}</div><div class="details">Grade: ${report.studentGrade}${report.studentSection} • ITS: ${report.studentId || 'N/A'}</div>
     <div class="progress"><div class="progress-value">${stats.performancePercent}%</div><div class="progress-label">Overall Performance</div></div>
@@ -585,7 +585,7 @@ export default function AdminHifzPage() {
                     <div className="font-semibold text-gray-900 text-sm">{d}</div>
                     <div className="text-xs text-gray-500">{stats.byDarajah[d]?.total || 0} talabat</div>
                     <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stats.byDarajah[d]?.avgProgress || 0}%`, background: "linear-gradient(90deg, #047857, #d4af37)" }} />
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stats.byDarajah[d]?.avgProgress || 0}%`, background: "linear-gradient(90deg, #b8541e, #d4af37)" }} />
                     </div>
                     <div className="text-xs text-emerald-600 mt-1">{stats.byDarajah[d]?.avgProgress || 0}% avg</div>
                   </div>
@@ -654,7 +654,7 @@ export default function AdminHifzPage() {
                   <span>Importing data...</span><span>{importProgress}%</span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-300" style={{ width: `${importProgress}%`, background: "linear-gradient(90deg, #047857, #d4af37)" }} />
+                  <div className="h-full rounded-full transition-all duration-300" style={{ width: `${importProgress}%`, background: "linear-gradient(90deg, #b8541e, #d4af37)" }} />
                 </div>
               </div>
             )}
@@ -784,7 +784,7 @@ export default function AdminHifzPage() {
                               {isBatchSelected ? <CheckSquare className="w-5 h-5 text-blue-600" /> : <Square className="w-5 h-5 text-gray-400" />}
                             </div>
                             <Avatar className="w-10 h-10 border-2" style={{ borderColor: "#d4af37" }}>
-                              <AvatarFallback className="text-sm font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37", fontFamily: "'Al-Kanz', sans-serif" }}>
+                              <AvatarFallback className="text-sm font-bold" style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)", color: "#d4af37", fontFamily: "'Al-Kanz', sans-serif" }}>
                                 {report.studentName.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
@@ -804,7 +804,7 @@ export default function AdminHifzPage() {
                             <span>{completedParts}/30 parts</span><span>{progress}%</span>
                           </div>
                           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #047857, #d4af37)" }} />
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #b8541e, #d4af37)" }} />
                           </div>
                         </div>
 
@@ -852,7 +852,7 @@ export default function AdminHifzPage() {
                               {isBatchSelected ? <CheckSquare className="w-5 h-5 text-blue-600" /> : <Square className="w-5 h-5 text-gray-400" />}
                             </div>
                             <Avatar className="w-10 h-10 border-2" style={{ borderColor: "#d4af37" }}>
-                              <AvatarFallback className="text-sm font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37", fontFamily: "'Al-Kanz', sans-serif" }}>
+                              <AvatarFallback className="text-sm font-bold" style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)", color: "#d4af37", fontFamily: "'Al-Kanz', sans-serif" }}>
                                 {report.studentName.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
@@ -867,7 +867,7 @@ export default function AdminHifzPage() {
                                 <span>{completedParts}/30</span><span>{progress}%</span>
                               </div>
                               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #047857, #d4af37)" }} />
+                                <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #b8541e, #d4af37)" }} />
                               </div>
                             </div>
                             <div className="flex gap-1">
@@ -914,7 +914,7 @@ export default function AdminHifzPage() {
                   {/* Profile Summary */}
                   <div className="flex items-center gap-4">
                     <Avatar className="w-14 h-14 border-2" style={{ borderColor: "#d4af37" }}>
-                      <AvatarFallback className="text-lg font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37", fontFamily: "'Al-Kanz', sans-serif" }}>
+                      <AvatarFallback className="text-lg font-bold" style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)", color: "#d4af37", fontFamily: "'Al-Kanz', sans-serif" }}>
                         {selectedReport.studentName.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
@@ -930,22 +930,22 @@ export default function AdminHifzPage() {
                 </div>
 
                 {/* Detail Content */}
-                <div className="max-h-[calc(100vh-280px)] overflow-y-auto" style={{ background: "linear-gradient(135deg, #f0fdf4, #ffffff, #ecfdf5)" }}>
+                <div className="max-h-[calc(100vh-280px)] overflow-y-auto" style={{ background: "linear-gradient(135deg, #fff8e7, #ffffff, #fff8e7)" }}>
                   <div className="p-4 space-y-4">
                     {/* Performance Progress */}
-                    <div className="flex items-center justify-center p-4 rounded-xl" style={{ background: "linear-gradient(135deg, #ecfdf5, #d1fae5)", border: "1px solid #a7f3d0" }}>
+                    <div className="flex items-center justify-center p-4 rounded-xl" style={{ background: "linear-gradient(135deg, #fff8e7, #fef4dc)", border: "1px solid #f3d9a0" }}>
                       <div className="text-center">
-                        <p className="text-4xl font-bold" style={{ color: "#047857" }}>{getPreviewStats(selectedReport).performancePercent}%</p>
-                        <p className="text-sm mt-1" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>نسبة الأداء العامة</p>
+                        <p className="text-4xl font-bold" style={{ color: "#b8541e" }}>{getPreviewStats(selectedReport).performancePercent}%</p>
+                        <p className="text-sm mt-1" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>نسبة الأداء العامة</p>
                         <p className="text-xs text-gray-500">Overall Performance</p>
                       </div>
                     </div>
 
                     {/* Stats - Sheet Columns F, G, H */}
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="p-3 rounded-lg text-center" style={{ background: "linear-gradient(135deg, #ecfdf5, #d1fae5)", border: "1px solid #a7f3d0" }}>
-                        <p className="text-xl font-bold" style={{ color: "#047857" }}>{getPreviewStats(selectedReport).currentJuz}</p>
-                        <p className="text-xs" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>الجزء الحالي</p>
+                      <div className="p-3 rounded-lg text-center" style={{ background: "linear-gradient(135deg, #fff8e7, #fef4dc)", border: "1px solid #f3d9a0" }}>
+                        <p className="text-xl font-bold" style={{ color: "#b8541e" }}>{getPreviewStats(selectedReport).currentJuz}</p>
+                        <p className="text-xs" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>الجزء الحالي</p>
                         <p className="text-[10px] text-gray-400">Current Juz</p>
                       </div>
                       <div className="p-3 rounded-lg text-center" style={{ background: "linear-gradient(135deg, #eff6ff, #dbeafe)", border: "1px solid #bfdbfe" }}>
@@ -962,9 +962,9 @@ export default function AdminHifzPage() {
 
                     {/* Status Summary */}
                     <div className="grid grid-cols-4 gap-2">
-                      <div className="p-2 rounded-lg text-center" style={{ background: "#d1fae5", border: "1px solid #a7f3d0" }}>
-                        <p className="text-lg font-bold" style={{ color: "#047857" }}>{getPreviewStats(selectedReport).completed}</p>
-                        <p className="text-[10px]" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>Completed</p>
+                      <div className="p-2 rounded-lg text-center" style={{ background: "#fef4dc", border: "1px solid #f3d9a0" }}>
+                        <p className="text-lg font-bold" style={{ color: "#b8541e" }}>{getPreviewStats(selectedReport).completed}</p>
+                        <p className="text-[10px]" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>Completed</p>
                       </div>
                       <div className="p-2 rounded-lg text-center" style={{ background: "#dbeafe", border: "1px solid #bfdbfe" }}>
                         <p className="text-lg font-bold" style={{ color: "#1d4ed8" }}>{getPreviewStats(selectedReport).inProgress}</p>
@@ -982,7 +982,7 @@ export default function AdminHifzPage() {
 
                     {/* Parts List */}
                     <div className="space-y-2">
-                      <h4 className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>
+                      <h4 className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>
                         <BookOpen className="w-3.5 h-3.5" /> Part Details
                       </h4>
 
@@ -991,10 +991,10 @@ export default function AdminHifzPage() {
                         const isEditing = editingPartId === part.id;
 
                         return (
-                          <div key={part.id} className={`rounded-lg overflow-hidden transition-all duration-200 ${part.isHidden ? "opacity-50" : ""}`} style={{ border: `1px solid ${part.isHidden ? "#fde68a" : part.status === "COMPLETED" ? "#a7f3d0" : part.status === "IN_PROGRESS" ? "#bfdbfe" : "#e5e7eb"}` }}>
+                          <div key={part.id} className={`rounded-lg overflow-hidden transition-all duration-200 ${part.isHidden ? "opacity-50" : ""}`} style={{ border: `1px solid ${part.isHidden ? "#fde68a" : part.status === "COMPLETED" ? "#f3d9a0" : part.status === "IN_PROGRESS" ? "#bfdbfe" : "#e5e7eb"}` }}>
                             <div className="flex items-center justify-between p-3">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xs" style={{ background: part.isHidden ? "linear-gradient(135deg, #f59e0b, #d97706)" : part.status === "COMPLETED" ? "linear-gradient(135deg, #059669, #047857)" : part.status === "IN_PROGRESS" ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "linear-gradient(135deg, #9ca3af, #6b7280)" }}>
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xs" style={{ background: part.isHidden ? "linear-gradient(135deg, #f59e0b, #d97706)" : part.status === "COMPLETED" ? "linear-gradient(135deg, #ef9a33, #b8541e)" : part.status === "IN_PROGRESS" ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "linear-gradient(135deg, #9ca3af, #6b7280)" }}>
                                   {part.isHidden ? <EyeOff className="w-3 h-3" /> : part.partNumber}
                                 </div>
                                 <div>
@@ -1018,11 +1018,11 @@ export default function AdminHifzPage() {
                             </div>
 
                             {isEditing && (
-                              <div className="p-3 border-t" style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", borderColor: "#d1fae5" }}>
+                              <div className="p-3 border-t" style={{ background: "linear-gradient(135deg, #fff8e7, #fff8e7)", borderColor: "#fef4dc" }}>
                                 <div className="grid grid-cols-2 gap-2 mb-2">
                                   <div>
-                                    <label htmlFor="editPartStatus" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>الحالة - Status</label>
-                                    <select id="editPartStatus" name="editPartStatus" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#a7f3d0" }} value={editPartForm.status} onChange={(e) => setEditPartForm({ ...editPartForm, status: e.target.value })}>
+                                    <label htmlFor="editPartStatus" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>الحالة - Status</label>
+                                    <select id="editPartStatus" name="editPartStatus" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#f3d9a0" }} value={editPartForm.status} onChange={(e) => setEditPartForm({ ...editPartForm, status: e.target.value })}>
                                       <option value="NOT_STARTED">لم يبدأ - Not Started</option>
                                       <option value="IN_PROGRESS">In Progress</option>
                                       <option value="COMPLETED">Completed</option>
@@ -1031,32 +1031,32 @@ export default function AdminHifzPage() {
                                     </select>
                                   </div>
                                   <div>
-                                    <label htmlFor="editPartProgress" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>التقدم % - Progress</label>
-                                    <input type="number" id="editPartProgress" name="editPartProgress" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#a7f3d0" }} value={editPartForm.progress} onChange={(e) => setEditPartForm({ ...editPartForm, progress: parseInt(e.target.value) || 0 })} min={0} max={100} />
+                                    <label htmlFor="editPartProgress" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>التقدم % - Progress</label>
+                                    <input type="number" id="editPartProgress" name="editPartProgress" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#f3d9a0" }} value={editPartForm.progress} onChange={(e) => setEditPartForm({ ...editPartForm, progress: parseInt(e.target.value) || 0 })} min={0} max={100} />
                                   </div>
                                   <div>
-                                    <label htmlFor="editPartReviewCount" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>المراجعات - Reviews</label>
-                                    <input type="number" id="editPartReviewCount" name="editPartReviewCount" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#a7f3d0" }} value={editPartForm.reviewCount} onChange={(e) => setEditPartForm({ ...editPartForm, reviewCount: parseInt(e.target.value) || 0 })} />
+                                    <label htmlFor="editPartReviewCount" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>المراجعات - Reviews</label>
+                                    <input type="number" id="editPartReviewCount" name="editPartReviewCount" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#f3d9a0" }} value={editPartForm.reviewCount} onChange={(e) => setEditPartForm({ ...editPartForm, reviewCount: parseInt(e.target.value) || 0 })} />
                                   </div>
                                   <div>
-                                    <label htmlFor="editPartSentences" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>الجمل - Sentences</label>
-                                    <input type="number" id="editPartSentences" name="editPartSentences" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#a7f3d0" }} value={editPartForm.sentencesMemorized} onChange={(e) => setEditPartForm({ ...editPartForm, sentencesMemorized: parseInt(e.target.value) || 0 })} />
+                                    <label htmlFor="editPartSentences" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>الجمل - Sentences</label>
+                                    <input type="number" id="editPartSentences" name="editPartSentences" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#f3d9a0" }} value={editPartForm.sentencesMemorized} onChange={(e) => setEditPartForm({ ...editPartForm, sentencesMemorized: parseInt(e.target.value) || 0 })} />
                                   </div>
                                   <div>
-                                    <label htmlFor="editPartPages" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>الصفحات - Pages</label>
-                                    <input type="number" id="editPartPages" name="editPartPages" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#a7f3d0" }} value={editPartForm.currentPage} onChange={(e) => setEditPartForm({ ...editPartForm, currentPage: parseInt(e.target.value) || 0 })} />
+                                    <label htmlFor="editPartPages" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>الصفحات - Pages</label>
+                                    <input type="number" id="editPartPages" name="editPartPages" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#f3d9a0" }} value={editPartForm.currentPage} onChange={(e) => setEditPartForm({ ...editPartForm, currentPage: parseInt(e.target.value) || 0 })} />
                                   </div>
                                   <div>
-                                    <label htmlFor="editPartFirm" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>التثبيت - Firm</label>
-                                    <input type="number" id="editPartFirm" name="editPartFirm" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#a7f3d0" }} value={editPartForm.firmProgress} onChange={(e) => setEditPartForm({ ...editPartForm, firmProgress: parseInt(e.target.value) || 0 })} />
+                                    <label htmlFor="editPartFirm" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>التثبيت - Firm</label>
+                                    <input type="number" id="editPartFirm" name="editPartFirm" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none" style={{ borderColor: "#f3d9a0" }} value={editPartForm.firmProgress} onChange={(e) => setEditPartForm({ ...editPartForm, firmProgress: parseInt(e.target.value) || 0 })} />
                                   </div>
                                 </div>
                                 <div className="mb-2">
-                                  <label htmlFor="editPartNotes" className="text-[10px] mb-0.5 block" style={{ color: "#047857", fontFamily: "'Al-Kanz', sans-serif" }}>ملاحظات - Notes</label>
-                                  <textarea id="editPartNotes" name="editPartNotes" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none resize-none h-10" style={{ borderColor: "#a7f3d0" }} value={editPartForm.notes} onChange={(e) => setEditPartForm({ ...editPartForm, notes: e.target.value })} />
+                                  <label htmlFor="editPartNotes" className="text-[10px] mb-0.5 block" style={{ color: "#b8541e", fontFamily: "'Al-Kanz', sans-serif" }}>ملاحظات - Notes</label>
+                                  <textarea id="editPartNotes" name="editPartNotes" className="w-full px-2 py-1.5 rounded-lg border text-xs outline-none resize-none h-10" style={{ borderColor: "#f3d9a0" }} value={editPartForm.notes} onChange={(e) => setEditPartForm({ ...editPartForm, notes: e.target.value })} />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <Button size="sm" className="h-7 text-[10px] text-white" style={{ background: "linear-gradient(135deg, #047857, #065f46)", fontFamily: "'Al-Kanz', sans-serif" }} onClick={() => handleSavePart(selectedReport.id, part.id)} disabled={saving === `part-${part.id}`}>
+                                  <Button size="sm" className="h-7 text-[10px] text-white" style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)", fontFamily: "'Al-Kanz', sans-serif" }} onClick={() => handleSavePart(selectedReport.id, part.id)} disabled={saving === `part-${part.id}`}>
                                     {saving === `part-${part.id}` ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />} Save
                                   </Button>
                                   <Button variant="ghost" size="sm" className="h-7 text-[10px] text-gray-500" onClick={() => setEditingPartId(null)}>Cancel</Button>

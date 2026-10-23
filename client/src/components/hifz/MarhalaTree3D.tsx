@@ -210,7 +210,7 @@ function CameraRig() {
   return null;
 }
 
-const FOLIAGE_GREENS = ["#2f7d3b", "#3d9950", "#27662f"];
+const FOLIAGE_GREENS = ["#b8541e", "#dc6b27", "#b8541e"];
 
 function Ground() {
   return (
@@ -223,7 +223,7 @@ function Ground() {
       {/* lawn */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <circleGeometry args={[9.6, 64]} />
-        <meshStandardMaterial color="#58a55c" roughness={1} />
+        <meshStandardMaterial color="#dc6b27" roughness={1} />
       </mesh>
       {/* lawn mowing rings */}
       {[3.2, 5.4, 7.6].map((r) => (
@@ -445,7 +445,7 @@ export default function MarhalaTree3D({ branches, selected, onSelect, academicYe
       <color attach="background" args={["#e9f0f6"]} />
       <fog attach="fog" args={["#e9f0f6", 18, 36]} />
       {/* natural daylight */}
-      <hemisphereLight args={["#e0f2fe", "#4d7c5f", 0.65]} />
+      <hemisphereLight args={["#e0f2fe", "#b8541e", 0.65]} />
       <ambientLight intensity={0.35} />
       <directionalLight
         position={[6, 10, 6]}

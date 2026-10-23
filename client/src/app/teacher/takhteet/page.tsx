@@ -124,7 +124,7 @@ export default function TeacherTakhteetPage() {
             { title: "Total Portions", value: stats.total, color: "bg-indigo-100 text-indigo-600" },
             { title: "Due This Month", value: currentPlans.length, color: "bg-amber-100 text-amber-600" },
             { title: "In Progress", value: stats.inProgress, color: "bg-amber-100 text-amber-600" },
-            { title: "Completed", value: stats.completed, color: "bg-emerald-100 text-[#047857]" },
+            { title: "Completed", value: stats.completed, color: "bg-emerald-100 text-[#b8541e]" },
           ].map((stat) => (
             <Card key={stat.title} className="fatimi-card hover:shadow-md transition-shadow">
               <div className="fatimi-card-header" />
@@ -198,7 +198,7 @@ export default function TeacherTakhteetPage() {
                       </div>
 
                       <div className="flex gap-2 shrink-0">
-                        <Button variant="outline" size="sm" className="border-emerald-200/60 text-[#047857] hover:bg-emerald-50" onClick={() => openUpdateModal(p)}>
+                        <Button variant="outline" size="sm" className="border-emerald-200/60 text-[#b8541e] hover:bg-emerald-50" onClick={() => openUpdateModal(p)}>
                           <Pencil className="w-3 h-3 mr-1" /> Update Progress
                         </Button>
                       </div>
@@ -255,7 +255,7 @@ export default function TeacherTakhteetPage() {
               </div>
               <div>
                 <label htmlFor="up-progress" className="text-sm font-medium text-gray-700">Progress: {updateForm.progress}%</label>
-                <input id="up-progress" name="progress" type="range" min={0} max={100} step={5} className="w-full mt-2 accent-[#047857]" value={updateForm.progress} onChange={(e) => setUpdateForm({ ...updateForm, progress: e.target.value })} />
+                <input id="up-progress" name="progress" type="range" min={0} max={100} step={5} className="w-full mt-2 accent-[#b8541e]" value={updateForm.progress} onChange={(e) => setUpdateForm({ ...updateForm, progress: e.target.value })} />
               </div>
               <div>
                 <label htmlFor="up-note" className="text-sm font-medium text-gray-700">Note (optional)</label>

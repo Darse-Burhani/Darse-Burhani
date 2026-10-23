@@ -51,7 +51,7 @@ interface LibraryShelf360Props {
 const COLOR_HEX: Record<string, string> = {
   Red: "#ef4444",
   Blue: "#3b82f6",
-  Green: "#22c55e",
+  Green: "#f3b833",
   Yellow: "#eab308",
   Orange: "#f97316",
   Purple: "#a855f7",
@@ -69,7 +69,7 @@ const BOOK_GAP = 0.045;
 const BOOK_H_MIN = 0.52;
 const BOOK_H_STEP = 0.13;
 const MAX_BOOKS = 10;
-const DEFAULT_COLOR = "#10b981";
+const DEFAULT_COLOR = "#f3b833";
 
 function shelfHex(shelf: Shelf360Data): string {
   return COLOR_HEX[shelf.locationColor ?? ""] ?? DEFAULT_COLOR;
@@ -1122,7 +1122,7 @@ export default function LibraryShelf360({
         {/* Legend */}
         <div className="absolute bottom-3 right-3 z-20 hidden flex-col gap-1.5 rounded-xl border border-gray-200 bg-white/85 px-3.5 py-2.5 text-[11px] text-gray-600 shadow-lg backdrop-blur sm:flex">
           <span className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-sm" style={{ background: "#10b981" }} />
+            <span className="h-3 w-3 rounded-sm" style={{ background: "#f3b833" }} />
             Available (coloured spine)
           </span>
           <span className="flex items-center gap-2">

@@ -263,13 +263,13 @@ _Dar-e-Burhani — Quran Memorization Progress Tracker_`,
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;background:#f8fafc}
       .ar{font-family:'Al-Kanz',Arial,sans-serif;direction:rtl;unicode-bidi:isolate}
-      .bracket-ar{font-family:'Al-Kanz',Arial,sans-serif;unicode-bidi:isolate;color:#047857}
+      .bracket-ar{font-family:'Al-Kanz',Arial,sans-serif;unicode-bidi:isolate;color:#b8541e}
       .card{max-width:640px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-      .hdr{background:linear-gradient(135deg,#065f46,#022c22);color:#fff;padding:26px;text-align:center;position:relative}
+      .hdr{background:linear-gradient(135deg,#8a3e14,#1c1c1c);color:#fff;padding:26px;text-align:center;position:relative}
       .hdr:after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#d4af37,transparent)}
       .hdr h1{font-size:22px;letter-spacing:.5px}
       .hdr h1 .ar{font-size:26px}
-      .hdr p{color:#a7f3d0;font-size:12px;margin-top:4px}
+      .hdr p{color:#f3d9a0;font-size:12px;margin-top:4px}
       .bd{padding:24px}
       .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
       .row:last-child{border-bottom:none}
@@ -278,14 +278,14 @@ _Dar-e-Burhani — Quran Memorization Progress Tracker_`,
       .val{font-weight:700;color:#0f172a}
       .val .bracket-ar{font-size:15px}
       .sec{margin-top:18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px}
-      .sec h3{font-size:13px;color:#065f46;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+      .sec h3{font-size:13px;color:#8a3e14;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
       .sec h3 .bracket-ar{text-transform:none;letter-spacing:0;font-size:14px}
       .marks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
       .mk{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center}
-      .mk b{display:block;font-size:20px;color:#065f46}
+      .mk b{display:block;font-size:20px;color:#8a3e14}
       .mk span{font-size:11px;color:#64748b}
-      .mk .bracket-ar{display:block;font-size:12px;color:#047857;margin-top:2px}
-      .tot{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#065f46,#047857);color:#fff;border-radius:12px;padding:14px 18px;margin-top:14px}
+      .mk .bracket-ar{display:block;font-size:12px;color:#b8541e;margin-top:2px}
+      .tot{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#8a3e14,#b8541e);color:#fff;border-radius:12px;padding:14px 18px;margin-top:14px}
       .tot .pct{font-size:24px;font-weight:800;color:#fcd34d}
       .note{margin-top:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:13px;color:#78350f}
       .ft{text-align:center;padding:14px;color:#94a3b8;font-size:11px;border-top:1px solid #f1f5f9}

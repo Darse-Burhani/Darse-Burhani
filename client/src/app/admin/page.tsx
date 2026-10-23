@@ -152,7 +152,7 @@ export default function AdminDashboard() {
           value: o.totalStudents.toLocaleString(),
           change: "Directory",
           icon: GraduationCap,
-          iconBg: "bg-emerald-50 text-[#047857] border border-emerald-200/60",
+          iconBg: "bg-emerald-50 text-[#b8541e] border border-emerald-200/60",
           href: "/admin/students",
           subtitle: "Registered learners",
         },
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
           value: o.attendanceRate,
           change: `${o.presentToday} Present`,
           icon: Clock,
-          iconBg: "bg-emerald-50 text-[#047857] border border-emerald-200/60",
+          iconBg: "bg-emerald-50 text-[#b8541e] border border-emerald-200/60",
           href: "/admin/biometric",
           subtitle: "Today's scans",
         },
@@ -188,7 +188,7 @@ export default function AdminDashboard() {
           value: o.atRiskCount.toString(),
           change: o.atRiskCount > 0 ? "Review" : "All Clear",
           icon: AlertTriangle,
-          iconBg: o.atRiskCount > 0 ? "bg-red-50 text-red-600 border border-red-200/60" : "bg-emerald-50 text-[#047857] border border-emerald-200/60",
+          iconBg: o.atRiskCount > 0 ? "bg-red-50 text-red-600 border border-red-200/60" : "bg-emerald-50 text-[#b8541e] border border-emerald-200/60",
           href: "/admin/tracking",
           subtitle: "Needs intervention",
         },
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
         <div className="p-1.5 rounded-2xl bg-emerald-950/15 ring-1 ring-emerald-900/25 shadow-xl">
           <div
             className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white"
-            style={{ background: "linear-gradient(135deg, #022c22 0%, #047857 55%, #065f46 100%)" }}
+            style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #b8541e 55%, #8a3e14 100%)" }}
           >
             {/* Top glowing hairline */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
@@ -420,7 +420,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                  style={{ background: "linear-gradient(135deg, #022c22, #047857)" }}
+                  style={{ background: "linear-gradient(135deg, #1c1c1c, #b8541e)" }}
                 >
                   <Activity className="w-5 h-5 text-amber-300" />
                 </div>
@@ -508,7 +508,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-3">
           <div
             className="h-7 w-1.5 rounded-full"
-            style={{ background: "linear-gradient(180deg, #d4af37, #047857)" }}
+            style={{ background: "linear-gradient(180deg, #d4af37, #b8541e)" }}
           />
           <div>
             <h2 className="font-display text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -529,7 +529,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
-                    style={{ background: "linear-gradient(135deg, #022c22, #047857)" }}
+                    style={{ background: "linear-gradient(135deg, #1c1c1c, #b8541e)" }}
                   >
                     <Fingerprint className="w-5 h-5 text-amber-300" />
                   </div>
@@ -762,7 +762,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
-                    style={{ background: "linear-gradient(135deg, #064e3b, #047857)" }}
+                    style={{ background: "linear-gradient(135deg, #8a3e14, #b8541e)" }}
                   >
                     <ShieldCheck className="w-5 h-5 text-amber-300" />
                   </div>
@@ -855,14 +855,14 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-emerald-50 text-[#047857] border border-emerald-200/60">
+                    <div className="p-2 rounded-xl bg-emerald-50 text-[#b8541e] border border-emerald-200/60">
                       <Clock className="w-4 h-4" />
                     </div>
                     <h3 className="font-display font-bold text-gray-900 text-sm">Today's Attendance</h3>
                   </div>
                   <Link
                     href="/admin/biometric"
-                    className="text-xs text-[#047857] hover:underline font-bold flex items-center gap-1"
+                    className="text-xs text-[#b8541e] hover:underline font-bold flex items-center gap-1"
                   >
                     Live Logs <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
@@ -873,7 +873,7 @@ export default function AdminDashboard() {
                     <div className="flex rounded-full overflow-hidden h-3 bg-gray-100">
                       {o.presentToday > 0 && (
                         <div
-                          className="bg-[#047857] transition-all"
+                          className="bg-[#b8541e] transition-all"
                           style={{ width: `${(o.presentToday / o.totalAttendanceRecords) * 100}%` }}
                         />
                       )}
@@ -899,7 +899,7 @@ export default function AdminDashboard() {
 
                     <div className="grid grid-cols-2 gap-2.5">
                       {[
-                        { label: "Present", count: o.presentToday, color: "bg-[#047857]" },
+                        { label: "Present", count: o.presentToday, color: "bg-[#b8541e]" },
                         { label: "Late Arrivals", count: o.lateToday, color: "bg-amber-500" },
                         { label: "Absent", count: o.absentToday, color: "bg-red-500" },
                         { label: "Early Departures", count: o.earlyDepartureToday, color: "bg-orange-500" },
@@ -914,7 +914,7 @@ export default function AdminDashboard() {
 
                     <div className="pt-2 flex items-center justify-between text-xs">
                       <span className="text-gray-500 font-medium">Overall Campus Turnout</span>
-                      <span className="font-bold text-[#047857] text-sm num-tabular">{o.attendanceRate}</span>
+                      <span className="font-bold text-[#b8541e] text-sm num-tabular">{o.attendanceRate}</span>
                     </div>
                   </div>
                 ) : (
@@ -978,7 +978,7 @@ export default function AdminDashboard() {
                   <div className="text-center py-6">
                     <div
                       className="w-11 h-11 rounded-full flex items-center justify-center mx-auto mb-2.5"
-                      style={{ background: "linear-gradient(135deg, #ecfdf5, #d1fae5)" }}
+                      style={{ background: "linear-gradient(135deg, #fff8e7, #fef4dc)" }}
                     >
                       <ShieldCheck className="w-5 h-5 text-emerald-700" />
                     </div>
@@ -1128,7 +1128,7 @@ export default function AdminDashboard() {
                                 ? "linear-gradient(135deg, #d4af37, #b8972e)"
                                 : i === 1
                                 ? "linear-gradient(135deg, #94a3b8, #64748b)"
-                                : "linear-gradient(135deg, #047857, #064e3b)",
+                                : "linear-gradient(135deg, #b8541e, #8a3e14)",
                           }}
                         >
                           {i + 1}

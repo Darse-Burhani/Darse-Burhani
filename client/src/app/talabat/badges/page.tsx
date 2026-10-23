@@ -52,7 +52,7 @@ export default function TalabatBadgesPage() {
           {earned.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-[#047857]" /> Earned ({earned.length})
+                <CheckCircle className="w-5 h-5 text-[#b8541e]" /> Earned ({earned.length})
               </h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {earned.map((badge, i) => (

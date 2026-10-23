@@ -79,7 +79,7 @@ export function GoogleSheetSyncCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-[#06241a] via-[#093527] to-[#041d14] p-5 sm:p-6 text-white shadow-xl shadow-emerald-950/25 ${className}`}
+      className={`relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-[#1c1c1c] via-[#1c1c1c] to-[#0d0d0d] p-5 sm:p-6 text-white shadow-xl shadow-emerald-950/25 ${className}`}
     >
       {/* Decorative radial glows */}
       <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-emerald-500/15 blur-3xl" />

@@ -260,7 +260,7 @@ export default function AdminAssignTalabatPage() {
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div
           className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl"
-          style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 50%, #064e3b 100%)" }}
+          style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 50%, #8a3e14 100%)" }}
         >
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -419,7 +419,7 @@ export default function AdminAssignTalabatPage() {
                       {/* Assign Button */}
                       <Button
                         size="sm"
-                        className="bg-[#047857] hover:bg-[#065f46] text-white font-semibold shadow-sm shrink-0 self-end sm:self-center"
+                        className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-semibold shadow-sm shrink-0 self-end sm:self-center"
                         onClick={() => openAssignModal(parent)}
                       >
                         <UserPlus className="w-4 h-4 mr-1.5" />

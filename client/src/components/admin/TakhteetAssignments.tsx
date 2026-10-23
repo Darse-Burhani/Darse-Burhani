@@ -87,7 +87,7 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
         <CardHeader className="border-b border-gray-100 pb-4">
           <CardTitle className="flex items-center justify-between text-base font-bold text-gray-900">
             <span className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-[#047857]" /> Class & Subject Teacher Assignments
+              <BookOpen className="w-5 h-5 text-[#b8541e]" /> Class & Subject Teacher Assignments
             </span>
             <Badge variant="secondary" className="text-xs">
               {classes.length} Total Classes
@@ -120,7 +120,7 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
                       <td className="py-3 px-3">
                         {c.teacherUserId ? (
                           <span className="inline-flex items-center gap-1.5 font-medium text-gray-800 bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-md text-xs border border-emerald-100">
-                            <User className="w-3.5 h-3.5 text-[#047857]" /> {c.teacherName}
+                            <User className="w-3.5 h-3.5 text-[#b8541e]" /> {c.teacherName}
                           </span>
                         ) : (
                           <Badge variant="destructive" className="text-[10px] font-bold">
@@ -153,7 +153,7 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
         <ModalContent className="max-w-lg">
           <ModalHeader>
             <ModalTitle className="flex items-center gap-2 text-gray-900">
-              <div className="w-8 h-8 rounded-xl bg-[#047857] flex items-center justify-center text-white">
+              <div className="w-8 h-8 rounded-xl bg-[#b8541e] flex items-center justify-center text-white">
                 <Pencil className="w-4 h-4" />
               </div>
               Assign Subject & Teacher
@@ -226,7 +226,7 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#047857] hover:bg-[#065f46] text-white font-medium shadow-sm"
+              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium shadow-sm"
               onClick={handleSave}
               disabled={saving || !form?.teacherId}
             >

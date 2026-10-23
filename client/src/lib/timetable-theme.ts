@@ -26,7 +26,7 @@ export const SUBJECT_PALETTE: Record<string, SubjectTheme> = {
     text: "text-emerald-950",
     badge: "bg-emerald-600 text-white",
     dot: "bg-emerald-500",
-    accent: "#059669",
+    accent: "#ef9a33",
   },
   quran: {
     id: "quran",
@@ -37,7 +37,7 @@ export const SUBJECT_PALETTE: Record<string, SubjectTheme> = {
     text: "text-emerald-950",
     badge: "bg-emerald-600 text-white",
     dot: "bg-emerald-500",
-    accent: "#059669",
+    accent: "#ef9a33",
   },
   qasaid: {
     id: "qasaid",
@@ -81,7 +81,7 @@ export const SUBJECT_PALETTE: Record<string, SubjectTheme> = {
     text: "text-teal-950",
     badge: "bg-teal-600 text-white",
     dot: "bg-teal-500",
-    accent: "#0d9488",
+    accent: "#ef9a33",
   },
   "kitab al-iqtisar": {
     id: "kitab-al-iqtisar",
@@ -136,7 +136,7 @@ export const SUBJECT_PALETTE: Record<string, SubjectTheme> = {
     text: "text-emerald-950",
     badge: "bg-emerald-700 text-white",
     dot: "bg-emerald-600",
-    accent: "#047857",
+    accent: "#b8541e",
   },
 
   // Language & Expression
@@ -206,7 +206,7 @@ export const SUBJECT_PALETTE: Record<string, SubjectTheme> = {
     text: "text-lime-950",
     badge: "bg-lime-600 text-slate-950 font-bold",
     dot: "bg-lime-500",
-    accent: "#65a30d",
+    accent: "#dc6b27",
   },
   maths: {
     id: "maths",
@@ -250,7 +250,7 @@ export const SUBJECT_PALETTE: Record<string, SubjectTheme> = {
     text: "text-emerald-950",
     badge: "bg-emerald-700 text-white",
     dot: "bg-emerald-500",
-    accent: "#15803d",
+    accent: "#b8541e",
   },
   english: {
     id: "english",
@@ -325,7 +325,7 @@ export function getSubjectTheme(rawName: string = ""): SubjectTheme {
       text: "text-teal-950",
       badge: "bg-teal-600 text-white",
       dot: "bg-teal-500",
-      accent: "#0d9488",
+      accent: "#ef9a33",
     },
     {
       bgLight: "bg-indigo-50/90",

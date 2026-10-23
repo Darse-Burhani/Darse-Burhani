@@ -24,7 +24,7 @@ export function SkeletonBlock({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-md bg-slate-200/70 dark:bg-[#173628] animate-pulse",
+        "rounded-md bg-slate-200/70 dark:bg-[#1c1c1c] animate-pulse",
         className,
       )}
     />
@@ -33,7 +33,7 @@ export function SkeletonBlock({ className }: { className?: string }) {
 
 export function StatsCardSkeleton() {
   return (
-    <div className="p-5 rounded-2xl bg-white dark:bg-[#021e17]/80 border border-gray-100 dark:border-white/10 shadow-sm space-y-3">
+    <div className="p-5 rounded-2xl bg-white dark:bg-[#0d0d0d]/80 border border-gray-100 dark:border-white/10 shadow-sm space-y-3">
       <div className="flex items-center justify-between">
         <SkeletonBlock className="h-4 w-28" />
         <SkeletonBlock className="h-9 w-9 rounded-xl" />
@@ -84,7 +84,7 @@ export default function PageSkeleton({
         {/* Content & Chart Skeletons */}
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#021e17]/80 border border-gray-100 dark:border-white/10 space-y-4">
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#0d0d0d]/80 border border-gray-100 dark:border-white/10 space-y-4">
               <SkeletonBlock className="h-5 w-36" />
               <SkeletonBlock className="h-44 w-full rounded-xl" />
               <div className="space-y-2">
@@ -92,21 +92,21 @@ export default function PageSkeleton({
                 <SkeletonBlock className="h-3.5 w-4/5" />
               </div>
             </div>
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#021e17]/80 border border-gray-100 dark:border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#0d0d0d]/80 border border-gray-100 dark:border-white/10 space-y-3">
               <SkeletonBlock className="h-5 w-40" />
               <SkeletonBlock className="h-32 w-full rounded-xl" />
             </div>
           </div>
 
           <div className="lg:col-span-2 space-y-6">
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#021e17]/80 border border-gray-100 dark:border-white/10 space-y-4">
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#0d0d0d]/80 border border-gray-100 dark:border-white/10 space-y-4">
               <div className="flex items-center justify-between">
                 <SkeletonBlock className="h-6 w-44" />
                 <SkeletonBlock className="h-8 w-24 rounded-lg" />
               </div>
               <SkeletonBlock className="h-64 w-full rounded-xl" />
             </div>
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#021e17]/80 border border-gray-100 dark:border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#0d0d0d]/80 border border-gray-100 dark:border-white/10 space-y-3">
               <SkeletonBlock className="h-5 w-32" />
               <SkeletonBlock className="h-36 w-full rounded-xl" />
             </div>
@@ -121,7 +121,7 @@ export default function PageSkeleton({
       <div className={cn("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8", className)}>
         <SkeletonBlock className="h-8 w-56 mb-2" />
         <SkeletonBlock className="h-4 w-40 mb-6" />
-        <div className="rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden bg-white dark:bg-[#021e17]/80">
+        <div className="rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden bg-white dark:bg-[#0d0d0d]/80">
           <div className="bg-gray-50 dark:bg-black/20 p-4 border-b border-gray-200 dark:border-white/10">
             <div className="grid grid-cols-4 gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -177,7 +177,7 @@ export default function PageSkeleton({
         {Array.from({ length: cardCount }).map((_, i) => (
           <div
             key={i}
-            className="rounded-2xl border border-gray-200 dark:border-white/10 p-5 space-y-4 bg-white dark:bg-[#021e17]/80"
+            className="rounded-2xl border border-gray-200 dark:border-white/10 p-5 space-y-4 bg-white dark:bg-[#0d0d0d]/80"
           >
             <div className="flex items-center gap-3">
               <SkeletonBlock className="h-10 w-10 rounded-xl" />

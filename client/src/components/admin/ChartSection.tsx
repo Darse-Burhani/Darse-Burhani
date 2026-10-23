@@ -28,7 +28,7 @@ export default function ChartSection({ chartData }: ChartSectionProps) {
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip />
         <Legend />
-        <Bar dataKey="positive" name="Positive" fill="#10b981" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="positive" name="Positive" fill="#f3b833" radius={[4, 4, 0, 0]} />
         <Bar dataKey="negative" name="Negative" fill="#ef4444" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

@@ -24,7 +24,7 @@ interface TvData {
 const COLOR_HEX: Record<string, string> = {
   Red: "#ef4444",
   Blue: "#3b82f6",
-  Green: "#22c55e",
+  Green: "#f3b833",
   Yellow: "#eab308",
   Orange: "#f97316",
   Purple: "#a855f7",
@@ -97,10 +97,10 @@ export default function LibraryTvPage() {
   const stats = data?.stats;
 
   return (
-    <div className="min-h-screen bg-[#0b1d17] text-white overflow-hidden">
+    <div className="min-h-screen bg-[#0d0d0d] text-white overflow-hidden">
       {/* Ambient glow */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full opacity-20" style={{ background: "radial-gradient(circle, #10b981 0%, transparent 70%)" }} />
+        <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full opacity-20" style={{ background: "radial-gradient(circle, #f3b833 0%, transparent 70%)" }} />
         <div className="absolute -bottom-32 -right-32 w-[480px] h-[480px] rounded-full opacity-20" style={{ background: "radial-gradient(circle, #d4af37 0%, transparent 70%)" }} />
       </div>
 
@@ -194,7 +194,7 @@ export default function LibraryTvPage() {
                   className="grid grid-cols-2 xl:grid-cols-3 gap-4 flex-1 min-h-0"
                 >
                   {rack?.shelves.map((shelf) => {
-                    const hex = COLOR_HEX[shelf.locationColor ?? ""] ?? "#10b981";
+                    const hex = COLOR_HEX[shelf.locationColor ?? ""] ?? "#f3b833";
                     const pct = shelf.totalBooks > 0 ? (shelf.availableBooks / shelf.totalBooks) * 100 : 0;
                     const covers = shelf.books.slice(0, 6);
                     return (
@@ -214,7 +214,7 @@ export default function LibraryTvPage() {
 
                         {/* Availability bar */}
                         <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-3">
-                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: pct > 50 ? "#22c55e" : pct > 0 ? "#f59e0b" : "#f43f5e" }} />
+                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: pct > 50 ? "#f3b833" : pct > 0 ? "#f59e0b" : "#f43f5e" }} />
                         </div>
 
                         {/* Categories */}

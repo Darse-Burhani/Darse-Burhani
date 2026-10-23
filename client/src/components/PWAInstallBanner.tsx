@@ -35,7 +35,7 @@ export function PWAInstallBanner() {
     <>
       {/* Floating Installation Ribbon */}
       <div className="fixed bottom-20 lg:bottom-5 right-3 left-3 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-spring-up select-none">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#021f18] via-[#05372b] to-[#01140f] p-3 sm:p-3.5 border border-amber-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.55)] text-white backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] p-3 sm:p-3.5 border border-amber-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.55)] text-white backdrop-blur-xl">
           <div className="pointer-events-none absolute -right-8 -top-8 w-32 h-32 rounded-full bg-amber-400/10 blur-xl" />
 
           <div className="flex items-center gap-3">

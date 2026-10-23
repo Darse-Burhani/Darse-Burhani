@@ -617,7 +617,7 @@ export default function AdminUsersPage() {
 
       {/* Header Banner */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="fatimi-header-banner relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#044e3a] via-[#065f46] to-[#047857] shadow-xl border border-emerald-500/20">
+        <div className="fatimi-header-banner relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#b8541e] via-[#8a3e14] to-[#b8541e] shadow-xl border border-emerald-500/20">
           <div className="absolute top-0 left-0 w-44 h-44 opacity-10 pointer-events-none">
             <svg viewBox="0 0 100 100" className="w-full h-full">
               <path d="M50 5L95 50L50 95L5 50Z" fill="none" stroke="#d4af37" strokeWidth="1.5" />
@@ -731,9 +731,9 @@ export default function AdminUsersPage() {
                       : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#047857]" : "text-gray-400"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#b8541e]" : "text-gray-400"}`} />
                   <span>{tab.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isActive ? "bg-emerald-100 text-[#047857]" : "bg-gray-200/70 text-gray-600"}`}>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isActive ? "bg-emerald-100 text-[#b8541e]" : "bg-gray-200/70 text-gray-600"}`}>
                     {tab.count}
                   </span>
                 </button>
@@ -768,7 +768,7 @@ export default function AdminUsersPage() {
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-lg transition-all ${
                 viewMode === "grid"
-                  ? "bg-white text-[#047857] shadow-sm"
+                  ? "bg-white text-[#b8541e] shadow-sm"
                   : "text-gray-400 hover:text-gray-700"
               }`}
               title="Grid Cards Display"
@@ -779,7 +779,7 @@ export default function AdminUsersPage() {
               onClick={() => setViewMode("table")}
               className={`p-1.5 rounded-lg transition-all ${
                 viewMode === "table"
-                  ? "bg-white text-[#047857] shadow-sm"
+                  ? "bg-white text-[#b8541e] shadow-sm"
                   : "text-gray-400 hover:text-gray-700"
               }`}
               title="Table View"
@@ -811,7 +811,7 @@ export default function AdminUsersPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-3xl border border-dashed border-gray-200 p-12 text-center max-w-md mx-auto">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#047857] flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#b8541e] flex items-center justify-center mx-auto mb-4">
             <Users className="w-8 h-8 opacity-60" />
           </div>
           <h3 className="font-display font-bold text-gray-900 text-lg">No Members Found</h3>
@@ -822,7 +822,7 @@ export default function AdminUsersPage() {
             variant="outline"
             size="sm"
             onClick={() => { setSearch(""); setFilter("ALL"); setGradeFilter("ALL"); }}
-            className="mt-4 border-emerald-200 text-[#047857]"
+            className="mt-4 border-emerald-200 text-[#b8541e]"
           >
             Reset Filters
           </Button>
@@ -1254,11 +1254,11 @@ export default function AdminUsersPage() {
                       onClick={() => setCreateRole(r.id)}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all ${
                         isSel
-                          ? "bg-emerald-50 border-[#047857] text-[#047857] shadow-xs"
+                          ? "bg-emerald-50 border-[#b8541e] text-[#b8541e] shadow-xs"
                           : "border-gray-200 text-gray-600 hover:bg-gray-50"
                       }`}
                     >
-                      <Icon className={`w-4 h-4 mb-1 ${isSel ? "text-[#047857]" : "text-gray-400"}`} />
+                      <Icon className={`w-4 h-4 mb-1 ${isSel ? "text-[#b8541e]" : "text-gray-400"}`} />
                       <span>{r.label}</span>
                     </button>
                   );
@@ -1810,7 +1810,7 @@ function TalabatCard({
       <div className={`px-5 py-2.5 flex items-center justify-between text-xs font-bold ${
         isHafiz
           ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-white shadow-inner"
-          : "bg-gradient-to-r from-[#047857] to-[#065f46] text-white"
+          : "bg-gradient-to-r from-[#b8541e] to-[#8a3e14] text-white"
       }`}>
         <div className="flex items-center gap-1.5">
           {isHafiz ? (
@@ -1837,12 +1837,12 @@ function TalabatCard({
         <div className="flex items-start gap-4">
           <div className="relative shrink-0">
             <Avatar className={`w-16 h-16 rounded-2xl border-2 shadow-md ${
-              isHafiz ? "border-amber-400 ring-2 ring-amber-200/50" : "border-[#047857] ring-2 ring-emerald-100"
+              isHafiz ? "border-amber-400 ring-2 ring-amber-200/50" : "border-[#b8541e] ring-2 ring-emerald-100"
             }`}>
               {user.avatarUrl ? (
                 <AvatarImage src={user.avatarUrl} alt={user.firstName} className="object-cover object-center" />
               ) : null}
-              <AvatarFallback className="bg-gradient-to-br from-[#047857] to-[#064e3b] text-white font-black text-lg">
+              <AvatarFallback className="bg-gradient-to-br from-[#b8541e] to-[#8a3e14] text-white font-black text-lg">
                 {getInitials(user.firstName, user.lastName)}
               </AvatarFallback>
             </Avatar>
@@ -1852,14 +1852,14 @@ function TalabatCard({
           </div>
 
           <div className="min-w-0 flex-1">
-            <h3 className="font-display font-bold text-gray-900 text-base leading-snug group-hover:text-[#047857] transition-colors truncate">
+            <h3 className="font-display font-bold text-gray-900 text-base leading-snug group-hover:text-[#b8541e] transition-colors truncate">
               {user.firstName} {user.lastName}
             </h3>
             
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <button
                 onClick={() => onCopy(sp.its || sp.studentId || "", "ITS")}
-                className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#047857] px-2 py-0.5 rounded-md border border-emerald-200 transition-colors"
+                className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#b8541e] px-2 py-0.5 rounded-md border border-emerald-200 transition-colors"
                 title="Click to copy ITS"
               >
                 <span>ITS: {sp.its || sp.studentId || "—"}</span>
@@ -1988,7 +1988,7 @@ function TalabatCard({
             variant="outline"
             size="sm"
             onClick={() => onEdit(user)}
-            className="h-7 px-2 text-xs text-gray-700 border-gray-200 hover:bg-emerald-50 hover:text-[#047857]"
+            className="h-7 px-2 text-xs text-gray-700 border-gray-200 hover:bg-emerald-50 hover:text-[#b8541e]"
           >
             <Pencil className="w-3 h-3 mr-1" /> Edit
           </Button>
@@ -2037,7 +2037,7 @@ function FacultyCard({
       className="group relative bg-white rounded-3xl border-2 border-emerald-600/30 shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col justify-between"
     >
       {/* Royal Scholar Header Banner */}
-      <div className="bg-gradient-to-r from-[#034430] via-[#056046] to-[#047857] p-4 pb-12 relative text-white">
+      <div className="bg-gradient-to-r from-[#1c1c1c] via-[#8a3e14] to-[#b8541e] p-4 pb-12 relative text-white">
         <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
           <svg viewBox="0 0 100 100" className="w-full h-full">
             <polygon points="50,0 63,38 100,50 63,62 50,100 37,62 0,50 37,38" fill="#d4af37" />
@@ -2078,7 +2078,7 @@ function FacultyCard({
                     decoding="async"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#047857] to-[#034430] text-amber-300 font-black text-2xl">
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#b8541e] to-[#1c1c1c] text-amber-300 font-black text-2xl">
                     {getInitials(user.firstName, user.lastName)}
                   </div>
                 )}
@@ -2092,7 +2092,7 @@ function FacultyCard({
             </div>
 
           <div className="min-w-0 flex-1 pb-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#047857] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 inline-block mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#b8541e] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 inline-block mb-1">
               {tp.department || tp.subCategory || "Attalimiyah Faculty"}
             </span>
             <h3 className="font-display font-extrabold text-gray-900 text-base leading-snug truncate" title={`${user.firstName} ${user.lastName}`}>
@@ -2107,7 +2107,7 @@ function FacultyCard({
             <span className="text-gray-500 font-medium">ITS / Employee ID:</span>
             <button
               onClick={() => onCopy(tp.its || tp.employeeId || "", "ITS")}
-              className="font-mono font-bold text-[#047857] hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-emerald-200"
+              className="font-mono font-bold text-[#b8541e] hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-emerald-200"
             >
               <span>{tp.its || tp.employeeId || "—"}</span>
               {copiedText === (tp.its || tp.employeeId) ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 opacity-60" />}
@@ -2120,7 +2120,7 @@ function FacultyCard({
             </span>
             <button
               onClick={() => onCopy(user.email, "Email")}
-              className="font-mono text-gray-800 truncate max-w-[160px] hover:text-[#047857]"
+              className="font-mono text-gray-800 truncate max-w-[160px] hover:text-[#b8541e]"
               title={user.email}
             >
               {user.email}
@@ -2221,7 +2221,7 @@ function FacultyCard({
             variant="outline"
             size="sm"
             onClick={() => onEdit(user)}
-            className="h-7 px-2 text-xs text-gray-700 border-gray-200 hover:bg-emerald-50 hover:text-[#047857]"
+            className="h-7 px-2 text-xs text-gray-700 border-gray-200 hover:bg-emerald-50 hover:text-[#b8541e]"
           >
             <Pencil className="w-3 h-3 mr-1" /> Edit
           </Button>
@@ -2389,7 +2389,7 @@ function ParentCard({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#047857]">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#b8541e]">
                         Grade {child.grade || "?"}{child.section ? `-${child.section}` : ""}
                       </span>
                     </div>

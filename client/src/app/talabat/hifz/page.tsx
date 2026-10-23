@@ -39,7 +39,7 @@ import Hifz30JuzProgressBar from "@/components/hifz/Hifz30JuzProgressBar";
 import IkhtebaarRoadmapCard from "@/components/hifz/IkhtebaarRoadmapCard";
 
 const PART_CHART_COLORS: Record<string, string> = {
-  COMPLETED: "#059669",
+  COMPLETED: "#ef9a33",
   IN_PROGRESS: "#2563eb",
   WEAK: "#d97706",
   NOT_STARTED: "#d1d5db",
@@ -47,7 +47,7 @@ const PART_CHART_COLORS: Record<string, string> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; borderColor: string; dotColor: string }> = {
-  COMPLETED: { label: "Completed", color: "text-emerald-800", bgColor: "bg-emerald-50", borderColor: "border-emerald-300", dotColor: "#059669" },
+  COMPLETED: { label: "Completed", color: "text-emerald-800", bgColor: "bg-emerald-50", borderColor: "border-emerald-300", dotColor: "#ef9a33" },
   IN_PROGRESS: { label: "In Progress", color: "text-blue-800", bgColor: "bg-blue-50", borderColor: "border-blue-300", dotColor: "#2563eb" },
   WEAK: { label: "Weak", color: "text-amber-800", bgColor: "bg-amber-50", borderColor: "border-amber-300", dotColor: "#d97706" },
   NOT_STARTED: { label: "Not Started", color: "text-gray-600", bgColor: "bg-gray-50", borderColor: "border-gray-200", dotColor: "#9ca3af" },
@@ -74,14 +74,14 @@ function FatimiProgressRing({ progress, size = 180, strokeWidth = 12 }: { progre
         />
         <defs>
           <linearGradient id="fatimiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#059669" />
-            <stop offset="50%" stopColor="#047857" />
+            <stop offset="0%" stopColor="#ef9a33" />
+            <stop offset="50%" stopColor="#b8541e" />
             <stop offset="100%" stopColor="#d4af37" />
           </linearGradient>
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-5xl font-bold" style={{ color: "#047857" }}>{progress}%</span>
+        <span className="text-5xl font-bold" style={{ color: "#b8541e" }}>{progress}%</span>
         <span className="text-sm mt-1" style={{ color: "#b8860b" }}>Completed</span>
       </div>
     </div>
@@ -94,9 +94,9 @@ function GeometricPattern() {
       <svg className="w-full h-full" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="fatimiPattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
-            <path d="M40 0L80 40L40 80L0 40Z" fill="none" stroke="#047857" strokeWidth="0.5" />
+            <path d="M40 0L80 40L40 80L0 40Z" fill="none" stroke="#b8541e" strokeWidth="0.5" />
             <circle cx="40" cy="40" r="15" fill="none" stroke="#d4af37" strokeWidth="0.5" />
-            <path d="M40 25L55 40L40 55L25 40Z" fill="none" stroke="#047857" strokeWidth="0.3" />
+            <path d="M40 25L55 40L40 55L25 40Z" fill="none" stroke="#b8541e" strokeWidth="0.3" />
             <circle cx="40" cy="40" r="5" fill="none" stroke="#d4af37" strokeWidth="0.3" />
           </pattern>
         </defs>
@@ -122,7 +122,7 @@ function JourneyNode({ part, index, isExpanded, onToggle, isLast, isCurrent }: {
             isCurrent ? "ring-4 ring-offset-2" : ""
           }`}
           style={{
-            background: isCompleted ? "linear-gradient(135deg, #059669, #047857)" :
+            background: isCompleted ? "linear-gradient(135deg, #ef9a33, #b8541e)" :
               isProgress ? "linear-gradient(135deg, #2563eb, #1d4ed8)" :
               part.status === "WEAK" ? "linear-gradient(135deg, #d97706, #b45309)" :
               "linear-gradient(135deg, #9ca3af, #6b7280)",
@@ -136,7 +136,7 @@ function JourneyNode({ part, index, isExpanded, onToggle, isLast, isCurrent }: {
             className="w-0.5 flex-1 min-h-[40px] transition-all duration-500"
             style={{
               background: isCompleted ?
-                "linear-gradient(180deg, #059669, #047857)" :
+                "linear-gradient(180deg, #ef9a33, #b8541e)" :
                 isProgress ? `linear-gradient(180deg, #2563eb, ${STATUS_CONFIG[part.status]?.dotColor || "#9ca3af"}40)` :
                 `linear-gradient(180deg, #e5e7eb, #e5e7eb)`,
             }}
@@ -151,8 +151,8 @@ function JourneyNode({ part, index, isExpanded, onToggle, isLast, isCurrent }: {
             isExpanded ? "shadow-md" : "shadow-sm"
           }`}
           style={{
-            borderColor: isCompleted ? "#a7f3d0" : isProgress ? "#bfdbfe" : "#e5e7eb",
-            background: isExpanded ? "linear-gradient(135deg, #f0fdf4, #ffffff)" : "#ffffff",
+            borderColor: isCompleted ? "#f3d9a0" : isProgress ? "#bfdbfe" : "#e5e7eb",
+            background: isExpanded ? "linear-gradient(135deg, #fff8e7, #ffffff)" : "#ffffff",
           }}
           onClick={onToggle}
         >
@@ -197,28 +197,28 @@ function JourneyNode({ part, index, isExpanded, onToggle, isLast, isCurrent }: {
 
           {/* Expanded details */}
           {isExpanded && (
-            <div className="p-4 border-t" style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", borderColor: "#d1fae5" }}>
+            <div className="p-4 border-t" style={{ background: "linear-gradient(135deg, #fff8e7, #fff8e7)", borderColor: "#fef4dc" }}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#a7f3d0" }}>
-                  <p className="text-xs mb-1" style={{ color: "#047857" }}>Pages</p>
+                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#f3d9a0" }}>
+                  <p className="text-xs mb-1" style={{ color: "#b8541e" }}>Pages</p>
                   <p className="text-lg font-bold text-gray-900">{part.currentPage}/{part.totalPages}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#a7f3d0" }}>
-                  <p className="text-xs mb-1" style={{ color: "#047857" }}>Firm Memorization</p>
+                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#f3d9a0" }}>
+                  <p className="text-xs mb-1" style={{ color: "#b8541e" }}>Firm Memorization</p>
                   <p className="text-lg font-bold text-gray-900">{part.firmProgress}/{part.firmTarget}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#a7f3d0" }}>
-                  <p className="text-xs mb-1" style={{ color: "#047857" }}>Sentences</p>
+                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#f3d9a0" }}>
+                  <p className="text-xs mb-1" style={{ color: "#b8541e" }}>Sentences</p>
                   <p className="text-lg font-bold text-gray-900">{part.sentencesMemorized}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#a7f3d0" }}>
-                  <p className="text-xs mb-1" style={{ color: "#047857" }}>Reviews</p>
+                <div className="p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#f3d9a0" }}>
+                  <p className="text-xs mb-1" style={{ color: "#b8541e" }}>Reviews</p>
                   <p className="text-lg font-bold text-gray-900">{part.reviewCount}/{part.targetReviews}</p>
                 </div>
               </div>
               {part.notes && (
-                <div className="mt-3 p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#a7f3d0" }}>
-                  <p className="text-xs mb-1" style={{ color: "#047857" }}>Teacher Notes</p>
+                <div className="mt-3 p-3 rounded-lg bg-white/60 border" style={{ borderColor: "#f3d9a0" }}>
+                  <p className="text-xs mb-1" style={{ color: "#b8541e" }}>Teacher Notes</p>
                   <p className="text-sm text-gray-700">{part.notes}</p>
                 </div>
               )}
@@ -319,13 +319,13 @@ export default function TalabatHifzPage() {
   const estimatedDays = dailyPageGoal > 0 ? Math.ceil(remainingPages / dailyPageGoal) : 0;
 
   return (
-    <div className="min-h-screen relative" style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #ffffff 30%, #f0fdf9 60%, #ecfdf5 100%)" }}>
+    <div className="min-h-screen relative" style={{ background: "linear-gradient(135deg, #fff8e7 0%, #ffffff 30%, #f0fdf9 60%, #fff8e7 100%)" }}>
       <GeometricPattern />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         {/* Header */}
         <div className="animate-fade-in mb-8">
-          <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 50%, #064e3b 100%)" }}>
+          <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8" style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 50%, #8a3e14 100%)" }}>
             <GeometricPattern />
             <div className="absolute top-0 left-0 w-32 h-32 opacity-10">
               <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -462,14 +462,14 @@ export default function TalabatHifzPage() {
 
             {/* Profile Card + Progress */}
             <Card className="border-0 shadow-lg overflow-hidden" style={{ borderColor: "#d4af3720" }}>
-              <div className="h-1.5" style={{ background: "linear-gradient(90deg, #047857, #d4af37, #047857)" }} />
+              <div className="h-1.5" style={{ background: "linear-gradient(90deg, #b8541e, #d4af37, #b8541e)" }} />
               <CardContent className="p-6 sm:p-8">
                 <div className="flex flex-col items-center gap-6">
                   <div className="flex flex-col sm:flex-row items-center gap-6 w-full">
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         <Avatar className="w-24 h-24 border-4" style={{ borderColor: "#d4af37" }}>
-                          <AvatarFallback className="text-3xl font-bold" style={{ background: "linear-gradient(135deg, #047857, #065f46)", color: "#d4af37" }}>
+                          <AvatarFallback className="text-3xl font-bold" style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)", color: "#d4af37" }}>
                             {report.studentName?.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
@@ -503,9 +503,9 @@ export default function TalabatHifzPage() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 w-full">
-                    <div className="p-4 rounded-xl border text-center" style={{ background: "linear-gradient(135deg, #ecfdf5, #d1fae5)", borderColor: "#a7f3d0" }}>
-                      <p className="text-3xl font-bold" style={{ color: "#047857" }}>{report.summary.completedParts}</p>
-                      <p className="text-sm" style={{ color: "#047857" }}>Completed</p>
+                    <div className="p-4 rounded-xl border text-center" style={{ background: "linear-gradient(135deg, #fff8e7, #fef4dc)", borderColor: "#f3d9a0" }}>
+                      <p className="text-3xl font-bold" style={{ color: "#b8541e" }}>{report.summary.completedParts}</p>
+                      <p className="text-sm" style={{ color: "#b8541e" }}>Completed</p>
                     </div>
                     <div className="p-4 rounded-xl border text-center" style={{ background: "linear-gradient(135deg, #eff6ff, #dbeafe)", borderColor: "#bfdbfe" }}>
                       <p className="text-3xl font-bold" style={{ color: "#1d4ed8" }}>{report.summary.inProgressParts}</p>
@@ -537,10 +537,10 @@ export default function TalabatHifzPage() {
             {/* Hifz Progress Chart + Daily Goal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="border-0 shadow-sm overflow-hidden lg:col-span-2">
-                <div className="h-1" style={{ background: "linear-gradient(90deg, #047857, #d4af37)" }} />
+                <div className="h-1" style={{ background: "linear-gradient(90deg, #b8541e, #d4af37)" }} />
                 <CardContent className="p-6">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-6">
-                    <BarChart3 className="w-6 h-6" style={{ color: "#047857" }} />
+                    <BarChart3 className="w-6 h-6" style={{ color: "#b8541e" }} />
                     Juz Memorization Progress
                   </h3>
                   <ResponsiveContainer width="100%" height={220}>
@@ -583,11 +583,11 @@ export default function TalabatHifzPage() {
                   {/* Today's snapshot */}
                   <div className="p-4 rounded-xl border text-center" style={{ background: "linear-gradient(135deg, #fffbeb, #fef9c3)", borderColor: "#fde68a" }}>
                     <p className="text-sm text-gray-600">Today's progress in the current juz</p>
-                    <p className="text-3xl font-bold mt-1" style={{ color: "#047857" }}>
+                    <p className="text-3xl font-bold mt-1" style={{ color: "#b8541e" }}>
                       {goalPagesToday}<span className="text-base text-gray-500">/{goalTotalPages}</span>
                     </p>
                     <div className="w-full mt-3 h-2.5 rounded-full overflow-hidden" style={{ background: "#fde68a" }}>
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${todayProgress}%`, background: "linear-gradient(90deg, #059669, #047857, #d4af37)" }} />
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${todayProgress}%`, background: "linear-gradient(90deg, #ef9a33, #b8541e, #d4af37)" }} />
                     </div>
                     <p className="text-sm mt-2" style={{ color: "#b8860b" }}>{todayProgress}%</p>
                   </div>
@@ -615,7 +615,7 @@ export default function TalabatHifzPage() {
                         size="sm"
                         onClick={saveDailyGoal}
                         className="shrink-0 text-white"
-                        style={{ background: "linear-gradient(135deg, #047857, #065f46)" }}
+                        style={{ background: "linear-gradient(135deg, #b8541e, #8a3e14)" }}
                       >
                         <Save className="w-4 h-4 ml-1" />
                         {goalSaved ? "Saved" : "Save"}
@@ -623,7 +623,7 @@ export default function TalabatHifzPage() {
                     </div>
                     <div className="flex items-center justify-between mt-3 text-sm">
                       <span className="text-gray-500">Remaining in current juz</span>
-                      <span className="font-semibold" style={{ color: "#047857" }}>{remainingPages} pages</span>
+                      <span className="font-semibold" style={{ color: "#b8541e" }}>{remainingPages} pages</span>
                     </div>
                     <div className="flex items-center justify-between mt-1 text-sm">
                       <span className="text-gray-500">Estimated days to completion</span>
@@ -636,16 +636,16 @@ export default function TalabatHifzPage() {
 
             {/* Journey Map */}
             <Card className="border-0 shadow-sm overflow-hidden">
-              <div className="h-1" style={{ background: "linear-gradient(90deg, #047857, #d4af37)" }} />
+              <div className="h-1" style={{ background: "linear-gradient(90deg, #b8541e, #d4af37)" }} />
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                    <MapPin className="w-6 h-6" style={{ color: "#047857" }} />
+                    <MapPin className="w-6 h-6" style={{ color: "#b8541e" }} />
                     Journey Map
                   </h3>
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-full" style={{ background: "#059669" }} />
+                      <div className="w-3 h-3 rounded-full" style={{ background: "#ef9a33" }} />
                       <span className="text-gray-500">Completed</span>
                     </div>
                     <div className="flex items-center gap-1.5">

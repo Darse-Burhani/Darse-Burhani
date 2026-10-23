@@ -20,7 +20,7 @@ import { monthName } from "@/lib/takhteet";
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "#9ca3af",
   IN_PROGRESS: "#f59e0b",
-  COMPLETED: "#047857",
+  COMPLETED: "#b8541e",
 };
 
 interface TakhteetAnalyticsProps {
@@ -118,7 +118,7 @@ export default function TakhteetAnalytics({ plans, teachers }: TakhteetAnalytics
             )}
             <div className="mt-4 flex items-center justify-between rounded-xl bg-emerald-50/60 border border-emerald-100 p-3">
               <span className="text-sm text-gray-600 font-medium">Overall completion</span>
-              <span className="text-lg font-bold text-[#047857]">{overall}%</span>
+              <span className="text-lg font-bold text-[#b8541e]">{overall}%</span>
             </div>
           </CardContent>
         </Card>
@@ -135,7 +135,7 @@ export default function TakhteetAnalytics({ plans, teachers }: TakhteetAnalytics
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(value: any, _name: any, props: any) => [`${value}%`, props.payload.fullName]} />
-                  <Bar dataKey="avg" name="Avg Progress %" fill="#047857" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="avg" name="Avg Progress %" fill="#b8541e" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -159,7 +159,7 @@ export default function TakhteetAnalytics({ plans, teachers }: TakhteetAnalytics
                 <Tooltip formatter={(value: any, name: any) => [name === "completed" ? `${value} completed` : `${value}%`, name === "completed" ? "Completed" : "Avg Progress"]} />
                 <Legend />
                 <Bar dataKey="avg" name="Avg Progress %" fill="#d4af37" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="completed" name="Completed" fill="#047857" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="completed" name="Completed" fill="#b8541e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

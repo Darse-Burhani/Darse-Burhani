@@ -1529,7 +1529,7 @@ export default function AdminSecurityPage() {
                   disabled={savingPolicies}
                   className="px-6 py-2.5 rounded-xl text-sm font-bold text-white shadow-md flex items-center gap-2"
                   style={{
-                    background: "linear-gradient(135deg, #064e3b 0%, #047857 100%)",
+                    background: "linear-gradient(135deg, #8a3e14 0%, #b8541e 100%)",
                   }}
                 >
                   <Save className="w-4 h-4" />

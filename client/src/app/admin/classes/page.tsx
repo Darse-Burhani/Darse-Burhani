@@ -519,7 +519,7 @@ export default function AdminClassesPage() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl"
-        style={{ background: "linear-gradient(135deg, #06241a 0%, #0a3d2c 50%, #03180f 100%)" }}
+        style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #1c1c1c 50%, #0d0d0d 100%)" }}
       >
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="flex items-center gap-4">
@@ -636,7 +636,7 @@ export default function AdminClassesPage() {
               onClick={() => setDarajahFilter(tab.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 darajahFilter === tab.id
-                  ? "bg-[#06241a] text-amber-300 ring-2 ring-emerald-600/30 shadow-xs font-black"
+                  ? "bg-[#1c1c1c] text-amber-300 ring-2 ring-emerald-600/30 shadow-xs font-black"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
@@ -684,7 +684,7 @@ export default function AdminClassesPage() {
               <motion.div key={cls.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <Card className="rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all overflow-hidden bg-white flex flex-col h-full group">
                   {/* Card Header Topline with Fatimi Arabic */}
-                  <div className="p-5 pb-3 border-b border-slate-100 bg-gradient-to-r from-emerald-950 via-[#0a3d2c] to-emerald-900 text-white flex items-center justify-between">
+                  <div className="p-5 pb-3 border-b border-slate-100 bg-gradient-to-r from-emerald-950 via-[#1c1c1c] to-emerald-900 text-white flex items-center justify-between">
                     <div>
                       <div className="text-[10px] font-mono text-amber-300 font-black uppercase tracking-wider">
                         {darajahArabic} • Section {cls.section || "A"}
@@ -721,7 +721,7 @@ export default function AdminClassesPage() {
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="w-10 h-10 ring-2 ring-amber-400 shadow-xs shrink-0">
                           {cls.masoolAvatar && <AvatarImage src={cls.masoolAvatar} alt={cls.masoolName} />}
-                          <AvatarFallback className="bg-[#06241a] text-amber-300 text-xs font-black">
+                          <AvatarFallback className="bg-[#1c1c1c] text-amber-300 text-xs font-black">
                             {cls.masoolName ? getInitials(cls.masoolName) : "—"}
                           </AvatarFallback>
                         </Avatar>
@@ -816,7 +816,7 @@ export default function AdminClassesPage() {
         <ModalContent className="max-w-xl">
           <ModalHeader>
             <ModalTitle className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-[#06241a] text-amber-300 flex items-center justify-center shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-[#1c1c1c] text-amber-300 flex items-center justify-center shadow-xs">
                 <Plus className="w-5 h-5" />
               </div>
               <div>
@@ -927,7 +927,7 @@ export default function AdminClassesPage() {
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-black text-xs rounded-xl shadow-sm"
+              className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-black text-xs rounded-xl shadow-sm"
               onClick={handleCreate}
               disabled={saving || !form.name || !form.grade || !form.teacherId}
             >
@@ -946,7 +946,7 @@ export default function AdminClassesPage() {
           <ModalHeader>
             <ModalTitle className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#06241a] text-amber-300 flex items-center justify-center font-black shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-[#1c1c1c] text-amber-300 flex items-center justify-center font-black shadow-xs">
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
@@ -984,7 +984,7 @@ export default function AdminClassesPage() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTab === tab.key
-                    ? "bg-[#06241a] text-amber-300 shadow-sm"
+                    ? "bg-[#1c1c1c] text-amber-300 shadow-sm"
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
@@ -1044,7 +1044,7 @@ export default function AdminClassesPage() {
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar className="w-9 h-9 ring-1 ring-emerald-600/30 shrink-0">
                               {s.avatarUrl && <AvatarImage src={s.avatarUrl} alt={`${s.firstName} ${s.lastName}`} />}
-                              <AvatarFallback className="bg-[#06241a] text-amber-300 text-xs font-bold">
+                              <AvatarFallback className="bg-[#1c1c1c] text-amber-300 text-xs font-bold">
                                 {getInitials(s.firstName, s.lastName)}
                               </AvatarFallback>
                             </Avatar>
@@ -1231,7 +1231,7 @@ export default function AdminClassesPage() {
 
                 <div className="pt-2">
                   <Button
-                    className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-bold text-xs rounded-xl shadow-xs"
+                    className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs rounded-xl shadow-xs"
                     onClick={handleUpdate}
                     disabled={busy || !editForm.name || !editForm.grade}
                   >
@@ -1340,7 +1340,7 @@ export default function AdminClassesPage() {
                   <div className="flex items-center gap-2 mt-3">
                     <Button
                       size="sm"
-                      className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-bold text-xs rounded-xl shadow-xs"
+                      className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs rounded-xl shadow-xs"
                       onClick={saveSlot}
                       disabled={busy || !slotForm.startTime || !slotForm.endTime}
                     >

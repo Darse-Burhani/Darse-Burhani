@@ -1195,7 +1195,7 @@ export default function LoginPage() {
                     padding: "8px 12px",
                     borderRadius: 10,
                     border: "none",
-                    background: scannerMode === mode ? "#065f46" : "#f1f5f9",
+                    background: scannerMode === mode ? "#8a3e14" : "#f1f5f9",
                     color: scannerMode === mode ? "#ffffff" : "#374151",
                     fontSize: 12,
                     fontWeight: 700,
@@ -1231,7 +1231,7 @@ export default function LoginPage() {
                 )}
                 {scannedItsResult && (
                   <div style={{ position: "absolute", inset: 0, background: "rgba(6,78,59,0.95)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#a7f3d0", fontWeight: 700 }}>Verified ITS</span>
+                    <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#f3d9a0", fontWeight: 700 }}>Verified ITS</span>
                     <span style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 900, color: "#fcd34d" }}>{scannedItsResult}</span>
                   </div>
                 )}
@@ -1247,7 +1247,7 @@ export default function LoginPage() {
               <div
                 onClick={() => fileInputRef.current?.click()}
                 style={{ height: 256, borderRadius: 14, border: "2px dashed #cbd5e1", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", transition: "all 0.18s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#059669"; e.currentTarget.style.background = "#f0fdf4"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef9a33"; e.currentTarget.style.background = "#fff8e7"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.background = "#f8fafc"; }}
               >
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
@@ -1322,7 +1322,7 @@ export default function LoginPage() {
                     {forgotChecking ? (
                       <span style={{ color: "#94a3b8" }}>Catching profile…</span>
                     ) : forgotProfile ? (
-                      <span style={{ color: "#065f46", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ color: "#8a3e14", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
                         <CheckCircle2 size={13} />
                         {forgotProfile.displayName} · {forgotProfile.portal}
                         {forgotProfile.its ? ` · ITS ${forgotProfile.its}` : ""}
@@ -1334,11 +1334,11 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <div style={{ padding: "12px 14px", borderRadius: 12, background: forgotProfile ? "rgba(6,95,70,0.08)" : "rgba(6,95,70,0.06)", border: forgotProfile ? "1px solid #86efac" : "1px solid #bbf7d0" }}>
+              <div style={{ padding: "12px 14px", borderRadius: 12, background: forgotProfile ? "rgba(6,95,70,0.08)" : "rgba(6,95,70,0.06)", border: forgotProfile ? "1px solid #fcd468" : "1px solid #f3d9a0" }}>
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", display: "block", marginBottom: 4 }}>Mahad al Zahra Administration Desk</span>
                 <p style={{ color: "#334155" }}>
                   Direct Support Email:{" "}
-                  <a href="mailto:support.darseburhani.galiakot@gmail.com" style={{ color: "#065f46", fontWeight: 700 }}>
+                  <a href="mailto:support.darseburhani.galiakot@gmail.com" style={{ color: "#8a3e14", fontWeight: 700 }}>
                     support.darseburhani.galiakot@gmail.com
                   </a>
                 </p>
@@ -1355,7 +1355,7 @@ export default function LoginPage() {
                   gap: 8,
                   padding: "11px 0",
                   borderRadius: 10,
-                  background: "#065f46",
+                  background: "#8a3e14",
                   color: "#ffffff",
                   fontSize: 12.5,
                   fontWeight: 700,
@@ -1383,7 +1383,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
-              style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "none", background: "#065f46", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "none", background: "#8a3e14", color: "#ffffff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
             >
               Close
             </button>

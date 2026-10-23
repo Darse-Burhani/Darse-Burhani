@@ -115,7 +115,7 @@ function evaluateIndividual(metrics?: MetricRecord | null): EvaluationResult {
       score,
       diagnosis: "Maintains exemplary daily attendance and prompt on-time arrivals.",
       recommendation: "Eligible for positive conduct points and attendance badge commendations.",
-      color: "#059669",
+      color: "#ef9a33",
     };
   } else if (attendanceRate >= 85) {
     return {
@@ -128,7 +128,7 @@ function evaluateIndividual(metrics?: MetricRecord | null): EvaluationResult {
           ? `Acceptable overall presence, though ${lateDays} delayed entries were logged.`
           : "Standard institutional attendance thresholds met without major alerts.",
       recommendation: lateDays > 2 ? "Remind of morning arrival time window." : "Keep current pace.",
-      color: "#0d9488",
+      color: "#ef9a33",
     };
   } else if (attendanceRate >= 70 || lateDays >= 4) {
     return {
@@ -650,7 +650,7 @@ export default function IndividualTrackingPage() {
         {/* Total Roster */}
         <Card className="border-gray-200/80 bg-white shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#047857] flex items-center justify-center shrink-0 border border-emerald-100">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#b8541e] flex items-center justify-center shrink-0 border border-emerald-100">
               <Users className="w-5 h-5" />
             </div>
             <div>
@@ -851,7 +851,7 @@ export default function IndividualTrackingPage() {
                     ? "bg-amber-600 text-white border-amber-700 shadow-sm"
                     : tab.key === "CRITICAL"
                     ? "bg-rose-600 text-white border-rose-700 shadow-sm"
-                    : "bg-[#022c22] text-white border-[#022c22] shadow-sm"
+                    : "bg-[#1c1c1c] text-white border-[#1c1c1c] shadow-sm"
                   : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100",
               )}
             >
@@ -921,7 +921,7 @@ export default function IndividualTrackingPage() {
                       <div className="relative shrink-0">
                         <Avatar className="w-11 h-11 rounded-xl border border-gray-200">
                           {person.avatarUrl && <img src={person.avatarUrl} alt={person.name} className="object-cover object-center" />}
-                          <AvatarFallback className="bg-gradient-to-br from-[#022c22] to-[#047857] text-white font-bold text-xs">
+                          <AvatarFallback className="bg-gradient-to-br from-[#1c1c1c] to-[#b8541e] text-white font-bold text-xs">
                             {getInitials(person.name)}
                           </AvatarFallback>
                         </Avatar>
@@ -1009,7 +1009,7 @@ export default function IndividualTrackingPage() {
             >
               <Card className="border-gray-200/90 shadow-xl bg-white rounded-2xl overflow-hidden">
                 {/* Dossier Header */}
-                <div className="fatimi-card-luxury p-5 bg-gradient-to-r from-emerald-950 via-[#047857] to-emerald-900 text-white relative">
+                <div className="fatimi-card-luxury p-5 bg-gradient-to-r from-emerald-950 via-[#b8541e] to-emerald-900 text-white relative">
                   <button
                     type="button"
                     onClick={() => setSelectedPersonId(null)}
@@ -1088,7 +1088,7 @@ export default function IndividualTrackingPage() {
                     />
                     <PrecisionGauge
                       pct={selectedPerson.metrics.punctualityRate}
-                      color="#047857"
+                      color="#b8541e"
                       label="Punctuality"
                       sublabel={`${selectedPerson.metrics.lateDays} delays logged`}
                       size={68}
@@ -1188,7 +1188,7 @@ export default function IndividualTrackingPage() {
                     <Button
                       onClick={() => handleSendAlert(selectedPerson)}
                       disabled={sendingAlert}
-                      className="flex-1 rounded-xl text-xs font-semibold h-9 bg-[#022c22] hover:bg-[#047857] text-white"
+                      className="flex-1 rounded-xl text-xs font-semibold h-9 bg-[#1c1c1c] hover:bg-[#b8541e] text-white"
                     >
                       <Send className={cn("w-3.5 h-3.5 mr-1.5", sendingAlert && "animate-pulse")} />
                       {sendingAlert ? "Dispatching..." : "Send In-App Alert"}

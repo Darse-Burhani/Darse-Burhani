@@ -185,7 +185,7 @@ export default function TalabatDashboard() {
           {timetableData && (
             <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.05, ease: "easeOut" }}>
               <div className="p-1 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/10 bg-white overflow-hidden shadow-xs border border-slate-200/80">
-                <div className="p-5 bg-gradient-to-r from-emerald-950 via-[#0a3d2c] to-emerald-900 text-white rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="p-5 bg-gradient-to-r from-emerald-950 via-[#1c1c1c] to-emerald-900 text-white rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-md">
                       <CalendarDays className="w-6 h-6" />

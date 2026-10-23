@@ -561,7 +561,7 @@ export default function AdminAttendanceSchedulePage() {
       />
 
       {/* ── Page Header Banner ── */}
-      <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-br from-[#042f24] via-[#094d37] to-[#021f18] border border-[#d4af37]/40 shadow-[0_12px_36px_rgba(2,44,34,0.35)]">
+      <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden bg-gradient-to-br from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] border border-[#d4af37]/40 shadow-[0_12px_36px_rgba(2,44,34,0.35)]">
         <div className="absolute -right-12 -bottom-12 w-80 h-80 rounded-full bg-[#d4af37]/15 blur-3xl pointer-events-none" />
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <Clock className="w-40 h-40 text-white stroke-[1.2]" />
@@ -922,7 +922,7 @@ export default function AdminAttendanceSchedulePage() {
               className="w-full max-w-3xl max-h-[92vh] bg-white rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.45)] border border-emerald-500/30 flex flex-col overflow-hidden"
             >
               {/* 1. Modal Hero Header */}
-              <div className="relative overflow-hidden p-5 sm:p-6 bg-gradient-to-r from-[#021f18] via-[#05372b] to-[#01140f] text-white shrink-0 border-b border-[#d4af37]/30">
+              <div className="relative overflow-hidden p-5 sm:p-6 bg-gradient-to-r from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] text-white shrink-0 border-b border-[#d4af37]/30">
                 <div className="pointer-events-none absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-[#d4af37]/15 blur-2xl" />
                 <div className="pointer-events-none absolute -left-10 -top-10 w-40 h-40 rounded-full bg-emerald-500/15 blur-2xl" />
 

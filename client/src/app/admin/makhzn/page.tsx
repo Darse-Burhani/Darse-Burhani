@@ -1042,7 +1042,7 @@ export default function MakhzanDirectPage() {
             @page { size: auto; margin: 8mm; }
             body { font-family: 'Segoe UI', system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #fff; }
             .kit-card { border: 2px solid #000; padding: 20px; width: 380px; border-radius: 12px; }
-            .inst { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #047857; text-align: center; }
+            .inst { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #b8541e; text-align: center; }
             .name { font-size: 16px; font-weight: 800; text-align: center; margin: 4px 0 2px 0; }
             .cat { font-size: 11px; text-align: center; color: #64748b; margin-bottom: 12px; }
             .barcode-box { text-align: center; margin: 12px 0; }

@@ -453,7 +453,7 @@ export default function TalabatProfile1447Page() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-pulse">
         {/* Top Hero Banner Skeleton */}
-        <div className="rounded-2xl bg-gradient-to-r from-[#06241a] via-[#0a3d2c] to-[#041a13] p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
+        <div className="rounded-2xl bg-gradient-to-r from-[#1c1c1c] via-[#1c1c1c] to-[#0d0d0d] p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl bg-emerald-900/80 border border-emerald-700/50" />
@@ -544,7 +544,7 @@ export default function TalabatProfile1447Page() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* ── Top Hero Header (Fatimi Theme) ── */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-[#06241a] via-[#0a3d2c] to-[#041a13] text-white p-6 rounded-2xl shadow-xl relative overflow-hidden border border-emerald-700/40">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-[#1c1c1c] via-[#1c1c1c] to-[#0d0d0d] text-white p-6 rounded-2xl shadow-xl relative overflow-hidden border border-emerald-700/40">
         {/* Subtle decorative glow */}
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
@@ -595,7 +595,7 @@ export default function TalabatProfile1447Page() {
                 onClick={() => setActiveTab("edit")}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
                   activeTab === "edit"
-                    ? "bg-white text-[#0a3d2c] shadow-md"
+                    ? "bg-white text-[#1c1c1c] shadow-md"
                     : "bg-white/15 text-white hover:bg-white/25"
                 }`}
               >
@@ -608,7 +608,7 @@ export default function TalabatProfile1447Page() {
               onClick={() => setActiveTab("preview")}
               className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
                 activeTab === "preview"
-                  ? "bg-white text-[#0a3d2c] shadow-md"
+                  ? "bg-white text-[#1c1c1c] shadow-md"
                   : "bg-white/15 text-white hover:bg-white/25"
               }`}
             >

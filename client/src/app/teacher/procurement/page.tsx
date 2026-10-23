@@ -252,7 +252,7 @@ export default function TeacherProcurementPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-[#044e39] to-teal-900 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-[#b8541e] to-teal-900 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-full opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-400 via-transparent to-transparent" />
         <div className="relative z-10 space-y-1">
           <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold tracking-wider uppercase">

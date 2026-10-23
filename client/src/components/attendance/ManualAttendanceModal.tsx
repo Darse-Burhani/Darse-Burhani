@@ -281,7 +281,7 @@ export function ManualAttendanceModal({
           <ModalTitle className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg"
-              style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 100%)" }}
+              style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 100%)" }}
             >
               <CheckCircle2 className="w-5 h-5 text-amber-300" />
             </div>

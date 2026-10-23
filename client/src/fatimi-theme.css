@@ -41,6 +41,47 @@
   --ratio-10-accent: #f3b833;
   --ratio-10-accent-soft: #fff8e7;
   --ratio-10-gold: #f3b833;
+
+  /* ── Legacy green-family Tailwind scales repainted in DARK GOLD ──
+     tailwind.config.ts compiles emerald / green / teal / darse-burhani /
+     student / fatimi utilities to rgb(var(--db-c-...) / alpha). These triplets
+     repaint every one of them across the whole app in the charcoal + gold
+     palette that matches the login page — no per-component overrides needed. */
+  --db-c-emerald-50: 253 250 238;   /* warm cream */
+  --db-c-emerald-100: 253 243 220;
+  --db-c-emerald-200: 251 233 190;
+  --db-c-emerald-300: 247 216 140;
+  --db-c-emerald-400: 252 212 104;  /* gold-400 */
+  --db-c-emerald-500: 243 184 51;   /* gold-500 (core brand) */
+  --db-c-emerald-600: 239 154 51;   /* gold-600 */
+  --db-c-emerald-700: 220 107 39;   /* gold-700 */
+  --db-c-emerald-800: 184 84 30;    /* gold-800 */
+  --db-c-emerald-900: 138 62 20;    /* gold-900 (deep amber) */
+  --db-c-emerald-950: 26 18 9;      /* charcoal brown-black canvas */
+  --db-c-green-50: 253 250 238;
+  --db-c-green-100: 253 243 220;
+  --db-c-green-200: 251 233 190;
+  --db-c-green-300: 247 216 140;
+  --db-c-green-400: 252 212 104;
+  --db-c-green-500: 243 184 51;
+  --db-c-green-600: 239 154 51;
+  --db-c-green-700: 220 107 39;
+  --db-c-green-800: 184 84 30;
+  --db-c-green-900: 138 62 20;
+  --db-c-green-950: 26 18 9;
+  --db-c-teal-50: 253 250 238;
+  --db-c-teal-100: 253 243 220;
+  --db-c-teal-200: 251 233 190;
+  --db-c-teal-300: 247 216 140;
+  --db-c-teal-400: 252 212 104;
+  --db-c-teal-500: 243 184 51;
+  --db-c-teal-600: 239 154 51;
+  --db-c-teal-700: 220 107 39;
+  --db-c-teal-800: 184 84 30;
+  --db-c-teal-900: 138 62 20;
+  --db-c-teal-950: 26 18 9;
+  --db-c-fatimi-obsidian: 13 13 13;       /* obsidian charcoal */
+  --db-c-student-vibrant: 252 212 104;    /* gold vibrant */
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -302,7 +343,7 @@
 }
 
 .toast-fatimi.success {
-  border-left: 4px solid #10b981;
+  border-left: 4px solid #f3b833;
 }
 
 .toast-fatimi.error {

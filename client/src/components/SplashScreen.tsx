@@ -65,7 +65,7 @@ export function SplashScreen({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.05, filter: "blur(8px)" }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed inset-0 z-[999999] flex flex-col items-center justify-center select-none bg-gradient-to-br from-[#f8fafc] via-[#f0fdf4] to-[#fef9c3]/70 text-slate-800 overflow-hidden"
+          className="fixed inset-0 z-[999999] flex flex-col items-center justify-center select-none bg-gradient-to-br from-[#f8fafc] via-[#fff8e7] to-[#fef9c3]/70 text-slate-800 overflow-hidden"
           style={{ perspective: "1200px" }}
         >
           {/* ── 3D Ambient Radiant Atmosphere ── */}

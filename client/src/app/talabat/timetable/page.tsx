@@ -138,7 +138,7 @@ export default function TalabatTimetablePage() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl"
-        style={{ background: "linear-gradient(135deg, #06241a 0%, #0a3d2c 50%, #03180f 100%)" }}
+        style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #1c1c1c 50%, #0d0d0d 100%)" }}
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4">
@@ -242,7 +242,7 @@ export default function TalabatTimetablePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Class Teacher (Masool al-Fasl) */}
         <Card className="rounded-3xl border-slate-200/80 shadow-xs bg-white overflow-hidden lg:col-span-1">
-          <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-emerald-950 via-[#0a3d2c] to-emerald-900 text-white flex items-center justify-between">
+          <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-emerald-950 via-[#1c1c1c] to-emerald-900 text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-amber-300" />
               <span className="text-xs font-black uppercase tracking-wider text-amber-300">
@@ -425,7 +425,7 @@ export default function TalabatTimetablePage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[920px]">
               <thead>
-                <tr className="bg-[#06241a] text-white">
+                <tr className="bg-[#1c1c1c] text-white">
                   <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
                     Day / Period
                   </th>

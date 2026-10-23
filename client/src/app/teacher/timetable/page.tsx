@@ -314,7 +314,7 @@ export default function TeacherTimetablePage() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl"
-        style={{ background: "linear-gradient(135deg, #06241a 0%, #0a3d2c 50%, #03180f 100%)" }}
+        style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #1c1c1c 50%, #0d0d0d 100%)" }}
       >
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -614,7 +614,7 @@ export default function TeacherTimetablePage() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="bg-[#06241a] text-white">
+                  <tr className="bg-[#1c1c1c] text-white">
                     <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
                       Day / Period
                     </th>
@@ -756,7 +756,7 @@ export default function TeacherTimetablePage() {
               <div className="flex items-center gap-4">
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-amber-400/50"
-                  style={{ background: "linear-gradient(135deg, #06241a 0%, #0a3d2c 100%)" }}
+                  style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #1c1c1c 100%)" }}
                 >
                   <ShieldCheck className="w-8 h-8 text-amber-300" />
                 </div>
@@ -795,7 +795,7 @@ export default function TeacherTimetablePage() {
                 <Link href="/teacher/attendance">
                   <Button
                     size="sm"
-                    className="bg-[#06241a] hover:bg-[#0a3d2c] text-amber-300 font-bold text-xs gap-1.5 rounded-xl shadow-xs"
+                    className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5 rounded-xl shadow-xs"
                   >
                     <ClipboardCheck className="w-3.5 h-3.5 text-amber-300" />
                     Take Class Attendance
@@ -810,7 +810,7 @@ export default function TeacherTimetablePage() {
                         onClick={() => setSelectedMasoolIndex(idx)}
                         className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                           selectedMasoolIndex === idx
-                            ? "bg-[#06241a] text-amber-300 shadow-2xs"
+                            ? "bg-[#1c1c1c] text-amber-300 shadow-2xs"
                             : "text-slate-600 hover:text-slate-900"
                         }`}
                       >
@@ -905,7 +905,7 @@ export default function TeacherTimetablePage() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse min-w-[900px]">
                   <thead>
-                    <tr className="bg-[#06241a] text-white">
+                    <tr className="bg-[#1c1c1c] text-white">
                       <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
                         Day / Period
                       </th>
@@ -1027,7 +1027,7 @@ export default function TeacherTimetablePage() {
                     onClick={() => setSelectedClassName(clsName)}
                     className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
                       isSelected
-                        ? "bg-[#06241a] text-amber-300 ring-2 ring-emerald-600/30 shadow-sm"
+                        ? "bg-[#1c1c1c] text-amber-300 ring-2 ring-emerald-600/30 shadow-sm"
                         : "bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
                     }`}
                   >
@@ -1052,7 +1052,7 @@ export default function TeacherTimetablePage() {
                           />
                         </div>
                       ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-[#06241a] text-amber-300 ring-2 ring-amber-400 flex items-center justify-center text-xs font-black shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-[#1c1c1c] text-amber-300 ring-2 ring-amber-400 flex items-center justify-center text-xs font-black shrink-0">
                           {getInitials(classData.class.masool.name)}
                         </div>
                       )}
@@ -1171,7 +1171,7 @@ export default function TeacherTimetablePage() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse min-w-[900px]">
                   <thead>
-                    <tr className="bg-[#06241a] text-white">
+                    <tr className="bg-[#1c1c1c] text-white">
                       <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
                         Day / Period
                       </th>
@@ -1281,7 +1281,7 @@ export default function TeacherTimetablePage() {
         <ModalContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <ModalHeader>
             <ModalTitle className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[#06241a] text-amber-300 flex items-center justify-center text-sm font-black shadow-xs">
+              <div className="w-9 h-9 rounded-xl bg-[#1c1c1c] text-amber-300 flex items-center justify-center text-sm font-black shadow-xs">
                 <Users className="w-5 h-5" />
               </div>
               <div>
@@ -1324,7 +1324,7 @@ export default function TeacherTimetablePage() {
                   >
                     <Avatar className="w-10 h-10 ring-1 ring-emerald-600/30 shrink-0">
                       {s.avatarUrl && <AvatarImage src={s.avatarUrl} alt={s.name} />}
-                      <AvatarFallback className="bg-[#06241a] text-amber-300 text-xs font-bold">
+                      <AvatarFallback className="bg-[#1c1c1c] text-amber-300 text-xs font-bold">
                         {getInitials(s.name)}
                       </AvatarFallback>
                     </Avatar>

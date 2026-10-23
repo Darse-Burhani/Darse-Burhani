@@ -247,7 +247,7 @@ export default function MedicalDutyPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 p-4 md:p-8 space-y-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#059669] border border-emerald-600/30 p-6 md:p-8 shadow-xl text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#8a3e14] via-[#b8541e] to-[#ef9a33] border border-emerald-600/30 p-6 md:p-8 shadow-xl text-white">
         <div className="absolute -right-12 -top-12 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">

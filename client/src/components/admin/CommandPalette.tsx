@@ -395,7 +395,7 @@ export function CommandPalette() {
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-[#093b2a] text-white rounded-full shadow-2xl border border-[#d4af37] flex items-center gap-2 text-xs font-bold"
+            className="fixed top-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-[#141414] text-white rounded-full shadow-2xl border border-[#d4af37] flex items-center gap-2 text-xs font-bold"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#fde047]" />
             <span>

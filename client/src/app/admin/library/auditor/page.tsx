@@ -473,12 +473,12 @@ export default function AuditorPage() {
                             style={{
                               background: scanned
                                 ? scanned.isCorrectLocation
-                                  ? "#d1fae5"
+                                  ? "#fef4dc"
                                   : "#fee2e2"
                                 : "#f3f4f6",
                               color: scanned
                                 ? scanned.isCorrectLocation
-                                  ? "#047857"
+                                  ? "#b8541e"
                                   : "#dc2626"
                                 : "#6b7280",
                             }}

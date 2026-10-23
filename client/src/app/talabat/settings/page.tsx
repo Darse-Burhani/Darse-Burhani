@@ -82,7 +82,7 @@ export default function TalabatSettingsPage() {
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{user?.firstName} {user?.lastName}</h2>
                 <p className="text-sm text-gray-500">{user?.email}</p>
-                <Badge variant="outline" className="mt-1 text-xs bg-emerald-50 text-[#047857] border-emerald-200">Talabat</Badge>
+                <Badge variant="outline" className="mt-1 text-xs bg-emerald-50 text-[#b8541e] border-emerald-200">Talabat</Badge>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

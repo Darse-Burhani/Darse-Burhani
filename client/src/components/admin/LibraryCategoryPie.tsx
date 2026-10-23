@@ -4,15 +4,15 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recha
 
 const COLORS = [
   "#6366f1",
-  "#10b981",
+  "#f3b833",
   "#f59e0b",
   "#ef4444",
   "#3b82f6",
   "#8b5cf6",
   "#ec4899",
-  "#14b8a6",
+  "#ef9a33",
   "#f97316",
-  "#84cc16",
+  "#ef9a33",
   "#06b6d4",
   "#a855f7",
 ];

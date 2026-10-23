@@ -406,7 +406,7 @@ export default function AdminTakhteetPage() {
             { title: "In Progress", value: stats.inProgress, icon: TrendingUp, color: "bg-amber-50 text-amber-700", border: "border-t-amber-400" },
             { title: "Due This Month", value: stats.due, icon: CalendarDays, color: "bg-blue-50 text-blue-700", border: "border-t-blue-400" },
             { title: "Overdue", value: stats.overdue, icon: AlertTriangle, color: stats.overdue > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700", border: stats.overdue > 0 ? "border-t-red-400" : "border-t-emerald-400" },
-            { title: "Completed", value: stats.completed, icon: CheckCircle2, color: "bg-emerald-50 text-emerald-800", border: "border-t-[#047857]" },
+            { title: "Completed", value: stats.completed, icon: CheckCircle2, color: "bg-emerald-50 text-emerald-800", border: "border-t-[#b8541e]" },
           ].map((stat, idx) => (
             <Card key={stat.title} className={`hover:shadow-md transition-all border border-[#d4af37]/15 border-t-2 ${stat.border} rounded-xl bg-white`}>
               <CardContent className="p-4 sm:p-5">
@@ -483,7 +483,7 @@ export default function AdminTakhteetPage() {
             <div className="flex items-center gap-3 mb-4">
               <div className="w-1 h-6 rounded-full bg-gradient-to-b from-[#d4af37] to-[#b8860b]" />
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#047857]" /> Teachers ({filteredTeachers.length})
+                <Users className="w-5 h-5 text-[#b8541e]" /> Teachers ({filteredTeachers.length})
               </h2>
             </div>
 
@@ -501,7 +501,7 @@ export default function AdminTakhteetPage() {
                 {filteredTeachers.map((t, i) => (
                   <motion.div key={t.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all h-full border border-[#d4af37]/20 rounded-xl bg-white flex flex-col justify-between group">
-                      <div className="h-0.5 w-full bg-gradient-to-r from-[#047857] via-[#d4af37] to-[#047857] rounded-t-xl" />
+                      <div className="h-0.5 w-full bg-gradient-to-r from-[#b8541e] via-[#d4af37] to-[#b8541e] rounded-t-xl" />
                       <CardContent className="p-5">
                         <div className="flex items-start gap-3 mb-3">
                           <Avatar className="w-11 h-11 border-2 border-[#d4af37] shrink-0">
@@ -575,7 +575,7 @@ export default function AdminTakhteetPage() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-[#d4af37] to-[#b8860b]" />
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-[#047857]" /> Portions & Syllabus Tracking ({filteredPlans.length})
+                  <ClipboardList className="w-5 h-5 text-[#b8541e]" /> Portions & Syllabus Tracking ({filteredPlans.length})
                 </h2>
               </div>
 
@@ -761,7 +761,7 @@ export default function AdminTakhteetPage() {
                   ) : (
                     <Button
                       size="sm"
-                      className="bg-[#047857] hover:bg-[#065f46] text-white font-medium"
+                      className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium"
                       onClick={() => openCreateModal()}
                     >
                       <Plus className="w-4 h-4 mr-1.5" /> Assign First Portion
@@ -942,7 +942,7 @@ export default function AdminTakhteetPage() {
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#047857] hover:bg-[#065f46] text-white font-medium shadow-sm"
+              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium shadow-sm"
               onClick={handleCreate}
               disabled={saving || !form.teacherId || !form.classId || !form.title.trim()}
             >
@@ -957,7 +957,7 @@ export default function AdminTakhteetPage() {
         <ModalContent className="max-w-xl">
           <ModalHeader>
             <ModalTitle className="flex items-center gap-2 text-gray-900">
-              <div className="w-8 h-8 rounded-xl bg-[#047857] flex items-center justify-center text-white">
+              <div className="w-8 h-8 rounded-xl bg-[#b8541e] flex items-center justify-center text-white">
                 <Pencil className="w-4 h-4" />
               </div>
               Update Portion Progress
@@ -1065,7 +1065,7 @@ export default function AdminTakhteetPage() {
                   min={0}
                   max={100}
                   step={5}
-                  className="w-full accent-[#047857] cursor-pointer"
+                  className="w-full accent-[#b8541e] cursor-pointer"
                   value={editForm.progress}
                   onChange={(e) => {
                     const prog = parseInt(e.target.value) || 0;
@@ -1100,7 +1100,7 @@ export default function AdminTakhteetPage() {
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#047857] hover:bg-[#065f46] text-white font-medium shadow-sm"
+              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium shadow-sm"
               onClick={handleEditSave}
               disabled={editSaving || !editForm?.title?.trim()}
             >
@@ -1150,7 +1150,7 @@ export default function AdminTakhteetPage() {
         <ModalContent className="max-w-4xl">
           <ModalHeader>
             <ModalTitle className="flex items-center gap-2 text-gray-900">
-              <Printer className="w-5 h-5 text-[#047857]" />
+              <Printer className="w-5 h-5 text-[#b8541e]" />
               Takhteet Curriculum Portion Report
             </ModalTitle>
           </ModalHeader>
@@ -1195,7 +1195,7 @@ export default function AdminTakhteetPage() {
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#047857] hover:bg-[#065f46] text-white font-medium"
+              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium"
               onClick={() => window.print()}
             >
               <Printer className="w-4 h-4 mr-1.5" /> Print / Save as PDF

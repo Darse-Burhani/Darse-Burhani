@@ -428,7 +428,7 @@ export default function MarhalaFlowMap({
                   </linearGradient>
                   <linearGradient id="branchGold" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#d97706" />
-                    <stop offset="100%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#f3b833" />
                   </linearGradient>
                   <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="6" result="blur" />
@@ -454,7 +454,7 @@ export default function MarhalaFlowMap({
                 <path
                   d="M 500 230 C 420 230, 280 230, 180 190"
                   fill="none"
-                  stroke={selectedMarhala === "MARHALA_4" ? "#38bdf8" : "#059669"}
+                  stroke={selectedMarhala === "MARHALA_4" ? "#38bdf8" : "#ef9a33"}
                   strokeWidth={selectedMarhala === "MARHALA_4" ? 6 : 3.5}
                   strokeLinecap="round"
                   className="transition-all duration-300"
@@ -463,7 +463,7 @@ export default function MarhalaFlowMap({
                 <path
                   d="M 500 210 C 440 180, 360 140, 300 110"
                   fill="none"
-                  stroke={selectedMarhala === "MARHALA_5" ? "#34d399" : "#059669"}
+                  stroke={selectedMarhala === "MARHALA_5" ? "#fcd468" : "#ef9a33"}
                   strokeWidth={selectedMarhala === "MARHALA_5" ? 6 : 3.5}
                   strokeLinecap="round"
                   className="transition-all duration-300"
@@ -472,7 +472,7 @@ export default function MarhalaFlowMap({
                 <path
                   d="M 500 190 C 500 150, 500 120, 500 80"
                   fill="none"
-                  stroke={selectedMarhala === "MARHALA_6" ? "#fbbf24" : "#059669"}
+                  stroke={selectedMarhala === "MARHALA_6" ? "#fbbf24" : "#ef9a33"}
                   strokeWidth={selectedMarhala === "MARHALA_6" ? 6 : 3.5}
                   strokeLinecap="round"
                   className="transition-all duration-300"
@@ -481,7 +481,7 @@ export default function MarhalaFlowMap({
                 <path
                   d="M 500 210 C 560 180, 640 140, 700 110"
                   fill="none"
-                  stroke={selectedMarhala === "MARHALA_7" ? "#a855f7" : "#059669"}
+                  stroke={selectedMarhala === "MARHALA_7" ? "#a855f7" : "#ef9a33"}
                   strokeWidth={selectedMarhala === "MARHALA_7" ? 6 : 3.5}
                   strokeLinecap="round"
                   className="transition-all duration-300"
@@ -490,7 +490,7 @@ export default function MarhalaFlowMap({
                 <path
                   d="M 500 230 C 580 230, 720 230, 820 190"
                   fill="none"
-                  stroke={selectedMarhala === "MARHALA_8" ? "#f59e0b" : "#059669"}
+                  stroke={selectedMarhala === "MARHALA_8" ? "#f59e0b" : "#ef9a33"}
                   strokeWidth={selectedMarhala === "MARHALA_8" ? 6 : 3.5}
                   strokeLinecap="round"
                   className="transition-all duration-300"
@@ -523,7 +523,7 @@ export default function MarhalaFlowMap({
                     x="0"
                     y="14"
                     textAnchor="middle"
-                    fill="#a7f3d0"
+                    fill="#f3d9a0"
                     fontSize="10"
                     fontFamily="sans-serif"
                   >

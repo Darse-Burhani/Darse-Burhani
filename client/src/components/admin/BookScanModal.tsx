@@ -264,7 +264,7 @@ export default function BookScanModal({ open, onOpenChange, onBookIssued }: Book
           .field { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ddd; font-size: 12px; }
           .field .label { color: #888; font-weight: 500; }
           .field .value { font-weight: bold; color: #222; text-align: right; }
-          .info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin: 12px 0; text-align: center; font-size: 11px; color: #166534; }
+          .info-box { background: #fff8e7; border: 1px solid #f3d9a0; border-radius: 8px; padding: 12px; margin: 12px 0; text-align: center; font-size: 11px; color: #b8541e; }
           .footer { text-align: center; margin-top: 16px; padding-top: 12px; border-top: 2px dashed #333; font-size: 9px; color: #999; }
           @media print {
             body { background: white; padding: 0; }

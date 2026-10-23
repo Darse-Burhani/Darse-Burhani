@@ -224,7 +224,7 @@ export default function ParentSettingsPage() {
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div
           className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl"
-          style={{ background: "linear-gradient(135deg, #047857 0%, #065f46 50%, #064e3b 100%)" }}
+          style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 50%, #8a3e14 100%)" }}
         >
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
@@ -503,7 +503,7 @@ export default function ParentSettingsPage() {
                 <Button
                   type="submit"
                   disabled={saving}
-                  className="bg-[#047857] hover:bg-[#065f46] text-white font-bold px-6 py-2.5 rounded-xl shadow-md gap-2"
+                  className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-bold px-6 py-2.5 rounded-xl shadow-md gap-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save Profile Details
@@ -520,7 +520,7 @@ export default function ParentSettingsPage() {
           <Card className="rounded-3xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <GraduationCap className="w-5 h-5 text-[#047857]" />
+                <GraduationCap className="w-5 h-5 text-[#b8541e]" />
                 <h3 className="font-display font-bold text-gray-900 text-base">
                   Enrolled Talabat (Children) ({profile.children.length})
                 </h3>

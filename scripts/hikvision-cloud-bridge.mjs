@@ -68,6 +68,29 @@ const WEBHOOK_URL = PUSH_URL_ENV
   ? `${PUSH_URL_ENV}${PUSH_URL_ENV.includes('?') ? '&' : '?'}secret=${encodeURIComponent(SECRET)}`
   : `${RENDER_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`;
 
+// Fallback webhook targets. If the primary (custom-domain) gateway is
+// unreachable (DNS/SSL/network outage), the bridge retries the live Render
+// deployment URL automatically instead of silently dropping to DB-only sync.
+const RENDER_FALLBACK_BASE = (
+  process.env.RENDER_URL ||
+  process.env.RENDER_APP_URL ||
+  'https://darse-burhani.onrender.com'
+).replace(/\/+$/, '');
+const WEBHOOK_FALLBACKS = [...new Set([
+  WEBHOOK_URL,
+  `${RENDER_FALLBACK_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`,
+])];
+let lastGoodWebhookIndex = 0;
+
+// Health/keep-alive bases: try every known deployment URL (custom domain may
+// have DNS/SSL outages; the onrender.com URL is always the guaranteed one).
+const CLOUD_HEALTH_BASES = [...new Set([
+  RENDER_BASE,
+  RENDER_FALLBACK_BASE,
+  process.env.PUBLIC_APP_URL && !/localhost|127\.0\.0\.1/.test(process.env.PUBLIC_APP_URL) ? process.env.PUBLIC_APP_URL.replace(/\/+$/, '') : null,
+].filter(Boolean))];
+let lastGoodHealthBase = RENDER_FALLBACK_BASE;
+
 
 // Terminal Device Roster
 const rawHosts = process.env.HIKVISION_HOSTS || process.env.HIKVISION_HOST || '192.168.0.4,192.168.0.5';
@@ -428,28 +451,36 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
   stats.totalPunches++;
   stats.lastPunch = { employeeNo, name, time: timeStr, currentVerifyMode, deviceHost };
 
-  // 1. Send to Render Cloud Webhook
+  // 1. Send to Render Cloud Webhook (primary gateway + automatic fallbacks)
   let webhookSuccess = false;
-  try {
-    const res = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-biometric-secret': SECRET,
-        'x-webhook-secret': SECRET,
-      },
-      body: JSON.stringify(payload),
-    });
+  for (let attempt = 0; attempt < WEBHOOK_FALLBACKS.length && !webhookSuccess; attempt++) {
+    // Sticky routing: always retry the last-known-good gateway first.
+    const idx = (lastGoodWebhookIndex + attempt) % WEBHOOK_FALLBACKS.length;
+    const target = WEBHOOK_FALLBACKS[idx];
+    try {
+      const res = await fetch(target, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-biometric-secret': SECRET,
+          'x-webhook-secret': SECRET,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(8000),
+      });
 
-    if (res.ok) {
-      webhookSuccess = true;
-      stats.renderSynced++;
-      console.log(`   ☁️  [CLOUD WEBHOOK] Synced to Render (${res.status} OK)`);
-    } else {
-      console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Render returned HTTP ${res.status} (activating direct DB sync)`);
+      if (res.ok) {
+        webhookSuccess = true;
+        lastGoodWebhookIndex = idx;
+        stats.renderSynced++;
+        if (attempt > 0) console.log(`   🔁 [CLOUD WEBHOOK] Recovered via fallback gateway #${idx}`);
+        console.log(`   ☁️  [CLOUD WEBHOOK] Synced to Render (${res.status} OK)`);
+      } else {
+        console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Gateway #${idx} returned HTTP ${res.status}${attempt < WEBHOOK_FALLBACKS.length - 1 ? ' (trying fallback)' : ' (activating direct DB sync)'}`);
+      }
+    } catch (e) {
+      console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Cannot reach gateway #${idx} (${new URL(target).host}): ${e.message}${attempt < WEBHOOK_FALLBACKS.length - 1 ? ' — trying fallback gateway' : ''}`);
     }
-  } catch (e) {
-    console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Cannot reach Render directly: ${e.message}`);
   }
 
   // 2. Direct Supabase Database Write (Dual-Path Guarantee)
@@ -757,11 +788,19 @@ async function startBridge() {
     }
   }, 30000);
 
-  // 5. Render Keep-Alive ping every 3 minutes
+  // 5. Render Keep-Alive ping every 3 minutes (sticky fallback base)
   setInterval(async () => {
     try {
-      await fetch(`${RENDER_BASE}/api/health`);
-    } catch {}
+      await fetch(`${lastGoodHealthBase}/api/health`, { signal: AbortSignal.timeout(10000) });
+    } catch {
+      for (const base of CLOUD_HEALTH_BASES) {
+        try {
+          await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(10000) });
+          lastGoodHealthBase = base;
+          break;
+        } catch {}
+      }
+    }
   }, 180000);
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');

@@ -639,7 +639,7 @@ export default function AdminSettingsPage() {
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#044e3a] via-[#065f46] to-[#047857] text-white shadow-xl border border-emerald-500/20"
+        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#b8541e] via-[#8a3e14] to-[#b8541e] text-white shadow-xl border border-emerald-500/20"
       >
         <div className="absolute top-0 left-0 w-48 h-48 opacity-10 pointer-events-none">
           <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -1454,7 +1454,7 @@ export default function AdminSettingsPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
                 <div className="flex items-center gap-4">
                   <Avatar className="w-14 h-14 ring-2 ring-amber-300 shadow-md">
-                    <AvatarFallback className="bg-gradient-to-br from-[#064e3b] to-[#022c22] text-base font-bold text-amber-200">
+                    <AvatarFallback className="bg-gradient-to-br from-[#8a3e14] to-[#1c1c1c] text-base font-bold text-amber-200">
                       {user ? getInitials(user.firstName || "A", user.lastName || "D") : "AD"}
                     </AvatarFallback>
                   </Avatar>

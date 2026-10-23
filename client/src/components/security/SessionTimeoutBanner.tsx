@@ -34,7 +34,7 @@ export function SessionTimeoutBanner({
               onClick={onExtend}
               className="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5"
               style={{
-                background: "linear-gradient(135deg, #064e3b 0%, #047857 100%)",
+                background: "linear-gradient(135deg, #8a3e14 0%, #b8541e 100%)",
               }}
             >
               <RefreshCw className="w-3 h-3" />

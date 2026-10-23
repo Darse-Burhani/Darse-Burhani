@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
 import { notifyTimetableChange, getRecentTimetableChanges, isSlotRecentlyChanged, notifyBadalAssignment } from "../../lib/timetable-notify";
+import { canonicalizeTeacherDisplay, canonicalizeTeacherName } from "../../lib/timetable-master-sync";
 
 const router = Router();
 
@@ -152,31 +153,47 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
               avatarUrl: e.student?.user?.avatarUrl || null,
             })),
           })),
-          teachers: teachers.map((t) => ({
-            id: t.id,
-            name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
-            email: t.user?.email || "",
-            its: t.its,
-            avatarUrl: t.user?.avatarUrl || t.photoUrl || null,
-            weeklyPeriods: t._count.timetableSlots,
-          })),
-          todayBadals: todayBadals.map((b) => ({
-            id: b.id,
-            date: b.date.toISOString().split("T")[0],
-            slotId: b.slotId,
-            classId: b.classId,
-            className: b.className,
-            period: b.period,
-            subject: b.subject,
-            originalTeacherId: b.originalTeacherId,
-            originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
-            originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
-            badalTeacherId: b.badalTeacherId,
-            badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName} ${b.badalTeacher.user.lastName}` : "TBA"),
-            badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
-            status: b.status,
-            isFulfilled: b.isFulfilled,
-          })),
+          teachers: teachers.map((t) => {
+            const display = canonicalizeTeacherDisplay(
+              t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+              t.user?.avatarUrl || t.photoUrl || null,
+            );
+            return {
+              id: t.id,
+              name: display.name,
+              email: t.user?.email || "",
+              its: t.its,
+              avatarUrl: display.avatarUrl,
+              weeklyPeriods: t._count.timetableSlots,
+            };
+          }),
+          todayBadals: todayBadals.map((b) => {
+            const originalDisplay = canonicalizeTeacherDisplay(
+              b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
+              b.originalTeacher?.user?.avatarUrl || null,
+            );
+            const badalDisplay = canonicalizeTeacherDisplay(
+              b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName} ${b.badalTeacher.user.lastName}` : "TBA"),
+              b.badalTeacher?.user?.avatarUrl || null,
+            );
+            return {
+              id: b.id,
+              date: b.date.toISOString().split("T")[0],
+              slotId: b.slotId,
+              classId: b.classId,
+              className: b.className,
+              period: b.period,
+              subject: b.subject,
+              originalTeacherId: b.originalTeacherId,
+              originalTeacherName: originalDisplay.name,
+              originalTeacherAvatar: originalDisplay.avatarUrl,
+              badalTeacherId: b.badalTeacherId,
+              badalTeacherName: badalDisplay.name,
+              badalTeacherAvatar: badalDisplay.avatarUrl,
+              status: b.status,
+              isFulfilled: b.isFulfilled,
+            };
+          }),
         };
       },
       { ttl: 15_000, tags: ["timetableslot", "timetable", "class"] }
@@ -241,6 +258,9 @@ function formatSlotResponse(slot: any) {
   );
   const isRecent = Boolean(changeInfo || isRecentByDate);
 
+  const composedTeacherName = slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA");
+  const slotDisplay = canonicalizeTeacherDisplay(composedTeacherName, slot.teacher?.user?.avatarUrl || slot.teacher?.photoUrl || null);
+
   return {
     id: slot.id,
     classId: slot.classId,
@@ -248,8 +268,8 @@ function formatSlotResponse(slot: any) {
     classGrade: slot.class?.grade || "",
     classSection: slot.class?.section || "",
     teacherId: slot.teacherId,
-    teacherName: slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA"),
-    teacherAvatar: slot.teacher?.user?.avatarUrl || slot.teacher?.photoUrl || null,
+    teacherName: slotDisplay.name,
+    teacherAvatar: slotDisplay.avatarUrl,
     teacherIts: slot.teacher?.its || null,
     subject: slot.subject,
     dayOfWeek: slot.dayOfWeek,
@@ -261,7 +281,7 @@ function formatSlotResponse(slot: any) {
     breakName: slot.breakName,
     updatedAt: slot.updatedAt,
     isRecentlyChanged: isRecent,
-    changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${slot.subject} (${slot.teacherName || "Assigned Teacher"})` : null),
+    changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${slot.subject} (${canonicalizeTeacherName(slot.teacherName) || "Assigned Teacher"})` : null),
   };
 }
 
@@ -645,11 +665,17 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           endTime: b.endTime,
           subject: b.subject,
           originalTeacherId: b.originalTeacherId,
-          originalTeacherName: b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"),
-          originalTeacherAvatar: b.originalTeacher?.user?.avatarUrl || null,
-          badalTeacherId: b.badalTeacherId,
-          badalTeacherName: b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"),
-          badalTeacherAvatar: b.badalTeacher?.user?.avatarUrl || null,
+          ...(() => {
+            const od = canonicalizeTeacherDisplay(b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"), b.originalTeacher?.user?.avatarUrl || null);
+            const bd = canonicalizeTeacherDisplay(b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"), b.badalTeacher?.user?.avatarUrl || null);
+            return {
+              originalTeacherName: od.name,
+              originalTeacherAvatar: od.avatarUrl,
+              badalTeacherId: b.badalTeacherId,
+              badalTeacherName: bd.name,
+              badalTeacherAvatar: bd.avatarUrl,
+            };
+          })(),
           reason: b.reason,
           status: b.status,
           instructions: b.instructions,
@@ -770,18 +796,24 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         if (subjectTeacherIds.has(t.id)) return true;
         return t.subjects.some((s) => s.trim().toLowerCase() === normalizedSubjectKey);
       })
-      .map((t) => ({
-        id: t.id,
-        name: t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
-        email: t.user?.email || "",
-        its: t.its,
-        department: t.department || "Faculty",
-        subjects: t.subjects,
-        avatarUrl: t.user?.avatarUrl || null,
-        badalCount: t._count.substituteBadals,
-        isFree: !busyTeacherIds.has(t.id),
-        teachesSubject: true,
-      }))
+      .map((t) => {
+        const substituteDisplay = canonicalizeTeacherDisplay(
+          t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+          t.user?.avatarUrl || null,
+        );
+        return {
+          id: t.id,
+          name: substituteDisplay.name || "Teacher",
+          email: t.user?.email || "",
+          its: t.its,
+          department: t.department || "Faculty",
+          subjects: t.subjects,
+          avatarUrl: substituteDisplay.avatarUrl,
+          badalCount: t._count.substituteBadals,
+          isFree: !busyTeacherIds.has(t.id),
+          teachesSubject: true,
+        };
+      })
       .sort(
         (a, b) =>
           Number(b.isFree) - Number(a.isFree) ||
@@ -1168,7 +1200,7 @@ router.post("/ai-fill", requireRole("ADMIN"), async (req, res) => {
                 where: { id: existing.id },
                 data: {
                   teacherId: selectedTeacher.id,
-                  teacherName: `${selectedTeacher.user.firstName} ${selectedTeacher.user.lastName}`.trim(),
+                  teacherName: canonicalizeTeacherName(`${selectedTeacher.user.firstName} ${selectedTeacher.user.lastName}`.trim()),
                   subject: chosenSubject,
                   roomNumber: `Room ${cls.name}`,
                   isBreak: false,
@@ -1181,7 +1213,7 @@ router.post("/ai-fill", requireRole("ADMIN"), async (req, res) => {
                   classId: cls.id,
                   className: cls.name,
                   teacherId: selectedTeacher.id,
-                  teacherName: `${selectedTeacher.user.firstName} ${selectedTeacher.user.lastName}`.trim(),
+                  teacherName: canonicalizeTeacherName(`${selectedTeacher.user.firstName} ${selectedTeacher.user.lastName}`.trim()),
                   dayOfWeek: day,
                   period: p,
                   startTime: times.startTime,
