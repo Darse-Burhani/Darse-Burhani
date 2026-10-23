@@ -1,8 +1,8 @@
 /* ─────────────────────────────────────────────────────────────
-   DARSE BURHANI THEME: 70-30-10 HARMONY SYSTEM
-   70% Dominant Background & Airy Surfaces (Generous Whitespace, Glare-Free)
-   30% Deep Slate Structural Text & Hairlines (High Legibility, Content)
-   10% Intentional Emerald & Gold Highlights (Key Metrics, Badges & Focus)
+   DARSE BURHANI THEME: DARK GOLD (70-30-10 HARMONY)
+   70% Deep Charcoal Canvas & Elevated Surfaces
+   30% Warm White / Cream Typography & Subtle Borders
+   10% Gold / Amber Accent — The Singular Brand Highlight
    ───────────────────────────────────────────────────────────── */
 
 :root,
@@ -12,43 +12,44 @@
 [data-fatimi-theme="fatimi-mishkat-nur"],
 [data-fatimi-theme="fatimi-kufa-zari"],
 [data-fatimi-theme="twilight-palace"] {
-  --fatimi-primary: #064e3b;
-  --fatimi-primary-dark: #022c22;
-  --fatimi-primary-light: #059669;
-  --fatimi-secondary: #047857;
-  --fatimi-gold: #d97706;
-  --fatimi-gold-light: #fef3c7;
-  --fatimi-gold-dark: #b45309;
-  --fatimi-surface: #ffffff;
-  --fatimi-bg-subtle: #f8fafc;
-  --fatimi-border: #e2e8f0;
-  --fatimi-border-subtle: #f1f5f9;
-  --fatimi-glow: rgba(5, 150, 105, 0.18);
-  --fatimi-accent: #059669;
-  --fatimi-sidebar-bg: linear-gradient(180deg, #011f18 0%, #022c22 55%, #064e3b 100%);
-  --fatimi-banner-bg: linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%);
-  --fatimi-header-line: linear-gradient(90deg, #022c22, #059669, #022c22);
+  /* ── 70% Dominant Dark Canvas & Surfaces ── */
+  --fatimi-primary: #0d0d0d;
+  --fatimi-primary-dark: #080808;
+  --fatimi-primary-light: #141414;
+  --fatimi-secondary: #1c1c1c;
+  --fatimi-gold: #f3b833;
+  --fatimi-gold-light: #fef9e7;
+  --fatimi-gold-dark: #dc6b27;
+  --fatimi-surface: #181818;
+  --fatimi-bg-subtle: #1c1c1c;
+  --fatimi-border: #2a2a2a;
+  --fatimi-border-subtle: #222222;
+  --fatimi-glow: rgba(252, 212, 104, 0.18);
+  --fatimi-accent: #f3b833;
+  --fatimi-sidebar-bg: linear-gradient(180deg, #0d0d0d 0%, #141414 55%, #1c1c1c 100%);
+  --fatimi-banner-bg: linear-gradient(135deg, #1c1c1c 0%, #141414 55%, #0d0d0d 100%);
+  --fatimi-header-line: linear-gradient(90deg, #2a2a2a, #f3b833, #2a2a2a);
 
   /* Explicit 70 / 30 / 10 ratio contract used by shared utilities. */
-  --ratio-70-canvas: #f8fafc;
-  --ratio-70-surface: #ffffff;
-  --ratio-70-subtle: #f1f5f9;
-  --ratio-30-ink: #0f172a;
-  --ratio-30-body: #334155;
-  --ratio-30-muted: #64748b;
-  --ratio-30-border: #e2e8f0;
-  --ratio-10-accent: #059669;
-  --ratio-10-accent-soft: #ecfdf5;
-  --ratio-10-gold: #d97706;
+  --ratio-70-canvas: #0d0d0d;
+  --ratio-70-surface: #141414;
+  --ratio-70-subtle: #1c1c1c;
+  --ratio-30-ink: #f5f0e8;
+  --ratio-30-body: #e8e0d0;
+  --ratio-30-muted: #9a9280;
+  --ratio-30-border: #2a2a2a;
+  --ratio-10-accent: #f3b833;
+  --ratio-10-accent-soft: #fff8e7;
+  --ratio-10-gold: #f3b833;
 }
 
 /* ─────────────────────────────────────────────────────────────
-   GLOBAL THEME BINDINGS FOR ALL PORTALS (70-30-10 CALIBRATED)
+   GLOBAL THEME BINDINGS FOR ALL PORTALS (DARK GOLD 70-30-10)
    ───────────────────────────────────────────────────────────── */
 
 ::selection {
-  background: rgba(16, 185, 129, 0.22);
-  color: #064e3b;
+  background: rgba(252, 212, 104, 0.25);
+  color: #f5f0e8;
 }
 
 /* Smooth luxury scrollbar */
@@ -58,17 +59,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f8fafc;
+  background: #0d0d0d;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.25);
+  background: #2a2a2a;
   border-radius: 9999px;
   transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(5, 150, 105, 0.45);
+  background: #f3b833;
 }
 
 .fatimi-header-banner {
@@ -77,9 +78,9 @@
   border-radius: 1.25rem;
   padding: 1.75rem 2.25rem;
   background: var(--fatimi-banner-bg) !important;
-  color: #ffffff !important;
-  box-shadow: 0 16px 36px -8px rgba(2, 44, 34, 0.22), 0 4px 12px -2px rgba(5, 150, 105, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f5f0e8 !important;
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(252, 212, 104, 0.15);
+  border: 1px solid rgba(252, 212, 104, 0.15);
 }
 
 .fatimi-header-banner::before {
@@ -89,7 +90,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(167, 243, 208, 0.8) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(252, 212, 104, 0.8) 50%, transparent 100%);
   pointer-events: none;
 }
 
@@ -97,14 +98,14 @@
 .fatimi-header-banner h2,
 .fatimi-header-banner h3 {
   font-family: var(--font-heading) !important;
-  color: #ffffff !important;
+  color: #f5f0e8 !important;
   letter-spacing: -0.025em;
   font-weight: 800;
 }
 
 .fatimi-header-banner p {
   font-family: var(--font-info) !important;
-  color: rgba(255, 255, 255, 0.92) !important;
+  color: rgba(245, 240, 232, 0.92) !important;
 }
 
 .fatimi-card-header {
@@ -114,36 +115,36 @@
 }
 
 .fatimi-gold-accent {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+  background: linear-gradient(135deg, #f3b833 0%, #dc6b27 100%) !important;
+  color: #0d0d0d !important;
+  box-shadow: 0 2px 8px rgba(252, 212, 104, 0.25);
 }
 
-/* 70% Clean White Card Surface with 10% Accent on Hover */
+/* 70% Dark Card Surface with 10% Gold Accent on Hover */
 .fatimi-card {
   background: var(--fatimi-surface);
-  border: 1px solid var(--fatimi-border, #e2e8f0);
+  border: 1px solid var(--fatimi-border, #2a2a2a);
   border-radius: 1.125rem;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
 }
 
 .fatimi-card:hover {
-  border-color: rgba(5, 150, 105, 0.35);
-  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(5, 150, 105, 0.08);
+  border-color: rgba(252, 212, 104, 0.35);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(252, 212, 104, 0.15);
   transform: translateY(-1.5px);
 }
 
 /* Crisp readable button styles with WCAG AA compliance & haptic feel (10% Focal Points) */
 .btn-fatimi-gold {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, #fcd468 0%, #f3b833 50%, #dc6b27 100%) !important;
+  color: #0d0d0d !important;
   font-weight: 700;
-  border: 1px solid rgba(180, 83, 9, 0.85);
+  border: 1px solid rgba(220, 107, 39, 0.85);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.4), 0 2px 8px rgba(217, 119, 6, 0.2);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 2px 8px rgba(252, 212, 104, 0.2);
   border-radius: 0.875rem;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
@@ -151,598 +152,270 @@
 }
 
 .btn-fatimi-gold:hover {
-  filter: brightness(1.06);
+  background: linear-gradient(135deg, #fce07a 0%, #f5c04a 50%, #e88a2d 100%) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(252, 212, 104, 0.3);
   transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5), 0 6px 18px rgba(217, 119, 6, 0.3);
 }
 
 .btn-fatimi-gold:active {
-  transform: scale(0.97);
-}
-
-.btn-fatimi-primary {
-  background: linear-gradient(135deg, #022c22 0%, #047857 55%, #065f46 100%) !important;
-  color: #ffffff !important;
-  font-weight: 700;
-  border: 1px solid rgba(2, 44, 34, 0.9);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.25), 0 3px 10px rgba(4, 120, 87, 0.22);
-  border-radius: 0.875rem;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
-  user-select: none;
-}
-
-.btn-fatimi-primary:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 8px 22px rgba(4, 120, 87, 0.3);
-}
-
-.btn-fatimi-primary:active {
-  transform: scale(0.97);
+  transform: translateY(0);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(252, 212, 104, 0.15);
 }
 
 .btn-fatimi-outline {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #1e293b !important;
+  background: transparent !important;
+  color: var(--fatimi-gold) !important;
   font-weight: 600;
+  border: 1px solid var(--fatimi-gold) !important;
   border-radius: 0.875rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-fatimi-outline:hover {
+  background: rgba(252, 212, 104, 0.1) !important;
+  box-shadow: 0 0 0 1px var(--fatimi-gold), 0 0 16px -4px var(--fatimi-gold);
+}
+
+.btn-fatimi-dark {
+  background: var(--fatimi-primary) !important;
+  color: #f5f0e8 !important;
+  font-weight: 600;
+  border: 1px solid var(--fatimi-border) !important;
+  border-radius: 0.875rem;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }
 
-.btn-fatimi-outline:hover {
-  background: #f8fafc;
-  border-color: rgba(5, 150, 105, 0.5);
-  color: #064e3b !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.1);
+.btn-fatimi-dark:hover {
+  background: var(--fatimi-secondary) !important;
+  border-color: var(--fatimi-gold) !important;
 }
 
-.btn-fatimi-outline:active {
-  transform: scale(0.97);
-}
-
-.fatimi-input {
+/* Input & Form Elements */
+.input-fatimi {
+  background: var(--fatimi-surface) !important;
+  border: 1px solid var(--fatimi-border) !important;
+  color: var(--fatimi-text-primary, #f5f0e8) !important;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  transition: all 0.2s ease;
   width: 100%;
-  padding: 0.625rem 0.875rem;
-  border-radius: 0.875rem;
-  border: 1px solid #cbd5e1;
-  font-size: 0.875rem;
-  background: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.fatimi-input:focus {
+.input-fatimi:focus {
   outline: none;
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.18);
+  border-color: var(--fatimi-gold) !important;
+  box-shadow: 0 0 0 3px rgba(252, 212, 104, 0.15);
 }
 
+.input-fatimi::placeholder {
+  color: var(--fatimi-text-muted, #9a9280) !important;
+}
+
+/* Badge / Tag Styles */
 .badge-fatimi-gold {
-  background-color: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
-  font-weight: 700;
-  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.06);
-}
-
-/* ─────────────────────────────────────────────────────────────
-   EXECUTIVE ADMIN COMMAND HUBS & INTERACTIVE PILLS
-   ───────────────────────────────────────────────────────────── */
-.admin-hub-card {
-  background: #ffffff;
-  border-radius: 1.125rem;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.admin-hub-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(5, 150, 105, 0.35);
-  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(5, 150, 105, 0.1);
-}
-
-.hub-tool-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.65rem 0.85rem;
-  border-radius: 0.85rem;
-  background: #fdfdfc;
-  border: 1px solid rgba(226, 232, 240, 0.7);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  text-decoration: none;
-}
-
-.hub-tool-item:hover {
-  background: #ffffff;
-  border-color: rgba(212, 175, 55, 0.4);
-  box-shadow: 0 4px 12px -2px rgba(6, 78, 59, 0.06), 0 2px 6px -1px rgba(212, 175, 55, 0.1);
-  transform: translateX(2px);
-}
-
-.gold-glow-border {
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  box-shadow: 0 0 16px -4px rgba(212, 175, 55, 0.2);
-}
-
-/* ─────────────────────────────────────────────────────────────
-   CREDENTIAL CHIPS & PRINT STYLES FOR INSTITUTIONAL SLIPS
-   ───────────────────────────────────────────────────────────── */
-.credential-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 0.625rem;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  background: linear-gradient(135deg, rgba(252, 212, 104, 0.15) 0%, rgba(239, 154, 51, 0.1) 100%);
+  color: var(--fatimi-gold) !important;
+  border: 1px solid rgba(252, 212, 104, 0.3);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  background: #fef3c7;
-  color: #78350f;
-  border: 1px solid #fde68a;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-@media print {
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-  .no-print,
-  nav,
-  aside,
-  header,
-  .fatimi-header-banner,
-  button:not(.print-include) {
-    display: none !important;
-  }
-  .print-only {
-    display: block !important;
-  }
-  .print-page-break {
-    page-break-after: always;
-  }
-  .print-credential-slip {
-    border: 2px dashed #94a3b8 !important;
-    padding: 1.25rem !important;
-    margin-bottom: 1.25rem !important;
-    background: #ffffff !important;
-    page-break-inside: avoid !important;
-    border-radius: 0.75rem !important;
-  }
+.badge-fatimi-dark {
+  background: var(--fatimi-primary) !important;
+  color: #f5f0e8 !important;
+  border: 1px solid var(--fatimi-border) !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   2026 MODERN ICON BADGES & BUTTON MICRO-ANIMATIONS
-   ───────────────────────────────────────────────────────────── */
-.icon-badge-2026 {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.06);
-  position: relative;
-  overflow: hidden;
+/* Avatar Fallback Gradients */
+.avatar-fatimi-fallback {
+  background: linear-gradient(135deg, #1c1c1c 0%, #141414 100%) !important;
+  color: var(--fatimi-gold) !important;
 }
 
-.icon-badge-2026:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 16px -2px rgba(0, 0, 0, 0.12);
-}
-
-.icon-badge-gold {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #b45309;
-}
-
-.icon-badge-emerald {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #065f46;
-}
-
-.icon-badge-indigo {
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  color: #3730a3;
-}
-
-.icon-badge-rose {
-  background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
-  border: 1px solid rgba(244, 63, 94, 0.4);
-  color: #9f1239;
-}
-
-/* Tactile 2026 Interactive Button Classes */
-.btn-interactive {
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  user-select: none;
-}
-
-.btn-interactive:active {
-  transform: scale(0.965) translateY(1px);
-}
-
-.btn-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-shimmer::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
+/* Table Styles */
+.table-fatimi {
   width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-fatimi th {
+  background: var(--fatimi-bg-subtle);
+  color: var(--fatimi-text-secondary);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--fatimi-border);
+  text-align: left;
+}
+
+.table-fatimi td {
+  background: var(--fatimi-surface);
+  color: var(--fatimi-text-primary);
+  padding: 1rem;
+  border-bottom: 1px solid var(--fatimi-border-subtle);
+  font-size: 0.875rem;
+}
+
+.table-fatimi tbody tr:hover td {
+  background: var(--fatimi-bg-subtle);
+}
+
+.table-fatimi tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Modal / Dialog Overrides */
+.modal-fatimi-overlay {
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(4px);
+}
+
+.modal-fatimi-content {
+  background: var(--fatimi-surface) !important;
+  border: 1px solid var(--fatimi-border) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(252, 212, 104, 0.1);
+}
+
+/* Toast Notifications */
+.toast-fatimi {
+  background: var(--fatimi-card-elevated) !important;
+  border: 1px solid var(--fatimi-border) !important;
+  color: var(--fatimi-text-primary) !important;
+  border-radius: 1rem;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+.toast-fatimi.success {
+  border-left: 4px solid #10b981;
+}
+
+.toast-fatimi.error {
+  border-left: 4px solid #ef4444;
+}
+
+.toast-fatimi.warning {
+  border-left: 4px solid var(--fatimi-gold);
+}
+
+/* Dropdown / Select */
+.select-fatimi {
+  background: var(--fatimi-surface) !important;
+  border: 1px solid var(--fatimi-border) !important;
+  color: var(--fatimi-text-primary) !important;
+  border-radius: 0.75rem;
+  padding: 0.625rem 2.5rem 0.625rem 1rem;
+  font-size: 0.875rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239a9280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem 1.25rem;
+}
+
+.select-fatimi:focus {
+  outline: none;
+  border-color: var(--fatimi-gold) !important;
+  box-shadow: 0 0 0 3px rgba(252, 212, 104, 0.15);
+}
+
+/* Tabs */
+.tabs-fatimi-list {
+  background: var(--fatimi-bg-subtle) !important;
+  border: 1px solid var(--fatimi-border) !important;
+  border-radius: 0.875rem;
+  padding: 0.25rem;
+}
+
+.tabs-fatimi-trigger {
+  color: var(--fatimi-text-muted) !important;
+  font-weight: 500;
+  border-radius: 0.625rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.tabs-fatimi-trigger[data-state="active"] {
+  background: var(--fatimi-gold) !important;
+  color: #0d0d0d !important;
+  box-shadow: 0 2px 8px rgba(252, 212, 104, 0.25);
+}
+
+/* Divider / Separator */
+.divider-fatimi {
+  border-color: var(--fatimi-border) !important;
+}
+
+/* Progress Bar */
+.progress-fatimi {
+  background: var(--fatimi-bg-subtle) !important;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fatimi-bar {
+  background: linear-gradient(90deg, var(--fatimi-gold) 0%, var(--fatimi-gold-dark) 100%) !important;
   height: 100%;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
-  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
+  border-radius: 9999px;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-shimmer:hover::before {
-  transform: translateX(200%);
+/* Skeleton Loader */
+.skeleton-fatimi {
+  background: linear-gradient(
+    90deg,
+    var(--fatimi-bg-subtle) 25%,
+    var(--fatimi-border-subtle) 50%,
+    var(--fatimi-bg-subtle) 75%
+  ) !important;
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 0.5rem;
 }
 
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.15);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(0.95);
-    opacity: 0;
-  }
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-.animate-pulse-ring {
-  animation: pulse-ring 2.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+/* Focus Ring Utility */
+.focus-fatimi:focus-visible {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--fatimi-gold);
+  ring-offset: 2px;
+  ring-offset-color: var(--fatimi-primary);
 }
 
-/* ─────────────────────────────────────────────────────────────
-   TWILIGHT PALACE THEME — sign-in inspired (sunset indigo + amber)
-   Palette sampled from the login backdrop photo:
-   sky #354971 · indigo #1a2038 · amber glow #ebaa45 · ember #dc6b27
-   ───────────────────────────────────────────────────────────── */
+/* Utility Classes for Theme Consistency */
+.text-fatimi-gold { color: var(--fatimi-gold) !important; }
+.text-fatimi-primary { color: var(--fatimi-text-primary, #f5f0e8) !important; }
+.text-fatimi-body { color: var(--fatimi-text-body, #e8e0d0) !important; }
+.text-fatimi-muted { color: var(--fatimi-text-muted, #9a9280) !important; }
 
-[data-fatimi-theme="twilight-palace"] {
-  --fatimi-primary: #1a2038;
-  --fatimi-primary-dark: #0c1026;
-  --fatimi-primary-light: #2a3358;
-  --fatimi-secondary: #2a3358;
-  --fatimi-gold: #ebaa45;
-  --fatimi-gold-light: #fcd468;
-  --fatimi-gold-dark: #c99349;
-  --fatimi-surface: #ffffff;
-  --fatimi-bg-subtle: #f6f4f8;
-  --fatimi-border: #e5e2ec;
-  --fatimi-border-subtle: #f1eef5;
-  --fatimi-glow: rgba(235, 170, 69, 0.18);
-  --fatimi-accent: #ebaa45;
-  --fatimi-sidebar-bg: linear-gradient(180deg, #10142a 0%, #1a2038 55%, #2a3358 100%);
-  --fatimi-banner-bg: linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%);
-  --fatimi-header-line: linear-gradient(90deg, #1a2038, #ebaa45, #1a2038);
-}
+.bg-fatimi-primary { background: var(--fatimi-primary) !important; }
+.bg-fatimi-surface { background: var(--fatimi-surface) !important; }
+.bg-fatimi-subtle { background: var(--fatimi-bg-subtle) !important; }
+.bg-fatimi-card { background: var(--fatimi-card) !important; }
 
-/* Sunset texture on the portal canvas: indigo sky wash + warm window glows */
-body[data-fatimi-theme="twilight-palace"] {
-  background-color: #f6f4f8;
-  background-image:
-    radial-gradient(1100px 480px at 12% -8%, rgba(61, 71, 113, 0.16), transparent 62%),
-    radial-gradient(900px 420px at 92% -4%, rgba(235, 170, 69, 0.14), transparent 58%),
-    radial-gradient(1000px 560px at 50% 115%, rgba(220, 107, 39, 0.10), transparent 60%);
-  background-attachment: fixed;
-}
+.border-fatimi { border-color: var(--fatimi-border) !important; }
+.border-fatimi-gold { border-color: var(--fatimi-gold) !important; }
 
-body[data-fatimi-theme="twilight-palace"] ::selection {
-  background: rgba(235, 170, 69, 0.25);
-  color: #1a2038;
-}
-
-body[data-fatimi-theme="twilight-palace"] ::-webkit-scrollbar-thumb {
-  background: rgba(235, 170, 69, 0.4);
-}
-
-/* Amber-tinted surfaces & focus states */
-[data-fatimi-theme="twilight-palace"] .fatimi-card:hover {
-  border-color: rgba(235, 170, 69, 0.4);
-  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(235, 170, 69, 0.12);
-}
-
-[data-fatimi-theme="twilight-palace"] .fatimi-input:focus {
-  border-color: #ebaa45;
-  box-shadow: 0 0 0 3px rgba(235, 170, 69, 0.18);
-}
-
-[data-fatimi-theme="twilight-palace"] .admin-hub-card:hover {
-  border-color: rgba(235, 170, 69, 0.4);
-  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.06), 0 4px 10px -2px rgba(235, 170, 69, 0.12);
-}
-
-/* Indigo glass primary button (emerald → twilight indigo) */
-[data-fatimi-theme="twilight-palace"] .btn-fatimi-primary {
-  background: linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%) !important;
-  border: 1px solid rgba(12, 16, 38, 0.9);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 3px 10px rgba(26, 32, 56, 0.28);
-}
-
-/* Sunset amber action button (matches the sign-in CTA) */
-[data-fatimi-theme="twilight-palace"] .btn-fatimi-gold {
-  background: linear-gradient(90deg, #fcd468 0%, #ef9a33 52%, #dc6b27 100%) !important;
-  color: #1c1403 !important;
-  border: 1px solid rgba(220, 107, 39, 0.55);
-  text-shadow: none;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.45), 0 4px 14px rgba(229, 169, 18, 0.28);
-}
-
-[data-fatimi-theme="twilight-palace"] .btn-fatimi-outline:hover {
-  border-color: rgba(235, 170, 69, 0.55);
-  color: #1a2038;
-  box-shadow: 0 4px 12px rgba(235, 170, 69, 0.14);
-}
-
-/* ─────────────────────────────────────────────────────────────
-   TWILIGHT PALACE · SHARED CONTROL TOKENS
-   Every focusable control inherits the theme's focus ring instead of
-   a hardcoded emerald one.
-   ───────────────────────────────────────────────────────────── */
-:root {
-  --db-focus-ring: rgba(5, 150, 105, 0.8);
-}
-
-[data-fatimi-theme="twilight-palace"] {
-  --db-focus-ring: #d97706;
-  --highlight-accent: #d97706;
-  --highlight-accent-hover: #c2410c;
-  --highlight-accent-dark: #1a2038;
-  --highlight-ring: rgba(217, 119, 6, 0.45);
-}
-
-/* ─────────────────────────────────────────────────────────────
-   TWILIGHT PALACE · SHARED UI BUTTON SYSTEM (components/ui/button.tsx)
-   The theme's primary action is the sunset CTA (matches the sign-in
-   button and SUNSET_THEME.btnPrimaryClass); structural variants stay
-   light with amber-tinted interaction states.
-   ───────────────────────────────────────────────────────────── */
-
-/* Primary action family → sunset CTA */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="default"],
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="admin"],
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="teacher"],
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="student"],
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="parent"],
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-emerald"],
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-gold"] {
-  background-color: #ef9a33;
-  background-image: linear-gradient(90deg, #fcd468 0%, #ef9a33 52%, #dc6b27 100%);
-  color: #1c1403;
-  border-color: rgba(220, 107, 39, 0.55);
-  text-shadow: none;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.45), 0 4px 14px rgba(229, 169, 18, 0.3);
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="default"]:hover,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="admin"]:hover,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="teacher"]:hover,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="student"]:hover,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="parent"]:hover,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-emerald"]:hover,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-gold"]:hover {
-  background-image: linear-gradient(90deg, #fcd468 0%, #f0a63f 52%, #e0742d 100%);
-  color: #1c1403;
-  border-color: rgba(220, 107, 39, 0.8);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 8px 22px rgba(220, 107, 39, 0.42);
-  transform: translateY(-1px);
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="default"]:active,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="admin"]:active,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="teacher"]:active,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="student"]:active,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="parent"]:active,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-emerald"]:active,
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-gold"]:active {
-  box-shadow: inset 0 2px 6px rgba(120, 53, 15, 0.35), 0 1px 4px rgba(220, 107, 39, 0.3);
-}
-
-/* Indigo glass — the theme's secondary (cool) action */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-lapis"] {
-  background-color: #1a2038;
-  background-image: linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%);
-  border-color: rgba(12, 16, 38, 0.9);
-  color: #ffffff;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 4px 14px rgba(26, 32, 56, 0.35);
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-lapis"]:hover {
-  background-image: linear-gradient(135deg, #1e2542 0%, #303a63 55%, #44507f 100%);
-  border-color: rgba(235, 170, 69, 0.5);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.28), 0 8px 22px rgba(26, 32, 56, 0.45);
-}
-
-/* Outline → amber-tinted structure */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="outline"] {
-  background-color: rgba(255, 255, 255, 0.95);
-  border-color: rgba(26, 32, 56, 0.16);
-  color: #1a2038;
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="outline"]:hover {
-  background-color: rgba(255, 248, 236, 0.98);
-  border-color: rgba(235, 170, 69, 0.75);
-  color: #1a2038;
-  box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.22);
-}
-
-/* Secondary → warm neutral */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="secondary"] {
-  background-color: rgba(26, 32, 56, 0.07);
-  border-color: rgba(26, 32, 56, 0.12);
-  color: #1a2038;
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="secondary"]:hover {
-  background-color: rgba(235, 170, 69, 0.16);
-  border-color: rgba(235, 170, 69, 0.45);
-  color: #1a2038;
-}
-
-/* Ghost → amber wash on hover */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="ghost"] {
-  color: #33384f;
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="ghost"]:hover {
-  background-color: rgba(235, 170, 69, 0.16);
-  color: #1a2038;
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="ghost"]:active {
-  background-color: rgba(235, 170, 69, 0.26);
-}
-
-/* Link → ember underline */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="link"] {
-  color: #b45309;
-  text-decoration-color: rgba(220, 107, 39, 0.65);
-}
-
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="link"]:hover {
-  color: #9a3412;
-}
-
-/* Focus visibility for text inputs — theme-matched halo */
-[data-fatimi-theme="twilight-palace"] .db-input:focus-visible {
-  border-color: #d97706;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 0 0 2px var(--bg-surface, #ffffff),
-    0 0 0 4px rgba(217, 119, 6, 0.28);
-}
-
-/* Subtle / glass → keep neutral, warm the hover */
-[data-fatimi-theme="twilight-palace"] .db-btn[data-variant="fatimi-subtle"]:hover {
-  background-color: rgba(255, 247, 235, 0.95);
-  border-color: rgba(235, 170, 69, 0.75);
-  color: #1a2038;
-  box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.2);
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   THEME-AWARE COLOR TOKENS
-   The Tailwind emerald/teal/green scales (plus the brand, student,
-   fatimi and luminous tokens) compile to rgb(var(--db-c-*) /
-   <alpha-value>) — see tailwind.config.ts. Every green utility class
-   (text/bg/border/ring/divide/gradient/shadow + hover & opacity
-   modifiers) reads these variables, so the active [data-fatimi-theme]
-   repaints the whole UI with zero per-class overrides.
-
-   :root holds the exact Tailwind green defaults (emerald themes stay
-   pixel-identical); each theme below redefines only its own family.
-   ═══════════════════════════════════════════════════════════════════ */
-:root {
-  /* Emerald — exact Tailwind v3 palette (green theme default) */
-  --db-c-emerald-50: 236 253 245;
-  --db-c-emerald-100: 209 250 229;
-  --db-c-emerald-200: 167 243 208;
-  --db-c-emerald-300: 110 231 183;
-  --db-c-emerald-400: 52 211 153;
-  --db-c-emerald-500: 16 185 129;
-  --db-c-emerald-600: 5 150 105;
-  --db-c-emerald-700: 4 120 87;
-  --db-c-emerald-800: 6 95 70;
-  --db-c-emerald-900: 6 78 59;
-  --db-c-emerald-950: 2 44 34;
-
-  /* Teal */
-  --db-c-teal-50: 240 253 250;
-  --db-c-teal-100: 204 251 241;
-  --db-c-teal-200: 153 246 228;
-  --db-c-teal-300: 94 234 212;
-  --db-c-teal-400: 45 212 191;
-  --db-c-teal-500: 20 184 166;
-  --db-c-teal-600: 13 148 136;
-  --db-c-teal-700: 15 118 110;
-  --db-c-teal-800: 17 94 89;
-  --db-c-teal-900: 19 78 74;
-  --db-c-teal-950: 4 47 46;
-
-  /* Green */
-  --db-c-green-50: 240 253 244;
-  --db-c-green-100: 220 252 231;
-  --db-c-green-200: 187 247 208;
-  --db-c-green-300: 134 239 172;
-  --db-c-green-400: 74 222 128;
-  --db-c-green-500: 34 197 94;
-  --db-c-green-600: 22 163 74;
-  --db-c-green-700: 21 128 61;
-  --db-c-green-800: 22 101 52;
-  --db-c-green-900: 20 83 45;
-  --db-c-green-950: 5 46 22;
-
-  /* Accent extras */
-  --db-c-student-vibrant: 0 240 144;
-  --db-c-fatimi-obsidian: 3 27 20;
-  --db-glass-dark: rgba(2, 44, 34, 0.7);
-}
-
-[data-fatimi-theme="twilight-palace"] {
-  /* Sunset amber replaces the emerald family */
-  --db-c-emerald-50: 255 251 235;
-  --db-c-emerald-100: 254 243 199;
-  --db-c-emerald-200: 253 230 138;
-  --db-c-emerald-300: 252 211 77;
-  --db-c-emerald-400: 251 191 36;
-  --db-c-emerald-500: 245 158 11;
-  --db-c-emerald-600: 217 119 6;
-  --db-c-emerald-700: 180 83 9;
-  --db-c-emerald-800: 146 64 14;
-  --db-c-emerald-900: 120 53 15;
-  --db-c-emerald-950: 69 26 3;
-
-  /* Teal → warm copper / bronze */
-  --db-c-teal-50: 253 248 239;
-  --db-c-teal-100: 250 237 212;
-  --db-c-teal-200: 243 216 168;
-  --db-c-teal-300: 233 188 115;
-  --db-c-teal-400: 221 154 62;
-  --db-c-teal-500: 201 127 31;
-  --db-c-teal-600: 168 100 22;
-  --db-c-teal-700: 134 77 20;
-  --db-c-teal-800: 107 61 20;
-  --db-c-teal-900: 87 51 19;
-  --db-c-teal-950: 48 26 10;
-
-  /* Green → same sunset family (success = amber under twilight) */
-  --db-c-green-50: 255 251 235;
-  --db-c-green-100: 254 243 199;
-  --db-c-green-200: 253 230 138;
-  --db-c-green-300: 252 211 77;
-  --db-c-green-400: 251 191 36;
-  --db-c-green-500: 245 158 11;
-  --db-c-green-600: 217 119 6;
-  --db-c-green-700: 180 83 9;
-  --db-c-green-800: 146 64 14;
-  --db-c-green-900: 120 53 15;
-  --db-c-green-950: 69 26 3;
-
-  /* Accent extras */
-  --db-c-student-vibrant: 255 176 32;
-  --db-c-fatimi-obsidian: 20 16 31;
-  --db-glass-dark: rgba(20, 16, 31, 0.7);
+.shadow-fatimi-gold {
+  box-shadow: 0 0 20px -5px rgba(252, 212, 104, 0.3), 0 0 40px -10px rgba(252, 212, 104, 0.1);
 }
