@@ -124,40 +124,6 @@ function playScanSuccessChime() {
   }
 }
 
-/** Gold floral mandala ornament shown in the page corners (top-left / bottom-right). */
-function CornerMandala({ size = 170, style }: { size?: number; style?: React.CSSProperties }) {
-  const petalAngles = [0, 45, 90, 135, 180, 225, 270, 315];
-  return (
-    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" style={style} aria-hidden="true">
-      <g stroke="rgba(212,175,80,0.5)" strokeWidth="0.7">
-        {petalAngles.map((a) => (
-          <ellipse key={a} cx="60" cy="40" rx="12.5" ry="21" transform={`rotate(${a} 60 60)`} />
-        ))}
-        {petalAngles.map((a) => (
-          <ellipse key={`i${a}`} cx="60" cy="50" rx="6" ry="11" transform={`rotate(${a} 60 60)`} />
-        ))}
-        <circle cx="60" cy="60" r="27" />
-        <circle cx="60" cy="60" r="31.5" strokeDasharray="1.5 4" />
-        <circle cx="60" cy="60" r="36" strokeDasharray="0.5 5" />
-        {petalAngles.map((a) => {
-          const rad = ((a - 90) * Math.PI) / 180;
-          return (
-            <circle
-              key={`d${a}`}
-              cx={60 + 42 * Math.cos(rad)}
-              cy={60 + 42 * Math.sin(rad)}
-              r="1.4"
-              fill="rgba(235,170,69,0.55)"
-              stroke="none"
-            />
-          );
-        })}
-        <circle cx="60" cy="60" r="3" fill="rgba(235,170,69,0.45)" stroke="none" />
-      </g>
-    </svg>
-  );
-}
-
 export default function LoginPage() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<"ADMIN" | "TEACHER" | "STUDENT" | "PARENT">("ADMIN");
@@ -602,14 +568,17 @@ export default function LoginPage() {
       />
 
       {/* ── Full Page Layout ── */}
-      <div className="relative z-10 min-h-screen flex flex-col" style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-
-        {/* ── Corner Mandala Ornaments ── */}
-        <CornerMandala size={190} style={{ position: "fixed", top: -54, left: -48, pointerEvents: "none", zIndex: 40, opacity: 0.85 }} />
-        <CornerMandala size={190} style={{ position: "fixed", bottom: -54, right: -48, pointerEvents: "none", zIndex: 40, opacity: 0.85 }} />
-
+      <div
+        className="relative z-10 flex flex-col"
+        style={{
+          fontFamily: "'Inter', 'Segoe UI', sans-serif",
+          minHeight: "100dvh",
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
         {/* ═══════════════ MAIN CENTER AREA ═══════════════ */}
-        <main className="flex-1 flex items-center justify-center px-4 py-6">
+        <main className="flex-1 flex items-center justify-center px-3 py-5 sm:px-4 sm:py-6">
           {/* Card */}
           <div
             className="w-full grid login-card-grid"
@@ -626,7 +595,7 @@ export default function LoginPage() {
 
             {/* ── LEFT PANEL: Cream Photo Panel ── */}
             <div
-              className="flex flex-col items-center justify-center p-10 relative overflow-hidden"
+              className="flex flex-col items-center justify-center p-6 sm:p-10 relative overflow-hidden"
               style={{
                 background: "linear-gradient(160deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)",
                 backdropFilter: "blur(22px) saturate(150%)",
@@ -670,7 +639,7 @@ export default function LoginPage() {
                   style={{
                     display: "block",
                     fontFamily: "'Cormorant Garamond', 'Georgia', 'Times New Roman', serif",
-                    fontSize: logoFailed ? 38 : 30,
+                    fontSize: logoFailed ? "clamp(28px, 7.2vw, 38px)" : "clamp(23px, 6.2vw, 30px)",
                     fontWeight: 700,
                     lineHeight: 1.15,
                     color: "#fffaf0",
@@ -697,7 +666,7 @@ export default function LoginPage() {
 
             {/* ── RIGHT PANEL: Translucent Deep Navy ── */}
             <div
-              className="flex flex-col justify-center p-10 gap-5"
+              className="flex flex-col justify-center p-6 sm:p-10 gap-4 sm:gap-5"
               style={{
                 background: "linear-gradient(160deg, rgba(30,36,66,0.56) 0%, rgba(18,22,44,0.68) 100%)",
                 backdropFilter: "blur(24px) saturate(140%)",
@@ -1159,13 +1128,15 @@ export default function LoginPage() {
             background: linear-gradient(180deg, rgba(22, 14, 5, 0) 0%, rgba(26, 17, 8, 0.7) 60%, rgba(26, 17, 8, 0.95) 100%);
           }
           .login-sun-glow { right: 3%; top: 18.3vw; width: 150px; height: 150px; }
+          /* Performance: lighter blur work on mobile GPUs */
+          .login-backdrop-blur { filter: blur(24px) brightness(0.8) saturate(1.05); }
         }
       `}</style>
 
       {/* ── ITS Card Scanner Modal ── */}
       {showScannerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,26,48,0.75)", backdropFilter: "blur(6px)" }}>
-          <div className="w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl" style={{ background: "#ffffff", color: "#0f172a" }}>
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl overscroll-contain" style={{ background: "#ffffff", color: "#0f172a" }}>
             <div className="flex items-center justify-between pb-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#fef3c7", border: "1px solid #fde68a" }}>
@@ -1267,7 +1238,7 @@ export default function LoginPage() {
       {/* ── Forgot Password Modal ── */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,26,48,0.75)", backdropFilter: "blur(6px)" }}>
-          <div className="w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl" style={{ background: "#ffffff", color: "#0f172a" }}>
+          <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl overscroll-contain" style={{ background: "#ffffff", color: "#0f172a" }}>
             <div className="flex items-center justify-between pb-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#fef3c7", border: "1px solid #fde68a" }}>

@@ -648,7 +648,7 @@ export function PortalShell({
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                   </span>
-                  <span className="hidden xs:inline">Live</span>
+                  <span>Live</span>
                 </button>
 
                 <button
@@ -717,7 +717,7 @@ export function PortalShell({
           {/* ─────────────────────────────────────────────────────────────
              3. MAIN PAGE CONTENT (Generous Mobile Bottom Clearance)
              ───────────────────────────────────────────────────────────── */}
-          <main className="relative flex-1 pb-32 sm:pb-28 lg:pb-8 pt-2 sm:pt-4 px-2.5 sm:px-4 lg:px-8 max-w-full">
+          <main className="relative flex-1 pb-36 sm:pb-32 lg:pb-8 pt-2 sm:pt-4 px-2.5 sm:px-4 lg:px-8 max-w-full">
             <div className="min-h-[calc(100vh-8rem)] relative z-10 min-w-0 max-w-full overflow-x-hidden">
               <Outlet />
             </div>

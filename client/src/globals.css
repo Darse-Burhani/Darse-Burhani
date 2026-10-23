@@ -164,6 +164,7 @@
   }
 
   body {
+    min-height: 100svh;
     background-color: var(--ratio-70-canvas, #0d0d0d);
     background-image:
       radial-gradient(800px 400px at 10% -10%, rgba(252, 212, 104, 0.04), transparent 55%),
@@ -173,6 +174,8 @@
     font-family: var(--font-body);
     line-height: 1.6;
     letter-spacing: 0.01em;
+    /* No white flash or hard cut lines on mobile overscroll / rubber-banding */
+    overscroll-behavior-y: none;
   }
 
   /* ── Selection ── */
@@ -299,6 +302,27 @@
 }
 
 @layer utilities {
+  /* ═══════════════ PWA SAFE-AREA CLASSES ═══════════════
+     Respect the notch / dynamic island (top) and the iOS home-bar gesture
+     strip (bottom) when installed as a PWA with viewport-fit=cover.
+     Wear the real insets so no content is ever cut or overlaid on mobile. */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left, 0px) !important;
+  }
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right, 0px) !important;
+  }
+  .safe-area-x {
+    padding-left: env(safe-area-inset-left, 0px) !important;
+    padding-right: env(safe-area-inset-right, 0px) !important;
+  }
+
   /* Glass morphism variants */
   .glass {
     background: var(--bg-glass);
