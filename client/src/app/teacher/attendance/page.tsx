@@ -854,7 +854,7 @@ export default function TeacherAttendancePage() {
                       </div>
 
                       {/* Status Buttons */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5 w-full sm:w-auto">
                         {STATUSES.map((cfg) => {
                           const Icon = cfg.icon;
                           const active = s.status === cfg.key;
@@ -864,13 +864,13 @@ export default function TeacherAttendancePage() {
                               type="button"
                               onClick={() => setStatus(s.profileId, cfg.key)}
                               className={cn(
-                                "inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition-all duration-200 active:scale-[0.96]",
+                                "flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl border px-1 sm:px-2.5 py-1.5 text-[11px] font-bold transition-all duration-200 active:scale-[0.96]",
                                 active ? cfg.active : cfg.idle,
                               )}
                             >
-                              <Icon className="w-3.5 h-3.5" />
-                              <span>{cfg.label}</span>
-                              <span className="text-[9px] opacity-50 font-mono font-bold ml-0.5">[{cfg.hotkey}]</span>
+                              <Icon className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{cfg.label}</span>
+                              <span className="hidden md:inline text-[9px] opacity-50 font-mono font-bold ml-0.5">[{cfg.hotkey}]</span>
                             </button>
                           );
                         })}

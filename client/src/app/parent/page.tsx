@@ -794,7 +794,17 @@ export default function ParentDashboard() {
                             </Badge>
                           </div>
 
-                          <div className="overflow-x-auto">
+                          {/* Mobile Swipe Hint */}
+                          <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="animate-pulse">👉</span> Swipe horizontally to view all periods
+                            </span>
+                            <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                              Mon – Sat
+                            </span>
+                          </div>
+
+                          <div className="overflow-x-auto touch-pan-x scrollbar-thin">
                             <table className="w-full border-collapse min-w-[900px]">
                               <thead>
                                 <tr className="bg-[#1c1c1c] text-white">

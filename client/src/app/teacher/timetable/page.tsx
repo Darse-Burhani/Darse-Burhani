@@ -760,7 +760,17 @@ export default function TeacherTimetablePage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Swipe Hint */}
+            <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span className="animate-pulse">👉</span> Swipe horizontally to view all 9 periods
+              </span>
+              <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                Mon – Sat
+              </span>
+            </div>
+
+            <div className="overflow-x-auto touch-pan-x scrollbar-thin">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-[#1c1c1c] text-white">
@@ -1110,8 +1120,19 @@ export default function TeacherTimetablePage() {
                 <p className="text-xs text-slate-500 mt-2">Loading Class {currentMasoolClass?.name} Timetable...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse min-w-[900px]">
+              <>
+                {/* Mobile Swipe Hint */}
+                <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="animate-pulse">👉</span> Swipe horizontally to view Class {currentMasoolClass?.name} periods
+                  </span>
+                  <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                    Mon – Sat
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                  <table className="w-full border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-[#1c1c1c] text-white">
                       <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
@@ -1211,10 +1232,11 @@ export default function TeacherTimetablePage() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
             </>
           )}
+        </div>
+      </>
+    )}
 
           {masoolView === "scans" && (
             <div className="space-y-6">
@@ -1460,8 +1482,19 @@ export default function TeacherTimetablePage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                  <>
+                    {/* Mobile Swipe Hint */}
+                    <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <span className="animate-pulse">👉</span> Swipe horizontally to view timestamps & punches
+                      </span>
+                      <span className="font-mono text-[10px] text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Class {currentMasoolClass?.name}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                      <table className="w-full text-left text-xs border-collapse min-w-[720px]">
                       <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-200 text-[10.5px] font-black uppercase text-slate-500 tracking-wider">
                           <th className="py-3.5 px-4 w-12 text-center">#</th>
@@ -1610,7 +1643,8 @@ export default function TeacherTimetablePage() {
                       </tbody>
                     </table>
                   </div>
-                )}
+                </>
+              )}
 
                 {/* Security Audit Footer */}
                 <div className="bg-slate-50 px-5 py-3 border-t border-slate-200 text-[11px] text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1788,8 +1822,19 @@ export default function TeacherTimetablePage() {
                 <p className="text-xs text-slate-500 mt-2">Loading Class {selectedClassName} timetable...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse min-w-[900px]">
+              <>
+                {/* Mobile Swipe Hint */}
+                <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="animate-pulse">👉</span> Swipe horizontally to view Class {selectedClassName} periods
+                  </span>
+                  <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                    Mon – Sat
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                  <table className="w-full border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-[#1c1c1c] text-white">
                       <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
@@ -1889,7 +1934,8 @@ export default function TeacherTimetablePage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            </>
+          )}
           </div>
         </div>
       )}

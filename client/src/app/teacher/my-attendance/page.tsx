@@ -194,7 +194,9 @@ export default function TeacherMyAttendancePage() {
                     key={s.label}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 flex items-center gap-3"
+                    className={`rounded-2xl bg-white border border-slate-100 shadow-sm p-4 flex items-center gap-3 ${
+                      s.label.includes("Leave") ? "col-span-2 sm:col-span-1" : ""
+                    }`}
                   >
                     <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${s.grad} shadow-md shrink-0`}>
                       <s.icon className="h-4 w-4 text-white" />
@@ -232,14 +234,14 @@ export default function TeacherMyAttendancePage() {
             )}
 
             {/* Month navigator */}
-            <div className="flex items-center justify-between rounded-2xl bg-white border border-slate-100 shadow-sm px-5 py-3">
+            <div className="flex items-center justify-between rounded-2xl bg-white border border-slate-100 shadow-sm px-4 sm:px-5 py-3">
               <Button variant="ghost" size="sm" onClick={prevMonth} className="gap-1">
                 <ChevronLeft className="h-4 w-4" /> Prev
               </Button>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-indigo-500" />
-                <span className="text-sm font-semibold text-slate-800">{monthLabel}</span>
-                {isCurrentMonth && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">Current</span>}
+                <span className="text-xs sm:text-sm font-semibold text-slate-800">{monthLabel}</span>
+                {isCurrentMonth && <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">Current</span>}
               </div>
               <Button variant="ghost" size="sm" onClick={nextMonth} disabled={isCurrentMonth} className="gap-1">
                 Next <ChevronRight className="h-4 w-4" />
@@ -248,9 +250,12 @@ export default function TeacherMyAttendancePage() {
 
             {/* Records list */}
             <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-                <Fingerprint className="h-4 w-4 text-indigo-500" />
-                <h3 className="font-semibold text-slate-800">Attendance Records ({records.length})</h3>
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Fingerprint className="h-4 w-4 text-indigo-500" />
+                  <h3 className="font-semibold text-slate-800 text-sm">Attendance Records ({records.length})</h3>
+                </div>
+                <span className="text-[11px] text-slate-400 font-mono">IST +05:30</span>
               </div>
 
               {records.length === 0 ? (
@@ -260,7 +265,7 @@ export default function TeacherMyAttendancePage() {
                   <p className="text-sm mt-1">Attendance will appear here once scanned or entered.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-100">
                   {records.map((r, i) => {
                     const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.ABSENT;
                     const methodCfg = METHOD_CONFIG[r.verificationMethod?.toUpperCase()] ||
@@ -275,52 +280,104 @@ export default function TeacherMyAttendancePage() {
                         initial={{ opacity: 0, y: 2 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.02 }}
-                        className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/50 transition-colors"
+                        className="px-4 sm:px-5 py-3 hover:bg-slate-50/70 transition-colors"
                       >
-                        {/* Date column */}
-                        <div className="shrink-0 w-16 text-center">
-                          <p className="text-xs font-medium text-slate-500">{dayName}</p>
-                          <p className="text-sm font-bold text-slate-900">{date}</p>
+                        {/* Mobile View: Stacked Card Layout (below sm) */}
+                        <div className="sm:hidden space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">{date}</span>
+                              <span className="text-xs font-semibold text-slate-500">{dayName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`inline-flex h-2 w-2 rounded-full ${cfg.dot}`} />
+                              <span className={`text-xs font-black ${cfg.color}`}>{cfg.label}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-slate-600 pt-0.5">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-emerald-600" />
+                                <span>In: <strong className="text-slate-800">{formatTime(r.checkInTime)}</strong></span>
+                              </span>
+                              {r.checkOutTime && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3 text-amber-600" />
+                                  <span>Out: <strong className="text-slate-800">{formatTime(r.checkOutTime)}</strong></span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div>
+                              {isHik ? (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  <Radio className="h-2.5 w-2.5 animate-pulse" />
+                                  HIK
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                  Manual
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {r.notes && (
+                            <p className="text-[11px] text-slate-500 italic bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                              {r.notes}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Status dot + label */}
-                        <div className="flex items-center gap-2 w-28 shrink-0">
-                          <span className={`inline-flex h-2 w-2 rounded-full ${cfg.dot} shrink-0`} />
-                          <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
-                        </div>
+                        {/* Desktop View: Horizontal Row Layout (sm and up) */}
+                        <div className="hidden sm:flex items-center gap-4">
+                          {/* Date column */}
+                          <div className="shrink-0 w-16 text-center">
+                            <p className="text-xs font-medium text-slate-500">{dayName}</p>
+                            <p className="text-sm font-bold text-slate-900">{date}</p>
+                          </div>
 
-                        {/* Times */}
-                        <div className="flex items-center gap-4 text-xs text-slate-500 flex-1 min-w-0">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            In: <span className="font-medium text-slate-700">{formatTime(r.checkInTime)}</span>
-                          </span>
-                          {r.checkOutTime && (
+                          {/* Status dot + label */}
+                          <div className="flex items-center gap-2 w-28 shrink-0">
+                            <span className={`inline-flex h-2 w-2 rounded-full ${cfg.dot} shrink-0`} />
+                            <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
+                          </div>
+
+                          {/* Times */}
+                          <div className="flex items-center gap-4 text-xs text-slate-500 flex-1 min-w-0">
                             <span className="flex items-center gap-1">
-                              Out: <span className="font-medium text-slate-700">{formatTime(r.checkOutTime)}</span>
+                              <Clock className="h-3 w-3 text-emerald-600" />
+                              In: <span className="font-medium text-slate-700">{formatTime(r.checkInTime)}</span>
                             </span>
+                            {r.checkOutTime && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-amber-600" />
+                                Out: <span className="font-medium text-slate-700">{formatTime(r.checkOutTime)}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Source badge */}
+                          <div className="shrink-0">
+                            {isHik ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                <Radio className="h-2.5 w-2.5" />
+                                HIK {r.biometricMethod || "Biometric"}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                <ClipboardList className="h-2.5 w-2.5" />
+                                Manual
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Notes */}
+                          {r.notes && (
+                            <p className="text-xs text-slate-400 max-w-40 truncate shrink-0">{r.notes}</p>
                           )}
                         </div>
-
-                        {/* Source badge */}
-                        <div className="shrink-0">
-                          {isHik ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                              <Radio className="h-2.5 w-2.5" />
-                              HIK {r.biometricMethod || "Biometric"}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                              <ClipboardList className="h-2.5 w-2.5" />
-                              Manual
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Notes */}
-                        {r.notes && (
-                          <p className="text-xs text-slate-400 max-w-40 truncate shrink-0">{r.notes}</p>
-                        )}
                       </motion.div>
                     );
                   })}

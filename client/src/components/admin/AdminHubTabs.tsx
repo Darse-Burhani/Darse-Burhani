@@ -164,7 +164,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
       </div>
 
       {/* Sub-tab Pill Navigation */}
-      <div className="flex items-center gap-2.5 overflow-x-auto pt-3 pb-1.5 no-scrollbar">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto pt-3 pb-1.5 scrollbar-none touch-pan-x">
         {resolvedTabs.map((tab, idx) => {
           const isActive =
             tab.targetHref === pathname ||
@@ -183,7 +183,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
             <Link
               href={tab.targetHref}
               className={cn(
-                "group relative flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
+                "group relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
                 isActive
                   ? "bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-950 text-white shadow-[0_4px_16px_rgba(2,44,34,0.3),inset_0_1px_0_rgba(255,255,255,0.25)] border-emerald-700/60 ring-1 ring-amber-400/30"
                   : "bg-white/90 backdrop-blur-md text-gray-700 hover:text-gray-950 hover:bg-slate-50 border-gray-200/90 hover:border-emerald-500/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"

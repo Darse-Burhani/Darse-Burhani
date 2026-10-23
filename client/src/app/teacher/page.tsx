@@ -408,7 +408,7 @@ export default function ExpertTeacherDashboard() {
   }, [stats]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-0 sm:px-2 lg:px-4 py-4 sm:py-8 space-y-6 sm:space-y-8">
       {/* ─────────────────────────────────────────────────────────────
           1. DOUBLE-BEZEL ROYAL FATIMI COMMAND HERO
          ───────────────────────────────────────────────────────────── */}
@@ -416,10 +416,10 @@ export default function ExpertTeacherDashboard() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="p-1.5 sm:p-2 rounded-[2.5rem] bg-emerald-950/20 ring-1 ring-emerald-900/30 shadow-2xl"
+        className="p-1 sm:p-2 rounded-3xl sm:rounded-[2.5rem] bg-emerald-950/20 ring-1 ring-emerald-900/30 shadow-2xl"
       >
         <div
-          className="relative overflow-hidden rounded-[2.2rem] p-6 sm:p-9 text-white"
+          className="relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.2rem] p-4 sm:p-9 text-white"
           style={{
             background: "linear-gradient(135deg, #0d0d0d 0%, #1c1c1c 40%, #8a3e14 75%, #b8541e 100%)",
             boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 20px 40px -15px rgba(2, 44, 34, 0.5)",
@@ -817,7 +817,7 @@ export default function ExpertTeacherDashboard() {
                 </div>
 
                 {/* Multi-Selection Smart Hub */}
-                <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-2 md:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t md:border-t-0 pt-2 md:pt-0 w-full md:w-auto">
                   <button
                     onClick={selectAllFiltered}
                     className="text-xs font-black text-emerald-900 hover:text-emerald-950 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/90 transition-all flex items-center gap-1.5 active:scale-[0.98]"
