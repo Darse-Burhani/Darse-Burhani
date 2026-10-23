@@ -24,6 +24,14 @@ import {
   Mail,
   AlertTriangle,
   Bell,
+  Fingerprint,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Check,
+  Calendar,
+  Camera,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +81,17 @@ export default function TeacherTimetablePage() {
   const [selectedMasoolIndex, setSelectedMasoolIndex] = useState(0);
   const [masoolClassData, setMasoolClassData] = useState<any>(null);
   const [loadingMasoolClass, setLoadingMasoolClass] = useState(false);
+
+  // Masool Desk Sub-View: "timetable" | "scans"
+  const [masoolView, setMasoolView] = useState<"timetable" | "scans">("timetable");
+  const [masoolScanDate, setMasoolScanDate] = useState<string>(() =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date())
+  );
+  const [masoolScansData, setMasoolScansData] = useState<any>(null);
+  const [loadingMasoolScans, setLoadingMasoolScans] = useState(false);
+  const [masoolScanSearch, setMasoolScanSearch] = useState("");
+  const [masoolScanFilter, setMasoolScanFilter] = useState<"ALL" | "BIOMETRIC" | "MANUAL" | "PRESENT" | "LATE" | "ABSENT" | "NOT_MARKED">("ALL");
+  const [masoolAutoRefresh, setMasoolAutoRefresh] = useState(false);
 
   // TableMaster Spotlight & Talabat State
   const [spotlightSubject, setSpotlightSubject] = useState<string | null>(null);
@@ -140,6 +159,94 @@ export default function TeacherTimetablePage() {
       if (!silent) setLoadingMasoolClass(false);
     }
   };
+
+  const fetchMasoolScans = async (classId: string, dateStr: string, silent = false) => {
+    if (!classId) return;
+    if (!silent) setLoadingMasoolScans(true);
+    try {
+      const res = await fetch(`/api/teacher/timetable/masool-class/${classId}/scans?date=${encodeURIComponent(dateStr)}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setMasoolScansData(json.data);
+      } else {
+        setMasoolScansData(null);
+      }
+    } catch {
+      setMasoolScansData(null);
+    } finally {
+      if (!silent) setLoadingMasoolScans(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewTab === "masool-class" && currentMasoolClass?.id) {
+      fetchMasoolScans(currentMasoolClass.id, masoolScanDate);
+    }
+  }, [viewTab, currentMasoolClass?.id, masoolScanDate]);
+
+  useEffect(() => {
+    if (!masoolAutoRefresh || viewTab !== "masool-class" || masoolView !== "scans" || !currentMasoolClass?.id) return;
+    const interval = setInterval(() => {
+      fetchMasoolScans(currentMasoolClass.id, masoolScanDate, true);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [masoolAutoRefresh, viewTab, masoolView, currentMasoolClass?.id, masoolScanDate]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      const viewParam = params.get("view");
+      if (tabParam === "masool-class" || tabParam === "masool") {
+        setViewTab("masool-class");
+      }
+      if (viewParam === "scans" || viewParam === "biometric" || viewParam === "hikvision") {
+        setMasoolView("scans");
+      }
+    }
+  }, []);
+
+  const handlePrevDay = () => {
+    const [y, m, d] = masoolScanDate.split("-").map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d));
+    dateObj.setUTCDate(dateObj.getUTCDate() - 1);
+    setMasoolScanDate(dateObj.toISOString().split("T")[0]);
+  };
+
+  const handleNextDay = () => {
+    const [y, m, d] = masoolScanDate.split("-").map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d));
+    dateObj.setUTCDate(dateObj.getUTCDate() + 1);
+    setMasoolScanDate(dateObj.toISOString().split("T")[0]);
+  };
+
+  const handleToday = () => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    setMasoolScanDate(today);
+  };
+
+  const filteredMasoolScans = useMemo(() => {
+    const list: any[] = masoolScansData?.talabat || [];
+    let result = list;
+    if (masoolScanFilter === "BIOMETRIC") {
+      result = result.filter((s: any) => s.source === "BIOMETRIC" || Boolean(s.biometricMethod));
+    } else if (masoolScanFilter === "MANUAL") {
+      result = result.filter((s: any) => s.source === "MANUAL");
+    } else if (masoolScanFilter !== "ALL") {
+      result = result.filter((s: any) => s.status === masoolScanFilter);
+    }
+
+    if (masoolScanSearch.trim()) {
+      const q = masoolScanSearch.toLowerCase().trim();
+      result = result.filter(
+        (s: any) =>
+          s.name?.toLowerCase().includes(q) ||
+          s.its?.toLowerCase().includes(q) ||
+          s.studentNumber?.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [masoolScansData, masoolScanFilter, masoolScanSearch]);
 
   useEffect(() => {
     fetchTimetable();
@@ -853,6 +960,19 @@ export default function TeacherTimetablePage() {
                   </Button>
                 </Link>
 
+                <Button
+                  onClick={() => setMasoolView(masoolView === "scans" ? "timetable" : "scans")}
+                  size="sm"
+                  className={`${
+                    masoolView === "scans"
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      : "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300"
+                  } font-bold text-xs gap-1.5 rounded-xl shadow-xs transition-all`}
+                >
+                  <Fingerprint className="w-3.5 h-3.5" />
+                  {masoolView === "scans" ? "Master Timetable" : "📡 Talabat Scan Records"}
+                </Button>
+
                 {masoolClasses.length > 1 && (
                   <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                     {masoolClasses.map((cls: any, idx: number) => (
@@ -898,6 +1018,43 @@ export default function TeacherTimetablePage() {
             )}
           </div>
 
+          {/* Masool Sub-Navigation Switcher */}
+          <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+              <button
+                onClick={() => setMasoolView("timetable")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  masoolView === "timetable"
+                    ? "bg-[#1c1c1c] text-amber-300 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                Master Timetable
+              </button>
+              <button
+                onClick={() => setMasoolView("scans")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  masoolView === "scans"
+                    ? "bg-emerald-600 text-white shadow-2xs"
+                    : "text-emerald-800 hover:text-emerald-950 hover:bg-emerald-50/50"
+                }`}
+              >
+                <Fingerprint className="w-3.5 h-3.5" />
+                Talabat Individual Scan Records
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="font-semibold text-slate-700">Class Masool Only</span>
+              <span className="text-[10px] text-slate-400">| Live Biometric Logs</span>
+            </div>
+          </div>
+
+          {masoolView === "timetable" && (
+            <>
           {/* TableMaster Subject Load for Masool Class */}
           {masoolSubjectStats.length > 0 && (
             <div className="bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2.5">
@@ -1056,6 +1213,418 @@ export default function TeacherTimetablePage() {
               </div>
             )}
           </div>
+            </>
+          )}
+
+          {masoolView === "scans" && (
+            <div className="space-y-6">
+              {/* Scans Control & Date Bar */}
+              <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  {/* Date Selector */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                      <Button
+                        onClick={handlePrevDay}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg text-slate-700 hover:bg-white hover:text-slate-900"
+                        title="Previous Day"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <input
+                        type="date"
+                        value={masoolScanDate}
+                        onChange={(e) => setMasoolScanDate(e.target.value)}
+                        className="bg-white px-3 py-1 text-xs font-bold text-slate-900 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <Button
+                        onClick={handleNextDay}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg text-slate-700 hover:bg-white hover:text-slate-900"
+                        title="Next Day"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <Button
+                      onClick={handleToday}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-bold rounded-xl h-9 border-slate-200 hover:bg-slate-50 text-slate-700"
+                    >
+                      Today
+                    </Button>
+
+                    <span className="text-xs font-mono font-bold text-slate-500 ml-1">
+                      {new Date(masoolScanDate + "T00:00:00").toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+
+                  {/* Live sync & actions */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setMasoolAutoRefresh(!masoolAutoRefresh)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border ${
+                        masoolAutoRefresh
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
+                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          masoolAutoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                        }`}
+                      />
+                      Live Auto-Sync (15s)
+                    </button>
+
+                    <Button
+                      onClick={() => currentMasoolClass?.id && fetchMasoolScans(currentMasoolClass.id, masoolScanDate)}
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingMasoolScans}
+                      className="text-xs font-bold rounded-xl h-9 gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingMasoolScans ? "animate-spin" : ""}`} />
+                      Refresh
+                    </Button>
+
+                    <Button
+                      onClick={() => window.print()}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-bold rounded-xl h-9 gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Print Roster
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Confidentiality Notice */}
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3 flex items-start sm:items-center gap-2.5 text-xs text-amber-900">
+                  <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
+                  <div>
+                    <span className="font-black">Restricted Class Masool Access: </span>
+                    You are viewing individual talabat biometric scan records and check-in times for Class{" "}
+                    <span className="font-black underline">{currentMasoolClass?.name}</span>. These logs are strictly confidential to the Class Masool and Institute Admin.
+                  </div>
+                </div>
+              </div>
+
+              {/* KPI Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">Enrolled</span>
+                    <Users className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900">
+                    {masoolScansData?.summary?.totalEnrolled || 0}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">Talabat in class</div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-emerald-200/80 shadow-2xs bg-linear-to-b from-white to-emerald-50/30">
+                  <div className="flex items-center justify-between text-emerald-600 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">Present</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-2xl font-black text-emerald-700">
+                    {masoolScansData?.summary?.presentCount || 0}
+                  </div>
+                  <div className="text-[11px] text-emerald-600 font-medium">
+                    {masoolScansData?.summary?.attendanceRate || 0}% Attendance
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-indigo-200/80 shadow-2xs bg-linear-to-b from-white to-indigo-50/30">
+                  <div className="flex items-center justify-between text-indigo-600 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">Biometric Scans</span>
+                    <Fingerprint className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <div className="text-2xl font-black text-indigo-700">
+                    {masoolScansData?.summary?.biometricCount || 0}
+                  </div>
+                  <div className="text-[11px] text-indigo-600 font-medium">Hikvision Verified</div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-amber-200/80 shadow-2xs bg-linear-to-b from-white to-amber-50/30">
+                  <div className="flex items-center justify-between text-amber-600 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">Late Arrivals</span>
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-2xl font-black text-amber-700">
+                    {masoolScansData?.summary?.lateCount || 0}
+                  </div>
+                  <div className="text-[11px] text-amber-600 font-medium">Post-window scan</div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-red-200/80 shadow-2xs bg-linear-to-b from-white to-red-50/30">
+                  <div className="flex items-center justify-between text-red-600 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">Absent</span>
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div className="text-2xl font-black text-red-700">
+                    {masoolScansData?.summary?.absentCount || 0}
+                  </div>
+                  <div className="text-[11px] text-red-600 font-medium">No check-in record</div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">Unmarked</span>
+                    <Clock className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-700">
+                    {masoolScansData?.summary?.unmarkedCount || 0}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">Awaiting punch</div>
+                </div>
+              </div>
+
+              {/* Search & Filter Bar */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search talabat by Name, ITS number..."
+                      value={masoolScanSearch}
+                      onChange={(e) => setMasoolScanSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    {masoolScanSearch && (
+                      <button
+                        onClick={() => setMasoolScanSearch("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Chips */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {(
+                      [
+                        { key: "ALL", label: `All (${masoolScansData?.summary?.totalEnrolled || 0})` },
+                        { key: "BIOMETRIC", label: `Biometric (${masoolScansData?.summary?.biometricCount || 0})` },
+                        { key: "PRESENT", label: `Present (${masoolScansData?.summary?.presentCount || 0})` },
+                        { key: "LATE", label: `Late (${masoolScansData?.summary?.lateCount || 0})` },
+                        { key: "ABSENT", label: `Absent (${masoolScansData?.summary?.absentCount || 0})` },
+                        { key: "NOT_MARKED", label: `Unmarked (${masoolScansData?.summary?.unmarkedCount || 0})` },
+                      ] as const
+                    ).map((filter) => (
+                      <button
+                        key={filter.key}
+                        onClick={() => setMasoolScanFilter(filter.key)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          masoolScanFilter === filter.key
+                            ? "bg-[#1c1c1c] text-amber-300 shadow-2xs"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Individual Scan Records List / Table */}
+              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+                {loadingMasoolScans ? (
+                  <div className="p-12 text-center text-slate-400 space-y-3">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600" />
+                    <p className="text-xs font-bold text-slate-600">Retrieving class biometric scan records from Hikvision...</p>
+                  </div>
+                ) : filteredMasoolScans.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 space-y-2">
+                    <Fingerprint className="w-10 h-10 mx-auto text-slate-300" />
+                    <p className="text-sm font-bold text-slate-700">No student scan records found</p>
+                    <p className="text-xs text-slate-500">
+                      {masoolScanSearch || masoolScanFilter !== "ALL"
+                        ? "Try adjusting your search query or filter."
+                        : "No biometric scans or manual entries recorded for this date yet."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/80 border-b border-slate-200 text-[10.5px] font-black uppercase text-slate-500 tracking-wider">
+                          <th className="py-3.5 px-4 w-12 text-center">#</th>
+                          <th className="py-3.5 px-4">Talabat Name & ITS</th>
+                          <th className="py-3.5 px-4">Status</th>
+                          <th className="py-3.5 px-4">Verification Method</th>
+                          <th className="py-3.5 px-4">Check-In Time</th>
+                          <th className="py-3.5 px-4">Check-Out</th>
+                          <th className="py-3.5 px-4 text-center">Punches</th>
+                          <th className="py-3.5 px-4">Remarks / Excuse</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredMasoolScans.map((student: any, idx: number) => {
+                          const isBiometric = student.source === "BIOMETRIC" || Boolean(student.biometricMethod);
+                          return (
+                            <tr key={student.studentId || idx} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-3.5 px-4 text-center font-mono text-slate-400 font-bold">
+                                {idx + 1}
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="w-9 h-9 border border-slate-200">
+                                    {student.avatarUrl && <AvatarImage src={student.avatarUrl} alt={student.name} />}
+                                    <AvatarFallback className="bg-amber-100 text-amber-900 font-bold text-xs">
+                                      {getInitials(student.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="font-extrabold text-slate-900 text-sm leading-tight">
+                                      {student.name}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="font-mono text-[10.5px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/60">
+                                        ITS: {student.its || "—"}
+                                      </span>
+                                      {student.studentNumber && (
+                                        <span className="text-[10px] text-slate-400 font-mono">
+                                          ID: {student.studentNumber}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                {student.status === "PRESENT" && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    PRESENT
+                                  </span>
+                                )}
+                                {student.status === "LATE" && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                    LATE
+                                  </span>
+                                )}
+                                {student.status === "ABSENT" && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-red-100 text-red-800 border border-red-300">
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                                    ABSENT
+                                  </span>
+                                )}
+                                {student.status === "ON_LEAVE" && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-purple-100 text-purple-800 border border-purple-300">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                                    ON LEAVE
+                                  </span>
+                                )}
+                                {(!student.status || student.status === "NOT_MARKED") && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-500">
+                                    Not Marked
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                {isBiometric ? (
+                                  <div className="flex items-center gap-1.5 font-bold text-indigo-900 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/70 w-fit">
+                                    {student.biometricMethod === "FINGERPRINT" ? (
+                                      <Fingerprint className="w-3.5 h-3.5 text-indigo-600" />
+                                    ) : (
+                                      <Camera className="w-3.5 h-3.5 text-indigo-600" />
+                                    )}
+                                    <span className="text-[11px]">
+                                      {student.biometricMethod === "FINGERPRINT"
+                                        ? "Hikvision Fingerprint"
+                                        : "Hikvision Facial Scan"}
+                                    </span>
+                                  </div>
+                                ) : student.source === "MANUAL" ? (
+                                  <div className="flex items-center gap-1.5 font-bold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200 w-fit">
+                                    <ClipboardCheck className="w-3.5 h-3.5 text-amber-600" />
+                                    <span className="text-[11px]">Manual Entry</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 font-medium text-[11px]">Pending Terminal Punch</span>
+                                )}
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                {student.checkInTime ? (
+                                  <span className="font-mono font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/80">
+                                    {student.checkInTime}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 font-mono">—</span>
+                                )}
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                {student.checkOutTime ? (
+                                  <span className="font-mono font-medium text-slate-700 bg-slate-50 px-2 py-0.5 rounded">
+                                    {student.checkOutTime}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 font-mono">—</span>
+                                )}
+                              </td>
+
+                              <td className="py-3.5 px-4 text-center">
+                                {student.punchesCount > 0 ? (
+                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 font-mono font-black text-slate-800 text-[11px] border border-slate-200">
+                                    {student.punchesCount}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 font-mono">0</span>
+                                )}
+                              </td>
+
+                              <td className="py-3.5 px-4">
+                                {student.justification ? (
+                                  <div className="text-[11px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 max-w-xs truncate" title={student.justification}>
+                                    {student.justification}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300 text-[10px]">None</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Security Audit Footer */}
+                <div className="bg-slate-50 px-5 py-3 border-t border-slate-200 text-[11px] text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Biometric Terminal Sync: All punches logged with hardware timestamps in IST.</span>
+                  </div>
+                  <div className="font-mono text-[10px] text-slate-400">
+                    Audited by: {data?.teacher?.name || "Class Masool"} • Class ID: {currentMasoolClass?.id}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

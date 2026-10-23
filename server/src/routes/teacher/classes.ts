@@ -18,7 +18,12 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
     }
 
     const classes = await prisma.class.findMany({
-      where: { teacherId: teacherProfile.id },
+      where: {
+        OR: [
+          { teacherId: teacherProfile.id },
+          { masoolId: teacherProfile.id },
+        ],
+      },
       include: {
         _count: { select: { enrollments: true } },
         enrollments: {
@@ -45,6 +50,8 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
         roomNumber: c.roomNumber,
         academicYear: c.academicYear,
         isActive: c.isActive,
+        isMasool: c.masoolId === teacherProfile.id,
+        masoolId: c.masoolId,
         studentCount: c._count.enrollments,
         students: c.enrollments.map((e) => ({
           id: e.student.userId,

@@ -264,12 +264,43 @@ router.delete("/request/:id", requireAuth, async (req, res) => {
 // ADMIN ("CONCERN PERSON") ENDPOINTS
 // ==========================================
 
+async function canManageProcurement(sessionUser: { id: string; role: string }): Promise<boolean> {
+  if (sessionUser.role === "ADMIN") return true;
+  if (sessionUser.role !== "TEACHER") return false;
+  const teacher = await prisma.teacherProfile.findUnique({
+    where: { userId: sessionUser.id },
+    select: { id: true },
+  });
+  if (!teacher) return false;
+  const assignment = await prisma.teacherPortalAssignment.findFirst({
+    where: {
+      teacherId: teacher.id,
+      isActive: true,
+      portalType: {
+        in: [
+          "ALL",
+          "PAGE:procurement",
+          "PAGE:PROCUREMENT",
+          "PAGE:makhzan",
+          "PAGE:MAKHZAN",
+          "PROCUREMENT",
+          "MAKHZAN",
+        ],
+      },
+    },
+  });
+  return Boolean(assignment);
+}
+
 /**
  * GET /api/procurement/admin/all
  * Central console query for all school-wide requisitions.
  */
-router.get("/admin/all", requireRole("ADMIN"), async (req, res) => {
+router.get("/admin/all", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    if (!(await canManageProcurement(req.auth!.user))) {
+      return res.status(403).json({ success: false, error: "Access denied. Procurement console requires administrative or designated officer authorization." });
+    }
     const {
       status,
       priority,
@@ -368,8 +399,11 @@ router.get("/admin/all", requireRole("ADMIN"), async (req, res) => {
  * GET /api/procurement/admin/stats
  * Aggregate dashboard metrics for admin command center.
  */
-router.get("/admin/stats", requireRole("ADMIN"), async (_req, res) => {
+router.get("/admin/stats", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    if (!(await canManageProcurement(req.auth!.user))) {
+      return res.status(403).json({ success: false, error: "Access denied. Procurement console requires administrative or designated officer authorization." });
+    }
     const [
       total,
       pending,
@@ -424,8 +458,11 @@ router.get("/admin/stats", requireRole("ADMIN"), async (_req, res) => {
  * PATCH /api/procurement/admin/:id/status
  * Admin / Concern Person updates status (Approve, Order, Fulfill, Reject).
  */
-router.patch("/admin/:id/status", requireRole("ADMIN"), async (req, res) => {
+router.patch("/admin/:id/status", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    if (!(await canManageProcurement(req.auth!.user))) {
+      return res.status(403).json({ success: false, error: "Access denied. Procurement console requires administrative or designated officer authorization." });
+    }
     const { id } = req.params;
     const adminUser = req.auth!.user;
     const {
@@ -532,8 +569,11 @@ router.patch("/admin/:id/status", requireRole("ADMIN"), async (req, res) => {
  * GET /api/procurement/admin/export
  * Export requisitions in CSV format for administrative and accounts records.
  */
-router.get("/admin/export", requireRole("ADMIN"), async (_req, res) => {
+router.get("/admin/export", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    if (!(await canManageProcurement(req.auth!.user))) {
+      return res.status(403).json({ success: false, error: "Access denied. Procurement console requires administrative or designated officer authorization." });
+    }
     const requests = await prisma.procurementRequest.findMany({
       orderBy: { createdAt: "desc" },
       include: {

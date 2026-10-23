@@ -3,15 +3,18 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Users, MapPin, Calendar } from "lucide-react";
+import Link from "next/link";
+import { Users, MapPin, Calendar, ShieldCheck, Fingerprint } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface TeacherClass {
   id: string;
   name: string;
   subject: string;
   isActive: boolean;
+  isMasool?: boolean;
   studentCount: number;
   roomNumber?: string | null;
   academicYear: string;
@@ -46,8 +49,16 @@ export default function TeacherClassesPage() {
             <motion.div key={cls.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Card className="hover:shadow-lg transition-shadow h-full">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <Badge variant="outline" className="text-xs">{cls.subject}</Badge>
+                  <div className="flex items-start justify-between mb-3 flex-wrap gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-xs">{cls.subject}</Badge>
+                      {cls.isMasool && (
+                        <Badge className="bg-amber-400 text-slate-950 font-black text-[10px] gap-1 shadow-2xs">
+                          <ShieldCheck className="w-3 h-3 text-slate-950" />
+                          Class Masool
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant={cls.isActive ? "success" : "secondary"} className="text-[10px]">{cls.isActive ? "Active" : "Inactive"}</Badge>
                   </div>
                   <h3 className="font-semibold text-gray-900 text-lg mb-2">{cls.name}</h3>
@@ -65,6 +76,19 @@ export default function TeacherClassesPage() {
                         ))}
                         {cls.students.length > 5 && <Badge variant="secondary" className="text-[10px]">+{cls.students.length - 5}</Badge>}
                       </div>
+                    </div>
+                  )}
+                  {cls.isMasool && (
+                    <div className="mt-4 pt-3 border-t border-slate-100">
+                      <Link href="/teacher/timetable?tab=masool-class&view=scans">
+                        <Button
+                          size="sm"
+                          className="w-full bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5 rounded-xl shadow-xs"
+                        >
+                          <Fingerprint className="w-3.5 h-3.5 text-amber-300" />
+                          View Talabat Biometric Scans
+                        </Button>
+                      </Link>
                     </div>
                   )}
                 </CardContent>

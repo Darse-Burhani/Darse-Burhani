@@ -61,7 +61,7 @@ const rawNavItems = [
   { key: "medical-duty", label: "Medical Duty", href: "/teacher/medical-duty", icon: Stethoscope, category: "Operations" },
   { key: "leave", label: "Leave Management", href: "/teacher/leave", icon: CalendarCheck, category: "Operations" },
   { key: "tracking", label: "Individual Tracking", href: "/teacher/tracking", icon: BarChart3, category: "Operations" },
-  { key: "procurement", label: "Procurement", href: "/teacher/procurement", icon: ShoppingBag, category: "Operations" },
+  { key: "procurement", label: "Desk Requisition", href: "/teacher/procurement", icon: ShoppingBag, category: "Operations" },
   { key: "makhzan", label: "Makhzan", href: "/teacher/makhzn", icon: Package, category: "Operations" },
   { key: "library", label: "Library", href: "/teacher/library", icon: Library, category: "Operations" },
 
@@ -73,7 +73,6 @@ const rawNavItems = [
   { key: "hobbies", label: "Hobbies & Skills", href: "/teacher/hobbies", icon: Palette, category: "Community" },
   { key: "users", label: "Staff & Users", href: "/teacher/users", icon: Users, category: "Community" },
   { key: "passwords", label: "User Passwords", href: "/teacher/passwords", icon: KeyRound, category: "Community" },
-  { key: "point-matrix", label: "Point Matrix", href: "/teacher/point-matrix", icon: Award, category: "Community" },
   { key: "notifications", label: "Notification Studio", href: "/teacher/notifications", icon: Bell, category: "Community" },
 
   // ── Account & Systems ──

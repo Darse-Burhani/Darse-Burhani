@@ -46,6 +46,7 @@ const DEFAULT_TEACHER_BASE_PAGES = [
   "timetable",
   "my-attendance",
   "student-assignments",
+  "procurement",
 ];
 
 interface PortalAccessContextType {
@@ -100,6 +101,7 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "assignments" || clean === "student-assignments" || clean === "student_assignments" || clean === "teacher-assignments") return "student-assignments";
   if (clean === "my-attendance" || clean === "my_attendance") return "my-attendance";
   if (clean === "timetable" || clean === "schedule-matrix") return "timetable";
+  if (clean === "procurement" || clean === "desk-requisition" || clean === "requisition" || clean === "supplies") return "procurement";
   if (clean === "notifications" || clean === "broadcasts") return "notifications";
   if (clean === "security" || clean === "audit") return "security";
   return clean;
@@ -214,7 +216,8 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
           key === "profile" ||
           key === "timetable" ||
           key === "my-attendance" ||
-          key === "student-assignments"
+          key === "student-assignments" ||
+          key === "procurement"
         );
       }
 
@@ -230,7 +233,8 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         key === "profile" ||
         key === "timetable" ||
         key === "my-attendance" ||
-        key === "student-assignments"
+        key === "student-assignments" ||
+        key === "procurement"
       ) {
         return true;
       }

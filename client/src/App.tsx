@@ -96,6 +96,8 @@ const TeacherSettings = lazy(() => import("@/app/teacher/settings/page"));
 const TeacherHifz = lazy(() => import("@/app/teacher/hifz/page"));
 const TeacherHifzMarhala = lazy(() => import("@/app/teacher/hifz-marhala/page"));
 const TeacherHifzWeeklySlip = lazy(() => import("@/app/teacher/hifz-weekly-slip/page"));
+const TeacherMyAttendance = lazy(() => import("@/app/teacher/my-attendance/page"));
+const TeacherAssignments = lazy(() => import("@/app/teacher/assignments/page"));
 
 // ── Faculty Portal Pages ──
 const FacultyLayout = lazy(() => import("@/app/faculty/layout"));
@@ -359,7 +361,9 @@ export default function App() {
           <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><TeacherTimetable /></RequireAdminPageAccess>} />
           <Route path="tracking" element={<RequireAdminPageAccess pageKey="tracking"><AdminTracking /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
-          <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><TeacherProcurement /></RequireAdminPageAccess>} />
+          <Route path="procurement" element={<TeacherProcurement />} />
+          <Route path="desk-requisition" element={<TeacherProcurement />} />
+          <Route path="requisition" element={<Navigate to="/teacher/procurement" replace />} />
           <Route path="library" element={<RequireAdminPageAccess pageKey="library"><AdminLibrary /></RequireAdminPageAccess>} />
           <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
           <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
@@ -373,8 +377,9 @@ export default function App() {
           <Route path="schedule" element={<Navigate to="/teacher/attendance-schedule" replace />} />
           <Route path="attendance-log" element={<Navigate to="/teacher/attendance-hik" replace />} />
           <Route path="attendance-registry" element={<Navigate to="/teacher/attendance" replace />} />
+          <Route path="my-attendance" element={<RequireAdminPageAccess pageKey="my-attendance"><TeacherMyAttendance /></RequireAdminPageAccess>} />
           <Route path="profile" element={<RequireAdminPageAccess pageKey="profile"><TeacherProfile /></RequireAdminPageAccess>} />
-          <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
+          <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><TeacherAssignments /></RequireAdminPageAccess>} />
           <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />

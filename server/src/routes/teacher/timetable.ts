@@ -570,4 +570,227 @@ router.get("/masool-class/:id", requireRole("TEACHER", "ADMIN"), async (req, res
   }
 });
 
+// GET /api/teacher/timetable/masool-class/:id/scans - Live biometric & manual scan records for assigned class
+// STRICT PRIVACY: Only the assigned Class Masool (or Admin) can access this!
+router.get("/masool-class/:id/scans", requireRole("TEACHER", "ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { id } = req.params;
+    const queryDate = (req.query.date as string) || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+    // 1. Resolve teacher profile
+    let teacherProfile = await prisma.teacherProfile.findUnique({
+      where: { userId: session.user.id },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+
+    if (!teacherProfile && session.user.role === "ADMIN") {
+      teacherProfile = await prisma.teacherProfile.findFirst({
+        include: { user: { select: { firstName: true, lastName: true } } },
+      });
+    }
+
+    if (!teacherProfile) {
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    }
+
+    // 2. Fetch class with masool details
+    const targetClass = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        masool: {
+          include: {
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+    });
+
+    if (!targetClass) {
+      return res.status(404).json({ success: false, error: "Class not found" });
+    }
+
+    // 3. STRICT PRIVACY RULE: Only Class Masool of this class or Admin may view individual scan records
+    const isMasool = targetClass.masoolId === teacherProfile.id;
+    const isAdmin = session.user.role === "ADMIN";
+
+    if (!isMasool && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "Access restricted: Individual student biometric scan records are private and visible only to the designated Class Masool.",
+      });
+    }
+
+    // 4. Calculate day boundaries in IST
+    const parts = queryDate.split("-").map(Number);
+    const startOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+    // 5. Fetch all active students enrolled in this class
+    const enrollments = await prisma.classEnrollment.findMany({
+      where: { classId: targetClass.id, isActive: true },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { student: { user: { firstName: "asc" } } },
+        { student: { user: { lastName: "asc" } } },
+      ],
+    });
+
+    // 6. Fetch attendance records for this class on this date
+    const records = await prisma.attendanceRecord.findMany({
+      where: {
+        classId: targetClass.id,
+        date: { gte: startOfDay, lt: endOfDay },
+      },
+    });
+
+    const recordMap = new Map<string, any>();
+    records.forEach((r) => recordMap.set(r.studentId, r));
+
+    // 7. Check if raw Hikvision punches exist in hikvisionScan table
+    const rawHikvisionMap = new Map<string, any[]>();
+    try {
+      if ((prisma as any).hikvisionScan?.findMany) {
+        const studentIds = enrollments.map((e) => e.studentId);
+        const scans = await (prisma as any).hikvisionScan.findMany({
+          where: {
+            studentId: { in: studentIds },
+            scanTime: { gte: startOfDay, lt: endOfDay },
+          },
+          orderBy: { scanTime: "asc" },
+        });
+        for (const scan of scans) {
+          if (!rawHikvisionMap.has(scan.studentId)) rawHikvisionMap.set(scan.studentId, []);
+          rawHikvisionMap.get(scan.studentId)!.push(scan);
+        }
+      }
+    } catch {
+      // Non-critical fallback
+    }
+
+    // 8. Map individual student scan records
+    const talabatScans = enrollments.map((e) => {
+      const student = e.student;
+      const rec = recordMap.get(student.id);
+      const studentPunches = rawHikvisionMap.get(student.id) || [];
+
+      // Determine verification method and punch times
+      const isBiometric = rec?.source === "BIOMETRIC" || studentPunches.length > 0;
+      const checkInDate = rec?.checkInTime || (studentPunches[0]?.scanTime ? new Date(studentPunches[0].scanTime) : null);
+      const checkOutDate = rec?.checkOutTime || (studentPunches.length > 1 ? new Date(studentPunches[studentPunches.length - 1].scanTime) : null);
+
+      let checkInTimeStr = "";
+      if (checkInDate) {
+        checkInTimeStr = new Date(checkInDate).toLocaleTimeString("en-US", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
+      }
+
+      let checkOutTimeStr = "";
+      if (checkOutDate && checkOutDate.getTime() !== checkInDate?.getTime()) {
+        checkOutTimeStr = new Date(checkOutDate).toLocaleTimeString("en-US", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
+      }
+
+      const status = rec?.status || (studentPunches.length > 0 ? "PRESENT" : "NOT_MARKED");
+      const biometricMethod = rec?.biometricMethod || (isBiometric ? "FACIAL" : null);
+      const source = rec?.source || (isBiometric ? "BIOMETRIC" : "NOT_RECORDED");
+
+      return {
+        enrollmentId: e.id,
+        studentId: student.id,
+        its: student.its || student.studentId || "",
+        studentNumber: student.studentId || "",
+        name: `${student.user.firstName} ${student.user.lastName}`.trim(),
+        firstName: student.user.firstName,
+        lastName: student.user.lastName,
+        avatarUrl: student.user.avatarUrl || null,
+        status, // "PRESENT" | "LATE" | "ABSENT" | "ON_LEAVE" | "NOT_MARKED"
+        source, // "BIOMETRIC" | "MANUAL" | "NOT_RECORDED"
+        biometricMethod, // "FACIAL" | "FINGERPRINT" | null
+        verificationMethod: rec?.verificationMethod || (isBiometric ? "Hikvision Biometric Terminal" : rec?.source === "MANUAL" ? "Class Masool Manual Entry" : null),
+        checkInTime: checkInTimeStr,
+        checkInTimestamp: checkInDate ? checkInDate.toISOString() : null,
+        checkOutTime: checkOutTimeStr,
+        punchesCount: Math.max(studentPunches.length, checkInDate ? 1 : 0),
+        punchHistory: studentPunches.map((p) =>
+          new Date(p.scanTime).toLocaleTimeString("en-US", {
+            timeZone: "Asia/Kolkata",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          })
+        ),
+        justification: rec?.justification || null,
+        justificationStatus: rec?.justificationStatus || "NONE",
+      };
+    });
+
+    // 9. Aggregate summary stats
+    const totalEnrolled = talabatScans.length;
+    const presentCount = talabatScans.filter((s) => s.status === "PRESENT").length;
+    const lateCount = talabatScans.filter((s) => s.status === "LATE").length;
+    const absentCount = talabatScans.filter((s) => s.status === "ABSENT").length;
+    const onLeaveCount = talabatScans.filter((s) => s.status === "ON_LEAVE").length;
+    const biometricCount = talabatScans.filter((s) => s.source === "BIOMETRIC" || Boolean(s.biometricMethod)).length;
+    const manualCount = talabatScans.filter((s) => s.source === "MANUAL").length;
+    const unmarkedCount = talabatScans.filter((s) => s.status === "NOT_MARKED").length;
+
+    return res.json({
+      success: true,
+      data: {
+        class: {
+          id: targetClass.id,
+          name: targetClass.name,
+          grade: targetClass.grade,
+          section: targetClass.section,
+          roomNumber: targetClass.roomNumber || `Room ${targetClass.name}`,
+          masoolName: targetClass.masool ? `${targetClass.masool.user.firstName} ${targetClass.masool.user.lastName}` : null,
+          masoolIts: targetClass.masool?.its || null,
+        },
+        date: queryDate,
+        summary: {
+          totalEnrolled,
+          presentCount,
+          lateCount,
+          absentCount,
+          onLeaveCount,
+          biometricCount,
+          manualCount,
+          unmarkedCount,
+          attendanceRate: totalEnrolled > 0 ? Math.round(((presentCount + lateCount) / totalEnrolled) * 100) : 0,
+        },
+        talabat: talabatScans,
+      },
+    });
+  } catch (error) {
+    console.error("Masool class scans error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch class talabat scan records" });
+  }
+});
+
 export default router;
