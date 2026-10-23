@@ -42,6 +42,9 @@ export function canonicalizeTeacherName(name: string | null | undefined): string
   return name ?? "";
 }
 
+/** Official employee id for Mustafa Tailor (ITS 40444603). */
+export const MUSTAFA_TAILOR_EMPLOYEE_ID = "TCH-1792673352057";
+
 /**
  * One-shot database repair (runs at server startup before the slot check):
  * renames any legacy Mustafa Manpurwala user to "Mustafa Tailor", blanks the
@@ -75,7 +78,7 @@ export async function repairMustafaTailorMigration(): Promise<void> {
       if (profile) {
         await prisma.teacherProfile.update({
           where: { id: profile.id },
-          data: { its: "40444603", photoUrl: null },
+          data: { its: "40444603", photoUrl: null, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
         }).catch(() => {});
         await prisma.timetableSlot.updateMany({
           where: { teacherId: profile.id },
@@ -87,14 +90,15 @@ export async function repairMustafaTailorMigration(): Promise<void> {
     }
 
     // Defensive: any slot text still carrying the legacy alias, and the
-    // canonical Mustafa Tailor profile must stay picture-less.
+    // canonical Mustafa Tailor profile must stay picture-less with the
+    // official employee id (TCH-1792673352057).
     await prisma.timetableSlot.updateMany({
       where: { teacherName: { contains: "Manpur", mode: "insensitive" } },
       data: { teacherName: "Mustafa Tailor" },
     }).catch(() => {});
     await prisma.teacherProfile.updateMany({
       where: { its: "40444603" },
-      data: { photoUrl: null },
+      data: { photoUrl: null, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
     }).catch(() => {});
   } catch (err: any) {
     console.warn("[timetable:repair] Mustafa Tailor migration skipped:", err?.message || err);
@@ -559,7 +563,9 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
       let tailorProfile = await prisma.teacherProfile.findFirst({
         where: {
           OR: [
+            { employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
             { employeeId: "EMP-MUSTAFA-TAILOR" },
+            { its: "40444603" },
             { user: { email: "mustafa.tailor@mahadalzahra.com" } },
             { user: { email: "mustafa.tailor@darseburhani.com" } },
           ],
