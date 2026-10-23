@@ -1,7 +1,7 @@
 import prisma from "./prisma";
 import bcrypt from "bcryptjs";
 import { cache } from "./cache";
-import { MUSTAFA_TAILOR_ITS } from "./hikvision/identity-aliases";
+import { MUSTAFA_TAILOR_ITS, MUSTAFA_TAILOR_PHOTO_URL } from "./hikvision/identity-aliases";
 
 // Official Teacher ITS & Email Mapping
 export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
@@ -50,9 +50,11 @@ export const MUSTAFA_TAILOR_EMPLOYEE_ID = "TCH-1792673352057";
 
 /**
  * One-shot database repair (runs at server startup before the slot check):
- * renames any legacy Mustafa Manpurwala user to "Mustafa Tailor", blanks the
- * profile picture, points timetable slots at the canonical name, and re-points
- * ITS so attendance records keep matching.
+ * renames any legacy Mustafa Manpurwala user to "Mustafa Tailor", attaches the
+ * OFFICIAL Galiakot-kgs staff photo (also used for terminal face enrollment),
+ * points timetable slots at the canonical name, and re-points ITS so attendance
+ * records keep matching. Timetable displays stay picture-less via
+ * canonicalizeTeacherDisplay — the photo is used by the Hikvision sync only.
  */
 export async function repairMustafaTailorMigration(): Promise<void> {
   try {
@@ -72,7 +74,7 @@ export async function repairMustafaTailorMigration(): Promise<void> {
         data: {
           firstName: "Mustafa",
           lastName: "Tailor",
-          avatarUrl: null,
+          avatarUrl: MUSTAFA_TAILOR_PHOTO_URL,
           isActive: true,
         },
       });
@@ -81,7 +83,7 @@ export async function repairMustafaTailorMigration(): Promise<void> {
       if (profile) {
         await prisma.teacherProfile.update({
           where: { id: profile.id },
-          data: { its: "40444603", photoUrl: null, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
+          data: { its: "40444603", photoUrl: MUSTAFA_TAILOR_PHOTO_URL, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
         }).catch(() => {});
         await prisma.timetableSlot.updateMany({
           where: { teacherId: profile.id },
@@ -89,21 +91,20 @@ export async function repairMustafaTailorMigration(): Promise<void> {
         }).catch(() => {});
       }
 
-      console.log(`[timetable:repair] Legacy Manpurwala user ${legacy.id} migrated to Mustafa Tailor (profile picture cleared).`);
+      console.log(`[timetable:repair] Legacy Manpurwala user ${legacy.id} migrated to Mustafa Tailor (official photo attached).`);
     }
 
     // Defensive: any slot text still carrying the legacy alias, and the
-    // canonical Mustafa Tailor profile must stay picture-less with the
-    // official employee id (TCH-1792673352057) and canonical biometric id
-    // (ITS 40444603 — the number the Hikvision terminals enroll him as
-    // "Mustafa Bhai Moiz Bhai Manpur").
+    // canonical Mustafa Tailor profile must carry the Galiakot-kgs official
+    // identity: ITS 40444603 (Hik terminal employeeNo "Mustafa Bhai Moiz Bhai
+    // Manpur"), employee id TCH-1792673352057, and the official staff photo.
     await prisma.timetableSlot.updateMany({
       where: { teacherName: { contains: "Manpur", mode: "insensitive" } },
       data: { teacherName: "Mustafa Tailor" },
     }).catch(() => {});
     await prisma.teacherProfile.updateMany({
       where: { its: "40444603" },
-      data: { photoUrl: null, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID, biometricHash: MUSTAFA_TAILOR_ITS },
+      data: { photoUrl: MUSTAFA_TAILOR_PHOTO_URL, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID, biometricHash: MUSTAFA_TAILOR_ITS },
     }).catch(() => {});
 
     // Consolidate identity: if the person was re-created (e.g. as "Mustafa Bhai

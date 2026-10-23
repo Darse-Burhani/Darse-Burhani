@@ -762,6 +762,107 @@ async function pollDeviceEvents(dev, lookbackHours = 3, maxPages = 10) {
   }
 }
 
+// ── Official face-photo sync (Galiakot kgs staff photos → terminals) ──
+// For every active teacher carrying the official profile photo, upload the
+// picture as the terminal's face-enrollment data for their enrolled employee
+// number (ITS), so the device's face match recognises the person during
+// scanning. Non-destructive: terminal user records created by the office
+// (e.g. "Mustafa Bhai Moiz Bhai Manpur") are never renamed or removed —
+// identity resolution by ITS makes the name irrelevant for attendance.
+const faceSyncSucceeded = new Set();
+const photoCache = new Map();
+
+async function loadOfficialPhoto(url) {
+  if (photoCache.has(url)) return photoCache.get(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (!res.ok) throw new Error(`Photo fetch HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length < 1024) throw new Error('Photo file too small');
+  const entry = { buf, type: res.headers.get('content-type') || 'image/jpeg' };
+  photoCache.set(url, entry);
+  return entry;
+}
+
+async function uploadFaceToDevice(dev, person, photo) {
+  const base = `http://${dev.host}:${dev.port}`;
+  const boundary = '----DarseBurhaniFace' + Date.now().toString(36);
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="FaceDataRecord"\r\nContent-Type: application/json\r\n\r\n` +
+      JSON.stringify({ faceInfo: { employeeNo: String(person.employeeNo), enable: true } }) +
+      `\r\n--${boundary}\r\nContent-Disposition: form-data; name="bin"; filename="face.jpg"\r\nContent-Type: ${photo.type}\r\n\r\n`
+    ),
+    photo.buf,
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+
+  const endpoints = [
+    `${base}/ISAPI/AccessControl/FaceDataRecord?format=json&employeeNo=${encodeURIComponent(person.employeeNo)}`,
+    `${base}/ISAPI/AccessControl/FaceDataRecord?format=json`,
+    `${base}/ISAPI/Intelligent/FDLib/FDModfy/FaceDataRecord?format=json`,
+  ];
+  let lastStatus = '';
+  for (const url of endpoints) {
+    try {
+      const res = await digestFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+        body,
+        username: dev.username,
+        password: dev.password,
+        timeoutMs: 15000,
+      });
+      if (res.ok) return true;
+      lastStatus += ` [${new URL(url).pathname.split('/').slice(-2).join('/')}: HTTP ${res.status}]`;
+    } catch (e) {
+      lastStatus += ` [${new URL(url).pathname.split('/').slice(-2).join('/')}: ${e.message}]`;
+    }
+  }
+  throw new Error(`All face endpoints rejected:${lastStatus}`);
+}
+
+async function syncOfficialFaceData() {
+  try {
+    const teachers = await prisma.teacherProfile.findMany({
+      where: { user: { isActive: true } },
+      select: {
+        its: true,
+        biometricHash: true,
+        photoUrl: true,
+        user: { select: { avatarUrl: true, firstName: true, lastName: true } },
+      },
+    });
+    const targets = teachers
+      .map((t) => ({
+        employeeNo: (t.its || t.biometricHash || '').trim(),
+        name: `${t.user?.firstName ?? ''} ${t.user?.lastName ?? ''}`.trim() || 'Teacher',
+        photoUrl: t.photoUrl || t.user?.avatarUrl || null,
+      }))
+      .filter((p) => p.employeeNo && /^\d+$/.test(p.employeeNo) && p.photoUrl);
+    if (!targets.length) return;
+
+    for (const dev of DEVICES) {
+      for (const person of targets) {
+        const key = `${dev.host}:${person.employeeNo}`;
+        if (faceSyncSucceeded.has(key)) continue; // already enrolled on this terminal
+        const photoUrl = person.photoUrl.startsWith('http')
+          ? person.photoUrl
+          : `${RENDER_BASE}${person.photoUrl.startsWith('/') ? '' : '/'}${person.photoUrl}`;
+        try {
+          const photo = await loadOfficialPhoto(photoUrl);
+          await uploadFaceToDevice(dev, person, photo);
+          faceSyncSucceeded.add(key);
+          console.log(`🧑‍💼 [FACE SYNC] ${person.name} (${person.employeeNo}) face photo enrolled on ${dev.name} (${dev.host})`);
+        } catch (e) {
+          console.warn(`⚠️ [FACE SYNC NOTICE] ${person.name} (${person.employeeNo}) via ${dev.name}: ${e.message} — will retry next cycle`);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[FACE SYNC] skipped:', e.message);
+  }
+}
+
 async function startBridge() {
   await startStatusServer();
 
@@ -784,7 +885,12 @@ async function startBridge() {
     pollDeviceEvents(dev, 24, 60).catch(() => {});
   }
 
-  // 2. Launch persistent AlertStream listeners
+  // 2. Official Galiakot-kgs staff photos → terminal face-database sync
+  console.log('🧑‍💼 Syncing official staff photos to terminal face databases...');
+  syncOfficialFaceData().catch(() => {});
+  setInterval(() => syncOfficialFaceData().catch(() => {}), 30 * 60 * 1000);
+
+  // 3. Launch persistent AlertStream listeners
   for (const dev of DEVICES) {
     (async () => {
       while (true) {

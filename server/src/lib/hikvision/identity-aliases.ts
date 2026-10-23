@@ -10,6 +10,13 @@
  */
 export const MUSTAFA_TAILOR_ITS = "40444603";
 
+/**
+ * Official staff photo, extracted from the Galiakot kgs List (KGS DETAILS
+ * row 43 — "Mustafa bhai Moiz bhai Manpurwala", ITS 40444603). Served by the
+ * client as a static asset and used as the terminal face-enrollment source.
+ */
+export const MUSTAFA_TAILOR_PHOTO_URL = "/avatars/mustafa-tailor.jpg";
+
 const NAME_ALIAS_PATTERNS: RegExp[] = [/manpur/i, /mustafa\s*tailor/i];
 
 /**
