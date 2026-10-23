@@ -108,6 +108,7 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
                     <th className="py-3 px-3">Class</th>
                     <th className="py-3 px-3">Subject</th>
                     <th className="py-3 px-3">Assigned Teacher</th>
+                    <th className="py-3 px-3">Takhteet Progress</th>
                     <th className="py-3 px-3">Academic Year</th>
                     <th className="py-3 px-3 text-right">Action</th>
                   </tr>
@@ -126,6 +127,26 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
                           <Badge variant="destructive" className="text-[10px] font-bold">
                             Unassigned
                           </Badge>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {c.planCount > 0 ? (
+                          <div className="w-28 space-y-1">
+                            <div className="flex items-center justify-between text-[10.5px]">
+                              <span className="font-bold text-gray-700">{c.avgProgress}%</span>
+                              <span className="text-[10px] text-gray-400 font-medium">{c.planCount} portion{c.planCount === 1 ? "" : "s"}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-amber-500 to-emerald-600 rounded-full transition-all"
+                                style={{ width: `${Math.min(100, Math.max(0, c.avgProgress || 0))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 font-medium italic">
+                            No portions
+                          </span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-gray-500 text-xs">{c.academicYear}</td>

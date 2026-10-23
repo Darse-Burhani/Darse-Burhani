@@ -35,6 +35,7 @@ import {
   UserX,
   Star,
   ArrowUpRight,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -173,8 +174,11 @@ const quickActionPresets: QuickActionPreset[] = [
 
 
 export default function ExpertTeacherDashboard() {
-  const { isModuleVisible } = usePortalAccess();
-  const can = (key: string) => isModuleVisible(key, "TEACHER");
+  const { isModuleVisible, isPageAssigned } = usePortalAccess();
+  const can = (key: string) => isModuleVisible(key, "TEACHER") && isPageAssigned(key);
+
+  // Check if point matrix is restricted to specific faculty
+  const isPointMatrixRestricted = (key: string) => key === "point-matrix" && (!isModuleVisible(key, "TEACHER") || !isPageAssigned(key));
 
   // Data state
   const [teacher, setTeacher] = useState<any>(null);
@@ -489,7 +493,7 @@ export default function ExpertTeacherDashboard() {
 
             {/* Action Island: Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {can("classes") && (
+              {can("classes") && students.length > 0 && (
                 <Link href="/teacher/classes" className="group">
                   <button className="h-11 px-5 rounded-full bg-[#ffe082] hover:bg-[#ffd54f] text-emerald-950 font-black text-xs transition-all duration-200 flex items-center gap-3 shadow-lg hover:shadow-xl active:scale-[0.98]">
                     <span>Take Attendance</span>
@@ -499,6 +503,15 @@ export default function ExpertTeacherDashboard() {
                   </button>
                 </Link>
               )}
+
+              <Link href="/teacher/procurement" className="group">
+                <button className="h-11 px-4 rounded-full bg-emerald-950/60 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
+                  <span>Desk Requisition</span>
+                  <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                    <ShoppingBag className="w-3.5 h-3.5 text-teal-300" />
+                  </span>
+                </button>
+              </Link>
 
               {can("takhteet") && (
                 <Link href="/teacher/takhteet" className="group">
@@ -675,7 +688,8 @@ export default function ExpertTeacherDashboard() {
           {/* ─────────────────────────────────────────────────────────────
               3. DOUBLE-BEZEL CLASS SWITCHER & SMART FILTER CLUSTER
              ───────────────────────────────────────────────────────────── */}
-          <div className="p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-sm">
+          {students.length > 0 && (
+            <div className="p-1.5 rounded-[2rem] bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-sm">
             <div className="rounded-[calc(2rem-0.375rem)] bg-white p-4 sm:p-6 space-y-4">
               {/* Class Tabs Pill Bar */}
               <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none border-b border-gray-100">
@@ -831,11 +845,64 @@ export default function ExpertTeacherDashboard() {
               </div>
             </div>
           </div>
+          )}
 
           {/* ─────────────────────────────────────────────────────────────
               4. MAIN INTERACTIVE WORKSPACE: ROSTER + QUICK MODIFIER DECK
              ───────────────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
+          {students.length === 0 ? (
+            <div className="p-1.5 rounded-[2.2rem] bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-sm">
+              <div className="rounded-[calc(2.2rem-0.375rem)] bg-white p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-5">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-200/80 mx-auto flex items-center justify-center text-emerald-800 shadow-sm">
+                  <Users className="w-8 h-8 text-[#b8541e]" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl sm:text-2xl font-black text-gray-900 font-display">No Talabat Enrolled</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
+                    {classes.length > 0
+                      ? `You are assigned to ${classes.length} section${classes.length > 1 ? "s" : ""} (${classes.map((c) => c.name).join(", ")}), but no students are currently enrolled in your roster.`
+                      : "You currently have no classes or students assigned to your profile. Please contact the administrator to assign your darajah classes or enroll talabat."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadDashboardData()}
+                    className="rounded-2xl text-xs font-bold border-gray-300 hover:bg-gray-50 flex items-center gap-2 h-10 px-5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Refresh Roster
+                  </Button>
+
+                  <Link href="/teacher/procurement">
+                    <Button
+                      size="sm"
+                      className="fatimi-emerald-gradient text-white rounded-2xl text-xs font-bold shadow-md hover:shadow-lg flex items-center gap-2 h-10 px-5"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5 text-amber-300" />
+                      Desk & Supplies Requisition
+                    </Button>
+                  </Link>
+
+                  {can("classes") && (
+                    <Link href="/teacher/classes">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-2xl text-xs font-bold text-emerald-800 hover:bg-emerald-50 flex items-center gap-2 h-10 px-4"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        Class Overview
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
             {/* Left Col: Interactive Talabat Grid (8 cols) */}
             <div className="lg:col-span-8 space-y-4">
               <div className="flex items-center justify-between px-1">
@@ -1366,6 +1433,7 @@ export default function ExpertTeacherDashboard() {
               </div>
             </div>
           </div>
+          )}
 
           {/* ─────────────────────────────────────────────────────────────
               6. TAKHTEET CURRICULUM BANNER & OVERVIEW

@@ -531,7 +531,7 @@ export default function AdminTakhteetPage() {
                         )}
 
                         {t.classes && t.classes.length > 0 ? (
-                          <div className="space-y-1.5 mb-4 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                          <div className="space-y-1.5 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Assigned Classes</p>
                             {t.classes.slice(0, 3).map((c: any) => (
                               <div key={c.classId} className="flex items-center justify-between text-xs text-gray-700">
@@ -542,8 +542,59 @@ export default function AdminTakhteetPage() {
                             {t.classes.length > 3 && <p className="text-[10px] text-gray-400">+{t.classes.length - 3} more classes</p>}
                           </div>
                         ) : (
-                          <div className="mb-4 p-2 bg-amber-50 rounded-lg border border-amber-100 text-xs text-amber-700">
+                          <div className="mb-3 p-2 bg-amber-50 rounded-lg border border-amber-100 text-xs text-amber-700">
                             No classes assigned yet. Assign in Classes tab.
+                          </div>
+                        )}
+
+                        {/* Takhteet Progress Display */}
+                        {t.planCount > 0 ? (
+                          <div className="mb-4 bg-gradient-to-br from-amber-50/60 to-emerald-50/40 p-3 rounded-xl border border-[#d4af37]/30 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-black text-gray-800 flex items-center gap-1.5">
+                                <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
+                                Takhteet Progress
+                              </span>
+                              <span className="font-mono font-black text-emerald-800 text-xs px-2 py-0.5 rounded-md bg-emerald-100/70 border border-emerald-300">
+                                {t.avgProgress ?? 0}%
+                              </span>
+                            </div>
+
+                            <div className="w-full bg-gray-200/80 h-2 rounded-full overflow-hidden shadow-inner">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-amber-500 via-emerald-600 to-[#b8541e] transition-all duration-500"
+                                style={{ width: `${Math.min(100, Math.max(0, t.avgProgress || 0))}%` }}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between text-[10px] font-bold text-gray-600 pt-0.5">
+                              <span className="text-emerald-700">{t.completedCount || 0} Completed</span>
+                              <span className="text-amber-700">{t.inProgressCount || 0} In Progress</span>
+                              <span className="text-gray-500">{(t.planCount || 0) - (t.completedCount || 0) - (t.inProgressCount || 0)} Pending</span>
+                            </div>
+
+                            {/* Mini preview of assigned portions */}
+                            {t.assignedPortions && t.assignedPortions.length > 0 && (
+                              <div className="pt-1.5 border-t border-amber-200/40 space-y-1">
+                                {t.assignedPortions.slice(0, 2).map((portion: any) => (
+                                  <div key={portion.id} className="flex items-center justify-between text-[10.5px]">
+                                    <span className="text-gray-700 font-semibold truncate max-w-[170px]" title={portion.title}>
+                                      • {portion.title}
+                                    </span>
+                                    <span className="text-[10px] font-mono font-bold text-emerald-800">
+                                      {portion.progress}%
+                                    </span>
+                                  </div>
+                                ))}
+                                {t.assignedPortions.length > 2 && (
+                                  <p className="text-[9.5px] text-gray-400 font-medium">+{t.assignedPortions.length - 2} more portions</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mb-4 p-2.5 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-xs text-gray-500 text-center font-medium">
+                            No Takhteet portion assigned yet
                           </div>
                         )}
 

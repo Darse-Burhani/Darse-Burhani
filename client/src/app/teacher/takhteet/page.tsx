@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { monthName, statusMeta } from "@/lib/takhteet";
+import { TeacherPageGuard } from "@/context/PortalAccessContext";
 
 export default function TeacherTakhteetPage() {
   const [plans, setPlans] = useState<any[]>([]);
@@ -81,7 +82,8 @@ export default function TeacherTakhteetPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <TeacherPageGuard pageKey="takhteet" title="Takhteet (Portion Planning)">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header Banner */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div className="fatimi-header-banner">
@@ -271,6 +273,7 @@ export default function TeacherTakhteetPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </div>
+      </div>
+    </TeacherPageGuard>
   );
 }

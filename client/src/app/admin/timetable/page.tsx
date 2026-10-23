@@ -2371,6 +2371,7 @@ export default function AdminTimetableMasterPage() {
                     <th className="p-4">Assigned Teacher</th>
                     <th className="p-4">Portion / Description</th>
                     <th className="p-4">Target Month</th>
+                    <th className="p-4">Coverage Progress</th>
                     <th className="p-4">Status</th>
                   </tr>
                 </thead>
@@ -2390,8 +2391,28 @@ export default function AdminTimetableMasterPage() {
                         {item.month ? `Month ${item.month} (Jumādā al-Ūlā)` : "—"}
                       </td>
                       <td className="p-4">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
-                          Active Planning
+                        <div className="w-28 space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-bold">
+                            <span className="text-slate-600">Progress</span>
+                            <span className="font-mono text-emerald-800">{item.progress || 0}%</span>
+                          </div>
+                          <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="bg-emerald-600 h-full rounded-full transition-all"
+                              style={{ width: `${item.progress || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                          item.status === "COMPLETED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : item.status === "IN_PROGRESS"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {item.status === "COMPLETED" ? "Completed" : item.status === "IN_PROGRESS" ? "In Progress" : "Pending"}
                         </span>
                       </td>
                     </tr>

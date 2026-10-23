@@ -168,9 +168,9 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
   },
   {
     id: "takhteet",
-    label: "Takhteet",
+    label: "Takhteet (Curriculum Portion)",
     category: "Academics",
-    description: "Curriculum pacing, portion milestones & syllabus planning",
+    description: "Curriculum pacing, portion milestones & syllabus planning (Restricted to specific assigned faculty)",
     icon: Layers,
   },
   {
@@ -266,9 +266,9 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
   },
   {
     id: "point-matrix",
-    label: "Point Matrix",
+    label: "Point Matrix & Rules",
     category: "Systems",
-    description: "Star point rules, rubrics, point multipliers & matrix",
+    description: "Star point rules, rubrics, multipliers & matrix (Restricted to specific assigned faculty)",
     icon: Award,
   },
   {
@@ -358,8 +358,13 @@ const PRESETS = [
   },
   {
     name: "Standard Academic Faculty",
-    description: "Dashboard, Classes, Yearly Profile, Timetable, Quran, Takhteet, Manual Attendance, Profile",
-    pages: ["dashboard", "classes", "talabat-profiles", "timetable", "quran", "takhteet", "manual-attendance", "profile"],
+    description: "Dashboard, Classes, Yearly Profile, Timetable, Quran, Manual Attendance, Profile",
+    pages: ["dashboard", "classes", "talabat-profiles", "timetable", "quran", "manual-attendance", "profile"],
+  },
+  {
+    name: "Takhteet & Portion In-Charge (Specific Faculty)",
+    description: "Dashboard, Classes, Timetable, Takhteet Portion Planner, Yearly Profile, Profile",
+    pages: ["dashboard", "classes", "talabat-profiles", "timetable", "takhteet", "profile"],
   },
   {
     name: "Health & Medical In-Charge",
@@ -383,8 +388,13 @@ const PRESETS = [
   },
   {
     name: "Talabat & Community In-Charge",
-    description: "Dashboard, Talabat, Yearly Profile, Parents Directory, Parent Assignments, Staff & Users, Tracking, Point Matrix, Profile",
-    pages: ["dashboard", "students", "talabat-profiles", "parents", "parents-assign", "users", "tracking", "point-matrix", "profile"],
+    description: "Dashboard, Talabat, Yearly Profile, Parents Directory, Parent Assignments, Staff & Users, Tracking, Profile",
+    pages: ["dashboard", "students", "talabat-profiles", "parents", "parents-assign", "users", "tracking", "profile"],
+  },
+  {
+    name: "Point Matrix & Discipline In-Charge (Specific Faculty)",
+    description: "Dashboard, Students, Tracking, Point Matrix Rules & Multipliers, Profile",
+    pages: ["dashboard", "students", "talabat-profiles", "tracking", "point-matrix", "profile"],
   },
 ];
 

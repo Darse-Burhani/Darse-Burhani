@@ -148,17 +148,50 @@ router.post("/request", requireAuth, async (req, res) => {
       },
     });
 
-    // Notify administrators of the new requisition
+    // Notify administrators and designated concern persons (procurement/makhzan officers) of the new requisition
     try {
       const admins = await prisma.user.findMany({
         where: { role: "ADMIN", isActive: true },
         select: { id: true },
       });
 
+      // Find designated concern persons with procurement or makhzan portal assignments
+      const concernAssignments = await prisma.teacherPortalAssignment.findMany({
+        where: {
+          isActive: true,
+          portalType: {
+            in: [
+              "ALL",
+              "PAGE:procurement",
+              "PAGE:PROCUREMENT",
+              "PAGE:makhzan",
+              "PAGE:MAKHZAN",
+              "PROCUREMENT",
+              "MAKHZAN",
+            ],
+          },
+        },
+        include: {
+          teacher: {
+            select: {
+              userId: true,
+            },
+          },
+        },
+      });
+
+      const concernUserIds = concernAssignments
+        .map((a: any) => a.teacher?.userId)
+        .filter((uid: any): uid is string => Boolean(uid) && uid !== userId);
+
+      const allRecipientIds = Array.from(
+        new Set([...admins.map((a: any) => a.id), ...concernUserIds])
+      );
+
       const requesterName = `${newRequest.requester.firstName} ${newRequest.requester.lastName}`.trim();
-      const notificationData = admins.map((admin) => ({
-        userId: admin.id,
-        title: `Procurement Requisition: ${newRequest.title}`,
+      const notificationData = allRecipientIds.map((recipientId) => ({
+        userId: recipientId,
+        title: `Desk Requisition: ${newRequest.title}`,
         body: `${requesterName} requested ${newRequest.quantity} ${newRequest.unit} for "${newRequest.officeLocation}". Priority: ${newRequest.priority}.`,
         type: "PROCUREMENT",
         link: "/admin/procurement",

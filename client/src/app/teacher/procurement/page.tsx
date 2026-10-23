@@ -40,6 +40,8 @@ const CATEGORIES = [
 ];
 
 const PRESET_LOCATIONS = [
+  "My Faculty Desk (Main Staff Room)",
+  "Teacher Desk (Classroom)",
   "Main Staff Room Desk",
   "Classroom 101",
   "Classroom 102",
@@ -574,6 +576,26 @@ export default function TeacherProcurementPage() {
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
+              {/* Quick Desk Items Pick */}
+              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                <span className="text-[10px] text-gray-500 font-semibold mr-1">Desk Essentials:</span>
+                {[
+                  { label: "Whiteboard Markers", cat: "STATIONERY", unit: "pack" },
+                  { label: "Attendance Register", cat: "BOOKS", unit: "pcs" },
+                  { label: "Desk Pen Stand", cat: "STATIONERY", unit: "set" },
+                  { label: "A4 Printing Paper", cat: "STATIONERY", unit: "ream" },
+                  { label: "Desk Chair / Cushion", cat: "FURNITURE", unit: "pcs" },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => setForm({ ...form, title: item.label, category: item.cat, unit: item.unit })}
+                    className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Category & Priority */}

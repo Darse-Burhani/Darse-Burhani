@@ -29,12 +29,13 @@ const defaultModules: PortalModulesConfig = {
     dashboard: true,
     classes: true,
     timetable: true,
-    takhteet: true,
+    takhteet: false,
     attendance: true,
     faculty: true,
     calendar: true,
     hifz: true,
     profile: true,
+    pointMatrix: false,
   },
 };
 
@@ -397,3 +398,68 @@ export function ModuleLockGuard({
 
   return <>{children}</>;
 }
+
+/**
+ * TeacherPageGuard: Wraps a teacher page.
+ * Enforces that only faculty explicitly assigned this page by admin can access it.
+ */
+export function TeacherPageGuard({
+  pageKey,
+  title = "Page Restricted",
+  children,
+}: {
+  pageKey: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  const { isPageAssigned, loading } = usePortalAccess();
+
+  if (loading) {
+    return (
+      <div className="p-6 animate-pulse" aria-label="Loading page permissions">
+        <div className="max-w-md w-full mx-auto space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-gray-200 mx-auto" />
+          <div className="h-5 w-2/3 rounded bg-gray-200 mx-auto" />
+          <div className="h-4 w-full rounded bg-gray-100" />
+          <div className="h-10 w-full rounded-xl bg-gray-200" />
+        </div>
+      </div>
+    );
+  }
+
+  const assigned = isPageAssigned(pageKey);
+  if (!assigned) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center p-8 rounded-3xl bg-white/90 backdrop-blur-md border border-amber-200/80 shadow-2xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 mx-auto flex items-center justify-center shadow-inner">
+            <Lock className="w-8 h-8 text-amber-700 animate-pulse" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100/70 text-amber-900 border border-amber-300">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-700" />
+              Administrative Assignment Required
+            </span>
+            <h2 className="text-xl font-bold text-gray-900 font-display">{title} Restricted</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              This module is restricted to specific assigned faculty members. If you require access, please contact the administrator to grant permission via Portal Assignments.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Link to="/teacher">
+              <Button className="w-full fatimi-emerald-gradient text-white shadow-md text-xs font-semibold rounded-xl h-10">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Return to Teacher Dashboard
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+

@@ -96,6 +96,19 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
                   isActive: true,
                 },
               },
+              takhteetPlans: {
+                select: {
+                  id: true,
+                  title: true,
+                  subject: true,
+                  progress: true,
+                  status: true,
+                  month: true,
+                  academicYear: true,
+                  updatedAt: true,
+                },
+                orderBy: { updatedAt: "desc" },
+              },
               _count: { select: { takhteetPlans: true } },
             },
             orderBy: { user: { firstName: "asc" } },
@@ -105,6 +118,14 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
               teacher: {
                 select: {
                   user: { select: { id: true, firstName: true, lastName: true } },
+                },
+              },
+              takhteetPlans: {
+                select: {
+                  id: true,
+                  title: true,
+                  progress: true,
+                  status: true,
                 },
               },
             },
@@ -133,15 +154,38 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         return {
           teachers: teachers.map((t) => {
             const takhteetDisplay = canonicalizeTeacherDisplay(`${t.user.firstName} ${t.user.lastName}`, t.user.avatarUrl);
+            const totalPlans = t._count.takhteetPlans;
+            const avgProgress = totalPlans > 0
+              ? Math.round(t.takhteetPlans.reduce((acc, p) => acc + (p.progress || 0), 0) / totalPlans)
+              : 0;
+            const completedCount = t.takhteetPlans.filter((p) => p.status === "COMPLETED").length;
+            const inProgressCount = t.takhteetPlans.filter((p) => p.status === "IN_PROGRESS").length;
+            const pendingCount = t.takhteetPlans.filter((p) => p.status === "PENDING").length;
+
             return {
               id: t.userId,
+              teacherProfileId: t.id,
               name: takhteetDisplay.name,
               email: t.user.email,
               avatarUrl: takhteetDisplay.avatarUrl,
               employeeId: t.employeeId,
               department: t.department,
               subjects: t.subjects,
-              planCount: t._count.takhteetPlans,
+              planCount: totalPlans,
+              avgProgress,
+              completedCount,
+              inProgressCount,
+              pendingCount,
+              assignedPortions: t.takhteetPlans.map((p) => ({
+                id: p.id,
+                title: p.title,
+                subject: p.subject,
+                progress: p.progress,
+                status: p.status,
+                month: p.month,
+                academicYear: p.academicYear,
+                updatedAt: p.updatedAt,
+              })),
               classes: t.classes.map((c) => ({
                 classId: c.id,
                 className: c.name,
@@ -151,17 +195,26 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
               })),
             };
           }),
-          classes: classes.map((c) => ({
-            id: c.id,
-            name: c.name,
-            grade: c.grade,
-            section: c.section,
-            subject: c.subject,
-            academicYear: c.academicYear,
-            isActive: c.isActive,
-            teacherUserId: c.teacher?.user?.id || null,
-            teacherName: canonicalizeTeacherName(c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned") || "Unassigned",
-          })),
+          classes: classes.map((c: any) => {
+            const planCount = c.takhteetPlans?.length || 0;
+            const avgProgress = planCount > 0
+              ? Math.round(c.takhteetPlans.reduce((sum: number, p: any) => sum + (p.progress || 0), 0) / planCount)
+              : null;
+            return {
+              id: c.id,
+              name: c.name,
+              grade: c.grade,
+              section: c.section,
+              subject: c.subject,
+              academicYear: c.academicYear,
+              isActive: c.isActive,
+              teacherUserId: c.teacher?.user?.id || null,
+              teacherName: canonicalizeTeacherName(c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : "Unassigned") || "Unassigned",
+              planCount,
+              avgProgress,
+              plans: c.takhteetPlans || [],
+            };
+          }),
           plans: plans.map((p) => ({
             id: p.id,
             teacherId: p.teacher?.user?.id || "",
