@@ -232,18 +232,24 @@ export function PortalShell({
     });
   }, [navItems, mobileCategoryFilter, mobileSearchQuery]);
 
-  // Primary hubs for bottom navigation dock
-  const attendanceItem = useMemo(() => {
+  // Primary hubs for bottom navigation dock (null-safe — some portals pass
+  // fewer nav items, so never assume index 1/2 exist)
+  const attendanceItem = useMemo<PortalNavItem | null>(() => {
     return (
-      navItems.find((n) => n.href.includes("attendance-hik") || n.href.includes("attendance")) ??
-      navItems[1]
+      navItems.find((n) => n?.href?.includes("attendance-hik") || n?.href?.includes("attendance")) ??
+      navItems[1] ??
+      navItems[0] ??
+      null
     );
   }, [navItems]);
 
-  const timetableItem = useMemo(() => {
+  const timetableItem = useMemo<PortalNavItem | null>(() => {
     return (
-      navItems.find((n) => n.href.includes("timetable") || n.href.includes("classes")) ??
-      navItems[2]
+      navItems.find((n) => n?.href?.includes("timetable") || n?.href?.includes("classes")) ??
+      navItems[2] ??
+      navItems[1] ??
+      navItems[0] ??
+      null
     );
   }, [navItems]);
 
@@ -756,25 +762,27 @@ export function PortalShell({
               </Link>
 
               {/* 2. Attendance / Scans */}
-              <Link
-                href={attendanceItem.href}
-                className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
-                  isActive(attendanceItem.href)
-                    ? "text-amber-300 font-bold"
-                    : "text-white/70 hover:text-white"
-                )}
-              >
-                <div className="relative">
-                  <attendanceItem.icon className="w-5 h-5" style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
-                  {isActive(attendanceItem.href) && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+              {attendanceItem && (
+                <Link
+                  href={attendanceItem.href}
+                  className={cn(
+                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
+                    isActive(attendanceItem.href)
+                      ? "text-amber-300 font-bold"
+                      : "text-white/70 hover:text-white"
                   )}
-                </div>
-                <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[58px]">
-                  {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
-                </span>
-              </Link>
+                >
+                  <div className="relative">
+                    <attendanceItem.icon className="w-5 h-5" style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
+                    {isActive(attendanceItem.href) && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                    )}
+                  </div>
+                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[58px]">
+                    {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
+                  </span>
+                </Link>
+              )}
 
               {/* 3. Center Glowing Fatimi Command Orb */}
               <div className="relative -top-3 flex flex-col items-center">
@@ -796,25 +804,27 @@ export function PortalShell({
               </div>
 
               {/* 4. Timetable / Classes */}
-              <Link
-                href={timetableItem.href}
-                className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
-                  isActive(timetableItem.href)
-                    ? "text-amber-300 font-bold"
-                    : "text-white/70 hover:text-white"
-                )}
-              >
-                <div className="relative">
-                  <timetableItem.icon className="w-5 h-5" style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
-                  {isActive(timetableItem.href) && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+              {timetableItem && (
+                <Link
+                  href={timetableItem.href}
+                  className={cn(
+                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
+                    isActive(timetableItem.href)
+                      ? "text-amber-300 font-bold"
+                      : "text-white/70 hover:text-white"
                   )}
-                </div>
-                <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[58px]">
-                  {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
-                </span>
-              </Link>
+                >
+                  <div className="relative">
+                    <timetableItem.icon className="w-5 h-5" style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
+                    {isActive(timetableItem.href) && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                    )}
+                  </div>
+                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[58px]">
+                    {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
+                  </span>
+                </Link>
+              )}
 
               {/* 5. Modules Menu Drawer */}
               <button

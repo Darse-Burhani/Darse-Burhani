@@ -1,8 +1,9 @@
 /* ─────────────────────────────────────────────────────────────
-   DARSE BURHANI THEME: DARK GOLD (70-30-10 HARMONY)
-   70% Deep Charcoal Canvas & Elevated Surfaces
-   30% Warm White / Cream Typography & Subtle Borders
+   DARSE BURHANI THEME: LIGHT GOLD CREAM (70-30-10 HARMONY)
+   70% Warm Cream Canvas & White Surfaces — bright and readable
+   30% Deep Espresso Typography — crisp on cream
    10% Gold / Amber Accent — The Singular Brand Highlight
+   Charcoal is reserved for the sidebar, header banner & bottom dock.
    ───────────────────────────────────────────────────────────── */
 
 :root,
@@ -12,32 +13,41 @@
 [data-fatimi-theme="fatimi-mishkat-nur"],
 [data-fatimi-theme="fatimi-kufa-zari"],
 [data-fatimi-theme="twilight-palace"] {
-  /* ── 70% Dominant Dark Canvas & Surfaces ── */
-  --fatimi-primary: #0d0d0d;
-  --fatimi-primary-dark: #080808;
-  --fatimi-primary-light: #141414;
-  --fatimi-secondary: #1c1c1c;
+  /* ── 70% Dominant Light Canvas & Surfaces ── */
+  --fatimi-primary: #ffffff;
+  --fatimi-primary-dark: #f6f1e6;
+  --fatimi-primary-light: #fffdf8;
+  --fatimi-secondary: #f4efe5;
   --fatimi-gold: #f3b833;
-  --fatimi-gold-light: #fef9e7;
-  --fatimi-gold-dark: #dc6b27;
-  --fatimi-surface: #181818;
-  --fatimi-bg-subtle: #1c1c1c;
-  --fatimi-border: #2a2a2a;
-  --fatimi-border-subtle: #222222;
-  --fatimi-glow: rgba(252, 212, 104, 0.18);
+  --fatimi-gold-light: #fff8e7;
+  --fatimi-gold-dark: #b8541e;
+  --fatimi-surface: #ffffff;
+  --fatimi-card: #ffffff;
+  --fatimi-card-elevated: #fffdf8;
+  --fatimi-bg-subtle: #f7f3ea;
+  --fatimi-border: #e7e0d0;
+  --fatimi-border-subtle: #f0eadb;
+  --fatimi-glow: rgba(252, 212, 104, 0.35);
   --fatimi-accent: #f3b833;
-  --fatimi-sidebar-bg: linear-gradient(180deg, #0d0d0d 0%, #141414 55%, #1c1c1c 100%);
-  --fatimi-banner-bg: linear-gradient(135deg, #1c1c1c 0%, #141414 55%, #0d0d0d 100%);
-  --fatimi-header-line: linear-gradient(90deg, #2a2a2a, #f3b833, #2a2a2a);
+  --fatimi-sidebar-bg: linear-gradient(180deg, #191512 0%, #211c17 55%, #14100c 100%);
+  --fatimi-banner-bg: linear-gradient(135deg, #221c14 0%, #191510 55%, #0f0c08 100%);
+  --fatimi-header-line: linear-gradient(90deg, #e7e0d0, #f3b833, #e7e0d0);
+
+  /* ── 30% Connective text scale (used by inputs, tables, selects, tabs…) ── */
+  --fatimi-text-primary: #221c12;
+  --fatimi-text-body: #3d3426;
+  --fatimi-text-secondary: #6b5f4b;
+  --fatimi-text-muted: #97896f;
+  --fatimi-text-inverted: #faf7f0;
 
   /* Explicit 70 / 30 / 10 ratio contract used by shared utilities. */
-  --ratio-70-canvas: #0d0d0d;
-  --ratio-70-surface: #141414;
-  --ratio-70-subtle: #1c1c1c;
-  --ratio-30-ink: #f5f0e8;
-  --ratio-30-body: #e8e0d0;
-  --ratio-30-muted: #9a9280;
-  --ratio-30-border: #2a2a2a;
+  --ratio-70-canvas: #faf7f0;
+  --ratio-70-surface: #ffffff;
+  --ratio-70-subtle: #f4efe5;
+  --ratio-30-ink: #221c12;
+  --ratio-30-body: #3d3426;
+  --ratio-30-muted: #97896f;
+  --ratio-30-border: #e7e0d0;
   --ratio-10-accent: #f3b833;
   --ratio-10-accent-soft: #fff8e7;
   --ratio-10-gold: #f3b833;
@@ -85,12 +95,12 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-   GLOBAL THEME BINDINGS FOR ALL PORTALS (DARK GOLD 70-30-10)
+   GLOBAL THEME BINDINGS FOR ALL PORTALS (LIGHT CREAM 70-30-10)
    ───────────────────────────────────────────────────────────── */
 
 ::selection {
-  background: rgba(252, 212, 104, 0.25);
-  color: #f5f0e8;
+  background: rgba(243, 184, 51, 0.3);
+  color: #221c12;
 }
 
 /* Smooth luxury scrollbar */
@@ -100,7 +110,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d0d0d;
+  background: #faf7f0;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -205,9 +215,9 @@
 
 .btn-fatimi-outline {
   background: transparent !important;
-  color: var(--fatimi-gold) !important;
-  font-weight: 600;
-  border: 1px solid var(--fatimi-gold) !important;
+  color: var(--fatimi-gold-dark) !important;
+  font-weight: 700;
+  border: 1px solid var(--fatimi-gold-dark) !important;
   border-radius: 0.875rem;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
@@ -215,13 +225,13 @@
 }
 
 .btn-fatimi-outline:hover {
-  background: rgba(252, 212, 104, 0.1) !important;
-  box-shadow: 0 0 0 1px var(--fatimi-gold), 0 0 16px -4px var(--fatimi-gold);
+  background: rgba(252, 212, 104, 0.14) !important;
+  box-shadow: 0 0 0 1px var(--fatimi-gold-dark), 0 0 16px -4px var(--fatimi-glow);
 }
 
 .btn-fatimi-dark {
   background: var(--fatimi-primary) !important;
-  color: #f5f0e8 !important;
+  color: var(--fatimi-text-primary) !important;
   font-weight: 600;
   border: 1px solid var(--fatimi-border) !important;
   border-radius: 0.875rem;
@@ -258,9 +268,9 @@
 
 /* Badge / Tag Styles */
 .badge-fatimi-gold {
-  background: linear-gradient(135deg, rgba(252, 212, 104, 0.15) 0%, rgba(239, 154, 51, 0.1) 100%);
-  color: var(--fatimi-gold) !important;
-  border: 1px solid rgba(252, 212, 104, 0.3);
+  background: linear-gradient(135deg, rgba(252, 212, 104, 0.22) 0%, rgba(239, 154, 51, 0.16) 100%);
+  color: #8a5410 !important;
+  border: 1px solid rgba(220, 150, 39, 0.4);
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -270,8 +280,8 @@
 }
 
 .badge-fatimi-dark {
-  background: var(--fatimi-primary) !important;
-  color: #f5f0e8 !important;
+  background: var(--fatimi-primary-dark) !important;
+  color: var(--fatimi-text-primary) !important;
   border: 1px solid var(--fatimi-border) !important;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
