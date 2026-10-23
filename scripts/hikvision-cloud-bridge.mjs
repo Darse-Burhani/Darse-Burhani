@@ -21,6 +21,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import http from 'node:http';
 import dotenv from 'dotenv';
 import path from 'node:path';
@@ -247,18 +248,63 @@ function normalizeDeviceTime(raw) {
 }
 
 // ── Identity aliases ─────────────────────────────────────────────
-// Terminals may enrol a person under a display name instead of a numeric
-// employee number. The official Galiakot kgs staff list identifies this teacher
-// as "Mustafa bhai Moiz bhai Manpurwala" — the same person the device enrolls
-// as "Mustafa Bhai Moiz Bhai Manpur" and the app shows as "Mustafa Tailor".
-// All variants must resolve to his canonical ITS employee number.
+// Terminals may enrol a person under a display name or numeric ID instead of
+// their official ITS employee number:
+// 1. Mustafa Tailor (ITS 40444603 - Faculty):
+//    Device: "Mustafa Bhai Moiz Bhai Manpur" / "Mustafa Tailor" -> 40444603
+// 2. Mulla Murtaza bhai Shaikh Abbas bhai Hamid (ITS 30489490 - Faculty):
+//    Device: employeeNo "2", name "M Murtaza Bhai Shk Abbas Bhai Hamid" -> 30489490
+// 3. Murtaza bhai Abbas bhai Chhatariya (ITS 30150861 - Student / Talabat):
+//    Device 192.168.0.4: typo employeeNo "30450861", name "30150861" -> 30150861
 const MUSTAFA_TAILOR_ITS = '40444603';
+const MURTAZA_HAMID_ITS = '30489490';
+const MURTAZA_CHHATARIYA_ITS = '30150861';
 
 function canonicalizeEmployeeNo(rawId, name) {
   const id = String(rawId || '').trim();
-  if (/^\d+$/.test(id)) return id; // numeric employee numbers stay as-is
-  const combined = `${id} ${String(name || '')}`;
-  if (/manpur|mustafa\s*tailor/i.test(combined)) return MUSTAFA_TAILOR_ITS;
+  const nameStr = String(name || '').trim();
+  const combined = `${id} ${nameStr}`.trim();
+
+  // 1. Direct hardware ID / typo aliases
+  if (id === '2' || nameStr === '2') {
+    return MURTAZA_HAMID_ITS;
+  }
+  if (id === '30450861' || nameStr === '30450861') {
+    return MURTAZA_CHHATARIYA_ITS;
+  }
+  if (id === MUSTAFA_TAILOR_ITS || nameStr === MUSTAFA_TAILOR_ITS) {
+    return MUSTAFA_TAILOR_ITS;
+  }
+  if (id === MURTAZA_HAMID_ITS || nameStr === MURTAZA_HAMID_ITS) {
+    return MURTAZA_HAMID_ITS;
+  }
+  if (id === MURTAZA_CHHATARIYA_ITS || nameStr === MURTAZA_CHHATARIYA_ITS) {
+    return MURTAZA_CHHATARIYA_ITS;
+  }
+
+  // 2. Name-based alias patterns
+  if (/manpur/i.test(combined) || /mustafa\s*tailor/i.test(combined)) {
+    return MUSTAFA_TAILOR_ITS;
+  }
+  if (
+    /shk\s*abbas.*hamid/i.test(combined) ||
+    /shaikh\s*abbas.*hamid/i.test(combined) ||
+    /m.*murtaza.*sh.*abbas/i.test(combined)
+  ) {
+    return MURTAZA_HAMID_ITS;
+  }
+  if (/chhatariya/i.test(combined)) {
+    return MURTAZA_CHHATARIYA_ITS;
+  }
+
+  // 3. If name is a valid 8-digit ITS number while id is not or has typo
+  if (/^\d{8}$/.test(nameStr)) {
+    return nameStr;
+  }
+  if (/^\d+$/.test(id)) {
+    return id;
+  }
+
   return id;
 }
 
@@ -267,11 +313,12 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
   const rawId = String(employeeNo || '').trim();
   if (!rawId) return { ok: false, error: 'Empty ID' };
 
-  const strippedNum = rawId.replace(/^0+/, '');
-  const prefixMatch = rawId.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
+  const canonicalId = canonicalizeEmployeeNo(rawId);
+  const strippedNum = canonicalId.replace(/^0+/, '');
+  const prefixMatch = canonicalId.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
   const innerNum = prefixMatch && prefixMatch[1] ? prefixMatch[1].trim() : '';
   const innerStripped = innerNum ? innerNum.replace(/^0+/, '') : '';
-  const candidateIds = Array.from(new Set([rawId, strippedNum, innerNum, innerStripped])).filter(Boolean);
+  const candidateIds = Array.from(new Set([rawId, canonicalId, strippedNum, innerNum, innerStripped])).filter(Boolean);
 
   const scanDate = new Date(time);
   const istFormatter = new Intl.DateTimeFormat('en-IN', {
@@ -774,6 +821,23 @@ const photoCache = new Map();
 
 async function loadOfficialPhoto(url) {
   if (photoCache.has(url)) return photoCache.get(url);
+
+  // Check local filesystem in public/ if available
+  try {
+    const cleanPath = url.replace(/^https?:\/\/[^/]+/, '');
+    const localFile = path.resolve(__dirname, '..', 'public', cleanPath.replace(/^\//, ''));
+    if (fs.existsSync(localFile)) {
+      const buf = fs.readFileSync(localFile);
+      if (buf.length >= 1024) {
+        const ext = path.extname(localFile).toLowerCase();
+        const type = ext === '.png' ? 'image/png' : 'image/jpeg';
+        const entry = { buf, type };
+        photoCache.set(url, entry);
+        return entry;
+      }
+    }
+  } catch {}
+
   const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`Photo fetch HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());

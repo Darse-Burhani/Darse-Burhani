@@ -142,13 +142,41 @@ export default function LoginPage() {
   const [logoFailed, setLogoFailed] = useState(false);
   const [transitionTarget, setTransitionTarget] = useState<{ path: string; portalName: string } | null>(null);
 
-  // ── Forgot-Password Profile Catch ──
-  // When the user types their email or ITS, resolve which profile it belongs to
-  // (Administrator / Faculty / Talabat / Parent) so the support email auto-fills.
   const [forgotIdentifier, setForgotIdentifier] = useState("");
   const [forgotProfile, setForgotProfile] = useState<ForgotProfile | null>(null);
   const [forgotChecking, setForgotChecking] = useState(false);
   const forgotLookupSeq = useRef(0);
+
+  // ── Restore Remembered Login Credentials ──
+  useEffect(() => {
+    try {
+      const isRemembered = localStorage.getItem("darse_remember_me") === "true";
+      if (isRemembered) {
+        setRememberMe(true);
+        const savedId = localStorage.getItem("darse_saved_login_id");
+        if (savedId) setEmail(savedId);
+        const savedRole = localStorage.getItem("darse_saved_portal_role");
+        if (savedRole && ["ADMIN", "TEACHER", "STUDENT", "PARENT"].includes(savedRole)) {
+          setSelectedRole(savedRole as any);
+        }
+      }
+    } catch {
+      // LocalStorage access fallback (incognito / blocked)
+    }
+  }, []);
+
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    if (!checked) {
+      try {
+        localStorage.removeItem("darse_remember_me");
+        localStorage.removeItem("darse_saved_login_id");
+        localStorage.removeItem("darse_saved_portal_role");
+      } catch {
+        // LocalStorage fallback
+      }
+    }
+  };
 
   useEffect(() => {
     const id = forgotIdentifier.trim();
@@ -472,6 +500,7 @@ export default function LoginPage() {
         email: email.trim(),
         password,
         portalRole: portal.role,
+        rememberMe,
         redirect: false,
       });
       if (result?.error) {
@@ -503,6 +532,22 @@ export default function LoginPage() {
       }
       setFailedAttempts(0);
       setIsSuccess(true);
+
+      // Persist or clear remembered credentials based on rememberMe selection
+      try {
+        if (rememberMe) {
+          localStorage.setItem("darse_remember_me", "true");
+          localStorage.setItem("darse_saved_login_id", email.trim());
+          localStorage.setItem("darse_saved_portal_role", portal.role);
+        } else {
+          localStorage.removeItem("darse_remember_me");
+          localStorage.removeItem("darse_saved_login_id");
+          localStorage.removeItem("darse_saved_portal_role");
+        }
+      } catch {
+        // LocalStorage fallback
+      }
+
       const rolePaths: Record<string, string> = {
         ADMIN: "/admin",
         TEACHER: "/teacher",
@@ -906,7 +951,7 @@ export default function LoginPage() {
                     <input
                       type="checkbox"
                       checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
+                      onChange={(e) => handleRememberMeChange(e.target.checked)}
                       style={{ position: "absolute", opacity: 0, width: 0, height: 0, cursor: "pointer" }}
                     />
                     <span

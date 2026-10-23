@@ -400,20 +400,34 @@ router.get("/tomorrow-hikvision", requireRole("TEACHER", "ADMIN"), async (req, r
         class: { select: { id: true, name: true, grade: true, section: true } },
       },
     });
-    const classIds = [...new Set(teacherSlots.map((s) => s.classId).filter(Boolean))];
+    const classIds = [...new Set(teacherSlots.map((s) => s.classId).filter((id): id is string => Boolean(id)))];
 
     // Get tomorrow's scans for these classes
-    const scans = await prisma.hikvisionScan.findMany({
-      where: {
-        classId: { in: classIds },
-        scanTime: { gte: startOfDay, lt: endOfDay },
-      },
-      include: {
-        student: { select: { id: true, its: true, user: { select: { firstName: true, lastName: true } } } },
-        class: { select: { name: true, grade: true, section: true } },
-      },
-      orderBy: { scanTime: "asc" },
-    });
+    const scans: any[] = ((prisma as any).hikvisionScan?.findMany
+      ? await (prisma as any).hikvisionScan.findMany({
+          where: {
+            classId: { in: classIds },
+            scanTime: { gte: startOfDay, lt: endOfDay },
+          },
+          include: {
+            student: { select: { id: true, its: true, user: { select: { firstName: true, lastName: true } } } },
+            class: { select: { name: true, grade: true, section: true } },
+          },
+          orderBy: { scanTime: "asc" },
+        })
+      : await prisma.attendanceRecord.findMany({
+          where: {
+            classId: { in: classIds },
+            date: { gte: startOfDay, lt: endOfDay },
+            source: "BIOMETRIC",
+          },
+          include: {
+            student: { select: { id: true, its: true, user: { select: { firstName: true, lastName: true } } } },
+            class: { select: { name: true, grade: true, section: true } },
+          },
+          orderBy: { checkInTime: "asc" },
+        })
+    ) as any[];
 
     // Group by class and period
     const scansByClass = new Map<string, any[]>();
@@ -427,23 +441,23 @@ router.get("/tomorrow-hikvision", requireRole("TEACHER", "ADMIN"), async (req, r
       success: true,
       data: {
         date: startOfDay.toISOString().split("T")[0],
-        scans: scans.map((s) => ({
+        scans: scans.map((s: any) => ({
           id: s.id,
-          studentName: `${s.student.user.firstName} ${s.student.user.lastName}`,
-          studentIts: s.student.its,
-          className: s.class.name,
-          grade: s.class.grade,
-          section: s.class.section,
-          scanTime: s.scanTime.toISOString(),
+          studentName: s.student?.user ? `${s.student.user.firstName} ${s.student.user.lastName}` : "Unknown",
+          studentIts: s.student?.its || "",
+          className: s.class?.name || "",
+          grade: s.class?.grade || "",
+          section: s.class?.section || "",
+          scanTime: (s.scanTime || s.checkInTime || new Date()).toISOString(),
           status: s.status,
           biometricMethod: s.biometricMethod,
         })),
         summary: {
           totalScans: scans.length,
           classesCovered: scansByClass.size,
-          present: scans.filter((s) => s.status === "PRESENT").length,
-          late: scans.filter((s) => s.status === "LATE").length,
-          absent: scans.filter((s) => s.status === "ABSENT").length,
+          present: scans.filter((s: any) => s.status === "PRESENT").length,
+          late: scans.filter((s: any) => s.status === "LATE").length,
+          absent: scans.filter((s: any) => s.status === "ABSENT").length,
         },
       },
     });

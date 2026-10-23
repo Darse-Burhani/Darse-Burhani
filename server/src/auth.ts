@@ -27,6 +27,7 @@ export interface SessionUser {
 
 export const COOKIE_NAME = "sis_session";
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days (seconds)
+const FULL_TIME_SESSION_MAX_AGE = 365 * 24 * 60 * 60; // 365 days / 1 year (full-time persistent login)
 
 const INSECURE_SECRET_PATTERNS = ["secret", "password", "default", "changeme", "123456", "admin", "jwtsecret"];
 
@@ -69,8 +70,8 @@ export function validatePasswordComplexity(password: string): { valid: boolean; 
   return { valid: true };
 }
 
-export function signSession(user: SessionUser): string {
-  return jwt.sign({ ...user }, getSecret(), { expiresIn: SESSION_MAX_AGE });
+export function signSession(user: SessionUser, maxAgeSeconds: number = SESSION_MAX_AGE): string {
+  return jwt.sign({ ...user }, getSecret(), { expiresIn: maxAgeSeconds });
 }
 
 export function getSessionUser(req: Request): SessionUser | null {
@@ -98,12 +99,12 @@ export function getSessionUser(req: Request): SessionUser | null {
   }
 }
 
-export function setSessionCookie(res: Response, token: string): void {
+export function setSessionCookie(res: Response, token: string, maxAgeSeconds: number = SESSION_MAX_AGE): void {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: SESSION_MAX_AGE * 1000,
+    maxAge: maxAgeSeconds * 1000,
     path: "/",
   });
 }
@@ -409,7 +410,10 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
     userAgent: req.headers["user-agent"],
   });
 
-  setSessionCookie(res, signSession(sessionUser));
+  const rememberMe = (req.body as any)?.rememberMe !== false;
+  const sessionDuration = rememberMe ? FULL_TIME_SESSION_MAX_AGE : SESSION_MAX_AGE;
+
+  setSessionCookie(res, signSession(sessionUser, sessionDuration), sessionDuration);
   unbanIp(getClientIp(req));
   res.json({ success: true, data: { user: sessionUser } });
 }

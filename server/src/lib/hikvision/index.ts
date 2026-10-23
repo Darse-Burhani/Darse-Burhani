@@ -834,8 +834,9 @@ export async function pollDevice(
     scansFetched = scans.length;
 
     for (const ev of scans) {
-      const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
-      if (!empNo) continue;
+      const rawEmp = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
+      if (!rawEmp) continue;
+      const empNo = resolveAliasIts(rawEmp, ev.name) ?? rawEmp;
 
       let time = parseEventTime(ev.time) ?? new Date();
       if (clockSkewed) {

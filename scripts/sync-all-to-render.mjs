@@ -148,9 +148,29 @@ async function pullAllDeviceEventsForDate(dev, dateStr) {
         break;
       }
 
+function canonicalizeEmployeeNo(rawId, name) {
+  const id = String(rawId || '').trim();
+  const nameStr = String(name || '').trim();
+  const combined = `${id} ${nameStr}`.trim();
+
+  if (id === '2' || nameStr === '2') return '30489490';
+  if (id === '30450861' || nameStr === '30450861') return '30150861';
+  if (id === '40444603' || nameStr === '40444603') return '40444603';
+  if (id === '30489490' || nameStr === '30489490') return '30489490';
+  if (id === '30150861' || nameStr === '30150861') return '30150861';
+
+  if (/manpur/i.test(combined) || /mustafa\s*tailor/i.test(combined)) return '40444603';
+  if (/shk\s*abbas.*hamid|shaikh\s*abbas.*hamid|m.*murtaza.*sh.*abbas/i.test(combined)) return '30489490';
+  if (/chhatariya/i.test(combined)) return '30150861';
+
+  if (/^\d{8}$/.test(nameStr)) return nameStr;
+  return id;
+}
+
       for (const item of list) {
-        const empNo = item.employeeNoString || item.cardNo;
-        if (!empNo) continue;
+        const rawEmp = item.employeeNoString || item.name || item.cardNo;
+        if (!rawEmp) continue;
+        const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
         const timeStr = normalizeDeviceTime(item.time);
         const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
         const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
@@ -212,11 +232,12 @@ async function recordLocalDB(ev) {
   const rawId = String(ev.employeeNo || '').trim();
   if (!rawId) return;
 
-  const strippedNum = rawId.replace(/^0+/, '');
-  const prefixMatch = rawId.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
+  const canonicalId = canonicalizeEmployeeNo(rawId, ev.name);
+  const strippedNum = canonicalId.replace(/^0+/, '');
+  const prefixMatch = canonicalId.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
   const innerNum = prefixMatch && prefixMatch[1] ? prefixMatch[1].trim() : '';
   const innerStripped = innerNum ? innerNum.replace(/^0+/, '') : '';
-  const candidateIds = Array.from(new Set([rawId, strippedNum, innerNum, innerStripped])).filter(Boolean);
+  const candidateIds = Array.from(new Set([rawId, canonicalId, strippedNum, innerNum, innerStripped])).filter(Boolean);
 
   const scanDate = new Date(ev.time);
   const istFormatter = new Intl.DateTimeFormat('en-IN', {

@@ -269,8 +269,27 @@ async function fetchAllTodayEvents(dev, password) {
   return allEvents;
 }
 
+function canonicalizeEmployeeNo(rawId, name) {
+  const id = String(rawId || '').trim();
+  const nameStr = String(name || '').trim();
+  const combined = `${id} ${nameStr}`.trim();
+
+  if (id === '2' || nameStr === '2') return '30489490';
+  if (id === '30450861' || nameStr === '30450861') return '30150861';
+  if (id === '40444603' || nameStr === '40444603') return '40444603';
+  if (id === '30489490' || nameStr === '30489490') return '30489490';
+  if (id === '30150861' || nameStr === '30150861') return '30150861';
+
+  if (/manpur/i.test(combined) || /mustafa\s*tailor/i.test(combined)) return '40444603';
+  if (/shk\s*abbas.*hamid|shaikh\s*abbas.*hamid|m.*murtaza.*sh.*abbas/i.test(combined)) return '30489490';
+  if (/chhatariya/i.test(combined)) return '30150861';
+
+  if (/^\d{8}$/.test(nameStr)) return nameStr;
+  return id;
+}
+
 async function processScan(empNo, scanDate, host, verifyMode) {
-  const raw = String(empNo || '').trim();
+  const raw = canonicalizeEmployeeNo(empNo);
   const strippedNum = raw.replace(/^0+/, '');
   const prefixMatch = raw.match(/^(?:STU|ITS|FP|CARD|ID|TALABAT|EMP|TEA|FAC|STAFF|TEACHER|FACULTY)[-_:.]?(.*)$/i);
   const innerNum = prefixMatch && prefixMatch[1] ? prefixMatch[1].trim() : '';
@@ -426,7 +445,8 @@ async function runSyncCycle(targetDayIso) {
       // Oldest-first so first scan wins check-in and latest lands check-out.
       const ordered = attendanceEvents
         .map((ev) => {
-          const empNo = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
+          const rawEmp = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
+          const empNo = canonicalizeEmployeeNo(rawEmp, ev.name);
           let scanDate = parseEventTime(ev.time);
           if (clockSkewed) scanDate = new Date(scanDate.getTime() - driftMs);
           return { ev, empNo, scanDate };

@@ -511,10 +511,11 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       employee = String(ev.cardNo).trim();
     }
 
-    // Device may report only the enrolled display NAME — resolve known identity
-    // aliases (e.g. "Mustafa Bhai Moiz Bhai Manpur" → ITS 40444603)
-    if (!employee && isBioScan) {
-      employee = resolveAliasIts(ev.name) ?? employee;
+    // Resolve identity aliases: device display names (e.g. "Mustafa Bhai Moiz Bhai Manpur" → 40444603)
+    // or hardware employeeNo aliases (e.g. "2" → 30489490, "30450861" → 30150861)
+    const resolvedAlias = resolveAliasIts(employee, ev.name);
+    if (resolvedAlias) {
+      employee = resolvedAlias;
     }
 
     if (!employee) {

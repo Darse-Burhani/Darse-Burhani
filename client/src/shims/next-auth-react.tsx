@@ -164,6 +164,7 @@ export async function signIn(
     email?: string;
     password?: string;
     portalRole?: string;
+    rememberMe?: boolean;
     redirect?: boolean;
     callbackUrl?: string;
   },
@@ -179,6 +180,7 @@ export async function signIn(
           email: options?.email,
           password: options?.password,
           portalRole: options?.portalRole,
+          rememberMe: options?.rememberMe,
         }),
       });
 

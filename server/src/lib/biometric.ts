@@ -770,7 +770,23 @@ export async function resolveStudent(ref: string): Promise<ResolvedStudent | nul
     if (byPrefix) return byPrefix;
   }
 
-  // 5. Case-insensitive studentId / its check
+  // 5. Device-enrolled alias names / typo employee numbers (e.g. "30450861" -> "30150861")
+  const aliasIts = resolveAliasIts(raw);
+  if (aliasIts) {
+    const byAlias = await prisma.studentProfile.findFirst({
+      where: {
+        OR: [
+          { its: aliasIts },
+          { studentId: aliasIts },
+          { biometricHash: aliasIts },
+        ],
+      },
+      select: STUDENT_SELECT,
+    });
+    if (byAlias) return byAlias;
+  }
+
+  // 6. Case-insensitive studentId / its check
   return prisma.studentProfile.findFirst({
     where: {
       OR: [
