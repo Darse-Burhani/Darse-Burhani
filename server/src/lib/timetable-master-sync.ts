@@ -50,60 +50,26 @@ export const MUSTAFA_TAILOR_EMPLOYEE_ID = "TCH-1792673352057";
 
 /**
  * One-shot database repair (runs at server startup before the slot check):
- * renames any legacy Mustafa Manpurwala user to "Mustafa Tailor", attaches the
- * OFFICIAL Galiakot-kgs staff photo (also used for terminal face enrollment),
- * points timetable slots at the canonical name, and re-points ITS so attendance
- * records keep matching. Timetable displays stay picture-less via
- * canonicalizeTeacherDisplay — the photo is used by the Hikvision sync only.
+ * keeps the official Mustafa identity (ITS 40444603) consistent — employee
+ * id, biometric id, and the OFFICIAL Galiakot-kgs staff photo — canonicalises
+ * timetable slot text to "Mustafa Tailor", and consolidates duplicate
+ * profiles sharing ITS into one. The user record itself is NEVER renamed or
+ * deleted: the live identity is "Mustafa Bhai Moiz Bhai Manpur" for Hikvision
+ * scans, while timetable displays keep showing "Mustafa Tailor" via slot text
+ * and canonicalizeTeacherDisplay.
  */
 export async function repairMustafaTailorMigration(): Promise<void> {
   try {
-    const legacyUsers = await prisma.user.findMany({
-      where: {
-        OR: [
-          { firstName: { contains: "Manpur", mode: "insensitive" } },
-          { lastName: { contains: "Manpur", mode: "insensitive" } },
-          { email: { contains: "manpurwala", mode: "insensitive" } },
-        ],
-      },
-    });
-
-    for (const legacy of legacyUsers) {
-      await prisma.user.update({
-        where: { id: legacy.id },
-        data: {
-          firstName: "Mustafa",
-          lastName: "Tailor",
-          avatarUrl: MUSTAFA_TAILOR_PHOTO_URL,
-          isActive: true,
-        },
-      });
-
-      const profile = await prisma.teacherProfile.findFirst({ where: { userId: legacy.id } });
-      if (profile) {
-        await prisma.teacherProfile.update({
-          where: { id: profile.id },
-          data: { its: "40444603", photoUrl: MUSTAFA_TAILOR_PHOTO_URL, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
-        }).catch(() => {});
-        await prisma.timetableSlot.updateMany({
-          where: { teacherId: profile.id },
-          data: { teacherName: "Mustafa Tailor" },
-        }).catch(() => {});
-      }
-
-      console.log(`[timetable:repair] Legacy Manpurwala user ${legacy.id} migrated to Mustafa Tailor (official photo attached).`);
-    }
-
-    // Defensive: any slot text still carrying the legacy alias, and the
-    // canonical Mustafa Tailor profile must carry the Galiakot-kgs official
-    // identity: ITS 40444603 (Hik terminal employeeNo "Mustafa Bhai Moiz Bhai
-    // Manpur"), employee id TCH-1792673352057, and the official staff photo.
+    // Defensive: any slot text still carrying the legacy alias must be the
+    // canonical timetable name, and the canonical profile must carry the
+    // Galiakot-kgs official identity: ITS 40444603 (Hik terminal employeeNo),
+    // employee id TCH-1792673352057, and the official staff photo.
     await prisma.timetableSlot.updateMany({
       where: { teacherName: { contains: "Manpur", mode: "insensitive" } },
       data: { teacherName: "Mustafa Tailor" },
     }).catch(() => {});
     await prisma.teacherProfile.updateMany({
-      where: { its: "40444603" },
+      where: { its: MUSTAFA_TAILOR_ITS },
       data: { photoUrl: MUSTAFA_TAILOR_PHOTO_URL, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID, biometricHash: MUSTAFA_TAILOR_ITS },
     }).catch(() => {});
 
@@ -614,84 +580,14 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
   // Step 0: Ensure all database tables and columns exist in PostgreSQL
   await ensureDatabaseSchema();
 
-  // Step 0.5: Self-healing: Ensure Mustafa Manpurwala is replaced by Mustafa Tailor
+  // Step 0.5: Self-healing identity repair for Mustafa (ITS 40444603).
+  // Consolidates duplicate profiles sharing the official ITS, normalises
+  // employeeId / biometric id / official photo, and canonicalises timetable
+  // slot text. It NEVER renames or deletes the user record — the official
+  // live identity is "Mustafa Bhai Moiz Bhai Manpur" for Hikvision scans,
+  // while timetable displays keep showing "Mustafa Tailor" via slot text
+  // and canonicalizeTeacherDisplay.
   await repairMustafaTailorMigration();
-  try {
-    const manpurProfile = await prisma.teacherProfile.findFirst({
-      where: {
-        OR: [
-          { user: { lastName: { contains: "Manpur", mode: "insensitive" } } },
-          { user: { email: { contains: "manpurwala", mode: "insensitive" } } },
-        ],
-      },
-      include: { user: true },
-    });
-
-    if (manpurProfile) {
-      let tailorProfile = await prisma.teacherProfile.findFirst({
-        where: {
-          OR: [
-            { employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID },
-            { employeeId: "EMP-MUSTAFA-TAILOR" },
-            { its: "40444603" },
-            { user: { email: "mustafa.tailor@mahadalzahra.com" } },
-            { user: { email: "mustafa.tailor@darseburhani.com" } },
-          ],
-        },
-        include: { user: true },
-      });
-
-      if (!tailorProfile) {
-        await prisma.user.update({
-          where: { id: manpurProfile.userId },
-          data: {
-            firstName: "Mustafa",
-            lastName: "Tailor",
-            email: "mustafa.tailor@mahadalzahra.com",
-            isActive: true,
-          },
-        });
-        await prisma.teacherProfile.update({
-          where: { id: manpurProfile.id },
-          data: {
-            its: "40444603",
-            department: "Attalimiyah",
-          },
-        });
-        console.log("[timetable:sync] Migrated Manpurwala profile to Mustafa Tailor.");
-      } else {
-        const pId = manpurProfile.id;
-        const tId = tailorProfile.id;
-
-        const manpurRecords = await prisma.teacherAttendanceRecord.findMany({ where: { teacherId: pId } });
-        for (const rec of manpurRecords) {
-          const existing = await prisma.teacherAttendanceRecord.findUnique({
-            where: { teacherId_date: { teacherId: tId, date: rec.date } },
-          });
-          if (existing) {
-            await prisma.teacherAttendanceRecord.delete({ where: { id: rec.id } }).catch(() => {});
-          } else {
-            await prisma.teacherAttendanceRecord.update({
-              where: { id: rec.id },
-              data: { teacherId: tId },
-            }).catch(() => {});
-          }
-        }
-        await prisma.timetableSlot.updateMany({ where: { teacherId: pId }, data: { teacherId: tId } }).catch(() => {});
-        await prisma.class.updateMany({ where: { teacherId: pId }, data: { teacherId: tId } }).catch(() => {});
-        await prisma.class.updateMany({ where: { masoolId: pId }, data: { masoolId: tId } }).catch(() => {});
-        await prisma.teacherProfile.update({ where: { id: pId }, data: { its: null, employeeId: `MANPUR-DELETED-${Date.now()}` } }).catch(() => {});
-        await prisma.teacherProfile.delete({ where: { id: pId } }).catch(() => {});
-        if (manpurProfile.userId) {
-          await prisma.user.delete({ where: { id: manpurProfile.userId } }).catch(() => {});
-        }
-        await prisma.teacherProfile.update({ where: { id: tId }, data: { its: "40444603" } }).catch(() => {});
-        console.log("[timetable:sync] Reassigned records from Manpurwala to Mustafa Tailor and purged Manpurwala.");
-      }
-    }
-  } catch (err: any) {
-    console.warn("[timetable:sync] Notice during Mustafa Tailor migration:", err?.message || err);
-  }
 
   // Step 1: Resolve / Ensure Teacher Profiles safely
   const teacherIdMap = new Map<string, string>(); // nameKey -> teacherProfileId
