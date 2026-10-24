@@ -255,7 +255,19 @@ export interface BadalNotificationPayload {
   badalTeacher?: any;
 }
 
-export async function notifyBadalAssignment(badal: BadalNotificationPayload, actorName?: string) {
+export interface BadalEmailOptions {
+  customSubject?: string;
+  customBody?: string;
+  customTo?: string;
+  customFrom?: string;
+  sendEmailNotification?: boolean;
+}
+
+export async function notifyBadalAssignment(
+  badal: BadalNotificationPayload,
+  actorName?: string,
+  options?: BadalEmailOptions
+) {
   try {
     let substituteUser: { id: string; email: string; firstName: string; lastName: string } | null = null;
 
@@ -290,10 +302,19 @@ export async function notifyBadalAssignment(badal: BadalNotificationPayload, act
     const instructionsText = badal.instructions || "Please conduct the assigned portion and maintain classroom discipline.";
     const appUrl = process.env.APP_URL || "https://darse-burhani.onrender.com";
 
-    // 1. Send Urgent Email Notification
+    // 1. Send Email Notification (urgent substitute dispatch)
     let emailSent = false;
-    if (substituteUser?.email) {
-      const emailSubject = `🚨 [URGENT] Substitute Assignment (Badal): Period ${badal.period} (${badal.startTime}–${badal.endTime}) in Class ${badal.className}`;
+    const recipientEmail = options?.customTo?.trim() || substituteUser?.email;
+    const shouldSendEmail = options?.sendEmailNotification !== false;
+
+    if (recipientEmail && shouldSendEmail) {
+      const emailSubject =
+        options?.customSubject?.trim() ||
+        `🚨 [URGENT] Substitute Assignment (Badal): Period ${badal.period} (${badal.startTime}–${badal.endTime}) in Class ${badal.className}`;
+
+      const customBodyHtml = options?.customBody?.trim()
+        ? `<div style="background: #f8fafc; border-left: 4px solid #d4af37; padding: 18px 20px; border-radius: 12px; margin-bottom: 24px; font-size: 14px; line-height: 1.7; color: #1e293b; white-space: pre-wrap;">${options.customBody.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`
+        : "";
 
       const emailHtml = `
 <!DOCTYPE html>
@@ -335,9 +356,11 @@ export async function notifyBadalAssignment(badal: BadalNotificationPayload, act
         <p style="font-size: 15px; line-height: 1.6; margin: 0 0 18px 0; color: #0f172a;">
           <strong>Afzalus Salam Janab ${subName},</strong>
         </p>
-        <p style="font-size: 14px; line-height: 1.6; margin: 0 0 24px 0; color: #334155;">
+        <p style="font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; color: #334155;">
           You have been officially assigned by the administration (${actorName || "Academic Coordinator"}) to cover an urgent substitute duty (Badal) for the following class session:
         </p>
+
+        ${customBodyHtml}
 
         <!-- Details Card -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border-radius: 16px; border: 1px solid #cbd5e1; margin-bottom: 24px; overflow: hidden;">
@@ -423,7 +446,7 @@ export async function notifyBadalAssignment(badal: BadalNotificationPayload, act
       `;
 
       emailSent = await sendEmail({
-        to: substituteUser.email,
+        to: recipientEmail,
         subject: emailSubject,
         html: emailHtml,
       });

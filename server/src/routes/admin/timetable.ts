@@ -24,12 +24,23 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     const today = new Date();
     const startOfToday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
     const endOfToday = new Date(startOfToday.getTime() + 86400000);
+    const windowStart = new Date(startOfToday.getTime() - 7 * 86400000);
+    const windowEnd = new Date(endOfToday.getTime() + 14 * 86400000);
 
     const cacheKey = `admin:timetable:${JSON.stringify(where)}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
-        const [slots, classes, teachers, todayBadals] = await Promise.all([
+        const [
+          slots,
+          classes,
+          teachers,
+          todayBadals,
+          teacherAttendanceLeaves,
+          teacherMedicalExemptions,
+          studentLeaves,
+          todayStudentRegistries,
+        ] = await Promise.all([
           prisma.timetableSlot.findMany({
             where,
             include: {
@@ -79,6 +90,8 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
                       id: true,
                       its: true,
                       studentId: true,
+                      grade: true,
+                      section: true,
                       user: {
                         select: {
                           id: true,
@@ -123,41 +136,186 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             },
             orderBy: [{ period: "asc" }],
           }),
+          // 5. Teacher attendance marked ON_LEAVE or MEDICAL
+          prisma.teacherAttendanceRecord.findMany({
+            where: {
+              date: { gte: windowStart, lt: windowEnd },
+              status: { in: ["ON_LEAVE", "MEDICAL"] },
+            },
+            select: {
+              teacherId: true,
+              date: true,
+              status: true,
+              notes: true,
+            },
+          }),
+          // 6. Medical exemptions for teachers
+          prisma.medicalExemption.findMany({
+            where: {
+              personType: "TEACHER",
+              isActive: true,
+              date: { gte: windowStart, lt: windowEnd },
+            },
+            select: {
+              teacherId: true,
+              date: true,
+              eventName: true,
+              reason: true,
+            },
+          }),
+          // 7. Approved Student Leaves
+          prisma.leaveRequest.findMany({
+            where: {
+              status: "APPROVED",
+              startDate: { lte: windowEnd },
+              endDate: { gte: windowStart },
+            },
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  studentId: true,
+                  its: true,
+                  grade: true,
+                  section: true,
+                  user: { select: { firstName: true, lastName: true } },
+                },
+              },
+            },
+          }),
+          // 8. Today's Student Registries marked ON_LEAVE or MEDICAL
+          prisma.attendanceRegistry.findMany({
+            where: {
+              date: { gte: startOfToday, lt: endOfToday },
+              status: { in: ["ON_LEAVE", "MEDICAL"] },
+            },
+            select: {
+              studentId: true,
+              status: true,
+              remarks: true,
+            },
+          }),
         ]);
 
+        // Aggregate teacher leave details
+        const teacherLeavesMap = new Map<string, {
+          teacherId: string;
+          reason: string;
+          type: string;
+          datesSummary: string;
+        }>();
+
+        for (const l of teacherAttendanceLeaves) {
+          const prev = teacherLeavesMap.get(l.teacherId);
+          const typeStr = l.status === "MEDICAL" ? "Medical Leave" : "Authorized Leave";
+          const reasonStr = l.notes || typeStr;
+          teacherLeavesMap.set(l.teacherId, {
+            teacherId: l.teacherId,
+            reason: reasonStr,
+            type: typeStr,
+            datesSummary: prev ? `${prev.datesSummary}, ${l.date.toISOString().split("T")[0]}` : l.date.toISOString().split("T")[0],
+          });
+        }
+
+        for (const m of teacherMedicalExemptions) {
+          if (!m.teacherId) continue;
+          const prev = teacherLeavesMap.get(m.teacherId);
+          teacherLeavesMap.set(m.teacherId, {
+            teacherId: m.teacherId,
+            reason: m.reason || m.eventName || "Medical Exemption",
+            type: "Medical Exemption",
+            datesSummary: prev ? `${prev.datesSummary}, ${m.date.toISOString().split("T")[0]}` : m.date.toISOString().split("T")[0],
+          });
+        }
+
+        // Aggregate student leave details by studentId
+        const studentLeaveMap = new Map<string, {
+          studentId: string;
+          name: string;
+          its: string;
+          grade: string;
+          section: string;
+          type: string;
+          reason: string;
+          startDate: string;
+          endDate: string;
+        }>();
+
+        for (const sl of studentLeaves) {
+          studentLeaveMap.set(sl.studentId, {
+            studentId: sl.studentId,
+            name: `${sl.student?.user?.firstName || ""} ${sl.student?.user?.lastName || ""}`.trim(),
+            its: sl.student?.its || "",
+            grade: sl.student?.grade || "",
+            section: sl.student?.section || "",
+            type: String(sl.type || "LEAVE"),
+            reason: sl.reason || "Approved Leave",
+            startDate: sl.startDate.toISOString().split("T")[0],
+            endDate: sl.endDate.toISOString().split("T")[0],
+          });
+        }
+
+        for (const reg of todayStudentRegistries) {
+          if (!studentLeaveMap.has(reg.studentId)) {
+            studentLeaveMap.set(reg.studentId, {
+              studentId: reg.studentId,
+              name: "Talib",
+              its: "",
+              grade: "",
+              section: "",
+              type: reg.status === "MEDICAL" ? "Medical Leave" : "On Leave",
+              reason: reg.remarks || "Marked on Leave",
+              startDate: startOfToday.toISOString().split("T")[0],
+              endDate: startOfToday.toISOString().split("T")[0],
+            });
+          }
+        }
+
         return {
-          slots: slots.map((s) => {
-            const formatted = formatSlotResponse(s);
-            return formatted;
-          }),
+          slots: slots.map((s) => formatSlotResponse(s, teacherLeavesMap)),
           recentChanges: getRecentTimetableChanges(),
-          classes: classes.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            grade: c.grade,
-            section: c.section,
-            subject: c.subject,
-            masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
-            masoolIts: c.masool?.its || null,
-            masoolAvatar: c.masool?.user?.avatarUrl || c.masool?.photoUrl || null,
-            masoolId: c.masoolId,
-            studentCount: c._count.enrollments,
-            slotCount: c._count.timetableSlots,
-            talabat: (c.enrollments || []).map((e: any) => ({
-              id: e.student?.id,
-              userId: e.student?.user?.id,
-              name: `${e.student?.user?.firstName || ""} ${e.student?.user?.lastName || ""}`.trim(),
-              its: e.student?.its,
-              rollNumber: e.student?.studentId || null,
-              studentId: e.student?.studentId,
-              avatarUrl: e.student?.user?.avatarUrl || null,
-            })),
-          })),
+          classes: classes.map((c: any) => {
+            const classStudentIds = new Set((c.enrollments || []).map((e: any) => e.student?.id).filter(Boolean));
+            const onLeaveInThisClass = Array.from(studentLeaveMap.values()).filter((item) => classStudentIds.has(item.studentId));
+
+            return {
+              id: c.id,
+              name: c.name,
+              grade: c.grade,
+              section: c.section,
+              subject: c.subject,
+              masoolName: c.masool?.user ? `${c.masool.user.firstName || ""} ${c.masool.user.lastName || ""}`.trim() : "TBA",
+              masoolIts: c.masool?.its || null,
+              masoolAvatar: c.masool?.user?.avatarUrl || c.masool?.photoUrl || null,
+              masoolId: c.masoolId,
+              studentCount: c._count.enrollments,
+              slotCount: c._count.timetableSlots,
+              talabatOnLeave: onLeaveInThisClass,
+              talabatOnLeaveCount: onLeaveInThisClass.length,
+              talabat: (c.enrollments || []).map((e: any) => {
+                const sLeave = studentLeaveMap.get(e.student?.id);
+                return {
+                  id: e.student?.id,
+                  userId: e.student?.user?.id,
+                  name: `${e.student?.user?.firstName || ""} ${e.student?.user?.lastName || ""}`.trim(),
+                  its: e.student?.its,
+                  rollNumber: e.student?.studentId || null,
+                  studentId: e.student?.studentId,
+                  avatarUrl: e.student?.user?.avatarUrl || null,
+                  isUnavailable: Boolean(sLeave),
+                  leaveReason: sLeave?.reason || null,
+                  leaveType: sLeave?.type || null,
+                  leaveDates: sLeave ? `${sLeave.startDate} to ${sLeave.endDate}` : null,
+                };
+              }),
+            };
+          }),
           teachers: teachers.map((t) => {
             const display = canonicalizeTeacherDisplay(
               t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
               t.user?.avatarUrl || t.photoUrl || null,
             );
+            const tLeave = teacherLeavesMap.get(t.id);
             return {
               id: t.id,
               name: display.name,
@@ -165,8 +323,13 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
               its: t.its,
               avatarUrl: display.avatarUrl,
               weeklyPeriods: t._count.timetableSlots,
+              isUnavailable: Boolean(tLeave),
+              leaveReason: tLeave?.reason || null,
+              leaveType: tLeave?.type || null,
+              leaveDates: tLeave?.datesSummary || null,
             };
           }),
+          unavailableTeachers: Array.from(teacherLeavesMap.values()),
           todayBadals: todayBadals.map((b) => {
             const originalDisplay = canonicalizeTeacherDisplay(
               b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
@@ -196,7 +359,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           }),
         };
       },
-      { ttl: 15_000, tags: ["timetableslot", "timetable", "class"] }
+      { ttl: 15_000, tags: ["timetableslot", "timetable", "class", "teacherAttendanceRecord", "attendanceRecord"] }
     );
 
     return res.json({
@@ -247,7 +410,7 @@ const SLOT_INCLUDE = {
   },
 };
 
-function formatSlotResponse(slot: any) {
+function formatSlotResponse(slot: any, teacherLeavesMap?: Map<string, any>) {
   const changeInfo = isSlotRecentlyChanged(slot);
   const updatedAtTime = slot.updatedAt ? new Date(slot.updatedAt).getTime() : 0;
   const createdAtTime = slot.createdAt ? new Date(slot.createdAt).getTime() : 0;
@@ -260,6 +423,8 @@ function formatSlotResponse(slot: any) {
 
   const composedTeacherName = slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA");
   const slotDisplay = canonicalizeTeacherDisplay(composedTeacherName, slot.teacher?.user?.avatarUrl || slot.teacher?.photoUrl || null);
+
+  const teacherLeave = slot.teacherId && teacherLeavesMap ? teacherLeavesMap.get(slot.teacherId) : null;
 
   return {
     id: slot.id,
@@ -282,6 +447,11 @@ function formatSlotResponse(slot: any) {
     updatedAt: slot.updatedAt,
     isRecentlyChanged: isRecent,
     changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${slot.subject} (${canonicalizeTeacherName(slot.teacherName) || "Assigned Teacher"})` : null),
+    // Leave / Availability metadata
+    isUnavailable: Boolean(teacherLeave),
+    leaveReason: teacherLeave?.reason || null,
+    leaveType: teacherLeave?.type || null,
+    leaveDates: teacherLeave?.datesSummary || null,
   };
 }
 
@@ -757,6 +927,33 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
       if (b.badalTeacherId) busyTeacherIds.add(b.badalTeacherId);
     }
 
+    // 2b. Check Faculty on Leave / Medical Exemption on this date
+    const [leaveAttendance, leaveMedical] = await Promise.all([
+      prisma.teacherAttendanceRecord.findMany({
+        where: {
+          date: { gte: startOfDay, lt: endOfDay },
+          status: { in: ["ON_LEAVE", "MEDICAL"] },
+        },
+        select: { teacherId: true, status: true, notes: true },
+      }),
+      prisma.medicalExemption.findMany({
+        where: {
+          personType: "TEACHER",
+          isActive: true,
+          date: { gte: startOfDay, lt: endOfDay },
+        },
+        select: { teacherId: true, eventName: true, reason: true },
+      }),
+    ]);
+
+    const teacherLeaveMap = new Map<string, string>();
+    for (const l of leaveAttendance) {
+      teacherLeaveMap.set(l.teacherId, l.notes || (l.status === "MEDICAL" ? "Medical Leave" : "Authorized Leave"));
+    }
+    for (const m of leaveMedical) {
+      if (m.teacherId) teacherLeaveMap.set(m.teacherId, m.reason || m.eventName || "Medical Exemption");
+    }
+
     // 3. Faculty who are already timetabled for this subject are the only
     //    eligible substitutes. This prevents the picker from dumping the
     //    entire faculty roster into the Badal modal.
@@ -801,6 +998,10 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
           t.user?.avatarUrl || null,
         );
+        const onLeaveReason = teacherLeaveMap.get(t.id);
+        const isOnLeave = Boolean(onLeaveReason);
+        const isFree = !busyTeacherIds.has(t.id) && !isOnLeave;
+
         return {
           id: t.id,
           name: substituteDisplay.name || "Teacher",
@@ -810,13 +1011,15 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           subjects: t.subjects,
           avatarUrl: substituteDisplay.avatarUrl,
           badalCount: t._count.substituteBadals,
-          isFree: !busyTeacherIds.has(t.id),
+          isFree,
+          isOnLeave,
+          leaveReason: onLeaveReason || null,
           teachesSubject: true,
         };
       })
       .sort(
         (a, b) =>
-          Number(b.isFree) - Number(a.isFree) ||
+          Number(b.isFree && !b.isOnLeave) - Number(a.isFree && !a.isOnLeave) ||
           a.badalCount - b.badalCount ||
           a.name.localeCompare(b.name),
       );
@@ -857,6 +1060,11 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       reason,
       instructions,
       notes,
+      customEmailSubject,
+      customEmailBody,
+      senderEmail,
+      receiverEmail,
+      sendEmailNotification,
     } = req.body;
 
     if (!date || !className || period === undefined || !subject) {
@@ -987,7 +1195,13 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     cache.invalidateTag("timetable");
 
     if (badal.badalTeacherId) {
-      notifyBadalAssignment(badal, session.user.firstName || "Administration").catch((err) =>
+      notifyBadalAssignment(badal, session.user.firstName || "Administration", {
+        customSubject: customEmailSubject,
+        customBody: customEmailBody,
+        customTo: receiverEmail,
+        customFrom: senderEmail,
+        sendEmailNotification: sendEmailNotification !== false,
+      }).catch((err) =>
         console.error("[timetable] Failed to send badal notification:", err)
       );
     }

@@ -32,6 +32,10 @@ import {
   SlidersHorizontal,
   Lock,
   Unlock,
+  Mail,
+  UserMinus,
+  Send,
+  CalendarRange,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -119,6 +123,39 @@ function getTeacherAvatarGradient(name: string = ""): string {
 // Subject color badges powered by TableMaster palette
 function getSubjectBadgeStyle(subject: string) {
   return getSubjectTheme(subject).badge;
+}
+
+// Generate institutional notification email template for Badal substitute teacher
+function generateBadalEmailTemplate(params: {
+  substituteName?: string;
+  originalTeacherName?: string;
+  className?: string;
+  period?: number | string;
+  startTime?: string;
+  endTime?: string;
+  subject?: string;
+  date?: string;
+  reason?: string;
+  instructions?: string;
+}) {
+  const subject = `🚨 [URGENT] Substitute Duty (Badal): Class ${params.className || "Class"} (Period ${params.period || 1}) - ${params.subject || "Session"}`;
+  const body = `Afzalus Salam Janab ${params.substituteName || "Faculty Member"},
+
+You have been officially assigned by the administration as a substitute teacher (Badal) for the following session:
+
+• Target Date: ${params.date || "Today"}
+• Class / Darajah: Class ${params.className || "Class"}
+• Period & Time: Period ${params.period || 1} (${params.startTime || "10:30"} – ${params.endTime || "11:00"})
+• Subject: ${params.subject || "Lesson"}
+• Covering For: ${params.originalTeacherName || "Scheduled Ustaz"}
+• Reason: ${params.reason || "Official Absence / Leave"}
+${params.instructions ? `• Sabaq Instructions: ${params.instructions}\n` : ""}
+Please ensure you reach the classroom promptly and mark the student roll-call on the portal.
+
+Shukran,
+Idarah Darse Burhani Academic Administration`;
+
+  return { subject, body };
 }
 
 export default function AdminTimetableMasterPage() {
@@ -240,6 +277,8 @@ export default function AdminTimetableMasterPage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [todayBadals, setTodayBadals] = useState<any[]>([]);
   const [takhteetList, setTakhteetList] = useState<any[]>([]);
+  const [takhteetTeachers, setTakhteetTeachers] = useState<any[]>([]);
+  const [takhteetViewMode, setTakhteetViewMode] = useState<"by-teacher" | "all-portions">("by-teacher");
 
   // Selection states
   const [selectedClassName, setSelectedClassName] = useState<string>("1 A");
@@ -289,8 +328,28 @@ export default function AdminTimetableMasterPage() {
     reason: "Medical / Sick Leave",
     instructions: "",
     notes: "",
+    // Email dispatch fields
+    senderEmail: "support.darseburhani.galiakot@gmail.com",
+    receiverEmail: "",
+    customEmailSubject: "",
+    customEmailBody: "",
+    sendEmailNotification: true,
   });
   const [savingBadal, setSavingBadal] = useState(false);
+
+  // Quick Leave Modal State (allows admins to mark faculty/student on leave directly from timetable)
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveModalType, setLeaveModalType] = useState<"TEACHER" | "STUDENT">("TEACHER");
+  const [leaveForm, setLeaveForm] = useState({
+    teacherId: "",
+    studentId: "",
+    type: "PERSONAL",
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
+    reason: "Medical / Approved Leave",
+    notes: "",
+  });
+  const [savingLeave, setSavingLeave] = useState(false);
 
   // Teacher Filter State
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -363,8 +422,12 @@ export default function AdminTimetableMasterPage() {
           ? dataTak.data.plans
           : [];
         setTakhteetList(rawPlans);
+        if (Array.isArray(dataTak.data.teachers)) {
+          setTakhteetTeachers(dataTak.data.teachers);
+        }
       } else {
         setTakhteetList([]);
+        setTakhteetTeachers([]);
       }
 
       if (isManual) {
@@ -376,6 +439,7 @@ export default function AdminTimetableMasterPage() {
       setTeachers([]);
       setTodayBadals([]);
       setTakhteetList([]);
+      setTakhteetTeachers([]);
       toast({ variant: "destructive", title: "Sync Error", description: "Could not load timetable data." });
     } finally {
       setLoading(false);
@@ -674,13 +738,28 @@ export default function AdminTimetableMasterPage() {
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setAvailableTeachers(data.data);
-        const firstFree = data.data.find((t: any) => t.isFree);
+        const firstFree = data.data.find((t: any) => t.isFree && !t.isOnLeave);
         if (firstFree) {
+          const emailTpl = generateBadalEmailTemplate({
+            substituteName: firstFree.name,
+            originalTeacherName: selectedSlotForBadal?.teacherName || "",
+            className: selectedSlotForBadal?.className || "",
+            period: selectedSlotForBadal?.period || 1,
+            startTime: selectedSlotForBadal?.startTime || "10:30",
+            endTime: selectedSlotForBadal?.endTime || "11:00",
+            subject: selectedSlotForBadal?.subject || "",
+            date: dateStr,
+            reason: badalForm.reason || "Official Absence / Leave",
+            instructions: badalForm.instructions || "",
+          });
           setBadalForm((prev) => ({
             ...prev,
             badalTeacherId: firstFree.id,
             badalTeacherName: firstFree.name,
             badalTeacherAvatar: firstFree.avatarUrl || "",
+            receiverEmail: firstFree.email || "",
+            customEmailSubject: emailTpl.subject,
+            customEmailBody: emailTpl.body,
           }));
         } else {
           setBadalForm((prev) => ({
@@ -688,6 +767,7 @@ export default function AdminTimetableMasterPage() {
             badalTeacherId: "",
             badalTeacherName: "",
             badalTeacherAvatar: "",
+            receiverEmail: "",
           }));
         }
       } else {
@@ -697,6 +777,7 @@ export default function AdminTimetableMasterPage() {
           badalTeacherId: "",
           badalTeacherName: "",
           badalTeacherAvatar: "",
+          receiverEmail: "",
         }));
       }
     } catch {
@@ -706,6 +787,7 @@ export default function AdminTimetableMasterPage() {
         badalTeacherId: "",
         badalTeacherName: "",
         badalTeacherAvatar: "",
+        receiverEmail: "",
       }));
       toast({ variant: "destructive", title: "Error", description: "Failed to query available teachers." });
     } finally {
@@ -716,6 +798,19 @@ export default function AdminTimetableMasterPage() {
   const openBadalModalForSlot = async (slot: any, targetDate?: string) => {
     const chosenDate = targetDate || badalDate || new Date().toISOString().split("T")[0];
     setSelectedSlotForBadal(slot);
+
+    const emailTpl = generateBadalEmailTemplate({
+      originalTeacherName: slot.teacherName || "",
+      className: slot.className,
+      period: slot.period,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      subject: slot.subject,
+      date: chosenDate,
+      reason: "Medical / Sick Leave",
+      instructions: `Please teach ${slot.subject} sabaq for Class ${slot.className}.`,
+    });
+
     setBadalForm({
       date: chosenDate,
       slotId: slot.id,
@@ -734,6 +829,11 @@ export default function AdminTimetableMasterPage() {
       reason: "Medical / Sick Leave",
       instructions: `Please teach ${slot.subject} sabaq for Class ${slot.className}.`,
       notes: "",
+      senderEmail: "support.darseburhani.galiakot@gmail.com",
+      receiverEmail: "",
+      customEmailSubject: emailTpl.subject,
+      customEmailBody: emailTpl.body,
+      sendEmailNotification: true,
     });
 
     setShowBadalModal(true);
@@ -777,8 +877,8 @@ export default function AdminTimetableMasterPage() {
       if (data.success) {
         toast({
           variant: "success",
-          title: "Badal Assigned",
-          description: `${badalForm.badalTeacherName} assigned for ${badalForm.subject} (Class ${badalForm.className}).`,
+          title: "Badal Assigned & Dispatched",
+          description: `${badalForm.badalTeacherName} assigned for ${badalForm.subject} (Class ${badalForm.className}). ${badalForm.sendEmailNotification ? `Email sent to ${badalForm.receiverEmail || "substitute"}.` : ""}`,
         });
         setShowBadalModal(false);
         fetchBadals();
@@ -790,6 +890,91 @@ export default function AdminTimetableMasterPage() {
       toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
     } finally {
       setSavingBadal(false);
+    }
+  };
+
+  // ── QUICK LEAVE REGISTRATION & TIMETABLE UNAVAILABILITY ──
+  const [leaveRosterStudents, setLeaveRosterStudents] = useState<any[]>([]);
+  const [loadingLeaveRoster, setLoadingLeaveRoster] = useState(false);
+
+  const fetchLeaveRoster = async () => {
+    setLoadingLeaveRoster(true);
+    try {
+      const res = await fetch("/api/admin/leave/roster");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setLeaveRosterStudents(json.data.students || []);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingLeaveRoster(false);
+    }
+  };
+
+  const openLeaveModal = (role: "TEACHER" | "STUDENT" = "TEACHER") => {
+    setLeaveModalType(role);
+    setLeaveForm({
+      teacherId: teachers[0]?.id || "",
+      studentId: "",
+      type: "PERSONAL",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: new Date().toISOString().split("T")[0],
+      reason: "Medical / Approved Leave",
+      notes: "",
+    });
+    setShowLeaveModal(true);
+    if (leaveRosterStudents.length === 0) {
+      fetchLeaveRoster();
+    }
+  };
+
+  const handleSaveLeave = async () => {
+    if (!leaveForm.reason.trim()) {
+      toast({ variant: "warning", title: "Reason Required", description: "Please enter a reason for the leave." });
+      return;
+    }
+    if (leaveModalType === "TEACHER" && !leaveForm.teacherId) {
+      toast({ variant: "warning", title: "Select Faculty", description: "Please select a faculty member." });
+      return;
+    }
+    if (leaveModalType === "STUDENT" && !leaveForm.studentId) {
+      toast({ variant: "warning", title: "Select Talabat", description: "Please select a student." });
+      return;
+    }
+
+    setSavingLeave(true);
+    try {
+      const res = await fetch("/api/admin/leave/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: leaveModalType,
+          teacherId: leaveForm.teacherId,
+          studentId: leaveForm.studentId,
+          type: leaveForm.type,
+          startDate: leaveForm.startDate,
+          endDate: leaveForm.endDate,
+          reason: leaveForm.reason,
+          notes: leaveForm.notes,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          variant: "success",
+          title: "Leave Recorded Successfully",
+          description: `Marked on leave (${leaveForm.startDate} to ${leaveForm.endDate}). Timetable availability updated.`,
+        });
+        setShowLeaveModal(false);
+        await fetchTimetableData(true);
+      } else {
+        toast({ variant: "destructive", title: "Failed", description: data.error || "Could not record leave." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setSavingLeave(false);
     }
   };
 
@@ -991,6 +1176,14 @@ export default function AdminTimetableMasterPage() {
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2.5 self-start lg:self-center flex-wrap">
             <Button
+              onClick={() => openLeaveModal("TEACHER")}
+              className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-400/50 text-xs font-black gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
+              title="Mark Faculty or Talabat on Leave (date range) — automatically marks UNAVAILABLE across timetable and proxy engine"
+            >
+              <UserMinus className="w-3.5 h-3.5 text-rose-300" />
+              Mark Leave (Unavailable)
+            </Button>
+            <Button
               onClick={() => setShowTabSettingsModal(true)}
               className="bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/50 text-xs font-black gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
               title="Configure which timetable tabs are displayed or hidden"
@@ -1039,7 +1232,7 @@ export default function AdminTimetableMasterPage() {
         </div>
 
         {/* Live Metrics Counter Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-emerald-800/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-6 pt-5 border-t border-emerald-800/60">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold">
               <BookOpen className="w-4 h-4" />
@@ -1077,6 +1270,26 @@ export default function AdminTimetableMasterPage() {
             <div>
               <div className="text-base sm:text-lg font-black text-white">{todayBadals.length} Badals</div>
               <div className="text-[10px] text-emerald-200/80 uppercase tracking-wider font-semibold">Active Substitutions</div>
+            </div>
+          </div>
+
+          <div className={`rounded-2xl p-3 flex items-center gap-3 border ${
+            teachers.some((t) => t.isUnavailable)
+              ? "bg-rose-500/25 border-rose-400/60 text-rose-200 animate-pulse"
+              : "bg-white/5 border-white/10 text-emerald-200"
+          }`}>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+              teachers.some((t) => t.isUnavailable) ? "bg-rose-500/30 text-rose-200" : "bg-emerald-400/20 text-emerald-300"
+            }`}>
+              <UserMinus className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-base sm:text-lg font-black text-white">
+                {teachers.filter((t) => t.isUnavailable).length} On Leave
+              </div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold opacity-80">
+                {teachers.some((t) => t.isUnavailable) ? "Unavailable Faculty" : "All Faculty Active"}
+              </div>
             </div>
           </div>
         </div>
@@ -1607,6 +1820,24 @@ export default function AdminTimetableMasterPage() {
                                       </div>
                                     </div>
 
+                                    {/* Faculty on Leave / Unavailable Alert */}
+                                    {slot.isUnavailable && (
+                                      <div className="mt-1.5 p-1.5 rounded-lg bg-rose-50 border border-rose-300 text-rose-950 flex flex-col gap-0.5 animate-pulse">
+                                        <div className="flex items-center gap-1 text-[10px] font-black text-rose-700">
+                                          <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                          <span>UNAVAILABLE (ON LEAVE)</span>
+                                        </div>
+                                        <div className="text-[9px] text-rose-800 font-medium truncate">
+                                          {slot.leaveReason || "Approved Leave"}
+                                        </div>
+                                        {slot.leaveDates && (
+                                          <div className="text-[8.5px] font-mono text-rose-600">
+                                            {slot.leaveDates}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
                                     {/* Active Badal Alert Tag if substituted today */}
                                     {todayBadal && (
                                       <div className="mt-1.5 p-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[9.5px] font-bold text-amber-950 flex items-center gap-1">
@@ -1623,11 +1854,15 @@ export default function AdminTimetableMasterPage() {
                                     </span>
                                     <button
                                       onClick={() => openBadalModalForSlot(slot)}
-                                      className="px-2 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                                      title="Get Badal help or assign substitute for this lesson"
+                                      className={`px-2 py-0.5 rounded-lg text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer ${
+                                        slot.isUnavailable
+                                          ? "bg-rose-500 hover:bg-rose-600 text-white animate-pulse"
+                                          : "bg-amber-400 hover:bg-amber-300 text-slate-950"
+                                      }`}
+                                      title={slot.isUnavailable ? "Teacher is on leave! Click to assign Badal substitute" : "Get Badal help or assign substitute for this lesson"}
                                     >
                                       <ArrowRightLeft className="w-2.5 h-2.5" />
-                                      <span>Badal Help</span>
+                                      <span>{slot.isUnavailable ? "🚨 Assign Badal" : "Badal Help"}</span>
                                     </button>
                                   </div>
                                 </div>
@@ -1816,10 +2051,23 @@ export default function AdminTimetableMasterPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="text-xs font-extrabold text-slate-900">{activeTeacherObj.name}</div>
+                      <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                        <span>{activeTeacherObj.name}</span>
+                        {activeTeacherObj.isUnavailable && (
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-rose-500 text-white px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            UNAVAILABLE (ON LEAVE)
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-500 font-mono">
                         ITS: {activeTeacherObj.its || "—"} • {activeTeacherObj.weeklyPeriods} Lessons / Week • {Math.max(0, 54 - (activeTeacherObj.weeklyPeriods || 0))} Free Periods
                       </div>
+                      {activeTeacherObj.isUnavailable && (
+                        <div className="text-[10px] font-bold text-rose-700 mt-0.5">
+                          {activeTeacherObj.leaveReason} {activeTeacherObj.leaveDates ? `(${activeTeacherObj.leaveDates})` : ""}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1917,15 +2165,24 @@ export default function AdminTimetableMasterPage() {
                           </AvatarFallback>
                         </Avatar>
                         <span className="whitespace-nowrap">{t.name}</span>
-                        <span
-                          className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                            isSelected
-                              ? "bg-amber-400 text-slate-950 font-bold"
-                              : "bg-slate-200 text-slate-600"
-                          }`}
-                        >
-                          {t.weeklyPeriods}
-                        </span>
+                        {t.isUnavailable ? (
+                          <span
+                            className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-black animate-pulse"
+                            title={`On Leave: ${t.leaveReason || "Leave"}`}
+                          >
+                            Leave
+                          </span>
+                        ) : (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                              isSelected
+                                ? "bg-amber-400 text-slate-950 font-bold"
+                                : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {t.weeklyPeriods}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -2024,15 +2281,25 @@ export default function AdminTimetableMasterPage() {
                                   <div className="text-[11px] text-slate-700 font-bold mt-1">
                                     Class {slot.className}
                                   </div>
+                                  {(slot.isUnavailable || activeTeacherObj?.isUnavailable) && (
+                                    <div className="mt-1 p-1 rounded bg-rose-100 text-rose-800 text-[9.5px] font-black border border-rose-300 flex items-center gap-1 animate-pulse">
+                                      <AlertTriangle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                                      <span className="truncate">On Leave ({slot.leaveReason || activeTeacherObj?.leaveReason || "Leave"})</span>
+                                    </div>
+                                  )}
                                   <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-200/60">
                                     <span className="text-[9px] font-mono text-slate-500 font-medium">Room {slot.className}</span>
                                     <button
                                       onClick={() => openBadalModalForSlot(slot)}
-                                      className="px-1.5 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9px] font-black shrink-0 flex items-center gap-1 shadow-2xs cursor-pointer"
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-black shrink-0 flex items-center gap-1 shadow-2xs cursor-pointer ${
+                                        slot.isUnavailable || activeTeacherObj?.isUnavailable
+                                          ? "bg-rose-500 hover:bg-rose-600 text-white animate-pulse"
+                                          : "bg-amber-400 hover:bg-amber-300 text-slate-950"
+                                      }`}
                                       title="Assign substitute for this lesson"
                                     >
                                       <ArrowRightLeft className="w-2.5 h-2.5" />
-                                      Badal
+                                      {slot.isUnavailable || activeTeacherObj?.isUnavailable ? "🚨 Badal" : "Badal"}
                                     </button>
                                   </div>
                                 </div>
@@ -2358,99 +2625,257 @@ export default function AdminTimetableMasterPage() {
                 <FileSpreadsheet className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-900">Official Takhteet Syllabus Lessons</h3>
-                <p className="text-xs text-slate-500">118 official syllabus allocations synced from lessons export CSV.</p>
+                <h3 className="text-sm font-black text-slate-900">Takhteet Curriculum &amp; Teacher Portion Progress</h3>
+                <p className="text-xs text-slate-500">Track individual teacher syllabus coverage, assigned subjects, and portion completion.</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative min-w-[200px]">
+            {/* View Mode Toggle & Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setTakhteetViewMode("by-teacher")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    takhteetViewMode === "by-teacher"
+                      ? "bg-white text-emerald-950 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  By Individual Teacher ({takhteetTeachers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTakhteetViewMode("all-portions")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    takhteetViewMode === "all-portions"
+                      ? "bg-white text-emerald-950 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  All Portions Table ({takhteetList.length})
+                </button>
+              </div>
+
+              <div className="relative min-w-[180px]">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search subject or teacher..."
+                  placeholder="Search faculty or subject..."
                   value={takhteetSearch}
                   onChange={(e) => setTakhteetSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-emerald-600"
                 />
               </div>
 
-              <select
-                value={takhteetClassFilter}
-                onChange={(e) => setTakhteetClassFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 outline-none"
-              >
-                <option value="ALL">All Classes</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    Class {c.name}
-                  </option>
-                ))}
-              </select>
+              {takhteetViewMode === "all-portions" && (
+                <select
+                  value={takhteetClassFilter}
+                  onChange={(e) => setTakhteetClassFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 outline-none"
+                >
+                  <option value="ALL">All Classes</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      Class {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-[11px] font-black uppercase text-slate-500 tracking-wider border-b border-slate-200">
-                    <th className="p-4">#</th>
-                    <th className="p-4">Class</th>
-                    <th className="p-4">Subject</th>
-                    <th className="p-4">Assigned Teacher</th>
-                    <th className="p-4">Portion / Description</th>
-                    <th className="p-4">Target Month</th>
-                    <th className="p-4">Coverage Progress</th>
-                    <th className="p-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredTakhteet.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="p-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="p-4 font-black text-slate-900">Class {item.className || item.class?.name}</td>
-                      <td className="p-4 font-bold text-emerald-800">{item.subject}</td>
-                      <td className="p-4 font-semibold text-slate-800">
-                        {item.teacherName || (item.teacher?.user ? `${item.teacher.user.firstName || ""} ${item.teacher.user.lastName || ""}`.trim() : "TBA")}
-                      </td>
-                      <td className="p-4 max-w-sm text-slate-600 text-[11.5px] truncate" title={item.description || item.title}>
-                        {item.description || item.title}
-                      </td>
-                      <td className="p-4 font-bold text-slate-700">
-                        {item.month ? `Month ${item.month} (Jumādā al-Ūlā)` : "—"}
-                      </td>
-                      <td className="p-4">
-                        <div className="w-28 space-y-1">
-                          <div className="flex items-center justify-between text-[10px] font-bold">
-                            <span className="text-slate-600">Progress</span>
-                            <span className="font-mono text-emerald-800">{item.progress || 0}%</span>
+          {/* VIEW MODE 1: INDIVIDUAL TEACHER PORTION PROGRESS CARDS */}
+          {takhteetViewMode === "by-teacher" ? (
+            <div className="space-y-4">
+              {takhteetTeachers.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 text-slate-500">
+                  <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold">No individual faculty portion plans found.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {takhteetTeachers
+                    .filter((t) => {
+                      if (!takhteetSearch.trim()) return true;
+                      const q = takhteetSearch.toLowerCase();
+                      const name = `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.toLowerCase();
+                      const subjects = (t.classes || []).map((c: any) => c.subject || c.name).join(" ").toLowerCase();
+                      const plans = (t.takhteetPlans || []).map((p: any) => p.title || p.subject).join(" ").toLowerCase();
+                      return name.includes(q) || subjects.includes(q) || plans.includes(q);
+                    })
+                    .map((t) => {
+                      const teacherName = `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || "Faculty Member";
+                      const plans = t.takhteetPlans || [];
+                      const completedCount = plans.filter((p: any) => p.status === "COMPLETED").length;
+                      const inProgressCount = plans.filter((p: any) => p.status === "IN_PROGRESS").length;
+                      const avgProgress = plans.length > 0
+                        ? Math.round(plans.reduce((sum: number, p: any) => sum + (p.progress || 0), 0) / plans.length)
+                        : 0;
+
+                      return (
+                        <div
+                          key={t.id}
+                          className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow"
+                        >
+                          {/* Teacher Header */}
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-11 h-11 ring-2 ring-emerald-700/40 shrink-0">
+                              {t.user?.avatarUrl && <AvatarImage src={t.user.avatarUrl} alt={teacherName} />}
+                              <AvatarFallback className="bg-gradient-to-br from-[#1c1c1c] to-[#1c1c1c] text-amber-300 font-bold text-xs">
+                                {getInitials(teacherName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-extrabold text-slate-900 truncate">{teacherName}</h4>
+                              <p className="text-[11px] text-slate-500 truncate">{t.user?.email || "Academic Faculty"}</p>
+                            </div>
                           </div>
-                          <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                            <div
-                              className="bg-emerald-600 h-full rounded-full transition-all"
-                              style={{ width: `${item.progress || 0}%` }}
-                            />
+
+                          {/* Assigned Subjects & Classes */}
+                          <div>
+                            <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">
+                              Assigned Subjects &amp; Classes
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(t.classes || []).length === 0 ? (
+                                <span className="text-[11px] text-slate-400 italic">No assigned classes</span>
+                              ) : (
+                                (t.classes || []).map((c: any) => (
+                                  <span
+                                    key={c.id}
+                                    className="px-2 py-0.5 rounded-lg text-[10.5px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-200"
+                                  >
+                                    Class {c.name} {c.subject ? `• ${c.subject}` : ""}
+                                  </span>
+                                ))
+                              )}
+                            </div>
                           </div>
+
+                          {/* Syllabus Coverage Overall Progress Bar */}
+                          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold">
+                              <span className="text-slate-700">Portion Syllabus Progress</span>
+                              <span className="font-mono text-emerald-800 font-black">{avgProgress}%</span>
+                            </div>
+                            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full transition-all duration-300"
+                                style={{ width: `${avgProgress}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold pt-1">
+                              <span>{plans.length} Total Portions</span>
+                              <span className="text-emerald-700 font-bold">{completedCount} Completed</span>
+                              <span className="text-blue-700 font-bold">{inProgressCount} In Progress</span>
+                            </div>
+                          </div>
+
+                          {/* Itemized Portion Breakdown */}
+                          {plans.length > 0 && (
+                            <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                              <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">
+                                Recent Portion Milestones
+                              </div>
+                              <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                {plans.slice(0, 4).map((p: any) => (
+                                  <div
+                                    key={p.id}
+                                    className="p-2 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between text-[11px]"
+                                  >
+                                    <div className="min-w-0 flex-1 pr-2">
+                                      <div className="font-bold text-slate-800 truncate">{p.title || p.subject}</div>
+                                      <div className="text-[9.5px] text-slate-400">
+                                        {p.subject} {p.month ? `• Month ${p.month}` : ""}
+                                      </div>
+                                    </div>
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
+                                        p.status === "COMPLETED"
+                                          ? "bg-emerald-100 text-emerald-800"
+                                          : p.status === "IN_PROGRESS"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : "bg-amber-100 text-amber-800"
+                                      }`}
+                                    >
+                                      {p.progress || 0}%
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                          item.status === "COMPLETED"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : item.status === "IN_PROGRESS"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}>
-                          {item.status === "COMPLETED" ? "Completed" : item.status === "IN_PROGRESS" ? "In Progress" : "Pending"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      );
+                    })}
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            /* VIEW MODE 2: ALL SYLLABUS PORTIONS TABLE */
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[11px] font-black uppercase text-slate-500 tracking-wider border-b border-slate-200">
+                      <th className="p-4">#</th>
+                      <th className="p-4">Class</th>
+                      <th className="p-4">Subject</th>
+                      <th className="p-4">Assigned Teacher</th>
+                      <th className="p-4">Portion / Description</th>
+                      <th className="p-4">Target Month</th>
+                      <th className="p-4">Coverage Progress</th>
+                      <th className="p-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {filteredTakhteet.map((item, idx) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="p-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
+                        <td className="p-4 font-black text-slate-900">Class {item.className || item.class?.name}</td>
+                        <td className="p-4 font-bold text-emerald-800">{item.subject}</td>
+                        <td className="p-4 font-semibold text-slate-800">
+                          {item.teacherName || (item.teacher?.user ? `${item.teacher.user.firstName || ""} ${item.teacher.user.lastName || ""}`.trim() : "TBA")}
+                        </td>
+                        <td className="p-4 max-w-sm text-slate-600 text-[11.5px] truncate" title={item.description || item.title}>
+                          {item.description || item.title}
+                        </td>
+                        <td className="p-4 font-bold text-slate-700">
+                          {item.month ? `Month ${item.month} (Jumādā al-Ūlā)` : "—"}
+                        </td>
+                        <td className="p-4">
+                          <div className="w-28 space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold">
+                              <span className="text-slate-600">Progress</span>
+                              <span className="font-mono text-emerald-800">{item.progress || 0}%</span>
+                            </div>
+                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-600 h-full rounded-full transition-all"
+                                style={{ width: `${item.progress || 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                            item.status === "COMPLETED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : item.status === "IN_PROGRESS"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}>
+                            {item.status === "COMPLETED" ? "Completed" : item.status === "IN_PROGRESS" ? "In Progress" : "Pending"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2558,40 +2983,73 @@ export default function AdminTimetableMasterPage() {
                   <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                     {availableTeachers.map((t) => {
                       const isChosen = badalForm.badalTeacherId === t.id;
+                      const isUnavailable = t.isOnLeave || !t.isFree;
                       return (
                         <div
                           key={t.id}
-                          onClick={() =>
+                          onClick={() => {
+                            if (isUnavailable) {
+                              toast({
+                                variant: "warning",
+                                title: "Faculty Member Unavailable",
+                                description: `${t.name} is ${t.isOnLeave ? `on leave (${t.leaveReason})` : "already teaching another class"} during Period ${badalForm.period}.`,
+                              });
+                              return;
+                            }
+                            const tpl = generateBadalEmailTemplate({
+                              substituteName: t.name,
+                              originalTeacherName: badalForm.originalTeacherName,
+                              className: badalForm.className,
+                              period: badalForm.period,
+                              startTime: badalForm.startTime,
+                              endTime: badalForm.endTime,
+                              subject: badalForm.subject,
+                              date: badalForm.date,
+                              reason: badalForm.reason,
+                              instructions: badalForm.instructions,
+                            });
                             setBadalForm((prev) => ({
                               ...prev,
                               badalTeacherId: t.id,
                               badalTeacherName: t.name,
                               badalTeacherAvatar: t.avatarUrl || "",
-                            }))
-                          }
-                          className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                            isChosen
-                              ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-500/30"
-                              : "bg-white hover:bg-slate-50 border-slate-200"
+                              receiverEmail: t.email || "",
+                              customEmailSubject: tpl.subject,
+                              customEmailBody: tpl.body,
+                            }));
+                          }}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                            isUnavailable
+                              ? "bg-rose-50/60 border-rose-200/80 opacity-60 cursor-not-allowed"
+                              : isChosen
+                              ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-500/30 cursor-pointer"
+                              : "bg-white hover:bg-slate-50 border-slate-200 cursor-pointer"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             {t.avatarUrl ? (
                               <Avatar className="w-7 h-7 ring-1 ring-emerald-600 shrink-0">
                                 <AvatarImage src={t.avatarUrl} alt={t.name} />
                               </Avatar>
                             ) : null}
-                            <div>
-                              <div className="font-extrabold text-slate-900 text-xs">{t.name}</div>
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
+                                <span>{t.name}</span>
+                                {t.isOnLeave && (
+                                  <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white px-1.5 py-0.2 rounded-full">
+                                    On Leave ({t.leaveReason})
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[10px] text-slate-500 font-mono">
                                 <span className="text-emerald-700 font-bold">
                                   {t.subjects?.length ? t.subjects.join(", ") : badalForm.subject}
                                 </span>
-                                {" "}• Free Period {badalForm.period} • {t.badalCount || 0} Badals taken
+                                {" "}• {t.isOnLeave ? "Unavailable Today" : t.isFree ? `Free Period ${badalForm.period}` : "Busy"} • {t.badalCount || 0} Badals taken
                               </div>
                             </div>
                           </div>
-                          {isChosen && <Check className="w-4 h-4 text-emerald-600" />}
+                          {isChosen && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
                         </div>
                       );
                     })}
@@ -2627,6 +3085,109 @@ export default function AdminTimetableMasterPage() {
                   placeholder="Instructions for the substitute teacher during this session..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none"
                 />
+              </div>
+
+              {/* Email Notification to Assigned Substitute */}
+              <div className="bg-amber-50/80 border border-amber-300/80 rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-amber-800" />
+                    <span className="font-extrabold text-slate-900 text-xs">Official Email Notification to Substitute</span>
+                  </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={badalForm.sendEmailNotification}
+                      onChange={(e) => setBadalForm((prev) => ({ ...prev, sendEmailNotification: e.target.checked }))}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Send Email</span>
+                  </label>
+                </div>
+
+                {badalForm.sendEmailNotification && (
+                  <div className="space-y-2.5 pt-1 border-t border-amber-200/70">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                          Sender Email (From)
+                        </label>
+                        <input
+                          type="email"
+                          value={badalForm.senderEmail}
+                          onChange={(e) => setBadalForm((prev) => ({ ...prev, senderEmail: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500"
+                          placeholder="support.darseburhani.galiakot@gmail.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                          Recipient Email (To Substitute)
+                        </label>
+                        <input
+                          type="email"
+                          value={badalForm.receiverEmail}
+                          onChange={(e) => setBadalForm((prev) => ({ ...prev, receiverEmail: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500"
+                          placeholder="substitute@example.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                          Email Subject
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const tpl = generateBadalEmailTemplate({
+                              substituteName: badalForm.badalTeacherName,
+                              originalTeacherName: badalForm.originalTeacherName,
+                              className: badalForm.className,
+                              period: badalForm.period,
+                              startTime: badalForm.startTime,
+                              endTime: badalForm.endTime,
+                              subject: badalForm.subject,
+                              date: badalForm.date,
+                              reason: badalForm.reason,
+                              instructions: badalForm.instructions,
+                            });
+                            setBadalForm((prev) => ({
+                              ...prev,
+                              customEmailSubject: tpl.subject,
+                              customEmailBody: tpl.body,
+                            }));
+                            toast({ variant: "default", title: "Template Regenerated", description: "Email subject and body updated." });
+                          }}
+                          className="text-[10px] font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+                        >
+                          Regenerate Template
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={badalForm.customEmailSubject}
+                        onChange={(e) => setBadalForm((prev) => ({ ...prev, customEmailSubject: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
+                        Editable Generated Message
+                      </label>
+                      <textarea
+                        rows={5}
+                        value={badalForm.customEmailBody}
+                        onChange={(e) => setBadalForm((prev) => ({ ...prev, customEmailBody: e.target.value }))}
+                        className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500 leading-relaxed"
+                        placeholder="Official message body..."
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3375,6 +3936,199 @@ export default function AdminTimetableMasterPage() {
               </div>
             </div>
           )}
+        </ModalContent>
+      </Modal>
+
+      {/* ─────────────────────────────────────────────────────────────
+          QUICK LEAVE MODAL (FACULTY & TALABAT UNAVAILABILITY ENGINE)
+         ───────────────────────────────────────────────────────────── */}
+      <Modal open={showLeaveModal} onOpenChange={setShowLeaveModal}>
+        <ModalContent className="max-w-lg">
+          <ModalHeader>
+            <ModalTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                <UserMinus className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-base font-extrabold text-slate-900">Mark Leave (Automatic Unavailability)</div>
+                <p className="text-[11px] font-normal text-slate-500">
+                  Record official or medical leave for a date range. Automatically updates timetable and proxy engine.
+                </p>
+              </div>
+            </ModalTitle>
+          </ModalHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            {/* Role Switch: Faculty vs Talabat */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">1. Target Role</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => openLeaveModal("TEACHER")}
+                  className={`p-2.5 rounded-xl text-xs font-black border flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    leaveModalType === "TEACHER"
+                      ? "bg-[#1c1c1c] text-amber-300 border-amber-400 shadow-sm ring-2 ring-emerald-600/30"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Faculty (Asatezah)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openLeaveModal("STUDENT")}
+                  className={`p-2.5 rounded-xl text-xs font-black border flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    leaveModalType === "STUDENT"
+                      ? "bg-[#1c1c1c] text-amber-300 border-amber-400 shadow-sm ring-2 ring-emerald-600/30"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Talabat (Student)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Person Selection Dropdown */}
+            {leaveModalType === "TEACHER" ? (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  2. Select Faculty Member (Ustaz)
+                </label>
+                <select
+                  value={leaveForm.teacherId}
+                  onChange={(e) => setLeaveForm((prev) => ({ ...prev, teacherId: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
+                >
+                  <option value="">-- Choose Asatezah --</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} {t.its ? `(ITS: ${t.its})` : ""} {t.isUnavailable ? "• Already on leave" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  2. Select Talabat (Student)
+                </label>
+                {loadingLeaveRoster ? (
+                  <div className="p-3 text-center bg-slate-50 rounded-xl border border-slate-200">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 mx-auto" />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Loading students roster...</span>
+                  </div>
+                ) : (
+                  <select
+                    value={leaveForm.studentId}
+                    onChange={(e) => setLeaveForm((prev) => ({ ...prev, studentId: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
+                  >
+                    <option value="">-- Choose Student --</option>
+                    {leaveRosterStudents.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.className || `Grade ${s.grade}-${s.section}`} • ITS: {s.its || s.studentId})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {/* Date Range: From this date to that date */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Leave From (Start Date)
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-emerald-600">
+                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="date"
+                    value={leaveForm.startDate}
+                    onChange={(e) => setLeaveForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                    className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Leave To (End Date)
+                </label>
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-emerald-600">
+                  <CalendarRange className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="date"
+                    value={leaveForm.endDate}
+                    onChange={(e) => setLeaveForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Leave Type & Reason */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Leave Classification</label>
+                <select
+                  value={leaveForm.type}
+                  onChange={(e) => setLeaveForm((prev) => ({ ...prev, type: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
+                >
+                  <option value="PERSONAL">Approved Personal</option>
+                  <option value="SICK">Medical / Sick Leave</option>
+                  <option value="EMERGENCY">Family Emergency</option>
+                  <option value="OFFICIAL">Official Khidmat / Duty</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Specific Reason</label>
+                <input
+                  type="text"
+                  value={leaveForm.reason}
+                  onChange={(e) => setLeaveForm((prev) => ({ ...prev, reason: e.target.value }))}
+                  placeholder="e.g. Medical illness, hospital visit"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-600"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Admin Remarks / Notes (Optional)</label>
+              <textarea
+                rows={2}
+                value={leaveForm.notes}
+                onChange={(e) => setLeaveForm((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Internal notes or approval references..."
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-600"
+              />
+            </div>
+
+            {/* Timetable Impact Notice */}
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2.5 text-amber-950">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="text-[11px] leading-relaxed">
+                <strong>Automatic Timetable Unavailability:</strong> When saved, this person will immediately be marked as <span className="text-rose-700 font-black">UNAVAILABLE (On Leave)</span> across class lesson slots, faculty grids, and the Badal matching engine for the selected dates.
+              </div>
+            </div>
+          </div>
+
+          <ModalFooter>
+            <Button variant="ghost" size="sm" onClick={() => setShowLeaveModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveLeave}
+              disabled={savingLeave}
+              className="bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs gap-1.5"
+            >
+              {savingLeave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserMinus className="w-3.5 h-3.5" />}
+              Record Leave &amp; Mark Unavailable
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </div>

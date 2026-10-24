@@ -25,6 +25,8 @@ import {
   RefreshCw,
   AlertCircle,
   GraduationCap,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +93,7 @@ const GRADE_SECTIONS = [
   { label: "Grade 4 – Section B", grade: "4", section: "B" },
 ];
 
-type View = "list" | "create" | "grades";
+type View = "list" | "create" | "grades" | "monthly-stack";
 
 export default function TeacherAssignmentsPage() {
   const [view, setView] = useState<View>("list");
@@ -207,6 +209,25 @@ export default function TeacherAssignmentsPage() {
     const s = new Set(assignments.map((a) => a.subject).filter(Boolean) as string[]);
     return Array.from(s).sort();
   }, [assignments]);
+
+  // Group assignments into Monthly Stacks
+  const monthlyStacks = useMemo(() => {
+    const map = new Map<string, { monthKey: string; monthLabel: string; assignments: Assignment[] }>();
+
+    filteredAssignments.forEach((a) => {
+      const dateToUse = a.dueDate ? new Date(a.dueDate) : new Date(a.createdAt);
+      const validDate = isNaN(dateToUse.getTime()) ? new Date() : dateToUse;
+      const monthKey = `${validDate.getFullYear()}-${String(validDate.getMonth() + 1).padStart(2, "0")}`;
+      const monthLabel = validDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+      if (!map.has(monthKey)) {
+        map.set(monthKey, { monthKey, monthLabel, assignments: [] });
+      }
+      map.get(monthKey)!.assignments.push(a);
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [filteredAssignments]);
 
   const handleCreate = async () => {
     if (!form.title.trim()) {
@@ -338,8 +359,31 @@ export default function TeacherAssignmentsPage() {
               <p className="text-sm text-slate-500">Create, schedule, and grade tasks for your talabat</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {view !== "list" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Switcher: List vs Monthly Stack */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  view === "list" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                List View
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("monthly-stack")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  view === "monthly-stack" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Monthly Stack ({monthlyStacks.length})
+              </button>
+            </div>
+
+            {view !== "list" && view !== "monthly-stack" && (
               <Button variant="outline" size="sm" onClick={() => setView("list")} className="gap-1.5">
                 <ChevronRight className="h-3.5 w-3.5 rotate-180" /> Back
               </Button>
@@ -493,6 +537,131 @@ export default function TeacherAssignmentsPage() {
                       </div>
                     </motion.div>
                   ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* — MONTHLY STACK VIEW (MONTH-BY-MONTH DECKS WITH POINT MATRIX INTEGRATION) — */}
+          {view === "monthly-stack" && (
+            <motion.div key="monthly-stack" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-6">
+              {/* Notice Banner */}
+              <div className="rounded-2xl p-4 bg-gradient-to-r from-amber-50 via-indigo-50/50 to-purple-50 border border-amber-200/80 shadow-xs flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs leading-relaxed text-slate-700">
+                  <span className="font-extrabold text-slate-900">Monthly Stack Assignment Marks &amp; Point Matrix Integration: </span>
+                  Assignments are stacked chronologically by academic month. As soon as you enter and save marks for enrolled talabat, merit points are automatically computed and awarded directly to the official <strong className="text-indigo-900 font-bold">Point Matrix</strong>.
+                </div>
+              </div>
+
+              {monthlyStacks.length === 0 ? (
+                <div className="text-center py-20 text-slate-400 bg-white rounded-3xl border border-slate-100 p-8">
+                  <Layers className="h-10 w-10 mx-auto mb-3 opacity-30 text-indigo-400" />
+                  <p className="font-semibold text-slate-700">No Monthly Stacks Available</p>
+                  <p className="text-xs text-slate-400 mt-1">Create an assignment with a scheduled due date to start stacking tasks by month.</p>
+                  <Button
+                    size="sm"
+                    onClick={() => setView("create")}
+                    className="mt-4 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    <Plus className="h-4 w-4" /> Create First Assignment
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {monthlyStacks.map((stack) => {
+                    const totalInMonth = stack.assignments.length;
+                    const gradedInMonth = stack.assignments.filter((a) => a.gradedCount > 0).length;
+                    const completionPct = totalInMonth > 0 ? Math.round((gradedInMonth / totalInMonth) * 100) : 0;
+
+                    return (
+                      <div
+                        key={stack.monthKey}
+                        className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                      >
+                        {/* Month Deck Header */}
+                        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 font-black shadow-md">
+                              <Calendar className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-base font-extrabold text-white">{stack.monthLabel}</h3>
+                                <span className="text-[10px] uppercase tracking-wider font-mono bg-white/10 px-2 py-0.5 rounded-full text-amber-300">
+                                  {totalInMonth} Task{totalInMonth === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <p className="text-xs text-indigo-200/80">Monthly Academic Homework &amp; Sabaq Stack</p>
+                            </div>
+                          </div>
+
+                          {/* Progress Metrics */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-xs font-bold text-white">{gradedInMonth} of {totalInMonth} Graded</div>
+                              <div className="text-[10px] text-emerald-300 font-mono">{completionPct}% Evaluated</div>
+                            </div>
+                            <div className="w-20 bg-white/20 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-400 h-full rounded-full transition-all"
+                                style={{ width: `${completionPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Assignments Deck in this Month */}
+                        <div className="p-4 sm:p-5 divide-y divide-slate-100 space-y-3">
+                          {stack.assignments.map((a) => (
+                            <div
+                              key={a.id}
+                              className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                            >
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-sm font-bold text-slate-900">{a.title}</h4>
+                                  {a.subject && (
+                                    <span className="text-[10.5px] px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                      {a.subject}
+                                    </span>
+                                  )}
+                                  {a.grade && (
+                                    <span className="text-[10.5px] px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700">
+                                      Class {a.grade}{a.section || ""}
+                                    </span>
+                                  )}
+                                  {isDue(a.dueDate) && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-black">
+                                      Due Passed
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                                  <span>Due: {formatDate(a.dueDate) || "Flexible"}</span>
+                                  <span>•</span>
+                                  <span>Max Marks: {a.maxMarks}</span>
+                                  <span>•</span>
+                                  <span className="text-emerald-700 font-semibold">{a.gradedCount} graded</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  size="sm"
+                                  onClick={() => openGrades(a)}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold gap-1.5 shadow-sm rounded-xl cursor-pointer"
+                                >
+                                  <Star className="h-3.5 w-3.5 text-amber-300" />
+                                  Enter Marks &amp; Award Points
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>

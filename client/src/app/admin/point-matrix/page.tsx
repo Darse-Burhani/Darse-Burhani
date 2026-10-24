@@ -600,6 +600,17 @@ export default function AdminPointMatrixPage() {
         {activeTab === "matrix" && (
           <div className="space-y-6">
             
+            {/* Clean / Empty State Institutional Callout */}
+            {logs.length === 0 && !loading && (
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300/80 text-amber-950 flex items-start gap-3 shadow-xs">
+                <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs leading-relaxed">
+                  <span className="font-extrabold text-amber-900">Point Matrix Standby (Clean Mode): </span>
+                  No arbitrary placeholder points are shown. Points are generated and credited dynamically through <strong className="font-black text-indigo-950">Monthly Stack Assignment Submissions</strong>. As Asatezah assign tasks with due dates in the academic module and submit marks, merit points will automatically calculate and flow into this matrix.
+                </div>
+              </div>
+            )}
+
             {/* Decided Actions Quick-Bar */}
             <Card className="border-indigo-100 dark:border-indigo-950 bg-gradient-to-r from-indigo-50/70 via-white to-purple-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/40 shadow-sm">
               <CardContent className="p-4 sm:p-5">

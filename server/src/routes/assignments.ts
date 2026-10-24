@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireRole } from "../middleware";
 import { requireMigratedTables, sendDbError } from "../lib/prisma-guards";
+import { cache } from "../lib/cache";
 
 const router = Router();
 
@@ -557,6 +558,41 @@ router.post("/:id/grades", requireRole("ADMIN", "TEACHER"), async (req, res) => 
         gradedById: session.user.id,
       },
     });
+
+    // Dynamically feed points into the student's Point Matrix
+    try {
+      const tp = await prisma.teacherProfile.findFirst({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+      const effectiveTeacherId = tp?.id || (await prisma.teacherProfile.findFirst({ select: { id: true } }))?.id;
+
+      if (effectiveTeacherId && m > 0) {
+        const pointsToAward = Math.max(1, Math.round((m / (assignment.maxMarks || 100)) * 25));
+        await prisma.pointLog.create({
+          data: {
+            studentId,
+            teacherId: effectiveTeacherId,
+            points: pointsToAward,
+            actionType: "POSITIVE",
+            category: "Assignment Submission",
+            note: `Assignment: ${assignment.title} (${m}/${assignment.maxMarks} marks)`,
+          },
+        });
+        await prisma.studentProfile.update({
+          where: { id: studentId },
+          data: {
+            currentPoints: { increment: pointsToAward },
+            totalPoints: { increment: pointsToAward },
+          },
+        });
+        cache.invalidateTag("pointlog");
+        cache.invalidateTag("studentprofile");
+      }
+    } catch (pointErr) {
+      console.error("[assignments] Point sync notice:", pointErr);
+    }
+
     return res.json({ success: true, data: { id: grade.id } });
   } catch (error) {
     return sendDbError(res, error, "[assignments] grade POST error", "Failed to save marks", 400);
