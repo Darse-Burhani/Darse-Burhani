@@ -617,37 +617,31 @@ export default function LoginPage() {
               Expansive Dual-Wing Glassmorphism Console
               ══════════════════════════════════════════════════════ */}
           <div
-            className="hidden md:grid w-full login-glass-card max-w-[960px] mx-auto overflow-hidden"
+            className="hidden md:grid w-full login-glass-card max-w-[1020px] mx-auto overflow-hidden"
             style={{
-              gridTemplateColumns: "38% 62%",
+              gridTemplateColumns: "39% 61%",
               borderRadius: 24,
-              border: "1px solid rgba(255, 255, 255, 0.28)",
-              background: "rgba(255, 255, 255, 0.08)",
-              backdropFilter: "blur(24px) saturate(180%)",
-              WebkitBackdropFilter: "blur(24px) saturate(180%)",
-              boxShadow:
-                "0 24px 70px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 1px 1px rgba(255, 255, 255, 0.35) inset",
             }}
           >
             {/* ── Left Wing: Institutional Showcase & Security Trust ── */}
             <div
-              className="flex flex-col justify-between p-8 relative overflow-hidden"
+              className="flex flex-col justify-between p-7 lg:p-8 relative overflow-hidden"
               style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                borderRight: "1px solid rgba(255, 255, 255, 0.16)",
+                background: "rgba(255, 255, 255, 0.03)",
+                borderRight: "1px solid rgba(252, 212, 104, 0.18)",
               }}
             >
               {/* Brand Header */}
               <div className="flex flex-col items-center text-center">
                 {!logoFailed && (
                   <div
-                    className="mb-3.5"
+                    className="mb-3"
                     style={{
-                      background: "rgba(255, 255, 255, 0.94)",
-                      border: "1px solid rgba(255, 255, 255, 0.98)",
-                      boxShadow: "0 10px 28px rgba(0, 0, 0, 0.28)",
-                      borderRadius: 16,
-                      padding: "8px 18px",
+                      background: "rgba(255, 255, 255, 0.95)",
+                      border: "1px solid rgba(252, 212, 104, 0.45)",
+                      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.32)",
+                      borderRadius: 15,
+                      padding: "7px 18px",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -658,8 +652,8 @@ export default function LoginPage() {
                       alt="Darse Burhani"
                       onError={() => setLogoFailed(true)}
                       style={{
-                        maxHeight: 56,
-                        maxWidth: 160,
+                        maxHeight: 50,
+                        maxWidth: 150,
                         width: "auto",
                         height: "auto",
                         objectFit: "contain",
@@ -671,7 +665,7 @@ export default function LoginPage() {
                 <h1
                   style={{
                     fontFamily: "'Cormorant Garamond', 'Georgia', 'Times New Roman', serif",
-                    fontSize: 27,
+                    fontSize: 26,
                     fontWeight: 700,
                     lineHeight: 1.15,
                     color: "#fffaf0",
@@ -683,7 +677,7 @@ export default function LoginPage() {
                 </h1>
                 <span
                   style={{
-                    marginTop: 4,
+                    marginTop: 3,
                     fontSize: 10.5,
                     fontWeight: 700,
                     letterSpacing: "0.26em",
@@ -698,10 +692,10 @@ export default function LoginPage() {
 
               {/* Active Portal Overview Card */}
               <div
-                className="my-6 p-4 rounded-xl flex flex-col gap-2"
+                className="my-4 p-4 rounded-xl flex flex-col gap-2"
                 style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid rgba(255, 255, 255, 0.16)",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(252, 212, 104, 0.18)",
                   boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
                 }}
               >
@@ -724,7 +718,7 @@ export default function LoginPage() {
                     </h3>
                   </div>
                 </div>
-                <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, margin: 0 }}>
+                <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.88)", lineHeight: 1.5, margin: 0 }}>
                   {portal.description}
                 </p>
                 <div
@@ -741,16 +735,16 @@ export default function LoginPage() {
                 <div
                   className="px-3 py-2 rounded-lg flex items-center gap-2"
                   style={{
-                    background: "rgba(255, 255, 255, 0.06)",
-                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    background: "rgba(255, 255, 255, 0.04)",
+                    border: "1px solid rgba(255, 255, 255, 0.10)",
                     fontSize: 10.5,
-                    color: "rgba(255, 255, 255, 0.75)",
+                    color: "rgba(255, 255, 255, 0.78)",
                   }}
                 >
                   <ShieldCheck size={14} color="#fcd468" />
                   <span>Verified 256-Bit Encrypted Authentication</span>
                 </div>
-                <p style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.60)", textAlign: "center", margin: 0 }}>
+                <p style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.65)", textAlign: "center", margin: 0 }}>
                   Direct Support:{" "}
                   <a href="mailto:support.darseburhani.galiakot@gmail.com" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
                     support.darseburhani.galiakot@gmail.com
@@ -760,11 +754,11 @@ export default function LoginPage() {
             </div>
 
             {/* ── Right Wing: Interactive Action Console ── */}
-            <div className="p-8 sm:p-9 flex flex-col justify-center gap-4">
+            <div className="p-7 lg:p-8 flex flex-col justify-center gap-3.5">
               {/* Workspace Selector Tabs */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.80)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                     Select Workspace
                   </span>
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: "#fcd468" }}>
@@ -772,7 +766,7 @@ export default function LoginPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2.5">
                   {portals.map((p) => {
                     const active = p.role === selectedRole;
                     const Icon = p.icon;
@@ -784,28 +778,28 @@ export default function LoginPage() {
                         aria-pressed={active}
                         className="login-role-btn"
                         style={{
-                          border: active ? "1px solid rgba(252,211,77,0.9)" : "1px solid rgba(255,255,255,0.22)",
+                          border: active ? "1px solid rgba(252,211,77,0.95)" : "1px solid rgba(255,255,255,0.18)",
                           background: active
                             ? "linear-gradient(145deg, #fcd468 0%, #ef9f2e 55%, #dd6b27 100%)"
-                            : "rgba(255,255,255,0.10)",
+                            : "rgba(255,255,255,0.07)",
                           backdropFilter: "blur(8px)",
                           WebkitBackdropFilter: "blur(8px)",
                           boxShadow: active ? "0 4px 18px rgba(239,159,46,0.42)" : "0 2px 6px rgba(0,0,0,0.12)",
                           borderRadius: 12,
-                          padding: "10px 4px",
+                          padding: "9px 6px",
                           cursor: "pointer",
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: 5,
+                          gap: 4,
                           transition: "all 0.18s ease",
                         }}
                       >
                         <Icon
-                          size={19}
+                          size={18}
                           color={active ? "#1c1403" : "rgba(255,255,255,0.92)"}
-                          strokeWidth={active ? 2.3 : 1.9}
+                          strokeWidth={active ? 2.4 : 1.9}
                         />
                         <span
                           style={{
@@ -824,11 +818,11 @@ export default function LoginPage() {
               </div>
 
               {/* Form Console */}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                 {error && (
                   <div
                     style={{
-                      padding: "9px 12px",
+                      padding: "8px 12px",
                       borderRadius: 10,
                       background: "rgba(127, 29, 29, 0.82)",
                       border: "1px solid rgba(239, 68, 68, 0.55)",
@@ -896,12 +890,12 @@ export default function LoginPage() {
                       style={{
                         width: "100%",
                         height: 46,
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.26)",
-                        background: "rgba(255,255,255,0.12)",
+                        borderRadius: 11,
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        background: "rgba(10, 16, 32, 0.45)",
                         paddingLeft: 42,
                         paddingRight: 12,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         color: "#ffffff",
                         outline: "none",
                         transition: "border-color 0.18s, background 0.18s, box-shadow 0.18s",
@@ -911,12 +905,12 @@ export default function LoginPage() {
                       }}
                       onFocus={(e) => {
                         e.currentTarget.style.borderColor = "#fcd468";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.18)";
+                        e.currentTarget.style.background = "rgba(10, 16, 32, 0.65)";
                         e.currentTarget.style.boxShadow = "0 0 0 3px rgba(252,211,77,0.25)";
                       }}
                       onBlur={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.26)";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+                        e.currentTarget.style.background = "rgba(10, 16, 32, 0.45)";
                         e.currentTarget.style.boxShadow = "none";
                       }}
                     />
@@ -959,12 +953,12 @@ export default function LoginPage() {
                       style={{
                         width: "100%",
                         height: 46,
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.26)",
-                        background: "rgba(255,255,255,0.12)",
+                        borderRadius: 11,
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        background: "rgba(10, 16, 32, 0.45)",
                         paddingLeft: 42,
                         paddingRight: 42,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         color: "#ffffff",
                         outline: "none",
                         transition: "border-color 0.18s, background 0.18s, box-shadow 0.18s",
@@ -975,12 +969,12 @@ export default function LoginPage() {
                       }}
                       onFocus={(e) => {
                         e.currentTarget.style.borderColor = "#fcd468";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.18)";
+                        e.currentTarget.style.background = "rgba(10, 16, 32, 0.65)";
                         e.currentTarget.style.boxShadow = "0 0 0 3px rgba(252,211,77,0.25)";
                       }}
                       onBlur={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.26)";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+                        e.currentTarget.style.background = "rgba(10, 16, 32, 0.45)";
                         e.currentTarget.style.boxShadow = "none";
                       }}
                     />
@@ -1065,14 +1059,14 @@ export default function LoginPage() {
                   disabled={isLoading || isSuccess || lockoutSeconds > 0}
                   style={{
                     width: "100%",
-                    height: 50,
+                    height: 48,
                     borderRadius: 12,
                     border: "none",
                     background: isLoading || isSuccess || lockoutSeconds > 0
                       ? "rgba(180,140,30,0.5)"
                       : "linear-gradient(90deg, #fcd468 0%, #ef9a33 50%, #dc6b27 100%)",
                     color: "#1c1403",
-                    fontSize: 15,
+                    fontSize: 14.5,
                     fontWeight: 700,
                     letterSpacing: "0.02em",
                     cursor: isLoading || isSuccess || lockoutSeconds > 0 ? "not-allowed" : "pointer",
@@ -1081,8 +1075,8 @@ export default function LoginPage() {
                     justifyContent: "center",
                     gap: 8,
                     transition: "filter 0.18s, transform 0.1s",
-                    boxShadow: "0 4px 20px rgba(229,169,18,0.35)",
-                    marginTop: 6,
+                    boxShadow: "0 6px 24px rgba(229,169,18,0.38), 0 1px 2px rgba(255,255,255,0.40) inset",
+                    marginTop: 4,
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && !isSuccess && lockoutSeconds === 0) {
@@ -1129,11 +1123,11 @@ export default function LoginPage() {
               <div
                 className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
                 style={{
-                  marginTop: 10,
-                  paddingTop: 12,
-                  borderTop: "1px solid rgba(255,255,255,0.14)",
-                  fontSize: 11.5,
-                  color: "rgba(255,255,255,0.65)",
+                  marginTop: 6,
+                  paddingTop: 10,
+                  borderTop: "1px solid rgba(255,255,255,0.12)",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.68)",
                   textAlign: "center",
                 }}
               >
@@ -1619,61 +1613,65 @@ export default function LoginPage() {
           overscroll-behavior-y: auto !important;
         }
 
-        /* 1. Ambient underlay layer: fills entire viewport on any aspect ratio with zero letterbox gaps */
+        /* 1. Ambient underlay layer: provides seamless warmth and zero edge letterbox gaps */
         .login-backdrop-ambient {
           background-image: url('/login-bg-sunset.jpg');
           background-size: cover;
-          background-position: center center;
-          filter: blur(35px) brightness(0.40) saturate(140%);
-          transform: scale(1.1);
+          background-position: center 38%;
+          filter: blur(28px) brightness(0.50) saturate(135%);
+          transform: scale(1.08);
           position: fixed;
-          inset: -25px;
+          inset: -20px;
         }
 
-        /* 2. Backdrop Photo: Full uncropped panorama fitting the full width without cutting */
+        /* 2. Backdrop Photo: Full expansive cinematic fit on desktop */
         .login-backdrop-photo {
-          background-size: 100% auto;
-          background-position: center center;
+          background-size: cover;
+          background-position: center 38%;
           background-repeat: no-repeat;
-          transform: scale(1.01) translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
+          filter: brightness(0.92) contrast(1.05) saturate(1.18);
+          transform: scale(1.02) translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
           transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         /* 3. Soft Scenic Background Fade & Vignette (its52 reference) */
         .login-backdrop-fade {
           background:
-            radial-gradient(ellipse at 50% 50%, rgba(6, 9, 22, 0.10) 0%, rgba(6, 9, 22, 0.42) 65%, rgba(4, 6, 16, 0.80) 100%),
+            radial-gradient(ellipse at 50% 40%, rgba(6, 10, 24, 0.12) 0%, rgba(6, 10, 24, 0.50) 65%, rgba(3, 6, 16, 0.90) 100%),
             linear-gradient(180deg,
-              rgba(10, 14, 30, 0.45) 0%,
-              rgba(10, 14, 30, 0.10) 25%,
-              rgba(10, 14, 30, 0.15) 70%,
-              rgba(6, 8, 18, 0.75) 100%
+              rgba(6, 10, 24, 0.58) 0%,
+              rgba(6, 10, 24, 0.10) 22%,
+              rgba(6, 10, 24, 0.16) 65%,
+              rgba(3, 6, 16, 0.86) 100%
             );
         }
 
         /* 4. Sun glow bloom at sunset position */
         .login-sun-glow {
-          right: 4%;
-          top: 45%;
-          width: 320px;
-          height: 320px;
+          right: 8%;
+          top: 42%;
+          width: 360px;
+          height: 360px;
           background: radial-gradient(circle, rgba(255, 214, 152, 0.45) 0%, rgba(242, 130, 55, 0.22) 35%, rgba(242, 104, 39, 0) 70%);
           mix-blend-mode: screen;
           animation: login-sun-breathe 7s ease-in-out infinite;
         }
 
-        /* Transparent Glass Card */
+        /* Transparent Glass Card - its52 Style Luxury Smoked Crystal */
         .login-glass-card {
-          background: rgba(255, 255, 255, 0.08) !important;
-          backdrop-filter: blur(24px) saturate(180%) !important;
-          -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-          border: 1px solid rgba(255, 255, 255, 0.28) !important;
-          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 1px 1px rgba(255, 255, 255, 0.35) inset !important;
+          background: rgba(10, 16, 32, 0.65) !important;
+          backdrop-filter: blur(28px) saturate(190%) !important;
+          -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+          border: 1px solid rgba(252, 212, 104, 0.28) !important;
+          box-shadow:
+            0 32px 84px rgba(0, 0, 0, 0.58),
+            0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+            0 1px 2px rgba(252, 212, 104, 0.40) inset !important;
         }
 
         .login-role-btn:hover {
-          background: rgba(255, 255, 255, 0.18) !important;
-          border-color: rgba(255, 255, 255, 0.35) !important;
+          background: rgba(255, 255, 255, 0.16) !important;
+          border-color: rgba(252, 212, 104, 0.45) !important;
           transform: translateY(-1px);
         }
 
@@ -1685,8 +1683,8 @@ export default function LoginPage() {
         /* ── Mobile Viewport Optimization (<= 767px) ── */
         @media (max-width: 767px) {
           .login-backdrop-photo {
-            background-size: 100% auto !important;
-            background-position: center top 8px !important;
+            background-size: cover !important;
+            background-position: center top !important;
             transform: none !important;
           }
           .login-backdrop-fade {
