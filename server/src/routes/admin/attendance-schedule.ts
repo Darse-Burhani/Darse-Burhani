@@ -948,7 +948,15 @@ router.get("/auto-absent-preview", requireRole("ADMIN"), async (req, res) => {
 router.post("/auto-mark-absent", requireRole("ADMIN"), async (req, res) => {
   try {
     const { date } = req.body as { date?: string };
-    const targetDate = date ? new Date(date) : undefined;
+    const targetDate = date ? new Date(date) : new Date();
+    const dayStart = getStartOfDayIST(targetDate);
+    if (dayStart.getUTCDay() === 0) {
+      return res.json({
+        success: true,
+        message: "Sunday is an institutional holiday — auto-mark absent skipped",
+        data: { markedCount: 0, defaultPresentMode: false, alreadyLoggedCount: 0, totalStudents: 0, markedStudents: [] },
+      });
+    }
     const result = await runAutoMarkAbsentJob(targetDate);
     return res.json({
       success: true,

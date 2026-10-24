@@ -1019,6 +1019,17 @@ router.post("/finalize-event", requireRole("ADMIN"), async (req, res) => {
   try {
     const targetDate = getStartOfDayIST(req.body.date ? new Date(req.body.date) : new Date());
 
+    if (targetDate.getUTCDay() === 0) {
+      return res.json({
+        success: true,
+        message: "Sunday is an institutional holiday — biometric scanning and absence finalization is disabled",
+        data: {
+          students: { markedCount: 0, defaultPresentMode: false, alreadyLoggedCount: 0, totalStudents: 0, markedStudents: [] },
+          faculty: { markedCount: 0, alreadyLoggedCount: 0, medicalCount: 0, skippedCount: 0, totalExpected: 0, markedTeachers: [] },
+        },
+      });
+    }
+
     // Run automated absence & storage sync for both students and faculty
     const studentResult = await runAutoMarkAbsentJob(targetDate);
     const facultyResult = await runAutoMarkFacultyAbsentJob(targetDate);

@@ -583,150 +583,137 @@ export default function LoginPage() {
           4. Seam fade — melts the photo edge into the wash on desktop and mobile
           5. Sun glow — breathing amber light where the sun sets in the photo
           6. Parallax — the panorama drifts with the cursor (desktop, motion-safe) */}
+      {/* ── Twilight Palace Backdrop (its52-Style scenic panorama with cinematic vignette) ── */}
+      {/* 1. Ambient underlay layer to guarantee zero letterbox gaps on any screen ratio */}
       <div
-        className="fixed inset-0 z-0 pointer-events-none login-backdrop-blur"
-        style={{ backgroundImage: "url('/login-bg-sunset.jpg')" }}
+        className="fixed inset-0 z-0 pointer-events-none login-backdrop-ambient"
         aria-hidden="true"
       />
-      <div className="fixed inset-0 z-0 pointer-events-none login-backdrop-fill" />
+      {/* 2. Scenic Photo: centered on the sunset palace */}
       <div
         className="fixed inset-0 z-0 pointer-events-none login-backdrop-photo"
         style={{ backgroundImage: "url('/login-bg-sunset.jpg')" }}
+        aria-hidden="true"
       />
-      <div className="fixed inset-0 z-0 pointer-events-none login-photo-fade" aria-hidden="true" />
+      {/* 3. Soft Scenic Background Fade & Vignette (its52 reference) */}
+      <div className="fixed inset-0 z-0 pointer-events-none login-backdrop-fade" aria-hidden="true" />
+      {/* 4. Ambient sun glow bloom at sunset horizon */}
       <div className="fixed z-0 pointer-events-none login-sun-glow" aria-hidden="true" />
-      {/* Cinematic overlay: indigo-to-ember tint picked from the backdrop photo */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{
-          background: `
-            linear-gradient(180deg,
-              rgba(26,32,60,0.62) 0%,
-              rgba(26,32,60,0.22) 12%,
-              rgba(26,32,60,0.05) 30%,
-              rgba(26,32,60,0.06) 58%,
-              rgba(24,16,10,0.26) 80%,
-              rgba(18,12,6,0.66) 100%
-            )
-          `,
-        }}
-      />
 
-      {/* ── Full Page Layout ── */}
+      {/* ── Full Page Layout (Enables smooth native vertical scrolling on all screen heights) ── */}
       <div
-        className="relative z-10 flex flex-col"
+        className="login-page-root relative z-10 flex flex-col w-full min-h-[100dvh]"
         style={{
           fontFamily: "'Inter', 'Segoe UI', sans-serif",
-          minHeight: "100dvh",
-          paddingTop: "env(safe-area-inset-top, 0px)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingTop: "max(16px, env(safe-area-inset-top, 0px))",
+          paddingBottom: "max(24px, env(safe-area-inset-bottom, 0px))",
         }}
       >
         {/* ═══════════════ MAIN CENTER AREA ═══════════════ */}
-        <main className="flex-1 flex items-center justify-center px-3 py-5 sm:px-4 sm:py-6">
-          {/* Card */}
+        <main className="flex-1 flex flex-col justify-center items-center px-3 py-6 sm:px-6 sm:py-10 my-auto w-full">
+          {/* Card — Transparent Workspace UI Template (its52-Style Glassmorphism) */}
           <div
-            className="w-full grid login-card-grid"
+            className="w-full login-glass-card max-w-[460px] mx-auto flex flex-col"
             style={{
-              maxWidth: 1080,
-              gridTemplateColumns: "38% 62%",
-              borderRadius: 20,
-              border: "1px solid rgba(255,255,255,0.3)",
-              overflow: "hidden",
+              borderRadius: 22,
+              border: "1px solid rgba(255, 255, 255, 0.28)",
+              background: "rgba(255, 255, 255, 0.09)",
+              backdropFilter: "blur(24px) saturate(180%)",
+              WebkitBackdropFilter: "blur(24px) saturate(180%)",
               boxShadow:
-                "0 32px 90px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,146,74,0.28), inset 0 1px 0 rgba(255,255,255,0.18)",
+                "0 24px 70px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 1px 1px rgba(255, 255, 255, 0.35) inset",
+              padding: "clamp(20px, 5vw, 32px)",
             }}
           >
-
-            {/* ── LEFT PANEL: Cream Photo Panel ── */}
-            <div
-              className="flex flex-col items-center justify-center p-6 sm:p-10 relative overflow-hidden"
-              style={{
-                background: "linear-gradient(160deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)",
-                backdropFilter: "blur(22px) saturate(150%)",
-                WebkitBackdropFilter: "blur(22px) saturate(150%)",
-                borderRight: "1px solid rgba(255,255,255,0.18)",
-              }}
-            >
-              {/* Institutional Logo Photo on a soft cream card */}
-              {!logoFailed ? (
+            {/* ── Header: Logo Badge + Institutional Wordmark ── */}
+            <div className="flex flex-col items-center justify-center text-center mb-5">
+              {!logoFailed && (
                 <div
+                  className="login-logo-card mb-3"
                   style={{
-                    width: "100%",
-                    maxWidth: 420,
-                    padding: "12px 16px",
+                    background: "rgba(255, 255, 255, 0.94)",
+                    border: "1px solid rgba(255, 255, 255, 0.98)",
+                    boxShadow: "0 10px 28px rgba(0, 0, 0, 0.28)",
                     borderRadius: 16,
-                    background: "rgba(255,251,240,0.94)",
-                    border: "1px solid rgba(255,255,255,0.7)",
-                    boxShadow: "0 22px 55px rgba(0,0,0,0.35)",
-                    overflow: "hidden",
+                    padding: "8px 18px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
                   <img
                     src="/logo.png"
                     alt="Darse Burhani"
                     onError={() => setLogoFailed(true)}
+                    className="login-logo-img"
                     style={{
-                      width: "100%",
+                      maxHeight: 56,
+                      maxWidth: 160,
+                      width: "auto",
                       height: "auto",
                       objectFit: "contain",
                       display: "block",
-                      transform: "scale(1.14)",
-                      transformOrigin: "center",
                     }}
                   />
                 </div>
-              ) : null}
+              )}
 
-              {/* Institution wordmark — Darse Burhani (Nisab) */}
-              <div style={{ marginTop: logoFailed ? 0 : 22, textAlign: "center" }}>
-                <span
-                  style={{
-                    display: "block",
-                    fontFamily: "'Cormorant Garamond', 'Georgia', 'Times New Roman', serif",
-                    fontSize: logoFailed ? "clamp(28px, 7.2vw, 38px)" : "clamp(23px, 6.2vw, 30px)",
-                    fontWeight: 700,
-                    lineHeight: 1.15,
-                    color: "#fffaf0",
-                    textShadow: "0 2px 16px rgba(0,0,0,0.55)",
-                  }}
-                >
-                  Darse Burhani <span style={{ color: "#ebaa45" }}>(Nisab)</span>
-                </span>
-                <span
-                  style={{
-                    display: "block",
-                    marginTop: 7,
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    letterSpacing: "0.3em",
-                    textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.72)",
-                  }}
-                >
-                  Mahad al Zahra
-                </span>
-              </div>
+              <h1
+                style={{
+                  fontFamily: "'Cormorant Garamond', 'Georgia', 'Times New Roman', serif",
+                  fontSize: "clamp(22px, 5.5vw, 27px)",
+                  fontWeight: 700,
+                  lineHeight: 1.18,
+                  color: "#fffaf0",
+                  textShadow: "0 2px 14px rgba(0,0,0,0.6)",
+                  margin: 0,
+                }}
+              >
+                Darse Burhani <span style={{ color: "#fcd468" }}>(Nisab)</span>
+              </h1>
+              <span
+                style={{
+                  marginTop: 4,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.26em",
+                  textTransform: "uppercase",
+                  color: "#fcd468",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+                }}
+              >
+                Mahad al Zahra
+              </span>
             </div>
 
-            {/* ── RIGHT PANEL: Translucent Deep Navy ── */}
-            <div
-              className="flex flex-col justify-center p-6 sm:p-10 gap-4 sm:gap-5"
-              style={{
-                background: "linear-gradient(160deg, rgba(30,36,66,0.56) 0%, rgba(18,22,44,0.68) 100%)",
-                backdropFilter: "blur(24px) saturate(140%)",
-                WebkitBackdropFilter: "blur(24px) saturate(140%)",
-              }}
-            >
-              {/* Workspace Header Row */}
-              <div className="flex items-center justify-center">
-                <span style={{ fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 700, color: "#ffffff", letterSpacing: "0.02em", textAlign: "center" }}>
-                  Choose your workspace
+            {/* ── Workspace Selection Template (its52 Segmented UI) ── */}
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex items-center justify-between px-0.5">
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "rgba(255, 255, 255, 0.78)",
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Select Workspace
+                </span>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    color: "#fcd468",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {portal.badgeLabel}
                 </span>
               </div>
 
-              {/* Role Tabs */}
-              <div className="grid grid-cols-4 gap-2.5">
+              {/* 4 Workspace Role Tabs */}
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                 {portals.map((p) => {
                   const active = p.role === selectedRole;
                   const Icon = p.icon;
@@ -736,34 +723,37 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => handlePortalChange(p.role)}
                       aria-pressed={active}
+                      className="login-role-btn"
                       style={{
+                        border: active ? "1px solid rgba(252,211,77,0.9)" : "1px solid rgba(255,255,255,0.22)",
+                        background: active
+                          ? "linear-gradient(145deg, #fcd468 0%, #ef9f2e 55%, #dd6b27 100%)"
+                          : "rgba(255,255,255,0.10)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        boxShadow: active ? "0 4px 18px rgba(239,159,46,0.42)" : "0 2px 6px rgba(0,0,0,0.12)",
+                        borderRadius: 12,
+                        padding: "9px 3px",
+                        cursor: "pointer",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        gap: 7,
-                        padding: "14px 6px",
-                        borderRadius: 12,
-                        border: active ? "1px solid rgba(252,211,77,0.6)" : "1px solid rgba(255,255,255,0.28)",
-                        background: active
-                          ? "linear-gradient(160deg, #fcd468 0%, #ef9f2e 55%, #dd6b27 100%)"
-                          : "rgba(12,16,34,0.55)",
-                        backdropFilter: active ? undefined : "blur(6px)",
-                        WebkitBackdropFilter: active ? undefined : "blur(6px)",
-                        cursor: "pointer",
+                        gap: 4,
                         transition: "all 0.18s ease",
                       }}
                     >
                       <Icon
-                        size={22}
-                        color={active ? "#1c1403" : "rgba(255,255,255,0.95)"}
-                        strokeWidth={active ? 2.2 : 1.8}
+                        size={19}
+                        color={active ? "#1c1403" : "rgba(255,255,255,0.92)"}
+                        strokeWidth={active ? 2.3 : 1.9}
                       />
                       <span
                         style={{
-                          fontSize: 12.5,
+                          fontSize: 11,
                           fontWeight: active ? 700 : 600,
-                          color: active ? "#1c1403" : "rgba(255,255,255,0.95)",
+                          color: active ? "#1c1403" : "rgba(255,255,255,0.92)",
+                          textShadow: active ? "none" : "0 1px 3px rgba(0,0,0,0.45)",
                           letterSpacing: "0.01em",
                         }}
                       >
@@ -774,407 +764,514 @@ export default function LoginPage() {
                 })}
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-
-                {/* Error Banner */}
-                {error && (
-                  <div
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      background: "rgba(127,29,29,0.7)",
-                      border: "1px solid rgba(239,68,68,0.45)",
-                      fontSize: 12,
-                      color: "#fca5a5",
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 8,
-                    }}
-                    role="alert"
-                  >
-                    <AlertCircle size={14} color="#f87171" style={{ marginTop: 1, flexShrink: 0 }} />
-                    {error}
-                  </div>
-                )}
-
-                {/* Email Field */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="login-email"
-                      style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.16em", textTransform: "uppercase" }}
-                    >
-                      {portal.role === "ADMIN" ? "ADMINISTRATOR EMAIL" : portal.inputLabel.toUpperCase()}
-                    </label>
-                    {portal.role === "STUDENT" && (
-                      <button
-                        type="button"
-                        onClick={handleOpenScanner}
-                        style={{ fontSize: 10, fontWeight: 600, color: "#ebaa45", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
-                      >
-                        <QrCode size={11} color="#ebaa45" />
-                        Scan ITS Card
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-                      <Mail size={16} color="rgba(255,255,255,0.35)" />
-                    </div>
-                    <input
-                      id="login-email"
-                      name="email"
-                      type={portal.role === "STUDENT" || portal.role === "ADMIN" ? "text" : "email"}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      required
-                      autoComplete="username"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
-                      placeholder={portal.placeholder}
-                      style={{
-                        width: "100%",
-                        height: 46,
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "rgba(255,255,255,0.07)",
-                        paddingLeft: 42,
-                        paddingRight: 12,
-                        fontSize: 14.5,
-                        color: "#f1f5f9",
-                        outline: "none",
-                        transition: "border-color 0.18s, background 0.18s",
-                        backdropFilter: "blur(4px)",
-                        boxSizing: "border-box",
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(212,152,74,0.7)";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.10)";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.07)";
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Password Field */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="login-password"
-                      style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.16em", textTransform: "uppercase" }}
-                    >
-                      PASSWORD
-                    </label>
-                    {capsLockOn && (
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24", display: "flex", alignItems: "center", gap: 3 }}>
-                        <AlertCircle size={11} /> Caps Lock
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-                      <Lock size={16} color="rgba(255,255,255,0.35)" />
-                    </div>
-                    <input
-                      id="login-password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      required
-                      onKeyDown={checkCapsLock}
-                      onKeyUp={checkCapsLock}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
-                      placeholder="••••••••"
-                      style={{
-                        width: "100%",
-                        height: 46,
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "rgba(255,255,255,0.07)",
-                        paddingLeft: 42,
-                        paddingRight: 42,
-                        fontSize: 14.5,
-                        color: "#f1f5f9",
-                        outline: "none",
-                        transition: "border-color 0.18s, background 0.18s",
-                        backdropFilter: "blur(4px)",
-                        boxSizing: "border-box",
-                        letterSpacing: showPassword ? "normal" : "0.12em",
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(212,152,74,0.7)";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.10)";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-                        e.currentTarget.style.background = "rgba(255,255,255,0.07)";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      style={{
-                        position: "absolute",
-                        right: 10,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 4,
-                        color: "rgba(255,255,255,0.4)",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember + Forgot */}
-                <div className="flex items-center justify-between">
-                  <label
-                    className="flex items-center gap-2.5 cursor-pointer"
-                    style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => handleRememberMeChange(e.target.checked)}
-                      style={{ position: "absolute", opacity: 0, width: 0, height: 0, cursor: "pointer" }}
-                    />
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: 17,
-                        height: 17,
-                        borderRadius: 4,
-                        border: "1px solid rgba(235,170,69,0.85)",
-                        background: rememberMe
-                          ? "linear-gradient(160deg, #fcd468 0%, #eb9a35 100%)"
-                          : "rgba(255,255,255,0.06)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "background 0.15s",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {rememberMe && <Check size={12} color="#1c1403" strokeWidth={3.2} />}
-                    </span>
-                    Remember credentials
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => { setForgotIdentifier(email.trim()); setShowForgotModal(true); }}
-                    style={{ fontSize: 13, color: "#ebaa45", background: "none", border: "none", cursor: "pointer", textDecoration: "none" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-
-                {/* Sign In Button */}
-                <button
-                  type="submit"
-                  disabled={isLoading || isSuccess || lockoutSeconds > 0}
-                  style={{
-                    width: "100%",
-                    height: 52,
-                    borderRadius: 12,
-                    border: "none",
-                    background: isLoading || isSuccess || lockoutSeconds > 0
-                      ? "rgba(180,140,30,0.5)"
-                      : "linear-gradient(90deg, #fcd468 0%, #ef9a33 52%, #dc6b27 100%)",
-                    color: "#1c1403",
-                    fontSize: 15,
-                    fontWeight: 700,
-                    letterSpacing: "0.02em",
-                    cursor: isLoading || isSuccess || lockoutSeconds > 0 ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    transition: "filter 0.18s, transform 0.1s",
-                    boxShadow: "0 4px 20px rgba(229,169,18,0.3)",
-                    marginTop: 4,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isLoading && !isSuccess && lockoutSeconds === 0) {
-                      e.currentTarget.style.filter = "brightness(1.1)";
-                    }
-                  }}
-                  onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
-                  onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.99)"; }}
-                  onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                >
-                  {isLoading ? (
-                    <>
-                      <span
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: "50%",
-                          border: "2.5px solid #1c1403",
-                          borderTopColor: "transparent",
-                          animation: "spin 0.75s linear infinite",
-                          display: "inline-block",
-                        }}
-                      />
-                      Verifying credentials...
-                    </>
-                  ) : isSuccess ? (
-                    <>
-                      <CheckCircle2 size={16} color="#1c1403" />
-                      Authenticated!
-                    </>
-                  ) : lockoutSeconds > 0 ? (
-                    `Account locked · ${lockoutSeconds}s`
-                  ) : (
-                    <>
-                      <LogIn size={17} color="#1c1403" strokeWidth={2.4} />
-                      Sign In to {portal.shortLabel} Portal
-                      <ArrowRight size={16} color="#1c1403" strokeWidth={2.5} />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* ── Assistance & Legal Row ── */}
+              {/* Contextual Description Banner */}
               <div
-                className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5"
+                className="px-3 py-1.5 rounded-lg text-center"
                 style={{
-                  marginTop: 2,
-                  paddingTop: 14,
-                  borderTop: "1px solid rgba(255,255,255,0.12)",
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.62)",
-                  textAlign: "center",
+                  background: "rgba(255, 255, 255, 0.07)",
+                  border: "1px solid rgba(255, 255, 255, 0.14)",
+                  fontSize: 11,
+                  lineHeight: 1.45,
+                  color: "rgba(255, 255, 255, 0.82)",
                 }}
               >
-                <span style={{ whiteSpace: "nowrap" }}>
-                  Need help?{" "}
-                  <a
-                    href="mailto:support.darseburhani.galiakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
-                    style={{ color: "#ebaa45", fontWeight: 700, textDecoration: "none" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
-                  >
-                    Contact Support
-                  </a>
-                </span>
-                <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
-                <Link
-                  to="/privacy"
-                  style={{ color: "rgba(255,255,255,0.78)", fontWeight: 600, textDecoration: "none" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.78)"; }}
-                >
-                  Privacy Policy
-                </Link>
-                <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
-                <Link
-                  to="/terms"
-                  style={{ color: "rgba(255,255,255,0.78)", fontWeight: 600, textDecoration: "none" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#ebaa45"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.78)"; }}
-                >
-                  Terms of Service
-                </Link>
+                {portal.description}
               </div>
             </div>
+
+            {/* ── Form Console ── */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              {/* Error Banner */}
+              {error && (
+                <div
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: 10,
+                    background: "rgba(127, 29, 29, 0.80)",
+                    border: "1px solid rgba(239, 68, 68, 0.55)",
+                    fontSize: 12,
+                    color: "#fca5a5",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                  role="alert"
+                >
+                  <AlertCircle size={15} color="#f87171" style={{ marginTop: 1, flexShrink: 0 }} />
+                  <span style={{ lineHeight: 1.4 }}>{error}</span>
+                </div>
+              )}
+
+              {/* Email / Identifier Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="login-email"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.90)",
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {portal.role === "ADMIN" ? "ADMINISTRATOR EMAIL / USERNAME" : portal.inputLabel.toUpperCase()}
+                  </label>
+                  {portal.role === "STUDENT" && (
+                    <button
+                      type="button"
+                      onClick={handleOpenScanner}
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        color: "#fcd468",
+                        background: "rgba(252,212,104,0.12)",
+                        border: "1px solid rgba(252,212,104,0.35)",
+                        borderRadius: 6,
+                        padding: "2px 7px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <QrCode size={11} color="#fcd468" />
+                      Scan ITS Card
+                    </button>
+                  )}
+                </div>
+                <div style={{ position: "relative" }}>
+                  <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                    <Mail size={16} color="rgba(255,255,255,0.45)" />
+                  </div>
+                  <input
+                    id="login-email"
+                    name="email"
+                    type={portal.role === "STUDENT" || portal.role === "ADMIN" ? "text" : "email"}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    required
+                    autoComplete="username"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
+                    placeholder={portal.placeholder}
+                    style={{
+                      width: "100%",
+                      height: 46,
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.26)",
+                      background: "rgba(255,255,255,0.12)",
+                      paddingLeft: 42,
+                      paddingRight: 12,
+                      fontSize: 14,
+                      color: "#ffffff",
+                      outline: "none",
+                      transition: "border-color 0.18s, background 0.18s, box-shadow 0.18s",
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      boxSizing: "border-box",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#fcd468";
+                      e.currentTarget.style.background = "rgba(255,255,255,0.18)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(252,211,77,0.25)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.26)";
+                      e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="login-password"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.90)",
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    PASSWORD
+                  </label>
+                  {capsLockOn && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24", display: "flex", alignItems: "center", gap: 3 }}>
+                      <AlertCircle size={11} /> Caps Lock
+                    </span>
+                  )}
+                </div>
+                <div style={{ position: "relative" }}>
+                  <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                    <Lock size={16} color="rgba(255,255,255,0.45)" />
+                  </div>
+                  <input
+                    id="login-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    required
+                    onKeyDown={checkCapsLock}
+                    onKeyUp={checkCapsLock}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
+                    placeholder="••••••••"
+                    style={{
+                      width: "100%",
+                      height: 46,
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.26)",
+                      background: "rgba(255,255,255,0.12)",
+                      paddingLeft: 42,
+                      paddingRight: 42,
+                      fontSize: 14,
+                      color: "#ffffff",
+                      outline: "none",
+                      transition: "border-color 0.18s, background 0.18s, box-shadow 0.18s",
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      boxSizing: "border-box",
+                      letterSpacing: showPassword ? "normal" : "0.12em",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#fcd468";
+                      e.currentTarget.style.background = "rgba(255,255,255,0.18)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(252,211,77,0.25)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.26)";
+                      e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    style={{
+                      position: "absolute",
+                      right: 10,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 4,
+                      color: "rgba(255,255,255,0.5)",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember Credentials + Forgot Password */}
+              <div className="flex items-center justify-between mt-0.5">
+                <label
+                  className="flex items-center gap-2 cursor-pointer"
+                  style={{ fontSize: 12.5, color: "rgba(255,255,255,0.85)" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => handleRememberMeChange(e.target.checked)}
+                    style={{ position: "absolute", opacity: 0, width: 0, height: 0, cursor: "pointer" }}
+                  />
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 17,
+                      height: 17,
+                      borderRadius: 4,
+                      border: "1px solid rgba(235,170,69,0.85)",
+                      background: rememberMe
+                        ? "linear-gradient(160deg, #fcd468 0%, #eb9a35 100%)"
+                        : "rgba(255,255,255,0.08)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "background 0.15s",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {rememberMe && <Check size={12} color="#1c1403" strokeWidth={3.2} />}
+                  </span>
+                  Remember credentials
+                </label>
+                <button
+                  type="button"
+                  onClick={() => { setForgotIdentifier(email.trim()); setShowForgotModal(true); }}
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: "#fcd468",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "none",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              {/* Primary CTA Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading || isSuccess || lockoutSeconds > 0}
+                style={{
+                  width: "100%",
+                  height: 50,
+                  borderRadius: 12,
+                  border: "none",
+                  background: isLoading || isSuccess || lockoutSeconds > 0
+                    ? "rgba(180,140,30,0.5)"
+                    : "linear-gradient(90deg, #fcd468 0%, #ef9a33 50%, #dc6b27 100%)",
+                  color: "#1c1403",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                  cursor: isLoading || isSuccess || lockoutSeconds > 0 ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  transition: "filter 0.18s, transform 0.1s",
+                  boxShadow: "0 4px 20px rgba(229,169,18,0.35)",
+                  marginTop: 6,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading && !isSuccess && lockoutSeconds === 0) {
+                    e.currentTarget.style.filter = "brightness(1.08)";
+                  }
+                }}
+                onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
+                onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.99)"; }}
+                onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+              >
+                {isLoading ? (
+                  <>
+                    <span
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: "50%",
+                        border: "2.5px solid #1c1403",
+                        borderTopColor: "transparent",
+                        animation: "spin 0.75s linear infinite",
+                        display: "inline-block",
+                      }}
+                    />
+                    Verifying credentials...
+                  </>
+                ) : isSuccess ? (
+                  <>
+                    <CheckCircle2 size={16} color="#1c1403" />
+                    Authenticated!
+                  </>
+                ) : lockoutSeconds > 0 ? (
+                  `Account locked · ${lockoutSeconds}s`
+                ) : (
+                  <>
+                    <LogIn size={17} color="#1c1403" strokeWidth={2.4} />
+                    Sign In to {portal.shortLabel} Portal
+                    <ArrowRight size={16} color="#1c1403" strokeWidth={2.5} />
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* ── Assistance & Legal Links ── */}
+            <div
+              className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+              style={{
+                marginTop: 18,
+                paddingTop: 14,
+                borderTop: "1px solid rgba(255,255,255,0.14)",
+                fontSize: 11.5,
+                color: "rgba(255,255,255,0.65)",
+                textAlign: "center",
+              }}
+            >
+              <span>
+                Need help?{" "}
+                <a
+                  href="mailto:support.darseburhani.galiakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                  style={{ color: "#fcd468", fontWeight: 700, textDecoration: "none" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  Contact Administration
+                </a>
+              </span>
+              <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
+              <Link
+                to="/privacy"
+                style={{ color: "rgba(255,255,255,0.78)", fontWeight: 600, textDecoration: "none" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#fcd468"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.78)"; }}
+              >
+                Privacy Policy
+              </Link>
+              <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
+              <Link
+                to="/terms"
+                style={{ color: "rgba(255,255,255,0.78)", fontWeight: 600, textDecoration: "none" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#fcd468"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.78)"; }}
+              >
+                Terms of Service
+              </Link>
+            </div>
+          </div>
+
+          {/* Institutional Copyright */}
+          <div className="mt-4 text-center">
+            <p
+              style={{
+                fontSize: 11,
+                color: "rgba(255, 255, 255, 0.70)",
+                textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                letterSpacing: "0.02em",
+              }}
+            >
+              © Darse Burhani (Nisab) · Mahad al Zahra · All Rights Reserved
+            </p>
           </div>
         </main>
       </div>
 
-      {/* Backdrop CSS: layered Twilight Palace composition */}
+      {/* Backdrop CSS: layered Twilight Palace composition & its52 Glassmorphism */}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes login-sun-breathe {
-          0%, 100% { opacity: 0.72; transform: translateY(-50%) scale(1); }
-          50% { opacity: 1; transform: translateY(-50%) scale(1.07); }
+          0%, 100% { opacity: 0.65; transform: translateY(-50%) scale(1); }
+          50% { opacity: 0.95; transform: translateY(-50%) scale(1.07); }
         }
-        /* 1. Blurred full-bleed fill — the same panorama at cover scale so the
-              backdrop always reaches every edge, on any aspect ratio, uncropped */
-        .login-backdrop-blur {
+        /* Backdrop layers: guaranteed never to intercept touch, mouse, or scroll gestures */
+        .login-backdrop-ambient,
+        .login-backdrop-photo,
+        .login-backdrop-fade,
+        .login-sun-glow {
+          pointer-events: none !important;
+          user-select: none !important;
+          touch-action: none !important;
+        }
+
+        /* Full Page Root: Smooth native momentum scrolling on all devices */
+        .login-page-root {
+          min-height: 100dvh;
+          width: 100%;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          -webkit-overflow-scrolling: touch !important;
+          overscroll-behavior-y: auto !important;
+        }
+
+        /* 1. Ambient underlay layer to guarantee zero gaps / letterbox seams on any screen ratio */
+        .login-backdrop-ambient {
+          background-image: url('/login-bg-sunset.jpg');
           background-size: cover;
           background-position: center center;
-          background-repeat: no-repeat;
-          filter: blur(34px) brightness(0.82) saturate(1.08);
-          transform: scale(1.14);
-          transform-origin: center center;
+          filter: blur(28px) brightness(0.55) saturate(140%);
+          transform: scale(1.08);
+          position: fixed;
+          inset: -20px;
         }
-        /* 2. Tint wash — photo-sampled gradient unifying blur + panorama */
-        .login-backdrop-fill {
-          background: linear-gradient(180deg,
-            rgba(46,54,92,0.40) 0%,
-            rgba(74,66,80,0.22) 38%,
-            rgba(38,26,16,0.32) 74%,
-            rgba(18,12,6,0.60) 100%);
-        }
-        /* 3. Photo — full-length panorama, drifts with the cursor via CSS vars */
+
+        /* 2. Backdrop Photo: Full-bleed cover, centered on the twilight palace */
         .login-backdrop-photo {
-          background-size: 100% auto;
-          background-position: center center;
+          background-size: cover;
+          background-position: center 36%;
           background-repeat: no-repeat;
-          transform: translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
+          transform: scale(1.02) translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
           transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        /* 4. Seam fade — melts the panorama's top & bottom edges into the blurred
-              base, so the uncropped photo never shows a hard letterbox line */
-        .login-photo-fade {
-          display: block;
+
+        /* 3. Soft Scenic Background Fade & Vignette (its52 reference) */
+        .login-backdrop-fade {
           background:
-            linear-gradient(180deg, rgba(30,36,64,0.58) 0%, rgba(30,36,64,0) 15%),
-            linear-gradient(0deg, rgba(20,13,6,0.64) 0%, rgba(20,13,6,0) 17%);
+            radial-gradient(ellipse at 50% 50%, rgba(6, 9, 22, 0.15) 0%, rgba(6, 9, 22, 0.52) 65%, rgba(4, 6, 16, 0.88) 100%),
+            linear-gradient(180deg,
+              rgba(10, 14, 30, 0.50) 0%,
+              rgba(10, 14, 30, 0.12) 25%,
+              rgba(10, 14, 30, 0.18) 70%,
+              rgba(6, 8, 18, 0.78) 100%
+            );
         }
-        /* 5. Sun glow — breathing amber light at the sunset's position */
+
+        /* 4. Sun glow bloom at sunset position */
         .login-sun-glow {
-          right: 2.5%;
-          top: 54%;
+          right: 4%;
+          top: 45%;
           width: 320px;
           height: 320px;
-          background: radial-gradient(circle, rgba(255, 214, 152, 0.5) 0%, rgba(242, 130, 55, 0.28) 32%, rgba(242, 104, 39, 0) 70%);
+          background: radial-gradient(circle, rgba(255, 214, 152, 0.50) 0%, rgba(242, 130, 55, 0.25) 35%, rgba(242, 104, 39, 0) 70%);
           mix-blend-mode: screen;
           animation: login-sun-breathe 7s ease-in-out infinite;
         }
+
+        /* Transparent Glass Card (its52 reference) */
+        .login-glass-card {
+          background: rgba(255, 255, 255, 0.09) !important;
+          backdrop-filter: blur(24px) saturate(180%) !important;
+          -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+          border: 1px solid rgba(255, 255, 255, 0.28) !important;
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 1px 1px rgba(255, 255, 255, 0.35) inset !important;
+        }
+
+        .login-role-btn:hover {
+          background: rgba(255, 255, 255, 0.18) !important;
+          border-color: rgba(255, 255, 255, 0.35) !important;
+          transform: translateY(-1px);
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .login-sun-glow { animation: none; opacity: 0.85; }
           .login-backdrop-photo { transition: none; }
         }
+
+        /* ── Mobile Viewport Optimization (<= 768px) ── */
         @media (max-width: 768px) {
-          .login-card-grid { grid-template-columns: 1fr !important; }
-          /* Hero band: full panorama pinned to the top — never cropped */
-          .login-backdrop-photo { background-position: center top; }
-          /* Wash continues below the band in the photo's own foreground tones,
-             kept translucent so the blurred fill still carries the composition */
-          .login-backdrop-fill {
-            background: linear-gradient(180deg,
-              rgba(38,24,9,0.74) 0%,
-              rgba(26,17,8,0.86) 40%,
-              rgba(16,10,4,0.92) 100%);
+          .login-glass-card {
+            padding: 20px 16px !important;
+            border-radius: 18px !important;
           }
-          .login-photo-fade {
-            top: calc(33.35vw - 56px);
-            bottom: auto;
-            height: 84px;
-            background: linear-gradient(180deg, rgba(22, 14, 5, 0) 0%, rgba(26, 17, 8, 0.7) 60%, rgba(26, 17, 8, 0.95) 100%);
+          /* Background: Ensure sunset palace photo covers the screen and is beautifully visible */
+          .login-backdrop-photo {
+            background-size: cover !important;
+            background-position: center center !important;
+            transform: none !important;
           }
-          .login-sun-glow { right: 3%; top: 18.3vw; width: 150px; height: 150px; }
-          /* Performance: lighter blur work on mobile GPUs */
-          .login-backdrop-blur { filter: blur(24px) brightness(0.8) saturate(1.05); }
+          .login-backdrop-fade {
+            background:
+              radial-gradient(ellipse at 50% 45%, rgba(6, 9, 22, 0.10) 0%, rgba(6, 9, 22, 0.48) 60%, rgba(4, 6, 16, 0.85) 100%),
+              linear-gradient(180deg,
+                rgba(8, 12, 28, 0.45) 0%,
+                rgba(8, 12, 28, 0.08) 25%,
+                rgba(8, 12, 28, 0.15) 65%,
+                rgba(6, 8, 18, 0.80) 100%
+              ) !important;
+          }
+          .login-sun-glow {
+            right: 0%;
+            top: 20%;
+            width: 180px;
+            height: 180px;
+          }
         }
       `}</style>
 

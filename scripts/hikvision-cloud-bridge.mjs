@@ -125,49 +125,85 @@ function parseDigestHeader(header) {
   return params;
 }
 
+const challengeCache = new Map();
+
+function buildAuthHeader({ username, password, method, uri, chal }) {
+  const { realm = '', nonce = '', qop, opaque } = chal;
+  const ha1 = md5(`${username}:${realm}:${password}`);
+  const ha2 = md5(`${method}:${uri}`);
+  let authStr = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}"`;
+
+  if (qop) {
+    const nc = '00000001';
+    const cnonce = Math.random().toString(36).slice(2, 10);
+    const responseVal = md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
+    authStr += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}", response="${responseVal}"`;
+  } else {
+    const responseVal = md5(`${ha1}:${nonce}:${ha2}`);
+    authStr += `, response="${responseVal}"`;
+  }
+  if (opaque) authStr += `, opaque="${opaque}"`;
+  return authStr;
+}
+
 async function digestFetch(url, { method = 'GET', username, password, body, headers = {}, timeoutMs = 8000 }) {
+  const urlObj = new URL(url);
+  const hostKey = `${urlObj.hostname}:${urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80)}`;
+  const uri = urlObj.pathname + urlObj.search;
+
+  let chal = challengeCache.get(hostKey);
+  // If no cached challenge exists and we are about to send a body,
+  // probe the device with a lightweight GET first so the device challenges without
+  // resetting the socket on an unauthenticated payload.
+  if (!chal && body) {
+    try {
+      const probeRes = await fetch(`${urlObj.origin}/ISAPI/System/time`, {
+        signal: AbortSignal.timeout(Math.min(timeoutMs, 4000)),
+      });
+      const authHeader = probeRes.headers.get('www-authenticate') || '';
+      if (authHeader.toLowerCase().includes('digest')) {
+        chal = parseDigestHeader(authHeader.replace(/^digest\s+/i, ''));
+        challengeCache.set(hostKey, chal);
+      }
+    } catch {}
+  }
+
+  const reqHeaders = { ...headers };
+  if (chal) {
+    reqHeaders['Authorization'] = buildAuthHeader({ username, password, method, uri, chal });
+  }
+
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const initial = await fetch(url, { method, headers, body, signal: controller.signal });
-    if (initial.status !== 401) {
-      clearTimeout(t);
-      return initial;
-    }
-    const authHeader = initial.headers.get('www-authenticate') || '';
-    if (!authHeader.toLowerCase().startsWith('digest')) {
-      clearTimeout(t);
-      return initial;
-    }
-    const chal = parseDigestHeader(authHeader.slice(7));
-    const realm = chal.realm || '';
-    const nonce = chal.nonce || '';
-    const qop = chal.qop;
-    const uri = new URL(url).pathname + new URL(url).search;
-    const ha1 = md5(`${username}:${realm}:${password}`);
-    const ha2 = md5(`${method}:${uri}`);
-    let responseVal;
-    let authStr = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}"`;
+    let res = await fetch(url, { method, headers: reqHeaders, body, signal: controller.signal });
 
-    if (qop) {
-      const nc = '00000001';
-      const cnonce = Math.random().toString(36).slice(2, 10);
-      responseVal = md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
-      authStr += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}", response="${responseVal}"`;
-    } else {
-      responseVal = md5(`${ha1}:${nonce}:${ha2}`);
-      authStr += `, response="${responseVal}"`;
+    if (res.status === 401) {
+      const authHeader = res.headers.get('www-authenticate') || '';
+      if (authHeader.toLowerCase().includes('digest')) {
+        chal = parseDigestHeader(authHeader.replace(/^digest\s+/i, ''));
+        challengeCache.set(hostKey, chal);
+        const retryHeaders = {
+          ...headers,
+          Authorization: buildAuthHeader({ username, password, method, uri, chal }),
+        };
+        res = await fetch(url, { method, headers: retryHeaders, body, signal: controller.signal });
+      }
     }
-    if (chal.opaque) authStr += `, opaque="${chal.opaque}"`;
-
-    const finalHeaders = { ...headers, Authorization: authStr };
-    const authed = await fetch(url, { method, headers: finalHeaders, body, signal: controller.signal });
-    clearTimeout(t);
-    return authed;
+    clearTimeout(timer);
+    return res;
   } catch (err) {
-    clearTimeout(t);
+    clearTimeout(timer);
     throw err;
   }
+}
+
+/** Check if timestamp (or current time) falls on Sunday in Indian Standard Time (+05:30) */
+function isSundayIST(dateOrIsoStr) {
+  const d = new Date(dateOrIsoStr || Date.now());
+  if (isNaN(d.getTime())) return false;
+  const istDate = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  return istDate.getUTCDay() === 0;
 }
 
 // Memory Deduplication Cache (avoids repeating identical scans within 2 hours)
@@ -341,6 +377,12 @@ async function recordDirectScanInDatabase({ employeeNo, time, verifyMode, device
   const scanMinutes = hours * 60 + minutes;
   const calendarDayUTC = new Date(Date.UTC(year, month, day));
 
+  // Sunday Institutional Holiday: Never record or create attendance on Sundays
+  if (calendarDayUTC.getUTCDay() === 0) {
+    console.log(`   🏖️ [DIRECT DB SYNC] Sunday Institutional Holiday — skipping attendance write for ${employeeNo}`);
+    return { ok: true, matchedType: 'HOLIDAY', name: 'Sunday Holiday' };
+  }
+
   // Determine initial status (PRESENT vs LATE)
   const isLate = scanMinutes > 8 * 60 + 1; // After 08:01 AM IST
   const initialStatus = isLate ? 'LATE' : 'PRESENT';
@@ -503,6 +545,12 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
   // so attendance always lands on the right person.
   employeeNo = canonicalizeEmployeeNo(employeeNo, name);
   const timeStr = normalizeDeviceTime(time);
+
+  // Sunday Institutional Holiday: Discard all scanning on Sunday (never mark absent or record punches)
+  if (isSundayIST(timeStr)) {
+    console.log(`🏖️ [SUNDAY HOLIDAY] Skipping scan for ${employeeNo} (${timeStr}) — Sunday is institutional holiday.`);
+    return;
+  }
   const payload = {
     AccessControllerEvent: {
       employeeNoString: String(employeeNo),
@@ -678,6 +726,10 @@ async function listenAlertStream(dev) {
           const employeeNo = ev.employeeNoString || ev.cardNo;
           if (employeeNo) {
             const timeStr = normalizeDeviceTime(ev.time);
+            if (isSundayIST(timeStr)) {
+              console.log(`🏖️ [SUNDAY HOLIDAY] Ignored AlertStream punch for ${employeeNo} at ${timeStr} (Sunday is institutional holiday).`);
+              continue;
+            }
             const serial = ev.serialNo || `${employeeNo}-${timeStr}`;
             const dedupeKey = `${dev.host}:${serial}`;
 
@@ -705,6 +757,10 @@ async function listenAlertStream(dev) {
       while ((xmlMatch = buffer.match(/<AccessControllerEvent[\s\S]*?<\/AccessControllerEvent>/i))) {
         const ev = parseXmlEvent(xmlMatch[0]);
         if (ev && ev.employeeNoString) {
+          if (isSundayIST(ev.time)) {
+            console.log(`🏖️ [SUNDAY HOLIDAY] Ignored AlertStream XML punch for ${ev.employeeNoString} at ${ev.time} (Sunday is institutional holiday).`);
+            continue;
+          }
           const dedupeKey = `${dev.host}:${ev.serialNo}`;
           if (!isDuplicate(dedupeKey)) {
             console.log(`\n⚡ [REAL-TIME PUNCH] ${dev.name} (${dev.host}) -> ID: ${ev.employeeNoString} at ${ev.time} [${ev.currentVerifyMode}]`);
@@ -734,6 +790,9 @@ async function listenAlertStream(dev) {
 
 // Rapid background poller with complete pagination loop
 async function pollDeviceEvents(dev, lookbackHours = 3, maxPages = 10) {
+  if (isSundayIST(new Date())) {
+    return; // Sunday is institutional holiday — no device polling
+  }
   const now = new Date();
   const past = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const startTime = getHikvisionTime(past);
@@ -885,6 +944,35 @@ async function uploadFaceToDevice(dev, person, photo) {
   throw new Error(`All face endpoints rejected:${lastStatus}`);
 }
 
+async function checkDeviceUserFace(dev, employeeNo) {
+  try {
+    const res = await digestFetch(
+      `http://${dev.host}:${dev.port}/ISAPI/AccessControl/UserInfo/Search?format=json`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          UserInfoSearchCond: {
+            searchID: `face-chk-${Date.now()}`,
+            searchResultPosition: 0,
+            maxResults: 1,
+            EmployeeNoList: [{ employeeNo: String(employeeNo) }],
+          },
+        }),
+        username: dev.username,
+        password: dev.password,
+        timeoutMs: 6000,
+      }
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    const user = data?.UserInfoSearch?.UserInfo?.[0];
+    return Boolean(user && (user.numOfFace >= 1 || user.faceURL));
+  } catch {
+    return false;
+  }
+}
+
 async function syncOfficialFaceData() {
   try {
     const teachers = await prisma.teacherProfile.findMany({
@@ -908,7 +996,16 @@ async function syncOfficialFaceData() {
     for (const dev of DEVICES) {
       for (const person of targets) {
         const key = `${dev.host}:${person.employeeNo}`;
-        if (faceSyncSucceeded.has(key)) continue; // already enrolled on this terminal
+        if (faceSyncSucceeded.has(key)) continue; // already enrolled/verified on this terminal
+
+        // Check if user's face is already enrolled directly on the physical terminal
+        const alreadyEnrolled = await checkDeviceUserFace(dev, person.employeeNo);
+        if (alreadyEnrolled) {
+          faceSyncSucceeded.add(key);
+          console.log(`🧑‍💼 [FACE SYNC] ${person.name} (${person.employeeNo}) face already enrolled on ${dev.name} (${dev.host})`);
+          continue;
+        }
+
         const photoUrl = person.photoUrl.startsWith('http')
           ? person.photoUrl
           : `${RENDER_BASE}${person.photoUrl.startsWith('/') ? '' : '/'}${person.photoUrl}`;
@@ -918,7 +1015,12 @@ async function syncOfficialFaceData() {
           faceSyncSucceeded.add(key);
           console.log(`🧑‍💼 [FACE SYNC] ${person.name} (${person.employeeNo}) face photo enrolled on ${dev.name} (${dev.host})`);
         } catch (e) {
-          console.warn(`⚠️ [FACE SYNC NOTICE] ${person.name} (${person.employeeNo}) via ${dev.name}: ${e.message} — will retry next cycle`);
+          if (e.message?.includes('notSupport') || e.message?.includes('Invalid Operation')) {
+            faceSyncSucceeded.add(key);
+            console.log(`ℹ️ [FACE SYNC] ${person.name} (${person.employeeNo}) on ${dev.name} is configured for direct camera enrollment.`);
+          } else {
+            console.warn(`⚠️ [FACE SYNC NOTICE] ${person.name} (${person.employeeNo}) via ${dev.name}: ${e.message} — will retry next cycle`);
+          }
         }
       }
     }

@@ -27,7 +27,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import prisma from "./prisma";
-import { eventRangeForRole } from "./biometric";
+import { eventRangeForRole, getStartOfDayIST } from "./biometric";
 import { getHijriMonthInfo } from "./fatimi-calendar";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -918,6 +918,11 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       sLeave++;
       source = "EXCUSED";
       reason = status === "MEDICAL" ? "Medical Exemption" : "On Leave";
+    } else if (dayStart.getUTCDay() === 0) {
+      status = "HOLIDAY";
+      sLeave++;
+      source = "HOLIDAY";
+      reason = "Sunday Institutional Holiday";
     } else {
       status = "ABSENT";
       sA++;
@@ -967,6 +972,11 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       tLeave++;
       source = "EXCUSED";
       reason = status === "MEDICAL" ? "Medical Leave" : (teacherNotes || "On Holiday / Leave");
+    } else if (dayStart.getUTCDay() === 0) {
+      status = "HOLIDAY";
+      tLeave++;
+      source = "HOLIDAY";
+      reason = "Sunday Institutional Holiday";
     } else {
       status = "ABSENT";
       tA++;
@@ -1840,6 +1850,11 @@ export async function runDailySheetSyncJob(targetDate?: Date): Promise<{
 }> {
   if (process.env.GOOGLE_SHEET_DAILY_SYNC === "false") {
     return { skipped: true, reason: "disabled via GOOGLE_SHEET_DAILY_SYNC=false" };
+  }
+  const dayStart = getStartOfDayIST(targetDate || new Date());
+  if (dayStart.getUTCDay() === 0) {
+    console.log("[google-sheet-sync] skipped — Sunday is institutional holiday");
+    return { skipped: true, reason: "Sunday is institutional holiday" };
   }
   if (!isSheetSyncConfigured()) {
     console.log("[google-sheet-sync] skipped — spreadsheet ID / service-account not configured");

@@ -827,21 +827,25 @@ export function startAttendanceScheduler() {
   watchdogTimer = setInterval(async () => {
     try {
       const now = new Date();
-      const currentDayOfWeek = now.getUTCDay();
-      const currentDayOfMonth = now.getUTCDate();
+      const { calendarDayUTC } = getISTDetails(now);
+      const isSunday = calendarDayUTC.getUTCDay() === 0;
+      const currentDayOfWeek = calendarDayUTC.getUTCDay();
+      const currentDayOfMonth = calendarDayUTC.getUTCDate();
       const currentHour = now.getUTCHours();
-      const todayDateStr = now.toISOString().slice(0, 10);
+      const todayDateStr = calendarDayUTC.toISOString().slice(0, 10);
 
-      // A. Real-time window cutoff check & instant auto-mark absent
-      await checkAndAutoFinalizeScanWindows();
+      // A. Real-time window cutoff check & instant auto-mark absent (skipped on Sunday)
+      if (!isSunday) {
+        await checkAndAutoFinalizeScanWindows();
 
-      // B. Real-time timetable period attendance sync
-      await syncClassPeriodAttendance(now);
+        // B. Real-time timetable period attendance sync
+        await syncClassPeriodAttendance(now);
+      }
 
       // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC) - skip on Sunday
       if (
         config.autoMarkAbsentEnabled &&
-        currentDayOfWeek !== 0 &&
+        !isSunday &&
         currentHour >= config.autoMarkAbsentHourUtc &&
         lastAutoAbsentRunDate?.slice(0, 10) !== todayDateStr
       ) {

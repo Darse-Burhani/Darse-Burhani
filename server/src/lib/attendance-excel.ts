@@ -862,7 +862,7 @@ type RosterRow = {
   date: string;
   time: string;
   event: string;
-  status: "PRESENT" | "LATE" | "ABSENT";
+  status: "PRESENT" | "LATE" | "ABSENT" | "HOLIDAY";
 };
 
 /** Compact styled day sheet (same palette/columns as the daily report). */
@@ -942,8 +942,20 @@ function renderRangedDaySheet(
         cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: isTalabat ? COLORS.talabatText : COLORS.teacherText } };
       }
       if (i === 7) {
-        fill = item.status === "PRESENT" ? COLORS.presentFill : item.status === "LATE" ? COLORS.lateFill : COLORS.absentFill;
-        const text = item.status === "PRESENT" ? COLORS.presentText : item.status === "LATE" ? COLORS.lateText : COLORS.absentText;
+        fill = item.status === "PRESENT"
+          ? COLORS.presentFill
+          : item.status === "LATE"
+          ? COLORS.lateFill
+          : item.status === "HOLIDAY"
+          ? "FFF1F5F9"
+          : COLORS.absentFill;
+        const text = item.status === "PRESENT"
+          ? COLORS.presentText
+          : item.status === "LATE"
+          ? COLORS.lateText
+          : item.status === "HOLIDAY"
+          ? "FF475569"
+          : COLORS.absentText;
         cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: text } };
       }
       if (i === 6 && item.event !== "--") fill = "FFFFFBEB";
@@ -1024,10 +1036,15 @@ export async function generateRangedAttendanceExcel(options: RangedReportOptions
       sliceAcc.set(eventName, acc);
     };
 
+    const isSunday = dayStart.getUTCDay() === 0;
+
     for (const s of students) {
       const att = sMap.get(s.id);
-      const status = (att?.status as "PRESENT" | "LATE" | "ABSENT" | undefined) ?? "ABSENT";
-      if (status === "PRESENT") sP++; else if (status === "LATE") sL++; else sA++;
+      let status = (att?.status as "PRESENT" | "LATE" | "ABSENT" | "HOLIDAY" | "ON_LEAVE" | undefined) ?? (isSunday ? "HOLIDAY" : "ABSENT");
+      if (isSunday && (status === "ABSENT" || !att)) status = "HOLIDAY";
+      if (status === "PRESENT") sP++;
+      else if (status === "LATE") sL++;
+      else if (!isSunday && status === "ABSENT") sA++;
       const ev = att ? matchScanEvent(att.checkInTime, scanWindows, false) : null;
       bump(ev, "S", status);
       rows.push({
@@ -1037,15 +1054,18 @@ export async function generateRangedAttendanceExcel(options: RangedReportOptions
         gradeOrDept: s.section ? `Grade ${s.grade}-${s.section}` : `Grade ${s.grade || "--"}`,
         date: formattedDate,
         time: att ? formatTimeIST(att.checkInTime) : "--",
-        event: att ? ev || "Unscheduled" : "--",
-        status: status === "PRESENT" || status === "LATE" ? status : "ABSENT",
+        event: att ? ev || "Unscheduled" : (isSunday ? "Sunday Holiday" : "--"),
+        status: status === "PRESENT" || status === "LATE" ? status : (isSunday ? "HOLIDAY" : "ABSENT"),
       });
     }
 
     for (const t of teachers) {
       const att = tMap.get(t.id);
-      const status = (att?.status as "PRESENT" | "LATE" | "ABSENT" | undefined) ?? "ABSENT";
-      if (status === "PRESENT") tP++; else if (status === "LATE") tL++; else tA++;
+      let status = (att?.status as "PRESENT" | "LATE" | "ABSENT" | "HOLIDAY" | "ON_LEAVE" | undefined) ?? (isSunday ? "HOLIDAY" : "ABSENT");
+      if (isSunday && (status === "ABSENT" || !att)) status = "HOLIDAY";
+      if (status === "PRESENT") tP++;
+      else if (status === "LATE") tL++;
+      else if (!isSunday && status === "ABSENT") tA++;
       const ev = att ? matchScanEvent(att.checkInTime, scanWindows, true) : null;
       bump(ev, "T", status);
       rows.push({
@@ -1055,8 +1075,8 @@ export async function generateRangedAttendanceExcel(options: RangedReportOptions
         gradeOrDept: t.department || (t as unknown as { roleTitle?: string }).roleTitle || "Faculty",
         date: formattedDate,
         time: att ? formatTimeIST(att.checkInTime) : "--",
-        event: att ? ev || "Unscheduled" : "--",
-        status: status === "PRESENT" || status === "LATE" ? status : "ABSENT",
+        event: att ? ev || "Unscheduled" : (isSunday ? "Sunday Holiday" : "--"),
+        status: status === "PRESENT" || status === "LATE" ? status : (isSunday ? "HOLIDAY" : "ABSENT"),
       });
     }
 

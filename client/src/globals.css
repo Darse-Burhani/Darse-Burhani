@@ -183,8 +183,8 @@
     font-family: var(--font-body);
     line-height: 1.6;
     letter-spacing: 0.01em;
-    /* No white flash or hard cut lines on mobile overscroll / rubber-banding */
-    overscroll-behavior-y: none;
+    /* Natural mobile touch scrolling without scroll lock */
+    overscroll-behavior-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -193,6 +193,7 @@
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    overflow-y: visible;
     display: flex;
     flex-direction: column;
   }
