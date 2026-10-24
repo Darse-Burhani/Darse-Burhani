@@ -232,7 +232,10 @@ export default function App() {
           <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
           <Route path="hifz" element={<RequireAdminPageAccess pageKey="quran"><AdminHifz /></RequireAdminPageAccess>} />
           <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><AdminHifzMarhala /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala/weekly-slips" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
           <Route path="hifz-marhala/*" element={<RequireAdminPageAccess pageKey="hifz-marhala"><AdminHifzMarhala /></RequireAdminPageAccess>} />
+          <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
+          <Route path="weekly-slips" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
@@ -343,7 +346,11 @@ export default function App() {
           <Route path="hifz-reports" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifz /></RequireAdminPageAccess>} />
           <Route path="hifz-marhala" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
           <Route path="hifz-weekly-slip" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
+          <Route path="weekly-slips" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
+          <Route path="hifz-marhala/weekly-slips" element={<RequireAdminPageAccess pageKey="quran"><TeacherHifzWeeklySlip /></RequireAdminPageAccess>} />
           <Route path="hifz-marhala/*" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
+          <Route path="justifications" element={<Navigate to="/teacher/attendance" replace />} />
+          <Route path="attendance/justifications" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
           <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />

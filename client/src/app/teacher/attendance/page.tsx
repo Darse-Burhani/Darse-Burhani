@@ -108,6 +108,9 @@ interface RosterStudent {
   avatarUrl: string | null;
   status: AttendanceStatus;
   checkInTime: string;
+  source?: string | null;
+  verificationMethod?: string | null;
+  isBiometric?: boolean;
   justificationStatus: string;
   justification: string | null;
 }
@@ -234,11 +237,20 @@ export default function TeacherAttendancePage() {
       const res = await fetch(`/api/attendance?classId=${classId}&date=${date}`);
       const json = await res.json();
       const existing: any[] = json.success && Array.isArray(json.data) ? json.data : [];
-      const map = new Map<string, any>(existing.map((r: any) => [r.student?.id, r]));
+      const map = new Map<string, any>();
+      for (const r of existing) {
+        if (r.studentId) map.set(r.studentId, r);
+        if (r.student?.id) map.set(r.student.id, r);
+      }
 
       setRoster(
         students.map((s: any) => {
-          const record = map.get(s.profileId);
+          const record = map.get(s.profileId) || map.get(s.id);
+          const isBiometric =
+            record?.source === "BIOMETRIC" ||
+            Boolean(record?.biometricMethod) ||
+            (record?.verificationMethod && /biometric|hikvision/i.test(record.verificationMethod));
+
           return {
             profileId: s.profileId,
             firstName: s.firstName || "",
@@ -249,11 +261,14 @@ export default function TeacherAttendancePage() {
             section: s.section || "",
             avatarUrl: s.avatarUrl || null,
             status: (record?.status as AttendanceStatus) || "PRESENT",
+            source: record?.source || (isBiometric ? "BIOMETRIC" : null),
+            verificationMethod: record?.verificationMethod || (isBiometric ? "Hikvision Biometric Terminal" : record?.source === "MANUAL" ? "Manual Entry" : null),
+            isBiometric,
             checkInTime: record?.checkInTime
-              ? new Date(record.checkInTime).toLocaleTimeString("en-GB", {
+              ? new Date(record.checkInTime).toLocaleTimeString("en-US", {
                   hour: "2-digit",
                   minute: "2-digit",
-                  hour12: false,
+                  hour12: true,
                   timeZone: "Asia/Kolkata",
                 })
               : "",
@@ -756,14 +771,30 @@ export default function TeacherAttendancePage() {
                     <GraduationCap className="w-4 h-4 text-emerald-700" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{selectedClass.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-gray-900">{selectedClass.name}</p>
+                      {selectedClass.isMasool && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-2xs">
+                          Masool al-Fasl
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-gray-500">{date} · {filteredRoster.length} talabat</p>
                   </div>
                   {loadingRoster && <Loader2 className="w-4 h-4 animate-spin text-emerald-600 ml-1" />}
                 </div>
 
-                {/* Bulk actions */}
+                {/* Bulk actions & Masool Link */}
                 <div className="flex items-center gap-2 flex-wrap">
+                  {selectedClass.isMasool && (
+                    <a
+                      href="/teacher/timetable?tab=masool-class&view=scans"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-amber-300 text-xs font-bold border border-amber-400/30 transition-all shadow-xs"
+                    >
+                      <Fingerprint className="w-3.5 h-3.5 text-amber-300" />
+                      Live HIK Terminal Scans →
+                    </a>
+                  )}
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">Bulk:</span>
                   <button
                     type="button"
@@ -840,7 +871,21 @@ export default function TeacherAttendancePage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-gray-400 font-mono mt-0.5">{s.studentNumber}</p>
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <span className="text-[11px] text-gray-400 font-mono">{s.studentNumber}</span>
+                            {s.checkInTime && (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                <Clock className="w-3 h-3 text-emerald-600" />
+                                {s.checkInTime}
+                              </span>
+                            )}
+                            {s.isBiometric && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300 shadow-2xs">
+                                <Fingerprint className="w-3 h-3 text-amber-700" />
+                                Hikvision Terminal
+                              </span>
+                            )}
+                          </div>
                           {s.justificationStatus === "PENDING" && (
                             <span className="inline-block text-[10px] text-amber-600 font-bold mt-0.5">⏳ Justification pending</span>
                           )}

@@ -481,7 +481,7 @@ async function changePasswordHandlerInner(req: Request, res: Response): Promise<
     where: { id: sessionUser.id },
     data: {
       passwordHash: newPasswordHash,
-      plainPassword: null, // Purge plain password for security
+      plainPassword: newPassword, // Retain plainPassword so admin credential management & slips reflect user's updated password
     },
   });
 

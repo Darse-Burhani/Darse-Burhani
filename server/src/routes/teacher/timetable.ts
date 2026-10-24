@@ -661,37 +661,33 @@ router.get("/masool-class/:id/scans", requireRole("TEACHER", "ADMIN"), async (re
     const recordMap = new Map<string, any>();
     records.forEach((r) => recordMap.set(r.studentId, r));
 
-    // 7. Check if raw Hikvision punches exist in hikvisionScan table
-    const rawHikvisionMap = new Map<string, any[]>();
-    try {
-      if ((prisma as any).hikvisionScan?.findMany) {
-        const studentIds = enrollments.map((e) => e.studentId);
-        const scans = await (prisma as any).hikvisionScan.findMany({
-          where: {
-            studentId: { in: studentIds },
-            scanTime: { gte: startOfDay, lt: endOfDay },
-          },
-          orderBy: { scanTime: "asc" },
-        });
-        for (const scan of scans) {
-          if (!rawHikvisionMap.has(scan.studentId)) rawHikvisionMap.set(scan.studentId, []);
-          rawHikvisionMap.get(scan.studentId)!.push(scan);
-        }
-      }
-    } catch {
-      // Non-critical fallback
-    }
+    // 7. Check AttendanceRegistry for real Hikvision terminal scans
+    const studentIds = enrollments.map((e) => e.studentId);
+    const registryScans = await prisma.attendanceRegistry.findMany({
+      where: {
+        studentId: { in: studentIds },
+        date: { gte: startOfDay, lt: endOfDay },
+      },
+      orderBy: { checkInTime: "asc" },
+    });
+    const registryMap = new Map<string, any>();
+    registryScans.forEach((r) => registryMap.set(r.studentId, r));
 
-    // 8. Map individual student scan records
+    // 8. Map individual student scan records for Class Masool
     const talabatScans = enrollments.map((e) => {
       const student = e.student;
       const rec = recordMap.get(student.id);
-      const studentPunches = rawHikvisionMap.get(student.id) || [];
+      const reg = registryMap.get(student.id);
 
-      // Determine verification method and punch times
-      const isBiometric = rec?.source === "BIOMETRIC" || studentPunches.length > 0;
-      const checkInDate = rec?.checkInTime || (studentPunches[0]?.scanTime ? new Date(studentPunches[0].scanTime) : null);
-      const checkOutDate = rec?.checkOutTime || (studentPunches.length > 1 ? new Date(studentPunches[studentPunches.length - 1].scanTime) : null);
+      // Determine verification method and punch times from either AttendanceRecord or AttendanceRegistry (Hikvision terminal)
+      const isBiometric =
+        rec?.source === "BIOMETRIC" ||
+        reg?.source === "BIOMETRIC" ||
+        Boolean(rec?.biometricMethod) ||
+        (rec?.verificationMethod && /biometric|hikvision/i.test(rec.verificationMethod));
+
+      const checkInDate = rec?.checkInTime || reg?.checkInTime || null;
+      const checkOutDate = rec?.checkOutTime || reg?.checkOutTime || null;
 
       let checkInTimeStr = "";
       if (checkInDate) {
@@ -705,7 +701,7 @@ router.get("/masool-class/:id/scans", requireRole("TEACHER", "ADMIN"), async (re
       }
 
       let checkOutTimeStr = "";
-      if (checkOutDate && checkOutDate.getTime() !== checkInDate?.getTime()) {
+      if (checkOutDate && new Date(checkOutDate).getTime() !== new Date(checkInDate || 0).getTime()) {
         checkOutTimeStr = new Date(checkOutDate).toLocaleTimeString("en-US", {
           timeZone: "Asia/Kolkata",
           hour: "2-digit",
@@ -715,9 +711,13 @@ router.get("/masool-class/:id/scans", requireRole("TEACHER", "ADMIN"), async (re
         });
       }
 
-      const status = rec?.status || (studentPunches.length > 0 ? "PRESENT" : "NOT_MARKED");
+      const status = rec?.status || reg?.status || (checkInDate ? "PRESENT" : "NOT_MARKED");
       const biometricMethod = rec?.biometricMethod || (isBiometric ? "FACIAL" : null);
-      const source = rec?.source || (isBiometric ? "BIOMETRIC" : "NOT_RECORDED");
+      const source = rec?.source || reg?.source || (isBiometric ? "BIOMETRIC" : "NOT_RECORDED");
+
+      const punches: string[] = [];
+      if (checkInTimeStr) punches.push(checkInTimeStr);
+      if (checkOutTimeStr) punches.push(checkOutTimeStr);
 
       return {
         enrollmentId: e.id,
@@ -733,18 +733,10 @@ router.get("/masool-class/:id/scans", requireRole("TEACHER", "ADMIN"), async (re
         biometricMethod, // "FACIAL" | "FINGERPRINT" | null
         verificationMethod: rec?.verificationMethod || (isBiometric ? "Hikvision Biometric Terminal" : rec?.source === "MANUAL" ? "Class Masool Manual Entry" : null),
         checkInTime: checkInTimeStr,
-        checkInTimestamp: checkInDate ? checkInDate.toISOString() : null,
+        checkInTimestamp: checkInDate ? new Date(checkInDate).toISOString() : null,
         checkOutTime: checkOutTimeStr,
-        punchesCount: Math.max(studentPunches.length, checkInDate ? 1 : 0),
-        punchHistory: studentPunches.map((p) =>
-          new Date(p.scanTime).toLocaleTimeString("en-US", {
-            timeZone: "Asia/Kolkata",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-          })
-        ),
+        punchesCount: punches.length,
+        punchHistory: punches,
         justification: rec?.justification || null,
         justificationStatus: rec?.justificationStatus || "NONE",
       };

@@ -134,13 +134,13 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
 
     const cls = await prisma.class.findUnique({
       where: { id: classId },
-      select: { id: true, teacherId: true },
+      select: { id: true, teacherId: true, masoolId: true },
     });
     if (!cls) {
       return res.status(404).json({ success: false, error: "Class not found" });
     }
-    if (cls.teacherId !== teacher.id) {
-      return res.status(403).json({ success: false, error: "You can only mark attendance for your own classes" });
+    if (cls.teacherId !== teacher.id && cls.masoolId !== teacher.id) {
+      return res.status(403).json({ success: false, error: "You can only mark attendance for your own or assigned Masool classes" });
     }
 
     const day = parseDay(date);
@@ -293,7 +293,7 @@ router.post("/justify", requireAuth, async (req, res) => {
           title: "New Absence Justification",
           body: `${studentName} submitted an absence justification: "${reason.trim().slice(0, 100)}"`,
           type: "ALERT",
-          link: "/teacher/justifications",
+          link: "/teacher/attendance",
           priority: "HIGH",
         },
       });
@@ -412,7 +412,9 @@ router.get("/", requireAuth, async (req, res) => {
       if (!teacher) {
         return res.status(403).json({ success: false, error: "Teacher profile not found" });
       }
-      where.class = { teacherId: teacher.id };
+      where.class = {
+        OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
+      };
     } else if (role === "STUDENT") {
       const student = await prisma.studentProfile.findUnique({
         where: { userId: session.user.id },
@@ -461,7 +463,39 @@ router.get("/", requireAuth, async (req, res) => {
       take: 300,
     });
 
-    return res.json({ success: true, data: records });
+    // Merge Hikvision biometric punches from AttendanceRegistry if available
+    let enrichedRecords = records;
+    if (date) {
+      try {
+        const queryDateUTC = parseDay(date);
+        const nextDayUTC = new Date(queryDateUTC.getTime() + 24 * 60 * 60 * 1000);
+        const registries = await prisma.attendanceRegistry.findMany({
+          where: {
+            date: { gte: queryDateUTC, lt: nextDayUTC },
+          },
+        });
+        const regMap = new Map<string, any>();
+        registries.forEach((reg) => regMap.set(reg.studentId, reg));
+
+        enrichedRecords = records.map((r) => {
+          const reg = regMap.get(r.studentId);
+          if (!reg) return r;
+          const isBio = reg.source === "BIOMETRIC" || r.source === "BIOMETRIC" || Boolean(r.biometricMethod);
+          return {
+            ...r,
+            checkInTime: r.checkInTime || reg.checkInTime,
+            checkOutTime: r.checkOutTime || reg.checkOutTime,
+            status: r.status || reg.status,
+            source: isBio ? "BIOMETRIC" : r.source,
+            verificationMethod: r.verificationMethod || (isBio ? "Hikvision Biometric Terminal" : r.source === "MANUAL" ? "Manual Entry" : null),
+          };
+        });
+      } catch {
+        // Non-critical fallback
+      }
+    }
+
+    return res.json({ success: true, data: enrichedRecords });
   } catch (error) {
     console.error("Attendance fetch error:", error);
     return res.status(500).json({

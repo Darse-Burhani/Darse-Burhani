@@ -42,6 +42,9 @@ const defaultModules: PortalModulesConfig = {
 // Minimal safe defaults while permissions load — keeps core faculty tools open.
 const DEFAULT_TEACHER_BASE_PAGES = [
   "dashboard",
+  "classes",
+  "attendance",
+  "manual-attendance",
   "profile",
   "timetable",
   "my-attendance",
@@ -213,6 +216,9 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         const key = normalizePageKey(pageIdOrPath);
         return (
           key === "dashboard" ||
+          key === "classes" ||
+          key === "attendance" ||
+          key === "manual-attendance" ||
           key === "profile" ||
           key === "timetable" ||
           key === "my-attendance" ||
@@ -230,6 +236,9 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       // Core individual faculty tools are always accessible to teachers
       if (
         key === "dashboard" ||
+        key === "classes" ||
+        key === "attendance" ||
+        key === "manual-attendance" ||
         key === "profile" ||
         key === "timetable" ||
         key === "my-attendance" ||

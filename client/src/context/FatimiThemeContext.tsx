@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-export type FatimiThemeId = "fatimi-rawdah-marmar" | "twilight-palace" | "green";
+export type FatimiThemeId = "fatimi-rawdah-marmar" | "green";
 
 export interface FatimiThemeConfig {
   id: FatimiThemeId;
@@ -57,45 +57,16 @@ export const GREEN_THEME: FatimiThemeConfig = {
   lightBgTint: "bg-amber-50/60",
 };
 
-// ── Twilight Palace ──
-// Sign-in inspired theme: sunset palace photo palette — indigo sky, amber
-// window-glow accents, and the same amber→sunset-orange action gradient.
-export const SUNSET_THEME: FatimiThemeConfig = {
-  id: "twilight-palace",
-  name: "Twilight Palace",
-  subtitle: "Sunset Indigo Sky & Warm Amber Glass",
-  badge: "Sunset",
-  swatch: {
-    primary: "#1a2038",
-    secondary: "#0c1026",
-    gold: "#ebaa45",
-    surface: "#ffffff",
-  },
-  sidebarGradient: "linear-gradient(180deg, #10142a 0%, #1a2038 55%, #2a3358 100%)",
-  contentGradient: "#faf7f0",
-  cardHeroGradient: "linear-gradient(135deg, #1a2038 0%, #2a3358 55%, #3d4771 100%)",
-  headerLine: "linear-gradient(90deg, #e7e0d0, #ebaa45, #e7e0d0)",
-  goldAccent: "#ebaa45",
-  primaryColor: "#1a2038",
-  secondaryColor: "#0c1026",
-  accentGlow: "rgba(235, 170, 69, 0.18)",
-  badgeClass: "bg-amber-50 text-amber-950 border border-amber-300 font-bold",
-  btnPrimaryClass:
-    "bg-gradient-to-r from-[#fcd468] via-[#ef9a33] to-[#dc6b27] hover:from-[#ef9a33] hover:to-[#dc6b27] text-[#1c1403] font-bold shadow-md",
-  borderTint: "border-slate-200",
-  lightBgTint: "bg-amber-50/60",
-};
-
 export const FATIMI_THEMES: Record<string, FatimiThemeConfig> = {
   "fatimi-rawdah-marmar": GREEN_THEME,
   "green": GREEN_THEME,
   "fatimi-mishkat-nur": GREEN_THEME,
   "fatimi-kufa-zari": GREEN_THEME,
-  "twilight-palace": SUNSET_THEME,
+  "twilight-palace": GREEN_THEME, // redirect any existing stored session to default
 };
 
-// Distinct, selectable themes surfaced in the portal Appearance switcher.
-export const AVAILABLE_THEMES: FatimiThemeConfig[] = [GREEN_THEME, SUNSET_THEME];
+// Default and single active institutional theme
+export const AVAILABLE_THEMES: FatimiThemeConfig[] = [GREEN_THEME];
 
 interface FatimiThemeContextValue {
   currentThemeId: FatimiThemeId;
@@ -111,7 +82,8 @@ const STORAGE_KEY = "db_fatimi_active_theme_v3";
 function readStoredThemeId(): FatimiThemeId {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && FATIMI_THEMES[stored]) return stored as FatimiThemeId;
+    if (stored && stored !== "twilight-palace" && FATIMI_THEMES[stored]) return stored as FatimiThemeId;
+    localStorage.setItem(STORAGE_KEY, "fatimi-rawdah-marmar");
   } catch {
     // ignore storage failures (private mode etc.)
   }

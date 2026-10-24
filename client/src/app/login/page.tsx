@@ -147,6 +147,21 @@ export default function LoginPage() {
   const [forgotChecking, setForgotChecking] = useState(false);
   const forgotLookupSeq = useRef(0);
 
+  // ── Auto-Sized Viewport Resolution Tracker ──
+  const [windowSize, setWindowSize] = useState<{ width: number; height: number }>({
+    width: typeof window !== "undefined" ? window.innerWidth : 1280,
+    height: typeof window !== "undefined" ? window.innerHeight : 800,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // ── Restore Remembered Login Credentials ──
   useEffect(() => {
     try {
@@ -1166,45 +1181,15 @@ export default function LoginPage() {
 
           {/* ══════════════════════════════════════════════════════
               2. MOBILE LOGIN UI (md:hidden < 768px)
-              App-Native Mobile Console with Top Uncropped Scenic Frame
+              App-Native Mobile Console with Full Adaptive Twilight Backdrop
               ══════════════════════════════════════════════════════ */}
           <div className="flex md:hidden w-full flex-col max-w-[430px] mx-auto">
-            {/* Top Uncropped Scenic Frame (Guarantees user sees full panorama with 0 cutoff) */}
-            <div
-              className="w-full relative rounded-2xl overflow-hidden mb-3.5"
-              style={{
-                border: "1px solid rgba(255, 255, 255, 0.28)",
-                boxShadow: "0 14px 35px rgba(0,0,0,0.35)",
-                background: "rgba(10, 14, 28, 0.6)",
-              }}
-            >
-              <img
-                src="/login-bg-sunset.jpg"
-                alt="Darse Burhani Campus Sunset Panorama"
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  maxHeight: 140,
-                  objectFit: "contain",
-                  display: "block",
-                  margin: "0 auto",
-                }}
-              />
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 40%, rgba(6,9,20,0.65) 100%)",
-                }}
-              />
-            </div>
-
             {/* Mobile Frosted Glass Card */}
             <div
               className="w-full login-glass-card rounded-2xl flex flex-col p-4 sm:p-5"
               style={{
-                border: "1px solid rgba(255, 255, 255, 0.28)",
-                background: "rgba(255, 255, 255, 0.09)",
+                border: "1px solid rgba(252, 212, 104, 0.28)",
+                background: "rgba(10, 16, 32, 0.70)",
                 backdropFilter: "blur(24px) saturate(180%)",
                 WebkitBackdropFilter: "blur(24px) saturate(180%)",
                 boxShadow: "0 20px 50px rgba(0,0,0,0.40)",
@@ -1617,21 +1602,34 @@ export default function LoginPage() {
         .login-backdrop-ambient {
           background-image: url('/login-bg-sunset.jpg');
           background-size: cover;
-          background-position: center 38%;
-          filter: blur(28px) brightness(0.50) saturate(135%);
-          transform: scale(1.08);
+          background-position: center 35%;
+          filter: blur(36px) brightness(0.48) saturate(140%);
+          transform: scale(1.10);
           position: fixed;
-          inset: -20px;
+          top: -25px;
+          left: -25px;
+          right: -25px;
+          bottom: -25px;
+          width: calc(100% + 50px);
+          height: calc(100% + 50px);
         }
 
-        /* 2. Backdrop Photo: Full expansive cinematic fit on desktop */
+        /* 2. Backdrop Photo: Full expansive cinematic fit, auto-sized across any display */
         .login-backdrop-photo {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100vw;
+          height: 100dvh;
           background-size: cover;
-          background-position: center 38%;
+          background-position: center 35%;
           background-repeat: no-repeat;
           filter: brightness(0.92) contrast(1.05) saturate(1.18);
           transform: scale(1.02) translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
           transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: transform;
         }
 
         /* 3. Soft Scenic Background Fade & Vignette (its52 reference) */
@@ -1675,6 +1673,21 @@ export default function LoginPage() {
           transform: translateY(-1px);
         }
 
+        /* Responsive Auto-Sizing across displays */
+        @media (min-aspect-ratio: 18/9) {
+          .login-backdrop-photo {
+            background-size: cover !important;
+            background-position: center 38% !important;
+          }
+        }
+
+        @media (min-width: 768px) and (max-aspect-ratio: 4/3) {
+          .login-backdrop-photo {
+            background-size: cover !important;
+            background-position: center 26% !important;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .login-sun-glow { animation: none; opacity: 0.85; }
           .login-backdrop-photo { transition: none; }
@@ -1684,17 +1697,17 @@ export default function LoginPage() {
         @media (max-width: 767px) {
           .login-backdrop-photo {
             background-size: cover !important;
-            background-position: center top !important;
+            background-position: center 18% !important;
             transform: none !important;
           }
           .login-backdrop-fade {
             background:
-              radial-gradient(ellipse at 50% 30%, rgba(6, 9, 22, 0.05) 0%, rgba(6, 9, 22, 0.45) 60%, rgba(4, 6, 16, 0.85) 100%),
+              radial-gradient(ellipse at 50% 25%, rgba(6, 9, 22, 0.05) 0%, rgba(6, 9, 22, 0.40) 55%, rgba(4, 6, 16, 0.85) 100%),
               linear-gradient(180deg,
-                rgba(8, 12, 28, 0.40) 0%,
-                rgba(8, 12, 28, 0.05) 25%,
-                rgba(8, 12, 28, 0.15) 65%,
-                rgba(6, 8, 18, 0.80) 100%
+                rgba(8, 12, 28, 0.35) 0%,
+                rgba(8, 12, 28, 0.05) 20%,
+                rgba(8, 12, 28, 0.15) 60%,
+                rgba(6, 8, 18, 0.85) 100%
               ) !important;
           }
           .login-sun-glow {
