@@ -23,6 +23,7 @@ import {
   RefreshCw,
   X,
   Filter,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -298,6 +299,7 @@ export default function AdminTakhteetPage() {
           { label: "Classes", href: "/admin/classes", icon: BookOpen },
           { label: "Master Timetable", href: "/admin/timetable", icon: CalendarDays },
           { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
+          { label: "Tilawat Dua", href: "/admin/tilawat-dua", icon: Sparkles, badge: "Daily" },
         ]}
       />
 

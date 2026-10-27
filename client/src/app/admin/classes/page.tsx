@@ -511,6 +511,7 @@ export default function AdminClassesPage() {
           { label: "Classes & Darajahs", href: "/admin/classes", icon: BookOpen },
           { label: "Master Timetable", href: "/admin/timetable", icon: CalendarDays },
           { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
+          { label: "Tilawat Dua", href: "/admin/tilawat-dua", icon: Sparkles, badge: "Daily" },
         ]}
       />
 

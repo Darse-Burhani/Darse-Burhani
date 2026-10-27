@@ -15,7 +15,10 @@ import {
   ChevronRight,
   Shield,
   Layers,
+  CalendarDays,
+  ClipboardList,
 } from "lucide-react";
+import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +65,18 @@ export default function TeacherTilawatDuaPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* ── Academics Hub Navigation Tabs ── */}
+      <AdminHubTabs
+        hubTitle="Academics & Teaching"
+        hubDescription="Assigned classes, weekly timetable, curriculum takhteet, and daily Tilawat Dua."
+        tabs={[
+          { label: "Classes & Darajahs", href: "/admin/classes", icon: BookOpen },
+          { label: "Master Timetable", href: "/admin/timetable", icon: CalendarDays },
+          { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
+          { label: "Tilawat Dua", href: "/admin/tilawat-dua", icon: Sparkles, badge: "Daily" },
+        ]}
+      />
+
       {/* ── Top Header ── */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950/60 p-6 sm:p-8 text-white border border-slate-700/60 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
