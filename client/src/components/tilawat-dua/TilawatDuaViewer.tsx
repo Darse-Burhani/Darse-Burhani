@@ -194,8 +194,17 @@ export function TilawatDuaViewer({
     (page: any, mode: "page" | "width") => {
       if (!containerRef.current) return 1.0;
       const viewport = page.getViewport({ scale: 1.0, rotation });
-      const containerWidth = containerRef.current.clientWidth - (isProjectorMode ? 16 : 48);
-      const containerHeight = containerRef.current.clientHeight - (isProjectorMode ? 80 : 120);
+
+      const measuredWidth =
+        containerRef.current.clientWidth ||
+        (typeof window !== "undefined" ? window.innerWidth * (isProjectorMode ? 1.0 : 0.85) : 800);
+      const measuredHeight =
+        containerRef.current.clientHeight && containerRef.current.clientHeight > 200
+          ? containerRef.current.clientHeight
+          : (typeof window !== "undefined" ? window.innerHeight * (isProjectorMode ? 1.0 : 0.72) : 600);
+
+      const containerWidth = Math.max(280, measuredWidth - (isProjectorMode ? 16 : 48));
+      const containerHeight = Math.max(280, measuredHeight - (isProjectorMode ? 80 : 120));
 
       if (containerWidth <= 0 || containerHeight <= 0) return 1.0;
 
@@ -580,13 +589,13 @@ export function TilawatDuaViewer({
             />
           </div>
         ) : (
-          <div className="relative flex items-center justify-center transition-all duration-200 max-w-full max-h-full">
+          <div className="relative flex items-center justify-center transition-all duration-200 max-w-full max-h-full m-auto">
             {/* Canvas with smooth shadow and rounded corners */}
             <div
-              className="relative shadow-2xl rounded-lg overflow-hidden transition-all duration-200"
+              className="relative shadow-2xl rounded-lg overflow-hidden transition-all duration-200 m-auto flex items-center justify-center"
               style={getColorFilterStyle()}
             >
-              <canvas ref={canvasRef} className="block max-w-full h-auto cursor-grab active:cursor-grabbing" />
+              <canvas ref={canvasRef} className="block max-w-full h-auto cursor-grab active:cursor-grabbing mx-auto my-auto" />
             </div>
 
             {/* Subtle Screen Page Indicator Overlay in Projector Mode */}
