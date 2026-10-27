@@ -1195,21 +1195,36 @@ export async function processBiometricScan(
           });
         }
 
-        return pushEvent({
-          type: "DUPLICATE",
-          fingerprint,
-          deviceId: deviceId ?? null,
-          role: "TEACHER",
-          isDuplicate: true,
-          teacher: {
-            ...teacherInfo,
-            status: existingTeacherRecord.status as "PRESENT" | "LATE",
-            attendanceId: existingTeacherRecord.id,
+        // A row without a real check-in time (manual/quick-mark stub) must not
+        // swallow the scan — heal the real time in before reporting duplicate.
+        if (firstCheckIn) {
+          return pushEvent({
+            type: "DUPLICATE",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            isDuplicate: true,
+            teacher: {
+              ...teacherInfo,
+              status: existingTeacherRecord.status as "PRESENT" | "LATE",
+              attendanceId: existingTeacherRecord.id,
+            },
+            message: `Faculty Verified (Already checked in at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
+            verifyMode: method,
+            scanWindow: windowPayload(facultyWindow),
+          }, when, false);
+        }
+
+        await prisma.teacherAttendanceRecord.update({
+          where: { teacherId_date: { teacherId: teacher.id, date } },
+          data: {
+            checkInTime: when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? null : method,
+            biometricHash: fingerprint,
           },
-          message: `Faculty Verified (Already checked in at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
-          verifyMode: method,
-          scanWindow: windowPayload(facultyWindow),
-        }, when, false);
+        });
+        cache.invalidateTag("teacherAttendanceRecord");
       }
 
       const teacherRecord = await prisma.teacherAttendanceRecord.upsert({
@@ -1352,12 +1367,17 @@ export async function processBiometricScan(
         include: { class: { select: { name: true, subject: true } } },
       });
 
+      // A "prior valid" row must carry a REAL scan time. The scheduler's
+      // default-present fallback (checkInTime: null) must not be treated as an
+      // already-checked-in scan — that swallowed genuine late/caught-up scans
+      // and left the row without a time on the cloud deployment.
       const priorValidRecord = existingRecords.find(
         (r) =>
-          r.status === "PRESENT" ||
-          r.status === "LATE" ||
-          r.status === "ON_LEAVE" ||
-          r.status === "MEDICAL"
+          (r.status === "PRESENT" ||
+            r.status === "LATE" ||
+            r.status === "ON_LEAVE" ||
+            r.status === "MEDICAL") &&
+          r.checkInTime
       );
       if (priorValidRecord) {
         const firstCheckIn = priorValidRecord.checkInTime;
@@ -1397,6 +1417,44 @@ export async function processBiometricScan(
           verifyMode: method,
           scanWindow: windowPayload(studentWindow),
         }, when, false);
+      }
+
+      // Self-heal: auto-present fallback rows (status PRESENT/LATE… but
+      // checkInTime: null, written by the scheduler cutoff) must be filled in
+      // with the real scan time instead of silently hiding it forever.
+      const staleAutoPresent = existingRecords.filter(
+        (r) =>
+          (r.status === "PRESENT" ||
+            r.status === "LATE" ||
+            r.status === "ON_LEAVE" ||
+            r.status === "MEDICAL") &&
+          !r.checkInTime
+      );
+      if (staleAutoPresent.length > 0) {
+        await prisma.attendanceRecord.updateMany({
+          where: { studentId: student.id, date, checkInTime: null },
+          data: {
+            checkInTime: when,
+            source: "BIOMETRIC",
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
+            biometricHash: fingerprint,
+            justification: null,
+          },
+        });
+        await prisma.attendanceRegistry.updateMany({
+          where: { studentId: student.id, date, checkInTime: null },
+          data: {
+            checkInTime: when,
+            source: "BIOMETRIC",
+            remarks: deviceId || "hikvision:scan",
+          },
+        });
+
+        cache.invalidateTag("attendanceRecord");
+        cache.invalidateTag("attendanceRegistry");
+        cache.invalidateTag("dashboard");
+        cache.invalidateTag("stats");
       }
 
       // Unscanned during event window was marked ABSENT -> scanning in premises marks PRESENT!
@@ -1442,14 +1500,17 @@ export async function processBiometricScan(
     status = "PRESENT";
   }
 
-  // Check if attendance is already recorded for this talabat today
+  // Check if attendance is already recorded for this talabat today.
+  // Only rows carrying a REAL scan time count — auto-present fallback rows
+  // (checkInTime: null) must fall through so the genuine scan time lands.
   const existingRecords = await prisma.attendanceRecord.findMany({
     where: { studentId: student.id, date, verificationMethod: "BIOMETRIC" },
     include: { class: { select: { name: true, subject: true } } },
   });
+  const checkedRecords = existingRecords.filter((r) => r.checkInTime);
 
-  if (existingRecords.length > 0) {
-    const firstCheckIn = existingRecords[0].checkInTime;
+  if (checkedRecords.length > 0) {
+    const firstCheckIn = checkedRecords[0].checkInTime;
     const timeStr = firstCheckIn
       ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
       : timeFormatted12;
@@ -1491,6 +1552,7 @@ export async function processBiometricScan(
             verificationMethod: "BIOMETRIC",
             biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
             biometricHash: fingerprint,
+            justification: null,
           },
         });
       }
@@ -1545,6 +1607,7 @@ export async function processBiometricScan(
           verificationMethod: "BIOMETRIC",
           biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
           biometricHash: fingerprint,
+          justification: null,
         },
       });
 
