@@ -53,15 +53,44 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
 
         // Get biometric scan records (Tilawat al Dua) for this month
         const scanWindow = await getScanWindow("STUDENT");
-        const rawBiometricRecords = await prisma.attendanceRecord.findMany({
-          where: {
-            studentId: studentProfile.id,
-            date: { gte: monthStart, lte: monthEnd },
-            verificationMethod: "BIOMETRIC",
-          },
-          orderBy: { date: "desc" },
-        });
-        const biometricRecords = rawBiometricRecords.filter((r) => !isRabiAlAkhirDate(r.date));
+        const [rawBiometricRecords, rawBiometricRegistries] = await Promise.all([
+          prisma.attendanceRecord.findMany({
+            where: {
+              studentId: studentProfile.id,
+              date: { gte: monthStart, lte: monthEnd },
+              OR: [
+                { verificationMethod: "BIOMETRIC" },
+                { biometricMethod: { not: null } },
+                { checkInTime: { not: null } },
+              ],
+            },
+            orderBy: { date: "desc" },
+          }),
+          prisma.attendanceRegistry.findMany({
+            where: {
+              studentId: studentProfile.id,
+              date: { gte: monthStart, lte: monthEnd },
+              OR: [
+                { source: "BIOMETRIC" },
+                { checkInTime: { not: null } },
+              ],
+            },
+            orderBy: { date: "desc" },
+          }),
+        ]);
+
+        const mergedBiometricMap = new Map<string, any>();
+        for (const reg of rawBiometricRegistries) {
+          if (!isRabiAlAkhirDate(reg.date)) {
+            mergedBiometricMap.set(reg.date.toISOString().slice(0, 10), reg);
+          }
+        }
+        for (const rec of rawBiometricRecords) {
+          if (!isRabiAlAkhirDate(rec.date)) {
+            mergedBiometricMap.set(rec.date.toISOString().slice(0, 10), rec);
+          }
+        }
+        const biometricRecords = Array.from(mergedBiometricMap.values());
 
         // Recent records (excluding Rabi ul Akhar, take 20)
         const rawRecentRecords = await prisma.attendanceRecord.findMany({

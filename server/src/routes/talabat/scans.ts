@@ -50,14 +50,27 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         const [perClassRecords, registries] = await Promise.all([
           // Per-class biometric records (written only for enrolled classes)
           prisma.attendanceRecord.findMany({
-            where: { studentId: profile.id, verificationMethod: "BIOMETRIC" },
+            where: {
+              studentId: profile.id,
+              OR: [
+                { verificationMethod: "BIOMETRIC" },
+                { biometricMethod: { not: null } },
+                { checkInTime: { not: null } },
+              ],
+            },
             include: { class: { select: { name: true, subject: true } } },
             orderBy: { checkInTime: "desc" },
             take: 300,
           }),
           // Daily registry: the authoritative "this talib scanned today" row
           prisma.attendanceRegistry.findMany({
-            where: { studentId: profile.id, source: "BIOMETRIC" },
+            where: {
+              studentId: profile.id,
+              OR: [
+                { source: "BIOMETRIC" },
+                { checkInTime: { not: null } },
+              ],
+            },
             orderBy: [{ date: "desc" }, { checkInTime: "desc" }],
             take: 300,
           }),

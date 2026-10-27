@@ -154,12 +154,14 @@ export default function TalabatScansPage() {
                         >
                           {scan.status === "PRESENT" ? "Present" : "Late"}
                         </Badge>
-                        <span className="text-xs text-gray-500 shrink-0">
-                          <Clock className="w-3 h-3 inline mr-1" />
+                        <span className="text-xs text-gray-500 shrink-0 font-mono font-medium">
+                          <Clock className="w-3 h-3 inline mr-1 text-emerald-600" />
                           {scan.checkInTime
-                            ? new Date(scan.checkInTime).toLocaleTimeString("en-US", {
+                            ? new Date(scan.checkInTime).toLocaleTimeString("en-IN", {
+                                timeZone: "Asia/Kolkata",
                                 hour: "2-digit",
                                 minute: "2-digit",
+                                hour12: true,
                               })
                             : "—"}
                         </span>

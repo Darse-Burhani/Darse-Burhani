@@ -74,6 +74,11 @@ export function resolveAliasIts(
     return MURTAZA_CHHATARIYA_ITS;
   }
 
+  // Shaikh Murtaza Jamali (30387984 - enrolled on device as 3038798)
+  if (primary === "3038798" || secondary === "3038798" || /murtaza.*jamali/i.test(combined)) {
+    return "30387984";
+  }
+
   // If secondary is a valid 8-digit ITS (e.g. name is "30150861")
   if (/^\d{8}$/.test(secondary)) {
     return secondary;

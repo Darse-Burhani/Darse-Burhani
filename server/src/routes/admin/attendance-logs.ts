@@ -288,6 +288,8 @@ router.get("/", requireAuth, async (req, res) => {
 
         // Biometric scan exists only if not manually recorded/overridden
         const hasBiometricScan = !isManuallyRecorded && Boolean(
+          record?.checkInTime ||
+          registry?.checkInTime ||
           (record && record.verificationMethod === "BIOMETRIC") ||
           (registry && registry.source === "BIOMETRIC")
         );
@@ -317,7 +319,7 @@ router.get("/", requireAuth, async (req, res) => {
           effectiveStatus = registry.status;
           checkInTime = registry.checkInTime?.toISOString() || null;
           checkOutTime = registry.checkOutTime?.toISOString() || null;
-          remarks = registry.remarks;
+          remarks = registry.remarks || record?.justification || null;
 
           if (hasBiometricScan) {
             effectiveSource = "SCAN";
@@ -345,7 +347,7 @@ router.get("/", requireAuth, async (req, res) => {
           effectiveStatus = record.status;
           checkInTime = record.checkInTime?.toISOString() || null;
           checkOutTime = record.checkOutTime?.toISOString() || null;
-          remarks = record.justification;
+          remarks = record.justification || registry?.remarks || null;
 
           if (hasBiometricScan) {
             effectiveSource = "SCAN";
@@ -708,11 +710,15 @@ router.post("/poll-now", requireAuth, async (req, res) => {
   try {
     const targetDateStr = (req.query.date || req.body?.date) as string | undefined;
     const isToday = !targetDateStr || targetDateStr === new Date().toISOString().split("T")[0];
-    const rangeStart = targetDateStr ? getStartOfDayIST(targetDateStr) : getStartOfTodayIST();
-    const rangeEnd = isToday ? new Date() : new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayStartIST = targetDateStr ? getStartOfDayIST(targetDateStr) : getStartOfDayIST();
+    // Device range start: 00:00:00 IST of target date (UTC midnight minus 5.5 hours)
+    const deviceRangeStart = targetDateStr
+      ? new Date(dayStartIST.getTime() - 5.5 * 60 * 60 * 1000)
+      : getStartOfTodayIST();
+    const rangeEnd = isToday ? new Date() : new Date(dayStartIST.getTime() + 24 * 60 * 60 * 1000);
 
-    const result = await pullAllDevicesScansForRange(rangeStart, rangeEnd);
-    await syncGateRegistryToClassAttendance(rangeStart);
+    const result = await pullAllDevicesScansForRange(deviceRangeStart, rangeEnd);
+    await syncGateRegistryToClassAttendance(dayStartIST);
     const unreachable = result.devices.filter((d) => !d.success);
     const dateLabel = isToday ? "today" : targetDateStr;
     const summary = `Pulled ${result.totalFetched} scans for ${dateLabel} across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;

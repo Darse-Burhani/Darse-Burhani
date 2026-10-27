@@ -874,6 +874,7 @@ export async function syncGateRegistryToClassAttendance(targetDate?: Date): Prom
           checkOutTime: reg.checkOutTime || null,
           verificationMethod: isBio ? "BIOMETRIC" : "AUTO_SYSTEM",
           biometricMethod: isBio ? "FACIAL" : null,
+          justification: reg.remarks || null,
           recordedById: reg.recordedById || en.studentId,
         },
         update: {
@@ -883,6 +884,7 @@ export async function syncGateRegistryToClassAttendance(targetDate?: Date): Prom
           checkOutTime: reg.checkOutTime || undefined,
           verificationMethod: isBio ? "BIOMETRIC" : undefined,
           biometricMethod: isBio ? "FACIAL" : undefined,
+          justification: reg.remarks || undefined,
         },
       }).catch(() => {});
     }

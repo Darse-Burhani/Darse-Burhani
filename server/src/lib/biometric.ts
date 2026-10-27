@@ -1571,11 +1571,14 @@ export async function processBiometricScan(
       status: status as any,
       source: "BIOMETRIC",
       checkInTime: when,
+      remarks: deviceId || "hikvision:192.168.0.4",
       recordedById: student.userId,
     },
     update: {
       status: status as any,
+      source: "BIOMETRIC",
       checkInTime: when,
+      remarks: deviceId || "hikvision:192.168.0.4",
     },
   }).catch((err) => console.error("[biometric] AttendanceRegistry upsert warning:", err));
 

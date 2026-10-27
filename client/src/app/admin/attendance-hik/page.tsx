@@ -967,7 +967,7 @@ export default function AdminAttendanceHikPage() {
               Full Strength Roster
             </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-emerald-300 shrink-0">
-              {stats.totalPunched} scanned / {stats.audienceFullStrength} enrolled
+              {audience === "STUDENT" ? stats.studentPunched : audience === "FACULTY" ? stats.facultyPunched : stats.totalPunched} scanned / {stats.audienceFullStrength} enrolled
             </span>
           </div>
 
@@ -1108,7 +1108,9 @@ export default function AdminAttendanceHikPage() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">Unscanned</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 mt-0.5">
+                            Not Scanned (Absent)
+                          </span>
                         )}
                       </div>
 
@@ -1126,7 +1128,7 @@ export default function AdminAttendanceHikPage() {
                               </span>
                             </>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic">No Terminal Scan</span>
+                            <span className="text-[11px] text-slate-400 font-mono">—</span>
                           )}
                         </div>
                       </div>
@@ -1287,8 +1289,8 @@ export default function AdminAttendanceHikPage() {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-[10.5px] text-slate-400 font-mono italic">
-                              Unscanned
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200">
+                              Not Scanned (Absent)
                             </span>
                           )}
                         </td>
@@ -1317,7 +1319,7 @@ export default function AdminAttendanceHikPage() {
                               </div>
                             </>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic">No Scan</span>
+                            <span className="text-[11px] text-slate-400 font-mono">—</span>
                           )}
                         </td>
 
