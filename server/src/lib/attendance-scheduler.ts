@@ -923,7 +923,11 @@ export function startAttendanceScheduler() {
         // B. Real-time timetable period attendance sync
         await syncClassPeriodAttendance(now);
 
-        // C. Continuous self-healing gate check-in propagation to all classes
+        // C. Continuous self-healing terminal scan poll & gate check-in propagation to all classes
+        try {
+          const { pullAllDevicesScansForRange, getStartOfTodayIST } = await import("./hikvision");
+          await pullAllDevicesScansForRange(getStartOfTodayIST());
+        } catch {}
         await syncGateRegistryToClassAttendance(now);
       }
 

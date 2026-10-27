@@ -57,9 +57,8 @@ if (useClustering && cluster.isPrimary) {
 
   // Start background singletons on master only to prevent redundant polling across workers
   const isPollingCloud = Boolean(
-    isCloud ||
     process.env.DISABLE_DEVICE_POLLING === "true" ||
-    (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
+    ((isCloud || process.env.RENDER || process.env.VERCEL) && process.env.ENABLE_LAN_POLLING !== "true")
   );
 
   if (!isPollingCloud) {
@@ -129,14 +128,12 @@ if (useClustering && cluster.isPrimary) {
         }
       }
 
-      const isCloud = Boolean(
-        process.env.RENDER ||
-        process.env.VERCEL ||
+      const isCloudDeployment = Boolean(
         process.env.DISABLE_DEVICE_POLLING === "true" ||
-        (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
+        ((process.env.RENDER || process.env.VERCEL) && process.env.ENABLE_LAN_POLLING !== "true")
       );
 
-      if (!isCloud) {
+      if (!isCloudDeployment) {
         startDevicePolling()
           .then(() => console.log("[hikvision] device poller started"))
           .catch((error) => console.error("[hikvision] failed to start device poller:", error));

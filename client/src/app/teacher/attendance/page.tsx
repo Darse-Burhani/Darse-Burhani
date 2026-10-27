@@ -876,10 +876,14 @@ export default function TeacherAttendancePage() {
                           </div>
                           <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             <span className="text-[11px] text-gray-400 font-mono">{s.studentNumber}</span>
-                            {s.checkInTime && (
+                            {s.checkInTime ? (
                               <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                                 <Clock className="w-3 h-3 text-emerald-600" />
                                 {s.checkInTime}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 italic">
+                                Unscanned
                               </span>
                             )}
                             {s.isBiometric && (

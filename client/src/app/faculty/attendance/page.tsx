@@ -546,10 +546,22 @@ export default function FacultyAttendancePage() {
                         )}
                         <div className="min-w-0">
                           <p className="text-xs font-black text-gray-950 truncate">{s.name}</p>
-                          <p className="text-[11px] text-gray-500 font-mono">
-                            ITS: {s.studentNumber || "—"}
-                            {s.grade ? ` · Grade ${s.grade}${s.section ? `-${s.section}` : ""}` : ""}
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <p className="text-[11px] text-gray-500 font-mono">
+                              ITS: {s.studentNumber || "—"}
+                              {s.grade ? ` · Grade ${s.grade}${s.section ? `-${s.section}` : ""}` : ""}
+                            </p>
+                            {s.checkInTime ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                <Clock className="w-2.5 h-2.5 text-emerald-600" />
+                                {s.checkInTime}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-400 italic bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                Unscanned
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 

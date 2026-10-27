@@ -3,7 +3,7 @@ import prisma from "../../lib/prisma";
 import { requireRole, requireAuth } from "../../middleware";
 import { normalizeDateToUTC } from "../../lib/leave-service";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
-import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan } from "../../lib/attendance-scheduler";
+import { runAutoMarkAbsentJob, runAutoMarkFacultyAbsentJob, markSheetSyncRan, syncGateRegistryToClassAttendance } from "../../lib/attendance-scheduler";
 import {
   sheetSyncStatus,
   isSheetSyncConfigured,
@@ -60,7 +60,8 @@ function matchScheduledEvent(
     }
     const range = eventRangeForRole(ww, isFaculty ? "TEACHER" : "STUDENT");
     if (!range || !range.enabled) return false;
-    return istMinutes >= range.startMin && istMinutes <= range.lateMin;
+    const windowStartBuffer = Math.max(0, range.startMin - 120);
+    return istMinutes >= windowStartBuffer && istMinutes <= range.lateMin;
   });
 
   if (inWindow.length === 0) {
@@ -243,7 +244,6 @@ router.get("/", requireAuth, async (req, res) => {
           classEnrollments: {
             where: { isActive: true },
             include: { class: { select: { id: true, name: true, grade: true, section: true } } },
-            take: 1,
           },
           attendanceRegistries: {
             where: { date: { gte: dayStart, lt: dayEnd } },
@@ -383,7 +383,10 @@ router.get("/", requireAuth, async (req, res) => {
           its: s.its || s.studentId,
           grade: s.grade,
           section: s.section,
-          designationOrClass: s.classEnrollments[0]?.class?.name || `Grade ${s.grade}-${s.section}`,
+          designationOrClass:
+            s.classEnrollments?.find((e) => e.class?.name && !/general/i.test(e.class.name))?.class?.name ||
+            s.classEnrollments?.[0]?.class?.name ||
+            (s.grade && s.section ? `${s.grade} ${s.section}` : `Grade ${s.grade || "1"}-${s.section || "A"}`),
           status: effectiveStatus,
           source: effectiveSource,
           verificationMethod,
@@ -709,6 +712,7 @@ router.post("/poll-now", requireAuth, async (req, res) => {
     const rangeEnd = isToday ? new Date() : new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
 
     const result = await pullAllDevicesScansForRange(rangeStart, rangeEnd);
+    await syncGateRegistryToClassAttendance(rangeStart);
     const unreachable = result.devices.filter((d) => !d.success);
     const dateLabel = isToday ? "today" : targetDateStr;
     const summary = `Pulled ${result.totalFetched} scans for ${dateLabel} across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;

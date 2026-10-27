@@ -914,12 +914,9 @@ export async function pollDevice(
 }
 
 function isCloudEnvironment(): boolean {
-  return Boolean(
-    process.env.RENDER ||
-    process.env.VERCEL ||
-    process.env.DISABLE_DEVICE_POLLING === "true" ||
-    (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
-  );
+  if (process.env.ENABLE_LAN_POLLING === "true") return false;
+  if (process.env.DISABLE_DEVICE_POLLING === "true") return true;
+  return Boolean(process.env.RENDER || process.env.VERCEL);
 }
 
 function isPrivateLanIp(host?: string): boolean {

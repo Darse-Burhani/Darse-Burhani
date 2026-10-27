@@ -1115,13 +1115,19 @@ export default function AdminAttendanceHikPage() {
                       <div>
                         <div className="text-[10px] font-bold uppercase text-slate-400">Terminal &amp; Mode</div>
                         <div className="mt-0.5 flex flex-col">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 truncate">
-                            <Fingerprint className="w-3 h-3 text-emerald-600 shrink-0" />
-                            {r.biometricMethod === "FACIAL" ? "Facial Scan" : "Fingerprint"}
-                          </span>
-                          <span className="text-[9.5px] text-slate-400 font-mono truncate">
-                            {r.remarks?.includes("192.168.0.5") ? "Secondary (192.168.0.5)" : "Main MinMoe (192.168.0.4)"}
-                          </span>
+                          {hasScan ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 truncate">
+                                <Fingerprint className="w-3 h-3 text-emerald-600 shrink-0" />
+                                {r.biometricMethod === "FACIAL" ? "Facial Scan" : "Biometric Scan"}
+                              </span>
+                              <span className="text-[9.5px] text-slate-400 font-mono truncate">
+                                {r.remarks?.includes("192.168.0.5") ? "Secondary (192.168.0.5)" : "Main MinMoe (192.168.0.4)"}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">No Terminal Scan</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1289,20 +1295,30 @@ export default function AdminAttendanceHikPage() {
 
                         {/* Biometric Mode */}
                         <td className="px-3 py-2.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
-                            <Fingerprint className="w-3 h-3 text-emerald-600" />
-                            <span>{r.biometricMethod === "FACIAL" ? "Facial Recognition" : "Fingerprint"}</span>
-                          </span>
+                          {hasScan ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
+                              <Fingerprint className="w-3 h-3 text-emerald-600" />
+                              <span>{r.biometricMethod === "FACIAL" ? "Facial Recognition" : "Biometric Scan"}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-mono italic">—</span>
+                          )}
                         </td>
 
                         {/* Device / Terminal */}
                         <td className="px-3 py-2.5 text-[11px] text-slate-600 font-mono">
-                          <div className="font-bold text-slate-800 truncate">
-                            {r.remarks?.includes("192.168.0.5") ? "Secondary Terminal" : "Main Entrance MinMoe"}
-                          </div>
-                          <div className="text-[9.5px] text-slate-400">
-                            {r.remarks?.includes("192.168.0.5") ? "192.168.0.5" : "192.168.0.4"}
-                          </div>
+                          {hasScan ? (
+                            <>
+                              <div className="font-bold text-slate-800 truncate">
+                                {r.remarks?.includes("192.168.0.5") ? "Secondary Terminal" : "Main Entrance MinMoe"}
+                              </div>
+                              <div className="text-[9.5px] text-slate-400">
+                                {r.remarks?.includes("192.168.0.5") ? "192.168.0.5" : "192.168.0.4"}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">No Scan</span>
+                          )}
                         </td>
 
                         {/* Attendance Status */}
