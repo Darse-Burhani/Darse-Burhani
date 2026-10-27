@@ -521,7 +521,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {/* ── HUB 1: Operations & Attendance ── */}
           <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm h-full flex flex-col">
             <div className="bg-white rounded-2xl p-5 flex flex-col justify-between h-full">

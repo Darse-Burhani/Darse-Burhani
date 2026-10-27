@@ -1219,7 +1219,7 @@ export default function AdminManualAttendancePage() {
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4 className="text-sm font-black text-gray-900 truncate font-display group-hover:text-emerald-900">
+                        <h4 className="text-sm font-black text-gray-900 leading-tight break-words min-w-0 font-display group-hover:text-emerald-900">
                           {member.name}
                         </h4>
                         <Badge
@@ -1299,7 +1299,7 @@ export default function AdminManualAttendancePage() {
                 <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Add attendance note / reason..."
+                    placeholder="Add note / reason..."
                     value={member.remarks || ""}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => handleRemarksChange(member.id, e.target.value)}

@@ -1271,7 +1271,7 @@ export default function AdminAttendanceHikPage() {
                         {/* Class / Department */}
                         <td className="px-3 py-2.5 text-slate-600">
                           <div className="font-semibold text-slate-800">{r.designationOrClass || "—"}</div>
-                          <div className="text-[10px] text-slate-400 font-medium">
+                          <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
                             {hijri.day} {hijri.monthNameShort}
                           </div>
                         </td>
@@ -1280,7 +1280,7 @@ export default function AdminAttendanceHikPage() {
                         <td className="px-4 py-2.5 text-center bg-emerald-50/30 border-x border-emerald-100/60">
                           {hasScan ? (
                             <div className="inline-flex flex-col items-center">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-mono shadow-xs">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-mono shadow-xs whitespace-nowrap">
                                 <Clock className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
                                 <span>{formatScanTimeIST(r.checkInTime)}</span>
                               </span>
@@ -1289,7 +1289,7 @@ export default function AdminAttendanceHikPage() {
                               </span>
                             </div>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 whitespace-nowrap">
                               Not Scanned (Absent)
                             </span>
                           )}
@@ -1298,7 +1298,7 @@ export default function AdminAttendanceHikPage() {
                         {/* Biometric Mode */}
                         <td className="px-3 py-2.5">
                           {hasScan ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs whitespace-nowrap">
                               <Fingerprint className="w-3 h-3 text-emerald-600" />
                               <span>{r.biometricMethod === "FACIAL" ? "Facial Recognition" : "Biometric Scan"}</span>
                             </span>
@@ -1326,7 +1326,7 @@ export default function AdminAttendanceHikPage() {
                         {/* Attendance Status */}
                         <td className="px-3 py-2.5 text-center">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black border tracking-wide shadow-2xs ${badgeInfo.bg}`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black border tracking-wide shadow-2xs whitespace-nowrap ${badgeInfo.bg}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${badgeInfo.dot}`} />
                             <span>{badgeInfo.label}</span>
