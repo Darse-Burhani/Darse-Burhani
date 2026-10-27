@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   ArrowRightLeft,
   Calendar,
+  Tv,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,7 @@ const portalOptions = [
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock, description: "Track your attendance & record logs", chip: "Record" },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays, description: "View the Fatimi academic calendar", chip: "Schedule" },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen, description: "Explore every rack, shelf & book", chip: "Books" },
+  { key: "tilawatDua", label: "Tilawat Dua", href: "/talabat/tilawat-dua", icon: BookOpen, description: "Daily recitation & classroom projector display", chip: "Daily" },
   { key: "badges", label: "Badges", href: "/talabat/badges", icon: Medal, description: "Collect achievements & milestones", chip: "Awards" },
   { key: "skillTree", label: "Skill Tree", href: "/talabat/skill-tree", icon: GitBranch, description: "Track 4C attribute development", chip: "Growth" },
   { key: "profile", label: "Profile", href: "/talabat/profile", icon: User, description: "Manage your personal information", chip: "Profile" },
@@ -80,7 +82,18 @@ export default function TalabatDashboard() {
         }
       })
       .catch(() => {});
+
+    fetch("/api/tilawat-dua/today")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data) {
+          setTodayDua(res.data);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const [todayDua, setTodayDua] = useState<any>(null);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -180,6 +193,50 @@ export default function TalabatDashboard() {
 
           {/* ═══════════ Student Academic Identity Card ═══════════ */}
           <PremiumTalabatCard data={data} />
+
+          {/* ═══════════ Daily Tilawat Dua Hero Banner ═══════════ */}
+          {todayDua && (
+            <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.03, ease: "easeOut" }}>
+              <div className="p-1 rounded-3xl bg-amber-500/10 ring-1 ring-amber-500/20 overflow-hidden shadow-sm">
+                <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950/70 text-white rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/20">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                          Today's Tilawat Dua
+                        </Badge>
+                        <span className="text-xs text-amber-200/80 font-mono">Spiritual Recitation</span>
+                      </div>
+                      <h3 className="text-lg font-extrabold text-white mt-0.5">{todayDua.title}</h3>
+                      {todayDua.description && (
+                        <p className="text-xs text-slate-300 line-clamp-1">{todayDua.description}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 self-start md:self-center shrink-0">
+                    <Link
+                      href="/tilawat-dua/projector"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95"
+                    >
+                      <Tv className="w-3.5 h-3.5" />
+                      <span>Projector View</span>
+                    </Link>
+                    <Link
+                      href="/talabat/tilawat-dua"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition"
+                    >
+                      <span>Read Dua</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* ═══════════ Today's Timetable & Masool al-Fasl Widget ═══════════ */}
           {timetableData && (

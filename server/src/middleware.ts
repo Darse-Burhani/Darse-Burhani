@@ -76,6 +76,7 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/assignments")) return ["student-assignments"];
   if (url.includes("/api/hobbies")) return ["hobbies"];
   if (url.includes("/api/skills")) return ["talabat-skills"];
+  if (url.includes("/api/tilawat-dua") || url.includes("/api/admin/tilawat-dua")) return ["tilawat-dua"];
 
   return [];
 }

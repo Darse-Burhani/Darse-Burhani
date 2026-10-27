@@ -36,6 +36,7 @@ import {
   Star,
   ArrowUpRight,
   RefreshCw,
+  Tv,
 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -241,8 +242,17 @@ export default function ExpertTeacherDashboard() {
         }
         setTakhteetLoading(false);
       })
-      .catch(() => setTakhteetLoading(false));
+    fetch("/api/tilawat-dua/today")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data) {
+          setTodayDua(res.data);
+        }
+      })
+      .catch(() => {});
   }, [loadDashboardData]);
+
+  const [todayDua, setTodayDua] = useState<any>(null);
 
   // Filter and sort students
   const filteredStudents = useMemo(() => {
@@ -493,6 +503,15 @@ export default function ExpertTeacherDashboard() {
 
             {/* Action Island: Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              <Link href="/teacher/tilawat-dua" className="group">
+                <button className="h-11 px-4 rounded-full bg-amber-500/25 hover:bg-amber-500/35 text-amber-200 border border-amber-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98] shadow-md shadow-amber-500/10">
+                  <span>Tilawat Dua Projector</span>
+                  <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                    <Tv className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              </Link>
+
               {can("classes") && students.length > 0 && (
                 <Link href="/teacher/classes" className="group">
                   <button className="h-11 px-5 rounded-full bg-[#ffe082] hover:bg-[#ffd54f] text-emerald-950 font-black text-xs transition-all duration-200 flex items-center gap-3 shadow-lg hover:shadow-xl active:scale-[0.98]">
@@ -538,6 +557,55 @@ export default function ExpertTeacherDashboard() {
           </div>
         </div>
       </motion.div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          DAILY TILAWAT DUA CLASSROOM BANNER
+         ───────────────────────────────────────────────────────────── */}
+      {todayDua && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.05, ease: "easeOut" }}
+          className="p-1 rounded-3xl bg-amber-500/10 ring-1 ring-amber-500/20 overflow-hidden shadow-sm"
+        >
+          <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950/70 text-white rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/20">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                    Daily Tilawat Dua
+                  </Badge>
+                  <span className="text-xs text-amber-200/80 font-mono">Classroom Recitation</span>
+                </div>
+                <h3 className="text-lg font-extrabold text-white mt-0.5">{todayDua.title}</h3>
+                {todayDua.description && (
+                  <p className="text-xs text-slate-300 line-clamp-1">{todayDua.description}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 self-start md:self-center shrink-0">
+              <Link
+                href="/tilawat-dua/projector"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition active:scale-95"
+              >
+                <Tv className="w-3.5 h-3.5" />
+                <span>Launch Projector</span>
+              </Link>
+              <Link
+                href="/teacher/tilawat-dua"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition"
+              >
+                <span>Open Dua Viewer</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
           2. MACHINED HUD METRICS BENTO (DOUBLE-BEZEL)

@@ -134,6 +134,12 @@ const navItems: PortalNavItem[] = [
     icon: Sparkles,
     category: "Academics",
   },
+  {
+    label: "Tilawat Dua",
+    href: "/admin/tilawat-dua",
+    icon: BookOpen,
+    category: "Academics",
+  },
 
   // ── Talabat & Community ──
   {

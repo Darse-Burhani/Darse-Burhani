@@ -347,7 +347,7 @@ router.get("/", requireAuth, async (req, res) => {
           effectiveStatus = record.status;
           checkInTime = record.checkInTime?.toISOString() || null;
           checkOutTime = record.checkOutTime?.toISOString() || null;
-          remarks = record.justification || registry?.remarks || null;
+          remarks = record.justification || null;
 
           if (hasBiometricScan) {
             effectiveSource = "SCAN";

@@ -1504,6 +1504,31 @@ model TalabatProfile1447 {
   @@map("talabat_profiles_1447")
 }
 
+model TilawatDua {
+  id             String    @id @default(cuid())
+  title          String
+  description    String?   @db.Text
+  pdfUrl         String
+  fileName       String
+  fileSize       Int?
+  pageCount      Int?      @default(1)
+  date           DateTime  @default(now())
+  isActive       Boolean   @default(true)
+  isDailyDefault Boolean   @default(false)
+  targetAudience String    @default("ALL") // "ALL", "FACULTY", "TALABAT", "MARHALA", "CLASS"
+  targetMarhala  String?
+  targetClassIds String[]  @default([])
+  uploadedById   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([date])
+  @@index([isActive])
+  @@index([isDailyDefault])
+  @@index([targetAudience])
+  @@map("tilawat_dua")
+}
+
 
 
 

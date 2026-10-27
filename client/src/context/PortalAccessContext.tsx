@@ -24,6 +24,7 @@ const defaultModules: PortalModulesConfig = {
     skillTree: true,
     badges: true,
     profile: true,
+    tilawatDua: true,
   },
   teacher: {
     dashboard: true,
@@ -36,6 +37,7 @@ const defaultModules: PortalModulesConfig = {
     hifz: true,
     profile: true,
     pointMatrix: false,
+    tilawatDua: true,
   },
 };
 
@@ -50,6 +52,7 @@ const DEFAULT_TEACHER_BASE_PAGES = [
   "my-attendance",
   "student-assignments",
   "procurement",
+  "tilawat-dua",
 ];
 
 interface PortalAccessContextType {
@@ -107,6 +110,7 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "procurement" || clean === "desk-requisition" || clean === "requisition" || clean === "supplies") return "procurement";
   if (clean === "notifications" || clean === "broadcasts") return "notifications";
   if (clean === "security" || clean === "audit") return "security";
+  if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua") return "tilawat-dua";
   return clean;
 }
 
@@ -115,6 +119,7 @@ export function normalizePageKey(keyOrPath: string): string {
  * Nav items sometimes use different keys than the module lock system.
  */
 function navKeyToModuleConfigKey(navKey: string): string {
+  if (navKey === "tilawat-dua" || navKey === "tilawat_dua") return "tilawatDua";
   if (navKey === "quran" || navKey === "hifz-marhala" || navKey === "hifz-weekly-slip") return "hifz";
   if (
     navKey === "manual-attendance" ||
@@ -223,7 +228,8 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
           key === "timetable" ||
           key === "my-attendance" ||
           key === "student-assignments" ||
-          key === "procurement"
+          key === "procurement" ||
+          key === "tilawat-dua"
         );
       }
 
@@ -243,7 +249,8 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         key === "timetable" ||
         key === "my-attendance" ||
         key === "student-assignments" ||
-        key === "procurement"
+        key === "procurement" ||
+        key === "tilawat-dua"
       ) {
         return true;
       }

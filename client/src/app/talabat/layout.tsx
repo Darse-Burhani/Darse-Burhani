@@ -29,6 +29,7 @@ const rawNavItems = [
   { key: "hobbies", label: "Hobbies & Skills", href: "/talabat/hobbies", icon: Palette },
   { key: "skillTree", label: "Skill Tree", href: "/talabat/skill-tree", icon: BarChart3 },
   { key: "badges", label: "Badges", href: "/talabat/badges", icon: Shield },
+  { key: "tilawatDua", label: "Tilawat Dua", href: "/talabat/tilawat-dua", icon: BookOpen },
   { key: "profile", label: "My Profile", href: "/talabat/profile", icon: User },
 ];
 

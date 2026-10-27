@@ -59,6 +59,11 @@ const AdminGoogleSheets = lazy(() => import("@/app/admin/google-sheets/page"));
 const AdminHifz = lazy(() => import("@/app/admin/hifz/page"));
 const AdminHifzMarhala = lazy(() => import("@/app/admin/hifz-marhala/page"));
 const AdminSettings = lazy(() => import("@/app/admin/settings/page"));
+const AdminTilawatDua = lazy(() => import("@/app/admin/tilawat-dua/page"));
+const TalabatTilawatDua = lazy(() => import("@/app/talabat/tilawat-dua/page"));
+const TeacherTilawatDua = lazy(() => import("@/app/teacher/tilawat-dua/page"));
+const FacultyTilawatDua = lazy(() => import("@/app/faculty/tilawat-dua/page"));
+const DirectProjectorPage = lazy(() => import("@/app/tilawat-dua/projector/page"));
 
 // ── Talabat (Student) Portal Pages ──
 const TalabatLayout = lazy(() => import("@/app/talabat/layout"));
@@ -282,6 +287,7 @@ export default function App() {
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="talabat-profiles"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="profile-1447" element={<Navigate to="/admin/talabat-profiles" replace />} />
+          <Route path="tilawat-dua" element={<RequireAdminPageAccess pageKey="tilawat-dua"><AdminTilawatDua /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
           <Route path="portal-locks" element={<Navigate to="/admin/settings" replace />} />
           <Route path="locking" element={<Navigate to="/admin/settings" replace />} />
@@ -319,6 +325,7 @@ export default function App() {
           <Route path="skill-tree" element={<ModuleLockGuard moduleKey="skillTree" role="STUDENT" title="Skill Tree"><TalabatSkillTree /></ModuleLockGuard>} />
           <Route path="assignments" element={<ModuleLockGuard moduleKey="assignments" role="STUDENT" title="Assignments"><TalabatAssignments /></ModuleLockGuard>} />
           <Route path="hobbies" element={<ModuleLockGuard moduleKey="hobbies" role="STUDENT" title="Hobbies & Skills"><TalabatHobbies /></ModuleLockGuard>} />
+          <Route path="tilawat-dua" element={<ModuleLockGuard moduleKey="tilawatDua" role="STUDENT" title="Tilawat Dua"><TalabatTilawatDua /></ModuleLockGuard>} />
         </Route>
 
         {/* ── Teacher Routes ── */}
@@ -389,6 +396,7 @@ export default function App() {
           <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><TeacherAssignments /></RequireAdminPageAccess>} />
           <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
+          <Route path="tilawat-dua" element={<TeacherTilawatDua />} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />
         </Route>
 
@@ -403,7 +411,12 @@ export default function App() {
         >
           <Route index element={<Navigate to="/faculty/attendance" replace />} />
           <Route path="attendance" element={<ModuleLockGuard moduleKey="faculty" role="TEACHER" title="Faculty Portal"><FacultyAttendance /></ModuleLockGuard>} />
+          <Route path="tilawat-dua" element={<FacultyTilawatDua />} />
         </Route>
+
+        {/* ── Direct Fullscreen Projector Route ── */}
+        <Route path="/tilawat-dua/projector" element={<RequireAuth><DirectProjectorPage /></RequireAuth>} />
+        <Route path="/projector/tilawat-dua" element={<RequireAuth><DirectProjectorPage /></RequireAuth>} />
 
         {/* ── Parent Routes ── */}
         <Route

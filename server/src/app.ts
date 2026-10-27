@@ -17,6 +17,7 @@ import publicLibraryTvRoutes from "./routes/public/library-tv";
 import procurementRoutes from "./routes/procurement";
 import healthRoutes from "./lib/health";
 import devAccessRoutes from "./routes/dev-access";
+import tilawatDuaRoutes from "./routes/tilawat-dua";
 
 // ── Admin routes ──
 import adminClassesRoutes from "./routes/admin/classes";
@@ -299,6 +300,8 @@ export function createApp() {
   app.use("/api/members", membersRoutes);
   app.use("/api/public/library-tv", publicLibraryTvRoutes);
   app.use("/api/procurement", procurementRoutes);
+  app.use("/api/tilawat-dua", tilawatDuaRoutes);
+  app.use("/api/admin/tilawat-dua", tilawatDuaRoutes);
 
   // ── Admin routes ──
   app.use("/api/admin/classes", adminClassesRoutes);

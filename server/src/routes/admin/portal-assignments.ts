@@ -46,6 +46,7 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "student-assignments", label: "Assignments", category: "Academics", description: "Create assignments, grade talabat & view skill assessments", path: "/teacher/assignments", icon: "ClipboardList" },
   { id: "talabat-skills", label: "Talabat Skills Records", category: "Academics", description: "Every talabat's skill %, test scores, assignment marks & hobbies", path: "/teacher/skills", icon: "Sparkles" },
   { id: "hobbies", label: "Hobbies & Skills", category: "Community", description: "View & manage talabat hobbies and skills", path: "/teacher/hobbies", icon: "Palette" },
+  { id: "tilawat-dua", label: "Tilawat Dua", category: "Academics", description: "Daily Tilawat Dua management, PDF viewer & projector display", path: "/teacher/tilawat-dua", icon: "BookOpen" },
 ];
 
 const PAGE_IDS = new Set(TEACHER_AVAILABLE_PAGES.map((p) => p.id));
@@ -99,6 +100,7 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "notifications" || clean === "broadcasts") return ["notifications"];
   if (clean === "security" || clean === "audit") return ["security"];
   if (clean === "settings") return ["settings"];
+  if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua") return ["tilawat-dua"];
   if (clean === "dashboard") return ["dashboard"];
   if (clean === "profile") return ["profile"];
   if (PAGE_IDS.has(clean)) return [clean];

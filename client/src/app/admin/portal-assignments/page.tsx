@@ -334,6 +334,13 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     description: "Biographical details, ITS credentials & security preferences",
     icon: User,
   },
+  {
+    id: "tilawat-dua",
+    label: "Tilawat Dua",
+    category: "Academics",
+    description: "Daily Tilawat Dua PDF management, dynamic viewer & projector presentation",
+    icon: BookOpen,
+  },
 ];
 
 // 70/30/10 tone system: neutral slate carries structure, emerald and gold

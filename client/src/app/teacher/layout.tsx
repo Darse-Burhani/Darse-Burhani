@@ -47,6 +47,7 @@ const rawNavItems = [
   { key: "takhteet", label: "Takhteet", href: "/teacher/takhteet", icon: Layers, category: "Academics" },
   { key: "student-assignments", label: "Assignments", href: "/teacher/assignments", icon: ClipboardList, category: "Academics" },
   { key: "talabat-skills", label: "Talabat Skills Records", href: "/teacher/skills", icon: Sparkles, category: "Academics" },
+  { key: "tilawat-dua", label: "Tilawat Dua", href: "/teacher/tilawat-dua", icon: BookOpen, category: "Academics" },
 
   // ── Attendance & Scanners ──
   { key: "manual-attendance", label: "Manual Attendance", href: "/teacher/attendance", icon: ClipboardCheck, category: "Attendance" },
