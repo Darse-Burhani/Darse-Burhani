@@ -97,6 +97,25 @@ function normalizeDeviceTime(raw) {
   return s;
 }
 
+function canonicalizeEmployeeNo(rawId, name) {
+  const id = String(rawId || '').trim();
+  const nameStr = String(name || '').trim();
+  const combined = `${id} ${nameStr}`.trim();
+
+  if (id === '2' || nameStr === '2') return '30489490';
+  if (id === '30450861' || nameStr === '30450861') return '30150861';
+  if (id === '40444603' || nameStr === '40444603') return '40444603';
+  if (id === '30489490' || nameStr === '30489490') return '30489490';
+  if (id === '30150861' || nameStr === '30150861') return '30150861';
+
+  if (/manpur/i.test(combined) || /mustafa\s*tailor/i.test(combined)) return '40444603';
+  if (/shk\s*abbas.*hamid|shaikh\s*abbas.*hamid|m.*murtaza.*sh.*abbas/i.test(combined)) return '30489490';
+  if (/chhatariya/i.test(combined)) return '30150861';
+
+  if (/^\d{8}$/.test(nameStr)) return nameStr;
+  return id;
+}
+
 // Pull all events with complete pagination loop
 async function pullAllDeviceEventsForDate(dev, dateStr) {
   const startTime = `${dateStr}T00:00:00+05:30`;
@@ -147,25 +166,6 @@ async function pullAllDeviceEventsForDate(dev, dateStr) {
         hasMore = false;
         break;
       }
-
-function canonicalizeEmployeeNo(rawId, name) {
-  const id = String(rawId || '').trim();
-  const nameStr = String(name || '').trim();
-  const combined = `${id} ${nameStr}`.trim();
-
-  if (id === '2' || nameStr === '2') return '30489490';
-  if (id === '30450861' || nameStr === '30450861') return '30150861';
-  if (id === '40444603' || nameStr === '40444603') return '40444603';
-  if (id === '30489490' || nameStr === '30489490') return '30489490';
-  if (id === '30150861' || nameStr === '30150861') return '30150861';
-
-  if (/manpur/i.test(combined) || /mustafa\s*tailor/i.test(combined)) return '40444603';
-  if (/shk\s*abbas.*hamid|shaikh\s*abbas.*hamid|m.*murtaza.*sh.*abbas/i.test(combined)) return '30489490';
-  if (/chhatariya/i.test(combined)) return '30150861';
-
-  if (/^\d{8}$/.test(nameStr)) return nameStr;
-  return id;
-}
 
       for (const item of list) {
         const rawEmp = item.employeeNoString || item.name || item.cardNo;
