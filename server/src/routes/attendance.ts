@@ -12,8 +12,17 @@ const router = Router();
 router.use("/schedule", adminAttendanceScheduleRoutes);
 
 function parseDay(dateStr: string | undefined): Date {
-  const d = new Date(dateStr || Date.now());
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  if (!dateStr) {
+    const now = new Date();
+    const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    return new Date(Date.UTC(istTime.getUTCFullYear(), istTime.getUTCMonth(), istTime.getUTCDate()));
+  }
+  const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
+  const d = new Date(dateStr);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
 // POST /api/attendance - Record a biometric attendance event (idempotent per student/class/day)
@@ -398,9 +407,10 @@ router.get("/", requireAuth, async (req, res) => {
         lte: new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000 - 1),
       };
     } else if (date) {
+      const parsedDay = parseDay(date);
       where.date = {
-        gte: new Date(date),
-        lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
+        gte: parsedDay,
+        lt: new Date(parsedDay.getTime() + 24 * 60 * 60 * 1000),
       };
     }
 
@@ -463,7 +473,7 @@ router.get("/", requireAuth, async (req, res) => {
       take: 300,
     });
 
-    // Merge Hikvision biometric punches from AttendanceRegistry if available
+    // Merge Hikvision biometric punches from AttendanceRegistry and ensure full class roster
     let enrichedRecords = records;
     if (date) {
       try {
@@ -477,21 +487,147 @@ router.get("/", requireAuth, async (req, res) => {
         const regMap = new Map<string, any>();
         registries.forEach((reg) => regMap.set(reg.studentId, reg));
 
+        // Also fetch general biometric records for scan details
+        const generalRecords = await prisma.attendanceRecord.findMany({
+          where: {
+            date: { gte: queryDateUTC, lt: nextDayUTC },
+            OR: [
+              { verificationMethod: "BIOMETRIC" },
+              { checkInTime: { not: null } },
+            ],
+          },
+        });
+        const genMap = new Map<string, any>();
+        generalRecords.forEach((gr) => {
+          if (!genMap.has(gr.studentId)) genMap.set(gr.studentId, gr);
+        });
+
+        const existingStudentIds = new Set(records.map((r) => r.studentId));
+
         enrichedRecords = records.map((r) => {
           const reg = regMap.get(r.studentId);
-          if (!reg) return r;
-          const isBio = reg.source === "BIOMETRIC" || r.source === "BIOMETRIC" || Boolean(r.biometricMethod);
+          const gen = genMap.get(r.studentId);
+          const isBio =
+            r.source === "BIOMETRIC" ||
+            reg?.source === "BIOMETRIC" ||
+            gen?.source === "BIOMETRIC" ||
+            Boolean(r.biometricMethod) ||
+            Boolean(reg?.biometricMethod) ||
+            Boolean(gen?.biometricMethod);
+
+          const checkInTime = r.checkInTime || reg?.checkInTime || gen?.checkInTime || null;
+          const checkOutTime = r.checkOutTime || reg?.checkOutTime || gen?.checkOutTime || null;
+          const status = r.status || reg?.status || gen?.status || (checkInTime ? "PRESENT" : "ABSENT");
+
           return {
             ...r,
-            checkInTime: r.checkInTime || reg.checkInTime,
-            checkOutTime: r.checkOutTime || reg.checkOutTime,
-            status: r.status || reg.status,
+            checkInTime,
+            checkOutTime,
+            status,
             source: isBio ? "BIOMETRIC" : r.source,
-            verificationMethod: r.verificationMethod || (isBio ? "Hikvision Biometric Terminal" : r.source === "MANUAL" ? "Manual Entry" : null),
+            verificationMethod:
+              r.verificationMethod ||
+              (isBio ? "Hikvision Biometric Terminal" : r.source === "MANUAL" ? "Manual Entry" : null),
+            biometricMethod: r.biometricMethod || (isBio ? "FACIAL" : null),
           };
         });
-      } catch {
-        // Non-critical fallback
+
+        // If a specific classId was requested, ensure every enrolled student is represented
+        if (classId) {
+          const enrollments = await prisma.classEnrollment.findMany({
+            where: { classId, isActive: true },
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  studentId: true,
+                  grade: true,
+                  section: true,
+                  biometricHash: true,
+                  user: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      avatarUrl: true,
+                    },
+                  },
+                  leaveRequests: {
+                    where: {
+                      status: "APPROVED",
+                      startDate: { lte: queryDateUTC },
+                      endDate: { gte: queryDateUTC },
+                    },
+                  },
+                  medicalExemptions: {
+                    where: {
+                      date: { gte: queryDateUTC, lt: nextDayUTC },
+                      isActive: true,
+                    },
+                  },
+                },
+              },
+              class: {
+                select: { id: true, name: true, subject: true, grade: true, section: true },
+              },
+            },
+          });
+
+          for (const en of enrollments) {
+            if (!existingStudentIds.has(en.student.id)) {
+              const reg = regMap.get(en.student.id);
+              const gen = genMap.get(en.student.id);
+              const hasBio = Boolean(reg?.checkInTime || gen?.checkInTime || reg?.source === "BIOMETRIC" || gen?.source === "BIOMETRIC");
+              const checkInTime = reg?.checkInTime || gen?.checkInTime || null;
+              const checkOutTime = reg?.checkOutTime || gen?.checkOutTime || null;
+
+              let st = "ABSENT";
+              let src: any = "AUTO_ABSENT";
+              let vMethod: string | null = null;
+              let just: string | null = null;
+
+              if (hasBio) {
+                st = reg?.status || gen?.status || "PRESENT";
+                src = "BIOMETRIC";
+                vMethod = "Hikvision Biometric Terminal";
+              } else if (en.student.leaveRequests.length > 0) {
+                const l = en.student.leaveRequests[0];
+                st = l.type === "MEDICAL" ? "MEDICAL" : "ON_LEAVE";
+                src = "LEAVE_APPROVED";
+                vMethod = "LEAVE_PORTAL";
+                just = l.reason;
+              } else if (en.student.medicalExemptions.length > 0) {
+                const m = en.student.medicalExemptions[0];
+                st = "MEDICAL";
+                src = "MEDICAL_LEAVE";
+                vMethod = "MEDICAL_DUTY";
+                just = m.reason;
+              }
+
+              enrichedRecords.push({
+                id: `synced_${en.student.id}_${classId}`,
+                studentId: en.student.id,
+                classId,
+                date: queryDateUTC,
+                status: st,
+                source: src,
+                checkInTime,
+                checkOutTime,
+                verificationMethod: vMethod,
+                biometricMethod: hasBio ? "FACIAL" : null,
+                biometricHash: en.student.biometricHash || en.student.studentId,
+                recordedById: en.student.user.id,
+                justification: just,
+                justificationStatus: just ? "APPROVED" : "NONE",
+                createdAt: queryDateUTC,
+                student: en.student,
+                class: en.class,
+              } as any);
+            }
+          }
+        }
+      } catch (enrichErr) {
+        console.warn("[attendance] error enriching class attendance:", enrichErr);
       }
     }
 

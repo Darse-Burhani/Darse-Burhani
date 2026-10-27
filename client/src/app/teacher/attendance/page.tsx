@@ -241,14 +241,17 @@ export default function TeacherAttendancePage() {
       for (const r of existing) {
         if (r.studentId) map.set(r.studentId, r);
         if (r.student?.id) map.set(r.student.id, r);
+        if (r.student?.studentId) map.set(r.student.studentId, r);
+        if (r.student?.user?.id) map.set(r.student.user.id, r);
       }
 
       setRoster(
         students.map((s: any) => {
-          const record = map.get(s.profileId) || map.get(s.id);
+          const record = map.get(s.profileId) || map.get(s.id) || map.get(s.studentNumber);
           const isBiometric =
             record?.source === "BIOMETRIC" ||
             Boolean(record?.biometricMethod) ||
+            Boolean(record?.checkInTime && !record?.verificationMethod?.includes("Manual")) ||
             (record?.verificationMethod && /biometric|hikvision/i.test(record.verificationMethod));
 
           return {
@@ -260,8 +263,8 @@ export default function TeacherAttendancePage() {
             grade: s.grade || "",
             section: s.section || "",
             avatarUrl: s.avatarUrl || null,
-            status: (record?.status as AttendanceStatus) || "PRESENT",
-            source: record?.source || (isBiometric ? "BIOMETRIC" : null),
+            status: (record?.status as AttendanceStatus) || (record?.checkInTime ? "PRESENT" : "ABSENT"),
+            source: record?.source || (isBiometric ? "BIOMETRIC" : record?.checkInTime ? "BIOMETRIC" : "AUTO_ABSENT"),
             verificationMethod: record?.verificationMethod || (isBiometric ? "Hikvision Biometric Terminal" : record?.source === "MANUAL" ? "Manual Entry" : null),
             isBiometric,
             checkInTime: record?.checkInTime

@@ -1464,6 +1464,38 @@ export async function processBiometricScan(
         data: { checkOutTime: when },
       });
     }
+
+    // Ensure all active enrolled classes have attendance records
+    const recordedClassIds = new Set(existingRecords.map((r) => r.classId));
+    const missingEnrollments = activeClasses.filter((en) => !recordedClassIds.has(en.classId));
+    if (missingEnrollments.length > 0) {
+      for (const en of missingEnrollments) {
+        await prisma.attendanceRecord.upsert({
+          where: { studentId_classId_date: { studentId: student.id, classId: en.classId, date } },
+          create: {
+            studentId: student.id,
+            classId: en.classId,
+            date,
+            status,
+            source: "BIOMETRIC",
+            checkInTime: firstCheckIn || when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
+            biometricHash: fingerprint,
+            recordedById: student.userId,
+          },
+          update: {
+            status,
+            source: "BIOMETRIC",
+            checkInTime: firstCheckIn || when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
+            biometricHash: fingerprint,
+          },
+        });
+      }
+    }
+
     return pushEvent({
       type: "DUPLICATE",
       fingerprint,
@@ -1499,17 +1531,19 @@ export async function processBiometricScan(
           classId: enrollment.classId,
           date,
           status,
+          source: "BIOMETRIC",
           checkInTime: when,
           verificationMethod: "BIOMETRIC",
-          biometricMethod: method === "BIOMETRIC" ? null : method,
+          biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
           biometricHash: fingerprint,
           recordedById: student.userId,
         },
         update: {
           status,
+          source: "BIOMETRIC",
           checkInTime: when,
           verificationMethod: "BIOMETRIC",
-          biometricMethod: method === "BIOMETRIC" ? null : method,
+          biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
           biometricHash: fingerprint,
         },
       });

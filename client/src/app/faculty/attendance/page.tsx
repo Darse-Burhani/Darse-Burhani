@@ -141,11 +141,17 @@ export default function FacultyAttendancePage() {
       const res = await fetch(`/api/attendance?classId=${classId}&date=${date}`);
       const json = await res.json();
       const existing: any[] = json.success && Array.isArray(json.data) ? json.data : [];
-      const map = new Map<string, any>(existing.map((r: any) => [r.student?.id, r]));
+      const map = new Map<string, any>();
+      for (const r of existing) {
+        if (r.studentId) map.set(r.studentId, r);
+        if (r.student?.id) map.set(r.student.id, r);
+        if (r.student?.studentId) map.set(r.student.studentId, r);
+        if (r.student?.user?.id) map.set(r.student.user.id, r);
+      }
 
       setRoster(
         selectedClass.students.map((s) => {
-          const record = map.get(s.id);
+          const record = map.get(s.profileId) || map.get(s.id) || map.get(s.studentNumber);
           return {
             profileId: s.profileId,
             name: `${s.firstName} ${s.lastName}`,
@@ -153,7 +159,7 @@ export default function FacultyAttendancePage() {
             grade: s.grade || "",
             section: s.section || "",
             avatarUrl: s.avatarUrl || null,
-            status: (record?.status as AttendanceStatus) || "PRESENT",
+            status: (record?.status as AttendanceStatus) || (record?.checkInTime ? "PRESENT" : "ABSENT"),
             checkInTime: record?.checkInTime
               ? new Date(record.checkInTime).toLocaleTimeString("en-GB", {
                   hour: "2-digit",

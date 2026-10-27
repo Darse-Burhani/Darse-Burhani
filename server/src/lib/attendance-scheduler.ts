@@ -147,7 +147,9 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       if (s.attendanceRecords.length > 0 && s.attendanceRecords[0].status !== "ABSENT") {
         continue;
       }
-      const assignedClass = s.classEnrollments[0]?.class || fallbackClass;
+      const targetClasses = (s.classEnrollments.map((e) => e.class).filter(Boolean) as any[]);
+      if (targetClasses.length === 0 && fallbackClass) targetClasses.push(fallbackClass);
+
       await prisma.attendanceRegistry.upsert({
         where: { studentId_date: { studentId: s.id, date: dayStart } },
         create: {
@@ -165,7 +167,7 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
         },
       });
 
-      if (assignedClass) {
+      for (const assignedClass of targetClasses) {
         await prisma.attendanceRecord.upsert({
           where: {
             studentId_classId_date: {
@@ -175,8 +177,8 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
             },
           },
           create: {
-            studentId: s.id,
-            classId: assignedClass.id,
+            student: { connect: { id: s.id } },
+            class: { connect: { id: assignedClass.id } },
             date: dayStart,
             status: "ON_LEAVE",
             source: "LEAVE_APPROVED",
@@ -252,9 +254,10 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       continue;
     }
 
-    const assignedClass = s.classEnrollments[0]?.class || fallbackClass;
+    const targetClasses = (s.classEnrollments.map((e) => e.class).filter(Boolean) as any[]);
+    if (targetClasses.length === 0 && fallbackClass) targetClasses.push(fallbackClass);
 
-    if (windowClassFilterActive && assignedClass?.id && !allowedClassIds.has(assignedClass.id)) {
+    if (windowClassFilterActive && targetClasses.length > 0 && !targetClasses.some((c) => allowedClassIds.has(c.id))) {
       exemptCount++;
       continue;
     }
@@ -307,30 +310,32 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
         },
       });
 
-      await prisma.attendanceRecord.upsert({
-        where: {
-          studentId_classId_date: {
-            studentId: s.id,
-            classId: assignedClass.id,
-            date: dayStart,
+      for (const assignedClass of targetClasses) {
+        await prisma.attendanceRecord.upsert({
+          where: {
+            studentId_classId_date: {
+              studentId: s.id,
+              classId: assignedClass.id,
+              date: dayStart,
+            },
           },
-        },
-        create: {
-          studentId: s.id,
-          classId: assignedClass.id,
-          date: dayStart,
-          status: registryStatus,
-          source: registrySource,
-          verificationMethod: activeMedicalExemption ? "MEDICAL_DUTY" : "LEAVE_PORTAL",
-          recordedById: activeMedicalExemption?.assignedById || "system-medical-scheduler",
-          justification: `[${eventLabel}] ${reasonLabel}`,
-          justificationStatus: "APPROVED",
-        },
-        update: {
-          status: registryStatus,
-          source: registrySource,
-        },
-      });
+          create: {
+            student: { connect: { id: s.id } },
+            class: { connect: { id: assignedClass.id } },
+            date: dayStart,
+            status: registryStatus,
+            source: registrySource,
+            verificationMethod: activeMedicalExemption ? "MEDICAL_DUTY" : "LEAVE_PORTAL",
+            recordedById: activeMedicalExemption?.assignedById || "system-medical-scheduler",
+            justification: `[${eventLabel}] ${reasonLabel}`,
+            justificationStatus: "APPROVED",
+          },
+          update: {
+            status: registryStatus,
+            source: registrySource,
+          },
+        });
+      }
 
       medicalCount++;
       alreadyLoggedCount++;
@@ -357,33 +362,35 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
         },
       });
 
-      await prisma.attendanceRecord.upsert({
-        where: {
-          studentId_classId_date: {
-            studentId: s.id,
-            classId: assignedClass.id,
-            date: dayStart,
+      for (const assignedClass of targetClasses) {
+        await prisma.attendanceRecord.upsert({
+          where: {
+            studentId_classId_date: {
+              studentId: s.id,
+              classId: assignedClass.id,
+              date: dayStart,
+            },
           },
-        },
-        create: {
-          studentId: s.id,
-          classId: assignedClass.id,
-          date: dayStart,
-          status: "PRESENT",
-          source: "BIOMETRIC",
-          verificationMethod: "BIOMETRIC",
-          recordedById: "system-default-present",
-          justification: AUTO_PRESENT_REMARKS,
-          justificationStatus: "APPROVED",
-        },
-        update: {
-          status: "PRESENT",
-          source: "BIOMETRIC",
-          verificationMethod: "BIOMETRIC",
-          justification: AUTO_PRESENT_REMARKS,
-          justificationStatus: "APPROVED",
-        },
-      });
+          create: {
+            student: { connect: { id: s.id } },
+            class: { connect: { id: assignedClass.id } },
+            date: dayStart,
+            status: "PRESENT",
+            source: "BIOMETRIC",
+            verificationMethod: "BIOMETRIC",
+            recordedById: "system-default-present",
+            justification: AUTO_PRESENT_REMARKS,
+            justificationStatus: "APPROVED",
+          },
+          update: {
+            status: "PRESENT",
+            source: "BIOMETRIC",
+            verificationMethod: "BIOMETRIC",
+            justification: AUTO_PRESENT_REMARKS,
+            justificationStatus: "APPROVED",
+          },
+        });
+      }
 
       markedStudents.push({
         id: s.id,
@@ -394,28 +401,32 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
       continue;
     }
 
-    // Create ABSENT attendance record
-    await prisma.attendanceRecord.upsert({
-      where: {
-        studentId_classId_date: {
-          studentId: s.id,
-          classId: assignedClass.id,
-          date: dayStart,
+    // Create ABSENT attendance record across enrolled classes
+    for (const assignedClass of targetClasses) {
+      await prisma.attendanceRecord.upsert({
+        where: {
+          studentId_classId_date: {
+            studentId: s.id,
+            classId: assignedClass.id,
+            date: dayStart,
+          },
         },
-      },
-      create: {
-        studentId: s.id,
-        classId: assignedClass.id,
-        date: dayStart,
-        status: "ABSENT",
-        verificationMethod: "AUTO_SYSTEM",
-        recordedById: "system-auto-absent",
-      },
-      update: {
-        status: "ABSENT",
-        verificationMethod: "AUTO_SYSTEM",
-      },
-    });
+        create: {
+          student: { connect: { id: s.id } },
+          class: { connect: { id: assignedClass.id } },
+          date: dayStart,
+          status: "ABSENT",
+          source: "AUTO_ABSENT",
+          verificationMethod: "AUTO_SYSTEM",
+          recordedById: "system-auto-absent",
+        },
+        update: {
+          status: "ABSENT",
+          source: "AUTO_ABSENT",
+          verificationMethod: "AUTO_SYSTEM",
+        },
+      });
+    }
 
     if (s.streakDays > 0) {
       await prisma.studentProfile.update({
@@ -701,6 +712,7 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
               },
             });
 
+            const isGateBio = gateLog?.source === "BIOMETRIC" || Boolean(gateLog?.checkInTime);
             const initialStatus = gateLog?.status || (defaultPresentMode ? "PRESENT" : "ABSENT");
 
             await prisma.attendanceRecord.create({
@@ -709,7 +721,11 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
                 classId: slot.classId,
                 date: dayStart,
                 status: initialStatus as any,
-                verificationMethod: "AUTO_TIMETABLE_SYNC",
+                source: isGateBio ? "BIOMETRIC" : (gateLog?.source as any) || (defaultPresentMode ? "BIOMETRIC" : "AUTO_ABSENT"),
+                checkInTime: gateLog?.checkInTime || null,
+                checkOutTime: gateLog?.checkOutTime || null,
+                verificationMethod: isGateBio ? "BIOMETRIC" : "AUTO_TIMETABLE_SYNC",
+                biometricMethod: isGateBio ? "FACIAL" : null,
                 recordedById: "system-timetable-sync",
                 ...(defaultPresentMode && !gateLog
                   ? { justification: AUTO_PRESENT_REMARKS, justificationStatus: "APPROVED" as any }
@@ -810,6 +826,71 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
   }
 }
 
+/**
+ * Self-healing Gate-to-Class Attendance Auto-Sync:
+ * Continuously propagates all biometric punches recorded in AttendanceRegistry
+ * into every enrolled class AttendanceRecord for every student, guaranteeing
+ * that all class rosters reflect the student's exact scan time and status.
+ */
+export async function syncGateRegistryToClassAttendance(targetDate?: Date): Promise<void> {
+  try {
+    const when = targetDate || new Date();
+    const dayStart = getStartOfDayIST(when);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const registries = await prisma.attendanceRegistry.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+    });
+    if (registries.length === 0) return;
+
+    const regMap = new Map<string, any>();
+    registries.forEach((r) => regMap.set(r.studentId, r));
+
+    const enrollments = await prisma.classEnrollment.findMany({
+      where: { isActive: true },
+      select: { studentId: true, classId: true },
+    });
+
+    for (const en of enrollments) {
+      const reg = regMap.get(en.studentId);
+      if (!reg) continue;
+
+      const isBio = reg.source === "BIOMETRIC" || Boolean(reg.checkInTime);
+      await prisma.attendanceRecord.upsert({
+        where: {
+          studentId_classId_date: {
+            studentId: en.studentId,
+            classId: en.classId,
+            date: dayStart,
+          },
+        },
+        create: {
+          student: { connect: { id: en.studentId } },
+          class: { connect: { id: en.classId } },
+          date: dayStart,
+          status: reg.status,
+          source: isBio ? "BIOMETRIC" : reg.source,
+          checkInTime: reg.checkInTime || null,
+          checkOutTime: reg.checkOutTime || null,
+          verificationMethod: isBio ? "BIOMETRIC" : "AUTO_SYSTEM",
+          biometricMethod: isBio ? "FACIAL" : null,
+          recordedById: reg.recordedById || en.studentId,
+        },
+        update: {
+          status: reg.status,
+          source: isBio ? "BIOMETRIC" : reg.source,
+          checkInTime: reg.checkInTime || undefined,
+          checkOutTime: reg.checkOutTime || undefined,
+          verificationMethod: isBio ? "BIOMETRIC" : undefined,
+          biometricMethod: isBio ? "FACIAL" : undefined,
+        },
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("[attendance-sync] Auto-sync gate-to-class notice:", (err as any)?.message || err);
+  }
+}
+
 let watchdogTimer: NodeJS.Timeout | null = null;
 
 /**
@@ -820,8 +901,9 @@ export function startAttendanceScheduler() {
 
   console.log("[attendance-automation] ⚡ 24/7 Full Automation Engine initialized (Real-time window watchdog, auto-absent, timetable sync, and parent digest active)");
 
-  // 1. Run initial check immediately
+  // 1. Run initial window check and self-healing sync immediately
   checkAndAutoFinalizeScanWindows().catch(() => {});
+  syncGateRegistryToClassAttendance().catch(() => {});
 
   // 2. High-frequency 60-second watchdog loop
   watchdogTimer = setInterval(async () => {
@@ -840,6 +922,9 @@ export function startAttendanceScheduler() {
 
         // B. Real-time timetable period attendance sync
         await syncClassPeriodAttendance(now);
+
+        // C. Continuous self-healing gate check-in propagation to all classes
+        await syncGateRegistryToClassAttendance(now);
       }
 
       // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC) - skip on Sunday
