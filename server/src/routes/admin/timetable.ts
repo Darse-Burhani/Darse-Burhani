@@ -760,6 +760,106 @@ router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   }
 });
 
+// POST /api/admin/timetable/assign-faculty - Assign or re-assign a faculty teacher to a specific timetable slot
+router.post("/assign-faculty", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { slotId, teacherId } = req.body;
+    if (!slotId) {
+      return res.status(400).json({ success: false, error: "slotId is required" });
+    }
+
+    let resolvedTeacherId: string | null = null;
+    let resolvedTeacherName: string | null = null;
+
+    if (teacherId) {
+      const tp = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: teacherId }, { userId: teacherId }] },
+        include: { user: true },
+      });
+      if (!tp) {
+        return res.status(404).json({ success: false, error: "Teacher not found" });
+      }
+      resolvedTeacherId = tp.id;
+      resolvedTeacherName = `${tp.user.firstName} ${tp.user.lastName}`.trim();
+    }
+
+    const updated = await prisma.timetableSlot.update({
+      where: { id: slotId },
+      data: {
+        teacherId: resolvedTeacherId,
+        teacherName: resolvedTeacherName,
+      },
+      include: SLOT_INCLUDE,
+    });
+
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
+    return res.json({
+      success: true,
+      message: resolvedTeacherName
+        ? `Successfully assigned ${resolvedTeacherName} to ${updated.className} (Period ${updated.period})`
+        : `Successfully unassigned teacher from ${updated.className} (Period ${updated.period})`,
+      data: formatSlotResponse(updated),
+    });
+  } catch (error: any) {
+    console.error("Assign faculty error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to assign faculty" });
+  }
+});
+
+// POST /api/admin/timetable/assign-masool - Assign or change Class Masool / Class Teacher
+router.post("/assign-masool", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { classId, teacherId } = req.body;
+    if (!classId || !teacherId) {
+      return res.status(400).json({ success: false, error: "classId and teacherId are required" });
+    }
+
+    const tp = await prisma.teacherProfile.findFirst({
+      where: { OR: [{ id: teacherId }, { userId: teacherId }] },
+      include: { user: true },
+    });
+    if (!tp) {
+      return res.status(404).json({ success: false, error: "Teacher not found" });
+    }
+
+    const updatedClass = await prisma.class.update({
+      where: { id: classId },
+      data: {
+        masoolId: tp.id,
+        teacherId: tp.id,
+      },
+      include: {
+        masool: { include: { user: true } },
+        teacher: { include: { user: true } },
+      },
+    });
+
+    cache.invalidateTag("class");
+    cache.invalidateTag("timetable");
+    cache.invalidateTag("takhteet");
+
+    const teacherFullName = `${tp.user.firstName} ${tp.user.lastName}`.trim();
+
+    return res.json({
+      success: true,
+      message: `Successfully assigned ${teacherFullName} as Class Masool for Class ${updatedClass.name}!`,
+      data: {
+        classId: updatedClass.id,
+        className: updatedClass.name,
+        masoolId: updatedClass.masoolId,
+        masoolName: teacherFullName,
+        masoolIts: tp.its,
+        masoolAvatar: tp.photoUrl || tp.user.avatarUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("Assign masool error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to assign class masool" });
+  }
+});
+
 // ── BADAL (SUBSTITUTION) MANAGEMENT ENDPOINTS ──
 
 // GET /api/admin/timetable/badal - List badal records (high performance cached)

@@ -489,7 +489,7 @@ function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promis
 }
 
 export async function pullAllDevicesScansForRange(
-  fromDate: Date,
+  fromDate?: Date,
   toDate: Date = new Date(),
 ): Promise<{
   success: boolean;
@@ -505,6 +505,12 @@ export async function pullAllDevicesScansForRange(
     error?: string;
   }>;
 }> {
+  let effectiveFrom = fromDate;
+  if (!effectiveFrom) {
+    const tilawat = await getTilawatScheduleWindowIST(toDate).catch(() => null);
+    effectiveFrom = tilawat?.startTimeIST ?? getStartOfTodayIST();
+  }
+
   const devices = await prisma.biometricDevice.findMany({
     where: { enabled: true },
     orderBy: { createdAt: "asc" },
@@ -516,7 +522,7 @@ export async function pullAllDevicesScansForRange(
   const results = await Promise.all(
     targetDevices.map(async (dev) => {
       const res = await withDeadline(
-        pullDeviceScansForRange(dev.id, fromDate, toDate),
+        pullDeviceScansForRange(dev.id, effectiveFrom!, toDate),
         DEVICE_PULL_DEADLINE_MS,
         `${dev.name || dev.host}`
       ).catch(
@@ -780,6 +786,62 @@ export function getStartOfTodayIST(): Date {
   return new Date(Date.UTC(year, month, day, 0, 0, 0) - 5.5 * 60 * 60 * 1000);
 }
 
+/**
+ * Tilawat al Dua Scan Schedule Window:
+ * Biometric scan polling and attendance sync adhere strictly to this window.
+ */
+export async function getTilawatScheduleWindowIST(date: Date = new Date()): Promise<{
+  window: any;
+  startTimeIST: Date;
+  endTimeIST: Date;
+  lateEndTimeIST: Date;
+  isWithinSchedule: boolean;
+}> {
+  const window = (await prisma.biometricScanWindow.findFirst({
+    where: {
+      OR: [
+        { id: "default" },
+        { name: { contains: "Tilawat", mode: "insensitive" } },
+      ],
+      enabled: true,
+    },
+  })) || {
+    id: "default",
+    name: "Tilawat al Dua",
+    startTime: "07:00",
+    endTime: "12:30",
+    lateEndTime: "12:30",
+    enabled: true,
+  };
+
+  const istFormatter = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = istFormatter.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "01";
+  const year = parseInt(get("year"), 10);
+  const month = parseInt(get("month"), 10) - 1;
+  const day = parseInt(get("day"), 10);
+
+  const [sh, sm] = (window.startTime || "07:00").split(":").map(Number);
+  const [eh, em] = (window.endTime || "12:30").split(":").map(Number);
+  const [lh, lm] = (window.lateEndTime || window.endTime || "12:30").split(":").map(Number);
+
+  // UTC equivalent of IST time: subtract 5.5 hours
+  const startTimeIST = new Date(Date.UTC(year, month, day, sh || 7, sm || 0, 0) - 5.5 * 60 * 60 * 1000);
+  const endTimeIST = new Date(Date.UTC(year, month, day, eh || 12, em || 30, 0) - 5.5 * 60 * 60 * 1000);
+  const lateEndTimeIST = new Date(Date.UTC(year, month, day, lh || 12, lm || 30, 0) - 5.5 * 60 * 60 * 1000);
+
+  const nowMs = date.getTime();
+  // Active window includes schedule startTime up to lateEndTime + 15 min buffer for network latency
+  const isWithinSchedule = nowMs >= startTimeIST.getTime() && nowMs <= (lateEndTimeIST.getTime() + 15 * 60 * 1000);
+
+  return { window, startTimeIST, endTimeIST, lateEndTimeIST, isWithinSchedule };
+}
+
 export async function pollDevice(
   id: string,
   force = false,
@@ -809,24 +871,33 @@ export async function pollDevice(
       return { scansFetched: 0, scansProcessed: 0 };
     }
 
+    // Tilawat al Dua schedule adherence:
+    // Terminal polling strictly sticks to the scheduled scan window timing!
+    const tilawat = await getTilawatScheduleWindowIST(to).catch(() => null);
+    const scheduleStart = tilawat?.startTimeIST ?? startOfToday;
+
+    // During automatic polling, skip if current time is outside the scheduled scan window
+    if (!force && tilawat && !tilawat.isWithinSchedule) {
+      return { scansFetched: 0, scansProcessed: 0 };
+    }
+
     // Query lookback:
     // 1. If explicit customFrom is provided, use it.
-    // 2. If force is requested or first poll (no cursor), start from the beginning of today (00:00:00 IST).
-    // 3. Otherwise, look back from (lastEventCursor - 30s) capped at start of today (never look into previous days).
+    // 2. If force is requested or first poll (no cursor), start from the beginning of Tilawat Dua schedule.
+    // 3. Otherwise, look back from (lastEventCursor - 30s) capped at schedule start.
     let from: Date;
     if (customFrom) {
       from = customFrom;
     } else if (force || !device.lastEventCursor) {
-      from = startOfToday;
+      from = scheduleStart;
     } else {
       const cursorLookback = new Date(device.lastEventCursor.getTime() - 30_000);
-      // Fresh start algorithm: each new day / after day off starts at 00:00:00 IST
-      from = cursorLookback > startOfToday ? cursorLookback : startOfToday;
+      from = cursorLookback > scheduleStart ? cursorLookback : scheduleStart;
     }
 
     // Sanity check: prevent cursor from getting stuck in future
     if (from > to) {
-      from = startOfToday;
+      from = scheduleStart;
     }
 
     const { events } = await getAcsEvents(conn, from, to);

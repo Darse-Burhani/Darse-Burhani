@@ -354,6 +354,22 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
+// POST /api/admin/takhteet/sync-tafseel - Ingest & apply Tafseel 1-4 Excel files from public
+router.post("/sync-tafseel", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { importTafseelCurriculum } = await import("../../lib/takhteet-tafseel-sync");
+    const result = await importTafseelCurriculum();
+    return res.json({
+      success: true,
+      message: `Successfully ingested ${result.totalPortions} Tafseel units for Darajah 1, 2, 3, 4!`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("Takhteet sync-tafseel error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to sync Tafseel curriculum" });
+  }
+});
+
 // DELETE /api/admin/takhteet/:id - Delete a plan
 router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
   try {

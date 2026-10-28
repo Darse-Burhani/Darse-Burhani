@@ -36,6 +36,7 @@ import {
   UserMinus,
   Send,
   CalendarRange,
+  UserCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -378,6 +379,14 @@ export default function AdminTimetableMasterPage() {
   // Takhteet filter
   const [takhteetSearch, setTakhteetSearch] = useState("");
   const [takhteetClassFilter, setTakhteetClassFilter] = useState("ALL");
+  const [syncingTafseel, setSyncingTafseel] = useState(false);
+  const [takhteetPage, setTakhteetPage] = useState(1);
+  const TAKHTEET_PAGE_SIZE = 50;
+
+  // Masool Assignment State
+  const [masoolModalOpen, setMasoolModalOpen] = useState(false);
+  const [targetMasoolTeacherId, setTargetMasoolTeacherId] = useState("");
+  const [assigningMasool, setAssigningMasool] = useState(false);
 
   // AI Timetable Auto-Fill state
   const [aiFillModalOpen, setAiFillModalOpen] = useState(false);
@@ -712,6 +721,52 @@ export default function AdminTimetableMasterPage() {
       toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
     } finally {
       setDeletingSlot(false);
+    }
+  };
+
+  const handleAssignMasool = async () => {
+    if (!activeClassObj || !targetMasoolTeacherId) {
+      toast({ variant: "warning", title: "Select Faculty", description: "Please select a teacher to assign as Class Masool." });
+      return;
+    }
+    setAssigningMasool(true);
+    try {
+      const res = await fetch("/api/admin/timetable/assign-masool", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId: activeClassObj.id, teacherId: targetMasoolTeacherId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({ variant: "success", title: "Class Masool Assigned", description: json.message });
+        setMasoolModalOpen(false);
+        await fetchTimetableData(false);
+      } else {
+        toast({ variant: "destructive", title: "Error", description: json.error || "Failed to assign Class Masool." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setAssigningMasool(false);
+    }
+  };
+
+  const handleSyncTafseel = async () => {
+    if (!window.confirm("Synchronize & Ingest Tafseel 1, 2, 3, 4 Excel files from public for Darajah 1, 2, 3, 4? This will update 6,500+ lesson portions across all 8 classes.")) return;
+    setSyncingTafseel(true);
+    try {
+      const res = await fetch("/api/admin/takhteet/sync-tafseel", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        toast({ variant: "success", title: "Tafseel Synchronized", description: json.message });
+        await fetchTimetableData(false);
+      } else {
+        toast({ variant: "destructive", title: "Sync Failed", description: json.error || "Failed to sync Tafseel." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setSyncingTafseel(false);
     }
   };
 
@@ -1127,6 +1182,15 @@ export default function AdminTimetableMasterPage() {
       );
     });
   }, [takhteetList, takhteetSearch, takhteetClassFilter]);
+
+  useEffect(() => {
+    setTakhteetPage(1);
+  }, [takhteetSearch, takhteetClassFilter]);
+
+  const totalTakhteetPages = Math.ceil(filteredTakhteet.length / TAKHTEET_PAGE_SIZE) || 1;
+  const paginatedTakhteet = useMemo(() => {
+    return filteredTakhteet.slice((takhteetPage - 1) * TAKHTEET_PAGE_SIZE, takhteetPage * TAKHTEET_PAGE_SIZE);
+  }, [filteredTakhteet, takhteetPage]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -1564,9 +1628,23 @@ export default function AdminTimetableMasterPage() {
                         </button>
                       )}
                     </div>
-                    <h3 className="text-base sm:text-xl font-extrabold text-slate-900 mt-1">
-                      {activeClassObj.masoolName || "Not Assigned"}
-                    </h3>
+                    <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+                      <h3 className="text-base sm:text-xl font-extrabold text-slate-900">
+                        {activeClassObj.masoolName || "Not Assigned"}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetMasoolTeacherId(activeClassObj.teacherId || "");
+                          setMasoolModalOpen(true);
+                        }}
+                        className="text-[11px] font-black text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-0.5 rounded-xl cursor-pointer flex items-center gap-1 transition-all shadow-xs"
+                        title="Assign or change faculty teacher in-charge of this class"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Assign Faculty</span>
+                      </button>
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-slate-600 mt-0.5">
                       <span className="font-semibold text-emerald-800">Class {activeClassObj.name}</span>
                       <span>•</span>
@@ -2683,6 +2761,21 @@ export default function AdminTimetableMasterPage() {
                   ))}
                 </select>
               )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSyncTafseel}
+                disabled={syncingTafseel}
+                className="bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 text-xs font-bold gap-1.5 rounded-xl cursor-pointer shrink-0"
+              >
+                {syncingTafseel ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
+                )}
+                <span>Sync Tafseel (Darajah 1–4)</span>
+              </Button>
             </div>
           </div>
 
@@ -2831,9 +2924,9 @@ export default function AdminTimetableMasterPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredTakhteet.map((item, idx) => (
+                    {paginatedTakhteet.map((item, idx) => (
                       <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="p-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
+                        <td className="p-4 font-mono text-slate-400 font-bold">{(takhteetPage - 1) * TAKHTEET_PAGE_SIZE + idx + 1}</td>
                         <td className="p-4 font-black text-slate-900">Class {item.className || item.class?.name}</td>
                         <td className="p-4 font-bold text-emerald-800">{item.subject}</td>
                         <td className="p-4 font-semibold text-slate-800">
@@ -2874,6 +2967,43 @@ export default function AdminTimetableMasterPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Takhteet Pagination Controls */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <span className="text-slate-600 font-medium">
+                  Showing <span className="font-bold text-slate-900">{filteredTakhteet.length > 0 ? (takhteetPage - 1) * TAKHTEET_PAGE_SIZE + 1 : 0}</span> to{" "}
+                  <span className="font-bold text-slate-900">{Math.min(takhteetPage * TAKHTEET_PAGE_SIZE, filteredTakhteet.length)}</span> of{" "}
+                  <span className="font-bold text-slate-900">{filteredTakhteet.length.toLocaleString()}</span> lesson units
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTakhteetPage((p) => Math.max(1, p - 1))}
+                    disabled={takhteetPage <= 1}
+                    className="h-8 px-3 text-xs font-bold gap-1 rounded-xl"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Previous</span>
+                  </Button>
+
+                  <span className="text-xs font-bold text-slate-700 px-2 font-mono">
+                    Page {takhteetPage} of {totalTakhteetPages}
+                  </span>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTakhteetPage((p) => Math.min(totalTakhteetPages, p + 1))}
+                    disabled={takhteetPage >= totalTakhteetPages}
+                    className="h-8 px-3 text-xs font-bold gap-1 rounded-xl"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -3387,6 +3517,52 @@ export default function AdminTimetableMasterPage() {
                 </div>
               </div>
             )}
+
+            {/* 5. Assign Faculty Member / Teacher */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">5. Assigned Faculty Member (أستاذ)</label>
+                {slotFormData.teacherId && (
+                  <button
+                    type="button"
+                    onClick={() => setSlotFormData({ ...slotFormData, teacherId: "", teacherName: "" })}
+                    className="text-[10px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                  >
+                    Clear Assignment
+                  </button>
+                )}
+              </div>
+              <select
+                value={slotFormData.teacherId}
+                onChange={(e) => {
+                  const tId = e.target.value;
+                  const found = teachers.find((t) => t.id === tId || t.user?.id === tId);
+                  const tName = found ? (found.name || `${found.user?.firstName || ""} ${found.user?.lastName || ""}`.trim()) : "";
+                  setSlotFormData({
+                    ...slotFormData,
+                    teacherId: tId,
+                    teacherName: tName,
+                  });
+                }}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
+              >
+                <option value="">-- No Faculty Assigned (Unassigned) --</option>
+                {teachers.map((t) => {
+                  const name = t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim();
+                  const itsLabel = t.its ? `ITS: ${t.its}` : (t.employeeId ? `Emp: ${t.employeeId}` : "");
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {name} {itsLabel ? `(${itsLabel})` : ""}
+                    </option>
+                  );
+                })}
+              </select>
+              {slotFormData.teacherName && (
+                <p className="text-[10px] text-emerald-800 font-bold mt-1">
+                  Assigned to: <span className="font-extrabold">{slotFormData.teacherName}</span>
+                </p>
+              )}
+            </div>
           </div>
 
           <ModalFooter className="flex items-center justify-between">
@@ -3937,6 +4113,98 @@ export default function AdminTimetableMasterPage() {
               </div>
             </div>
           )}
+        </ModalContent>
+      </Modal>
+
+      {/* ─────────────────────────────────────────────────────────────
+          ASSIGN CLASS MASOOL / FACULTY IN-CHARGE MODAL
+         ───────────────────────────────────────────────────────────── */}
+      <Modal open={masoolModalOpen} onOpenChange={setMasoolModalOpen}>
+        <ModalContent className="max-w-md">
+          <ModalHeader>
+            <ModalTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-[#1c1c1c] text-amber-300 flex items-center justify-center text-xs font-black">
+                <UserCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-base font-extrabold text-slate-900">
+                  Assign Class Masool (مسؤول)
+                </div>
+                <p className="text-[11px] font-normal text-slate-500">
+                  Select the faculty member in-charge of Class {activeClassObj?.name}
+                </p>
+              </div>
+            </ModalTitle>
+          </ModalHeader>
+
+          <div className="space-y-4 py-3 text-xs">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Select Faculty Teacher
+              </label>
+              <select
+                value={targetMasoolTeacherId}
+                onChange={(e) => setTargetMasoolTeacherId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
+              >
+                <option value="">-- Choose Faculty Teacher --</option>
+                {teachers.map((t) => {
+                  const name = t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim();
+                  const itsLabel = t.its ? `ITS: ${t.its}` : (t.employeeId ? `Emp: ${t.employeeId}` : "");
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {name} {itsLabel ? `(${itsLabel})` : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {targetMasoolTeacherId && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
+                <Avatar className="w-10 h-10 ring-2 ring-amber-400 shrink-0">
+                  {(() => {
+                    const found = teachers.find((t) => t.id === targetMasoolTeacherId);
+                    return (
+                      <>
+                        {(found?.photoUrl || found?.user?.avatarUrl) && (
+                          <AvatarImage src={found.photoUrl || found.user.avatarUrl} alt={found.name} />
+                        )}
+                        <AvatarFallback className="bg-slate-900 text-amber-300 font-bold text-xs">
+                          {getInitials(found?.name || "Teacher")}
+                        </AvatarFallback>
+                      </>
+                    );
+                  })()}
+                </Avatar>
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded-full">
+                    Selected Faculty
+                  </span>
+                  <p className="text-xs font-extrabold text-slate-900 mt-0.5">
+                    {teachers.find((t) => t.id === targetMasoolTeacherId)?.name || "Teacher"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <ModalFooter className="flex items-center justify-between">
+            <ModalClose asChild>
+              <Button variant="outline" size="sm" className="text-xs border-slate-300">
+                Cancel
+              </Button>
+            </ModalClose>
+            <Button
+              size="sm"
+              onClick={handleAssignMasool}
+              disabled={assigningMasool || !targetMasoolTeacherId}
+              className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5"
+            >
+              {assigningMasool ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              <span>Save Class Masool</span>
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 

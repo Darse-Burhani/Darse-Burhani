@@ -24,6 +24,9 @@ import {
   X,
   Filter,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,6 +76,9 @@ export default function AdminTakhteetPage() {
 
   const [showPrint, setShowPrint] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [syncingTafseel, setSyncingTafseel] = useState(false);
+  const [planPage, setPlanPage] = useState(1);
+  const PLAN_PAGE_SIZE = 40;
 
   const fetchData = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -145,6 +151,15 @@ export default function AdminTakhteetPage() {
       return true;
     });
   }, [plans, filterTeacher, filterStatus, filterMonth, search]);
+
+  useEffect(() => {
+    setPlanPage(1);
+  }, [filterTeacher, filterStatus, filterMonth, search]);
+
+  const totalPlanPages = Math.ceil(filteredPlans.length / PLAN_PAGE_SIZE) || 1;
+  const paginatedPlans = useMemo(() => {
+    return filteredPlans.slice((planPage - 1) * PLAN_PAGE_SIZE, planPage * PLAN_PAGE_SIZE);
+  }, [filteredPlans, planPage]);
 
   const availableClassesForTeacher = (teacherId: string) =>
     classes.filter((c) => c.teacherUserId === teacherId);
@@ -275,6 +290,25 @@ export default function AdminTakhteetPage() {
     }
   };
 
+  const handleSyncTafseel = async () => {
+    if (!window.confirm("Ingest & Synchronize Tafseel 1-4 Excel files from public for Darajah 1, 2, 3, 4? This will update 6,500+ syllabus portions across all classes.")) return;
+    setSyncingTafseel(true);
+    try {
+      const res = await fetch("/api/admin/takhteet/sync-tafseel", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        toast({ variant: "success", title: "Tafseel Synchronized", description: json.message });
+        await fetchData(false);
+      } else {
+        toast({ variant: "destructive", title: "Sync Failed", description: json.error || "Failed to sync Tafseel." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setSyncingTafseel(false);
+    }
+  };
+
   const years = useMemo(() => {
     const set = new Set<string>(["2025-2026", "2026-2027", "2027-2028"]);
     classes.forEach((c) => c.academicYear && set.add(c.academicYear));
@@ -337,6 +371,20 @@ export default function AdminTakhteetPage() {
                 disabled={exporting}
               >
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <FileDown className="w-4 h-4 mr-1.5" />} Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-amber-400 text-slate-950 font-bold border-amber-300 hover:bg-amber-300 shadow-sm"
+                onClick={handleSyncTafseel}
+                disabled={syncingTafseel}
+              >
+                {syncingTafseel ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                )}
+                Sync Tafseel (1–4)
               </Button>
               <Button
                 variant="outline"
@@ -700,13 +748,14 @@ export default function AdminTakhteetPage() {
                 ))}
               </div>
             ) : filteredPlans.length > 0 ? (
-              <div className="grid gap-3">
-                {filteredPlans.map((p, i) => {
-                  const meta = statusMeta(p.status);
-                  const overdue = isOverdue(p);
-                  const due = isDueThisMonth(p);
-                  return (
-                    <motion.div key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
+              <div className="space-y-4">
+                <div className="grid gap-3">
+                  {paginatedPlans.map((p, i) => {
+                    const meta = statusMeta(p.status);
+                    const overdue = isOverdue(p);
+                    const due = isDueThisMonth(p);
+                    return (
+                      <motion.div key={p.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.015, 0.3) }}>
                       <Card className={`hover:shadow-md transition-shadow border rounded-xl bg-white ${overdue ? "border-red-300 bg-red-50/20" : "border-gray-200"}`}>
                         <CardContent className="p-4 sm:p-5">
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -788,6 +837,44 @@ export default function AdminTakhteetPage() {
                   );
                 })}
               </div>
+
+              {/* Pagination Controls */}
+              <div className="bg-white p-4 rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-xs">
+                <span className="text-gray-600 font-medium">
+                  Showing <span className="font-bold text-gray-900">{filteredPlans.length > 0 ? (planPage - 1) * PLAN_PAGE_SIZE + 1 : 0}</span> to{" "}
+                  <span className="font-bold text-gray-900">{Math.min(planPage * PLAN_PAGE_SIZE, filteredPlans.length)}</span> of{" "}
+                  <span className="font-bold text-gray-900">{filteredPlans.length.toLocaleString()}</span> curriculum portions
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPlanPage((p) => Math.max(1, p - 1))}
+                    disabled={planPage <= 1}
+                    className="h-8 px-3 text-xs font-bold gap-1 rounded-xl"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Previous</span>
+                  </Button>
+
+                  <span className="text-xs font-bold text-gray-700 px-2 font-mono">
+                    Page {planPage} of {totalPlanPages}
+                  </span>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPlanPage((p) => Math.min(totalPlanPages, p + 1))}
+                    disabled={planPage >= totalPlanPages}
+                    className="h-8 px-3 text-xs font-bold gap-1 rounded-xl"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
             ) : (
               <Card className="border-dashed border-gray-300 bg-gray-50/50">
                 <CardContent className="p-12 text-center">

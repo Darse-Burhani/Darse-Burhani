@@ -926,11 +926,17 @@ export function startAttendanceScheduler() {
         await syncClassPeriodAttendance(now);
 
         // C. Continuous self-healing terminal scan poll & gate check-in propagation to all classes
+        // Sticking strictly to Tilawat al Dua scheduled scan timing!
         try {
-          const { pullAllDevicesScansForRange, getStartOfTodayIST } = await import("./hikvision");
-          await pullAllDevicesScansForRange(getStartOfTodayIST());
-        } catch {}
-        await syncGateRegistryToClassAttendance(now);
+          const { pullAllDevicesScansForRange, getTilawatScheduleWindowIST } = await import("./hikvision");
+          const tilawatSched = await getTilawatScheduleWindowIST(now);
+          if (tilawatSched.isWithinSchedule) {
+            await pullAllDevicesScansForRange(tilawatSched.startTimeIST, now);
+            await syncGateRegistryToClassAttendance(now);
+          }
+        } catch (pollErr) {
+          // Non-critical background hardware poll notification
+        }
       }
 
       // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC) - skip on Sunday

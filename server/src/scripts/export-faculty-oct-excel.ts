@@ -543,3 +543,4 @@ if (process.argv[1] && process.argv[1].includes('export-faculty-oct-excel')) {
       process.exit(1);
     });
 }
+
