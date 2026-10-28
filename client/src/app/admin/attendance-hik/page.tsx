@@ -465,8 +465,8 @@ export default function AdminAttendanceHikPage() {
       case "PRESENT":
         return {
           label: "PRESENT",
-          bg: "bg-emerald-50 text-emerald-800 border-emerald-300",
-          dot: "bg-emerald-500",
+          bg: "bg-emerald-600 text-white font-black border-emerald-500 shadow-xs",
+          dot: "bg-emerald-200",
           icon: CheckCircle2,
         };
       case "LATE":
@@ -582,6 +582,16 @@ export default function AdminAttendanceHikPage() {
             </button>
 
             <a
+              href="/api/admin/attendance-logs/export-faculty-excel"
+              download="Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 border border-emerald-400/40 text-white font-bold text-xs shadow-md transition-all min-h-[42px]"
+              title="Download 19 Oct to 24 Oct Faculty Biometric Attendance in Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+              <span>Faculty Excel (19-24 Oct)</span>
+            </a>
+
+            <a
               href={getExportAttendanceLogsUrl({ audience })}
               target="_blank"
               rel="noopener noreferrer"
@@ -610,15 +620,15 @@ export default function AdminAttendanceHikPage() {
           </div>
 
           {/* Card 2: Present */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 min-w-0">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 border-2 border-emerald-400 text-white min-w-0 shadow-lg shadow-emerald-950/40">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 truncate">Present</span>
-              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100 truncate">Present</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
             </div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-200 mt-0.5 truncate">
+            <div className="text-xl sm:text-2xl font-black text-white mt-0.5 truncate">
               {stats.presentCount}
             </div>
-            <div className="text-[10px] text-emerald-300/70 font-bold truncate">{stats.presentPct}% of strength</div>
+            <div className="text-[10px] text-emerald-100 font-extrabold truncate">{stats.presentPct}% of strength</div>
           </div>
 
           {/* Card 3: Absent (includes not-yet-scanned) */}
@@ -733,6 +743,40 @@ export default function AdminAttendanceHikPage() {
                 Today
               </button>
             )}
+          </div>
+
+          {/* Window Schedule Time Sync Selector & Cockpit Display */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50/70 text-slate-800 shadow-2xs">
+              <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 shrink-0">
+                Window Schedule:
+              </span>
+              <select
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
+                className="bg-transparent text-xs font-black text-emerald-950 outline-none cursor-pointer pr-1"
+              >
+                <option value="">All Schedule Windows (Full Strength)</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.name} ({ev.startTime} - {ev.lateEndTime || ev.endTime} IST)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[11px] font-black shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="text-emerald-300">
+                {selectedEventId
+                  ? events.find((e) => e.id === selectedEventId)?.name || "Selected Window"
+                  : events[0]
+                  ? `${events[0].name} (${events[0].startTime} - ${events[0].lateEndTime || events[0].endTime} IST)`
+                  : "Tilawat al Dua (07:00 - 12:30 IST)"}
+              </span>
+              <span className="text-slate-400 font-normal">| Time Synced</span>
+            </div>
           </div>
         </div>
 
@@ -1093,6 +1137,22 @@ export default function AdminAttendanceHikPage() {
                       </span>
                     </div>
 
+                    {/* Schedule Window Time Sync Strip */}
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <div className="truncate">
+                          <span className="font-extrabold text-slate-900 text-[11px]">{r.scheduledEvent?.name || "Tilawat al Dua"}: </span>
+                          <span className="font-mono text-[10.5px] font-bold text-slate-600">{r.scheduledEvent?.timeWindow || "07:00 - 12:30 IST"}</span>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
+                        hasScan ? "bg-emerald-100 text-emerald-900 border border-emerald-300" : "bg-slate-200 text-slate-700"
+                      }`}>
+                        {hasScan ? "Synced" : "Awaiting Punch"}
+                      </span>
+                    </div>
+
                     {/* Middle Row: Exact Scan Timestamp & Verification Mode */}
                     <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-xs">
                       <div>
@@ -1194,6 +1254,7 @@ export default function AdminAttendanceHikPage() {
                         <ArrowUpDown className="w-3 h-3 text-slate-400" />
                       </div>
                     </th>
+                    <th scope="col" className="px-3 py-3">Schedule Window &amp; Sync</th>
                     <th
                       scope="col"
                       onClick={() => setSortBy(sortBy === "time-desc" ? "time-asc" : "time-desc")}
@@ -1273,6 +1334,35 @@ export default function AdminAttendanceHikPage() {
                           <div className="font-semibold text-slate-800">{r.designationOrClass || "—"}</div>
                           <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
                             {hijri.day} {hijri.monthNameShort}
+                          </div>
+                        </td>
+
+                        {/* Schedule Window & Time Sync */}
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-col">
+                            <span className="font-black text-slate-900 text-[11px] truncate">
+                              {r.scheduledEvent?.name || "Tilawat al Dua"}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-slate-600 mt-0.5">
+                              {r.scheduledEvent?.timeWindow || "07:00 - 12:30 IST"}
+                            </span>
+                            <div className="mt-1">
+                              {hasScan ? (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-black text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                  Synced (In-Window)
+                                </span>
+                              ) : r.scheduledEvent?.isLiveInWindow ? (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-black text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 animate-pulse">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                  Live Window Open
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                  Window Closed
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
 

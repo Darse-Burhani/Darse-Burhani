@@ -8,6 +8,8 @@ import {
   createDirectApprovedLeave,
   createDirectFacultyLeave,
   markHolidayLeaveBatch,
+  assignLeaveRequest,
+  unassignLeaveRequest,
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 
@@ -63,6 +65,102 @@ router.get("/roster", requireRole("ADMIN"), async (req, res) => {
   } catch (err) {
     console.error("[admin-leave] Roster error:", err);
     return res.status(500).json({ success: false, error: "Failed to fetch roster" });
+  }
+});
+
+// GET /api/admin/leave/members — Faculty members with portal access who can review assigned leaves
+router.get("/members", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const members = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        role: "TEACHER",
+        teacherProfile: { isNot: null },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        avatarUrl: true,
+        role: true,
+        teacherProfile: {
+          select: { employeeId: true, department: true, roleTitle: true },
+        },
+      },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    });
+
+    return res.json({
+      success: true,
+      data: members.map((member) => ({
+        id: member.id,
+        name: `${member.firstName} ${member.lastName}`.trim(),
+        email: member.email,
+        avatarUrl: member.avatarUrl,
+        role: member.role,
+        employeeId: member.teacherProfile?.employeeId || null,
+        department: member.teacherProfile?.department || null,
+        roleTitle: member.teacherProfile?.roleTitle || null,
+      })),
+    });
+  } catch (err) {
+    console.error("[admin-leave] Members error:", err);
+    return res.status(500).json({ success: false, error: "Failed to fetch portal members" });
+  }
+});
+
+// POST /api/admin/leave/:id/assign — Assign a pending leave to a faculty member
+router.post("/:id/assign", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { memberId } = req.body;
+    if (!memberId || typeof memberId !== "string") {
+      return res.status(400).json({ success: false, error: "Select a portal member to assign" });
+    }
+
+    const leave = await assignLeaveRequest({
+      leaveId: req.params.id,
+      assigneeId: memberId,
+      assignedById: session.user.id,
+    });
+
+    return res.json({
+      success: true,
+      message: "Leave application assigned successfully",
+      data: {
+        id: leave.id,
+        assignedTo: leave.assignedTo
+          ? {
+              id: leave.assignedTo.id,
+              name: `${leave.assignedTo.firstName} ${leave.assignedTo.lastName}`.trim(),
+              email: leave.assignedTo.email,
+            }
+          : null,
+        assignedAt: leave.assignedAt?.toISOString() || null,
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Assign error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to assign leave application",
+    });
+  }
+});
+
+// DELETE /api/admin/leave/:id/assign — Remove the faculty assignment
+router.delete("/:id/assign", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const leave = await unassignLeaveRequest(req.params.id);
+    return res.json({ success: true, data: { id: leave.id, assignedTo: null } });
+  } catch (error: any) {
+    console.error("[admin-leave] Unassign error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to remove assignment",
+    });
   }
 });
 
@@ -205,6 +303,12 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             reviewer: {
               select: { firstName: true, lastName: true, role: true, email: true },
             },
+            assignedTo: {
+              select: { id: true, firstName: true, lastName: true, role: true, email: true },
+            },
+            assignedBy: {
+              select: { id: true, firstName: true, lastName: true },
+            },
           },
           orderBy: [{ status: "asc" }, { createdAt: "desc" }],
           skip,
@@ -245,6 +349,21 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           reviewerNotes: l.reviewerNotes,
           reviewedBy: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : null,
           reviewedAt: l.reviewedAt?.toISOString() || null,
+          assignedTo: l.assignedTo
+            ? {
+                id: l.assignedTo.id,
+                name: `${l.assignedTo.firstName} ${l.assignedTo.lastName}`.trim(),
+                email: l.assignedTo.email,
+                role: l.assignedTo.role,
+              }
+            : null,
+          assignedBy: l.assignedBy
+            ? `${l.assignedBy.firstName} ${l.assignedBy.lastName}`.trim()
+            : null,
+          assignedAt: l.assignedAt?.toISOString() || null,
+          approvedDays: l.approvedDays,
+          grantedStartDate: l.grantedStartDate?.toISOString() || null,
+          grantedEndDate: l.grantedEndDate?.toISOString() || null,
           createdAt: l.createdAt.toISOString(),
         })),
         pagination: {
@@ -265,12 +384,16 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
-    const { reviewerNotes } = req.body;
+    const { reviewerNotes, approvedDays } = req.body;
 
     const leave = await approveLeaveRequest({
       leaveId: req.params.id,
       reviewerId: session.user.id,
       reviewerNotes: reviewerNotes || "Approved by Administrator.",
+      approvedDays:
+        approvedDays === undefined || approvedDays === null || approvedDays === ""
+          ? null
+          : Number(approvedDays),
     });
 
     return res.json({
@@ -278,6 +401,9 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
       data: {
         id: leave.id,
         status: leave.status,
+        approvedDays: leave.approvedDays,
+        grantedStartDate: leave.grantedStartDate?.toISOString() || null,
+        grantedEndDate: leave.grantedEndDate?.toISOString() || null,
         reviewedAt: leave.reviewedAt?.toISOString(),
       },
     });

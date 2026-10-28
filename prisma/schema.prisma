@@ -127,6 +127,9 @@ model User {
   procurementRequests  ProcurementRequest[] @relation("ProcurementRequester")
   procurementsAssigned ProcurementRequest[] @relation("ProcurementAssignedAdmin")
   reviewedLeaves       LeaveRequest[]       @relation("LeaveReviewer")
+  assignedLeaves       LeaveRequest[]       @relation("LeaveAssignee")
+  leavesAssignedByMe   LeaveRequest[]       @relation("LeaveAssigner")
+  pushSubscriptions    PushSubscription[]
   reviewedHifzReports  HifzMarhalaReport[]  @relation("HifzReportReviewer")
   reviewedWeeklySlips  HifzWeeklySlip[]     @relation("WeeklySlipReviewer")
   hifzAssignments      HifzMarhalaAssignment[] @relation("AdminHifzAssignments")
@@ -1229,18 +1232,43 @@ model LeaveRequest {
   reviewerId    String?
   reviewerNotes String?      @db.Text
   reviewedAt    DateTime?
+  assignedToId  String?
+  assignedById  String?
+  assignedAt    DateTime?
+  approvedDays  Int?
+  grantedStartDate DateTime?
+  grantedEndDate   DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   student    StudentProfile       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   reviewer   User?                @relation("LeaveReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  assignedTo User?                @relation("LeaveAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedBy User?                @relation("LeaveAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
   registries AttendanceRegistry[]
 
   @@index([studentId])
   @@index([status])
   @@index([startDate, endDate])
   @@index([reviewerId])
+  @@index([assignedToId])
   @@map("leave_requests")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model AttendanceRegistry {

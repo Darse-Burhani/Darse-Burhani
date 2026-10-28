@@ -1,6 +1,12 @@
 import prisma from "./prisma";
 import { cache } from "./cache";
 import { queueAutoSheetSync } from "./google-attendance-sync";
+import { sendLeaveEmail } from "./email";
+import {
+  leaveApplicationAdminEmail,
+  leaveDecisionParentEmail,
+} from "./leave-email-templates";
+import { sendPushToUser, sendPushToUsers } from "./push";
 import { LeaveType, LeaveStatus, AttendanceSource, AttendanceStatus } from "@prisma/client";
 
 export interface CreateLeaveInput {
@@ -16,6 +22,14 @@ export interface ReviewLeaveInput {
   leaveId: string;
   reviewerId?: string;
   reviewerNotes?: string;
+  /** Number of days granted from the requested start date. Omit for the full range. */
+  approvedDays?: number | null;
+}
+
+export interface AssignLeaveInput {
+  leaveId: string;
+  assigneeId: string;
+  assignedById: string;
 }
 
 /**
@@ -39,6 +53,73 @@ export function getDateRangeArray(startDate: Date, endDate: Date): Date[] {
   return dates;
 }
 
+/** Inclusive number of calendar days between two dates. */
+export function countLeaveDays(startDate: Date, endDate: Date): number {
+  return Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+}
+
+function addUtcDays(date: Date, days: number): Date {
+  const next = new Date(date.getTime());
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function formatUtcDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatDateTime(date: Date): string {
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+function appUrl(path: string): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:4000").replace(/\/$/, "");
+  return `${base}${path}`;
+}
+
+async function getParentContacts(studentId: string) {
+  const links = await prisma.parentStudentLink.findMany({
+    where: { studentId },
+    include: {
+      parent: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              isActive: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return links
+    .map((link) => ({
+      userId: link.parent.user.id,
+      name: `${link.parent.user.firstName} ${link.parent.user.lastName}`.trim(),
+      email: link.parent.user.email,
+      isActive: link.parent.user.isActive,
+    }))
+    .filter((contact) => !!contact.email);
+}
+
 async function notifyAdmins(title: string, body: string, link: string = "/admin/leave") {
   try {
     const admins = await prisma.user.findMany({
@@ -57,8 +138,10 @@ async function notifyAdmins(title: string, body: string, link: string = "/admin/
         })),
       });
     }
+    return admins.map((admin) => admin.id);
   } catch (err) {
     console.error("[leave-service] Failed to notify admins:", err);
+    return [];
   }
 }
 
@@ -81,8 +164,10 @@ async function notifyParents(studentId: string, title: string, body: string, lin
         })),
       });
     }
+    return parentUserIds;
   } catch (err) {
     console.error("[leave-service] Failed to notify parents:", err);
+    return [];
   }
 }
 
@@ -92,7 +177,21 @@ async function notifyParents(studentId: string, title: string, body: string, lin
 export async function createLeaveRequest(input: CreateLeaveInput) {
   const student = await prisma.studentProfile.findUnique({
     where: { id: input.studentId },
-    include: { user: true },
+    include: {
+      user: true,
+      classEnrollments: {
+        where: { isActive: true },
+        include: {
+          class: {
+            include: {
+              teacher: { include: { user: true } },
+              masool: { include: { user: true } },
+            },
+          },
+        },
+        take: 1,
+      },
+    },
   });
 
   if (!student) {
@@ -136,6 +235,33 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     );
   }
 
+  // Identify assigned portal access member (Class Teacher / Masool / Portal Member)
+  let assignedMemberUser: { id: string; email: string; firstName: string; lastName: string } | null = null;
+  const enrolledClass = student.classEnrollments[0]?.class;
+  const classTeacherUser = enrolledClass?.teacher?.user;
+  const classMasoolUser = enrolledClass?.masool?.user;
+
+  if (classTeacherUser && classTeacherUser.isActive) {
+    assignedMemberUser = classTeacherUser;
+  } else if (classMasoolUser && classMasoolUser.isActive) {
+    assignedMemberUser = classMasoolUser;
+  } else {
+    // Check if any teacher is assigned portal access for LEAVE
+    const leavePortalMember = await prisma.teacherPortalAssignment.findFirst({
+      where: {
+        isActive: true,
+        portalType: { in: ["ALL", "PAGE:leave"] },
+        teacher: { user: { isActive: true } },
+      },
+      include: {
+        teacher: { include: { user: true } },
+      },
+    });
+    if (leavePortalMember?.teacher?.user) {
+      assignedMemberUser = leavePortalMember.teacher.user;
+    }
+  }
+
   const leave = await prisma.leaveRequest.create({
     data: {
       studentId: student.id,
@@ -145,12 +271,17 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
       reason: input.reason.trim(),
       attachmentUrl: input.attachmentUrl || null,
       status: LeaveStatus.PENDING,
+      assignedToId: assignedMemberUser?.id || null,
+      assignedAt: assignedMemberUser ? new Date() : null,
     },
     include: {
       student: {
         include: {
           user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
         },
+      },
+      assignedTo: {
+        select: { id: true, firstName: true, lastName: true, email: true, role: true },
       },
     },
   });
@@ -161,7 +292,7 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
       data: {
         userId: student.userId,
         title: "Leave Request Submitted",
-        body: `Your ${input.type.toLowerCase()} leave request (${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}) has been submitted for review.`,
+        body: `Your ${input.type.toLowerCase()} leave request (${formatUtcDate(start)} - ${formatUtcDate(end)}) has been submitted for review.`,
         type: "ANNOUNCEMENT",
         link: "/talabat/leave-request",
         priority: "NORMAL",
@@ -171,14 +302,115 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     console.error("[leave-service] Notification error:", e);
   }
 
-  // Notify School Administration
+  // Notify School Administration (in-app + desktop push)
   const studentFullName = `${student.user.firstName} ${student.user.lastName}`.trim();
-  const dateRangeStr = `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-  await notifyAdmins(
+  const requestedDays = countLeaveDays(start, end);
+  const dateRangeStr = `${formatUtcDate(start)} – ${formatUtcDate(end)}`;
+  const parentContacts = await getParentContacts(student.id);
+  const primaryParent = parentContacts[0];
+  const assignedMemberName = assignedMemberUser
+    ? `${assignedMemberUser.firstName} ${assignedMemberUser.lastName}`.trim()
+    : null;
+
+  const adminIds = await notifyAdmins(
     "New Leave Application",
-    `${studentFullName} applied for ${input.type.toLowerCase().replace(/_/g, " ")} leave (${dateRangeStr}).`,
+    `${studentFullName} applied for ${input.type.toLowerCase().replace(/_/g, " ")} leave (${dateRangeStr}, ${requestedDays} ${requestedDays === 1 ? "day" : "days"}).`,
     "/admin/leave"
   );
+
+  await sendPushToUsers(adminIds, {
+    title: "New Leave Application",
+    body: `${studentFullName} · ${requestedDays} ${requestedDays === 1 ? "day" : "days"} · ${dateRangeStr}`,
+    url: "/admin/leave",
+    tag: `leave-admin-${leave.id}`,
+  });
+
+  // Email the Galiakot administration mailbox with the full application layout.
+  try {
+    const adminEmailTo = process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org";
+    const emailSent = await sendLeaveEmail({
+      to: adminEmailTo,
+      subject: `New Leave Application — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`,
+      html: leaveApplicationAdminEmail({
+        leaveId: leave.id,
+        studentName: studentFullName,
+        its: student.its || student.studentId,
+        grade: student.grade,
+        section: student.section,
+        className: student.classEnrollments[0]?.class?.name || null,
+        parentName: primaryParent?.name || null,
+        parentEmail: primaryParent?.email || null,
+        type: input.type,
+        startDate: formatUtcDate(start),
+        endDate: formatUtcDate(end),
+        days: requestedDays,
+        reason: input.reason.trim(),
+        attachmentUrl: input.attachmentUrl || null,
+        submittedAt: formatDateTime(leave.createdAt),
+        adminUrl: appUrl("/admin/leave"),
+        isAssignedMember: false,
+        assignedMemberName,
+      }),
+    });
+    if (!emailSent) {
+      console.warn(`[leave-service] Admin leave email could not be delivered for ${leave.id}`);
+    }
+  } catch (err) {
+    console.error("[leave-service] Admin leave email error:", err);
+  }
+
+  // Notify and email the Assigned Portal Access Member (Faculty member)
+  if (assignedMemberUser) {
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: assignedMemberUser.id,
+          title: "New Leave Application Assigned",
+          body: `${studentFullName} applied for ${input.type.toLowerCase().replace(/_/g, " ")} leave (${dateRangeStr}, ${requestedDays} ${requestedDays === 1 ? "day" : "days"}). Add remarks and grant leave days.`,
+          type: "ALERT",
+          link: "/teacher/leave",
+          priority: "HIGH",
+        },
+      });
+
+      await sendPushToUser(assignedMemberUser.id, {
+        title: "Leave Application Assigned",
+        body: `${studentFullName} · ${requestedDays} ${requestedDays === 1 ? "day" : "days"} — review and grant days`,
+        url: "/teacher/leave",
+        tag: `leave-assign-${leave.id}`,
+        requireInteraction: true,
+      });
+
+      if (assignedMemberUser.email) {
+        await sendLeaveEmail({
+          to: assignedMemberUser.email,
+          subject: `Leave Application for Review — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`,
+          html: leaveApplicationAdminEmail({
+            leaveId: leave.id,
+            studentName: studentFullName,
+            its: student.its || student.studentId,
+            grade: student.grade,
+            section: student.section,
+            className: student.classEnrollments[0]?.class?.name || null,
+            parentName: primaryParent?.name || null,
+            parentEmail: primaryParent?.email || null,
+            type: input.type,
+            startDate: formatUtcDate(start),
+            endDate: formatUtcDate(end),
+            days: requestedDays,
+            reason: input.reason.trim(),
+            attachmentUrl: input.attachmentUrl || null,
+            submittedAt: formatDateTime(leave.createdAt),
+            adminUrl: appUrl("/teacher/leave"),
+            isAssignedMember: true,
+            assignedMemberName,
+          }),
+        });
+      }
+    } catch (assigneeErr) {
+      console.error("[leave-service] Failed to notify assigned portal member:", assigneeErr);
+    }
+  }
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
@@ -213,6 +445,18 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     return leave;
   }
 
+  const requestedDays = countLeaveDays(leave.startDate, leave.endDate);
+  const requestedGrant =
+    input.approvedDays == null ? requestedDays : Number(input.approvedDays);
+  const grantedDays = Math.min(
+    Math.max(Number.isFinite(requestedGrant) ? Math.trunc(requestedGrant) : requestedDays, 1),
+    requestedDays
+  );
+  const grantedStart = normalizeDateToUTC(leave.startDate);
+  const grantedEnd = addUtcDays(grantedStart, grantedDays - 1);
+  const reduced = grantedDays < requestedDays;
+  const grantedRangeStr = `${formatUtcDate(grantedStart)} – ${formatUtcDate(grantedEnd)}`;
+
   const updatedLeave = await prisma.leaveRequest.update({
     where: { id: leave.id },
     data: {
@@ -220,10 +464,13 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
       reviewerId: input.reviewerId || null,
       reviewerNotes: input.reviewerNotes?.trim() || null,
       reviewedAt: new Date(),
+      approvedDays: grantedDays,
+      grantedStartDate: grantedStart,
+      grantedEndDate: grantedEnd,
     },
   });
 
-  const dates = getDateRangeArray(leave.startDate, leave.endDate);
+  const dates = getDateRangeArray(grantedStart, grantedEnd);
   const registryStatus: AttendanceStatus =
     leave.type === LeaveType.MEDICAL ? AttendanceStatus.MEDICAL : AttendanceStatus.ON_LEAVE;
   const registrySource: AttendanceSource =
@@ -290,13 +537,28 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     }
   }
 
+  const approvedStudentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+  const reviewer = input.reviewerId
+    ? await prisma.user.findUnique({
+        where: { id: input.reviewerId },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
+  const reviewerName = reviewer
+    ? `${reviewer.firstName} ${reviewer.lastName}`.trim()
+    : null;
+  const decisionSummary = reduced
+    ? `approved for ${grantedDays} of ${requestedDays} requested ${requestedDays === 1 ? "day" : "days"} (${grantedRangeStr})`
+    : `approved for the full requested period (${grantedRangeStr})`;
+  const decisionTitle = reduced ? "Leave Approved — Reduced Days" : "Leave Request Approved";
+
   // Notify student
   try {
     await prisma.notification.create({
       data: {
         userId: leave.student.userId,
-        title: "Leave Request Approved",
-        body: `Your leave request for ${leave.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${leave.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} has been approved.`,
+        title: decisionTitle,
+        body: `Your leave request has been ${decisionSummary}.`,
         type: "ALERT",
         link: "/talabat/leave-request",
         priority: "HIGH",
@@ -306,15 +568,64 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     console.error("[leave-service] Notification error:", e);
   }
 
-  // Notify Parent(s)
-  const approvedStudentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
-  const approvedDatesStr = `${leave.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${leave.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-  await notifyParents(
+  // Notify Parent(s) inside the portal
+  const parentUserIds = await notifyParents(
     leave.studentId,
-    "Leave Request Approved",
-    `Leave application for ${approvedStudentName} (${approvedDatesStr}) has been approved.${input.reviewerNotes ? ` Note: ${input.reviewerNotes}` : ""}`,
+    decisionTitle,
+    `Leave application for ${approvedStudentName} has been ${decisionSummary}.${input.reviewerNotes ? ` Remarks: ${input.reviewerNotes}` : ""}`,
     "/parent"
   );
+
+  // Notify Parent(s) outside the website (browser push)
+  const parentContacts = await getParentContacts(leave.studentId);
+  await sendPushToUsers(
+    [leave.student.userId, ...parentUserIds, ...parentContacts.map((c) => c.userId)],
+    {
+      title: decisionTitle,
+      body: `${approvedStudentName} · ${decisionSummary}`,
+      url: "/parent",
+      tag: `leave-decision-${leave.id}`,
+      requireInteraction: true,
+    }
+  );
+
+  // Email the decision to every linked parent from the Galiakot admin mailbox.
+  const emailResults = await Promise.allSettled(
+    parentContacts
+      .filter((contact) => contact.isActive)
+      .map((contact) =>
+        sendLeaveEmail({
+          to: contact.email,
+          subject: reduced
+            ? `Leave Approved (Reduced Days) — ${approvedStudentName}`
+            : `Leave Application Approved — ${approvedStudentName}`,
+          html: leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName: approvedStudentName,
+            parentName: contact.name,
+            type: leave.type,
+            status: "APPROVED",
+            requestedStart: formatUtcDate(leave.startDate),
+            requestedEnd: formatUtcDate(leave.endDate),
+            requestedDays,
+            approvedDays: grantedDays,
+            grantedStart: formatUtcDate(grantedStart),
+            grantedEnd: formatUtcDate(grantedEnd),
+            reviewerName,
+            reviewerNotes: input.reviewerNotes?.trim() || null,
+            portalUrl: appUrl("/parent"),
+          }),
+        })
+      )
+  );
+  emailResults.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(
+        `[leave-service] Parent approval email failed for ${parentContacts[index]?.email}:`,
+        result.reason
+      );
+    }
+  });
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
@@ -345,6 +656,9 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
       reviewerId: input.reviewerId || null,
       reviewerNotes: input.reviewerNotes?.trim() || "Leave request was not approved.",
       reviewedAt: new Date(),
+      approvedDays: null,
+      grantedStartDate: null,
+      grantedEndDate: null,
     },
   });
 
@@ -371,12 +685,69 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
 
   // Notify Parent(s)
   const rejectedStudentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
-  await notifyParents(
+  const rejectedParentUserIds = await notifyParents(
     leave.studentId,
     "Leave Request Rejected",
-    `Leave application for ${rejectedStudentName} was rejected.${input.reviewerNotes ? ` Note: ${input.reviewerNotes}` : ""}`,
+    `Leave application for ${rejectedStudentName} was rejected.${input.reviewerNotes ? ` Remarks: ${input.reviewerNotes}` : ""}`,
     "/parent"
   );
+
+  const reviewer = input.reviewerId
+    ? await prisma.user.findUnique({
+        where: { id: input.reviewerId },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
+  const reviewerName = reviewer
+    ? `${reviewer.firstName} ${reviewer.lastName}`.trim()
+    : null;
+  const parentContacts = await getParentContacts(leave.studentId);
+
+  await sendPushToUsers(
+    [leave.student.userId, ...rejectedParentUserIds, ...parentContacts.map((c) => c.userId)],
+    {
+      title: "Leave Request Not Approved",
+      body: `${rejectedStudentName} · ${formatUtcDate(leave.startDate)} – ${formatUtcDate(leave.endDate)}`,
+      url: "/parent",
+      tag: `leave-decision-${leave.id}`,
+      requireInteraction: true,
+    }
+  );
+
+  const emailResults = await Promise.allSettled(
+    parentContacts
+      .filter((contact) => contact.isActive)
+      .map((contact) =>
+        sendLeaveEmail({
+          to: contact.email,
+          subject: `Leave Application Not Approved — ${rejectedStudentName}`,
+          html: leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName: rejectedStudentName,
+            parentName: contact.name,
+            type: leave.type,
+            status: "REJECTED",
+            requestedStart: formatUtcDate(leave.startDate),
+            requestedEnd: formatUtcDate(leave.endDate),
+            requestedDays: countLeaveDays(leave.startDate, leave.endDate),
+            approvedDays: null,
+            grantedStart: null,
+            grantedEnd: null,
+            reviewerName,
+            reviewerNotes: input.reviewerNotes?.trim() || null,
+            portalUrl: appUrl("/parent"),
+          }),
+        })
+      )
+  );
+  emailResults.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(
+        `[leave-service] Parent rejection email failed for ${parentContacts[index]?.email}:`,
+        result.reason
+      );
+    }
+  });
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
@@ -384,6 +755,150 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
   queueAutoSheetSync(leave.startDate);
 
   return updatedLeave;
+}
+
+/**
+ * Assigns a pending leave application to a faculty member with portal access.
+ */
+export async function assignLeaveRequest(input: AssignLeaveInput) {
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: input.leaveId },
+    include: {
+      student: {
+        include: { user: { select: { firstName: true, lastName: true } } },
+      },
+    },
+  });
+
+  if (!leave) {
+    throw new Error("Leave request not found");
+  }
+  if (leave.status !== LeaveStatus.PENDING) {
+    throw new Error("Only pending leave applications can be assigned");
+  }
+
+  const assignee = await prisma.user.findFirst({
+    where: {
+      id: input.assigneeId,
+      isActive: true,
+      role: { in: ["TEACHER", "ADMIN"] },
+    },
+    include: {
+      teacherProfile: { select: { id: true, department: true, roleTitle: true } },
+    },
+  });
+
+  if (!assignee) {
+    throw new Error("Selected member does not have portal access");
+  }
+  if (assignee.role === "TEACHER" && !assignee.teacherProfile) {
+    throw new Error("Selected member does not have a faculty portal profile");
+  }
+
+  const updated = await prisma.leaveRequest.update({
+    where: { id: leave.id },
+    data: {
+      assignedToId: assignee.id,
+      assignedById: input.assignedById,
+      assignedAt: new Date(),
+    },
+    include: {
+      assignedTo: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+      assignedBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  const studentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+  const days = countLeaveDays(leave.startDate, leave.endDate);
+  const link = assignee.role === "ADMIN" ? "/admin/leave" : "/teacher/leave";
+
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: assignee.id,
+        title: "Leave Application Assigned",
+        body: `${studentName} · ${formatUtcDate(leave.startDate)} – ${formatUtcDate(leave.endDate)} (${days} ${days === 1 ? "day" : "days"}). Add remarks and choose the granted days.`,
+        type: "ALERT",
+        link,
+        priority: "HIGH",
+      },
+    });
+  } catch (err) {
+    console.error("[leave-service] Assign notification error:", err);
+  }
+
+  await sendPushToUser(assignee.id, {
+    title: "Leave Application Assigned",
+    body: `${studentName} · ${days} ${days === 1 ? "day" : "days"} — review and grant days`,
+    url: link,
+    tag: `leave-assign-${leave.id}`,
+    requireInteraction: true,
+  });
+
+  // Email the assigned portal member with full leave application layout
+  if (assignee.email) {
+    try {
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { id: leave.studentId },
+        include: {
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: true },
+            take: 1,
+          },
+        },
+      });
+      const parentContacts = await getParentContacts(leave.studentId);
+      const primaryParent = parentContacts[0];
+      const assigneeName = `${assignee.firstName} ${assignee.lastName}`.trim();
+
+      await sendLeaveEmail({
+        to: assignee.email,
+        subject: `Leave Application Assigned — ${studentName} (${days} ${days === 1 ? "day" : "days"})`,
+        html: leaveApplicationAdminEmail({
+          leaveId: leave.id,
+          studentName,
+          its: studentProfile?.its || studentProfile?.studentId,
+          grade: studentProfile?.grade,
+          section: studentProfile?.section,
+          className: studentProfile?.classEnrollments[0]?.class?.name || null,
+          parentName: primaryParent?.name || null,
+          parentEmail: primaryParent?.email || null,
+          type: leave.type,
+          startDate: formatUtcDate(leave.startDate),
+          endDate: formatUtcDate(leave.endDate),
+          days,
+          reason: leave.reason,
+          attachmentUrl: leave.attachmentUrl || null,
+          submittedAt: formatDateTime(leave.createdAt),
+          adminUrl: appUrl(link),
+          isAssignedMember: true,
+          assignedMemberName: assigneeName,
+        }),
+      });
+    } catch (err) {
+      console.error("[leave-service] Assign email error:", err);
+    }
+  }
+
+  cache.invalidateTag("dashboard");
+  return updated;
+}
+
+/** Removes the faculty assignment from a pending leave application. */
+export async function unassignLeaveRequest(leaveId: string) {
+  const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+  if (!leave) {
+    throw new Error("Leave request not found");
+  }
+  if (leave.status !== LeaveStatus.PENDING) {
+    throw new Error("Only pending leave applications can be unassigned");
+  }
+
+  return prisma.leaveRequest.update({
+    where: { id: leaveId },
+    data: { assignedToId: null, assignedById: null, assignedAt: null },
+  });
 }
 
 /**
@@ -455,7 +970,7 @@ export async function getStudentLeaveSummary(studentId: string) {
 
   for (const l of leaves) {
     if (l.status === LeaveStatus.APPROVED) {
-      const days = Math.round((l.endDate.getTime() - l.startDate.getTime()) / 86400000) + 1;
+      const days = l.approvedDays ?? countLeaveDays(l.startDate, l.endDate);
       approvedDays += days;
       if (l.type === LeaveType.MEDICAL) {
         medicalDays += days;

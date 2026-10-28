@@ -69,6 +69,8 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
             user: { select: { firstName: true, lastName: true } },
           },
         },
+        reviewer: { select: { firstName: true, lastName: true } },
+        assignedTo: { select: { id: true, firstName: true, lastName: true, role: true } },
       },
     });
 
@@ -97,7 +99,18 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
           attachmentUrl: l.attachmentUrl,
           status: l.status,
           reviewerNotes: l.reviewerNotes,
+          reviewedBy: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}`.trim() : null,
           reviewedAt: l.reviewedAt?.toISOString() || null,
+          assignedTo: l.assignedTo
+            ? {
+                id: l.assignedTo.id,
+                name: `${l.assignedTo.firstName} ${l.assignedTo.lastName}`.trim(),
+                role: l.assignedTo.role,
+              }
+            : null,
+          approvedDays: l.approvedDays,
+          grantedStartDate: l.grantedStartDate?.toISOString() || null,
+          grantedEndDate: l.grantedEndDate?.toISOString() || null,
           createdAt: l.createdAt.toISOString(),
         })),
         summaryByChild,

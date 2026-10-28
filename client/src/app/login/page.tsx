@@ -147,7 +147,7 @@ export default function LoginPage() {
   const [forgotChecking, setForgotChecking] = useState(false);
   const forgotLookupSeq = useRef(0);
 
-  // ── Auto-Sized Viewport Resolution Tracker ──
+  // ââ Auto-Sized Viewport Resolution Tracker ââ
   const [windowSize, setWindowSize] = useState<{ width: number; height: number }>({
     width: typeof window !== "undefined" ? window.innerWidth : 1280,
     height: typeof window !== "undefined" ? window.innerHeight : 800,
@@ -162,7 +162,7 @@ export default function LoginPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ── Restore Remembered Login Credentials ──
+  // ââ Restore Remembered Login Credentials ââ
   useEffect(() => {
     try {
       const isRemembered = localStorage.getItem("darse_remember_me") === "true";
@@ -227,8 +227,8 @@ export default function LoginPage() {
   const forgotSupportMailto = useMemo(() => {
     const ident = forgotIdentifier.trim();
     const subject = forgotProfile
-      ? `Password Reset Request — ${forgotProfile.portal} — ${forgotProfile.displayName}`
-      : "Password Reset Request — Darse Burhani (Nisab)";
+      ? `Password Reset Request â ${forgotProfile.portal} â ${forgotProfile.displayName}`
+      : "Password Reset Request â Darse Burhani (Nisab)";
     const lines = [
       "Assalamu Alaikum,",
       "",
@@ -247,10 +247,10 @@ export default function LoginPage() {
     }
     lines.push("", "Please reset my password at your earliest convenience.", "", "Jazak Allah,");
     if (forgotProfile) lines.push(forgotProfile.displayName);
-    return `mailto:support.darseburhani.galiakot@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+    return `mailto:admin.galiakot@darseburhani.org?cc=support.darseburhani.galiakot@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
   }, [forgotProfile, forgotIdentifier]);
 
-  // ── Backdrop Parallax ──
+  // ââ Backdrop Parallax ââ
   // The panorama drifts subtly with the cursor (desktop, motion-safe only) so the
   // full-length photo feels alive without ever cropping it. Touch devices skip it.
   useEffect(() => {
@@ -585,20 +585,20 @@ export default function LoginPage() {
     <>
       <SEO
         title="Sign In | Darse Burhani (Nisab)"
-        description="Official sign-in portal for Darse Burhani (Nisab) — Mahad al Zahra talabat, faculty, administration, and parents."
+        description="Official sign-in portal for Darse Burhani (Nisab) â Mahad al Zahra talabat, faculty, administration, and parents."
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* ── Twilight Palace Backdrop ──
+      {/* ââ Twilight Palace Backdrop ââ
           Layered cinematic composition:
-          1. Blurred full-bleed fill — same panorama, cover-scaled and defocused, so
+          1. Blurred full-bleed fill â same panorama, cover-scaled and defocused, so
              the backdrop reaches every screen edge with no letterbox gaps
-          2. Tint wash — photo-sampled gradient that unifies the composition
-          3. Photo — entire panorama, no crop (centered on desktop, hero band on mobile)
-          4. Seam fade — melts the photo edge into the wash on desktop and mobile
-          5. Sun glow — breathing amber light where the sun sets in the photo
-          6. Parallax — the panorama drifts with the cursor (desktop, motion-safe) */}
-      {/* ── Twilight Palace Backdrop (Full-Fit Uncropped Panorama with Ambient Twilight Fill) ── */}
+          2. Tint wash â photo-sampled gradient that unifies the composition
+          3. Photo â entire panorama, no crop (centered on desktop, hero band on mobile)
+          4. Seam fade â melts the photo edge into the wash on desktop and mobile
+          5. Sun glow â breathing amber light where the sun sets in the photo
+          6. Parallax â the panorama drifts with the cursor (desktop, motion-safe) */}
+      {/* ââ Twilight Palace Backdrop (Full-Fit Uncropped Panorama with Ambient Twilight Fill) ââ */}
       {/* 1. Ambient underlay layer: fills entire viewport on any aspect ratio with zero letterbox gaps */}
       <div
         className="fixed inset-0 z-0 pointer-events-none login-backdrop-ambient"
@@ -615,7 +615,7 @@ export default function LoginPage() {
       {/* 4. Ambient sun glow bloom at sunset horizon */}
       <div className="fixed z-0 pointer-events-none login-sun-glow" aria-hidden="true" />
 
-      {/* ── Full Page Layout (Enables smooth native vertical scrolling on all screen heights) ── */}
+      {/* ââ Full Page Layout (Enables smooth native vertical scrolling on all screen heights) ââ */}
       <div
         className="login-page-root relative z-10 flex flex-col w-full min-h-[100dvh]"
         style={{
@@ -624,13 +624,13 @@ export default function LoginPage() {
           paddingBottom: "max(20px, env(safe-area-inset-bottom, 0px))",
         }}
       >
-        {/* ═══════════════ MAIN CENTER AREA ═══════════════ */}
+        {/* âââââââââââââââ MAIN CENTER AREA âââââââââââââââ */}
         <main className="flex-1 flex flex-col justify-center items-center px-3 py-4 sm:px-6 sm:py-8 my-auto w-full">
 
-          {/* ══════════════════════════════════════════════════════
+          {/* ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
               1. DESKTOP / WEB LOGIN UI (md:flex >= 768px)
               Expansive Dual-Wing Glassmorphism Console
-              ══════════════════════════════════════════════════════ */}
+              ââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
           <div
             className="hidden md:grid w-full login-glass-card max-w-[1020px] mx-auto overflow-hidden"
             style={{
@@ -638,7 +638,7 @@ export default function LoginPage() {
               borderRadius: 24,
             }}
           >
-            {/* ── Left Wing: Institutional Showcase & Security Trust ── */}
+            {/* ââ Left Wing: Institutional Showcase & Security Trust ââ */}
             <div
               className="flex flex-col justify-between p-7 lg:p-8 relative overflow-hidden"
               style={{
@@ -701,7 +701,7 @@ export default function LoginPage() {
                     textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                   }}
                 >
-                  Mahad al Zahra · Ghaliakot
+                  Mahad al Zahra · Galiakot
                 </span>
               </div>
 
@@ -761,14 +761,14 @@ export default function LoginPage() {
                 </div>
                 <p style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.65)", textAlign: "center", margin: 0 }}>
                   Direct Support:{" "}
-                  <a href="mailto:support.darseburhani.galiakot@gmail.com" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
-                    support.darseburhani.galiakot@gmail.com
+                  <a href="mailto:admin.galiakot@darseburhani.org" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
+                    admin.galiakot@darseburhani.org
                   </a>
                 </p>
               </div>
             </div>
 
-            {/* ── Right Wing: Interactive Action Console ── */}
+            {/* ââ Right Wing: Interactive Action Console ââ */}
             <div className="p-7 lg:p-8 flex flex-col justify-center gap-3.5">
               {/* Workspace Selector Tabs */}
               <div className="flex flex-col gap-2">
@@ -964,7 +964,7 @@ export default function LoginPage() {
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
-                      placeholder="••••••••"
+                      placeholder="â¢â¢â¢â¢â¢â¢â¢â¢"
                       style={{
                         width: "100%",
                         height: 46,
@@ -1149,7 +1149,7 @@ export default function LoginPage() {
                 <span>
                   Need help?{" "}
                   <a
-                    href="mailto:support.darseburhani.galiakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                    href="mailto:admin.galiakot@darseburhani.org?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
                     style={{ color: "#fcd468", fontWeight: 700, textDecoration: "none" }}
                     onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
@@ -1179,10 +1179,10 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* ══════════════════════════════════════════════════════
+          {/* ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
               2. MOBILE LOGIN UI (md:hidden < 768px)
               App-Native Mobile Console with Full Adaptive Twilight Backdrop
-              ══════════════════════════════════════════════════════ */}
+              ââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
           <div className="flex md:hidden w-full flex-col max-w-[430px] mx-auto">
             {/* Mobile Frosted Glass Card */}
             <div
@@ -1418,7 +1418,7 @@ export default function LoginPage() {
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
-                      placeholder="••••••••"
+                      placeholder="â¢â¢â¢â¢â¢â¢â¢â¢"
                       style={{
                         width: "100%",
                         height: 44,
@@ -1537,7 +1537,7 @@ export default function LoginPage() {
                 style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}
               >
                 <a
-                  href="mailto:support.darseburhani.galiakot@gmail.com"
+                  href="mailto:admin.galiakot@darseburhani.org?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
                   style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}
                 >
                   Help
@@ -1693,7 +1693,7 @@ export default function LoginPage() {
           .login-backdrop-photo { transition: none; }
         }
 
-        /* ── Mobile Viewport Optimization (<= 767px) ── */
+        /* ââ Mobile Viewport Optimization (<= 767px) ââ */
         @media (max-width: 767px) {
           .login-backdrop-photo {
             background-size: cover !important;
@@ -1719,7 +1719,7 @@ export default function LoginPage() {
         }
       `}</style>
 
-      {/* ── ITS Card Scanner Modal ── */}
+      {/* ââ ITS Card Scanner Modal ââ */}
       {showScannerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,26,48,0.75)", backdropFilter: "blur(6px)" }}>
           <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl overscroll-contain" style={{ background: "#ffffff", color: "#0f172a" }}>
@@ -1821,7 +1821,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* ── Forgot Password Modal ── */}
+      {/* ââ Forgot Password Modal ââ */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,26,48,0.75)", backdropFilter: "blur(6px)" }}>
           <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl overscroll-contain" style={{ background: "#ffffff", color: "#0f172a" }}>
@@ -1839,7 +1839,7 @@ export default function LoginPage() {
             <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.7, display: "flex", flexDirection: "column", gap: 12 }}>
               <p>Institutional credentials are authenticated centrally to safeguard student and faculty records.</p>
 
-              {/* Email / ITS input → auto-catches the profile behind it */}
+              {/* Email / ITS input â auto-catches the profile behind it */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label
                   htmlFor="forgot-identifier"
@@ -1877,15 +1877,15 @@ export default function LoginPage() {
                 {forgotIdentifier.trim().length >= 3 && (
                   <div role="status" aria-live="polite" style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6, minHeight: 16 }}>
                     {forgotChecking ? (
-                      <span style={{ color: "#94a3b8" }}>Catching profile…</span>
+                      <span style={{ color: "#94a3b8" }}>Catching profileâ¦</span>
                     ) : forgotProfile ? (
                       <span style={{ color: "#8a3e14", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
                         <CheckCircle2 size={13} />
-                        {forgotProfile.displayName} · {forgotProfile.portal}
-                        {forgotProfile.its ? ` · ITS ${forgotProfile.its}` : ""}
+                        {forgotProfile.displayName} Â· {forgotProfile.portal}
+                        {forgotProfile.its ? ` Â· ITS ${forgotProfile.its}` : ""}
                       </span>
                     ) : (
-                      <span style={{ color: "#94a3b8" }}>No matching profile found — you can still email support below.</span>
+                      <span style={{ color: "#94a3b8" }}>No matching profile found â you can still email support below.</span>
                     )}
                   </div>
                 )}
@@ -1895,8 +1895,8 @@ export default function LoginPage() {
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", display: "block", marginBottom: 4 }}>Mahad al Zahra Administration Desk</span>
                 <p style={{ color: "#334155" }}>
                   Direct Support Email:{" "}
-                  <a href="mailto:support.darseburhani.galiakot@gmail.com" style={{ color: "#8a3e14", fontWeight: 700 }}>
-                    support.darseburhani.galiakot@gmail.com
+                  <a href="mailto:admin.galiakot@darseburhani.org" style={{ color: "#8a3e14", fontWeight: 700 }}>
+                    admin.galiakot@darseburhani.org
                   </a>
                 </p>
                 <p style={{ color: "#64748b", marginTop: 4 }}>For password resets, credential assistance, and queries, email our support desk directly.</p>
@@ -1925,8 +1925,8 @@ export default function LoginPage() {
               >
                 <Mail size={15} />
                 {forgotProfile
-                  ? `Email support — ${forgotProfile.displayName}'s reset request`
-                  : "Email support — password reset request"}
+                  ? `Email support â ${forgotProfile.displayName}'s reset request`
+                  : "Email support â password reset request"}
               </a>
               {forgotProfile && (
                 <p style={{ fontSize: 11, color: "#94a3b8", marginTop: -4 }}>
@@ -1948,7 +1948,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* ── Splash Screen Transition ── */}
+      {/* ââ Splash Screen Transition ââ */}
       {transitionTarget && (
         <SplashScreen
           mode="login_transition"

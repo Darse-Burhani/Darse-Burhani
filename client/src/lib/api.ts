@@ -20,6 +20,18 @@ export interface LeaveRequestItem {
   reviewerNotes?: string | null;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
+  assignedTo?: {
+    id: string;
+    name: string;
+    email?: string;
+    role?: string;
+  } | null;
+  assignedToMe?: boolean;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  approvedDays?: number | null;
+  grantedStartDate?: string | null;
+  grantedEndDate?: string | null;
   createdAt: string;
 }
 
@@ -99,7 +111,11 @@ export interface AttendanceLogRecordItem {
     id: string;
     name: string;
     timeWindow: string;
+    startTime?: string;
+    endTime?: string;
     audience?: "STUDENT" | "FACULTY" | "BOTH" | string;
+    syncStatus?: "SYNCED" | "LIVE_IN_WINDOW" | "WINDOW_CLOSED" | "UPCOMING" | "UNSCANNED" | string;
+    isLiveInWindow?: boolean;
   } | null;
 }
 
@@ -567,6 +583,7 @@ export async function getTeacherLeaves(params?: {
   type?: string;
   classId?: string;
   search?: string;
+  assignedToMe?: boolean;
   page?: number;
   limit?: number;
 }): Promise<{
@@ -580,6 +597,7 @@ export async function getTeacherLeaves(params?: {
   if (params?.type) query.set("type", params.type);
   if (params?.classId) query.set("classId", params.classId);
   if (params?.search) query.set("search", params.search);
+  if (params?.assignedToMe) query.set("assignedToMe", "true");
   if (params?.page) query.set("page", String(params.page));
   if (params?.limit) query.set("limit", String(params.limit));
 
@@ -593,11 +611,12 @@ export async function getTeacherLeaves(params?: {
 
 export async function approveTeacherLeave(
   leaveId: string,
-  reviewerNotes?: string
-): Promise<{ id: string; status: string; reviewedAt: string }> {
-  return request<{ id: string; status: string; reviewedAt: string }>(`/api/teacher/leave/${leaveId}/approve`, {
+  reviewerNotes?: string,
+  approvedDays?: number | null
+): Promise<{ id: string; status: string; approvedDays?: number | null; grantedStartDate?: string | null; grantedEndDate?: string | null; reviewedAt: string }> {
+  return request<{ id: string; status: string; approvedDays?: number | null; grantedStartDate?: string | null; grantedEndDate?: string | null; reviewedAt: string }>(`/api/teacher/leave/${leaveId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ reviewerNotes }),
+    body: JSON.stringify({ reviewerNotes, approvedDays }),
   });
 }
 
@@ -677,11 +696,12 @@ export async function getAdminLeaves(params?: {
 
 export async function approveAdminLeave(
   leaveId: string,
-  reviewerNotes?: string
-): Promise<{ id: string; status: string; reviewedAt: string }> {
-  return request<{ id: string; status: string; reviewedAt: string }>(`/api/admin/leave/${leaveId}/approve`, {
+  reviewerNotes?: string,
+  approvedDays?: number | null
+): Promise<{ id: string; status: string; approvedDays?: number | null; grantedStartDate?: string | null; grantedEndDate?: string | null; reviewedAt: string }> {
+  return request<{ id: string; status: string; approvedDays?: number | null; grantedStartDate?: string | null; grantedEndDate?: string | null; reviewedAt: string }>(`/api/admin/leave/${leaveId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ reviewerNotes }),
+    body: JSON.stringify({ reviewerNotes, approvedDays }),
   });
 }
 
@@ -725,6 +745,66 @@ export async function markAdminHolidayLeave(data: {
   return request<{ success: boolean; message: string; data: any }>(`/api/admin/leave/mark-holiday`, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export interface PortalLeaveMember {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  role: string;
+  employeeId?: string | null;
+  department?: string | null;
+  roleTitle?: string | null;
+}
+
+export async function getAdminLeaveMembers(): Promise<PortalLeaveMember[]> {
+  const res = await request<PortalLeaveMember[] | { data?: PortalLeaveMember[] }>(
+    "/api/admin/leave/members"
+  );
+  return Array.isArray(res) ? res : res?.data ?? [];
+}
+
+export async function assignAdminLeave(
+  leaveId: string,
+  memberId: string
+): Promise<{ id: string; assignedTo: { id: string; name: string; email?: string } | null; assignedAt?: string | null }> {
+  return request<{ id: string; assignedTo: { id: string; name: string; email?: string } | null; assignedAt?: string | null }>(
+    `/api/admin/leave/${leaveId}/assign`,
+    { method: "POST", body: JSON.stringify({ memberId }) }
+  );
+}
+
+export async function unassignAdminLeave(leaveId: string): Promise<{ id: string; assignedTo: null }> {
+  return request<{ id: string; assignedTo: null }>(`/api/admin/leave/${leaveId}/assign`, {
+    method: "DELETE",
+  });
+}
+
+// ── Web Push (browser notifications outside the website) ──
+
+export async function getPushPublicKey(): Promise<{ publicKey: string | null; configured: boolean }> {
+  const res = await request<{ publicKey: string | null; configured: boolean }>(
+    "/api/notifications/push/public-key"
+  );
+  return res;
+}
+
+export async function subscribeBrowserPush(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}): Promise<{ subscribed: boolean }> {
+  return request<{ subscribed: boolean }>("/api/notifications/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ subscription }),
+  });
+}
+
+export async function unsubscribeBrowserPush(endpoint: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>("/api/notifications/push/subscribe", {
+    method: "DELETE",
+    body: JSON.stringify({ endpoint }),
   });
 }
 

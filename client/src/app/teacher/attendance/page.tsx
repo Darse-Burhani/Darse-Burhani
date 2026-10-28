@@ -57,9 +57,9 @@ const STATUSES: {
     label: "Present",
     hotkey: "1",
     icon: CheckCircle2,
-    idle: "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300",
-    active: "bg-emerald-500 text-white border-emerald-500 ring-2 ring-emerald-300 ring-offset-1",
-    dot: "bg-emerald-400",
+    idle: "bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 font-bold",
+    active: "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400 ring-offset-1 font-black shadow-md shadow-emerald-500/20",
+    dot: "bg-emerald-500",
   },
   {
     key: "LATE",
@@ -659,6 +659,19 @@ export default function TeacherAttendancePage() {
           transition={{ delay: 0.05, duration: 0.4 }}
         >
           <div className="rounded-2xl bg-white border border-gray-200/80 shadow-sm p-5">
+            {/* Window Schedule Time Sync Header */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 mb-3.5 border-b border-gray-100 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-bold text-slate-700">Schedule Window:</span>
+                <span className="font-black text-slate-900">Tilawat al Dua</span>
+                <span className="font-mono text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-md">07:00 - 12:30 IST</span>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                Live Window Active • Auto-Sync
+              </span>
+            </div>
+
             <div className="grid sm:grid-cols-3 gap-4">
               {/* Class selector */}
               <div>
@@ -871,6 +884,11 @@ export default function TeacherAttendancePage() {
                             {s.grade && (
                               <span className="shrink-0 px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-700 border border-emerald-100">
                                 Gr {s.grade}{s.section ? `-${s.section}` : ""}
+                              </span>
+                            )}
+                            {s.status === "PRESENT" && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-600 text-[10px] font-black text-white border border-emerald-500 shadow-2xs">
+                                PRESENT
                               </span>
                             )}
                           </div>

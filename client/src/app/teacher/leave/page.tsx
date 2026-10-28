@@ -38,6 +38,7 @@ export default function TeacherLeavePage() {
   const [classes, setClasses] = useState<Array<{ id: string; name: string; grade: string; section: string }>>([]);
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("PENDING");
+  const [assignedToMe, setAssignedToMe] = useState(false);
   const [search, setSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,6 +54,7 @@ export default function TeacherLeavePage() {
         status: selectedStatus === "ALL" ? undefined : selectedStatus,
         classId: selectedClass || undefined,
         search: search.trim() || undefined,
+        assignedToMe: assignedToMe || undefined,
       });
 
       setRequests(res.requests);
@@ -65,14 +67,14 @@ export default function TeacherLeavePage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedStatus, selectedClass, search]);
+  }, [selectedStatus, selectedClass, search, assignedToMe]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleApprove = async (id: string, notes?: string) => {
-    await approveTeacherLeave(id, notes);
+  const handleApprove = async (id: string, notes?: string, approvedDays?: number | null) => {
+    await approveTeacherLeave(id, notes, approvedDays);
     await fetchData(true);
   };
 
@@ -202,6 +204,18 @@ export default function TeacherLeavePage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setAssignedToMe((value) => !value)}
+            className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+              assignedToMe
+                ? "bg-sky-600 text-white border-sky-600 shadow-sm"
+                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            }`}
+            title="Show leave applications assigned to me by the administration"
+          >
+            Assigned to me
+          </button>
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}

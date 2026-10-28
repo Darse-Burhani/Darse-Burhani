@@ -260,58 +260,109 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
         </div>
       ) : (
         <div className="space-y-2.5">
-          {visibleLeaves.map((l) => (
-            <div key={l.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusStyle[l.status] || statusStyle.PENDING}`}>
-                      {l.status}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
-                      {l.type.replace(/_/g, " ")}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-[13.5px] font-bold text-slate-900">
-                    {new Date(l.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                    {" → "}
-                    {new Date(l.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-[12.5px] text-slate-500">{l.reason}</p>
-                  {l.reviewerNotes && (
-                    <p className="mt-1 text-[12px] text-slate-500">
-                      <span className="font-bold text-slate-600">School note: </span>{l.reviewerNotes}
-                    </p>
-                  )}
-                  {l.attachmentUrl && (
-                    <div className="mt-2">
-                      <a
-                        href={l.attachmentUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
-                      >
-                        <Paperclip size={12} className="text-emerald-600" />
-                        <span>Supporting Document</span>
-                        <ExternalLink size={11} className="text-slate-400" />
-                      </a>
+          {visibleLeaves.map((l) => {
+            const reqDays = Math.round((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / 86400000) + 1;
+            const isReduced = l.status === "APPROVED" && l.approvedDays != null && l.approvedDays < reqDays;
+
+            return (
+              <div key={l.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isReduced ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                          <CheckCircle2 size={12} className="text-amber-600" />
+                          Approved — Reduced Days
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusStyle[l.status] || statusStyle.PENDING}`}>
+                          {l.status === "APPROVED" && <CheckCircle2 size={12} className="text-emerald-600" />}
+                          {l.status}
+                        </span>
+                      )}
+                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+                        {l.type.replace(/_/g, " ")}
+                      </span>
                     </div>
+
+                    <p className="mt-1.5 text-[13.5px] font-bold text-slate-900">
+                      Requested: {new Date(l.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      {" → "}
+                      {new Date(l.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      <span className="ml-1.5 text-[12px] font-medium text-slate-500">
+                        ({reqDays} {reqDays === 1 ? "day" : "days"})
+                      </span>
+                    </p>
+
+                    <p className="mt-0.5 line-clamp-2 text-[12.5px] text-slate-600 font-medium">{l.reason}</p>
+
+                    {/* Granted Period Card for Approved leaves */}
+                    {l.status === "APPROVED" && (
+                      <div className={`mt-2.5 p-3 rounded-xl border text-[12px] ${
+                        isReduced ? "bg-amber-50/70 border-amber-200 text-amber-950" : "bg-emerald-50/70 border-emerald-200 text-emerald-950"
+                      }`}>
+                        <div className="font-extrabold flex items-center gap-1.5">
+                          <CheckCircle2 size={14} className={isReduced ? "text-amber-600" : "text-emerald-600"} />
+                          <span>
+                            {isReduced
+                              ? `Approved for ${l.approvedDays} of ${reqDays} requested days`
+                              : `Approved in full for all ${reqDays} requested ${reqDays === 1 ? "day" : "days"}`}
+                          </span>
+                        </div>
+                        {l.grantedStartDate && l.grantedEndDate && (
+                          <div className="mt-1 text-[11.5px] font-semibold opacity-90">
+                            Granted Period:{" "}
+                            <span className="underline">
+                              {new Date(l.grantedStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}
+                              {" → "}
+                              {new Date(l.grantedEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {l.reviewerNotes && (
+                      <div className="mt-2 rounded-xl bg-slate-50 border border-slate-200 p-2.5 text-[12px] text-slate-700">
+                        <div className="font-bold text-slate-900 text-[11px] uppercase tracking-wider mb-0.5">School Remarks</div>
+                        <div className="text-slate-800 font-medium leading-relaxed">{l.reviewerNotes}</div>
+                        {l.reviewedBy && (
+                          <div className="text-[10.5px] text-slate-500 mt-1">Reviewed by: {l.reviewedBy}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {l.attachmentUrl && (
+                      <div className="mt-2">
+                        <a
+                          href={l.attachmentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+                        >
+                          <Paperclip size={12} className="text-emerald-600" />
+                          <span>Supporting Document</span>
+                          <ExternalLink size={11} className="text-slate-400" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {l.status === "PENDING" && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(l.id)}
+                      disabled={cancellingId === l.id}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11.5px] font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      {cancellingId === l.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                      Cancel
+                    </button>
                   )}
                 </div>
-                {l.status === "PENDING" && (
-                  <button
-                    type="button"
-                    onClick={() => handleCancel(l.id)}
-                    disabled={cancellingId === l.id}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11.5px] font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
-                  >
-                    {cancellingId === l.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    Cancel
-                  </button>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

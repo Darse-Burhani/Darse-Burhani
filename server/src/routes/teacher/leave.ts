@@ -12,6 +12,63 @@ import { LeaveStatus, LeaveType } from "@prisma/client";
 
 const router = Router();
 
+/**
+ * A teacher may review a leave when it is assigned to them directly, or when
+ * the student belongs to one of their classes (existing class-teacher flow).
+ */
+async function assertTeacherCanReview(userId: string, leaveId: string) {
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: leaveId },
+    select: { id: true, studentId: true, assignedToId: true },
+  });
+  if (!leave) {
+    const err: any = new Error("Leave request not found");
+    err.status = 404;
+    throw err;
+  }
+  if (leave.assignedToId === userId) return leave;
+
+  const teacher = await prisma.teacherProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!teacher) {
+    const err: any = new Error("Teacher profile not found");
+    err.status = 403;
+    throw err;
+  }
+
+  // Check if teacher has explicit portal access for leave management or all modules
+  const hasPortalLeaveAccess = await prisma.teacherPortalAssignment.findFirst({
+    where: {
+      teacherId: teacher.id,
+      isActive: true,
+      portalType: { in: ["ALL", "PAGE:leave"] },
+    },
+  });
+  if (hasPortalLeaveAccess) return leave;
+
+  const inClass = await prisma.classEnrollment.findFirst({
+    where: {
+      studentId: leave.studentId,
+      isActive: true,
+      class: {
+        isActive: true,
+        OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!inClass) {
+    const err: any = new Error("This leave request is not assigned to you or your classes");
+    err.status = 403;
+    throw err;
+  }
+
+  return leave;
+}
+
 // GET /api/teacher/leave/roster — Roster of students in teacher's assigned classes
 router.get("/roster", requireRole("TEACHER"), async (req, res) => {
   try {
@@ -135,18 +192,7 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
     });
 
     const teacherClassIds = teacherClasses.map((c) => c.id);
-
-    if (teacherClassIds.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          requests: [],
-          stats: { pending: 0, approved: 0, rejected: 0, total: 0 },
-          classes: [],
-          pagination: { page, limit, total: 0, totalPages: 0 },
-        },
-      });
-    }
+    const assignedToMe = (req.query.assignedToMe as string) === "true";
 
     // Filter class IDs if specific class selected
     const targetClassIds = classId && teacherClassIds.includes(classId as string)
@@ -161,22 +207,29 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
 
     const studentIds = Array.from(new Set(enrollments.map((e) => e.studentId)));
 
-    if (studentIds.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          requests: [],
-          stats: { pending: 0, approved: 0, rejected: 0, total: 0 },
-          classes: teacherClasses,
-          pagination: { page, limit, total: 0, totalPages: 0 },
-        },
-      });
+    // Check if teacher has explicit portal access for leave management or all modules
+    const hasPortalLeaveAccess = await prisma.teacherPortalAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        isActive: true,
+        portalType: { in: ["ALL", "PAGE:leave"] },
+      },
+    });
+
+    // Visibility: requests for the teacher's classes, requests explicitly assigned
+    // to this faculty member, or all requests if teacher has leave portal assignment.
+    const visibility: any[] = [];
+    if (!hasPortalLeaveAccess || classId) {
+      if (studentIds.length > 0) visibility.push({ studentId: { in: studentIds } });
+      if (!classId) visibility.push({ assignedToId: session.user.id });
+      if (visibility.length === 0) visibility.push({ id: "__none__" });
     }
 
+    const baseWhere: any = (!hasPortalLeaveAccess || classId) ? { OR: visibility } : {};
+    if (assignedToMe) baseWhere.assignedToId = session.user.id;
+
     // Build where clause
-    const where: any = {
-      studentId: { in: studentIds },
-    };
+    const where: any = { ...baseWhere };
 
     if (status && Object.values(LeaveStatus).includes(status as LeaveStatus)) {
       where.status = status as LeaveStatus;
@@ -201,9 +254,9 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
     // Get counts
     const [total, pendingCount, approvedCount, rejectedCount, leaves] = await Promise.all([
       prisma.leaveRequest.count({ where }),
-      prisma.leaveRequest.count({ where: { studentId: { in: studentIds }, status: LeaveStatus.PENDING } }),
-      prisma.leaveRequest.count({ where: { studentId: { in: studentIds }, status: LeaveStatus.APPROVED } }),
-      prisma.leaveRequest.count({ where: { studentId: { in: studentIds }, status: LeaveStatus.REJECTED } }),
+      prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.PENDING } }),
+      prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.APPROVED } }),
+      prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.REJECTED } }),
       prisma.leaveRequest.findMany({
         where,
         include: {
@@ -219,6 +272,12 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           },
           reviewer: {
             select: { firstName: true, lastName: true, role: true },
+          },
+          assignedTo: {
+            select: { id: true, firstName: true, lastName: true, role: true },
+          },
+          assignedBy: {
+            select: { firstName: true, lastName: true },
           },
         },
         orderBy: [{ status: "asc" }, { createdAt: "desc" }],
@@ -255,6 +314,20 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           reviewerNotes: l.reviewerNotes,
           reviewedBy: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : null,
           reviewedAt: l.reviewedAt?.toISOString() || null,
+          assignedTo: l.assignedTo
+            ? {
+                id: l.assignedTo.id,
+                name: `${l.assignedTo.firstName} ${l.assignedTo.lastName}`.trim(),
+                role: l.assignedTo.role,
+              }
+            : null,
+          assignedToMe: l.assignedToId === session.user.id,
+          assignedBy: l.assignedBy
+            ? `${l.assignedBy.firstName} ${l.assignedBy.lastName}`.trim()
+            : null,
+          approvedDays: l.approvedDays,
+          grantedStartDate: l.grantedStartDate?.toISOString() || null,
+          grantedEndDate: l.grantedEndDate?.toISOString() || null,
           createdAt: l.createdAt.toISOString(),
         })),
         pagination: {
@@ -275,12 +348,18 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
 router.post("/:id/approve", requireRole("TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
-    const { reviewerNotes } = req.body;
+    const { reviewerNotes, approvedDays } = req.body;
+
+    await assertTeacherCanReview(session.user.id, req.params.id);
 
     const leave = await approveLeaveRequest({
       leaveId: req.params.id,
       reviewerId: session.user.id,
       reviewerNotes,
+      approvedDays:
+        approvedDays === undefined || approvedDays === null || approvedDays === ""
+          ? null
+          : Number(approvedDays),
     });
 
     return res.json({
@@ -288,12 +367,15 @@ router.post("/:id/approve", requireRole("TEACHER"), async (req, res) => {
       data: {
         id: leave.id,
         status: leave.status,
+        approvedDays: leave.approvedDays,
+        grantedStartDate: leave.grantedStartDate?.toISOString() || null,
+        grantedEndDate: leave.grantedEndDate?.toISOString() || null,
         reviewedAt: leave.reviewedAt?.toISOString(),
       },
     });
   } catch (error: any) {
     console.error("[teacher-leave] Approve error:", error);
-    return res.status(400).json({
+    return res.status(error.status || 400).json({
       success: false,
       error: error.message || "Failed to approve leave request",
     });
@@ -305,6 +387,8 @@ router.post("/:id/reject", requireRole("TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { reviewerNotes } = req.body;
+
+    await assertTeacherCanReview(session.user.id, req.params.id);
 
     const leave = await rejectLeaveRequest({
       leaveId: req.params.id,
@@ -322,7 +406,7 @@ router.post("/:id/reject", requireRole("TEACHER"), async (req, res) => {
     });
   } catch (error: any) {
     console.error("[teacher-leave] Reject error:", error);
-    return res.status(400).json({
+    return res.status(error.status || 400).json({
       success: false,
       error: error.message || "Failed to reject leave request",
     });
@@ -342,6 +426,7 @@ router.post("/batch-approve", requireRole("TEACHER"), async (req, res) => {
     const results = [];
     for (const id of leaveIds) {
       try {
+        await assertTeacherCanReview(session.user.id, id);
         const leave = await approveLeaveRequest({
           leaveId: id,
           reviewerId: session.user.id,

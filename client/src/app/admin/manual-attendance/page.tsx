@@ -134,13 +134,13 @@ const STATUS_CONFIG: {
     shortLabel: "Pres",
     hotkey: "1",
     icon: CheckCircle2,
-    bgActive: "bg-emerald-600 text-white",
-    bgLight: "bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80 border-emerald-200/80",
-    borderActive: "border-emerald-600 ring-2 ring-emerald-400/40 shadow-emerald-500/20 shadow-md",
+    bgActive: "bg-emerald-600 text-white font-black",
+    bgLight: "bg-emerald-50 text-emerald-900 hover:bg-emerald-100/80 border-emerald-300 font-bold",
+    borderActive: "border-emerald-600 ring-2 ring-emerald-400/50 shadow-emerald-500/20 shadow-md",
     textActive: "text-white",
-    textLight: "text-emerald-800",
-    glowColor: "rgba(16, 185, 129, 0.25)",
-    badgeClass: "bg-emerald-500/15 text-emerald-700 border-emerald-300 font-bold",
+    textLight: "text-emerald-900 font-bold",
+    glowColor: "rgba(16, 185, 129, 0.35)",
+    badgeClass: "bg-emerald-600 text-white font-black border-emerald-500 shadow-xs",
   },
   {
     key: "LATE",
@@ -794,12 +794,15 @@ export default function AdminManualAttendancePage() {
         </div>
 
         {activeWindow && (
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
-            <span className="text-gray-500 font-medium">Manual Event:</span>
+          <div className="flex items-center gap-2 text-xs font-bold text-gray-800 flex-wrap">
+            <span className="text-gray-500 font-medium">Schedule Window:</span>
             <span className="font-extrabold text-slate-900">{activeWindow.name}</span>
+            <span className="font-mono text-slate-600 font-bold">
+              ({activeWindow.startTime} - {activeWindow.lateEndTime || activeWindow.endTime} IST)
+            </span>
             <span className="text-emerald-700 font-semibold flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Marking Active
+              Live Marking Active • Synced
             </span>
           </div>
         )}
@@ -825,10 +828,10 @@ export default function AdminManualAttendancePage() {
               </div>
             </div>
 
-            {/* Manual Event Selector (Session Names Only - No Window Times) */}
+            {/* Schedule Window Selector with Timing Sync Display */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Manual Schedule Event
+                Schedule Window Timing
               </label>
               <div className="relative">
                 <Clock className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -838,11 +841,11 @@ export default function AdminManualAttendancePage() {
                   className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none shadow-2xs"
                 >
                   <option value="">
-                    {scheduledWindows.length > 0 ? "All Manual Events" : "No Manual Events Scheduled"}
+                    {scheduledWindows.length > 0 ? "All Schedule Windows (Full Strength)" : "Default Window (07:00 - 12:30 IST)"}
                   </option>
                   {scheduledWindows.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name}
+                      {w.name} ({w.startTime} - {w.lateEndTime || w.endTime} IST)
                     </option>
                   ))}
                 </select>

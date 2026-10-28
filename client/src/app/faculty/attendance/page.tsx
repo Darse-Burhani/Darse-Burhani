@@ -41,9 +41,9 @@ const STATUSES: {
     key: "PRESENT",
     label: "Present",
     icon: CheckCircle2,
-    idle: "text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300",
-    active: "bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/30",
-    dot: "bg-emerald-400",
+    idle: "text-emerald-800 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 font-bold",
+    active: "bg-emerald-600 text-white border-emerald-600 font-black shadow-md shadow-emerald-500/30",
+    dot: "bg-emerald-500",
   },
   {
     key: "LATE",
@@ -488,7 +488,13 @@ export default function FacultyAttendancePage() {
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-black text-gray-950">{selectedClass.name} · {date}</h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-sm font-black text-gray-950">{selectedClass.name} · {date}</h2>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Tilawat al Dua (07:00 - 12:30 IST) • Live Synced
+                      </span>
+                    </div>
                     <p className="text-[11px] text-gray-500 font-medium">Academic Year: {selectedClass.academicYear}</p>
                   </div>
                 </div>
@@ -545,7 +551,14 @@ export default function FacultyAttendancePage() {
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="text-xs font-black text-gray-950 truncate">{s.name}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs font-black text-gray-950 truncate">{s.name}</p>
+                            {s.status === "PRESENT" && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-600 text-[10px] font-black text-white border border-emerald-500 shadow-2xs">
+                                PRESENT
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             <p className="text-[11px] text-gray-500 font-mono">
                               ITS: {s.studentNumber || "—"}

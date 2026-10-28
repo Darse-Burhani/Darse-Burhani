@@ -19,15 +19,17 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import type { LeaveRequestItem } from "@/lib/api";
+import type { LeaveRequestItem, PortalLeaveMember } from "@/lib/api";
 
 interface PendingLeaveTableProps {
   requests: LeaveRequestItem[];
   isAdmin?: boolean;
-  onApprove: (id: string, notes?: string) => Promise<void>;
+  onApprove: (id: string, notes?: string, approvedDays?: number | null) => Promise<void>;
   onReject: (id: string, notes?: string) => Promise<void>;
   onBatchApprove?: (ids: string[], notes?: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  assignees?: PortalLeaveMember[];
+  onAssign?: (id: string, memberId: string | null) => Promise<void>;
   loading?: boolean;
 }
 
@@ -38,6 +40,8 @@ export function PendingLeaveTable({
   onReject,
   onBatchApprove,
   onDelete,
+  assignees,
+  onAssign,
   loading = false,
 }: PendingLeaveTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -45,8 +49,12 @@ export function PendingLeaveTable({
     id: string;
     type: "approve" | "reject";
     studentName: string;
+    requestedDays?: number;
+    startDate?: string;
   } | null>(null);
   const [actionNotes, setActionNotes] = useState("");
+  const [grantDays, setGrantDays] = useState<number>(1);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [batchProcessing, setBatchProcessing] = useState(false);
 
@@ -75,7 +83,11 @@ export function PendingLeaveTable({
     setProcessing(true);
     try {
       if (activeAction.type === "approve") {
-        await onApprove(activeAction.id, actionNotes.trim() || undefined);
+        await onApprove(
+          activeAction.id,
+          actionNotes.trim() || undefined,
+          grantDays
+        );
       } else {
         await onReject(activeAction.id, actionNotes.trim() || "Declined");
       }
@@ -85,6 +97,18 @@ export function PendingLeaveTable({
       alert(err.message || "Failed to process action");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleAssign = async (id: string, memberId: string | null) => {
+    if (!onAssign) return;
+    setAssigningId(id);
+    try {
+      await onAssign(id, memberId);
+    } catch (err: any) {
+      alert(err.message || "Failed to assign leave application");
+    } finally {
+      setAssigningId(null);
     }
   };
 
@@ -232,6 +256,11 @@ export function PendingLeaveTable({
                           {item.studentName || "Student"}
                         </div>
                         <div className="text-[11px] text-gray-500">ITS / ID: {item.its || "—"}</div>
+                        {item.assignedTo && (
+                          <div className="text-[10px] font-semibold text-sky-700 mt-0.5">
+                            Assigned: {item.assignedTo.name}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -269,6 +298,26 @@ export function PendingLeaveTable({
                     <div className="text-[11px] text-gray-500 font-medium">
                       {diffDays} {diffDays === 1 ? "day" : "days"} requested
                     </div>
+                    {item.status === "APPROVED" && item.approvedDays != null && (
+                      <div
+                        className={`text-[11px] font-bold mt-0.5 ${
+                          item.approvedDays < diffDays ? "text-amber-700" : "text-emerald-700"
+                        }`}
+                      >
+                        {item.approvedDays} of {diffDays} {diffDays === 1 ? "day" : "days"} granted
+                      </div>
+                    )}
+                    {item.status === "APPROVED" && item.grantedStartDate && item.grantedEndDate &&
+                      item.grantedStartDate !== item.startDate && (
+                        <div className="text-[10px] text-gray-500">
+                          Granted from{" "}
+                          {new Date(item.grantedStartDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            timeZone: "UTC",
+                          })}
+                        </div>
+                      )}
                   </td>
 
                   {/* Reason & Attachment */}
@@ -319,37 +368,63 @@ export function PendingLeaveTable({
                   {/* Actions */}
                   <td className="py-3.5 px-4 text-right">
                     {isPending ? (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveAction({
-                              id: item.id,
-                              type: "approve",
-                              studentName: item.studentName || "Student",
-                            })
-                          }
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all"
-                          title="Mark on Holiday / Leave (syncs to Daily Attendance and Google Sheet)"
-                        >
-                          <Palmtree className="w-3.5 h-3.5" />
-                          <span>Mark on Holiday</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveAction({
-                              id: item.id,
-                              type: "reject",
-                              studentName: item.studentName || "Student",
-                            })
-                          }
-                          className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 border border-rose-200 transition-colors"
-                          title="Reject request"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Reject</span>
-                        </button>
+                      <div className="flex flex-col items-end gap-1.5">
+                        {assignees && onAssign && (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={item.assignedTo?.id || ""}
+                              onChange={(e) => handleAssign(item.id, e.target.value || null)}
+                              disabled={assigningId === item.id}
+                              className="max-w-[170px] px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 focus:outline-none focus:border-emerald-500"
+                              title="Assign this leave application to a faculty member with portal access"
+                            >
+                              <option value="">Assign to faculty…</option>
+                              {assignees.map((member) => (
+                                <option key={member.id} value={member.id}>
+                                  {member.name}
+                                </option>
+                              ))}
+                            </select>
+                            {assigningId === item.id && (
+                              <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGrantDays(diffDays);
+                              setActiveAction({
+                                id: item.id,
+                                type: "approve",
+                                studentName: item.studentName || "Student",
+                                requestedDays: diffDays,
+                                startDate: item.startDate,
+                              });
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all"
+                            title="Approve leave and sync attendance (you can grant fewer days)"
+                          >
+                            <Palmtree className="w-3.5 h-3.5" />
+                            <span>Approve Leave</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveAction({
+                                id: item.id,
+                                type: "reject",
+                                studentName: item.studentName || "Student",
+                              })
+                            }
+                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 border border-rose-200 transition-colors"
+                            title="Reject request"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="text-right">
@@ -381,27 +456,154 @@ export function PendingLeaveTable({
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setActiveAction(null)} />
           <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100">
             <h3 className="font-bold text-sm text-gray-900 mb-1">
-              {activeAction.type === "approve" ? "Mark Student on Holiday / Leave" : "Reject Leave Request"}
+              {activeAction.type === "approve" ? "Approve Leave Application" : "Reject Leave Request"}
             </h3>
             <p className="text-xs text-gray-500 mb-4">
               {activeAction.type === "approve"
-                ? `Confirm marking ${activeAction.studentName} on Holiday / Leave. Daily Attendance records, Attendance Registry, and Google Sheet will reflect this status immediately.`
+                ? `Approve ${activeAction.studentName}'s leave. Choose how many days to grant — attendance and the Google Sheet will reflect only the granted dates.`
                 : `Specify why the leave for ${activeAction.studentName} is being rejected.`}
             </p>
 
             <div className="mb-4">
               <label htmlFor="action-notes" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Reviewer Note / Holiday Remarks (Optional)
+                Reviewer Remarks / School Notes
+                <span className="normal-case font-normal text-gray-500 ml-1.5">(Will be sent to parent via notification & email)</span>
               </label>
               <textarea
                 id="action-notes"
                 rows={3}
                 value={actionNotes}
                 onChange={(e) => setActionNotes(e.target.value)}
-                placeholder="e.g., Authorized holiday / official leave exemption..."
+                placeholder={
+                  activeAction.type === "approve"
+                    ? "e.g., Leave granted as requested / Reduced due to exam schedule..."
+                    : "e.g., Leave application declined due to mandatory academic schedule..."
+                }
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 resize-none"
               />
             </div>
+
+            {activeAction.type === "approve" && (
+              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <label
+                    htmlFor="grant-days"
+                    className="block text-xs font-bold text-emerald-950 uppercase tracking-wider"
+                  >
+                    Granted Leave Option
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-800">
+                    Requested: {activeAction.requestedDays ?? 1} {(activeAction.requestedDays ?? 1) === 1 ? "day" : "days"}
+                  </span>
+                </div>
+
+                {(activeAction.requestedDays ?? 1) > 1 ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setGrantDays(activeAction.requestedDays ?? 1)}
+                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between ${
+                          grantDays === (activeAction.requestedDays ?? 1)
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                            : "bg-white text-gray-700 border-emerald-200 hover:bg-emerald-50"
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase opacity-80">Full Approval</span>
+                        <span className="text-sm">All {activeAction.requestedDays} Days</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (grantDays >= (activeAction.requestedDays ?? 1)) {
+                            setGrantDays(Math.max(1, (activeAction.requestedDays ?? 2) - 1));
+                          }
+                        }}
+                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between ${
+                          grantDays < (activeAction.requestedDays ?? 1)
+                            ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                            : "bg-white text-gray-700 border-emerald-200 hover:bg-emerald-50"
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase opacity-80">Reduced Approval</span>
+                        <span className="text-sm">{grantDays < (activeAction.requestedDays ?? 1) ? `${grantDays} Days Granted` : "Reduce Days"}</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-xs font-semibold text-gray-700 shrink-0">Days to Grant:</span>
+                      <input
+                        id="grant-days"
+                        type="number"
+                        min={1}
+                        max={activeAction.requestedDays}
+                        value={grantDays}
+                        onChange={(e) => {
+                          const max = activeAction.requestedDays ?? 1;
+                          const next = Number(e.target.value);
+                          setGrantDays(Math.min(Math.max(Number.isFinite(next) ? next : 1, 1), max));
+                        }}
+                        className="w-20 px-3 py-1.5 rounded-xl border border-emerald-300 text-sm font-bold text-emerald-900 bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setGrantDays(activeAction.requestedDays ?? 1)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-300 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50"
+                      >
+                        Max ({activeAction.requestedDays})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGrantDays(1)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-300 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50"
+                      >
+                        1 Day
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-emerald-900 font-semibold py-1">
+                    Granting single requested day (full duration).
+                  </div>
+                )}
+
+                {activeAction.startDate && (
+                  <div className="text-[11px] font-semibold text-emerald-900 mt-2.5 pt-2 border-t border-emerald-200/80">
+                    Granted Range:{" "}
+                    <span className="font-bold">
+                      {new Date(activeAction.startDate).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      })}{" "}
+                      to{" "}
+                      {new Date(
+                        new Date(activeAction.startDate).getTime() +
+                          (Math.max(1, grantDays) - 1) * 86400000
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      })}
+                    </span>{" "}
+                    ({grantDays} {grantDays === 1 ? "day" : "days"})
+                  </div>
+                )}
+
+                {grantDays < (activeAction.requestedDays ?? 1) ? (
+                  <div className="text-[11.5px] text-amber-800 font-bold bg-amber-100/80 border border-amber-300/80 rounded-lg p-2 mt-2">
+                    ⚠ Reduced Approval: Parent will be notified via outside push & email that leave is approved for {grantDays} of {activeAction.requestedDays} days.
+                  </div>
+                ) : (
+                  <div className="text-[11.5px] text-emerald-800 font-bold bg-emerald-100/80 border border-emerald-300/80 rounded-lg p-2 mt-2">
+                    ✓ Full Approval: Parent will be notified that leave is approved in full ({grantDays} {grantDays === 1 ? "day" : "days"}).
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2.5">
               <button
@@ -420,12 +622,20 @@ export function PendingLeaveTable({
                 disabled={processing}
                 className={`px-4 py-2 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1.5 ${
                   activeAction.type === "approve"
-                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    ? grantDays < (activeAction.requestedDays ?? 1)
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-emerald-600 hover:bg-emerald-700"
                     : "bg-rose-600 hover:bg-rose-700"
                 }`}
               >
                 {processing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{activeAction.type === "approve" ? "Mark on Holiday & Sync" : "Confirm Rejection"}</span>
+                <span>
+                  {activeAction.type === "approve"
+                    ? grantDays < (activeAction.requestedDays ?? 1)
+                      ? `Approve Reduced (${grantDays} Days) & Sync`
+                      : `Approve (${grantDays} Days) & Sync`
+                    : "Confirm Rejection"}
+                </span>
               </button>
             </div>
           </div>

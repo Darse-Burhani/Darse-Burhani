@@ -1,4 +1,6 @@
 import { Router } from "express";
+import fs from "fs";
+import path from "path";
 import prisma from "../../lib/prisma";
 import { requireRole, requireAuth } from "../../middleware";
 import { normalizeDateToUTC } from "../../lib/leave-service";
@@ -89,6 +91,102 @@ function matchScheduledEvent(
         ? `${ww.facultyStartTime} - ${ww.facultyLateEndTime || ww.facultyEndTime}`
         : `${matched.startTime} - ${matched.lateEndTime || matched.endTime}`,
     audience: eventAudience,
+  };
+}
+
+// Robust resolver guaranteeing that ALL users (scanned or unscanned) get their proper window schedule time sync display
+function resolveUserScheduledEvent(
+  checkInTime: Date | string | null | undefined,
+  windows: Array<any>,
+  isFaculty: boolean,
+  isManualScan: boolean = false,
+  requestedEventWindowId?: string
+): {
+  id: string;
+  name: string;
+  timeWindow: string;
+  startTime: string;
+  endTime: string;
+  audience: string;
+  windowType: string;
+  syncStatus: "SYNCED" | "LIVE_IN_WINDOW" | "WINDOW_CLOSED" | "UPCOMING" | "UNSCANNED";
+  isLiveInWindow: boolean;
+} | null {
+  if (!windows || windows.length === 0) return null;
+
+  // 1. If checkInTime is present, try exact time match first
+  let targetWindow = checkInTime ? matchScheduledEvent(checkInTime, windows, isFaculty, isManualScan) : null;
+  let targetWinObj = targetWindow ? windows.find((w) => w.id === targetWindow!.id) : null;
+
+  // 2. If no time match or unscanned, check if a specific eventWindowId was requested
+  if (!targetWinObj && requestedEventWindowId && requestedEventWindowId !== "ALL") {
+    targetWinObj = windows.find((w) => w.id === requestedEventWindowId && w.enabled);
+  }
+
+  // 3. Fallback to the primary / active schedule window for this member's role
+  if (!targetWinObj) {
+    targetWinObj = windows.find((w) => {
+      if (!w.enabled) return false;
+      const ww = w as any;
+      if (isFaculty) {
+        return hasFacultyTimer(ww) || isLegacyFacultyRow(ww) || /tilawat/i.test(w.name);
+      } else {
+        return !isLegacyFacultyRow(ww);
+      }
+    }) || windows[0];
+  }
+
+  if (!targetWinObj) return null;
+
+  const ww = targetWinObj as any;
+  const windowType = getWindowType(ww);
+  const isTilawat = /tilawat/i.test(targetWinObj.name);
+  const eventAudience = isTilawat
+    ? "BOTH"
+    : isLegacyFacultyRow(ww)
+    ? "FACULTY"
+    : hasFacultyTimer(ww)
+    ? "BOTH"
+    : "STUDENT";
+
+  const startTime = isFaculty && ww.facultyStartTime ? ww.facultyStartTime : targetWinObj.startTime;
+  const endTime = isFaculty && (ww.facultyLateEndTime || ww.facultyEndTime)
+    ? (ww.facultyLateEndTime || ww.facultyEndTime)
+    : (targetWinObj.lateEndTime || targetWinObj.endTime);
+
+  const parseMin = (t: string) => {
+    if (!t) return 0;
+    const [h, m] = t.split(":").map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  const now = new Date();
+  const nowMin = (now.getUTCHours() * 60 + now.getUTCMinutes() + 330) % 1440;
+  const sMin = parseMin(startTime);
+  const eMin = parseMin(endTime);
+  const isLiveInWindow = Boolean(targetWinObj.enabled && nowMin >= sMin && nowMin <= eMin);
+
+  let syncStatus: "SYNCED" | "LIVE_IN_WINDOW" | "WINDOW_CLOSED" | "UPCOMING" | "UNSCANNED" = "UNSCANNED";
+  if (checkInTime) {
+    syncStatus = "SYNCED";
+  } else if (isLiveInWindow) {
+    syncStatus = "LIVE_IN_WINDOW";
+  } else if (nowMin > eMin) {
+    syncStatus = "WINDOW_CLOSED";
+  } else {
+    syncStatus = "UPCOMING";
+  }
+
+  return {
+    id: targetWinObj.id,
+    name: targetWinObj.name,
+    windowType,
+    startTime,
+    endTime,
+    timeWindow: `${startTime} - ${endTime} IST`,
+    audience: eventAudience,
+    syncStatus,
+    isLiveInWindow,
   };
 }
 
@@ -372,7 +470,7 @@ router.get("/", requireAuth, async (req, res) => {
         }
 
         const isManualScan = isManuallyRecorded || !hasBiometricScan;
-        const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, false, isManualScan) : null;
+        const matchedEvent = resolveUserScheduledEvent(checkInTime, windows, false, isManualScan, eventWindowId);
         const biometricMethod = record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
         const verificationMethod = isManuallyRecorded ? "MANUAL" : (record?.verificationMethod || (hasBiometricScan ? "BIOMETRIC" : "MANUAL"));
 
@@ -474,7 +572,7 @@ router.get("/", requireAuth, async (req, res) => {
         }
 
         const isManualScan = isTeacherManual || (source !== "SCAN" && source !== "BIOMETRIC");
-        const matchedEvent = checkInTime ? matchScheduledEvent(checkInTime, windows, true, isManualScan) : null;
+        const matchedEvent = resolveUserScheduledEvent(checkInTime, windows, true, isManualScan, eventWindowId);
         const biometricMethod = rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
         const verificationMethod = isTeacherManual ? "MANUAL" : (rec?.verificationMethod || (source === "SCAN" ? "BIOMETRIC" : "MANUAL"));
 
@@ -1737,6 +1835,36 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("[attendance-logs] Export error:", error);
     return res.status(500).json({ success: false, error: "Failed to export attendance logs" });
+  }
+});
+
+// GET /api/admin/attendance-logs/export-faculty-excel — Download 19 Oct to 24 Oct Faculty Biometric Attendance Excel
+router.get("/export-faculty-excel", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const candidates = [
+      path.resolve("server/exports/Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
+      path.resolve("Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
+      path.join(process.cwd(), "server/exports/Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
+      path.join(process.cwd(), "Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
+    ];
+
+    const targetFile = candidates.find((p) => fs.existsSync(p));
+    if (!targetFile) {
+      return res.status(404).json({
+        success: false,
+        error: "Faculty Attendance Excel file not found. Run generate_faculty_excel.js first.",
+      });
+    }
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"'
+    );
+    return res.sendFile(targetFile);
+  } catch (err) {
+    console.error("[attendance-logs] Excel download error:", err);
+    return res.status(500).json({ success: false, error: "Failed to download Faculty Excel report" });
   }
 });
 

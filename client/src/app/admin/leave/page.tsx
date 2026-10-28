@@ -21,8 +21,12 @@ import {
   rejectAdminLeave,
   deleteAdminLeave,
   batchApproveAdminLeaves,
+  getAdminLeaveMembers,
+  assignAdminLeave,
+  unassignAdminLeave,
   LeaveRequestItem,
   AdminLeaveStats,
+  PortalLeaveMember,
 } from "@/lib/api";
 import { PendingLeaveTable } from "@/components/leave/PendingLeaveTable";
 import { ManualLeaveModal } from "@/components/leave/ManualLeaveModal";
@@ -30,6 +34,7 @@ import { ManualLeaveModal } from "@/components/leave/ManualLeaveModal";
 export default function AdminLeavePage() {
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [requests, setRequests] = useState<LeaveRequestItem[]>([]);
+  const [members, setMembers] = useState<PortalLeaveMember[]>([]);
   const [stats, setStats] = useState<AdminLeaveStats>({
     pending: 0,
     approved: 0,
@@ -78,8 +83,23 @@ export default function AdminLeavePage() {
     fetchData();
   }, [fetchData]);
 
-  const handleApprove = async (id: string, notes?: string) => {
-    await approveAdminLeave(id, notes);
+  useEffect(() => {
+    getAdminLeaveMembers()
+      .then(setMembers)
+      .catch((err) => console.error("Failed to load portal members:", err));
+  }, []);
+
+  const handleApprove = async (id: string, notes?: string, approvedDays?: number | null) => {
+    await approveAdminLeave(id, notes, approvedDays);
+    await fetchData(true);
+  };
+
+  const handleAssign = async (id: string, memberId: string | null) => {
+    if (memberId) {
+      await assignAdminLeave(id, memberId);
+    } else {
+      await unassignAdminLeave(id);
+    }
     await fetchData(true);
   };
 
@@ -320,6 +340,8 @@ export default function AdminLeavePage() {
           onReject={handleReject}
           onBatchApprove={handleBatchApprove}
           onDelete={handleDelete}
+          assignees={members}
+          onAssign={handleAssign}
           loading={loading}
         />
       )}
