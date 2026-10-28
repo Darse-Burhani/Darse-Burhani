@@ -404,6 +404,9 @@ export function createApp() {
   );
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/")) return next();
+    if (req.path.startsWith("/uploads/")) {
+      return res.status(404).json({ success: false, error: "Upload file not found" });
+    }
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(clientDist, "index.html"), (err) => {
       if (err) next();

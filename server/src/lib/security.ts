@@ -541,10 +541,10 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
 
-  // Content-Security-Policy (allows safe self assets, data URIs, WebSockets, and Google Fonts)
+  // Content-Security-Policy (allows safe self assets, data URIs, WebSockets, Google Fonts, GTag, Meta Pixel, PDF.js workers, and frames)
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' ws: wss:; frame-ancestors 'self';"
+    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://connect.facebook.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; worker-src 'self' blob: https://cdnjs.cloudflare.com; frame-src 'self' blob: data:; connect-src 'self' ws: wss: https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.facebook.com; frame-ancestors 'self';"
   );
 
   // HSTS - in production or when connection is secure

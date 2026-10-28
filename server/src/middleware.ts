@@ -38,7 +38,7 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/admin/students") || url.includes("/api/teacher/students") || url.includes("/api/students")) return ["students", "talabat-profiles"];
   if (url.includes("/api/talabat-profile")) return ["talabat-profiles", "students", "profile"];
   if (url.includes("/api/admin/parents") || url.includes("/api/admin/parent-student-links") || url.includes("/api/parents")) return ["parents", "parents-assign"];
-  if (url.includes("/api/admin/classes") || url.includes("/api/teacher/classes") || url.includes("/api/classes")) return ["classes"];
+  if (url.includes("/api/admin/classes") || url.includes("/api/teacher/classes") || url.includes("/api/classes")) return ["classes", "timetable", "takhteet", "tilawat-dua"];
   if (url.includes("/api/admin/timetable") || url.includes("/api/timetable")) return ["timetable"];
   if (url.includes("/api/admin/point-rules") || url.includes("/api/points")) return ["point-matrix"];
   if (url.includes("/api/admin/notifications") || url.includes("/api/notifications")) return ["notifications"];

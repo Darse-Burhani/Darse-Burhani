@@ -6,7 +6,7 @@ import { apiCacheMiddleware, cache } from "../../lib/cache";
 const router = Router();
 
 // GET /api/admin/classes - List all classes (high-speed DB cache)
-router.get("/", requireRole("ADMIN"), apiCacheMiddleware({ ttlMs: 60_000, tags: ["class"] }), async (req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), apiCacheMiddleware({ ttlMs: 60_000, tags: ["class"] }), async (req, res) => {
   try {
     const page = parseInt((req.query.page as string) || "1");
     const pageSize = parseInt((req.query.pageSize as string) || "50");
