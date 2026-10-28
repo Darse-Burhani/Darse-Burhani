@@ -417,7 +417,7 @@ export default function LoginPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play().catch(() => {});
+            videoRef.current?.play().catch(() => { });
             setScannerStatus("Align ITS barcode or number inside the frame");
             startScanningLoop();
           };
@@ -1606,7 +1606,7 @@ export default function LoginPage() {
         .login-backdrop-ambient {
           background-image: url('/login-bg-sunset.jpg');
           background-size: cover;
-          background-position: center 35%;
+          background-position: center 42%;
           filter: blur(36px) brightness(0.48) saturate(140%);
           transform: scale(1.10);
           position: fixed;
@@ -1628,7 +1628,7 @@ export default function LoginPage() {
           width: 100vw;
           height: 100dvh;
           background-size: cover;
-          background-position: center 35%;
+          background-position: center 42%;
           background-repeat: no-repeat;
           filter: brightness(0.92) contrast(1.05) saturate(1.18);
           transform: scale(1.02) translate3d(var(--login-parallax-x, 0px), var(--login-parallax-y, 0px), 0);
@@ -1681,14 +1681,14 @@ export default function LoginPage() {
         @media (min-aspect-ratio: 18/9) {
           .login-backdrop-photo {
             background-size: cover !important;
-            background-position: center 38% !important;
+            background-position: center 42% !important;
           }
         }
 
         @media (min-width: 768px) and (max-aspect-ratio: 4/3) {
           .login-backdrop-photo {
             background-size: cover !important;
-            background-position: center 26% !important;
+            background-position: center 42% !important;
           }
         }
 
@@ -1701,7 +1701,7 @@ export default function LoginPage() {
         @media (max-width: 767px) {
           .login-backdrop-photo {
             background-size: cover !important;
-            background-position: center 18% !important;
+            background-position: center 42% !important;
             transform: none !important;
           }
           .login-backdrop-fade {

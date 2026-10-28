@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { TilawatDuaViewer, type TilawatDuaItem } from "@/components/tilawat-dua/TilawatDuaViewer";
+import { useSession } from "next-auth/react";
+import { usePortalAccess } from "@/context/PortalAccessContext";
 
 const MARHALA_OPTIONS = [
   { id: "ALL", label: "All Marhalas" },
@@ -57,6 +59,11 @@ const MARHALA_OPTIONS = [
 ];
 
 export default function AdminTilawatDuaPage() {
+  const { data: session } = useSession();
+  const { isPageAssigned } = usePortalAccess();
+  const isAdmin = session?.user?.role === "ADMIN";
+  const canUpload = isAdmin || isPageAssigned("tilawat-dua");
+
   const [items, setItems] = useState<TilawatDuaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -191,12 +198,20 @@ export default function AdminTilawatDuaPage() {
 
   // Open modal for new upload
   const handleOpenUploadModal = () => {
+    if (!canUpload) {
+      toast.error("Permission Denied: Only administrators and assigned faculty members can upload Tilawat Dua.");
+      return;
+    }
     resetForm();
     setIsUploadModalOpen(true);
   };
 
   // Open modal for editing
   const handleOpenEditModal = (item: TilawatDuaItem) => {
+    if (!canUpload) {
+      toast.error("Permission Denied: Only administrators and assigned faculty members can edit Tilawat Dua.");
+      return;
+    }
     setEditingItem(item);
     setFormTitle(item.title);
     setFormDescription(item.description || "");
@@ -214,6 +229,10 @@ export default function AdminTilawatDuaPage() {
 
   // Save Record (Create or Update)
   const handleSaveRecord = async () => {
+    if (!canUpload) {
+      toast.error("Permission Denied: Only administrators and assigned faculty members can save Tilawat Dua.");
+      return;
+    }
     if (!formTitle.trim()) {
       toast.error("Please enter a title for Tilawat Dua");
       return;
@@ -263,6 +282,10 @@ export default function AdminTilawatDuaPage() {
 
   // Toggle Active
   const handleToggleActive = async (item: TilawatDuaItem) => {
+    if (!canUpload) {
+      toast.error("Permission Denied: Only administrators and assigned faculty members can change visibility.");
+      return;
+    }
     try {
       const res = await fetch(`/api/tilawat-dua/${item.id}/toggle-active`, { method: "PATCH" });
       const json = await res.json();
@@ -277,6 +300,10 @@ export default function AdminTilawatDuaPage() {
 
   // Set Daily Default
   const handleSetDefault = async (item: TilawatDuaItem) => {
+    if (!canUpload) {
+      toast.error("Permission Denied: Only administrators and assigned faculty members can set daily default.");
+      return;
+    }
     try {
       const res = await fetch(`/api/tilawat-dua/${item.id}/set-default`, { method: "PATCH" });
       const json = await res.json();
@@ -291,6 +318,10 @@ export default function AdminTilawatDuaPage() {
 
   // Delete Record
   const handleDelete = async (item: TilawatDuaItem) => {
+    if (!canUpload) {
+      toast.error("Permission Denied: Only administrators and assigned faculty members can delete records.");
+      return;
+    }
     if (!window.confirm(`Are you sure you want to delete "${item.title}"?`)) return;
 
     try {
@@ -353,13 +384,20 @@ export default function AdminTilawatDuaPage() {
               </Button>
             )}
 
-            <Button
-              onClick={handleOpenUploadModal}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-lg shadow-emerald-600/30 rounded-xl"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Upload Tilawat Dua PDF
-            </Button>
+            {canUpload ? (
+              <Button
+                onClick={handleOpenUploadModal}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-lg shadow-emerald-600/30 rounded-xl"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Upload Tilawat Dua PDF
+              </Button>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-amber-300 text-xs font-semibold shadow-sm">
+                <Eye className="w-3.5 h-3.5 text-amber-400" />
+                View-Only Presentation Mode
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -584,57 +622,59 @@ export default function AdminTilawatDuaPage() {
                     </Button>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    {/* Make Daily Default */}
-                    {!item.isDailyDefault && (
+                  {canUpload && (
+                    <div className="flex items-center gap-1">
+                      {/* Make Daily Default */}
+                      {!item.isDailyDefault && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSetDefault(item)}
+                          title="Set as Today's Default"
+                          className="text-xs text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 h-8 px-2"
+                        >
+                          <Star className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+
+                      {/* Toggle Active */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleSetDefault(item)}
-                        title="Set as Today's Default"
-                        className="text-xs text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 h-8 px-2"
+                        onClick={() => handleToggleActive(item)}
+                        title={item.isActive ? "Hide from portals" : "Show in portals"}
+                        className="text-xs text-slate-500 hover:text-slate-800 h-8 px-2"
                       >
-                        <Star className="w-3.5 h-3.5" />
+                        {item.isActive ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                        )}
                       </Button>
-                    )}
 
-                    {/* Toggle Active */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleActive(item)}
-                      title={item.isActive ? "Hide from portals" : "Show in portals"}
-                      className="text-xs text-slate-500 hover:text-slate-800 h-8 px-2"
-                    >
-                      {item.isActive ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      ) : (
-                        <XCircle className="w-3.5 h-3.5 text-slate-400" />
-                      )}
-                    </Button>
+                      {/* Edit */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenEditModal(item)}
+                        title="Edit details"
+                        className="text-xs text-slate-500 hover:text-slate-800 h-8 px-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
 
-                    {/* Edit */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenEditModal(item)}
-                      title="Edit details"
-                      className="text-xs text-slate-500 hover:text-slate-800 h-8 px-2"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </Button>
-
-                    {/* Delete */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(item)}
-                      title="Delete record"
-                      className="text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-8 px-2"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                      {/* Delete */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(item)}
+                        title="Delete record"
+                        className="text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-8 px-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );

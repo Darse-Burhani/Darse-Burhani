@@ -311,7 +311,15 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
     }
 
     const body = req.body as Record<string, any>;
-    const { title, description, subject, academicYear, month, status, progress } = body;
+    const { title, description, subject, academicYear, month, status, progress, teacherId, classId } = body;
+
+    let resolvedTeacherProfileId = plan.teacherId;
+    if (teacherId && teacherId !== plan.teacherId) {
+      const tp = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: teacherId }, { userId: teacherId }] },
+      });
+      if (tp) resolvedTeacherProfileId = tp.id;
+    }
 
     const newStatus = (status || plan.status) as string;
     const newProgress =
@@ -320,6 +328,8 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
     const updated = await prisma.takhteetPlan.update({
       where: { id: plan.id },
       data: {
+        teacherId: resolvedTeacherProfileId,
+        classId: classId || plan.classId,
         title: title ?? plan.title,
         description: description !== undefined ? description || null : plan.description,
         subject: subject ?? plan.subject,
@@ -337,7 +347,7 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
       await prisma.takhteetProgressLog.create({
         data: {
           planId: plan.id,
-          teacherId: plan.teacherId,
+          teacherId: resolvedTeacherProfileId,
           note: body.note || null,
           progressBefore: plan.progress,
           progressAfter: newProgress,
@@ -351,6 +361,37 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("Takhteet update error:", error);
     return res.status(500).json({ success: false, error: "Failed to update takhteet" });
+  }
+});
+
+// POST /api/admin/takhteet/bulk-assign - Bulk reassign portions of a class/subject to a teacher
+router.post("/bulk-assign", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { classId, subject, teacherId } = req.body as Record<string, any>;
+    if (!teacherId) {
+      return res.status(400).json({ success: false, error: "Teacher is required" });
+    }
+    const tp = await prisma.teacherProfile.findFirst({
+      where: { OR: [{ id: teacherId }, { userId: teacherId }] },
+    });
+    if (!tp) {
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    }
+
+    const where: any = {};
+    if (classId) where.classId = classId;
+    if (subject) where.subject = subject;
+
+    const result = await prisma.takhteetPlan.updateMany({
+      where,
+      data: { teacherId: tp.id },
+    });
+
+    cache.invalidateTag("takhteet");
+    return res.json({ success: true, count: result.count, message: `Successfully assigned ${result.count} portions to faculty.` });
+  } catch (err: any) {
+    console.error("Takhteet bulk-assign error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to bulk assign" });
   }
 });
 
