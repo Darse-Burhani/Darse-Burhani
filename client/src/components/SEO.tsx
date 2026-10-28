@@ -13,10 +13,10 @@ export interface SEOProps {
   noIndex?: boolean;
 }
 
-const DEFAULT_TITLE = "Darse Burhani (Nisab) — Mahad al Zahra Academic & Attendance Platform";
+const DEFAULT_TITLE = "Darse Burhani — Mahad al-Zahra Academic Portal & Nisab";
 const TITLE_TEMPLATE = "%s | Darse Burhani";
 const DEFAULT_DESCRIPTION =
-  "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student engagement platform for Darse Burhani (Nisab) — Mahad al Zahra.";
+  "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, Takhteet lesson plans, and student learning console for Mahad al-Zahra.";
 const DEFAULT_OG_IMAGE = "https://darseburhani.edu/og-image.svg";
 const BASE_URL = "https://darseburhani.edu";
 
@@ -25,28 +25,28 @@ const BASE_URL = "https://darseburhani.edu";
  */
 export const ROUTE_METADATA: Record<string, { title: string; description: string; noIndex?: boolean }> = {
   "/": {
-    title: "Sign In — Darse Burhani (Nisab)",
-    description: "Secure gateway for administrators, faculty, talabat, and parents.",
+    title: "Sign In — Darse Burhani | Mahad al-Zahra Nisab Portal",
+    description: "Sign in with your ITS credentials or institutional email to access Darse Burhani modules, attendance records, Takhteet curriculum, and Mahad al-Zahra portals.",
   },
   "/login": {
-    title: "Sign In — Darse Burhani (Nisab)",
-    description: "Sign in with your ITS credentials or institutional email to access Darse Burhani modules.",
+    title: "Sign In — Darse Burhani | Mahad al-Zahra Nisab Portal",
+    description: "Sign in with your ITS credentials or institutional email to access Darse Burhani modules, attendance records, Takhteet curriculum, and Mahad al-Zahra portals.",
   },
   "/thank-you": {
-    title: "Submission Received — Thank You",
-    description: "Your request or academic form submission has been securely recorded in the institutional database.",
+    title: "Submission Received — Darse Burhani Academic Desk",
+    description: "Your request or academic form submission has been securely recorded in the Mahad al-Zahra Darse Burhani institutional database.",
   },
   "/privacy": {
-    title: "Privacy & Data Protection Policy",
-    description: "Institutional privacy guidelines, biometric template safeguards, and data governance standards.",
+    title: "Privacy & Data Protection Policy | Darse Burhani Nisab",
+    description: "Institutional privacy policy, biometric template protection guidelines, and student data governance protocols for Darse Burhani and Mahad al-Zahra.",
   },
   "/terms": {
-    title: "Terms of Portal Service",
-    description: "Terms and conditions governing the usage of Darse Burhani academic services.",
+    title: "Terms of Portal Service & Access | Darse Burhani Nisab",
+    description: "Terms and conditions governing access to the Darse Burhani academic portal, biometric attendance records, and Mahad al-Zahra institutional tools.",
   },
   "/fatimi-calendar": {
-    title: "Fatimi Hijri Calendar & Academic Schedule",
-    description: "Official Fatimi calendar, miqaats, examination cycles, and academic milestones.",
+    title: "Fatimi Hijri Calendar & Academic Schedule | Nisab",
+    description: "Official Fatimi Hijri calendar, miqaats, examination cycles, and academic milestones for Darse Burhani at Mahad al-Zahra Galiakot campus.",
   },
   "/library/tv": {
     title: "Library Circulation TV Billboard",
@@ -147,6 +147,20 @@ export function updateMetaTags({
 
   // Canonical Link
   setLink("canonical", finalUrl);
+
+  // Hreflang Links
+  const setHreflang = (lang: string, href: string) => {
+    let el = document.querySelector(`link[rel="alternate"][hreflang="${lang}"]`) as HTMLLinkElement | null;
+    if (!el) {
+      el = document.createElement("link");
+      el.setAttribute("rel", "alternate");
+      el.setAttribute("hreflang", lang);
+      document.head.appendChild(el);
+    }
+    el.setAttribute("href", href);
+  };
+  setHreflang("en", finalUrl);
+  setHreflang("x-default", finalUrl);
 }
 
 /**

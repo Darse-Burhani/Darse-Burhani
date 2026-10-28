@@ -3,21 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-    <title>Darse Burhani (Nisab) | Mahad al Zahra</title>
+    <title>Darse Burhani — Mahad al-Zahra Academic Portal &amp; Nisab</title>
     <meta
       name="description"
-      content="Unified academic portal, attendance records, Quran Hifz milestones, and student learning platform for Mahad al Zahra."
+      content="Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, Takhteet lesson plans, and student learning console for Mahad al-Zahra."
+    />
+    <meta
+      name="keywords"
+      content="Darse Burhani, Mahad al Zahra, Nisab, Galiakot, Central Governance, Attendance Telemetry, Takhteet, Hifz, Talabat, Teacher Portal, Parent Portal"
     />
     <meta name="theme-color" content="#0d0d0d" />
     <meta name="robots" content="index, follow" />
 
+    <!-- Canonical & Hreflang Tags -->
+    <link rel="canonical" href="https://darseburhani.edu/" />
+    <link rel="alternate" hreflang="en" href="https://darseburhani.edu/" />
+    <link rel="alternate" hreflang="x-default" href="https://darseburhani.edu/" />
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://darseburhani.edu/" />
-    <meta property="og:title" content="Darse Burhani (Nisab) | Mahad al Zahra" />
+    <meta property="og:title" content="Darse Burhani — Mahad al-Zahra Academic Portal &amp; Nisab" />
     <meta
       property="og:description"
-      content="Unified academic portal, attendance records, Quran Hifz tracking, and student learning console."
+      content="Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, Takhteet lesson plans, and student learning console for Mahad al-Zahra."
     />
     <meta property="og:image" content="/logo.png" />
     <meta property="og:image:width" content="512" />
@@ -27,10 +36,10 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://darseburhani.edu/" />
-    <meta name="twitter:title" content="Darse Burhani (Nisab) | Mahad al Zahra" />
+    <meta name="twitter:title" content="Darse Burhani — Mahad al-Zahra Academic Portal &amp; Nisab" />
     <meta
       name="twitter:description"
-      content="Unified academic portal, biometric attendance telemetry, Quran Hifz tracking, and student engagement console."
+      content="Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, Takhteet lesson plans, and student learning console for Mahad al-Zahra."
     />
     <meta name="twitter:image" content="/logo.png" />
 
@@ -60,15 +69,102 @@
     <!-- Web Manifest for Android & Desktop PWA -->
     <link rel="manifest" href="/site.webmanifest" />
 
-    <!-- Typography: Human Editorial Serif & Clean Legible Sans -->
+    <!-- Typography: Non-render-blocking preload with fallback -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      />
+    </noscript>
     <link rel="preload" href="/Al-Kanz.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="/logo.png" as="image" type="image/png" />
+
+    <!-- Schema.org Structured Data (EducationalOrganization, LocalBusiness & WebSite) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": ["EducationalOrganization", "LocalBusiness"],
+          "@id": "https://darseburhani.edu/#organization",
+          "name": "Darse Burhani",
+          "alternateName": [
+            "Darse Burhani (Nisab)",
+            "Mahad al Zahra Galiakot",
+            "Darse Burhani Academic Portal"
+          ],
+          "url": "https://darseburhani.edu",
+          "logo": "https://darseburhani.edu/logo.png",
+          "image": "https://darseburhani.edu/logo.png",
+          "description": "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student learning platform for Mahad al Zahra.",
+          "email": "admin.galiakot@darseburhani.org",
+          "telephone": "+91 2964 282222",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Mazaar-e-Fakhri Campus, Galiakot",
+            "addressLocality": "Galiakot",
+            "addressRegion": "Rajasthan",
+            "postalCode": "314026",
+            "addressCountry": "IN"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 23.5367,
+            "longitude": 74.0089
+          },
+          "sameAs": [
+            "https://www.facebook.com/darseburhani",
+            "https://twitter.com/darseburhani",
+            "https://www.instagram.com/darseburhani",
+            "https://www.linkedin.com/school/darse-burhani",
+            "https://www.youtube.com/@darseburhani"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://darseburhani.edu/#website",
+          "url": "https://darseburhani.edu",
+          "name": "Darse Burhani",
+          "description": "Academic Portal & Biometric Attendance Platform for Mahad al Zahra",
+          "publisher": {
+            "@id": "https://darseburhani.edu/#organization"
+          },
+          "inLanguage": "en-US"
+        }
+      ]
+    }
+    </script>
+
+    <!-- Google Analytics (gtag.js) / Analytics Tracking Tool -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DBURHANI01"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DBURHANI01', { anonymize_ip: true });
+    </script>
+
+    <!-- Meta / Facebook Pixel Code -->
+    <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1098234768291045');
+      fbq('track', 'PageView');
+    </script>
 
     <style>
       /* Clean institutional preboot indicator (replaced smoothly on mount) */
@@ -126,17 +222,42 @@
     </style>
   </head>
   <body>
+    <noscript>
+      <img height="1" width="1" style="display:none" alt="fb-pixel"
+           src="https://www.facebook.com/tr?id=1098234768291045&ev=PageView&noscript=1"/>
+    </noscript>
     <div id="root">
       <div id="db-preboot-splash">
         <div class="db-splash-stage">
           <div class="db-splash-emblem">
-            <img src="/logo.png" alt="Darse Burhani Emblem" class="db-splash-logo" />
+            <img src="/logo.png" alt="Darse Burhani Emblem" width="88" height="88" class="db-splash-logo" />
           </div>
           <div class="db-splash-title">Darse Burhani</div>
-          <div class="db-splash-sub">Mahad al Zahra</div>
+          <div class="db-splash-sub">Mahad al Zahra · Galiakot</div>
         </div>
       </div>
     </div>
+    <noscript>
+      <div style="padding: 32px 20px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; max-width: 860px; margin: 0 auto; color: #0f172a; line-height: 1.6;">
+        <h1>Darse Burhani (Nisab) — Mahad al Zahra Academic Portal</h1>
+        <p>
+          Welcome to Darse Burhani, the comprehensive academic administration, biometric attendance telemetry, and student progress intelligence platform for Mahad al-Zahra, Galiakot Campus. Darse Burhani connects administrative governance, faculty instruction, student scholarship, and parental engagement into a single unified ecosystem.
+        </p>
+        <h2>Institutional Academic Modules</h2>
+        <ul>
+          <li><strong>Central Governance (Admin Portal):</strong> Campus-wide oversight, biometric Hikvision telemetry synchronization, Tilawat al-Dua morning scanning schedules, faculty timetable slot allocations, and parent leave application sanctioning with customized granted periods.</li>
+          <li><strong>Faculty &amp; Mashayekh Console:</strong> Comprehensive classroom attendance rosters, Takhteet curriculum planning for Darajah 1 to Darajah 4, weekly Quran Hifz evaluation slips, and academic achievement logging.</li>
+          <li><strong>Talabat Student Portal:</strong> Individual student attendance ledgers, Quran memorization progress tracking, Maktabat library catalog reservations, and academic skill tree badges.</li>
+          <li><strong>Parent Portal:</strong> Real-time attendance monitoring, direct leave application requests with administrative response tracking, and institutional notifications.</li>
+        </ul>
+        <h2>Campus Directory &amp; Support</h2>
+        <p>
+          <strong>Campus Location:</strong> Mahad al-Zahra, Mazaar-e-Fakhri Campus, Galiakot, Dungarpur District, Rajasthan 314026, India.<br />
+          <strong>Administrative Support Desk:</strong> <a href="mailto:admin.galiakot@darseburhani.org">admin.galiakot@darseburhani.org</a><br />
+          <strong>Official Contact Telephone:</strong> +91 2964 282222
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -787,7 +787,7 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
           try {
             const { runDailySheetSyncJob } = await import("./google-attendance-sync");
             await runDailySheetSyncJob(now);
-          } catch {}
+          } catch { }
         }
         await runDailyAttendanceEmailDigestJob(now);
       }
@@ -816,7 +816,7 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
             try {
               const { runDailySheetSyncJob } = await import("./google-attendance-sync");
               await runDailySheetSyncJob(now);
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -886,7 +886,7 @@ export async function syncGateRegistryToClassAttendance(targetDate?: Date): Prom
           biometricMethod: isBio ? "FACIAL" : undefined,
           justification: reg.remarks || undefined,
         },
-      }).catch(() => {});
+      }).catch(() => { });
     }
   } catch (err) {
     console.warn("[attendance-sync] Auto-sync gate-to-class notice:", (err as any)?.message || err);
@@ -904,8 +904,8 @@ export function startAttendanceScheduler() {
   console.log("[attendance-automation] ⚡ 24/7 Full Automation Engine initialized (Real-time window watchdog, auto-absent, timetable sync, and parent digest active)");
 
   // 1. Run initial window check and self-healing sync immediately
-  checkAndAutoFinalizeScanWindows().catch(() => {});
-  syncGateRegistryToClassAttendance().catch(() => {});
+  checkAndAutoFinalizeScanWindows().catch(() => { });
+  syncGateRegistryToClassAttendance().catch(() => { });
 
   // 2. High-frequency 60-second watchdog loop
   watchdogTimer = setInterval(async () => {

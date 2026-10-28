@@ -388,11 +388,14 @@ export function createApp() {
   app.use(
     express.static(clientDist, {
       etag: true,
-      maxAge: "1d",
+      maxAge: "30d",
       setHeaders: (res, filePath) => {
         // Hashed JS/CSS in assets/ are immutable for 1 year
         if (filePath.includes(path.sep + "assets" + path.sep) || filePath.includes("/assets/")) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (/\.(jpg|jpeg|png|webp|svg|ico|webmanifest|woff2?|ttf|eot)$/i.test(filePath)) {
+          // Static images, fonts, and icons cache for 30 days with revalidation
+          res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
         } else {
           res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=43200");
         }
