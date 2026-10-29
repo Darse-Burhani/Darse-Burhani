@@ -1124,14 +1124,49 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           a.name.localeCompare(b.name),
       );
 
+    let finalEligible = eligibleTeachers;
+    if (finalEligible.length === 0) {
+      finalEligible = allTeachers
+        .filter((t) => t.id !== originalProfileId)
+        .map((t) => {
+          const substituteDisplay = canonicalizeTeacherDisplay(
+            t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
+            t.user?.avatarUrl || null,
+          );
+          const onLeaveReason = teacherLeaveMap.get(t.id);
+          const isOnLeave = Boolean(onLeaveReason);
+          const isFree = !busyTeacherIds.has(t.id) && !isOnLeave;
+          return {
+            id: t.id,
+            name: substituteDisplay.name || "Teacher",
+            email: t.user?.email || "",
+            its: t.its,
+            department: t.department || "Faculty",
+            subjects: t.subjects,
+            avatarUrl: substituteDisplay.avatarUrl,
+            badalCount: t._count.substituteBadals,
+            isFree,
+            isOnLeave,
+            leaveReason: onLeaveReason || null,
+            teachesSubject: false,
+          };
+        })
+        .sort(
+          (a, b) =>
+            Number(b.isFree && !b.isOnLeave) - Number(a.isFree && !a.isOnLeave) ||
+            a.badalCount - b.badalCount ||
+            a.name.localeCompare(b.name),
+        );
+    }
+
     return res.json({
       success: true,
-      data: eligibleTeachers,
+      data: finalEligible,
       meta: {
         subject: normalizedSubject || null,
         period: p,
         date: startOfDay.toISOString().split("T")[0],
-        eligibleCount: eligibleTeachers.length,
+        eligibleCount: finalEligible.length,
       },
     });
   } catch (error) {

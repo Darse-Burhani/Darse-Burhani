@@ -93,15 +93,24 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
       orderBy: [{ dayOfWeek: "asc" }, { period: "asc" }],
     });
 
-    // 3. Fetch today's Badal (substitute) assignments for this class
+    // 3. Fetch Badal (substitute) assignments for this class (current week window + today)
     const now = new Date();
     const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
     const nextDay = new Date(startOfDay.getTime() + 86400000);
 
+    const currentDay = now.getUTCDay(); // 0 is Sunday
+    const diffToMonday = (currentDay === 0 ? -6 : 1) - currentDay;
+    const mondayOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diffToMonday, 0, 0, 0));
+    const sundayOfWeek = new Date(mondayOfWeek.getTime() + 7 * 86400000);
+
     const badals = await prisma.timetableBadal.findMany({
       where: {
-        classId: currentClass.id,
-        date: { gte: startOfDay, lt: nextDay },
+        OR: [
+          { classId: currentClass.id },
+          { className: currentClass.name },
+        ],
+        date: { gte: mondayOfWeek, lt: sundayOfWeek },
+        status: { in: ["ASSIGNED", "CONFIRMED"] },
       },
       include: {
         originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
@@ -110,9 +119,14 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
       orderBy: { period: "asc" },
     });
 
-    // Badal Map: period -> badal record
-    const badalByPeriod = new Map<number, any>();
-    badals.forEach((b) => badalByPeriod.set(b.period, b));
+    // Badal Map: `${dayOfWeek}_${period}` -> badal record
+    const badalByDayPeriod = new Map<string, any>();
+    for (const b of badals) {
+      const bDate = new Date(b.date);
+      let bDow = bDate.getUTCDay();
+      if (bDow === 0) bDow = 1;
+      badalByDayPeriod.set(`${bDow}_${b.period}`, b);
+    }
 
     // 4. Calculate today's day of week in IST (1 = Monday, 6 = Saturday, 0/7 = Sunday)
     const istParts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "short" }).format(now);
@@ -120,7 +134,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
     const todayDow = dayMap[istParts] || 1;
 
     const formattedSlots = slots.map((s) => {
-      const badal = s.dayOfWeek === todayDow ? badalByPeriod.get(s.period) : null;
+      const badal = badalByDayPeriod.get(`${s.dayOfWeek}_${s.period}`);
       const changeInfo = isSlotRecentlyChanged(s);
       const updatedAtTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
       const createdAtTime = s.createdAt ? new Date(s.createdAt).getTime() : 0;
@@ -149,8 +163,10 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         badal: badal
           ? {
               id: badal.id,
+              date: badal.date,
               badalTeacherName: badal.badalTeacher ? `${badal.badalTeacher.user.firstName} ${badal.badalTeacher.user.lastName}` : badal.badalTeacherName,
               badalTeacherAvatar: badal.badalTeacher?.user.avatarUrl || null,
+              originalTeacherName: badal.originalTeacher ? `${badal.originalTeacher.user.firstName} ${badal.originalTeacher.user.lastName}` : badal.originalTeacherName,
               reason: badal.reason,
               instructions: badal.instructions,
               status: badal.status,

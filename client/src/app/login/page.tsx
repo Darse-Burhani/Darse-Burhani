@@ -247,7 +247,7 @@ export default function LoginPage() {
     }
     lines.push("", "Please reset my password at your earliest convenience.", "", "Jazak Allah,");
     if (forgotProfile) lines.push(forgotProfile.displayName);
-    return `mailto:admin.galiakot@darseburhani.org?cc=support.darseburhani.galiakot@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+    return `mailto:support.darseburhanigaliakot@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
   }, [forgotProfile, forgotIdentifier]);
 
   // ââ Backdrop Parallax ââ
@@ -763,8 +763,8 @@ export default function LoginPage() {
                 </div>
                 <p style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.65)", textAlign: "center", margin: 0 }}>
                   Direct Support:{" "}
-                  <a href="mailto:admin.galiakot@darseburhani.org" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
-                    admin.galiakot@darseburhani.org
+                  <a href="mailto:support.darseburhanigaliakot@gmail.com" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
+                    support.darseburhanigaliakot@gmail.com
                   </a>
                 </p>
               </div>
@@ -1151,12 +1151,12 @@ export default function LoginPage() {
                 <span>
                   Need help?{" "}
                   <a
-                    href="mailto:admin.galiakot@darseburhani.org?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                    href="mailto:support.darseburhanigaliakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
                     style={{ color: "#fcd468", fontWeight: 700, textDecoration: "none" }}
                     onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
                   >
-                    Contact Administration
+                    Contact Support
                   </a>
                 </span>
                 <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
@@ -1541,7 +1541,7 @@ export default function LoginPage() {
                 style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}
               >
                 <a
-                  href="mailto:admin.galiakot@darseburhani.org?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                  href="mailto:support.darseburhanigaliakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
                   style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}
                 >
                   Help
@@ -1899,8 +1899,8 @@ export default function LoginPage() {
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", display: "block", marginBottom: 4 }}>Mahad al Zahra Administration Desk</span>
                 <p style={{ color: "#334155" }}>
                   Direct Support Email:{" "}
-                  <a href="mailto:admin.galiakot@darseburhani.org" style={{ color: "#8a3e14", fontWeight: 700 }}>
-                    admin.galiakot@darseburhani.org
+                  <a href="mailto:support.darseburhanigaliakot@gmail.com" style={{ color: "#8a3e14", fontWeight: 700 }}>
+                    support.darseburhanigaliakot@gmail.com
                   </a>
                 </p>
                 <p style={{ color: "#64748b", marginTop: 4 }}>For password resets, credential assistance, and queries, email our support desk directly.</p>

@@ -159,7 +159,7 @@ Idarah Darse Burhani Academic Administration`;
   return { subject, body };
 }
 
-export default function AdminTimetableMasterPage() {
+export default function AdminTimetableMasterPage({ initialTab = "classes" }: { initialTab?: ActiveTab }) {
   const { modules, refreshModules } = usePortalAccess();
   const [togglingPortalRole, setTogglingPortalRole] = useState<"talabat" | "teacher" | null>(null);
 
@@ -261,7 +261,7 @@ export default function AdminTimetableMasterPage() {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>("classes");
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncingMaster, setSyncingMaster] = useState(false);
@@ -330,7 +330,7 @@ export default function AdminTimetableMasterPage() {
     instructions: "",
     notes: "",
     // Email dispatch fields
-    senderEmail: "support.darseburhani.galiakot@gmail.com",
+    senderEmail: "support.darseburhanigaliakot@gmail.com",
     receiverEmail: "",
     customEmailSubject: "",
     customEmailBody: "",
@@ -1763,17 +1763,34 @@ export default function AdminTimetableMasterPage() {
 
           {/* Timetable Weekly Matrix with Sticky Day Column & Horizontal Scrolling */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-            {/* Mobile Swipe Hint */}
-            <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <span className="animate-pulse">👉</span> Swipe horizontally to view all periods
-              </span>
-              <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
-                Mon – Sat
-              </span>
+            {/* Mobile Swipe Hint & Day Pills */}
+            <div className="lg:hidden p-2.5 bg-amber-50/90 border-b border-amber-200/70 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-amber-950 font-bold">
+                <span className="flex items-center gap-1.5">
+                  <span className="animate-pulse">👉</span> Swipe horizontally or tap day below:
+                </span>
+                <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                  Mon – Sat
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {DAYS.map((d) => (
+                  <button
+                    key={d.day}
+                    type="button"
+                    onClick={() => {
+                      const row = document.getElementById(`admin-matrix-day-${d.day}`);
+                      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-white text-slate-800 border border-amber-200/80 shadow-2xs hover:bg-amber-100 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    {d.short}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="overflow-x-auto touch-pan-x scrollbar-thin relative">
+            <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin relative pb-2">
               <table className="w-full border-collapse min-w-[960px]">
                 <thead>
                   <tr className="bg-[#1c1c1c] text-white">
@@ -1790,7 +1807,7 @@ export default function AdminTimetableMasterPage() {
                 </thead>
                 <tbody>
                   {DAYS.map((d) => (
-                    <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                    <tr key={d.day} id={`admin-matrix-day-${d.day}`} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
                       {/* Sticky Day Column */}
                       <td className="p-3.5 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/95 sticky left-0 z-10 shadow-2xs">
                         <div className="font-extrabold text-slate-900">{d.name}</div>
@@ -2019,7 +2036,7 @@ export default function AdminTimetableMasterPage() {
               </span>
             </div>
 
-            <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+            <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
               <table className="w-full border-collapse min-w-[1200px]">
                 <thead>
                   <tr className="bg-[#1c1c1c] text-white">
@@ -2271,17 +2288,34 @@ export default function AdminTimetableMasterPage() {
 
           {/* Teacher Timetable Grid */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-            {/* Mobile Swipe Hint */}
-            <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <span className="animate-pulse">👉</span> Swipe horizontally to view all periods
-              </span>
-              <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
-                Mon – Sat
-              </span>
+            {/* Mobile Swipe Hint & Day Pills */}
+            <div className="lg:hidden p-2.5 bg-amber-50/90 border-b border-amber-200/70 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-amber-950 font-bold">
+                <span className="flex items-center gap-1.5">
+                  <span className="animate-pulse">👉</span> Swipe horizontally or tap day below:
+                </span>
+                <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                  Mon – Sat
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {DAYS.map((d) => (
+                  <button
+                    key={d.day}
+                    type="button"
+                    onClick={() => {
+                      const row = document.getElementById(`admin-matrix-day-${d.day}`);
+                      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-white text-slate-800 border border-amber-200/80 shadow-2xs hover:bg-amber-100 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    {d.short}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+            <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-[#1c1c1c] text-white">
@@ -2298,7 +2332,7 @@ export default function AdminTimetableMasterPage() {
                 </thead>
                 <tbody>
                   {DAYS.map((d) => (
-                    <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                    <tr key={d.day} id={`admin-matrix-day-${d.day}`} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
                       <td className="p-3 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/80">
                         {d.name}
                       </td>
@@ -2596,8 +2630,8 @@ export default function AdminTimetableMasterPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
+                <table className="w-full text-left border-collapse min-w-[760px]">
                   <thead>
                     <tr className="bg-slate-50 text-[11px] font-black uppercase text-slate-500 tracking-wider border-b border-slate-200">
                       <th className="p-4">Period / Time</th>
@@ -2909,8 +2943,8 @@ export default function AdminTimetableMasterPage() {
           ) : (
             /* VIEW MODE 2: ALL SYLLABUS PORTIONS TABLE */
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
+                <table className="w-full text-left border-collapse min-w-[760px]">
                   <thead>
                     <tr className="bg-slate-50 text-[11px] font-black uppercase text-slate-500 tracking-wider border-b border-slate-200">
                       <th className="p-4">#</th>
@@ -3014,8 +3048,8 @@ export default function AdminTimetableMasterPage() {
           BADAL ASSISTANT MODAL (INTELLIGENT FREE TEACHER FINDER)
          ───────────────────────────────────────────────────────────── */}
       {showBadalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-lg p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
@@ -3248,7 +3282,7 @@ export default function AdminTimetableMasterPage() {
                           value={badalForm.senderEmail}
                           onChange={(e) => setBadalForm((prev) => ({ ...prev, senderEmail: e.target.value }))}
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500"
-                          placeholder="support.darseburhani.galiakot@gmail.com"
+                          placeholder="support.darseburhanigaliakot@gmail.com"
                         />
                       </div>
                       <div>

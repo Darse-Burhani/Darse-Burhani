@@ -32,17 +32,17 @@ const ModalContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <ModalPortal>
     <ModalOverlay />
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto pointer-events-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 overflow-y-auto pointer-events-none">
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "pointer-events-auto relative w-[calc(100%-1.5rem)] sm:w-full max-w-lg rounded-3xl sm:rounded-[2rem] border border-gray-200/90 bg-white p-5 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.22)] max-h-[90vh] overflow-y-auto my-auto animate-fade-in",
+          "pointer-events-auto relative w-full max-w-[calc(100vw-1.25rem)] sm:max-w-lg rounded-2xl sm:rounded-[2rem] border border-gray-200/90 bg-white p-4 sm:p-7 shadow-[0_24px_60px_rgba(0,0,0,0.22)] max-h-[92vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto animate-fade-in",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 z-50 rounded-full p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute right-3.5 top-3.5 sm:right-4 sm:top-4 z-50 rounded-full p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:pointer-events-none">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

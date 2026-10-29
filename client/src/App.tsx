@@ -374,6 +374,10 @@ export default function App() {
           <Route path="passwords" element={<RequireAdminPageAccess pageKey="passwords"><AdminPasswords /></RequireAdminPageAccess>} />
           <Route path="users" element={<RequireAdminPageAccess pageKey="users"><AdminUsers /></RequireAdminPageAccess>} />
           <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><TeacherTimetable /></RequireAdminPageAccess>} />
+          <Route path="timetable/manage" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable initialTab="badal" /></RequireAdminPageAccess>} />
+          <Route path="timetable/matrix" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
+          <Route path="timetable-matrix" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
+          <Route path="timetable/badal" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable initialTab="badal" /></RequireAdminPageAccess>} />
           <Route path="tracking" element={<RequireAdminPageAccess pageKey="tracking"><AdminTracking /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<TeacherProcurement />} />

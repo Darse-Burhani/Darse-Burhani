@@ -449,6 +449,7 @@ export async function notifyBadalAssignment(
         to: recipientEmail,
         subject: emailSubject,
         html: emailHtml,
+        from: options?.customFrom?.trim() || process.env.SMTP_FROM || `Darse Burhani Support <support.darseburhanigaliakot@gmail.com>`,
       });
     }
 
@@ -458,10 +459,32 @@ export async function notifyBadalAssignment(
         data: {
           userId: substituteUser.id,
           title: `🚨 [URGENT] Badal Substitute Duty: Class ${badal.className} (P${badal.period})`,
-          body: `You are assigned to substitute for ${origTeacher} in Class ${badal.className} for Period ${badal.period} (${badal.startTime}–${badal.endTime}) - ${badal.subject}.`,
+          body: `You are assigned to substitute for ${origTeacher} in Class ${badal.className} for Period ${badal.period} (${badal.startTime}–${badal.endTime}) - ${badal.subject}. Reason: ${reasonText}.`,
           type: "BADAL_ASSIGNED",
           link: "/teacher/timetable",
           priority: "URGENT",
+        },
+      });
+    }
+
+    // 2b. Notify Original Teacher that their class is covered
+    let origUserId: string | null = (badal.originalTeacher as any)?.user?.id || null;
+    if (!origUserId && badal.originalTeacherId) {
+      const origTp = await prisma.teacherProfile.findFirst({
+        where: { OR: [{ id: badal.originalTeacherId }, { userId: badal.originalTeacherId }] },
+        include: { user: { select: { id: true } } },
+      });
+      origUserId = origTp?.user?.id || null;
+    }
+    if (origUserId) {
+      await prisma.notification.create({
+        data: {
+          userId: origUserId,
+          title: `Class Covered (Badal): Class ${badal.className} (P${badal.period})`,
+          body: `${subName} has been assigned to cover your Period ${badal.period} (${badal.startTime}–${badal.endTime}) for ${badal.subject}.`,
+          type: "BADAL_COVERED",
+          link: "/teacher/timetable",
+          priority: "NORMAL",
         },
       });
     }

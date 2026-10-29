@@ -3,6 +3,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { usePortalAccess } from "@/context/PortalAccessContext";
+import AdminTimetable from "@/app/admin/timetable/page";
 import {
   CalendarDays,
   Clock,
@@ -72,10 +75,14 @@ const PERIOD_DEFS = [
 const ALL_DARAJAH_CLASSES = ["1 A", "1 B", "2 A", "2 B", "3 A", "3 B", "4 A", "4 B"];
 
 export default function TeacherTimetablePage() {
+  const { data: session } = useSession();
+  const { isPageAssigned } = usePortalAccess();
+  const canManageTimetable = session?.user?.role === "ADMIN" || isPageAssigned("timetable");
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewTab, setViewTab] = useState<"my-schedule" | "masool-class" | "classes">("my-schedule");
+  const [viewTab, setViewTab] = useState<"my-schedule" | "masool-class" | "classes" | "matrix-management">("my-schedule");
 
   // Masool Class Selection
   const [selectedMasoolIndex, setSelectedMasoolIndex] = useState(0);
@@ -534,6 +541,20 @@ export default function TeacherTimetablePage() {
             <BookOpen className="w-4 h-4" />
             <span>{isClassMasool ? "3. All Darajah Classes (1A–4B)" : "2. All Darajah Classes (1A–4B)"}</span>
           </button>
+
+          {canManageTimetable && (
+            <button
+              onClick={() => setViewTab("matrix-management")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+                viewTab === "matrix-management"
+                  ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300/40"
+                  : "bg-emerald-900/70 text-amber-300 hover:bg-emerald-800/90 border border-amber-400/40"
+              }`}
+            >
+              <ArrowRightLeft className="w-4 h-4 text-amber-300" />
+              <span>⚡ Full Timetable Matrix &amp; Badal Management</span>
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -760,17 +781,38 @@ export default function TeacherTimetablePage() {
               </div>
             </div>
 
-            {/* Mobile Swipe Hint */}
-            <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <span className="animate-pulse">👉</span> Swipe horizontally to view all 9 periods
-              </span>
-              <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
-                Mon – Sat
-              </span>
+            {/* Mobile Swipe Hint & Day Pills */}
+            <div className="lg:hidden p-2.5 bg-amber-50/90 border-b border-amber-200/70 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-amber-950 font-bold">
+                <span className="flex items-center gap-1.5">
+                  <span className="animate-pulse">👉</span> Swipe horizontally or tap day below:
+                </span>
+                <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                  Mon – Sat
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {DAYS.map((d) => (
+                  <button
+                    key={d.day}
+                    type="button"
+                    onClick={() => {
+                      const row = document.getElementById(`teacher-schedule-day-${d.day}`);
+                      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold border shadow-2xs transition-all shrink-0 cursor-pointer ${
+                      d.day === todayDow
+                        ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs"
+                        : "bg-white text-slate-800 border-amber-200/80 hover:bg-amber-100"
+                    }`}
+                  >
+                    {d.short}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+            <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-[#1c1c1c] text-white">
@@ -789,7 +831,7 @@ export default function TeacherTimetablePage() {
                   {DAYS.map((d) => {
                     const isToday = d.day === todayDow;
                     return (
-                      <tr key={d.day} className={`border-b border-slate-100 transition-colors ${isToday ? "bg-amber-50/20" : "hover:bg-slate-50/60"}`}>
+                      <tr key={d.day} id={`teacher-schedule-day-${d.day}`} className={`border-b border-slate-100 transition-colors ${isToday ? "bg-amber-50/20" : "hover:bg-slate-50/60"}`}>
                         <td className={`p-3 font-black text-xs border-r border-slate-200/80 ${isToday ? "bg-amber-100/60 text-amber-950 font-extrabold" : "bg-slate-50/80 text-slate-900"}`}>
                           <div className="flex items-center gap-1.5">
                             <span>{d.name}</span>
@@ -1131,7 +1173,7 @@ export default function TeacherTimetablePage() {
                   </span>
                 </div>
 
-                <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
                   <table className="w-full border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-[#1c1c1c] text-white">
@@ -1493,7 +1535,7 @@ export default function TeacherTimetablePage() {
                       </span>
                     </div>
 
-                    <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                    <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
                       <table className="w-full text-left text-xs border-collapse min-w-[720px]">
                       <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-200 text-[10.5px] font-black uppercase text-slate-500 tracking-wider">
@@ -1833,7 +1875,7 @@ export default function TeacherTimetablePage() {
                   </span>
                 </div>
 
-                <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] scrollbar-thin pb-2">
                   <table className="w-full border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-[#1c1c1c] text-white">
@@ -1937,6 +1979,33 @@ export default function TeacherTimetablePage() {
             </>
           )}
           </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 4: FULL TIMETABLE MATRIX & BADAL MANAGEMENT CONSOLE
+         ───────────────────────────────────────────────────────────── */}
+      {viewTab === "matrix-management" && canManageTimetable && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white rounded-3xl border border-amber-400/40 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                <ArrowRightLeft className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-amber-300">Timetable Matrix &amp; Badal Management</h3>
+                <p className="text-xs text-emerald-200/90">Master schedule allocation, conflict-free faculty substitution &amp; email dispatches.</p>
+              </div>
+            </div>
+            <Link
+              href="/teacher/timetable/manage"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-400 text-slate-950 text-xs font-black hover:bg-amber-300 transition-colors self-start sm:self-auto cursor-pointer"
+            >
+              Full Screen Mode →
+            </Link>
+          </div>
+
+          <AdminTimetable initialTab="badal" />
         </div>
       )}
 
