@@ -1078,8 +1078,8 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           distinct: ["subject"],
         },
         takhteetPlans: {
-          select: { subjectName: true },
-          distinct: ["subjectName"],
+          select: { subject: true },
+          distinct: ["subject"],
         },
         user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
         _count: { select: { substituteBadals: true } },
@@ -1097,7 +1097,7 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           if (s.subject && s.subject.trim()) assignedSubjectsSet.add(s.subject.trim());
         }
         for (const tp of t.takhteetPlans || []) {
-          if (tp.subjectName && tp.subjectName.trim()) assignedSubjectsSet.add(tp.subjectName.trim());
+          if (tp.subject && tp.subject.trim()) assignedSubjectsSet.add(tp.subject.trim());
         }
         const assignedSubjects = Array.from(assignedSubjectsSet);
 
