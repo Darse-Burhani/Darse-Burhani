@@ -79,26 +79,31 @@
     <link rel="preload" href="/Al-Kanz.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="/logo.png" as="image" type="image/png" />
 
-    <!-- Schema.org Structured Data (EducationalOrganization, LocalBusiness & WebSite) -->
+    <!-- Schema.org Structured Data (EducationalOrganization, LocalBusiness, Identity Organization & WebSite) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@graph": [
         {
-          "@type": ["EducationalOrganization", "LocalBusiness"],
-          "@id": "https://darseburhani.edu/#organization",
+          "@type": ["EducationalOrganization", "LocalBusiness", "Organization"],
+          "@id": "https://darse-burhani.onrender.com/#organization",
           "name": "Darse Burhani",
+          "legalName": "Darse Burhani - Mahad al-Zahra Galiakot",
           "alternateName": [
             "Darse Burhani (Nisab)",
             "Mahad al Zahra Galiakot",
-            "Darse Burhani Academic Portal"
+            "Darse Burhani Academic Portal",
+            "Mahad al-Zahra"
           ],
-          "url": "https://darseburhani.edu",
-          "logo": "https://darseburhani.edu/logo.png",
-          "image": "https://darseburhani.edu/logo.png",
+          "url": "https://darse-burhani.onrender.com",
+          "logo": "https://darse-burhani.onrender.com/logo.png",
+          "image": "https://darse-burhani.onrender.com/logo.png",
           "description": "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, and student learning platform for Mahad al Zahra.",
           "email": "admin.galiakot@darseburhani.org",
           "telephone": "+91 2964 282222",
+          "priceRange": "Free",
+          "currenciesAccepted": "INR",
+          "paymentAccepted": "N/A",
           "address": {
             "@type": "PostalAddress",
             "streetAddress": "Mazaar-e-Fakhri Campus, Galiakot",
@@ -112,6 +117,24 @@
             "latitude": 23.5367,
             "longitude": 74.0089
           },
+          "contactPoint": [
+            {
+              "@type": "ContactPoint",
+              "telephone": "+91 2964 282222",
+              "contactType": "academic support",
+              "email": "admin.galiakot@darseburhani.org",
+              "areaServed": "IN",
+              "availableLanguage": ["English", "Arabic", "Gujarati", "Hindi"]
+            }
+          ],
+          "openingHoursSpecification": [
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+              "opens": "07:30",
+              "closes": "16:30"
+            }
+          ],
           "sameAs": [
             "https://www.facebook.com/darseburhani",
             "https://twitter.com/darseburhani",
@@ -122,12 +145,12 @@
         },
         {
           "@type": "WebSite",
-          "@id": "https://darseburhani.edu/#website",
-          "url": "https://darseburhani.edu",
+          "@id": "https://darse-burhani.onrender.com/#website",
+          "url": "https://darse-burhani.onrender.com",
           "name": "Darse Burhani",
           "description": "Academic Portal & Biometric Attendance Platform for Mahad al Zahra",
           "publisher": {
-            "@id": "https://darseburhani.edu/#organization"
+            "@id": "https://darse-burhani.onrender.com/#organization"
           },
           "inLanguage": "en-US"
         }
@@ -247,6 +270,14 @@
           <strong>Campus Location:</strong> Mahad al-Zahra, Mazaar-e-Fakhri Campus, Galiakot, Dungarpur District, Rajasthan 314026, India.<br />
           <strong>Administrative Support Desk:</strong> <a href="mailto:admin.galiakot@darseburhani.org">admin.galiakot@darseburhani.org</a><br />
           <strong>Official Contact Telephone:</strong> +91 2964 282222
+        </p>
+        <h2>Connect &amp; Institutional Verification</h2>
+        <p>
+          <a href="https://www.facebook.com/darseburhani" target="_blank" rel="noopener noreferrer">Facebook Official</a> |
+          <a href="https://twitter.com/darseburhani" target="_blank" rel="noopener noreferrer">X (formerly Twitter)</a> |
+          <a href="https://www.instagram.com/darseburhani" target="_blank" rel="noopener noreferrer">Instagram Official</a> |
+          <a href="https://www.linkedin.com/school/darse-burhani" target="_blank" rel="noopener noreferrer">LinkedIn Profile</a> |
+          <a href="https://www.youtube.com/@darseburhani" target="_blank" rel="noopener noreferrer">YouTube Channel</a>
         </p>
       </div>
     </noscript>

@@ -398,6 +398,7 @@ export default function App() {
           <Route path="hobbies" element={<RequireAdminPageAccess pageKey="hobbies"><AdminHobbies /></RequireAdminPageAccess>} />
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="tilawat-dua" element={<TeacherTilawatDua />} />
+          <Route path="tilawat-dua/manage" element={<RequireAdminPageAccess pageKey="tilawat-dua"><AdminTilawatDua /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />
         </Route>
 

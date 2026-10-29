@@ -85,8 +85,20 @@ export function InstitutionalFooter({
             </h4>
             <div className="text-xs text-[#b8b2a5] space-y-1">
               <p className="text-[#fbf8f2] font-medium">Administration Desk, Mahad al Zahra</p>
-              <p>Email: <a href="mailto:support.darseburhani.galiakot@gmail.com" className="text-[#c59b27] hover:underline font-semibold">support.darseburhani.galiakot@gmail.com</a></p>
+              <p>Email: <a href="mailto:admin.galiakot@darseburhani.org" className="text-[#c59b27] hover:underline font-semibold">admin.galiakot@darseburhani.org</a></p>
+              <p>Tel: <a href="tel:+912964282222" className="text-[#c59b27] hover:underline font-semibold">+91 2964 282222</a></p>
               <p>Assistance hours: Monday to Saturday, 08:00 – 16:30 IST</p>
+              <div className="pt-2 flex items-center gap-3 text-[#c59b27]">
+                <a href="https://www.facebook.com/darseburhani" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="Facebook">Facebook</a>
+                <span>·</span>
+                <a href="https://twitter.com/darseburhani" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="Twitter / X">X</a>
+                <span>·</span>
+                <a href="https://www.instagram.com/darseburhani" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="Instagram">Instagram</a>
+                <span>·</span>
+                <a href="https://www.linkedin.com/school/darse-burhani" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="LinkedIn">LinkedIn</a>
+                <span>·</span>
+                <a href="https://www.youtube.com/@darseburhani" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="YouTube">YouTube</a>
+              </div>
             </div>
           </div>
         </div>

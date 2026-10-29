@@ -79,7 +79,7 @@ export default function TeacherClassesPage() {
                     </div>
                   )}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-2">
-                    <Link href={`/teacher/takhteet?subject=${encodeURIComponent(cls.subject)}&class=${encodeURIComponent(cls.name)}`}>
+                    <Link href={`/teacher/takhteet?class=${encodeURIComponent(cls.name)}`}>
                       <Button
                         size="sm"
                         variant="outline"

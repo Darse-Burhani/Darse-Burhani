@@ -6,11 +6,12 @@ import { cache } from "../../lib/cache";
 
 const router = Router();
 
-// GET /api/teacher/takhteet - Teacher's own plans
+// GET /api/teacher/takhteet - Teacher's own plans or Darajah 1-4 syllabus
 router.get("/", requireRole("TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const isAdmin = session.user.role === "ADMIN";
+    const viewAll = req.query.view === "all" || req.query.all === "true";
 
     const teacherProfile = await prisma.teacherProfile.findUnique({
       where: { userId: session.user.id },
@@ -25,15 +26,16 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
+    const assignedCount = targetTeacherId
+      ? await prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } })
+      : 0;
+
     const whereClause: any = {};
-    if (targetTeacherId) {
-      const planCount = await prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } });
-      if (planCount > 0 || !isAdmin) {
-        whereClause.teacherId = targetTeacherId;
-      }
+    if (targetTeacherId && assignedCount > 0 && !viewAll) {
+      whereClause.teacherId = targetTeacherId;
     }
 
-    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin-all"}`;
+    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin"}-${viewAll ? "all" : "direct"}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
@@ -74,12 +76,19 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           logs: p.progressLogs,
         }));
       },
-      { ttl: 60_000, tags: ["takhteet", `teacher-${teacherProfile.id}`] }
+      { ttl: 30_000, tags: ["takhteet"] }
     );
+
+    const totalCount = await prisma.takhteetPlan.count();
 
     return res.json({
       success: true,
       data,
+      meta: {
+        assignedCount,
+        totalCount,
+        isShowingAll: viewAll || assignedCount === 0,
+      },
     });
   } catch (error) {
     console.error("Teacher takhteet fetch error:", error);
@@ -105,7 +114,11 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
     }
 
     if (plan.teacherId !== teacherProfile.id && session.user.role !== "ADMIN") {
-      return res.status(403).json({ success: false, error: "Not your plan" });
+      // Automatically assign plan to active updating teacher
+      await prisma.takhteetPlan.update({
+        where: { id: plan.id },
+        data: { teacherId: teacherProfile.id },
+      });
     }
 
     const body = req.body as Record<string, any>;

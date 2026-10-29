@@ -112,7 +112,7 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "notifications" || clean === "broadcasts") return "notifications";
   if (clean === "security" || clean === "audit") return "security";
   if (clean === "takhteet" || clean === "tafseel" || clean === "curriculum" || clean === "syllabus") return "takhteet";
-  if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua") return "tilawat-dua";
+  if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua" || clean.startsWith("tilawat-dua/")) return "tilawat-dua";
   return clean;
 }
 

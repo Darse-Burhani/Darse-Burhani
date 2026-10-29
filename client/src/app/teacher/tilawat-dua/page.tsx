@@ -117,7 +117,7 @@ export default function TeacherTilawatDuaPage() {
             </Button>
 
             {canManage && (
-              <Link href="/admin/tilawat-dua">
+              <Link href="/teacher/tilawat-dua/manage">
                 <Button className="bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs px-4 py-2.5 rounded-xl border border-slate-700">
                   <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
                   Manage & Upload
