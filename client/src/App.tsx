@@ -358,7 +358,8 @@ export default function App() {
           <Route path="hifz-marhala/*" element={<RequireAdminPageAccess pageKey="hifz-marhala"><TeacherHifzMarhala /></RequireAdminPageAccess>} />
           <Route path="justifications" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="attendance/justifications" element={<Navigate to="/teacher/attendance" replace />} />
-          <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
+          <Route path="takhteet" element={<TeacherTakhteet />} />
+          <Route path="tafseel" element={<Navigate to="/teacher/takhteet" replace />} />
           <Route path="students" element={<RequireAdminPageAccess pageKey="students"><AdminStudents /></RequireAdminPageAccess>} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="parents" element={<RequireAdminPageAccess pageKey="parents"><AdminParents /></RequireAdminPageAccess>} />

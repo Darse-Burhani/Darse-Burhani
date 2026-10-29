@@ -10,21 +10,35 @@ const router = Router();
 router.get("/", requireRole("TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
 
     const teacherProfile = await prisma.teacherProfile.findUnique({
       where: { userId: session.user.id },
     });
 
-    if (!teacherProfile) {
+    let targetTeacherId: string | undefined = teacherProfile?.id;
+    if (isAdmin && req.query.teacherId && typeof req.query.teacherId === "string") {
+      targetTeacherId = req.query.teacherId;
+    }
+
+    if (!teacherProfile && !isAdmin) {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    const cacheKey = `teacher-takhteet-${teacherProfile.id}`;
+    const whereClause: any = {};
+    if (targetTeacherId) {
+      const planCount = await prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } });
+      if (planCount > 0 || !isAdmin) {
+        whereClause.teacherId = targetTeacherId;
+      }
+    }
+
+    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin-all"}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
         const plans = await prisma.takhteetPlan.findMany({
-          where: { teacherId: teacherProfile.id },
+          where: whereClause,
           include: {
             class: { select: { id: true, name: true, grade: true, section: true, subject: true } },
             progressLogs: {
@@ -90,7 +104,7 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Plan not found" });
     }
 
-    if (plan.teacherId !== teacherProfile.id) {
+    if (plan.teacherId !== teacherProfile.id && session.user.role !== "ADMIN") {
       return res.status(403).json({ success: false, error: "Not your plan" });
     }
 

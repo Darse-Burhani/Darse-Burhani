@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────
 // Darse Burhani (Nisab) — Service Worker
-// Version: 1.2.0
+// Version: 1.3.0
 // Caches core app shell & static assets for instant load and offline resilience
 // ─────────────────────────────────────────────────────────────
 
-const CACHE_NAME = "darse-burhani-pwa-v2";
+const CACHE_NAME = "darse-burhani-pwa-v3";
 const OFFLINE_URL = "/offline.html";
 
 // Essential static shell assets to pre-cache on install
@@ -175,5 +175,13 @@ self.addEventListener("fetch", (event) => {
           });
       })
     );
+  }
+});
+
+// Skip waiting on direct message trigger from app
+self.addEventListener("message", (event) => {
+  if (event.data && (event.data.type === "SKIP_WAITING" || event.data === "skipWaiting")) {
+    console.log("[PWA SW] Received SKIP_WAITING signal, claiming clients.");
+    self.skipWaiting();
   }
 });

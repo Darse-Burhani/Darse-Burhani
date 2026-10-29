@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Users, MapPin, Calendar, ShieldCheck, Fingerprint } from "lucide-react";
+import { Users, MapPin, Calendar, ShieldCheck, Fingerprint, ClipboardList } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,8 +78,18 @@ export default function TeacherClassesPage() {
                       </div>
                     </div>
                   )}
-                  {cls.isMasool && (
-                    <div className="mt-4 pt-3 border-t border-slate-100">
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                    <Link href={`/teacher/takhteet?subject=${encodeURIComponent(cls.subject)}&class=${encodeURIComponent(cls.name)}`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-emerald-800 dark:text-emerald-300 border-emerald-300 hover:bg-emerald-50 font-bold text-xs gap-1.5 rounded-xl shadow-2xs"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
+                        View Takhteet & Tafseel Plan
+                      </Button>
+                    </Link>
+                    {cls.isMasool && (
                       <Link href="/teacher/timetable?tab=masool-class&view=scans">
                         <Button
                           size="sm"
@@ -89,8 +99,8 @@ export default function TeacherClassesPage() {
                           View Talabat Biometric Scans
                         </Button>
                       </Link>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>

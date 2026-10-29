@@ -30,7 +30,7 @@ const defaultModules: PortalModulesConfig = {
     dashboard: true,
     classes: true,
     timetable: true,
-    takhteet: false,
+    takhteet: true,
     attendance: true,
     faculty: true,
     calendar: true,
@@ -45,6 +45,7 @@ const defaultModules: PortalModulesConfig = {
 const DEFAULT_TEACHER_BASE_PAGES = [
   "dashboard",
   "classes",
+  "takhteet",
   "attendance",
   "manual-attendance",
   "profile",
@@ -110,6 +111,7 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "procurement" || clean === "desk-requisition" || clean === "requisition" || clean === "supplies") return "procurement";
   if (clean === "notifications" || clean === "broadcasts") return "notifications";
   if (clean === "security" || clean === "audit") return "security";
+  if (clean === "takhteet" || clean === "tafseel" || clean === "curriculum" || clean === "syllabus") return "takhteet";
   if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua") return "tilawat-dua";
   return clean;
 }
@@ -222,6 +224,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         return (
           key === "dashboard" ||
           key === "classes" ||
+          key === "takhteet" ||
           key === "attendance" ||
           key === "manual-attendance" ||
           key === "profile" ||
@@ -243,6 +246,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       if (
         key === "dashboard" ||
         key === "classes" ||
+        key === "takhteet" ||
         key === "attendance" ||
         key === "manual-attendance" ||
         key === "profile" ||

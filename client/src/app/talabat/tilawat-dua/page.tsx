@@ -23,21 +23,24 @@ export default function TalabatTilawatDuaPage() {
   const [currentDua, setCurrentDua] = useState<TilawatDuaItem | null>(null);
   const [archiveList, setArchiveList] = useState<TilawatDuaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [projectorMode, setProjectorMode] = useState(false);
 
   // Load today's Tilawat Dua & archive
-  const fetchDua = async () => {
+  const fetchDua = async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
+      else setRefreshing(true);
+      const timestamp = Date.now();
       // 1. Fetch today's primary Tilawat Dua
-      const resToday = await fetch("/api/tilawat-dua/today");
+      const resToday = await fetch(`/api/tilawat-dua/today?_t=${timestamp}`);
       const jsonToday = await resToday.json();
       if (jsonToday.success && jsonToday.data) {
         setCurrentDua(jsonToday.data);
       }
 
       // 2. Fetch recent archive
-      const resArchive = await fetch("/api/tilawat-dua?limit=10");
+      const resArchive = await fetch(`/api/tilawat-dua?limit=10&_t=${timestamp}`);
       const jsonArchive = await resArchive.json();
       if (jsonArchive.success && Array.isArray(jsonArchive.data)) {
         setArchiveList(jsonArchive.data);
@@ -49,11 +52,20 @@ export default function TalabatTilawatDuaPage() {
       // Fallback
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchDua();
+    // Re-check every 30s so newly published PDFs show immediately
+    const interval = setInterval(() => fetchDua(true), 30000);
+    const handleFocus = () => fetchDua(true);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   return (
@@ -72,8 +84,20 @@ export default function TalabatTilawatDuaPage() {
             </p>
           </div>
 
-          {currentDua && (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchDua(false)}
+              disabled={loading || refreshing}
+              className="bg-slate-800/80 hover:bg-slate-700 text-white border-slate-700 text-xs px-3.5 py-2 rounded-xl"
+              title="Check for newly uploaded PDF"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing || loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+
+            {currentDua && (
               <Button
                 onClick={() => setProjectorMode(true)}
                 className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg shadow-amber-500/30 ring-2 ring-amber-400/40 active:scale-95 transition"
@@ -81,8 +105,8 @@ export default function TalabatTilawatDuaPage() {
                 <Tv className="w-4 h-4 mr-2" />
                 Display on Projector
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

@@ -25,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { monthName, statusMeta } from "@/lib/takhteet";
-import { TeacherPageGuard } from "@/context/PortalAccessContext";
 
 export default function TeacherTakhteetPage() {
   const [plans, setPlans] = useState<any[]>([]);
@@ -59,6 +58,13 @@ export default function TeacherTakhteetPage() {
 
   useEffect(() => {
     fetchData();
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const subjectParam = params.get("subject");
+      const classParam = params.get("class");
+      if (subjectParam) setFilterSubject(subjectParam);
+      if (classParam) setFilterClass(classParam);
+    }
   }, []);
 
   const currentMonth = new Date().getMonth() + 1;
@@ -214,8 +220,7 @@ export default function TeacherTakhteetPage() {
   };
 
   return (
-    <TeacherPageGuard pageKey="takhteet" title="Takhteet (Curriculum Planning & Progress)">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header Banner */}
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="relative">
           <div className="fatimi-header-banner">
@@ -804,6 +809,5 @@ export default function TeacherTakhteetPage() {
           </ModalContent>
         </Modal>
       </div>
-    </TeacherPageGuard>
-  );
+    );
 }

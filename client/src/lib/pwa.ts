@@ -23,27 +23,58 @@ export function registerServiceWorker() {
     return;
   }
 
+  // Reload page when new service worker takes control (new app version)
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    console.log("[PWA] Controller changed — applying new version immediately.");
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
         console.log("[PWA] Service Worker registered with scope:", reg.scope);
 
-        // Check for updates
+        // If a worker is already waiting, trigger skipWaiting immediately
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+
+        // Check for updates when a new worker is installing
         reg.onupdatefound = () => {
           const installingWorker = reg.installing;
           if (installingWorker) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === "installed") {
                 if (navigator.serviceWorker.controller) {
-                  console.log("[PWA] New version available! Reloading for update.");
+                  console.log("[PWA] New version installed! Signaling skipWaiting to activate.");
+                  installingWorker.postMessage({ type: "SKIP_WAITING" });
                 } else {
-                  console.log("[PWA] App ready for offline usage.");
+                  console.log("[PWA] App cached and ready for offline usage.");
                 }
               }
             };
           }
         };
+
+        // Periodic background update check every 15 minutes
+        setInterval(() => {
+          reg.update().catch(() => {});
+        }, 15 * 60 * 1000);
+
+        // Immediate check when mobile user brings app to foreground
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            reg.update().catch(() => {});
+          }
+        });
+
+        window.addEventListener("focus", () => {
+          reg.update().catch(() => {});
+        });
       })
       .catch((err) => {
         console.warn("[PWA] Service Worker registration failed:", err);

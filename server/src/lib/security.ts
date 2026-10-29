@@ -559,7 +559,8 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
     req.path.startsWith("/api/points") ||
     req.path.startsWith("/api/talabat") ||
     req.path.startsWith("/api/teacher") ||
-    req.path.startsWith("/api/parent")
+    req.path.startsWith("/api/parent") ||
+    req.path.startsWith("/api/tilawat-dua")
   ) {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
