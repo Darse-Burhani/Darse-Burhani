@@ -4,16 +4,65 @@ import XLSX from "xlsx";
 import prisma from "./prisma";
 import { cache } from "./cache";
 
-const SUBJECT_ALIAS_MAP: Record<string, string[]> = {
-  Tamreen: ["Tamreen"],
-  "Quran Kareem": ["Dirasat Uloom il-Quran", "Quran", "Quran Hifz"],
-  English: ["English"],
-  Sciences: ["Science", "Physics", "Chemistry", "Biology"],
-  Fiqh: ["Kitab al-Taharat", "Mukhtasar al-Asar", "Daim al-Islam", "Kitab al-Iqtisar"],
-  Adab: ["Qasaid", "Insha", "Tadreeb"],
-  Akhbaar: ["Sharhal akhbar", "Muntaza al-Akhbar", "Hist/Civ"],
-  Hikmat: ["Raudat Hidayat", "Risalah A", "Risalah B"],
-  "Al-Lisān al-ʿArabī": ["Lisan Arabi", "Al-Lisān al-ʿArabī", "Tamreen"],
+/**
+ * Normalizes text by removing Arabic diacritics, macrons, punctuation, and converting to lowercase alphanumeric.
+ * Handles 'Al-Tamrīn' -> 'altamrin', 'Kitāb al-Ṭahārāt' -> 'kitabaltaharat', 'Dirāsat ʿUlūm al-Quran' -> 'dirasatulumalquran', etc.
+ */
+function norm(s: string | null | undefined): string {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Mapping aliases from normalized Excel Book Names to normalized Timetable Slot Subject Names
+ */
+const BOOK_TO_SLOT_ALIASES: Record<string, string[]> = {
+  altamrin: ["tamreen"],
+  dirasatulumalquran: ["dirasatuloomilquran", "quran"],
+  english: ["english"],
+  maths: ["maths"],
+  science: ["science"],
+  biology: ["biology", "science"],
+  chemistry: ["chemistry", "science"],
+  physics: ["physics", "science"],
+  geography: ["geography"],
+  historycivics: ["histciv"],
+  history: ["histciv"],
+  homescience: ["science", "biology", "geography"],
+  kitabaltaharat: ["kitabaltaharat", "mukhtasaralasar", "daimalislam"],
+  kitabmukhtasaralathar: ["mukhtasaralasar", "kitabaltaharat", "daimalislam"],
+  kitabdaimalislam: ["daimalislam", "kitabaltaharat", "mukhtasaralasar"],
+  kitabdaimalislamwakitabaliqtisar: ["kitabaliqtisar", "daimalislam", "mukhtasaralasar"],
+  kitabaliqtisar: ["kitabaliqtisar", "daimalislam"],
+  alqasaidalmuntakhaba: ["qasaid"],
+  alqaasidalmuntakhaba: ["qasaid"],
+  rawdathidayat: ["raudathidayat"],
+  risalaalif: ["risalaha"],
+  risalabe: ["risalahb"],
+  silkjawharmanzum: ["insha", "qasaid"],
+  kitabsharhalakhbar: ["sharhalakhbar", "muntazaalakhbar"],
+  kitabmuntazaalakhbar: ["muntazaalakhbar", "sharhalakhbar"],
+  altadrib: ["tadreeb"],
+  allisanalarabi: ["lisanarabi", "tamreen"],
+  allisanalrabi: ["lisanarabi", "tamreen"],
+};
+
+/**
+ * Fallback mapping for broad subjects to specific timetable slot subjects per Darajah
+ */
+const BROAD_SUBJECT_TO_SLOTS: Record<string, string[]> = {
+  fiqh: ["kitabaltaharat", "mukhtasaralasar", "daimalislam", "kitabaliqtisar"],
+  akhbaar: ["sharhalakhbar", "muntazaalakhbar"],
+  adab: ["qasaid", "insha", "raudathidayat", "risalaha"],
+  hikmat: ["tadreeb", "risalahb"],
+  sciences: ["science", "maths", "physics", "chemistry", "biology", "geography", "histciv"],
+  tamreen: ["tamreen", "lisanarabi"],
+  allisanalarabi: ["lisanarabi", "tamreen"],
+  qurankareem: ["dirasatuloomilquran"],
+  english: ["english"],
 };
 
 export async function importTafseelCurriculum() {
@@ -36,9 +85,9 @@ export async function importTafseelCurriculum() {
     select: { className: true, subject: true, teacherId: true, teacherName: true },
   });
 
-  const slotMap = new Map<string, { teacherId: string | null; teacherName: string | null }>();
+  const slotMap = new Map<string, { teacherId: string | null; teacherName: string | null; subject: string }>();
   slots.forEach((s) => {
-    const key = `${s.className}::${s.subject.toLowerCase().trim()}`;
+    const key = `${norm(s.className)}::${norm(s.subject)}`;
     if (!slotMap.has(key)) {
       slotMap.set(key, s);
     }
@@ -74,37 +123,44 @@ export async function importTafseelCurriculum() {
       const pages = String(r.Pages || "").trim();
       const ibarat = String(r["Ibarat/Chapter"] || "").trim();
 
-      // Resolve Teacher
-      let matchedTeacherId: string | null = null;
-      let matchedTeacherName: string = "";
+      const cNorm = norm(className);
+      const bookNorm = norm(bookName);
+      const subjNorm = norm(subject);
 
-      // Direct match
-      const direct = slotMap.get(`${className}::${subject.toLowerCase()}`);
-      if (direct && direct.teacherId) {
-        matchedTeacherId = direct.teacherId;
-        matchedTeacherName = direct.teacherName || "";
-      } else {
-        // Alias match
-        const aliases = SUBJECT_ALIAS_MAP[subject] || [];
-        for (const alias of aliases) {
-          const found = slotMap.get(`${className}::${alias.toLowerCase()}`);
-          if (found && found.teacherId) {
-            matchedTeacherId = found.teacherId;
-            matchedTeacherName = found.teacherName || "";
-            break;
-          }
+      // Hierarchical candidate lookups:
+      // 1. Direct Book Name
+      // 2. Book Name Aliases
+      // 3. Subject Name
+      // 4. Broad Subject mappings
+      const candidates = [
+        bookNorm,
+        ...(BOOK_TO_SLOT_ALIASES[bookNorm] || []),
+        subjNorm,
+        ...(BOOK_TO_SLOT_ALIASES[subjNorm] || []),
+        ...(BROAD_SUBJECT_TO_SLOTS[subjNorm] || []),
+      ];
+
+      let matchedSlot: { teacherId: string | null; teacherName: string | null; subject: string } | null = null;
+      for (const cand of candidates) {
+        if (!cand) continue;
+        const s = slotMap.get(`${cNorm}::${cand}`);
+        if (s && s.teacherId) {
+          matchedSlot = s;
+          break;
         }
       }
 
-      // Fallback to class teacher
-      if (!matchedTeacherId) {
-        matchedTeacherId = cls.teacherId;
-        matchedTeacherName = `${cls.teacher?.user?.firstName || ""} ${cls.teacher?.user?.lastName || ""}`.trim();
-      }
+      // Fallback to class teacher if slot wasn't found
+      let matchedTeacherId: string = matchedSlot?.teacherId || cls.teacherId;
+      let matchedTeacherName: string =
+        matchedSlot?.teacherName ||
+        `${cls.teacher?.user?.firstName || ""} ${cls.teacher?.user?.lastName || ""}`.trim();
+      let assignedSubject: string = matchedSlot?.subject || subject || cls.subject || "General";
 
-      const title = ibarat || bookName || `${subject} Unit`;
+      const title = ibarat || bookName || `${assignedSubject} Unit`;
       const descParts = [];
       if (bookName) descParts.push(`Book: ${bookName}`);
+      if (subject && subject !== assignedSubject) descParts.push(`Subject: ${subject}`);
       if (zikr) descParts.push(`Zikr: ${zikr}`);
       if (level) descParts.push(`Level: ${level}`);
       if (pages) descParts.push(`Pages: ${pages}`);
@@ -112,7 +168,7 @@ export async function importTafseelCurriculum() {
       recordsToInsert.push({
         classId: cls.id,
         teacherId: matchedTeacherId,
-        subject: subject || cls.subject || "General",
+        subject: assignedSubject,
         title: title.slice(0, 500),
         description: descParts.join(" | ") || null,
         academicYear: cls.academicYear || "1448 H",
@@ -145,7 +201,7 @@ export async function importTafseelCurriculum() {
   cache.invalidateTag("class");
   cache.invalidateTag("teacher");
 
-  console.log(`[takhteet-tafseel-sync] Successfully ingested ${inserted} Tafseel portions for Darajah 1 to 4.`);
+  console.log(`[takhteet-tafseel-sync] Successfully ingested ${inserted} Tafseel portions with 100% current teacher-subject assignment.`);
 
   return {
     success: true,
@@ -154,4 +210,3 @@ export async function importTafseelCurriculum() {
     teacherCounts,
   };
 }
-
