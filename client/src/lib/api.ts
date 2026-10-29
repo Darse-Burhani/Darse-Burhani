@@ -33,6 +33,9 @@ export interface LeaveRequestItem {
   grantedStartDate?: string | null;
   grantedEndDate?: string | null;
   createdAt: string;
+  parentName?: string | null;
+  parentPhone?: string | null;
+  whatsAppUrl?: string | null;
 }
 
 export interface StudentLeaveSummary {

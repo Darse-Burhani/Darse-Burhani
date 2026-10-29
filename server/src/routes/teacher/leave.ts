@@ -9,6 +9,7 @@ import {
   markHolidayLeaveBatch,
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
+import { formatLeaveWhatsAppMessage, generateWhatsAppLink } from "../../lib/whatsapp";
 
 const router = Router();
 
@@ -263,6 +264,16 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           student: {
             include: {
               user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+              parentLinks: {
+                include: {
+                  parent: {
+                    include: {
+                      user: { select: { firstName: true, lastName: true } },
+                    },
+                  },
+                },
+                take: 1,
+              },
               classEnrollments: {
                 where: { isActive: true },
                 include: { class: { select: { id: true, name: true, grade: true, section: true } } },
@@ -296,40 +307,76 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           total: pendingCount + approvedCount + rejectedCount,
         },
         classes: teacherClasses,
-        requests: leaves.map((l) => ({
-          id: l.id,
-          studentId: l.studentId,
-          studentName: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
-          avatarUrl: l.student.user.avatarUrl,
-          its: l.student.its || l.student.studentId,
-          grade: l.student.grade,
-          section: l.student.section,
-          className: l.student.classEnrollments[0]?.class?.name || `Grade ${l.student.grade}-${l.student.section}`,
-          type: l.type,
-          startDate: l.startDate.toISOString(),
-          endDate: l.endDate.toISOString(),
-          reason: l.reason,
-          attachmentUrl: l.attachmentUrl,
-          status: l.status,
-          reviewerNotes: l.reviewerNotes,
-          reviewedBy: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : null,
-          reviewedAt: l.reviewedAt?.toISOString() || null,
-          assignedTo: l.assignedTo
-            ? {
-                id: l.assignedTo.id,
-                name: `${l.assignedTo.firstName} ${l.assignedTo.lastName}`.trim(),
-                role: l.assignedTo.role,
-              }
-            : null,
-          assignedToMe: l.assignedToId === session.user.id,
-          assignedBy: l.assignedBy
-            ? `${l.assignedBy.firstName} ${l.assignedBy.lastName}`.trim()
-            : null,
-          approvedDays: l.approvedDays,
-          grantedStartDate: l.grantedStartDate?.toISOString() || null,
-          grantedEndDate: l.grantedEndDate?.toISOString() || null,
-          createdAt: l.createdAt.toISOString(),
-        })),
+        requests: leaves.map((l) => {
+          const primaryParent = l.student.parentLinks?.[0]?.parent;
+          const parentName = primaryParent?.user
+            ? `${primaryParent.user.firstName} ${primaryParent.user.lastName}`.trim()
+            : null;
+          const parentPhone =
+            primaryParent?.phone ||
+            primaryParent?.secondaryPhone ||
+            l.student.fatherPhone ||
+            l.student.motherPhone ||
+            l.student.mobileNumber ||
+            null;
+
+          const isApproved = l.status === "APPROVED";
+          const isReduced = isApproved && l.approvedDays !== null && l.approvedDays !== undefined;
+          const waStatus = isApproved ? (isReduced ? "APPROVED_REDUCED" : "APPROVED") : l.status === "REJECTED" ? "REJECTED" : "APPROVED";
+
+          const waMessage = formatLeaveWhatsAppMessage({
+            parentName,
+            studentName: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
+            className: l.student.classEnrollments[0]?.class?.name || `Grade ${l.student.grade}-${l.student.section}`,
+            status: waStatus,
+            leaveType: l.type,
+            startDate: (l.grantedStartDate || l.startDate).toISOString().split("T")[0],
+            endDate: (l.grantedEndDate || l.endDate).toISOString().split("T")[0],
+            approvedDays: l.approvedDays || undefined,
+            reviewerNotes: l.reviewerNotes,
+            reviewerName: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : null,
+          });
+
+          const whatsAppUrl = parentPhone ? generateWhatsAppLink(parentPhone, waMessage) : null;
+
+          return {
+            id: l.id,
+            studentId: l.studentId,
+            studentName: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
+            avatarUrl: l.student.user.avatarUrl,
+            its: l.student.its || l.student.studentId,
+            grade: l.student.grade,
+            section: l.student.section,
+            className: l.student.classEnrollments[0]?.class?.name || `Grade ${l.student.grade}-${l.student.section}`,
+            type: l.type,
+            startDate: l.startDate.toISOString(),
+            endDate: l.endDate.toISOString(),
+            reason: l.reason,
+            attachmentUrl: l.attachmentUrl,
+            status: l.status,
+            reviewerNotes: l.reviewerNotes,
+            reviewedBy: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : null,
+            reviewedAt: l.reviewedAt?.toISOString() || null,
+            assignedTo: l.assignedTo
+              ? {
+                  id: l.assignedTo.id,
+                  name: `${l.assignedTo.firstName} ${l.assignedTo.lastName}`.trim(),
+                  role: l.assignedTo.role,
+                }
+              : null,
+            assignedToMe: l.assignedToId === session.user.id,
+            assignedBy: l.assignedBy
+              ? `${l.assignedBy.firstName} ${l.assignedBy.lastName}`.trim()
+              : null,
+            approvedDays: l.approvedDays,
+            grantedStartDate: l.grantedStartDate?.toISOString() || null,
+            grantedEndDate: l.grantedEndDate?.toISOString() || null,
+            createdAt: l.createdAt.toISOString(),
+            parentName,
+            parentPhone,
+            whatsAppUrl,
+          };
+        }),
         pagination: {
           page,
           limit,

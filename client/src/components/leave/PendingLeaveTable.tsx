@@ -15,6 +15,7 @@ import {
   Palmtree,
   CheckSquare,
   Square,
+  MessageCircle,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -177,7 +178,7 @@ export function PendingLeaveTable({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl bg-white border border-gray-100 shadow-xs">
+      <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] rounded-2xl bg-white border border-gray-100 shadow-xs">
         <table className="w-full text-left text-xs">
           <thead className="bg-gray-50/80 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-100">
             <tr>
@@ -256,6 +257,12 @@ export function PendingLeaveTable({
                           {item.studentName || "Student"}
                         </div>
                         <div className="text-[11px] text-gray-500">ITS / ID: {item.its || "—"}</div>
+                        {item.parentPhone && (
+                          <div className="text-[10px] text-emerald-800 font-semibold mt-0.5 flex items-center gap-1">
+                            <span className="text-gray-400 font-normal">Parent:</span>
+                            <span>{item.parentName ? `${item.parentName} (${item.parentPhone})` : item.parentPhone}</span>
+                          </div>
+                        )}
                         {item.assignedTo && (
                           <div className="text-[10px] font-semibold text-sky-700 mt-0.5">
                             Assigned: {item.assignedTo.name}
@@ -427,15 +434,27 @@ export function PendingLeaveTable({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-right">
+                      <div className="flex flex-col items-end gap-1.5 text-right">
                         <div className="text-[11px] text-gray-500 font-medium">
-                          {item.reviewedBy ? `Approved by ${item.reviewedBy}` : "Processed"}
+                          {item.reviewedBy ? `${item.status === "APPROVED" ? "Approved" : "Reviewed"} by ${item.reviewedBy}` : "Processed"}
                         </div>
+                        {item.whatsAppUrl && (
+                          <a
+                            href={item.whatsAppUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-[11px] shadow-xs transition-all"
+                            title={`Shoot official 1-way WhatsApp notice to parent (${item.parentPhone || ""})`}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-white" />
+                            <span>WhatsApp Notice</span>
+                          </a>
+                        )}
                         {isAdmin && onDelete && (
                           <button
                             type="button"
                             onClick={() => onDelete(item.id)}
-                            className="text-[10px] text-rose-600 hover:underline mt-0.5 inline-block"
+                            className="text-[10px] text-rose-600 hover:underline inline-block"
                           >
                             Delete
                           </button>
@@ -454,7 +473,7 @@ export function PendingLeaveTable({
       {activeAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setActiveAction(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100">
+          <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100">
             <h3 className="font-bold text-sm text-gray-900 mb-1">
               {activeAction.type === "approve" ? "Approve Leave Application" : "Reject Leave Request"}
             </h3>
@@ -467,7 +486,7 @@ export function PendingLeaveTable({
             <div className="mb-4">
               <label htmlFor="action-notes" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Reviewer Remarks / School Notes
-                <span className="normal-case font-normal text-gray-500 ml-1.5">(Will be sent to parent via notification & email)</span>
+                <span className="normal-case font-normal text-gray-500 ml-1.5">(Sent to parent via 1-way WhatsApp, email & in-app alert)</span>
               </label>
               <textarea
                 id="action-notes"
@@ -604,6 +623,16 @@ export function PendingLeaveTable({
                 )}
               </div>
             )}
+
+            <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-start gap-2.5">
+              <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold text-gray-900 block text-[11.5px]">Strictly One-Way Outbound Notification</span>
+                <span className="text-[11px] text-gray-500 leading-relaxed block mt-0.5">
+                  An official one-way WhatsApp notice & in-portal notification are automatically dispatched to the student's registered parents upon decision.
+                </span>
+              </div>
+            </div>
 
             <div className="flex items-center justify-end gap-2.5">
               <button

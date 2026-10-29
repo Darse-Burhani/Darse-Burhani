@@ -8,6 +8,12 @@ import {
 } from "./leave-email-templates";
 import { sendPushToUser, sendPushToUsers } from "./push";
 import { LeaveType, LeaveStatus, AttendanceSource, AttendanceStatus } from "@prisma/client";
+import {
+  formatLeaveWhatsAppMessage,
+  dispatchWhatsAppNotification,
+  formatWhatsAppPhone,
+  generateWhatsAppLink,
+} from "./whatsapp";
 
 export interface CreateLeaveInput {
   studentId: string;
@@ -118,6 +124,57 @@ async function getParentContacts(studentId: string) {
       isActive: link.parent.user.isActive,
     }))
     .filter((contact) => !!contact.email);
+}
+
+export async function getStudentParentPhones(studentId: string): Promise<Array<{ name: string; phone: string; relationship?: string }>> {
+  const [links, student] = await Promise.all([
+    prisma.parentStudentLink.findMany({
+      where: { studentId },
+      include: {
+        parent: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    }),
+    prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      select: {
+        fatherPhone: true,
+        motherPhone: true,
+        mobileNumber: true,
+        user: { select: { firstName: true, lastName: true } },
+      },
+    }),
+  ]);
+
+  const results: Array<{ name: string; phone: string; relationship?: string }> = [];
+  const seenPhones = new Set<string>();
+
+  const addPhone = (name: string, rawPhone?: string | null, rel?: string) => {
+    if (!rawPhone) return;
+    const clean = formatWhatsAppPhone(rawPhone);
+    if (clean && !seenPhones.has(clean)) {
+      seenPhones.add(clean);
+      results.push({ name, phone: clean, relationship: rel });
+    }
+  };
+
+  for (const link of links) {
+    const parentName = `${link.parent.user.firstName} ${link.parent.user.lastName}`.trim();
+    addPhone(parentName, link.parent.phone, link.relationship || "Parent");
+    addPhone(parentName, link.parent.secondaryPhone, link.relationship || "Parent");
+  }
+
+  if (student) {
+    const studentName = `${student.user.firstName} ${student.user.lastName}`.trim();
+    addPhone(`Father of ${studentName}`, student.fatherPhone, "Father");
+    addPhone(`Mother of ${studentName}`, student.motherPhone, "Mother");
+    addPhone(`Guardian`, student.mobileNumber, "Guardian");
+  }
+
+  return results;
 }
 
 async function notifyAdmins(title: string, body: string, link: string = "/admin/leave") {
@@ -627,6 +684,31 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     }
   });
 
+  // One-way WhatsApp notification dispatch to parent(s)
+  try {
+    const parentPhones = await getStudentParentPhones(leave.studentId);
+    for (const p of parentPhones) {
+      const waMsg = formatLeaveWhatsAppMessage({
+        parentName: p.name,
+        studentName: approvedStudentName,
+        className: leave.student.classEnrollments[0]?.class?.name || null,
+        status: reduced ? "APPROVED_REDUCED" : "APPROVED",
+        leaveType: leave.type,
+        startDate: formatUtcDate(grantedStart),
+        endDate: formatUtcDate(grantedEnd),
+        requestedDays,
+        approvedDays: grantedDays,
+        reviewerNotes: input.reviewerNotes?.trim() || null,
+        reviewerName,
+      });
+      dispatchWhatsAppNotification({ phone: p.phone, message: waMsg }).catch((err) =>
+        console.error(`[leave-service] WhatsApp notification failed for ${p.phone}:`, err)
+      );
+    }
+  } catch (waErr) {
+    console.error("[leave-service] WhatsApp dispatch error:", waErr);
+  }
+
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
@@ -748,6 +830,30 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
       );
     }
   });
+
+  // One-way WhatsApp notification dispatch to parent(s)
+  try {
+    const parentPhones = await getStudentParentPhones(leave.studentId);
+    for (const p of parentPhones) {
+      const waMsg = formatLeaveWhatsAppMessage({
+        parentName: p.name,
+        studentName: rejectedStudentName,
+        className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+        status: "REJECTED",
+        leaveType: leave.type,
+        startDate: formatUtcDate(leave.startDate),
+        endDate: formatUtcDate(leave.endDate),
+        requestedDays: countLeaveDays(leave.startDate, leave.endDate),
+        reviewerNotes: input.reviewerNotes?.trim() || null,
+        reviewerName,
+      });
+      dispatchWhatsAppNotification({ phone: p.phone, message: waMsg }).catch((err) =>
+        console.error(`[leave-service] WhatsApp rejection notification failed for ${p.phone}:`, err)
+      );
+    }
+  } catch (waErr) {
+    console.error("[leave-service] WhatsApp dispatch error:", waErr);
+  }
 
   cache.invalidateTag("attendanceRecord");
   cache.invalidateTag("dashboard");
@@ -1131,6 +1237,32 @@ export async function createDirectApprovedLeave(input: CreateManualLeaveInput) {
     });
   } catch (e) {
     console.error("[leave-service] Notification error:", e);
+  }
+
+  // One-way WhatsApp notification dispatch to parent(s)
+  try {
+    const parentPhones = await getStudentParentPhones(student.id);
+    const studentName = `${student.user.firstName} ${student.user.lastName}`.trim();
+    for (const p of parentPhones) {
+      const waMsg = formatLeaveWhatsAppMessage({
+        parentName: p.name,
+        studentName,
+        className: student.classEnrollments[0]?.class?.name || null,
+        status: "APPROVED",
+        leaveType: input.type || "PERSONAL",
+        startDate: formatUtcDate(start),
+        endDate: formatUtcDate(end),
+        requestedDays: countLeaveDays(start, end),
+        approvedDays: countLeaveDays(start, end),
+        reviewerNotes: input.reviewerNotes?.trim() || "Direct authorized leave by administration.",
+        reviewerName: "Academic Administration",
+      });
+      dispatchWhatsAppNotification({ phone: p.phone, message: waMsg }).catch((err) =>
+        console.error(`[leave-service] Manual leave WhatsApp notification failed for ${p.phone}:`, err)
+      );
+    }
+  } catch (waErr) {
+    console.error("[leave-service] WhatsApp dispatch error in createDirectApprovedLeave:", waErr);
   }
 
   cache.invalidateTag("attendanceRecord");
