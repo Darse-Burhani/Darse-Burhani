@@ -1009,9 +1009,14 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         period: p,
         teacherId: { not: null },
       },
-      select: { teacherId: true },
+      select: { teacherId: true, className: true, subject: true },
     });
-    const busyTeacherIds = new Set(busySlots.map((s) => s.teacherId!));
+    const busyTeacherMap = new Map<string, string>();
+    for (const s of busySlots) {
+      if (s.teacherId) {
+        busyTeacherMap.set(s.teacherId, `Teaching Class ${s.className} (${s.subject})`);
+      }
+    }
 
     // 2. Find teachers already assigned as Badal in this period on this date
     const busyBadals = await prisma.timetableBadal.findMany({
@@ -1021,10 +1026,12 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         status: { in: ["ASSIGNED", "CONFIRMED"] },
         badalTeacherId: { not: null },
       },
-      select: { badalTeacherId: true },
+      select: { badalTeacherId: true, className: true, subject: true },
     });
     for (const b of busyBadals) {
-      if (b.badalTeacherId) busyTeacherIds.add(b.badalTeacherId);
+      if (b.badalTeacherId) {
+        busyTeacherMap.set(b.badalTeacherId, `Badal in Class ${b.className} (${b.subject})`);
+      }
     }
 
     // 2b. Check Faculty on Leave / Medical Exemption on this date
@@ -1054,24 +1061,9 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
       if (m.teacherId) teacherLeaveMap.set(m.teacherId, m.reason || m.eventName || "Medical Exemption");
     }
 
-    // 3. Faculty who are already timetabled for this subject are the only
-    //    eligible substitutes. This prevents the picker from dumping the
-    //    entire faculty roster into the Badal modal.
-    let subjectTeacherIds = new Set<string>();
-    if (normalizedSubject) {
-      const subjectSlots = await prisma.timetableSlot.findMany({
-        where: {
-          subject: { equals: normalizedSubject, mode: "insensitive" },
-          teacherId: { not: null },
-        },
-        select: { teacherId: true },
-        distinct: ["teacherId"],
-      });
-      subjectTeacherIds = new Set(subjectSlots.map((s) => s.teacherId!));
-    }
     const normalizedSubjectKey = normalizedSubject.toLowerCase();
 
-    // 4. Return only free, subject-qualified faculty.
+    // 3. Return ALL teachers who have assigned subjects, highlighting same-subject specialists
     const allTeachers = await prisma.teacherProfile.findMany({
       where: {
         user: { isActive: true, deletedAt: null },
@@ -1081,26 +1073,48 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         its: true,
         department: true,
         subjects: true,
+        timetableSlots: {
+          select: { subject: true },
+          distinct: ["subject"],
+        },
+        takhteetPlans: {
+          select: { subjectName: true },
+          distinct: ["subjectName"],
+        },
         user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
         _count: { select: { substituteBadals: true } },
       },
     });
 
-    const eligibleTeachers = allTeachers
+    const mappedTeachers = allTeachers
       .filter((t) => t.id !== originalProfileId)
-      .filter((t) => {
-        if (!normalizedSubjectKey) return true;
-        if (subjectTeacherIds.has(t.id)) return true;
-        return t.subjects.some((s) => s.trim().toLowerCase() === normalizedSubjectKey);
-      })
       .map((t) => {
+        const assignedSubjectsSet = new Set<string>();
+        for (const s of t.subjects || []) {
+          if (s && s.trim()) assignedSubjectsSet.add(s.trim());
+        }
+        for (const s of t.timetableSlots || []) {
+          if (s.subject && s.subject.trim()) assignedSubjectsSet.add(s.subject.trim());
+        }
+        for (const tp of t.takhteetPlans || []) {
+          if (tp.subjectName && tp.subjectName.trim()) assignedSubjectsSet.add(tp.subjectName.trim());
+        }
+        const assignedSubjects = Array.from(assignedSubjectsSet);
+
         const substituteDisplay = canonicalizeTeacherDisplay(
           t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
           t.user?.avatarUrl || null,
         );
         const onLeaveReason = teacherLeaveMap.get(t.id);
         const isOnLeave = Boolean(onLeaveReason);
-        const isFree = !busyTeacherIds.has(t.id) && !isOnLeave;
+        const busyReason = busyTeacherMap.get(t.id) || null;
+        const isFree = !busyReason && !isOnLeave;
+        const teachesSubject = Boolean(
+          normalizedSubjectKey &&
+          assignedSubjects.some(
+            (s) => s.toLowerCase() === normalizedSubjectKey || s.toLowerCase().includes(normalizedSubjectKey)
+          )
+        );
 
         return {
           id: t.id,
@@ -1108,65 +1122,36 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           email: t.user?.email || "",
           its: t.its,
           department: t.department || "Faculty",
-          subjects: t.subjects,
+          subjects: assignedSubjects.length > 0 ? assignedSubjects : (t.subjects || []),
           avatarUrl: substituteDisplay.avatarUrl,
           badalCount: t._count.substituteBadals,
           isFree,
+          busyReason,
           isOnLeave,
           leaveReason: onLeaveReason || null,
-          teachesSubject: true,
+          teachesSubject,
         };
       })
-      .sort(
-        (a, b) =>
-          Number(b.isFree && !b.isOnLeave) - Number(a.isFree && !a.isOnLeave) ||
-          a.badalCount - b.badalCount ||
-          a.name.localeCompare(b.name),
-      );
-
-    let finalEligible = eligibleTeachers;
-    if (finalEligible.length === 0) {
-      finalEligible = allTeachers
-        .filter((t) => t.id !== originalProfileId)
-        .map((t) => {
-          const substituteDisplay = canonicalizeTeacherDisplay(
-            t.user ? `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() : "Teacher",
-            t.user?.avatarUrl || null,
-          );
-          const onLeaveReason = teacherLeaveMap.get(t.id);
-          const isOnLeave = Boolean(onLeaveReason);
-          const isFree = !busyTeacherIds.has(t.id) && !isOnLeave;
-          return {
-            id: t.id,
-            name: substituteDisplay.name || "Teacher",
-            email: t.user?.email || "",
-            its: t.its,
-            department: t.department || "Faculty",
-            subjects: t.subjects,
-            avatarUrl: substituteDisplay.avatarUrl,
-            badalCount: t._count.substituteBadals,
-            isFree,
-            isOnLeave,
-            leaveReason: onLeaveReason || null,
-            teachesSubject: false,
-          };
-        })
-        .sort(
-          (a, b) =>
-            Number(b.isFree && !b.isOnLeave) - Number(a.isFree && !a.isOnLeave) ||
-            a.badalCount - b.badalCount ||
-            a.name.localeCompare(b.name),
-        );
-    }
+      .sort((a, b) => {
+        // Priority 1: Free and teaches same subject
+        const aScore = (a.isFree ? 100 : 0) + (a.teachesSubject ? 50 : 0) - (a.isOnLeave ? 200 : 0);
+        const bScore = (b.isFree ? 100 : 0) + (b.teachesSubject ? 50 : 0) - (b.isOnLeave ? 200 : 0);
+        if (bScore !== aScore) return bScore - aScore;
+        // Priority 2: Fewer past Badals (fair distribution)
+        if (a.badalCount !== b.badalCount) return a.badalCount - b.badalCount;
+        return a.name.localeCompare(b.name);
+      });
 
     return res.json({
       success: true,
-      data: finalEligible,
+      data: mappedTeachers,
       meta: {
         subject: normalizedSubject || null,
         period: p,
         date: startOfDay.toISOString().split("T")[0],
-        eligibleCount: finalEligible.length,
+        totalCount: mappedTeachers.length,
+        freeCount: mappedTeachers.filter((t) => t.isFree).length,
+        sameSubjectCount: mappedTeachers.filter((t) => t.teachesSubject).length,
       },
     });
   } catch (error) {

@@ -337,6 +337,22 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     sendEmailNotification: true,
   });
   const [savingBadal, setSavingBadal] = useState(false);
+  const [badalTeacherFilterMode, setBadalTeacherFilterMode] = useState<"ALL" | "FREE" | "SAME_SUBJECT">("ALL");
+  const [badalTeacherSearchQuery, setBadalTeacherSearchQuery] = useState("");
+
+  const filteredAvailableTeachers = useMemo(() => {
+    return (availableTeachers || []).filter((t: any) => {
+      if (badalTeacherFilterMode === "FREE" && !t.isFree) return false;
+      if (badalTeacherFilterMode === "SAME_SUBJECT" && !t.teachesSubject) return false;
+      if (badalTeacherSearchQuery.trim()) {
+        const q = badalTeacherSearchQuery.toLowerCase();
+        const matchName = t.name?.toLowerCase().includes(q);
+        const matchSubject = Array.isArray(t.subjects) && t.subjects.some((s: string) => s.toLowerCase().includes(q));
+        if (!matchName && !matchSubject) return false;
+      }
+      return true;
+    });
+  }, [availableTeachers, badalTeacherFilterMode, badalTeacherSearchQuery]);
 
   // Quick Leave Modal State (allows admins to mark faculty/student on leave directly from timetable)
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -3049,104 +3065,318 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
          ───────────────────────────────────────────────────────────── */}
       {showBadalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-lg p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto">
+          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-2xl p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[94vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shadow-2xs">
                   <ArrowRightLeft className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Get Help in Badal (Proxy Teacher)</h3>
-                  <p className="text-[11px] text-slate-500">Conflict-free substitute teacher matching engine.</p>
+                  <h3 className="text-sm font-black text-slate-900">Badal Period Assignment &amp; Class Timetable</h3>
+                  <p className="text-[11px] text-slate-500">Assign proxy teachers, inspect class periods &amp; notify faculty.</p>
                 </div>
               </div>
-              <button onClick={() => setShowBadalModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => setShowBadalModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              {/* Slot Target Context */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <div className="space-y-4 text-xs">
+              {/* 1. Class & Date Selection Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/90">
                 <div>
-                  <span className="text-[10px] font-black uppercase text-slate-400">Class &amp; Subject</span>
-                  <div className="font-black text-slate-900 mt-0.5">
-                    Class {badalForm.className} • {badalForm.subject || "Lesson"}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase text-slate-400">Period &amp; Time</span>
-                  <div className="font-black text-slate-900 mt-0.5">
-                    Period {badalForm.period} ({badalForm.startTime}–{badalForm.endTime})
-                  </div>
-                </div>
-              </div>
-
-              {/* Substitution Date Input */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Substitution Date
-                </label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-emerald-600">
-                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                  <input
-                    type="date"
-                    value={badalForm.date}
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                    1. Select Darajah / Class
+                  </label>
+                  <select
+                    value={badalForm.className}
                     onChange={(e) => {
-                      const newD = e.target.value;
-                      setBadalForm((prev) => ({ ...prev, date: newD }));
-                      if (selectedSlotForBadal) {
-                        const dt = new Date(newD);
-                        const dayIdx = dt.getDay() === 0 ? 1 : dt.getDay();
-                        fetchAvailableTeachersForSlot(
-                          dayIdx,
-                          badalForm.period,
-                          newD,
-                          badalForm.subject,
-                          badalForm.originalTeacherId,
-                        );
-                      }
+                      const newClassName = e.target.value;
+                      const classObj = classes.find((c) => c.name === newClassName);
+                      const dt = new Date(badalForm.date || new Date().toISOString().split("T")[0]);
+                      const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                      const slotForClass = slots.find(
+                        (s) => s.className === newClassName && s.dayOfWeek === dow && s.period === badalForm.period
+                      );
+                      const pDef = PERIOD_DEFS.find((p) => p.period === badalForm.period);
+                      const pTimeParts = pDef?.time?.split(" - ") || ["10:30", "11:00"];
+
+                      const newSubj = slotForClass?.subject || "Lesson";
+                      const newOrigId = slotForClass?.teacherId || "";
+                      const newOrigName = slotForClass?.teacherName || "";
+                      const newOrigAvatar = slotForClass?.teacherAvatar || "";
+                      const newStart = slotForClass?.startTime || pTimeParts[0];
+                      const newEnd = slotForClass?.endTime || pTimeParts[1];
+
+                      setBadalForm((prev) => ({
+                        ...prev,
+                        className: newClassName,
+                        classId: classObj?.id || prev.classId,
+                        slotId: slotForClass?.id || "",
+                        subject: newSubj,
+                        startTime: newStart,
+                        endTime: newEnd,
+                        originalTeacherId: newOrigId,
+                        originalTeacherName: newOrigName,
+                        originalTeacherAvatar: newOrigAvatar,
+                      }));
+
+                      fetchAvailableTeachersForSlot(dow, badalForm.period, badalForm.date, newSubj, newOrigId);
                     }}
-                    className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-900 outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    {classes.map((c) => (
+                      <option key={c.id || c.name} value={c.name}>
+                        Class {c.name} {c.masool ? `— Masool: ${c.masool.name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                    2. Substitution Date
+                  </label>
+                  <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-amber-500">
+                    <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                    <input
+                      type="date"
+                      value={badalForm.date}
+                      onChange={(e) => {
+                        const newD = e.target.value;
+                        const dt = new Date(newD);
+                        const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                        const slotForClass = slots.find(
+                          (s) => s.className === badalForm.className && s.dayOfWeek === dow && s.period === badalForm.period
+                        );
+                        const pDef = PERIOD_DEFS.find((p) => p.period === badalForm.period);
+                        const pTimeParts = pDef?.time?.split(" - ") || ["10:30", "11:00"];
+
+                        const newSubj = slotForClass?.subject || badalForm.subject || "Lesson";
+                        const newOrigId = slotForClass?.teacherId || badalForm.originalTeacherId;
+                        const newOrigName = slotForClass?.teacherName || badalForm.originalTeacherName;
+                        const newOrigAvatar = slotForClass?.teacherAvatar || badalForm.originalTeacherAvatar;
+
+                        setBadalForm((prev) => ({
+                          ...prev,
+                          date: newD,
+                          slotId: slotForClass?.id || prev.slotId,
+                          subject: newSubj,
+                          originalTeacherId: newOrigId,
+                          originalTeacherName: newOrigName,
+                          originalTeacherAvatar: newOrigAvatar,
+                          startTime: slotForClass?.startTime || pTimeParts[0],
+                          endTime: slotForClass?.endTime || pTimeParts[1],
+                        }));
+
+                        fetchAvailableTeachersForSlot(dow, badalForm.period, newD, newSubj, newOrigId);
+                      }}
+                      className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Interactive Class Timetable Strip for Selected Day */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Class {badalForm.className} Schedule for {new Date(badalForm.date || new Date().toISOString().split("T")[0]).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</span>
+                  </span>
+                  <span className="text-[10px] text-amber-800 font-bold bg-amber-100/80 px-2 py-0.5 rounded-full">
+                    Tap a period to assign Badal
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 overflow-x-auto touch-auto [-webkit-overflow-scrolling:touch]">
+                  {PERIOD_DEFS.map((p) => {
+                    const dt = new Date(badalForm.date || new Date().toISOString().split("T")[0]);
+                    const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                    const pSlot = slots.find(
+                      (s) => s.className === badalForm.className && s.dayOfWeek === dow && s.period === p.period
+                    );
+                    const isSelected = badalForm.period === p.period;
+                    const existingBadal = badals.find(
+                      (b) => b.className === badalForm.className && b.date?.startsWith(badalForm.date) && b.period === p.period
+                    );
+
+                    return (
+                      <button
+                        key={p.period}
+                        type="button"
+                        onClick={() => {
+                          const pTimeParts = p.time.split(" - ");
+                          const newStart = pSlot?.startTime || pTimeParts[0];
+                          const newEnd = pSlot?.endTime || pTimeParts[1];
+                          const newSubj = pSlot?.subject || "Lesson";
+                          const newOrigId = pSlot?.teacherId || "";
+                          const newOrigName = pSlot?.teacherName || "";
+                          const newOrigAvatar = pSlot?.teacherAvatar || "";
+
+                          const tpl = generateBadalEmailTemplate({
+                            substituteName: badalForm.badalTeacherName || "Faculty Member",
+                            originalTeacherName: newOrigName,
+                            className: badalForm.className,
+                            period: p.period,
+                            startTime: newStart,
+                            endTime: newEnd,
+                            subject: newSubj,
+                            date: badalForm.date,
+                            reason: badalForm.reason,
+                            instructions: badalForm.instructions,
+                          });
+
+                          setBadalForm((prev) => ({
+                            ...prev,
+                            period: p.period,
+                            startTime: newStart,
+                            endTime: newEnd,
+                            subject: newSubj,
+                            slotId: pSlot?.id || "",
+                            originalTeacherId: newOrigId,
+                            originalTeacherName: newOrigName,
+                            originalTeacherAvatar: newOrigAvatar,
+                            customEmailSubject: tpl.subject,
+                            customEmailBody: tpl.body,
+                          }));
+
+                          fetchAvailableTeachersForSlot(dow, p.period, badalForm.date, newSubj, newOrigId);
+                        }}
+                        className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? "bg-amber-400 text-slate-950 border-amber-500 shadow-md ring-2 ring-amber-300"
+                            : existingBadal
+                            ? "bg-amber-50 border-amber-300 text-slate-800 hover:bg-amber-100"
+                            : pSlot
+                            ? "bg-white border-slate-200 text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                            : "bg-slate-100/70 border-slate-200/70 text-slate-400"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[10px] font-black">
+                          <span>Period {p.period}</span>
+                          <span className="font-mono text-[9px] opacity-80">{p.time}</span>
+                        </div>
+                        <div className="mt-1 font-black text-xs truncate">
+                          {pSlot?.subject || "No Lesson"}
+                        </div>
+                        <div className="text-[10px] truncate mt-0.5 font-medium">
+                          {existingBadal ? `⚡ Badal: ${existingBadal.badalTeacherName}` : pSlot?.teacherName || "Unassigned"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Period, Timing & Scheduled Teacher Context Banner */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50/70 border border-amber-200 rounded-2xl p-3">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
+                    Selected Period &amp; Time
+                  </span>
+                  <div className="font-black text-slate-900 text-sm mt-0.5 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-amber-700" />
+                    <span>Period {badalForm.period} ({badalForm.startTime} – {badalForm.endTime})</span>
+                  </div>
+                  <div className="text-[11px] text-amber-800 font-bold mt-0.5">
+                    Subject: <span className="text-slate-900">{badalForm.subject || "Lesson"}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
+                    Scheduled Teacher (Absent / Needs Cover)
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    {badalForm.originalTeacherAvatar ? (
+                      <Avatar className="w-7 h-7 ring-1 ring-amber-400 shrink-0">
+                        <AvatarImage src={badalForm.originalTeacherAvatar} alt={badalForm.originalTeacherName} />
+                      </Avatar>
+                    ) : null}
+                    <div className="font-bold text-slate-900 text-xs truncate">
+                      {badalForm.originalTeacherName || "No Scheduled Teacher"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Substitute Teachers List (DISPLAYING ALL TEACHERS WITH ASSIGNED SUBJECTS) */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700">
+                    4. Select Substitute Teacher (Displaying All Teachers with Assigned Subjects)
+                  </label>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setBadalTeacherFilterMode("ALL")}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
+                        badalTeacherFilterMode === "ALL"
+                          ? "bg-slate-900 text-amber-300"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      All Teachers ({availableTeachers.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBadalTeacherFilterMode("FREE")}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
+                        badalTeacherFilterMode === "FREE"
+                          ? "bg-slate-900 text-amber-300"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      Free Only ({availableTeachers.filter((t) => t.isFree).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBadalTeacherFilterMode("SAME_SUBJECT")}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
+                        badalTeacherFilterMode === "SAME_SUBJECT"
+                          ? "bg-slate-900 text-amber-300"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      Same Subject ({availableTeachers.filter((t) => t.teachesSubject).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search bar inside teacher picker */}
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-amber-500">
+                  <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={badalTeacherSearchQuery}
+                    onChange={(e) => setBadalTeacherSearchQuery(e.target.value)}
+                    placeholder="Filter by teacher name or assigned subjects (e.g. Quran, Arabic, English)..."
+                    className="w-full bg-transparent text-xs text-slate-800 outline-none"
                   />
+                  {badalTeacherSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setBadalTeacherSearchQuery("")}
+                      className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
-              </div>
 
-              {/* Original Teacher with Conditional Avatar */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  1. Scheduled Teacher (Absent / Needs Coverage)
-                </label>
-                <div className="flex items-center gap-2.5 p-2 bg-slate-100 rounded-xl border border-slate-200">
-                  {badalForm.originalTeacherAvatar ? (
-                    <Avatar className="w-7 h-7 ring-1 ring-slate-400 shrink-0">
-                      <AvatarImage src={badalForm.originalTeacherAvatar} alt={badalForm.originalTeacherName} />
-                    </Avatar>
-                  ) : null}
-                  <div className="font-bold text-slate-800 text-xs">
-                    {badalForm.originalTeacherName || "Scheduled Ustad"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Free Available Teachers Selection */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  2. Eligible Substitutes — {badalForm.subject || "Subject"} faculty free in Period {badalForm.period}
-                </label>
                 {loadingAvailable ? (
-                  <div className="p-3 text-center bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="p-4 text-center bg-slate-50 rounded-2xl border border-slate-200">
                     <Loader2 className="w-4 h-4 animate-spin text-amber-600 mx-auto" />
-                    <span className="text-[10px] text-slate-500 mt-1 block">Matching subject faculty with free periods...</span>
+                    <span className="text-[11px] text-slate-500 mt-1 block">Loading faculty roster &amp; assigned subjects...</span>
                   </div>
-                ) : availableTeachers.length === 0 ? (
-                  <div className="p-3 text-center bg-rose-50 text-rose-800 rounded-xl border border-rose-200 text-xs">
-                    No free faculty are assigned to {badalForm.subject || "this subject"} for Period {badalForm.period}.
-                    Adjust the timetable allocation or choose another date.
+                ) : filteredAvailableTeachers.length === 0 ? (
+                  <div className="p-4 text-center bg-amber-50 text-amber-900 rounded-2xl border border-amber-200 text-xs">
+                    No faculty found matching the filter. Choose &ldquo;All Teachers&rdquo; above.
                   </div>
                 ) : (
-                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                    {availableTeachers.map((t) => {
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {filteredAvailableTeachers.map((t: any) => {
                       const isChosen = badalForm.badalTeacherId === t.id;
                       const isUnavailable = t.isOnLeave || !t.isFree;
                       return (
@@ -3156,8 +3386,8 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                             if (isUnavailable) {
                               toast({
                                 variant: "warning",
-                                title: "Faculty Member Unavailable",
-                                description: `${t.name} is ${t.isOnLeave ? `on leave (${t.leaveReason})` : "already teaching another class"} during Period ${badalForm.period}.`,
+                                title: "Faculty Member Busy / On Leave",
+                                description: `${t.name} is ${t.isOnLeave ? `on leave (${t.leaveReason})` : t.busyReason || "already teaching another class"} during Period ${badalForm.period}.`,
                               });
                               return;
                             }
@@ -3183,38 +3413,63 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                               customEmailBody: tpl.body,
                             }));
                           }}
-                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${
-                            isUnavailable
-                              ? "bg-rose-50/60 border-rose-200/80 opacity-60 cursor-not-allowed"
-                              : isChosen
-                              ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-500/30 cursor-pointer"
-                              : "bg-white hover:bg-slate-50 border-slate-200 cursor-pointer"
+                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            isChosen
+                              ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-500/40"
+                              : isUnavailable
+                              ? "bg-slate-50 border-slate-200 opacity-60"
+                              : "bg-white hover:bg-slate-50 border-slate-200"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {t.avatarUrl ? (
-                              <Avatar className="w-7 h-7 ring-1 ring-emerald-600 shrink-0">
+                              <Avatar className="w-8 h-8 ring-1 ring-slate-300 shrink-0">
                                 <AvatarImage src={t.avatarUrl} alt={t.name} />
                               </Avatar>
                             ) : null}
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
                                 <span>{t.name}</span>
-                                {t.isOnLeave && (
-                                  <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white px-1.5 py-0.2 rounded-full">
-                                    On Leave ({t.leaveReason})
+                                {t.teachesSubject && (
+                                  <span className="text-[9px] font-black uppercase tracking-wider bg-amber-300 text-amber-950 px-1.5 py-0.2 rounded-full">
+                                    ★ Same Subject Specialist
+                                  </span>
+                                )}
+                                {t.isFree ? (
+                                  <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
+                                    🟢 Free Period {badalForm.period}
+                                  </span>
+                                ) : t.isOnLeave ? (
+                                  <span className="text-[9px] font-bold bg-rose-500 text-white px-1.5 py-0.2 rounded-full">
+                                    ⛔ On Leave ({t.leaveReason})
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded-full">
+                                    🔴 {t.busyReason}
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-slate-500 font-mono">
-                                <span className="text-emerald-700 font-bold">
-                                  {t.subjects?.length ? t.subjects.join(", ") : badalForm.subject}
-                                </span>
-                                {" "}• {t.isOnLeave ? "Unavailable Today" : t.isFree ? `Free Period ${badalForm.period}` : "Busy"} • {t.badalCount || 0} Badals taken
+
+                              {/* Display all assigned subjects of this teacher */}
+                              <div className="flex items-center gap-1 flex-wrap mt-1">
+                                <span className="text-[10px] text-slate-400 font-semibold">Assigned Subjects:</span>
+                                {t.subjects && t.subjects.length > 0 ? (
+                                  t.subjects.slice(0, 4).map((sName: string) => (
+                                    <span key={sName} className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-slate-100 text-slate-700">
+                                      {sName}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-[9.5px] text-slate-400">None assigned</span>
+                                )}
+                                {(t.subjects?.length || 0) > 4 && (
+                                  <span className="text-[9px] text-slate-500 font-bold">+{t.subjects.length - 4} more</span>
+                                )}
+                                <span className="text-[10px] text-slate-400 ml-1">• {t.badalCount || 0} Badals taken</span>
                               </div>
                             </div>
                           </div>
-                          {isChosen && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                          {isChosen && <Check className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />}
                         </div>
                       );
                     })}
@@ -3222,9 +3477,9 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                 )}
               </div>
 
-              {/* Reason */}
+              {/* 5. Reason for Badal */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Reason for Badal</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">5. Reason for Badal</label>
                 <select
                   value={badalForm.reason}
                   onChange={(e) => setBadalForm((prev) => ({ ...prev, reason: e.target.value }))}
@@ -3238,10 +3493,10 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                 </select>
               </div>
 
-              {/* Instructions */}
+              {/* 6. Instructions for Sabaq */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Sabaq &amp; Homework Instructions for Substitute
+                  6. Sabaq &amp; Homework Instructions for Substitute
                 </label>
                 <textarea
                   rows={2}
@@ -3252,7 +3507,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                 />
               </div>
 
-              {/* Email Notification to Assigned Substitute */}
+              {/* 7. Email Notification Section */}
               <div className="bg-amber-50/80 border border-amber-300/80 rounded-2xl p-3.5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
