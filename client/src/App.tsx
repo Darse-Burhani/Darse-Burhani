@@ -18,7 +18,7 @@ const NotFoundPage = lazy(() => import("@/app/not-found/page"));
 const ThankYouPage = lazy(() => import("@/app/thank-you/page"));
 
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { CommandPalette } from "@/components/CommandPalette";
+const CommandPalette = lazy(() => import("@/components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useAutoRouteSEO } from "@/components/SEO";
 import { SplashScreen } from "@/components/SplashScreen";
@@ -443,7 +443,9 @@ export default function App() {
       </Suspense>
       <CookieConsentBanner />
       <PWAInstallBanner />
-      <CommandPalette />
+      <Suspense fallback={null}>
+        <CommandPalette />
+      </Suspense>
     </DevLockGuard>
   </ErrorBoundary>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import MarhalaTree3D from "@/components/hifz/MarhalaTree3D";
+const MarhalaTree3D = lazy(() => import("@/components/hifz/MarhalaTree3D"));
 import {
   MARHALA_ORDER,
   MARHALA_LABELS,
@@ -767,12 +767,21 @@ export default function MarhalaFlowMap({
         <div className="relative bg-gradient-to-b from-slate-900 via-emerald-950 to-slate-950 rounded-3xl border border-emerald-900/40 shadow-2xl overflow-hidden p-4 min-h-[500px]">
           {webglOK ? (
             <div className="h-[480px] w-full select-none">
-              <MarhalaTree3D
-                branches={tree3DBranches}
-                selected={revealed?.marhala ?? null}
-                onSelect={setSelectedMarhala}
-                academicYear={academicYear}
-              />
+              <Suspense
+                fallback={
+                  <div className="flex flex-col items-center justify-center h-full text-emerald-300 gap-2">
+                    <TreeDeciduous className="w-8 h-8 animate-pulse text-emerald-400" />
+                    <p className="text-xs font-semibold">Loading 3D Tree Environment...</p>
+                  </div>
+                }
+              >
+                <MarhalaTree3D
+                  branches={tree3DBranches}
+                  selected={revealed?.marhala ?? null}
+                  onSelect={setSelectedMarhala}
+                  academicYear={academicYear}
+                />
+              </Suspense>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-white text-center">

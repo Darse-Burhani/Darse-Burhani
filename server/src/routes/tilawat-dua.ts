@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { fileURLToPath } from "node:url";
 import prisma from "../lib/prisma";
 import { requireAuth, requireRole, hasTeacherPageAuthority, AuthedRequest } from "../middleware";
+import { cache } from "../lib/cache";
 
 const router = Router();
 
@@ -146,94 +147,105 @@ router.get("/today", requireAuth, async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    // Determine target filter based on user role
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const cacheKey = `tilawat-dua-today-${user.role}-${user.id}`;
+    const result = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        // Determine target filter based on user role
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    let audienceFilter: any = { isActive: true };
+        let audienceFilter: any = { isActive: true };
 
-    if (user.role === "STUDENT") {
-      // Fetch student details for class & marhala targeting
-      const studentProfile = await prisma.studentProfile.findUnique({
-        where: { userId: user.id },
-        select: {
-          id: true,
-          grade: true,
-          classEnrollments: { select: { classId: true } },
-        },
-      });
+        if (user.role === "STUDENT") {
+          // Fetch student details for class & marhala targeting
+          const studentProfile = await prisma.studentProfile.findUnique({
+            where: { userId: user.id },
+            select: {
+              id: true,
+              grade: true,
+              classEnrollments: { select: { classId: true } },
+            },
+          });
 
-      const studentGrade = studentProfile?.grade ? String(studentProfile.grade).trim().toUpperCase() : null;
-      const studentClassIds = studentProfile?.classEnrollments?.map((e) => e.classId) || [];
+          const studentGrade = studentProfile?.grade ? String(studentProfile.grade).trim().toUpperCase() : null;
+          const studentClassIds = studentProfile?.classEnrollments?.map((e) => e.classId) || [];
 
-      audienceFilter = {
-        isActive: true,
-        OR: [
-          { targetAudience: "ALL" },
-          { targetAudience: "TALABAT" },
-          ...(studentGrade
-            ? [
-                {
-                  targetAudience: "MARHALA",
-                  OR: [
-                    { targetMarhala: "ALL" },
-                    { targetMarhala: studentGrade },
-                    { targetMarhala: { contains: studentGrade, mode: "insensitive" } },
-                  ],
-                },
-              ]
-            : []),
-          ...(studentClassIds.length > 0
-            ? [
-                {
-                  targetAudience: "CLASS",
-                  targetClassIds: { hasSome: studentClassIds },
-                },
-              ]
-            : []),
-        ],
-      };
-    } else if (user.role === "TEACHER") {
-      audienceFilter = {
-        isActive: true,
-        OR: [{ targetAudience: "ALL" }, { targetAudience: "FACULTY" }],
-      };
-    }
+          audienceFilter = {
+            isActive: true,
+            OR: [
+              { targetAudience: "ALL" },
+              { targetAudience: "TALABAT" },
+              ...(studentGrade
+                ? [
+                    {
+                      targetAudience: "MARHALA",
+                      OR: [
+                        { targetMarhala: "ALL" },
+                        { targetMarhala: studentGrade },
+                        { targetMarhala: { contains: studentGrade, mode: "insensitive" } },
+                      ],
+                    },
+                  ]
+                : []),
+              ...(studentClassIds.length > 0
+                ? [
+                    {
+                      targetAudience: "CLASS",
+                      targetClassIds: { hasSome: studentClassIds },
+                    },
+                  ]
+                : []),
+            ],
+          };
+        } else if (user.role === "TEACHER") {
+          audienceFilter = {
+            isActive: true,
+            OR: [{ targetAudience: "ALL" }, { targetAudience: "FACULTY" }],
+          };
+        }
 
-    // 1. Try to find marked daily default for today
-    let item = await prisma.tilawatDua.findFirst({
-      where: {
-        ...audienceFilter,
-        isDailyDefault: true,
-        date: { gte: startOfToday, lte: endOfToday },
+        // 1. Try to find marked daily default for today
+        let item = await prisma.tilawatDua.findFirst({
+          where: {
+            ...audienceFilter,
+            isDailyDefault: true,
+            date: { gte: startOfToday, lte: endOfToday },
+          },
+          orderBy: [{ updatedAt: "desc" }],
+        });
+
+        // 2. If no explicit default today, find any active Tilawat Dua for today
+        if (!item) {
+          item = await prisma.tilawatDua.findFirst({
+            where: {
+              ...audienceFilter,
+              date: { gte: startOfToday, lte: endOfToday },
+            },
+            orderBy: [{ isDailyDefault: "desc" }, { updatedAt: "desc" }],
+          });
+        }
+
+        // 3. If none for today, fallback to the most recent active Tilawat Dua
+        if (!item) {
+          item = await prisma.tilawatDua.findFirst({
+            where: audienceFilter,
+            orderBy: [{ date: "desc" }, { isDailyDefault: "desc" }, { updatedAt: "desc" }],
+          });
+        }
+
+        return {
+          data: item,
+          hasItem: !!item,
+        };
       },
-      orderBy: [{ updatedAt: "desc" }],
-    });
-
-    // 2. If no explicit default today, find any active Tilawat Dua for today
-    if (!item) {
-      item = await prisma.tilawatDua.findFirst({
-        where: {
-          ...audienceFilter,
-          date: { gte: startOfToday, lte: endOfToday },
-        },
-        orderBy: [{ isDailyDefault: "desc" }, { updatedAt: "desc" }],
-      });
-    }
-
-    // 3. If none for today, fallback to the most recent active Tilawat Dua
-    if (!item) {
-      item = await prisma.tilawatDua.findFirst({
-        where: audienceFilter,
-        orderBy: [{ date: "desc" }, { isDailyDefault: "desc" }, { updatedAt: "desc" }],
-      });
-    }
+      { ttl: 30_000, tags: ["tilawat-dua"] }
+    );
 
     res.json({
       success: true,
-      data: item,
-      hasItem: !!item,
+      ...result,
     });
   } catch (error: any) {
     console.error("[tilawat-dua:today] Error:", error);
@@ -437,6 +449,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       },
     });
 
+    cache.invalidateTag("tilawat-dua");
     res.status(201).json({ success: true, data: newRecord });
   } catch (error: any) {
     console.error("[tilawat-dua:create] Error:", error);
@@ -507,6 +520,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       },
     });
 
+    cache.invalidateTag("tilawat-dua");
     res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error("[tilawat-dua:update] Error:", error);
@@ -534,6 +548,7 @@ router.patch("/:id/toggle-active", requireAuth, async (req: Request, res: Respon
       data: { isActive: !existing.isActive },
     });
 
+    cache.invalidateTag("tilawat-dua");
     res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error("[tilawat-dua:toggle-active] Error:", error);
@@ -575,6 +590,7 @@ router.patch("/:id/set-default", requireAuth, async (req: Request, res: Response
       data: { isDailyDefault: true, isActive: true },
     });
 
+    cache.invalidateTag("tilawat-dua");
     res.json({ success: true, data: updated });
   } catch (error: any) {
     console.error("[tilawat-dua:set-default] Error:", error);
@@ -612,6 +628,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
       }
     }
 
+    cache.invalidateTag("tilawat-dua");
     res.json({ success: true, message: "Tilawat Dua deleted successfully" });
   } catch (error: any) {
     console.error("[tilawat-dua:delete] Error:", error);

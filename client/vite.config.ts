@@ -53,8 +53,11 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    target: "es2022",
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
+    cssCodeSplit: true,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -68,8 +71,14 @@ export default defineConfig({
             if (id.includes("framer-motion")) {
               return "vendor-framer";
             }
+            if (id.includes("pdfjs-dist")) {
+              return "vendor-pdf";
+            }
             if (id.includes("lucide-react")) {
               return "vendor-icons";
+            }
+            if (id.includes("jsbarcode") || id.includes("qrcode")) {
+              return "vendor-barcode";
             }
             if (id.includes("react") || id.includes("react-dom") || id.includes("react-router")) {
               return "vendor-react";

@@ -2,6 +2,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { cache } from "../../lib/cache";
 
 const router = Router();
 
@@ -18,44 +19,53 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    const plans = await prisma.takhteetPlan.findMany({
-      where: { teacherId: teacherProfile.id },
-      include: {
-        class: { select: { id: true, name: true, grade: true, section: true, subject: true } },
-        progressLogs: {
-          orderBy: { createdAt: "desc" },
-          take: 10,
-          select: {
-            id: true,
-            note: true,
-            progressBefore: true,
-            progressAfter: true,
-            status: true,
-            createdAt: true,
+    const cacheKey = `teacher-takhteet-${teacherProfile.id}`;
+    const data = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        const plans = await prisma.takhteetPlan.findMany({
+          where: { teacherId: teacherProfile.id },
+          include: {
+            class: { select: { id: true, name: true, grade: true, section: true, subject: true } },
+            progressLogs: {
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              select: {
+                id: true,
+                note: true,
+                progressBefore: true,
+                progressAfter: true,
+                status: true,
+                createdAt: true,
+              },
+            },
           },
-        },
+          orderBy: { createdAt: "desc" },
+        });
+
+        return plans.map((p) => ({
+          id: p.id,
+          classId: p.classId,
+          className: `${p.class.name} (${p.class.grade}${p.class.section})`,
+          subject: p.subject,
+          title: p.title,
+          description: p.description,
+          academicYear: p.academicYear,
+          month: p.month,
+          status: p.status,
+          progress: p.progress,
+          completedAt: p.completedAt,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          logs: p.progressLogs,
+        }));
       },
-      orderBy: { createdAt: "desc" },
-    });
+      { ttl: 60_000, tags: ["takhteet", `teacher-${teacherProfile.id}`] }
+    );
 
     return res.json({
       success: true,
-      data: plans.map((p) => ({
-        id: p.id,
-        classId: p.classId,
-        className: `${p.class.name} (${p.class.grade}${p.class.section})`,
-        subject: p.subject,
-        title: p.title,
-        description: p.description,
-        academicYear: p.academicYear,
-        month: p.month,
-        status: p.status,
-        progress: p.progress,
-        completedAt: p.completedAt,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        logs: p.progressLogs,
-      })),
+      data,
     });
   } catch (error) {
     console.error("Teacher takhteet fetch error:", error);
@@ -130,6 +140,7 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
       }
     }
 
+    cache.invalidateTag("takhteet");
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error("Teacher takhteet progress error:", error);
