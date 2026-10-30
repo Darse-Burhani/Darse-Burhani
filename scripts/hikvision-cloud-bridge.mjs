@@ -13,7 +13,7 @@
  *   🔄 3-Second Rapid Fallback Poller with 24-hour startup lookback
  *   ⏰ Automatic Terminal Clock Synchronization to Indian Standard Time (IST +05:30)
  *   🛡️ XML and JSON multipart payload auto-detection & parsing
- *   💓 Render Free-Tier Keep-Alive Pings every 30 seconds
+ *   💓 Render Free-Tier Keep-Alive Pings during school hours (07:20 AM – 08:30 PM IST)
  * 
  * Usage:
  *   npm run hikvision:cloud-bridge
@@ -41,6 +41,9 @@ const stats = {
   renderSynced: 0,
   dbDirectSynced: 0,
   lastPunch: null,
+  keepAliveStatus: 'INITIALIZING',
+  keepAliveWindow: '07:20 – 20:30 IST',
+  lastKeepAlivePing: null,
 };
 
 // Cloud target. Prefer an explicit CLI/RENDER_URL, then the same public
@@ -281,6 +284,97 @@ function normalizeDeviceTime(raw) {
     return `${normalized}+05:30`;
   }
   return s;
+}
+
+// ── Keep-Alive School Hours & Dynamic Schedule Window ─────────────
+// Default school hours: 07:20 AM to 08:30 PM IST (07:20 - 20:30)
+// Outside this window, keep-alive pings to Render are paused so the
+// instance can sleep and conserve its 750 free-tier monthly hours.
+// When active BiometricScanWindows are configured in the DB, this
+// window automatically expands to ensure the server is awake for all scans.
+const FIXED_KEEP_ALIVE_START = process.env.KEEP_ALIVE_START || '07:20';
+const FIXED_KEEP_ALIVE_END = process.env.KEEP_ALIVE_END || '20:30';
+
+let cachedKeepAliveWindow = {
+  lastChecked: 0,
+  windowStart: FIXED_KEEP_ALIVE_START,
+  windowEnd: FIXED_KEEP_ALIVE_END,
+  windowName: 'Fixed School Hours (07:20 – 20:30 IST)',
+};
+
+async function getEffectiveKeepAliveWindow() {
+  const now = Date.now();
+  // Cache scan window calculation for 5 minutes
+  if (now - cachedKeepAliveWindow.lastChecked < 5 * 60 * 1000) {
+    return cachedKeepAliveWindow;
+  }
+
+  let start = FIXED_KEEP_ALIVE_START;
+  let end = FIXED_KEEP_ALIVE_END;
+  let name = 'Fixed School Hours (07:20 – 20:30 IST)';
+
+  try {
+    const windows = await prisma.biometricScanWindow.findMany({
+      where: { enabled: true },
+    });
+
+    if (windows && windows.length > 0) {
+      const toMins = (t) => {
+        if (!t || typeof t !== 'string' || !t.includes(':')) return null;
+        const [h, m] = t.split(':').map(Number);
+        return isNaN(h) || isNaN(m) ? null : h * 60 + m;
+      };
+
+      let minStartMins = toMins(FIXED_KEEP_ALIVE_START);
+      let maxEndMins = toMins(FIXED_KEEP_ALIVE_END);
+      const activeNames = [];
+
+      for (const w of windows) {
+        activeNames.push(w.name || 'Window');
+        const sMins = toMins(w.startTime) ?? toMins(w.facultyStartTime);
+        const eMins = toMins(w.lateEndTime) ?? toMins(w.endTime) ?? toMins(w.facultyLateEndTime) ?? toMins(w.facultyEndTime);
+
+        // If a window starts earlier than 07:20, wake up 15 mins before
+        if (sMins !== null && (sMins - 15) < minStartMins) {
+          minStartMins = Math.max(0, sMins - 15);
+        }
+        // If a window ends later than 20:30, stay awake 15 mins after
+        if (eMins !== null && (eMins + 15) > maxEndMins) {
+          maxEndMins = Math.min(24 * 60 - 1, eMins + 15);
+        }
+      }
+
+      const formatMins = (m) => {
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        return `${hh}:${mm}`;
+      };
+
+      start = formatMins(minStartMins);
+      end = formatMins(maxEndMins);
+      name = `Schedule Windows (${activeNames.join(', ')}) + Base 07:20–20:30 IST`;
+    }
+  } catch (err) {
+    // If DB check fails, fallback safely to fixed school hours
+  }
+
+  cachedKeepAliveWindow = {
+    lastChecked: now,
+    windowStart: start,
+    windowEnd: end,
+    windowName: name,
+  };
+  return cachedKeepAliveWindow;
+}
+
+function isCurrentTimeInKeepAliveWindow(windowInfo, d = new Date()) {
+  const ist = getIstParts(d);
+  const currentMins = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
+  const [sh, sm] = (windowInfo.windowStart || FIXED_KEEP_ALIVE_START).split(':').map(Number);
+  const [eh, em] = (windowInfo.windowEnd || FIXED_KEEP_ALIVE_END).split(':').map(Number);
+  const startMins = sh * 60 + sm;
+  const endMins = eh * 60 + em;
+  return currentMins >= startMins && currentMins <= endMins;
 }
 
 // ── Identity aliases ─────────────────────────────────────────────
@@ -1080,15 +1174,34 @@ async function startBridge() {
     }
   }, 30000);
 
-  // 5. Render Keep-Alive ping every 3 minutes (sticky fallback base)
+  // 5. Render Keep-Alive ping (Every 3 minutes, ONLY during school hours 07:20 - 20:30 IST)
+  let lastLoggedSleepHour = -1;
   setInterval(async () => {
+    const windowInfo = await getEffectiveKeepAliveWindow();
+    stats.keepAliveWindow = `${windowInfo.windowStart} – ${windowInfo.windowEnd} IST`;
+    const isActive = isCurrentTimeInKeepAliveWindow(windowInfo);
+    const ist = getIstParts();
+
+    if (!isActive) {
+      stats.keepAliveStatus = `SLEEPING (Night — outside ${windowInfo.windowStart}–${windowInfo.windowEnd} IST)`;
+      const currentHour = parseInt(ist.hour, 10);
+      if (lastLoggedSleepHour !== currentHour) {
+        lastLoggedSleepHour = currentHour;
+        console.log(`🌙 [KEEP-ALIVE SLEEP] Current time ${ist.hour}:${ist.minute} IST is outside active window (${stats.keepAliveWindow}). Render ping paused to conserve free-tier hours.`);
+      }
+      return;
+    }
+
+    stats.keepAliveStatus = `ACTIVE (School Hours ${stats.keepAliveWindow})`;
     try {
       await fetch(`${lastGoodHealthBase}/api/health`, { signal: AbortSignal.timeout(10000) });
+      stats.lastKeepAlivePing = `${ist.hour}:${ist.minute}:${ist.second} IST (${lastGoodHealthBase})`;
     } catch {
       for (const base of CLOUD_HEALTH_BASES) {
         try {
           await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(10000) });
           lastGoodHealthBase = base;
+          stats.lastKeepAlivePing = `${ist.hour}:${ist.minute}:${ist.second} IST (${base})`;
           break;
         } catch {}
       }
@@ -1164,6 +1277,16 @@ function startStatusServer() {
       <div class="metric"><div class="metric-val">${stats.renderSynced}</div><div class="metric-lbl">Render Cloud Pushes</div></div>
       <div class="metric"><div class="metric-val">${stats.dbDirectSynced}</div><div class="metric-lbl">Supabase Direct Records</div></div>
       <div class="metric"><div class="metric-val">${stats.lastPunch ? (stats.lastPunch.name || stats.lastPunch.employeeNo) : 'None yet'}</div><div class="metric-lbl">Last Punch Person</div></div>
+    </div>
+
+    <div style="background:#0f172a; border-radius:8px; padding:12px; border:1px solid #334155; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:#cbd5e1; font-weight:600;">⏰ Keep-Alive School Hours</span>
+        <span style="font-size:12px; color:${stats.keepAliveStatus.startsWith('ACTIVE') ? '#34d399' : '#fbbf24'}; font-weight:600;">${stats.keepAliveStatus}</span>
+      </div>
+      <div style="font-size:12px; color:#94a3b8; margin-top:4px;">
+        Active Window: <strong>${stats.keepAliveWindow}</strong> • Last Ping: <strong>${stats.lastKeepAlivePing || 'None yet'}</strong>
+      </div>
     </div>
 
     <div class="list">
