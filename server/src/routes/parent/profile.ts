@@ -2,15 +2,13 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "node:url";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 
 const router = Router();
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../../../..");
-const parentsUploadsDir = path.join(repoRoot, "public", "uploads", "parents");
+import { parentsUploadsDir } from "../../lib/paths";
+
 
 const avatarUpload = multer({
   storage: multer.diskStorage({

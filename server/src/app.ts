@@ -113,10 +113,15 @@ import parentTimetableRoutes from "./routes/parent/timetable";
 import hifzDailyEvaluationRoutes from "./routes/hifz/daily-evaluation";
 
 import prisma from "./lib/prisma";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../..");
-const uploadsDir = path.resolve(process.env.UPLOAD_DIR || path.join(repoRoot, "public", "uploads"));
+import {
+  repoRoot,
+  uploadsDir,
+  tilawatUploadsDir,
+  clientPublicDir,
+  clientPublicUploadsDir,
+  clientDistDir,
+  clientDistUploadsDir,
+} from "./lib/paths";
 
 export function createApp() {
   const app = express();
@@ -221,8 +226,6 @@ export function createApp() {
   app.use(sanitizeInputsMiddleware);
 
   // 5. Static uploads with aggressive browser caching & stale-while-revalidate
-  const clientPublicUploads = path.join(repoRoot, "client", "public", "uploads");
-  const clientDistUploads = path.join(repoRoot, "client", "dist", "uploads");
   const uploadStaticOptions = {
     etag: true,
     maxAge: "30d",
@@ -231,9 +234,56 @@ export function createApp() {
     },
   };
 
+  const tilawatPdfStaticOptions = {
+    etag: true,
+    maxAge: "30d",
+    setHeaders: (res: express.Response, filePath: string) => {
+      res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+      if (filePath.toLowerCase().endsWith(".pdf")) {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline");
+      }
+    },
+  };
+
+  // Dedicated routes for Tilawat Dua PDF serving with guaranteed inline application/pdf headers
+  app.use("/uploads/tilawat-dua", express.static(tilawatUploadsDir, tilawatPdfStaticOptions));
+  app.use("/uploads/tilawat-dua", express.static(path.join(clientPublicUploadsDir, "tilawat-dua"), tilawatPdfStaticOptions));
+  app.use("/uploads/tilawat-dua", express.static(path.join(clientDistUploadsDir, "tilawat-dua"), tilawatPdfStaticOptions));
+
+  // General uploads
   app.use("/uploads", express.static(uploadsDir, uploadStaticOptions));
-  app.use("/uploads", express.static(clientPublicUploads, uploadStaticOptions));
-  app.use("/uploads", express.static(clientDistUploads, uploadStaticOptions));
+  app.use("/uploads", express.static(clientPublicUploadsDir, uploadStaticOptions));
+  app.use("/uploads", express.static(clientDistUploadsDir, uploadStaticOptions));
+
+  // Serve cmaps and standard_fonts for PDF.js directly from public/dist
+  app.use("/cmaps", express.static(path.join(clientPublicDir, "cmaps")));
+  app.use("/cmaps", express.static(path.join(clientDistDir, "cmaps")));
+  app.use("/standard_fonts", express.static(path.join(clientPublicDir, "standard_fonts")));
+  app.use("/standard_fonts", express.static(path.join(clientDistDir, "standard_fonts")));
+
+  // Resilient fallback handler for /uploads/tilawat-dua/:filename to stream PDF directly
+  app.get("/uploads/tilawat-dua/:filename", (req, res, next) => {
+    const rawFilename = path.basename(req.params.filename);
+    const decodedFilename = decodeURIComponent(rawFilename);
+    const candidates = [
+      path.join(tilawatUploadsDir, decodedFilename),
+      path.join(tilawatUploadsDir, rawFilename),
+      path.join(clientPublicUploadsDir, "tilawat-dua", decodedFilename),
+      path.join(clientPublicUploadsDir, "tilawat-dua", rawFilename),
+      path.join(clientDistUploadsDir, "tilawat-dua", decodedFilename),
+      path.join(clientDistUploadsDir, "tilawat-dua", rawFilename),
+    ];
+    for (const fileCandidate of candidates) {
+      if (fs.existsSync(fileCandidate)) {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline");
+        res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+        return res.sendFile(path.resolve(fileCandidate));
+      }
+    }
+    next();
+  });
 
   // 6. Health & Load Balancer Readiness Probe (exempt from rate limits)
   app.use("/api/health", healthRoutes);

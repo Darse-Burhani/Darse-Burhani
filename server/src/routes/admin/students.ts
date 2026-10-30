@@ -2,16 +2,14 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "node:url";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { apiCacheMiddleware } from "../../lib/cache";
 
 const router = Router();
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../../../..");
-const talabatUploadsDir = path.join(repoRoot, "public", "uploads", "talabat");
+import { talabatUploadsDir } from "../../lib/paths";
+
 
 const avatarUpload = multer({
   storage: multer.diskStorage({

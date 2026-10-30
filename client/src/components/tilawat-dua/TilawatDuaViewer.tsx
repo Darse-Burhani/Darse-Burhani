@@ -161,10 +161,13 @@ export function TilawatDuaViewer({
           pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
         }
 
+        // Try local cmaps first for zero-latency Arabic / Quran font rendering
         const loadingTask = pdfjsLib.getDocument({
           url: pdfUrl,
-          cMapUrl: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/",
+          cMapUrl: "/cmaps/",
           cMapPacked: true,
+          standardFontDataUrl: "/standard_fonts/",
+          disableFontFace: false,
         });
 
         const doc = await loadingTask.promise;
@@ -172,12 +175,33 @@ export function TilawatDuaViewer({
           setPdfDoc(doc);
           setTotalPages(doc.numPages);
           setLoading(false);
+          setRenderError(null);
         }
       } catch (err: any) {
-        console.warn("[TilawatDuaViewer] PDF.js load notice, falling back to native viewer:", err);
+        console.warn("[TilawatDuaViewer] Local PDF.js load notice, trying CDN cMaps fallback:", err);
+        try {
+          const pdfjsLib = await import("pdfjs-dist");
+          const fallbackTask = pdfjsLib.getDocument({
+            url: pdfUrl,
+            cMapUrl: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/",
+            cMapPacked: true,
+          });
+          const doc = await fallbackTask.promise;
+          if (!isCancelled) {
+            setPdfDoc(doc);
+            setTotalPages(doc.numPages);
+            setLoading(false);
+            setRenderError(null);
+            return;
+          }
+        } catch (fallbackErr: any) {
+          console.warn("[TilawatDuaViewer] Fallback failed, activating native PDF embed:", fallbackErr);
+        }
+
         if (!isCancelled) {
           setUseNativeViewer(true);
           setLoading(false);
+          setRenderError(err?.message || "Failed to render with Canvas engine");
         }
       }
     }
@@ -581,12 +605,33 @@ export function TilawatDuaViewer({
             <p className="text-sm font-medium tracking-wide">Rendering Tilawat Dua in High Definition…</p>
           </div>
         ) : useNativeViewer ? (
-          <div className="w-full h-full min-h-[600px] flex items-center justify-center">
-            <iframe
-              src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-              className="w-full h-full min-h-[600px] rounded-lg border-0 bg-white"
-              title="Tilawat Dua Native PDF"
-            />
+          <div className="w-full h-full min-h-[600px] flex flex-col items-center justify-center relative p-1 sm:p-2">
+            <object
+              data={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+              type="application/pdf"
+              className="w-full h-full min-h-[600px] rounded-lg border-0 bg-white shadow-xl"
+            >
+              <iframe
+                src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+                className="w-full h-full min-h-[600px] rounded-lg border-0 bg-white shadow-xl"
+                title="Tilawat Dua Native PDF"
+              >
+                <div className="flex flex-col items-center justify-center p-8 text-center text-slate-300 bg-slate-900/90 rounded-xl border border-slate-800">
+                  <AlertCircle className="w-12 h-12 text-amber-400 mb-3" />
+                  <p className="text-base font-semibold text-white mb-2">Native PDF preview unavailable</p>
+                  <p className="text-sm text-slate-400 mb-4">Your browser may not support inline PDF viewing.</p>
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 font-medium transition"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Open / Download PDF Document
+                  </a>
+                </div>
+              </iframe>
+            </object>
           </div>
         ) : (
           <div className="relative flex items-center justify-center transition-all duration-200 max-w-full max-h-full m-auto">

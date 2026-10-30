@@ -3,22 +3,16 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { fileURLToPath } from "node:url";
 import prisma from "../lib/prisma";
 import { requireAuth, requireRole, hasTeacherPageAuthority, AuthedRequest } from "../middleware";
 import { cache } from "../lib/cache";
+import {
+  tilawatUploadsDir,
+  clientPublicTilawatDir,
+  clientDistTilawatDir,
+} from "../lib/paths";
 
 const router = Router();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../../..");
-const uploadsDir = path.resolve(process.env.UPLOAD_DIR || path.join(repoRoot, "public", "uploads"));
-const tilawatUploadsDir = path.join(uploadsDir, "tilawat-dua");
-const clientPublicUploadsDir = path.join(repoRoot, "client", "public", "uploads", "tilawat-dua");
-
-// Ensure directories exist
-fs.mkdirSync(tilawatUploadsDir, { recursive: true });
-fs.mkdirSync(clientPublicUploadsDir, { recursive: true });
 
 /**
  * Validates magic bytes for PDF file: %PDF- (0x25 0x50 0x44 0x46)
@@ -120,12 +114,18 @@ router.post("/upload", requireAuth, async (req: Request, res: Response) => {
       });
     }
 
-    // Mirror to client public uploads directory for seamless static serving in dev
+    // Mirror to client public and dist directories for seamless static serving
     try {
-      const clientCopyPath = path.join(clientPublicUploadsDir, req.file.filename);
-      fs.copyFileSync(filePath, clientCopyPath);
+      if (fs.existsSync(clientPublicTilawatDir)) {
+        const clientCopyPath = path.join(clientPublicTilawatDir, req.file.filename);
+        fs.copyFileSync(filePath, clientCopyPath);
+      }
+      if (fs.existsSync(clientDistTilawatDir)) {
+        const distCopyPath = path.join(clientDistTilawatDir, req.file.filename);
+        fs.copyFileSync(filePath, distCopyPath);
+      }
     } catch (copyErr) {
-      // Non-fatal, fallback to main uploads directory
+      // Non-fatal, primary uploads directory is source of truth
     }
 
     const fileUrl = `/uploads/tilawat-dua/${req.file.filename}`;
@@ -615,14 +615,16 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
 
     await prisma.tilawatDua.delete({ where: { id } });
 
-    // Clean up local disk file if present
+    // Clean up local disk file if present across all mirror targets
     if (existing.pdfUrl && existing.pdfUrl.startsWith("/uploads/tilawat-dua/")) {
       const fileName = path.basename(existing.pdfUrl);
       const filePath = path.join(tilawatUploadsDir, fileName);
-      const clientCopyPath = path.join(clientPublicUploadsDir, fileName);
+      const clientCopyPath = path.join(clientPublicTilawatDir, fileName);
+      const distCopyPath = path.join(clientDistTilawatDir, fileName);
       try {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         if (fs.existsSync(clientCopyPath)) fs.unlinkSync(clientCopyPath);
+        if (fs.existsSync(distCopyPath)) fs.unlinkSync(distCopyPath);
       } catch (fileErr) {
         console.warn("[tilawat-dua:delete] File cleanup notice:", fileErr);
       }

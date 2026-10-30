@@ -539,12 +539,16 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   res.setHeader("X-Download-Options", "noopen");
   // Cross-Origin Isolation policies
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  if (req.path.startsWith("/uploads/") || req.path.startsWith("/cmaps/") || req.path.startsWith("/standard_fonts/")) {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  } else {
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  }
 
-  // Content-Security-Policy (allows safe self assets, data URIs, WebSockets, Google Fonts, GTag, Meta Pixel, PDF.js workers, and frames)
+  // Content-Security-Policy (allows safe self assets, data URIs, WebSockets, Google Fonts, GTag, Meta Pixel, PDF.js workers, cMaps, fonts, and frames)
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com https://*.google-analytics.com https://connect.facebook.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; worker-src 'self' blob: https://cdnjs.cloudflare.com; frame-src 'self' blob: data:; connect-src 'self' ws: wss: https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.facebook.com https://connect.facebook.net; frame-ancestors 'self';"
+    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: data: https://www.googletagmanager.com https://*.googletagmanager.com https://*.google-analytics.com https://connect.facebook.net https://cdnjs.cloudflare.com; script-src-elem 'self' 'unsafe-eval' 'unsafe-inline' blob: data: https://www.googletagmanager.com https://*.googletagmanager.com https://*.google-analytics.com https://connect.facebook.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; worker-src 'self' blob: data: https://cdnjs.cloudflare.com; frame-src 'self' blob: data:; object-src 'self' blob: data:; connect-src 'self' ws: wss: blob: data: https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://cdnjs.cloudflare.com; frame-ancestors 'self';"
   );
 
   // HSTS - in production or when connection is secure

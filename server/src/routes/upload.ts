@@ -3,15 +3,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { fileURLToPath } from "node:url";
 import { requireAuth } from "../middleware";
+import { uploadsDir } from "../lib/paths";
 
 const router = Router();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../../..");
-const uploadsDir = path.resolve(process.env.UPLOAD_DIR || path.join(repoRoot, "public", "uploads"));
-fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Allowed MIME types and extensions
 const ALLOWED_MIME_TYPES = new Set([
