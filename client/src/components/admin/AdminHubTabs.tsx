@@ -146,17 +146,17 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
 
         {/* Hub Status & Shortcut Utilities */}
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
-            <Zap className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-950 border border-amber-300/80 shadow-2xs">
+            <Zap className="w-3.5 h-3.5 text-amber-600" strokeWidth={2} />
             <span>Fast DB Active</span>
           </div>
 
-          <div className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-xs text-slate-600 font-medium">
+          <div className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100/90 border border-slate-200 text-xs text-slate-600 font-medium">
             <span className="text-[11px]">Tab Cycle:</span>
-            <kbd className="px-1 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
+            <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
               [
             </kbd>
-            <kbd className="px-1 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
+            <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
               ]
             </kbd>
           </div>
@@ -185,19 +185,19 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
               className={cn(
                 "group relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
                 isActive
-                  ? "bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-950 text-white shadow-[0_4px_16px_rgba(2,44,34,0.3),inset_0_1px_0_rgba(255,255,255,0.25)] border-emerald-700/60 ring-1 ring-amber-400/30"
-                  : "bg-white/90 backdrop-blur-md text-gray-700 hover:text-gray-950 hover:bg-slate-50 border-gray-200/90 hover:border-emerald-500/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
+                  ? "bg-gradient-to-br from-slate-950 via-slate-900 to-black text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] border-amber-400/40 ring-1 ring-amber-400/50"
+                  : "bg-white/90 backdrop-blur-md text-gray-700 hover:text-gray-950 hover:bg-slate-50 border-gray-200/90 hover:border-amber-400/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
               )}
             >
               <span
                 className={cn(
                   "flex items-center justify-center w-6 h-6 rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3",
                   isActive
-                    ? "bg-emerald-800/80 text-amber-300 ring-1 ring-amber-400/40 shadow-inner"
-                    : "bg-gray-100 text-gray-500 group-hover:bg-emerald-50 group-hover:text-emerald-700"
+                    ? "bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 shadow-inner"
+                    : "bg-gray-100 text-gray-500 group-hover:bg-amber-50 group-hover:text-amber-800"
                 )}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
               </span>
               <span>{tab.label}</span>
 
@@ -206,7 +206,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
                   className={cn(
                     "px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold tracking-tight shadow-2xs",
                     isActive
-                      ? "bg-white/20 text-white border border-white/20"
+                      ? "bg-amber-400/25 text-amber-200 border border-amber-400/30"
                       : tab.badgeColor || "bg-amber-50 text-amber-900 border border-amber-200"
                   )}
                 >

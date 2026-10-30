@@ -82,9 +82,9 @@
     --gold-400: #fcd468;                     /* Bright gold */
     --gold-500: #f3b833;                     /* Core brand gold */
     --gold-600: #ef9a33;                     /* Hover gold */
-    --gold-700: #dc6b27;                     /* Deep amber */
-    --gold-800: #b8541e;                     /* Pressed amber */
-    --gold-900: #8a3e14;                     /* Dark amber */
+    --gold-700: #c59b27;                     /* Deep antique gold */
+    --gold-800: #a37a1a;                     /* Burnished gold */
+    --gold-900: #7a5a13;                     /* Dark rich gold */
 
     --gold-light: #fef9e7;                   /* 10% tint for backgrounds */
     --gold-lighter: #fff8e7;                 /* 5% tint */
@@ -380,6 +380,35 @@
     ring-color: var(--gold-500);
     ring-offset: 2px;
     ring-offset-color: var(--bg-canvas);
+  }
+
+  /* ── Vanguard / High-End Design System Utilities ── */
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+  }
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 0.25rem);
+  }
+
+  .ease-spring {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ease-smooth {
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Double-Bezel Hardware Architecture */
+  .double-bezel-outer {
+    border-radius: 1.75rem;
+    padding: 0.25rem;
+    background: rgba(13, 13, 13, 0.04);
+    box-shadow: inset 0 0 0 1px rgba(13, 13, 13, 0.06);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .double-bezel-inner {
+    border-radius: calc(1.75rem - 0.25rem);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   }
 
   /* Animation helpers */

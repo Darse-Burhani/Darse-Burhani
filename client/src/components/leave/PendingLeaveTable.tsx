@@ -185,7 +185,326 @@ export function PendingLeaveTable({
         </div>
       )}
 
-      <div className="overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] rounded-2xl bg-white border border-gray-100 shadow-xs">
+      {/* ── MOBILE CARD PRESENTATION (Below md) ── */}
+      <div className="block md:hidden space-y-3.5 mb-6">
+        {requests.map((item) => {
+          const start = new Date(item.startDate);
+          const end = new Date(item.endDate);
+          const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          const isPending = item.status === "PENDING";
+          const isHold = item.status === "HOLD";
+          const isSelected = selectedIds.has(item.id);
+
+          return (
+            <div
+              key={`mob-${item.id}`}
+              className={`p-1 rounded-[1.75rem] transition-all duration-300 ${
+                isSelected
+                  ? "bg-amber-400/30 ring-2 ring-amber-400"
+                  : isHold
+                  ? "bg-amber-100/60 ring-1 ring-amber-300/80 shadow-xs"
+                  : "bg-slate-900/5 ring-1 ring-slate-900/10 shadow-2xs"
+              }`}
+            >
+              <div className="bg-white rounded-[calc(1.75rem-0.25rem)] p-4 space-y-3">
+                {/* Top Row: Avatar, Student Info, Checkbox & Status */}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    {onBatchApprove && isPending && (
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectOne(item.id)}
+                        className="text-slate-400 hover:text-amber-600 transition-colors shrink-0"
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-5 h-5 text-amber-600" />
+                        ) : (
+                          <Square className="w-5 h-5" />
+                        )}
+                      </button>
+                    )}
+                    <Avatar className="w-10 h-10 rounded-full ring-2 ring-amber-400/40 shrink-0">
+                      <AvatarImage src={item.avatarUrl || undefined} />
+                      <AvatarFallback className="text-xs font-bold bg-amber-50 text-amber-950 border border-amber-300">
+                        {getInitials(item.studentName || "ST")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-display font-bold text-sm text-slate-900 leading-tight truncate">
+                        {item.studentName || "Student"}
+                      </h4>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500">
+                        <span className="font-mono font-medium">ITS: {item.its || "—"}</span>
+                        <span>•</span>
+                        <span className="truncate">{item.className || `Gr ${item.grade}-${item.section}`}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Pill */}
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-tight shrink-0 shadow-2xs ${
+                      item.status === "APPROVED"
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
+                        : item.status === "REJECTED"
+                        ? "bg-rose-50 text-rose-800 border border-rose-300"
+                        : item.status === "HOLD"
+                        ? "bg-amber-100 text-amber-950 border border-amber-300 ring-1 ring-amber-400/40"
+                        : "bg-amber-50 text-amber-900 border border-amber-300"
+                    }`}
+                  >
+                    {item.status === "APPROVED" && <CheckCircle2 className="w-3 h-3 text-emerald-600" strokeWidth={1.75} />}
+                    {item.status === "REJECTED" && <XCircle className="w-3 h-3 text-rose-600" strokeWidth={1.75} />}
+                    {item.status === "HOLD" && <PauseCircle className="w-3 h-3 text-amber-700" strokeWidth={1.75} />}
+                    {item.status === "PENDING" && <Clock className="w-3 h-3 text-amber-600" strokeWidth={1.75} />}
+                    <span>{item.status === "HOLD" ? "ON HOLD" : item.status}</span>
+                  </span>
+                </div>
+
+                {/* Details Box */}
+                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-2xl bg-slate-50/80 border border-slate-200/70 text-xs">
+                  <div>
+                    <span className="text-[9.5px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Type</span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-slate-800 truncate">
+                      {item.type === "MEDICAL" && <Stethoscope className="w-3 h-3 text-rose-600 shrink-0" strokeWidth={1.75} />}
+                      {item.type === "FAMILY_EMERGENCY" && <HeartPulse className="w-3 h-3 text-amber-600 shrink-0" strokeWidth={1.75} />}
+                      {item.type === "PERSONAL" && <Palmtree className="w-3 h-3 text-emerald-600 shrink-0" strokeWidth={1.75} />}
+                      <span className="truncate">{item.type === "PERSONAL" ? "Holiday / Personal" : item.type.replace(/_/g, " ")}</span>
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[9.5px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Duration</span>
+                    <span className="font-bold text-slate-900 block leading-tight truncate">
+                      {start.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {item.startDate !== item.endDate && ` – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                    </span>
+                    <span className="text-[10px] text-amber-800 font-semibold">{diffDays} {diffDays === 1 ? "day" : "days"} requested</span>
+                  </div>
+                </div>
+
+                {/* Parent Information with 1-tap call */}
+                {item.parentPhone && (
+                  <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-amber-50/60 border border-amber-200/80">
+                    <div className="flex items-center gap-1.5 text-slate-700 truncate min-w-0">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold shrink-0">Parent:</span>
+                      <span className="font-semibold text-[11px] truncate">{item.parentName || item.parentPhone}</span>
+                    </div>
+                    <a
+                      href={`tel:${item.parentPhone}`}
+                      className="text-[11px] font-bold text-amber-900 hover:text-amber-950 underline font-mono shrink-0 ml-2"
+                    >
+                      {item.parentPhone}
+                    </a>
+                  </div>
+                )}
+
+                {/* Reason Text */}
+                <div className="text-xs text-slate-700 leading-relaxed">
+                  <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Reason</span>
+                  <p className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/60 text-slate-800 text-[11.5px]">{item.reason}</p>
+                </div>
+
+                {/* Attachment Pill */}
+                {item.attachmentUrl && (
+                  <a
+                    href={item.attachmentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 text-[11px] font-bold text-slate-800 hover:bg-slate-200 transition-colors w-full justify-center border border-slate-200/60"
+                  >
+                    <Paperclip className="w-3.5 h-3.5 text-amber-600" strokeWidth={1.75} />
+                    <span>View Supporting Document</span>
+                    <ExternalLink className="w-3 h-3 text-slate-400 ml-auto" strokeWidth={1.75} />
+                  </a>
+                )}
+
+                {/* Hold Notice Callout */}
+                {item.status === "HOLD" && item.reviewerNotes && (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs">
+                    <div className="flex items-center gap-1 font-bold text-[10px] uppercase tracking-wider mb-1 text-amber-900">
+                      <PauseCircle className="w-3.5 h-3.5 text-amber-600" strokeWidth={1.75} />
+                      <span>Current Hold Remarks (Sent to Parent):</span>
+                    </div>
+                    <p className="leading-relaxed font-medium">{item.reviewerNotes}</p>
+                  </div>
+                )}
+
+                {/* Mobile Action Cluster */}
+                {isPending ? (
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    {assignees && onAssign && (
+                      <select
+                        value={item.assignedTo?.id || ""}
+                        onChange={(e) => handleAssign(item.id, e.target.value || null)}
+                        disabled={assigningId === item.id}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+                      >
+                        <option value="">Assign to faculty…</option>
+                        {assignees.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGrantDays(diffDays);
+                          setActionNotes("");
+                          setActiveAction({
+                            id: item.id,
+                            type: "approve",
+                            studentName: item.studentName || "Student",
+                            requestedDays: diffDays,
+                            startDate: item.startDate,
+                          });
+                        }}
+                        className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white font-bold text-xs shadow-xs active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Palmtree className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
+                        <span>Approve</span>
+                      </button>
+
+                      {onHold && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionNotes(item.reviewerNotes || "");
+                            setActiveAction({
+                              id: item.id,
+                              type: "hold",
+                              studentName: item.studentName || "Student",
+                              requestedDays: diffDays,
+                              startDate: item.startDate,
+                            });
+                          }}
+                          className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs border border-amber-300 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                        >
+                          <PauseCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" strokeWidth={1.75} />
+                          <span>Hold</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionNotes("");
+                          setActiveAction({
+                            id: item.id,
+                            type: "reject",
+                            studentName: item.studentName || "Student",
+                          });
+                        }}
+                        className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                        <span>Reject</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : isHold ? (
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGrantDays(diffDays);
+                          setActionNotes(item.reviewerNotes ? `Settled after hold: ${item.reviewerNotes}` : "");
+                          setActiveAction({
+                            id: item.id,
+                            type: "approve",
+                            studentName: item.studentName || "Student",
+                            requestedDays: diffDays,
+                            startDate: item.startDate,
+                            isSettlingHold: true,
+                          });
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-800 text-white font-bold text-xs shadow-xs active:scale-95 cursor-pointer"
+                      >
+                        <Palmtree className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>Approve (Settle)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionNotes(item.reviewerNotes ? `Declined after review: ${item.reviewerNotes}` : "");
+                          setActiveAction({
+                            id: item.id,
+                            type: "reject",
+                            studentName: item.studentName || "Student",
+                            isSettlingHold: true,
+                          });
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs active:scale-95 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" strokeWidth={2} />
+                        <span>Reject</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {onHold && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionNotes(item.reviewerNotes || "");
+                            setActiveAction({
+                              id: item.id,
+                              type: "hold",
+                              studentName: item.studentName || "Student",
+                              requestedDays: diffDays,
+                              startDate: item.startDate,
+                            });
+                          }}
+                          className="flex-1 py-2 px-3 rounded-xl bg-white text-amber-950 border border-amber-300 font-bold text-xs text-center cursor-pointer hover:bg-amber-50"
+                        >
+                          Edit Remarks
+                        </button>
+                      )}
+                      {item.whatsAppUrl && (
+                        <a
+                          href={item.whatsAppUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>WhatsApp Notice</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {item.reviewedBy ? `${item.status === "APPROVED" ? "Approved" : "Reviewed"} by ${item.reviewedBy}` : "Processed"}
+                    </span>
+                    {item.whatsAppUrl && (
+                      <a
+                        href={item.whatsAppUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>WhatsApp</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── DESKTOP TABULAR PRESENTATION (md and above) ── */}
+      <div className="hidden md:block overflow-x-auto touch-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] rounded-3xl bg-white border border-slate-200/80 shadow-xs">
         <table className="w-full text-left text-xs">
           <thead className="bg-gray-50/80 text-gray-600 font-bold uppercase tracking-wider border-b border-gray-100">
             <tr>
@@ -603,9 +922,10 @@ export function PendingLeaveTable({
       {/* Review Confirmation Modal */}
       {activeAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setActiveAction(null)} />
-          <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100">
-            <h3 className="font-bold text-sm text-gray-900 mb-1">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setActiveAction(null)} />
+          <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-3xl bg-white p-5 sm:p-6 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-slate-200/90 animate-slide-up">
+            <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4 sm:hidden" />
+            <h3 className="font-display font-bold text-base text-slate-900 mb-1 leading-tight">
               {activeAction.type === "approve"
                 ? activeAction.isSettlingHold
                   ? "Settle & Approve Leave Application"
@@ -616,18 +936,18 @@ export function PendingLeaveTable({
                 ? "Settle & Reject Leave Request"
                 : "Reject Leave Request"}
             </h3>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
               {activeAction.type === "approve"
                 ? `Approve ${activeAction.studentName}'s leave. Choose how many days to grant — attendance and the Google Sheet will reflect only the granted dates.`
                 : activeAction.type === "hold"
-                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. The remarks entered below will be dispatched to the parent via WhatsApp and reflected on the portal.`
+                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. Remarks will be dispatched to the parent via 1-way WhatsApp & in-app alert.`
                 : `Specify why the leave for ${activeAction.studentName} is being rejected.`}
             </p>
 
             <div className="mb-4">
-              <label htmlFor="action-notes" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+              <label htmlFor="action-notes" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Reviewer Remarks / School Notes
-                <span className="normal-case font-normal text-gray-500 ml-1.5">(Sent to parent via 1-way WhatsApp, email & in-app alert)</span>
+                <span className="normal-case font-normal text-slate-500 ml-1.5">(Dispatched via 1-way WhatsApp)</span>
               </label>
               <textarea
                 id="action-notes"
@@ -641,20 +961,20 @@ export function PendingLeaveTable({
                     ? "e.g., Medical certificate required / Clarification needed on travel dates / Under review with Masool..."
                     : "e.g., Leave application declined due to mandatory academic schedule..."
                 }
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 resize-none"
+                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none"
               />
             </div>
 
             {activeAction.type === "approve" && (
-              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+              <div className="mb-4 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <label
                     htmlFor="grant-days"
-                    className="block text-xs font-bold text-emerald-950 uppercase tracking-wider"
+                    className="block text-xs font-bold text-amber-950 uppercase tracking-wider"
                   >
-                    Granted Leave Option
+                    Granted Leave Duration
                   </label>
-                  <span className="text-[11px] font-semibold text-emerald-800">
+                  <span className="text-[11px] font-bold text-amber-900">
                     Requested: {activeAction.requestedDays ?? 1} {(activeAction.requestedDays ?? 1) === 1 ? "day" : "days"}
                   </span>
                 </div>
@@ -665,14 +985,14 @@ export function PendingLeaveTable({
                       <button
                         type="button"
                         onClick={() => setGrantDays(activeAction.requestedDays ?? 1)}
-                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between ${
+                        className={`px-3 py-2.5 rounded-2xl border text-xs font-bold transition-all text-left flex flex-col justify-between cursor-pointer ${
                           grantDays === (activeAction.requestedDays ?? 1)
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                            : "bg-white text-gray-700 border-emerald-200 hover:bg-emerald-50"
+                            ? "bg-slate-950 text-amber-300 border-slate-950 shadow-xs ring-1 ring-amber-400/50"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="text-[10px] uppercase opacity-80">Full Approval</span>
-                        <span className="text-sm">All {activeAction.requestedDays} Days</span>
+                        <span className="text-[9.5px] uppercase opacity-80">Full Duration</span>
+                        <span className="text-sm font-bold mt-0.5">All {activeAction.requestedDays} Days</span>
                       </button>
 
                       <button
@@ -682,19 +1002,19 @@ export function PendingLeaveTable({
                             setGrantDays(Math.max(1, (activeAction.requestedDays ?? 2) - 1));
                           }
                         }}
-                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all text-left flex flex-col justify-between ${
+                        className={`px-3 py-2.5 rounded-2xl border text-xs font-bold transition-all text-left flex flex-col justify-between cursor-pointer ${
                           grantDays < (activeAction.requestedDays ?? 1)
-                            ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                            : "bg-white text-gray-700 border-emerald-200 hover:bg-emerald-50"
+                            ? "bg-amber-500 text-white border-amber-500 shadow-xs ring-1 ring-amber-400"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="text-[10px] uppercase opacity-80">Reduced Approval</span>
-                        <span className="text-sm">{grantDays < (activeAction.requestedDays ?? 1) ? `${grantDays} Days Granted` : "Reduce Days"}</span>
+                        <span className="text-[9.5px] uppercase opacity-80">Reduced Duration</span>
+                        <span className="text-sm font-bold mt-0.5">{grantDays < (activeAction.requestedDays ?? 1) ? `${grantDays} Days Granted` : "Reduce Days"}</span>
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="text-xs font-semibold text-gray-700 shrink-0">Days to Grant:</span>
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <span className="text-xs font-semibold text-slate-700 shrink-0">Days to Grant:</span>
                       <input
                         id="grant-days"
                         type="number"
@@ -706,26 +1026,26 @@ export function PendingLeaveTable({
                           const next = Number(e.target.value);
                           setGrantDays(Math.min(Math.max(Number.isFinite(next) ? next : 1, 1), max));
                         }}
-                        className="w-20 px-3 py-1.5 rounded-xl border border-emerald-300 text-sm font-bold text-emerald-900 bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+                        className="w-20 px-3 py-1.5 rounded-xl border border-amber-300 text-sm font-bold text-amber-950 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
                       />
                       <button
                         type="button"
                         onClick={() => setGrantDays(activeAction.requestedDays ?? 1)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-300 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50"
+                        className="px-2.5 py-1.5 rounded-xl bg-white border border-amber-300 text-[11px] font-bold text-amber-950 hover:bg-amber-50 cursor-pointer"
                       >
                         Max ({activeAction.requestedDays})
                       </button>
                       <button
                         type="button"
                         onClick={() => setGrantDays(1)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-300 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50"
+                        className="px-2.5 py-1.5 rounded-xl bg-white border border-amber-300 text-[11px] font-bold text-amber-950 hover:bg-amber-50 cursor-pointer"
                       >
                         1 Day
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-emerald-900 font-semibold py-1">
+                  <div className="text-xs text-amber-950 font-semibold py-1">
                     Granting single requested day (full duration).
                   </div>
                 )}

@@ -210,59 +210,71 @@ export default function ParentDashboard() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       {/* ═══ Top Hero Banner ═══ */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <div
-          className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-emerald-950/20"
-          style={{ background: "linear-gradient(135deg, #0d0d0d 0%, #1c1c1c 50%, #8a3e14 100%)" }}
-        >
-          <div className="absolute -right-12 -top-12 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 h-60 w-60 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="p-1 sm:p-1.5 rounded-3xl bg-black/[0.04] ring-1 ring-black/[0.08] shadow-2xl">
+          <div
+            className="relative overflow-hidden rounded-[1.4rem] sm:rounded-[1.6rem] p-6 sm:p-9 text-white"
+            style={{
+              background: "linear-gradient(135deg, #0d0d0d 0%, #151515 50%, #1c1813 100%)",
+              boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 20px 40px -15px rgba(0, 0, 0, 0.4)",
+            }}
+          >
+            {/* Top glowing champagne hairline */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90" />
+            <div className="absolute -right-12 -top-12 h-60 w-60 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 h-60 w-60 rounded-full bg-emerald-400/5 blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-amber-300/40 shadow-lg"
-                style={{ background: "linear-gradient(135deg, #d4af37, #997b1e)" }}
-              >
-                <Heart className="h-8 w-8 text-white fill-white/20" />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-amber-300/40 bg-black/30 px-3 py-0.5 text-[11px] font-bold uppercase tracking-widest text-amber-300">
-                    Parent Guardian Portal
-                  </span>
-                  <span className="text-xs text-emerald-200/90 font-medium">
-                    {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
-                  </span>
+            <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4 sm:gap-5">
+                <div
+                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-amber-300/40 shadow-lg relative overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #d4af37 0%, #b8972e 100%)" }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                  <Heart className="h-8 w-8 text-stone-950 fill-stone-950/20 relative z-10" strokeWidth={1.75} />
                 </div>
-                <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Afzalus Salam, {parentProfile?.firstName || "Parent"}!
-                </h1>
-                <p className="mt-0.5 text-xs sm:text-sm text-emerald-100/80 font-medium">
-                  Monitoring {children.length} {children.length === 1 ? "child" : "children"} · Live campus attendance, daily Hifz & activity
-                </p>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <span className="rounded-full border border-amber-300/40 bg-black/40 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300 backdrop-blur-xs">
+                      Parent Guardian Portal
+                    </span>
+                    <span className="text-xs text-stone-300 font-medium">
+                      {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-display">
+                    Afzalus Salam, {parentProfile?.firstName || "Parent"}!
+                  </h1>
+                  <p className="mt-0.5 text-xs sm:text-sm text-stone-300 font-medium">
+                    Monitoring {children.length} {children.length === 1 ? "child" : "children"} · Live campus attendance, daily Hifz &amp; activity
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <ParentNotificationCenter
+                  childrenList={children}
+                  onChildSelect={(cId) => setSelectedChildId(cId)}
+                  onRefreshData={() => fetchDashboard(false)}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchDashboard(true)}
+                  disabled={refreshing || loading}
+                  className="h-10 gap-2 rounded-xl border-white/20 bg-white/10 px-4 text-xs font-semibold text-white shadow-xs hover:bg-white/20 backdrop-blur-xs transition-all active:scale-[0.98]"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-amber-300" : ""}`} strokeWidth={1.75} />
+                  Live Sync
+                </Button>
               </div>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              <ParentNotificationCenter
-                childrenList={children}
-                onChildSelect={(cId) => setSelectedChildId(cId)}
-                onRefreshData={() => fetchDashboard(false)}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchDashboard(true)}
-                disabled={refreshing || loading}
-                className="h-10 gap-2 rounded-2xl border-white/25 bg-white/10 px-4 text-xs font-semibold text-white shadow-sm hover:bg-white/20 backdrop-blur"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
-                Live Sync
-              </Button>
-            </div>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 opacity-90" />
           </div>
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 opacity-90" />
         </div>
       </motion.div>
 
@@ -312,25 +324,31 @@ export default function ParentDashboard() {
                     onClick={() => setSelectedChildId(child.id)}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`w-full rounded-2xl p-4 text-left transition-all relative overflow-hidden ${
+                    className={`w-full rounded-2xl p-1 text-left transition-all relative overflow-hidden ${
                       isSelected
-                        ? "bg-gradient-to-br from-emerald-800 to-teal-900 text-white shadow-lg ring-2 ring-emerald-500"
-                        : "border border-slate-200/80 bg-white hover:border-emerald-300 hover:shadow-md"
+                        ? "bg-amber-400/20 ring-1 ring-amber-400/60 shadow-lg"
+                        : "bg-black/[0.03] ring-1 ring-black/[0.05] hover:ring-amber-400/30"
                     }`}
                   >
-                    <div className="flex items-center gap-3.5">
+                    <div
+                      className={`rounded-[calc(1rem-2px)] p-3.5 transition-all flex items-center gap-3.5 ${
+                        isSelected
+                          ? "bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]"
+                          : "bg-white text-stone-900 hover:bg-stone-50/50 shadow-xs"
+                      }`}
+                    >
                       <div className="relative">
-                        <Avatar className={`h-14 w-14 shrink-0 rounded-2xl border-2 ${isHafiz ? "border-amber-400" : isSelected ? "border-emerald-300" : "border-slate-200"}`}>
+                        <Avatar className={`h-14 w-14 shrink-0 rounded-2xl border-2 ${isHafiz ? "border-amber-400" : isSelected ? "border-amber-400/80" : "border-slate-200"}`}>
                           {child.avatarUrl ? (
                             <AvatarImage src={child.avatarUrl} alt={child.firstName} />
                           ) : null}
-                          <AvatarFallback className="rounded-2xl bg-gradient-to-br from-emerald-700 to-teal-900 text-base font-bold text-white">
+                          <AvatarFallback className="rounded-2xl bg-gradient-to-br from-stone-800 to-stone-950 text-base font-bold text-amber-300 font-display">
                             {getInitials(child.firstName, child.lastName)}
                           </AvatarFallback>
                         </Avatar>
                         {isHafiz && (
-                          <div className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 rounded-full p-0.5 shadow">
-                            <Crown className="w-3.5 h-3.5" />
+                          <div className="absolute -top-1.5 -right-1.5 bg-amber-400 text-stone-950 rounded-full p-0.5 shadow-sm ring-1 ring-black/10">
+                            <Crown className="w-3.5 h-3.5" strokeWidth={2} />
                           </div>
                         )}
                       </div>
@@ -339,21 +357,21 @@ export default function ParentDashboard() {
                         <p className={`flex items-center gap-1.5 truncate text-base font-extrabold ${isSelected ? "text-white" : "text-gray-900"}`}>
                           {child.firstName} {child.lastName}
                         </p>
-                        <p className={`text-xs font-semibold ${isSelected ? "text-emerald-200" : "text-emerald-800"}`}>
+                        <p className={`text-xs font-semibold ${isSelected ? "text-amber-200/90" : "text-stone-500"}`}>
                           ITS: {child.its} · Gr {child.grade}{child.section ? `-${child.section}` : ""}
                         </p>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                             child.isCheckedIn
-                              ? isSelected ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/30" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : isSelected ? "bg-white/10 text-white/70" : "bg-slate-100 text-slate-500 border border-slate-200"
+                              ? isSelected ? "bg-emerald-500/25 text-emerald-300 border border-emerald-400/40" : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : isSelected ? "bg-white/10 text-stone-300 border border-white/10" : "bg-slate-100 text-slate-500 border border-slate-200"
                           }`}>
                             <span className={`h-2 w-2 rounded-full ${child.isCheckedIn ? "animate-pulse bg-emerald-400" : "bg-slate-400"}`} />
                             {child.isCheckedIn ? "On Campus" : "Awaiting Scan"}
                           </span>
                           {isHafiz && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              isSelected ? "bg-amber-400/20 text-amber-200" : "bg-amber-100 text-amber-900"
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isSelected ? "bg-amber-400/20 text-amber-300 border border-amber-400/30" : "bg-amber-50 text-amber-900 border border-amber-200"
                             }`}>
                               Hafiz
                             </span>
@@ -362,8 +380,8 @@ export default function ParentDashboard() {
                       </div>
 
                       {isSelected && (
-                        <div className="shrink-0 p-1.5 rounded-full bg-white/20 text-emerald-200">
-                          <CheckCircle2 className="h-5 w-5" />
+                        <div className="shrink-0 p-1.5 rounded-xl bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 shadow-xs">
+                          <CheckCircle2 className="h-4 w-4" strokeWidth={2} />
                         </div>
                       )}
                     </div>
@@ -374,27 +392,42 @@ export default function ParentDashboard() {
           </div>
 
           {/* ═══ Navigation Tabs ═══ */}
-          <div className="sticky top-0 z-20 bg-slate-50/80 backdrop-blur-md py-2">
-            <div className="flex gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-              {TABS.map((t) => {
-                const active = activeTab === t.id;
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setActiveTab(t.id)}
-                    className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
-                      active
-                        ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    <Icon size={16} />
-                    <span>{t.label}</span>
-                  </button>
-                );
-              })}
+          <div className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md py-2">
+            <div className="p-1 rounded-2xl bg-stone-900/5 ring-1 ring-black/[0.06] shadow-xs">
+              <div className="flex gap-1.5 overflow-x-auto rounded-[calc(1rem-2px)] bg-white/95 p-1.5 border border-amber-100/60">
+                {TABS.map((t) => {
+                  const active = activeTab === t.id;
+                  const Icon = t.icon;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setActiveTab(t.id)}
+                      className={`group flex flex-1 items-center justify-center gap-2.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all active:scale-[0.98] ${
+                        active
+                          ? "bg-stone-900 text-amber-300 shadow-md ring-1 ring-amber-400/40"
+                          : "text-stone-600 hover:bg-stone-100 hover:text-stone-950"
+                      }`}
+                    >
+                      <div
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-transform ${
+                          active
+                            ? "bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 group-hover:scale-105"
+                            : "bg-stone-100 text-stone-500 group-hover:text-stone-900"
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+                      </div>
+                      <div className="flex flex-col text-left leading-none">
+                        <span>{t.label}</span>
+                        <span className={`text-[10px] mt-0.5 font-normal ${active ? "text-amber-400/70" : "text-stone-400"}`}>
+                          {t.labelAr}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

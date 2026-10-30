@@ -347,19 +347,22 @@ export function PortalShell({
                             className={cn(
                               "group flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200",
                               active
-                                ? "bg-white/20 text-white shadow-sm ring-1 ring-white/20 font-bold"
+                                ? "bg-gradient-to-r from-amber-400/20 via-white/10 to-transparent text-white shadow-sm ring-1 ring-white/15 border-l-2 border-amber-400 font-bold"
                                 : "text-white/80 hover:bg-white/10 hover:text-white",
                               sidebarCollapsed && "justify-center px-2"
                             )}
                             title={sidebarCollapsed ? item.label : undefined}
                           >
-                            <item.icon
+                            <div
                               className={cn(
-                                "w-4 h-4 shrink-0 transition-transform duration-200",
-                                !active && "group-hover:scale-110 opacity-90 group-hover:opacity-100"
+                                "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200",
+                                active
+                                  ? "bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/40"
+                                  : "text-white/70 group-hover:text-white group-hover:scale-105"
                               )}
-                              style={active ? { color: theme.activeIcon } : undefined}
-                            />
+                            >
+                              <item.icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            </div>
                             {!sidebarCollapsed && (
                               <span className="truncate flex-1 min-w-0">{item.label}</span>
                             )}
@@ -426,18 +429,24 @@ export function PortalShell({
             <div className="h-16 hidden lg:flex items-center justify-between px-6">
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center shadow-xs ring-1 ring-amber-400/30 shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
-                  >
-                    {activeItem?.icon ? <activeItem.icon className="w-4 h-4 text-white" /> : <Activity className="w-4 h-4 text-white" />}
+                  <div className="p-1 rounded-2xl bg-amber-400/10 ring-1 ring-amber-400/25 shrink-0">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center shadow-inner"
+                      style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
+                    >
+                      {activeItem?.icon ? (
+                        <activeItem.icon className="w-4 h-4 text-white" strokeWidth={1.75} />
+                      ) : (
+                        <Activity className="w-4 h-4 text-white" strokeWidth={1.75} />
+                      )}
+                    </div>
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h2 className="font-display font-bold text-slate-900 text-base tracking-tight leading-tight truncate">
                         {sectionTitle}
                       </h2>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-800 border border-emerald-200/80 shrink-0">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-[0.16em] uppercase bg-amber-50 text-amber-950 border border-amber-300/80 shadow-2xs shrink-0">
                         {roleLabel}
                       </span>
                     </div>
@@ -449,16 +458,16 @@ export function PortalShell({
                     type="button"
                     onClick={handleOpenSearch}
                     className={cn(
-                      "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2 w-72 border transition-all text-left group shadow-2xs bg-slate-50/80 hover:bg-white hover:border-amber-400/40 cursor-pointer ml-2",
+                      "flex items-center justify-between gap-3 rounded-full px-4 py-2 w-72 border transition-all duration-300 text-left group shadow-2xs bg-slate-50/90 hover:bg-white hover:border-amber-400/50 hover:shadow-xs cursor-pointer ml-3",
                       theme.border
                     )}
                     title="Quick jump (⌘K / Ctrl+K)"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Search className="w-4 h-4 text-emerald-700 group-hover:scale-110 transition-transform shrink-0" />
-                      <span className="text-xs text-slate-500 font-medium truncate">{searchPlaceholder}</span>
+                      <Search className="w-3.5 h-3.5 text-amber-700 group-hover:scale-110 transition-transform shrink-0" strokeWidth={1.75} />
+                      <span className="text-xs text-slate-600 font-medium truncate">{searchPlaceholder}</span>
                     </div>
-                    <kbd className="px-1.5 py-0.5 rounded-lg bg-white text-[10px] font-mono font-bold text-slate-600 border border-slate-200 shadow-2xs shrink-0">
+                    <kbd className="px-1.5 py-0.5 rounded-md bg-white text-[10px] font-mono font-bold text-slate-600 border border-slate-200/90 shadow-2xs shrink-0">
                       ⌘K
                     </kbd>
                   </button>
@@ -537,7 +546,7 @@ export function PortalShell({
                               className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                               onClick={() => setProfileMenuOpen(false)}
                             >
-                              <link.icon className="w-4 h-4 text-emerald-700" />
+                              <link.icon className="w-4 h-4 text-amber-700" strokeWidth={1.75} />
                               {link.label}
                             </Link>
                           ))}
@@ -546,7 +555,7 @@ export function PortalShell({
                             className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <Settings className="w-4 h-4 text-emerald-700" />
+                            <Settings className="w-4 h-4 text-amber-700" strokeWidth={1.75} />
                             Settings
                           </Link>
                           <div className="px-2 pt-2 mt-1 border-t border-slate-100">
@@ -598,35 +607,35 @@ export function PortalShell({
             </div>
 
             {/* ── REDESIGNED MOBILE APP BAR (below lg) ── */}
-            <div className="h-14 lg:hidden flex items-center justify-between px-2.5 sm:px-3 bg-white/95 backdrop-blur-xl border-b border-slate-100 safe-area-top">
+            <div className="h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-slate-200/60 safe-area-top shadow-2xs">
               {/* Left: Hamburger Drawer Trigger + Brand Logo + Title */}
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(true)}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-700 bg-slate-100/90 hover:bg-slate-200/90 active:scale-90 transition-all cursor-pointer border border-slate-200/60 shrink-0"
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-800 bg-slate-100/90 hover:bg-slate-200/90 active:scale-90 transition-all cursor-pointer border border-slate-200/70 shrink-0"
                   aria-label="Open portal navigation menu"
                 >
-                  <Menu className="w-5 h-5 text-slate-800" />
+                  <Menu className="w-5 h-5 text-slate-800" strokeWidth={1.75} />
                 </button>
 
                 <Link
                   href={rootPath}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs ring-1 ring-amber-400/40 active:scale-95 transition-transform"
+                  className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ring-1 ring-amber-400/50 active:scale-95 transition-transform"
                   style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
                   aria-label="Portal home"
                 >
-                  <FatimiLogo size={18} variant="gold" glow={true} />
+                  <FatimiLogo size={20} variant="gold" glow={true} />
                 </Link>
 
-                <div className="flex flex-col min-w-0 flex-1 pl-0.5">
-                  <div className="flex items-center gap-1 sm:gap-1.5">
-                    <span className="text-[8.5px] sm:text-[9px] font-extrabold tracking-wider uppercase px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/80 shrink-0">
+                <div className="flex flex-col min-w-0 flex-1 pl-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-black tracking-[0.14em] uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-950 border border-amber-300/80 shrink-0 shadow-2xs">
                       {roleLabel}
                     </span>
                     {istTime && (
-                      <span className="hidden xs:flex text-[9px] text-slate-500 font-mono font-semibold items-center gap-0.5 truncate">
-                        <Clock className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                      <span className="hidden xs:flex text-[9px] text-slate-500 font-mono font-semibold items-center gap-1 truncate">
+                        <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" strokeWidth={1.75} />
                         {istTime}
                       </span>
                     )}
@@ -638,15 +647,15 @@ export function PortalShell({
               </div>
 
               {/* Right: Quick PWA Install + Search + Notifications + Profile */}
-              <div className="flex items-center gap-1 shrink-0 relative">
+              <div className="flex items-center gap-1.5 shrink-0 relative">
                 {/* PWA 1-Tap Install Pill for Mobile */}
                 {canInstall && (
                   <button
                     type="button"
                     onClick={installPWA}
-                    className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-xl bg-amber-400 text-slate-950 text-[10px] font-black shadow-xs active:scale-95 transition-all"
+                    className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[10px] font-black shadow-xs active:scale-95 transition-all"
                   >
-                    <Download className="w-3 h-3" />
+                    <Download className="w-3 h-3" strokeWidth={2} />
                     <span>Install</span>
                   </button>
                 )}
@@ -655,7 +664,7 @@ export function PortalShell({
                 <button
                   type="button"
                   onClick={() => setQuickCommandOpen(true)}
-                  className="hidden xs:flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold active:scale-95 transition-all"
+                  className="hidden xs:flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-[10px] font-bold active:scale-95 transition-all"
                   title="Live Biometric Terminals"
                 >
                   <span className="relative flex h-2 w-2">
@@ -668,10 +677,10 @@ export function PortalShell({
                 <button
                   type="button"
                   onClick={handleOpenSearch}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-90 transition-all cursor-pointer"
+                  className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-90 transition-all cursor-pointer border border-slate-200/60"
                   aria-label="Quick search"
                 >
-                  <Search className="w-3.5 h-3.5 text-emerald-800" />
+                  <Search className="w-4 h-4 text-slate-800" strokeWidth={1.75} />
                 </button>
 
                 <NotificationBell />
@@ -679,10 +688,10 @@ export function PortalShell({
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="p-0.5 rounded-xl active:scale-90 transition-transform cursor-pointer"
+                  className="p-0.5 rounded-2xl active:scale-90 transition-transform cursor-pointer"
                   aria-label="User profile and appearance"
                 >
-                  <Avatar className="w-7 h-7 ring-1 ring-amber-400/50 shadow-xs">
+                  <Avatar className="w-8 h-8 ring-1 ring-amber-400/60 shadow-xs">
                     {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
                       <AvatarImage
                         src={session.user.avatarUrl || "/logo.png"}
@@ -721,7 +730,7 @@ export function PortalShell({
                             className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <link.icon className="w-4 h-4 text-emerald-700" />
+                            <link.icon className="w-4 h-4 text-amber-700" strokeWidth={1.75} />
                             {link.label}
                           </Link>
                         ))}
@@ -730,7 +739,7 @@ export function PortalShell({
                           className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
                           onClick={() => setProfileMenuOpen(false)}
                         >
-                          <Settings className="w-4 h-4 text-emerald-700" />
+                          <Settings className="w-4 h-4 text-amber-700" strokeWidth={1.75} />
                           Settings
                         </Link>
                         <div className="px-2 pt-2 mt-1 border-t border-slate-100">
@@ -781,8 +790,8 @@ export function PortalShell({
             </div>
 
             {/* ── REDESIGNED MOBILE HORIZON ACTION RIBBON ── */}
-            <div className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 overflow-x-auto bg-slate-50/90 border-t border-slate-200/60 scrollbar-none touch-pan-x">
-              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
+            <div className="lg:hidden flex items-center gap-2 px-3 py-2 overflow-x-auto bg-slate-50/95 border-t border-slate-200/70 scrollbar-none touch-pan-x">
+              <span className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 shrink-0 mr-0.5">
                 Quick:
               </span>
               {mobileHorizonItems.map((item) => {
@@ -793,16 +802,16 @@ export function PortalShell({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all duration-150 shrink-0 active:scale-95",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-[11px] font-bold whitespace-nowrap transition-all duration-200 shrink-0 active:scale-95",
                       active
-                        ? "bg-emerald-900 text-white shadow-xs ring-1 ring-amber-400/40"
-                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80"
+                        ? "bg-slate-950 text-amber-300 shadow-sm ring-1 ring-amber-400/60 border border-slate-800"
+                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/90 shadow-2xs"
                     )}
                   >
-                    <Icon className={cn("w-3 h-3", active ? "text-amber-300" : "text-emerald-700")} />
+                    <Icon className={cn("w-3.5 h-3.5", active ? "text-amber-300" : "text-amber-700")} strokeWidth={1.75} />
                     <span>{item.label.replace(/\(.*\)/, "").trim()}</span>
                     {item.badge && (
-                      <span className="px-1 py-0.2 rounded-full text-[8.5px] font-black bg-amber-400/20 text-amber-700 border border-amber-300">
+                      <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-amber-400/20 text-amber-700 border border-amber-300">
                         {item.badge}
                       </span>
                     )}
@@ -830,10 +839,10 @@ export function PortalShell({
              4. REDESIGNED MOBILE NATIVE BOTTOM APP DOCK (Fixed & Ergonomic)
              ───────────────────────────────────────────────────────────── */}
           <nav
-            className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 dark:bg-emerald-950/95 border-t border-amber-400/25 shadow-[0_-8px_30px_rgba(0,0,0,0.5)] backdrop-blur-2xl safe-area-bottom select-none"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-2xl border-t border-amber-400/30 shadow-[0_-8px_32px_rgba(0,0,0,0.6)] safe-area-bottom select-none"
             aria-label="Mobile Bottom App Bar"
           >
-            <div className="px-2 py-1.5 flex items-center justify-around gap-1 text-white max-w-md mx-auto">
+            <div className="px-3 py-2 flex items-center justify-around gap-1 text-white max-w-md mx-auto">
               {/* 1. Home */}
               <Link
                 href={rootPath}
@@ -845,9 +854,9 @@ export function PortalShell({
                 )}
               >
                 <div className="relative">
-                  <Home className="w-5 h-5" style={isActive(rootPath) ? { color: GOLD } : undefined} />
+                  <Home className="w-5 h-5" strokeWidth={1.75} style={isActive(rootPath) ? { color: GOLD } : undefined} />
                   {isActive(rootPath) && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                   )}
                 </div>
                 <span className="text-[10px] tracking-tight mt-1 font-medium">Home</span>
@@ -865,31 +874,31 @@ export function PortalShell({
                   )}
                 >
                   <div className="relative">
-                    <attendanceItem.icon className="w-5 h-5" style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
+                    <attendanceItem.icon className="w-5 h-5" strokeWidth={1.75} style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
                     {isActive(attendanceItem.href) && (
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                      <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[58px]">
+                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[62px]">
                     {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
                   </span>
                 </Link>
               )}
 
               {/* 3. Center Glowing Fatimi Command Orb */}
-              <div className="relative -top-3 flex flex-col items-center">
+              <div className="relative -top-4 flex flex-col items-center">
                 <button
                   type="button"
                   onClick={() => setQuickCommandOpen(!quickCommandOpen)}
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-[0_8px_25px_rgba(212,175,55,0.5)] ring-2 ring-amber-400/90 active:scale-90 transition-all cursor-pointer",
+                    "w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-[0_6px_25px_rgba(243,184,51,0.55)] ring-2 ring-amber-400/90 active:scale-90 transition-all cursor-pointer",
                     quickCommandOpen ? "rotate-45" : ""
                   )}
                   style={{ background: `linear-gradient(135deg, ${GOLD}, #b8860b)` }}
                   aria-label="Quick Launch Center"
                 >
                   <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-950/20 text-white">
-                    {quickCommandOpen ? <X className="w-5 h-5 text-white" /> : <FatimiLogo size={22} variant="gold" />}
+                    {quickCommandOpen ? <X className="w-5 h-5 text-white" strokeWidth={2} /> : <FatimiLogo size={22} variant="gold" />}
                   </div>
                 </button>
                 <span className="text-[9px] font-bold text-amber-300 tracking-tight mt-0.5">Actions</span>
@@ -907,12 +916,12 @@ export function PortalShell({
                   )}
                 >
                   <div className="relative">
-                    <timetableItem.icon className="w-5 h-5" style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
+                    <timetableItem.icon className="w-5 h-5" strokeWidth={1.75} style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
                     {isActive(timetableItem.href) && (
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                      <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[58px]">
+                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[62px]">
                     {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
                   </span>
                 </Link>
@@ -931,9 +940,9 @@ export function PortalShell({
                 aria-label="Open all modules"
               >
                 <div className="relative">
-                  <Grid3X3 className="w-5 h-5" style={mobileMenuOpen ? { color: GOLD } : undefined} />
+                  <Grid3X3 className="w-5 h-5" strokeWidth={1.75} style={mobileMenuOpen ? { color: GOLD } : undefined} />
                   {mobileMenuOpen && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                   )}
                 </div>
                 <span className="text-[10px] tracking-tight mt-1 font-medium">Menu</span>

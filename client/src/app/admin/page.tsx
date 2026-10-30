@@ -152,7 +152,7 @@ export default function AdminDashboard() {
           value: o.totalStudents.toLocaleString(),
           change: "Directory",
           icon: GraduationCap,
-          iconBg: "bg-emerald-50 text-[#b8541e] border border-emerald-200/60",
+          iconBg: "bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25",
           href: "/admin/students",
           subtitle: "Registered learners",
         },
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
           value: o.activeTeachers.toString(),
           change: "Staff",
           icon: School,
-          iconBg: "bg-amber-50 text-amber-800 border border-amber-200/60",
+          iconBg: "bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25",
           href: "/admin/users",
           subtitle: "Teachers & staff",
         },
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
           value: o.attendanceRate,
           change: `${o.presentToday} Present`,
           icon: Clock,
-          iconBg: "bg-emerald-50 text-[#b8541e] border border-emerald-200/60",
+          iconBg: "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/25",
           href: "/admin/biometric",
           subtitle: "Today's scans",
         },
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
           value: stats?.avgPoints ?? "—",
           change: "Conduct & Merits",
           icon: TrendingUp,
-          iconBg: "bg-amber-50 text-amber-800 border border-amber-200/60",
+          iconBg: "bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25",
           href: "/admin/point-matrix",
           subtitle: "School average",
         },
@@ -188,7 +188,7 @@ export default function AdminDashboard() {
           value: o.atRiskCount.toString(),
           change: o.atRiskCount > 0 ? "Review" : "All Clear",
           icon: AlertTriangle,
-          iconBg: o.atRiskCount > 0 ? "bg-red-50 text-red-600 border border-red-200/60" : "bg-emerald-50 text-[#b8541e] border border-emerald-200/60",
+          iconBg: o.atRiskCount > 0 ? "bg-red-500/10 text-red-600 ring-1 ring-red-500/25" : "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/25",
           href: "/admin/tracking",
           subtitle: "Needs intervention",
         },
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
           value: o.activeSessions.toString(),
           change: "Security",
           icon: Wifi,
-          iconBg: "bg-slate-50 text-slate-600 border border-slate-200/60",
+          iconBg: "bg-slate-500/10 text-slate-700 ring-1 ring-slate-400/25",
           href: "/admin/security",
           subtitle: "Last 24h auth",
         },
@@ -222,36 +222,48 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* ── 1. Executive Hero Banner ── */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="p-1.5 rounded-2xl bg-emerald-950/15 ring-1 ring-emerald-900/25 shadow-xl">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="p-1 sm:p-1.5 rounded-3xl bg-black/[0.04] ring-1 ring-black/[0.08] shadow-2xl">
           <div
-            className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white"
-            style={{ background: "linear-gradient(135deg, #1c1c1c 0%, #b8541e 55%, #8a3e14 100%)" }}
+            className="relative overflow-hidden rounded-[1.4rem] sm:rounded-[1.6rem] p-6 sm:p-9 text-white"
+            style={{
+              background: "linear-gradient(135deg, #0d0d0d 0%, #151515 50%, #1c1813 100%)",
+              boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 20px 40px -15px rgba(0, 0, 0, 0.4)",
+            }}
           >
             {/* Top glowing hairline */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90" />
+
+            {/* Ambient gold glow orbs */}
+            <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-emerald-400/5 blur-3xl pointer-events-none" />
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 sm:gap-5">
                 <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40"
-                  style={{ background: "linear-gradient(135deg, #d4af37, #b8972e)" }}
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-amber-300/40 relative overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #d4af37 0%, #b8972e 100%)" }}
                 >
-                  <Shield className="w-7 h-7 text-white fill-white/20" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                  <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-stone-950 fill-stone-950/20 relative z-10" strokeWidth={1.75} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-amber-300 bg-black/25 px-2.5 py-0.5 rounded-md border border-amber-300/30">
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300 bg-black/40 px-3 py-0.5 rounded-full border border-amber-400/30 backdrop-blur-xs">
                       Command Center
                     </span>
-                    <span className="text-xs text-emerald-200">
+                    <span className="text-xs text-stone-300 font-medium">
                       {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
                     </span>
                   </div>
-                  <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
                     Admin Executive Command
                   </h1>
-                  <p className="text-emerald-100 text-xs sm:text-sm mt-0.5 font-medium">
+                  <p className="text-stone-300 text-xs sm:text-sm mt-0.5 font-medium max-w-xl">
                     School telemetry, biometrics, academic administration &amp; governance
                   </p>
                 </div>
@@ -262,21 +274,23 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={handleOpenCommandPalette}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-bold transition-all shadow-md cursor-pointer active:scale-98"
+                  className="group flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-stone-950 text-xs font-bold transition-all shadow-md hover:shadow-amber-400/20 cursor-pointer active:scale-[0.98]"
                   title="Search or jump anywhere (⌘K / Ctrl+K)"
                 >
-                  <Zap className="w-4 h-4 text-emerald-950" />
+                  <div className="w-5 h-5 rounded-md bg-stone-950/15 flex items-center justify-center shrink-0">
+                    <Zap className="w-3.5 h-3.5 text-stone-950 group-hover:scale-110 transition-transform" strokeWidth={2} />
+                  </div>
                   <span>Command Menu</span>
-                  <kbd className="px-1.5 py-0.5 rounded bg-emerald-950/20 text-xs font-mono font-bold text-emerald-950 border border-emerald-950/20">
+                  <kbd className="px-1.5 py-0.5 rounded bg-stone-950/15 text-[10px] font-mono font-bold text-stone-950 border border-stone-950/20">
                     ⌘K
                   </kbd>
                 </button>
 
                 <Link
                   href="/admin/settings"
-                  className="inline-flex items-center gap-1.5 px-4 h-10 rounded-xl text-xs font-semibold border border-white/25 bg-white/10 text-white hover:bg-white/20 transition-colors shadow-xs"
+                  className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-xs font-semibold border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all shadow-xs backdrop-blur-xs active:scale-[0.98]"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" strokeWidth={1.75} />
                   <span>Portal Locks</span>
                 </Link>
 
@@ -285,9 +299,9 @@ export default function AdminDashboard() {
                   size="sm"
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  className="border-white/25 bg-white/10 text-white hover:bg-white/20 rounded-xl text-xs font-semibold h-10 px-4 transition-colors"
+                  className="border-white/20 bg-white/10 text-white hover:bg-white/20 rounded-xl text-xs font-semibold h-10 px-4 transition-all shadow-xs backdrop-blur-xs active:scale-[0.98]"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} strokeWidth={1.75} />
                   Sync
                 </Button>
               </div>
@@ -414,43 +428,43 @@ export default function AdminDashboard() {
 
       {/* ── 2. Real-Time Telemetry & Systems Strip ── */}
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-        <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
-          <div className="rounded-2xl p-4 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/50 border border-emerald-200/50">
+        <div className="p-1 rounded-2xl bg-amber-950/5 ring-1 ring-black/[0.06] shadow-xs">
+          <div className="rounded-[calc(1rem-2px)] p-4 sm:p-5 bg-white border border-amber-100/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3.5">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                  style={{ background: "linear-gradient(135deg, #1c1c1c, #b8541e)" }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-amber-400/30"
+                  style={{ background: "linear-gradient(135deg, #0d0d0d, #1c1813)" }}
                 >
-                  <Activity className="w-5 h-5 text-amber-300" />
+                  <Activity className="w-5 h-5 text-amber-300" strokeWidth={1.75} />
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-gray-900 text-sm sm:text-base">
                     Operational Heartbeat &amp; Device Infrastructure
                   </h2>
-                  <p className="text-xs text-gray-500">Live telemetry across campus terminals and data stores</p>
+                  <p className="text-xs text-gray-500 font-medium">Live telemetry across campus terminals and data stores</p>
                 </div>
               </div>
 
-              {/* Status Chips — Clean Non-Button Affordance */}
+              {/* Status Chips — Clean Precision Badges */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-300/80 shadow-xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   Biometrics Active
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                  <Clock className="w-3.5 h-3.5 text-amber-700" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-950 border border-amber-300/80 shadow-xs">
+                  <Clock className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.75} />
                   Scan Windows Set
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-950 border border-amber-300/80 shadow-xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.75} />
                   RBAC &amp; Audit Safe
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-950 border border-amber-300/80 shadow-xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" strokeWidth={1.75} />
                   Locks Guarded
                 </span>
               </div>
@@ -475,26 +489,28 @@ export default function AdminDashboard() {
         >
           {statCards.map((stat) => (
             <Link key={stat.title} href={stat.href} className="block group">
-              <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/10 h-full transition-all duration-300 group-hover:ring-amber-400/50 group-hover:shadow-md">
-                <div className="bg-white rounded-2xl p-5 h-full flex flex-col justify-between">
+              <div className="p-1 rounded-2xl bg-amber-950/5 ring-1 ring-black/[0.06] h-full transition-all duration-300 group-hover:ring-amber-400/50 group-hover:shadow-lg group-hover:-translate-y-0.5">
+                <div className="bg-white rounded-[calc(1rem-2px)] p-5 h-full flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3.5">
-                      <div className={`p-2.5 rounded-xl shrink-0 ${stat.iconBg}`}>
-                        <stat.icon className="w-4 h-4" />
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${stat.iconBg}`}>
+                        <stat.icon className="w-4 h-4" strokeWidth={1.75} />
                       </div>
                       <Badge
                         variant="secondary"
-                        className="text-xs font-semibold shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 border-emerald-200 group-hover:bg-emerald-700 group-hover:text-white transition-colors"
+                        className="text-[11px] font-semibold shrink-0 px-2 py-0.5 bg-amber-50 text-amber-950 border-amber-300/80 group-hover:bg-amber-400 group-hover:text-stone-950 transition-colors"
                       >
                         {stat.change}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{stat.title}</p>
+                    <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">{stat.title}</p>
                     <p className="text-2xl font-black text-gray-900 mt-1 num-tabular font-display tracking-tight">{stat.value}</p>
                   </div>
-                  <div className="flex items-center justify-between mt-3.5 pt-2.5 border-t border-gray-100 text-xs font-semibold text-gray-500 group-hover:text-emerald-700 transition-colors">
+                  <div className="flex items-center justify-between mt-3.5 pt-2.5 border-t border-gray-100 text-xs font-semibold text-gray-500 group-hover:text-amber-800 transition-colors">
                     <span>{stat.subtitle}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    <div className="w-5 h-5 rounded-full bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center transition-colors">
+                      <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" strokeWidth={1.75} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -508,7 +524,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-3">
           <div
             className="h-7 w-1.5 rounded-full"
-            style={{ background: "linear-gradient(180deg, #d4af37, #b8541e)" }}
+            style={{ background: "linear-gradient(180deg, #d4af37, #997b1e)" }}
           />
           <div>
             <h2 className="font-display text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -529,7 +545,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
-                    style={{ background: "linear-gradient(135deg, #1c1c1c, #b8541e)" }}
+                    style={{ background: "linear-gradient(135deg, #0d0d0d, #1c1813)" }}
                   >
                     <Fingerprint className="w-5 h-5 text-amber-300" />
                   </div>
@@ -762,7 +778,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-3 pb-3.5 mb-3.5 border-b border-gray-100">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
-                    style={{ background: "linear-gradient(135deg, #8a3e14, #b8541e)" }}
+                    style={{ background: "linear-gradient(135deg, #161616, #221c15)" }}
                   >
                     <ShieldCheck className="w-5 h-5 text-amber-300" />
                   </div>
@@ -855,16 +871,16 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-[calc(2rem-0.375rem)] p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-emerald-50 text-[#b8541e] border border-emerald-200/60">
-                      <Clock className="w-4 h-4" />
+                    <div className="p-2 rounded-xl bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25">
+                      <Clock className="w-4 h-4" strokeWidth={1.75} />
                     </div>
                     <h3 className="font-display font-bold text-gray-900 text-sm">Today's Attendance</h3>
                   </div>
                   <Link
                     href="/admin/biometric"
-                    className="text-xs text-[#b8541e] hover:underline font-bold flex items-center gap-1"
+                    className="text-xs text-amber-700 hover:text-amber-800 hover:underline font-bold flex items-center gap-1"
                   >
-                    Live Logs <ChevronRight className="w-3.5 h-3.5" />
+                    Live Logs <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />
                   </Link>
                 </div>
 
@@ -873,7 +889,7 @@ export default function AdminDashboard() {
                     <div className="flex rounded-full overflow-hidden h-3 bg-gray-100">
                       {o.presentToday > 0 && (
                         <div
-                          className="bg-[#b8541e] transition-all"
+                          className="bg-emerald-600 transition-all"
                           style={{ width: `${(o.presentToday / o.totalAttendanceRecords) * 100}%` }}
                         />
                       )}
@@ -899,7 +915,7 @@ export default function AdminDashboard() {
 
                     <div className="grid grid-cols-2 gap-2.5">
                       {[
-                        { label: "Present", count: o.presentToday, color: "bg-[#b8541e]" },
+                        { label: "Present", count: o.presentToday, color: "bg-emerald-600" },
                         { label: "Late Arrivals", count: o.lateToday, color: "bg-amber-500" },
                         { label: "Absent", count: o.absentToday, color: "bg-red-500" },
                         { label: "Early Departures", count: o.earlyDepartureToday, color: "bg-orange-500" },
@@ -914,7 +930,7 @@ export default function AdminDashboard() {
 
                     <div className="pt-2 flex items-center justify-between text-xs">
                       <span className="text-gray-500 font-medium">Overall Campus Turnout</span>
-                      <span className="font-bold text-[#b8541e] text-sm num-tabular">{o.attendanceRate}</span>
+                      <span className="font-bold text-amber-800 text-sm num-tabular">{o.attendanceRate}</span>
                     </div>
                   </div>
                 ) : (
@@ -1128,7 +1144,7 @@ export default function AdminDashboard() {
                                 ? "linear-gradient(135deg, #d4af37, #b8972e)"
                                 : i === 1
                                 ? "linear-gradient(135deg, #94a3b8, #64748b)"
-                                : "linear-gradient(135deg, #b8541e, #8a3e14)",
+                                : "linear-gradient(135deg, #c59b27, #78350f)",
                           }}
                         >
                           {i + 1}

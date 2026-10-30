@@ -241,24 +241,28 @@ export default function TalabatDashboard() {
           {/* ═══════════ Today's Timetable & Masool al-Fasl Widget ═══════════ */}
           {timetableData && (
             <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.05, ease: "easeOut" }}>
-              <div className="p-1 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/10 bg-white overflow-hidden shadow-xs border border-slate-200/80">
-                <div className="p-5 bg-gradient-to-r from-emerald-950 via-[#1c1c1c] to-emerald-900 text-white rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="p-1 rounded-3xl bg-amber-950/5 ring-1 ring-black/[0.06] overflow-hidden shadow-xs">
+                <div
+                  className="p-5 sm:p-6 text-white rounded-[calc(1.5rem-2px)] flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #0d0d0d 0%, #161616 50%, #1c1813 100%)" }}
+                >
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-md">
-                      <CalendarDays className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-stone-950 flex items-center justify-center shrink-0 shadow-md">
+                      <CalendarDays className="w-6 h-6 text-stone-950" strokeWidth={1.75} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                        <Badge className="bg-amber-400 text-stone-950 text-[10px] font-black uppercase shadow-2xs">
                           Class {timetableData.class?.name}
                         </Badge>
-                        <span className="text-xs text-emerald-200 font-mono">1448 H Academic Matrix</span>
+                        <span className="text-xs text-amber-200/90 font-mono">1448 H Academic Matrix</span>
                       </div>
-                      <h3 className="text-lg font-extrabold text-white mt-0.5">
+                      <h3 className="text-lg font-extrabold text-white mt-1 font-display">
                         {timetableData.masool ? `Class Teacher: ${timetableData.masool.name}` : "Official Class Schedule"}
                       </h3>
                       {timetableData.masool?.its && (
-                        <p className="text-xs text-emerald-200/80">
+                        <p className="text-xs text-stone-300">
                           Masool al-Fasl (ITS: {timetableData.masool.its})
                         </p>
                       )}
@@ -267,10 +271,10 @@ export default function TalabatDashboard() {
 
                   <Link
                     href="/talabat/timetable"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all self-start md:self-center"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all self-start md:self-center backdrop-blur-xs active:scale-[0.98]"
                   >
                     <span>View Full Timetable</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 text-amber-300" strokeWidth={1.75} />
                   </Link>
                 </div>
 
@@ -333,32 +337,31 @@ export default function TalabatDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.1 + i * 0.03, ease: "easeOut" }}
                 >
-                  <div className="p-1 rounded-2xl bg-emerald-950/5 ring-1 ring-emerald-900/10 h-full transition-all duration-200 hover:ring-amber-400/40 hover:shadow-md">
+                  <div className="p-1 rounded-2xl bg-amber-950/5 ring-1 ring-black/[0.06] h-full transition-all duration-300 hover:ring-amber-400/50 hover:shadow-lg hover:-translate-y-0.5">
                     <Link
                       href={option.href}
-                      className="group relative flex flex-col h-full bg-white rounded-xl p-5 overflow-hidden transition-all duration-200 justify-between"
-                      style={{ border: `1px solid ${theme.swatch.gold}25` }}
+                      className="group relative flex flex-col h-full bg-white rounded-[calc(1rem-2px)] p-5 overflow-hidden transition-all duration-200 justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)] border border-amber-100/60"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-3.5">
-                          <div
-                            className="p-2.5 rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 bg-emerald-50 text-emerald-800 border border-emerald-200/60"
-                          >
-                            <option.icon className="w-5 h-5" />
+                          <div className="w-9 h-9 rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25 flex items-center justify-center">
+                            <option.icon className="w-4 h-4" strokeWidth={1.75} />
                           </div>
-                          <Badge variant="outline" className="text-[10px] font-bold border-amber-200/80 bg-amber-50/60 text-amber-800">
+                          <Badge variant="outline" className="text-[10px] font-bold border-amber-300/80 bg-amber-50 text-amber-950">
                             {option.chip}
                           </Badge>
                         </div>
-                        <p className="font-bold text-sm text-gray-900 group-hover:text-emerald-900 transition-colors">
+                        <p className="font-bold text-sm text-gray-900 group-hover:text-amber-900 transition-colors">
                           {option.label}
                         </p>
                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">{option.description}</p>
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-emerald-800 group-hover:text-emerald-950 transition-colors">
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-amber-800 group-hover:text-amber-950 transition-colors">
                         <span>Launch</span>
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                        <div className="w-5 h-5 rounded-full bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center transition-colors">
+                          <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" strokeWidth={1.75} />
+                        </div>
                       </div>
                     </Link>
                   </div>

@@ -431,8 +431,8 @@ export default function ExpertTeacherDashboard() {
         <div
           className="relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.2rem] p-4 sm:p-9 text-white"
           style={{
-            background: "linear-gradient(135deg, #0d0d0d 0%, #1c1c1c 40%, #8a3e14 75%, #b8541e 100%)",
-            boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 20px 40px -15px rgba(2, 44, 34, 0.5)",
+            background: "linear-gradient(135deg, #0d0d0d 0%, #151515 50%, #1c1813 100%)",
+            boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 20px 40px -15px rgba(0, 0, 0, 0.5)",
           }}
         >
           {/* Subtle Ambient Radial Lighting */}
@@ -456,7 +456,7 @@ export default function ExpertTeacherDashboard() {
                         className="object-contain object-center bg-[#0d0d0d]"
                       />
                     )}
-                    <AvatarFallback className="bg-gradient-to-br from-[#8a3e14] to-[#0d0d0d] text-[#ffe082] text-xl sm:text-2xl font-bold font-display">
+                    <AvatarFallback className="bg-gradient-to-br from-[#2d2214] to-[#0d0d0d] text-[#ffe082] text-xl sm:text-2xl font-bold font-display">
                       {teacher ? getInitials(teacher.firstName, teacher.lastName) : "DB"}
                     </AvatarFallback>
                   </Avatar>
@@ -619,8 +619,8 @@ export default function ExpertTeacherDashboard() {
               className="p-1 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-xs"
             >
               <div className="rounded-[calc(1.5rem-0.25rem)] bg-white p-4 sm:p-5 flex items-center gap-4 h-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)]">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#b8541e] border border-emerald-200/80 flex items-center justify-center shrink-0 shadow-xs">
-                  <Users className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25 flex items-center justify-center shrink-0 shadow-xs">
+                  <Users className="w-6 h-6" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Total Enrolled</p>
@@ -770,14 +770,14 @@ export default function ExpertTeacherDashboard() {
                   onClick={() => setSelectedClassId("ALL")}
                   className={`px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 flex items-center gap-2 ${
                     selectedClassId === "ALL"
-                      ? "bg-[#b8541e] text-white shadow-md ring-2 ring-emerald-600/30"
-                      : "bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-800"
+                      ? "bg-stone-900 text-amber-300 shadow-md ring-1 ring-amber-400/40"
+                      : "bg-gray-100 text-gray-700 hover:bg-amber-50 hover:text-amber-900"
                   }`}
                 >
                   <span>All Talabat</span>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full ${
-                      selectedClassId === "ALL" ? "bg-emerald-900 text-emerald-100" : "bg-gray-200 text-gray-700"
+                      selectedClassId === "ALL" ? "bg-amber-400/20 text-amber-300 border border-amber-400/30" : "bg-gray-200 text-gray-700"
                     }`}
                   >
                     {students.length}
@@ -792,15 +792,15 @@ export default function ExpertTeacherDashboard() {
                       onClick={() => setSelectedClassId(cls.id)}
                       className={`px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 flex items-center gap-2 ${
                         isSelected
-                          ? "bg-[#b8541e] text-white shadow-md ring-2 ring-emerald-600/30"
-                          : "bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-800"
+                          ? "bg-stone-900 text-amber-300 shadow-md ring-1 ring-amber-400/40"
+                          : "bg-gray-100 text-gray-700 hover:bg-amber-50 hover:text-amber-900"
                       }`}
                     >
                       <span>{cls.name}</span>
                       {cls.subject && <span className="opacity-75 font-normal text-[11px]">({cls.subject})</span>}
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded-full ${
-                          isSelected ? "bg-emerald-900 text-emerald-100" : "bg-gray-200 text-gray-700"
+                          isSelected ? "bg-amber-400/20 text-amber-300 border border-amber-400/30" : "bg-gray-200 text-gray-700"
                         }`}
                       >
                         {cls.studentCount || 0}
@@ -921,8 +921,8 @@ export default function ExpertTeacherDashboard() {
           {students.length === 0 ? (
             <div className="p-1.5 rounded-[2.2rem] bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-sm">
               <div className="rounded-[calc(2.2rem-0.375rem)] bg-white p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-5">
-                <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-200/80 mx-auto flex items-center justify-center text-emerald-800 shadow-sm">
-                  <Users className="w-8 h-8 text-[#b8541e]" />
+                <div className="w-16 h-16 rounded-3xl bg-amber-400/10 ring-1 ring-amber-400/25 mx-auto flex items-center justify-center text-amber-700 shadow-sm">
+                  <Users className="w-8 h-8 text-amber-700" strokeWidth={1.75} />
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xl sm:text-2xl font-black text-gray-900 font-display">No Talabat Enrolled</h3>
@@ -1405,7 +1405,7 @@ export default function ExpertTeacherDashboard() {
                           }
                           className={`w-full py-3 rounded-2xl font-black text-xs shadow-lg transition-all active:scale-[0.98] ${
                             customActionType === "POSITIVE"
-                              ? "bg-[#b8541e] hover:bg-[#8a3e14] text-white"
+                              ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-bold"
                               : "bg-rose-600 hover:bg-rose-700 text-white"
                           }`}
                         >
@@ -1517,8 +1517,8 @@ export default function ExpertTeacherDashboard() {
                 <div className="p-1 rounded-[2.2rem] bg-amber-950/5 ring-1 ring-amber-900/10 shadow-md hover:ring-amber-400/40 transition-all cursor-pointer group">
                   <div className="rounded-[calc(2.2rem-0.25rem)] bg-gradient-to-r from-emerald-50/50 via-white to-amber-50/40 p-6 sm:p-7 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)]">
                     <div className="flex items-center gap-4 sm:gap-5">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0d0d0d] to-[#b8541e] flex items-center justify-center text-[#ffe082] shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300">
-                        <ClipboardList className="w-7 h-7" />
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0d0d0d] to-[#1c1813] border border-amber-400/30 flex items-center justify-center text-amber-300 shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300">
+                        <ClipboardList className="w-7 h-7" strokeWidth={1.75} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -1561,9 +1561,9 @@ export default function ExpertTeacherDashboard() {
                           </div>
                         </div>
 
-                        <div className="hidden sm:flex items-center gap-2 text-xs font-black text-[#b8541e] group-hover:translate-x-1 transition-transform">
+                        <div className="hidden sm:flex items-center gap-2 text-xs font-black text-amber-800 group-hover:translate-x-1 transition-transform">
                           <span>Open Planner</span>
-                          <ChevronRight className="w-4 h-4" />
+                          <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
                         </div>
                       </div>
                     )}
