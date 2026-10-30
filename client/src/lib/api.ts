@@ -16,7 +16,7 @@ export interface LeaveRequestItem {
   endDate: string;
   reason: string;
   attachmentUrl?: string | null;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "HOLD";
   reviewerNotes?: string | null;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
@@ -41,6 +41,7 @@ export interface LeaveRequestItem {
 export interface StudentLeaveSummary {
   totalRequests: number;
   pendingCount: number;
+  holdCount?: number;
   approvedCount: number;
   rejectedCount: number;
   approvedDays: number;
@@ -49,6 +50,7 @@ export interface StudentLeaveSummary {
 
 export interface TeacherLeaveStats {
   pending: number;
+  hold?: number;
   approved: number;
   rejected: number;
   total: number;
@@ -56,6 +58,7 @@ export interface TeacherLeaveStats {
 
 export interface AdminLeaveStats {
   pending: number;
+  hold?: number;
   approved: number;
   rejected: number;
   medical: number;
@@ -633,6 +636,16 @@ export async function rejectTeacherLeave(
   });
 }
 
+export async function holdTeacherLeave(
+  leaveId: string,
+  reviewerNotes?: string
+): Promise<{ id: string; status: string; reviewerNotes?: string | null; reviewedAt: string }> {
+  return request<{ id: string; status: string; reviewerNotes?: string | null; reviewedAt: string }>(`/api/teacher/leave/${leaveId}/hold`, {
+    method: "POST",
+    body: JSON.stringify({ reviewerNotes }),
+  });
+}
+
 export async function batchApproveTeacherLeaves(
   leaveIds: string[],
   reviewerNotes?: string
@@ -713,6 +726,16 @@ export async function rejectAdminLeave(
   reviewerNotes?: string
 ): Promise<{ id: string; status: string; reviewedAt: string }> {
   return request<{ id: string; status: string; reviewedAt: string }>(`/api/admin/leave/${leaveId}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reviewerNotes }),
+  });
+}
+
+export async function holdAdminLeave(
+  leaveId: string,
+  reviewerNotes?: string
+): Promise<{ id: string; status: string; reviewerNotes?: string | null; reviewedAt: string }> {
+  return request<{ id: string; status: string; reviewerNotes?: string | null; reviewedAt: string }>(`/api/admin/leave/${leaveId}/hold`, {
     method: "POST",
     body: JSON.stringify({ reviewerNotes }),
   });

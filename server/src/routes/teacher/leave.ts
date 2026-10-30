@@ -5,6 +5,7 @@ import { requireRole } from "../../middleware";
 import {
   approveLeaveRequest,
   rejectLeaveRequest,
+  holdLeaveRequest,
   createDirectApprovedLeave,
   markHolidayLeaveBatch,
 } from "../../lib/leave-service";
@@ -253,9 +254,10 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
     }
 
     // Get counts
-    const [total, pendingCount, approvedCount, rejectedCount, leaves] = await Promise.all([
+    const [total, pendingCount, holdCount, approvedCount, rejectedCount, leaves] = await Promise.all([
       prisma.leaveRequest.count({ where }),
       prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.PENDING } }),
+      prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.HOLD } }),
       prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.APPROVED } }),
       prisma.leaveRequest.count({ where: { ...baseWhere, status: LeaveStatus.REJECTED } }),
       prisma.leaveRequest.findMany({
@@ -302,9 +304,10 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       data: {
         stats: {
           pending: pendingCount,
+          hold: holdCount,
           approved: approvedCount,
           rejected: rejectedCount,
-          total: pendingCount + approvedCount + rejectedCount,
+          total: pendingCount + holdCount + approvedCount + rejectedCount,
         },
         classes: teacherClasses,
         requests: leaves.map((l) => {
@@ -322,7 +325,13 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
 
           const isApproved = l.status === "APPROVED";
           const isReduced = isApproved && l.approvedDays !== null && l.approvedDays !== undefined;
-          const waStatus = isApproved ? (isReduced ? "APPROVED_REDUCED" : "APPROVED") : l.status === "REJECTED" ? "REJECTED" : "APPROVED";
+          const waStatus = isApproved
+            ? (isReduced ? "APPROVED_REDUCED" : "APPROVED")
+            : l.status === "HOLD"
+            ? "HOLD"
+            : l.status === "REJECTED"
+            ? "REJECTED"
+            : "APPROVED";
 
           const waMessage = formatLeaveWhatsAppMessage({
             parentName,
@@ -456,6 +465,38 @@ router.post("/:id/reject", requireRole("TEACHER"), async (req, res) => {
     return res.status(error.status || 400).json({
       success: false,
       error: error.message || "Failed to reject leave request",
+    });
+  }
+});
+
+// POST /api/teacher/leave/:id/hold — Put a leave request on hold
+router.post("/:id/hold", requireRole("TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { reviewerNotes } = req.body;
+
+    await assertTeacherCanReview(session.user.id, req.params.id);
+
+    const leave = await holdLeaveRequest({
+      leaveId: req.params.id,
+      reviewerId: session.user.id,
+      reviewerNotes: reviewerNotes || "Request placed on hold by reviewer.",
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id: leave.id,
+        status: leave.status,
+        reviewerNotes: leave.reviewerNotes,
+        reviewedAt: leave.reviewedAt?.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error("[teacher-leave] Hold error:", error);
+    return res.status(error.status || 400).json({
+      success: false,
+      error: error.message || "Failed to hold leave request",
     });
   }
 });

@@ -27,6 +27,7 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
         summary: {
           totalRequests: summary.totalRequests,
           pendingCount: summary.pendingCount,
+          holdCount: summary.holdCount,
           approvedCount: summary.approvedCount,
           rejectedCount: summary.rejectedCount,
           approvedDays: summary.approvedDays,

@@ -81,7 +81,7 @@ export default function TalabatLeavePage() {
       </div>
 
       {/* ── Metric Cards Stack ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Approved Days</span>
@@ -98,6 +98,15 @@ export default function TalabatLeavePage() {
           </div>
           <div className="text-2xl font-black text-gray-900">{summary.pendingCount}</div>
           <div className="text-[11px] text-gray-500 mt-0.5">Pending approval</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">On Hold</span>
+            <Clock className="w-4 h-4 text-amber-700" />
+          </div>
+          <div className="text-2xl font-black text-gray-900">{summary.holdCount ?? 0}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Awaiting clarification</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs col-span-2 sm:col-span-1">

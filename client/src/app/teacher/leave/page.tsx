@@ -14,11 +14,13 @@ import {
   Plus,
   Palmtree,
   Sparkles,
+  PauseCircle,
 } from "lucide-react";
 import {
   getTeacherLeaves,
   approveTeacherLeave,
   rejectTeacherLeave,
+  holdTeacherLeave,
   batchApproveTeacherLeaves,
   LeaveRequestItem,
   TeacherLeaveStats,
@@ -88,6 +90,11 @@ export default function TeacherLeavePage() {
     await fetchData(true);
   };
 
+  const handleHold = async (id: string, notes?: string) => {
+    await holdTeacherLeave(id, notes);
+    await fetchData(true);
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* ── Page Header ── */}
@@ -120,7 +127,7 @@ export default function TeacherLeavePage() {
       </div>
 
       {/* ── Metric Summary Stack ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <button
           type="button"
           onClick={() => setSelectedStatus("PENDING")}
@@ -136,6 +143,23 @@ export default function TeacherLeavePage() {
           </div>
           <div className="text-2xl font-black">{stats.pending}</div>
           <div className="text-[11px] opacity-75 mt-0.5">Awaiting teacher review</div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedStatus("HOLD")}
+          className={`p-4 rounded-2xl border text-left transition-all ${
+            selectedStatus === "HOLD"
+              ? "bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-500/20"
+              : "bg-white border-gray-100 hover:border-gray-200"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-bold uppercase tracking-wider opacity-80">On Hold</span>
+            <PauseCircle className="w-4 h-4 opacity-80" />
+          </div>
+          <div className="text-2xl font-black">{stats.hold ?? 0}</div>
+          <div className="text-[11px] opacity-75 mt-0.5">Pending clarification</div>
         </button>
 
         <button
@@ -265,6 +289,7 @@ export default function TeacherLeavePage() {
           requests={requests}
           onApprove={handleApprove}
           onReject={handleReject}
+          onHold={handleHold}
           onBatchApprove={handleBatchApprove}
           loading={loading}
         />

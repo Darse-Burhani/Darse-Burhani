@@ -272,11 +272,11 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     throw new Error("Cannot submit leave requests for past dates");
   }
 
-  // Check for overlapping active (PENDING or APPROVED) leave requests
+  // Check for overlapping active (PENDING, APPROVED, or HOLD) leave requests
   const overlapping = await prisma.leaveRequest.findFirst({
     where: {
       studentId: student.id,
-      status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+      status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED, LeaveStatus.HOLD] },
       OR: [
         {
           startDate: { lte: end },
@@ -382,35 +382,53 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     tag: `leave-admin-${leave.id}`,
   });
 
-  // Email the Galiakot administration mailbox with the full application layout.
+  // Email the Galiakot administration mailbox and active admins with the full application layout.
   try {
-    const adminEmailTo = process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org";
-    const emailSent = await sendLeaveEmail({
-      to: adminEmailTo,
-      subject: `New Leave Application — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`,
-      html: leaveApplicationAdminEmail({
-        leaveId: leave.id,
-        studentName: studentFullName,
-        its: student.its || student.studentId,
-        grade: student.grade,
-        section: student.section,
-        className: student.classEnrollments[0]?.class?.name || null,
-        parentName: primaryParent?.name || null,
-        parentEmail: primaryParent?.email || null,
-        type: input.type,
-        startDate: formatUtcDate(start),
-        endDate: formatUtcDate(end),
-        days: requestedDays,
-        reason: input.reason.trim(),
-        attachmentUrl: input.attachmentUrl || null,
-        submittedAt: formatDateTime(leave.createdAt),
-        adminUrl: appUrl("/admin/leave"),
-        isAssignedMember: false,
-        assignedMemberName,
-      }),
+    const adminUsers = await prisma.user.findMany({
+      where: { role: "ADMIN", isActive: true },
+      select: { email: true },
     });
-    if (!emailSent) {
-      console.warn(`[leave-service] Admin leave email could not be delivered for ${leave.id}`);
+    const adminEmailList = new Set<string>();
+    if (process.env.LEAVE_ADMIN_EMAIL?.trim()) {
+      adminEmailList.add(process.env.LEAVE_ADMIN_EMAIL.trim().toLowerCase());
+    }
+    adminUsers.forEach((a) => {
+      if (a.email?.trim()) adminEmailList.add(a.email.trim().toLowerCase());
+    });
+    if (adminEmailList.size === 0) {
+      adminEmailList.add("admin.galiakot@darseburhani.org");
+    }
+
+    const emailSubject = `New Leave Application — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`;
+    const emailHtml = leaveApplicationAdminEmail({
+      leaveId: leave.id,
+      studentName: studentFullName,
+      its: student.its || student.studentId,
+      grade: student.grade,
+      section: student.section,
+      className: student.classEnrollments[0]?.class?.name || null,
+      parentName: primaryParent?.name || null,
+      parentEmail: primaryParent?.email || null,
+      type: input.type,
+      startDate: formatUtcDate(start),
+      endDate: formatUtcDate(end),
+      days: requestedDays,
+      reason: input.reason.trim(),
+      attachmentUrl: input.attachmentUrl || null,
+      submittedAt: formatDateTime(leave.createdAt),
+      adminUrl: appUrl("/admin/leave"),
+      isAssignedMember: false,
+      assignedMemberName,
+    });
+
+    for (const toEmail of adminEmailList) {
+      sendLeaveEmail({
+        to: toEmail,
+        subject: emailSubject,
+        html: emailHtml,
+      }).catch((err) => {
+        console.warn(`[leave-service] Admin leave email could not be delivered to ${toEmail}:`, err);
+      });
     }
   } catch (err) {
     console.error("[leave-service] Admin leave email error:", err);
@@ -864,6 +882,164 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
 }
 
 /**
+ * Puts a leave request on hold pending clarification, inquiry or further review.
+ */
+export async function holdLeaveRequest(input: ReviewLeaveInput) {
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: input.leaveId },
+    include: {
+      student: {
+        include: {
+          user: true,
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!leave) {
+    throw new Error("Leave request not found");
+  }
+
+  const updatedLeave = await prisma.leaveRequest.update({
+    where: { id: leave.id },
+    data: {
+      status: LeaveStatus.HOLD,
+      reviewerId: input.reviewerId || null,
+      reviewerNotes: input.reviewerNotes?.trim() || "Leave request placed on hold pending review.",
+      reviewedAt: new Date(),
+      approvedDays: null,
+      grantedStartDate: null,
+      grantedEndDate: null,
+    },
+  });
+
+  // If it had previously generated registry records (e.g. if re-holding an approved one), clean them up
+  await prisma.attendanceRegistry.deleteMany({
+    where: { leaveId: leave.id },
+  });
+
+  const holdStudentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+
+  // Notify student
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: leave.student.userId,
+        title: "Leave Application Placed On Hold",
+        body: `Your leave request has been placed on hold.${input.reviewerNotes ? ` Remarks: ${input.reviewerNotes}` : ""}`,
+        type: "ALERT",
+        link: "/talabat/leave-request",
+        priority: "HIGH",
+      },
+    });
+  } catch (e) {
+    console.error("[leave-service] Notification error:", e);
+  }
+
+  // Notify Parent(s) inside the portal
+  const parentUserIds = await notifyParents(
+    leave.studentId,
+    "Leave Application Placed On Hold",
+    `Leave application for ${holdStudentName} has been placed on hold.${input.reviewerNotes ? ` Remarks: ${input.reviewerNotes}` : ""}`,
+    "/parent"
+  );
+
+  const reviewer = input.reviewerId
+    ? await prisma.user.findUnique({
+        where: { id: input.reviewerId },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
+  const reviewerName = reviewer
+    ? `${reviewer.firstName} ${reviewer.lastName}`.trim()
+    : null;
+  const parentContacts = await getParentContacts(leave.studentId);
+
+  // Browser push notification
+  await sendPushToUsers(
+    [leave.student.userId, ...parentUserIds, ...parentContacts.map((c) => c.userId)],
+    {
+      title: "Leave Application Placed On Hold",
+      body: `${holdStudentName} · ${formatUtcDate(leave.startDate)} – ${formatUtcDate(leave.endDate)} · On Hold`,
+      url: "/parent",
+      tag: `leave-decision-${leave.id}`,
+      requireInteraction: true,
+    }
+  );
+
+  // Email to parents
+  const requestedDays = countLeaveDays(leave.startDate, leave.endDate);
+  const emailResults = await Promise.allSettled(
+    parentContacts
+      .filter((contact) => contact.isActive)
+      .map((contact) =>
+        sendLeaveEmail({
+          to: contact.email,
+          subject: `Leave Application On Hold — ${holdStudentName}`,
+          html: leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName: holdStudentName,
+            parentName: contact.name,
+            type: leave.type,
+            status: "HOLD",
+            requestedStart: formatUtcDate(leave.startDate),
+            requestedEnd: formatUtcDate(leave.endDate),
+            requestedDays,
+            approvedDays: null,
+            grantedStart: null,
+            grantedEnd: null,
+            reviewerName,
+            reviewerNotes: input.reviewerNotes?.trim() || null,
+            portalUrl: appUrl("/parent"),
+          }),
+        })
+      )
+  );
+  emailResults.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(
+        `[leave-service] Parent hold email failed for ${parentContacts[index]?.email}:`,
+        result.reason
+      );
+    }
+  });
+
+  // One-way WhatsApp notification dispatch to parent(s)
+  try {
+    const parentPhones = await getStudentParentPhones(leave.studentId);
+    for (const p of parentPhones) {
+      const waMsg = formatLeaveWhatsAppMessage({
+        parentName: p.name,
+        studentName: holdStudentName,
+        className: leave.student.classEnrollments[0]?.class?.name || null,
+        status: "HOLD",
+        leaveType: leave.type,
+        startDate: formatUtcDate(leave.startDate),
+        endDate: formatUtcDate(leave.endDate),
+        requestedDays,
+        reviewerNotes: input.reviewerNotes?.trim() || null,
+        reviewerName,
+      });
+      dispatchWhatsAppNotification({ phone: p.phone, message: waMsg }).catch((err) =>
+        console.error(`[leave-service] WhatsApp hold notification failed for ${p.phone}:`, err)
+      );
+    }
+  } catch (waErr) {
+    console.error("[leave-service] WhatsApp dispatch error:", waErr);
+  }
+
+  cache.invalidateTag("attendanceRecord");
+  cache.invalidateTag("dashboard");
+
+  return updatedLeave;
+}
+
+/**
  * Assigns a pending leave application to a faculty member with portal access.
  */
 export async function assignLeaveRequest(input: AssignLeaveInput) {
@@ -879,8 +1055,8 @@ export async function assignLeaveRequest(input: AssignLeaveInput) {
   if (!leave) {
     throw new Error("Leave request not found");
   }
-  if (leave.status !== LeaveStatus.PENDING) {
-    throw new Error("Only pending leave applications can be assigned");
+  if (leave.status !== LeaveStatus.PENDING && leave.status !== LeaveStatus.HOLD) {
+    throw new Error("Only pending or on-hold leave applications can be assigned");
   }
 
   const assignee = await prisma.user.findFirst({
@@ -1024,8 +1200,8 @@ export async function cancelLeaveRequest(leaveId: string, studentId?: string, is
     throw new Error("Unauthorized to cancel this leave request");
   }
 
-  if (!isAdmin && leave.status !== LeaveStatus.PENDING) {
-    throw new Error("Only pending leave requests can be cancelled by students");
+  if (!isAdmin && leave.status !== LeaveStatus.PENDING && leave.status !== LeaveStatus.HOLD) {
+    throw new Error("Only pending or on-hold leave requests can be cancelled");
   }
 
   const updatedLeave = await prisma.leaveRequest.update({
@@ -1068,6 +1244,7 @@ export async function getStudentLeaveSummary(studentId: string) {
 
   const totalRequests = leaves.length;
   const pendingCount = leaves.filter((l) => l.status === LeaveStatus.PENDING).length;
+  const holdCount = leaves.filter((l) => l.status === LeaveStatus.HOLD).length;
   const approvedCount = leaves.filter((l) => l.status === LeaveStatus.APPROVED).length;
   const rejectedCount = leaves.filter((l) => l.status === LeaveStatus.REJECTED).length;
 
@@ -1087,6 +1264,7 @@ export async function getStudentLeaveSummary(studentId: string) {
   return {
     totalRequests,
     pendingCount,
+    holdCount,
     approvedCount,
     rejectedCount,
     approvedDays,

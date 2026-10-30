@@ -4,6 +4,7 @@ import { requireRole } from "../../middleware";
 import {
   approveLeaveRequest,
   rejectLeaveRequest,
+  holdLeaveRequest,
   cancelLeaveRequest,
   createDirectApprovedLeave,
   createDirectFacultyLeave,
@@ -281,10 +282,11 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       };
     }
 
-    const [total, pendingCount, approvedCount, rejectedCount, medicalCount, leaves, grades] =
+    const [total, pendingCount, holdCount, approvedCount, rejectedCount, medicalCount, leaves, grades] =
       await Promise.all([
         prisma.leaveRequest.count({ where }),
         prisma.leaveRequest.count({ where: { status: LeaveStatus.PENDING } }),
+        prisma.leaveRequest.count({ where: { status: LeaveStatus.HOLD } }),
         prisma.leaveRequest.count({ where: { status: LeaveStatus.APPROVED } }),
         prisma.leaveRequest.count({ where: { status: LeaveStatus.REJECTED } }),
         prisma.leaveRequest.count({ where: { type: LeaveType.MEDICAL, status: LeaveStatus.APPROVED } }),
@@ -336,10 +338,11 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       data: {
         stats: {
           pending: pendingCount,
+          hold: holdCount,
           approved: approvedCount,
           rejected: rejectedCount,
           medical: medicalCount,
-          total: pendingCount + approvedCount + rejectedCount,
+          total: pendingCount + holdCount + approvedCount + rejectedCount,
         },
         gradesSections: grades,
         requests: leaves.map((l) => {
@@ -357,7 +360,13 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
           const isApproved = l.status === "APPROVED";
           const isReduced = isApproved && l.approvedDays !== null && l.approvedDays !== undefined;
-          const waStatus = isApproved ? (isReduced ? "APPROVED_REDUCED" : "APPROVED") : l.status === "REJECTED" ? "REJECTED" : "APPROVED";
+          const waStatus = isApproved
+            ? (isReduced ? "APPROVED_REDUCED" : "APPROVED")
+            : l.status === "HOLD"
+            ? "HOLD"
+            : l.status === "REJECTED"
+            ? "REJECTED"
+            : "APPROVED";
 
           const waMessage = formatLeaveWhatsAppMessage({
             parentName,
@@ -488,6 +497,37 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
     return res.status(400).json({
       success: false,
       error: error.message || "Failed to reject leave request",
+    });
+  }
+});
+
+// POST /api/admin/leave/:id/hold — Put leave request on hold
+router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { reviewerNotes } = req.body;
+
+    const leave = await holdLeaveRequest({
+      leaveId: req.params.id,
+      reviewerId: session.user.id,
+      reviewerNotes: reviewerNotes || "Placed on hold pending administrative review.",
+    });
+
+    return res.json({
+      success: true,
+      message: "Leave request placed on hold",
+      data: {
+        id: leave.id,
+        status: leave.status,
+        reviewerNotes: leave.reviewerNotes,
+        reviewedAt: leave.reviewedAt?.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Hold error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to put leave request on hold",
     });
   }
 });

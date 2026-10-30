@@ -8,7 +8,7 @@ export interface LeaveWhatsAppParams {
   parentName?: string | null;
   studentName: string;
   className?: string | null;
-  status: "APPROVED" | "REJECTED" | "APPROVED_REDUCED";
+  status: "APPROVED" | "REJECTED" | "APPROVED_REDUCED" | "HOLD";
   leaveType: string;
   startDate: string;
   endDate: string;
@@ -50,6 +50,8 @@ export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string 
       ? "✅ APPROVED"
       : params.status === "APPROVED_REDUCED"
       ? "⚠️ APPROVED (REDUCED DAYS)"
+      : params.status === "HOLD"
+      ? "⏸️ ON HOLD / PENDING CLARIFICATION"
       : "❌ REJECTED";
 
   const periodStr =
@@ -64,7 +66,13 @@ export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string 
       ? `${params.requestedDays} ${params.requestedDays === 1 ? "day" : "days"}`
       : "As requested";
 
-  const remarks = params.reviewerNotes?.trim() || (params.status === "REJECTED" ? "Decision recorded by administration." : "Approved by administration.");
+  const remarks =
+    params.reviewerNotes?.trim() ||
+    (params.status === "HOLD"
+      ? "Placed on hold pending administrative review / verification."
+      : params.status === "REJECTED"
+      ? "Decision recorded by administration."
+      : "Approved by administration.");
   const authority = params.reviewerName?.trim() || "Administration Desk";
 
   return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*

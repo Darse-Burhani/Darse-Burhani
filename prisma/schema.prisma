@@ -36,6 +36,7 @@ enum LeaveStatus {
   APPROVED
   REJECTED
   CANCELLED
+  HOLD
 }
 
 enum AttendanceSource {

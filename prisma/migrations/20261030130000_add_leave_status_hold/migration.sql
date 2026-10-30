@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "LeaveStatus" ADD VALUE IF NOT EXISTS 'HOLD';
+

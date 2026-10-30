@@ -36,6 +36,13 @@ const statusBadgeConfig: Record<
     border: "border-amber-200",
     icon: Clock,
   },
+  HOLD: {
+    label: "On Hold",
+    bg: "bg-amber-100/90",
+    text: "text-amber-900",
+    border: "border-amber-300",
+    icon: Clock,
+  },
   APPROVED: {
     label: "Approved",
     bg: "bg-emerald-50",

@@ -29,7 +29,7 @@ export interface LeaveDecisionEmailData {
   studentName: string;
   parentName?: string | null;
   type: string;
-  status: "APPROVED" | "REJECTED";
+  status: "APPROVED" | "REJECTED" | "HOLD";
   requestedStart: string;
   requestedEnd: string;
   requestedDays: number;
@@ -176,17 +176,22 @@ export function leaveApplicationAdminEmail(data: LeaveApplicationEmailData): str
 
 export function leaveDecisionParentEmail(data: LeaveDecisionEmailData): string {
   const approved = data.status === "APPROVED";
+  const onHold = data.status === "HOLD";
   const grantedDays = data.approvedDays ?? data.requestedDays;
   const reduced = approved && grantedDays < data.requestedDays;
-  const accent = approved ? (reduced ? "#f59e0b" : "#10b981") : "#ef4444";
+  const accent = onHold ? "#f59e0b" : approved ? (reduced ? "#f59e0b" : "#10b981") : "#ef4444";
 
-  const headline = !approved
+  const headline = onHold
+    ? "Leave Application Placed On Hold"
+    : !approved
     ? "Leave Application Not Approved"
     : reduced
     ? "Leave Approved — Reduced Days"
     : "Leave Application Approved";
 
-  const intro = !approved
+  const intro = onHold
+    ? `The leave application for <strong>${escapeHtml(data.studentName)}</strong> has been placed <strong>on hold pending administrative clarification or verification</strong>.`
+    : !approved
     ? `The leave application for <strong>${escapeHtml(data.studentName)}</strong> has been reviewed by the school and could not be approved.`
     : reduced
     ? `The leave application for <strong>${escapeHtml(data.studentName)}</strong> has been <strong>approved for ${grantedDays} of ${data.requestedDays} requested ${data.requestedDays === 1 ? "day" : "days"}</strong>.`
@@ -223,15 +228,15 @@ export function leaveDecisionParentEmail(data: LeaveDecisionEmailData): string {
       ${infoRow("Student", escapeHtml(data.studentName))}
       ${infoRow("Leave Type", escapeHtml(labelType(data.type)))}
       ${infoRow("Requested Dates", `${escapeHtml(data.requestedStart)} → ${escapeHtml(data.requestedEnd)} (${data.requestedDays} ${data.requestedDays === 1 ? "day" : "days"})`)}
-      ${infoRow("Final Decision", approved ? (reduced ? "Approved (Reduced Days)" : "Approved in Full") : "Not Approved")}
+      ${infoRow("Application Status", onHold ? "Placed On Hold" : approved ? (reduced ? "Approved (Reduced Days)" : "Approved in Full") : "Not Approved")}
       ${data.reviewerName ? infoRow("Reviewed By", escapeHtml(data.reviewerName)) : ""}
     </table>
 
     ${
       data.reviewerNotes
-        ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:14px 16px;margin:0 0 18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0369a1;margin-bottom:6px;">Remarks from the Reviewer</div>
-            <div style="font-size:13px;line-height:1.7;color:#0c4a6e;white-space:pre-wrap;">${escapeHtml(data.reviewerNotes)}</div>
+        ? `<div style="background:${onHold ? "#fffbeb" : "#f0f9ff"};border:1px solid ${onHold ? "#fde68a" : "#bae6fd"};border-radius:14px;padding:14px 16px;margin:0 0 18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:${onHold ? "#92400e" : "#0369a1"};margin-bottom:6px;">Remarks from Administration</div>
+            <div style="font-size:13px;line-height:1.7;color:${onHold ? "#78350f" : "#0c4a6e"};white-space:pre-wrap;">${escapeHtml(data.reviewerNotes)}</div>
           </div>`
         : ""
     }
@@ -239,7 +244,7 @@ export function leaveDecisionParentEmail(data: LeaveDecisionEmailData): string {
     ${button("Open Parent Portal", data.portalUrl)}
 
     <p style="margin:14px 0 0;font-size:11.5px;line-height:1.7;color:#6b7280;">
-      Attendance for the granted dates is synchronized automatically with the school registry.
+      ${onHold ? "Please check the remarks above and contact the administration if additional information is required." : "Attendance for the granted dates is synchronized automatically with the school registry."}
     </p>
   `;
 

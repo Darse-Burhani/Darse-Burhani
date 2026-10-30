@@ -67,6 +67,7 @@ const PARENT_LEAVE_TYPES: Array<{
 
 const statusStyle: Record<string, string> = {
   PENDING: "bg-amber-50 text-amber-800 border-amber-200",
+  HOLD: "bg-amber-100/90 text-amber-900 border-amber-300 font-bold",
   APPROVED: "bg-emerald-50 text-emerald-800 border-emerald-200",
   REJECTED: "bg-rose-50 text-rose-800 border-rose-200",
   CANCELLED: "bg-slate-100 text-slate-600 border-slate-200",
@@ -120,6 +121,7 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
   }, [leaves, selectedChild]);
 
   const pendingCount = useMemo(() => visibleLeaves.filter((l) => l.status === "PENDING").length, [visibleLeaves]);
+  const holdCount = useMemo(() => visibleLeaves.filter((l) => l.status === "HOLD").length, [visibleLeaves]);
   const approvedCount = useMemo(() => visibleLeaves.filter((l) => l.status === "APPROVED").length, [visibleLeaves]);
 
   const durationDays = useMemo(() => {
@@ -219,10 +221,11 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
       </div>
 
       {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {[
           { label: "Total", value: visibleLeaves.length },
           { label: "Pending", value: pendingCount },
+          { label: "On Hold", value: holdCount },
           { label: "Approved", value: approvedCount },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center">
@@ -319,6 +322,20 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
                             </span>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* On Hold Callout Card */}
+                    {l.status === "HOLD" && (
+                      <div className="mt-2.5 p-3 rounded-xl border border-amber-300 bg-amber-50/90 text-[12px] text-amber-950 shadow-2xs">
+                        <div className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                          <Clock size={14} className="text-amber-700" />
+                          <span>Leave Application On Hold</span>
+                        </div>
+                        <p className="mt-1 text-[11.5px] text-amber-900 font-medium">
+                          The administration has placed this leave request on hold pending verification or clarification.
+                          {l.reviewerNotes ? " Please review the school remarks below." : " Please contact the school office if clarification was requested."}
+                        </p>
                       </div>
                     )}
 

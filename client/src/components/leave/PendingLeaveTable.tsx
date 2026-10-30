@@ -6,6 +6,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  PauseCircle,
   Stethoscope,
   HeartPulse,
   Paperclip,
@@ -27,6 +28,7 @@ interface PendingLeaveTableProps {
   isAdmin?: boolean;
   onApprove: (id: string, notes?: string, approvedDays?: number | null) => Promise<void>;
   onReject: (id: string, notes?: string) => Promise<void>;
+  onHold?: (id: string, notes?: string) => Promise<void>;
   onBatchApprove?: (ids: string[], notes?: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   assignees?: PortalLeaveMember[];
@@ -39,6 +41,7 @@ export function PendingLeaveTable({
   isAdmin = false,
   onApprove,
   onReject,
+  onHold,
   onBatchApprove,
   onDelete,
   assignees,
@@ -48,10 +51,11 @@ export function PendingLeaveTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeAction, setActiveAction] = useState<{
     id: string;
-    type: "approve" | "reject";
+    type: "approve" | "reject" | "hold";
     studentName: string;
     requestedDays?: number;
     startDate?: string;
+    isSettlingHold?: boolean;
   } | null>(null);
   const [actionNotes, setActionNotes] = useState("");
   const [grantDays, setGrantDays] = useState<number>(1);
@@ -89,6 +93,9 @@ export function PendingLeaveTable({
           actionNotes.trim() || undefined,
           grantDays
         );
+      } else if (activeAction.type === "hold") {
+        if (!onHold) throw new Error("Hold action is not supported in this view");
+        await onHold(activeAction.id, actionNotes.trim() || undefined);
       } else {
         await onReject(activeAction.id, actionNotes.trim() || "Declined");
       }
@@ -213,13 +220,14 @@ export function PendingLeaveTable({
               const end = new Date(item.endDate);
               const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
               const isPending = item.status === "PENDING";
+              const isHold = item.status === "HOLD";
               const isSelected = selectedIds.has(item.id);
 
               return (
                 <tr
                   key={item.id}
                   className={`transition-colors ${
-                    isSelected ? "bg-emerald-50/70" : "hover:bg-gray-50/60"
+                    isSelected ? "bg-emerald-50/70" : isHold ? "bg-amber-50/30 hover:bg-amber-50/60" : "hover:bg-gray-50/60"
                   }`}
                 >
                   {/* Checkbox Cell */}
@@ -353,6 +361,8 @@ export function PendingLeaveTable({
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : item.status === "REJECTED"
                             ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : item.status === "HOLD"
+                            ? "bg-amber-100/90 text-amber-900 border border-amber-300 shadow-2xs"
                             : item.status === "PENDING"
                             ? "bg-amber-50 text-amber-700 border border-amber-200"
                             : "bg-gray-100 text-gray-600 border border-gray-200"
@@ -360,9 +370,24 @@ export function PendingLeaveTable({
                       >
                         {item.status === "APPROVED" && <CheckCircle2 className="w-3 h-3" />}
                         {item.status === "REJECTED" && <XCircle className="w-3 h-3" />}
+                        {item.status === "HOLD" && <PauseCircle className="w-3 h-3 text-amber-700" />}
                         {item.status === "PENDING" && <Clock className="w-3 h-3" />}
-                        <span>{item.status === "APPROVED" ? (item.type === "MEDICAL" ? "MEDICAL EXCUSED" : "ON HOLIDAY / LEAVE") : item.status}</span>
+                        <span>
+                          {item.status === "APPROVED"
+                            ? item.type === "MEDICAL"
+                              ? "MEDICAL EXCUSED"
+                              : "ON HOLIDAY / LEAVE"
+                            : item.status === "HOLD"
+                            ? "ON HOLD"
+                            : item.status}
+                        </span>
                       </span>
+                      {item.status === "HOLD" && item.reviewerNotes && (
+                        <div className="text-[10.5px] text-amber-900 bg-amber-50/80 border border-amber-200/90 rounded-md p-1.5 line-clamp-2 max-w-[210px]" title={item.reviewerNotes}>
+                          <span className="font-bold block text-[9.5px] uppercase tracking-wider text-amber-900">Hold Reason:</span>
+                          {item.reviewerNotes}
+                        </div>
+                      )}
                       {item.status === "APPROVED" && (
                         <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
                           <Sparkles className="w-2.5 h-2.5" />
@@ -397,11 +422,13 @@ export function PendingLeaveTable({
                             )}
                           </div>
                         )}
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {/* 1. APPROVE BUTTON */}
                           <button
                             type="button"
                             onClick={() => {
                               setGrantDays(diffDays);
+                              setActionNotes("");
                               setActiveAction({
                                 id: item.id,
                                 type: "approve",
@@ -410,21 +437,46 @@ export function PendingLeaveTable({
                                 startDate: item.startDate,
                               });
                             }}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all"
-                            title="Approve leave and sync attendance (you can grant fewer days)"
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all"
+                            title="Approve leave and sync attendance"
                           >
                             <Palmtree className="w-3.5 h-3.5" />
-                            <span>Approve Leave</span>
+                            <span>Approve</span>
                           </button>
+
+                          {/* 2. HOLD BUTTON */}
+                          {onHold && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionNotes(item.reviewerNotes || "");
+                                setActiveAction({
+                                  id: item.id,
+                                  type: "hold",
+                                  studentName: item.studentName || "Student",
+                                  requestedDays: diffDays,
+                                  startDate: item.startDate,
+                                });
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs flex items-center gap-1 border border-amber-300 transition-colors"
+                              title="Put on hold with administrative remarks sent to parent"
+                            >
+                              <PauseCircle className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Hold</span>
+                            </button>
+                          )}
+
+                          {/* 3. REJECT BUTTON */}
                           <button
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
+                              setActionNotes("");
                               setActiveAction({
                                 id: item.id,
                                 type: "reject",
                                 studentName: item.studentName || "Student",
-                              })
-                            }
+                              });
+                            }}
                             className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 border border-rose-200 transition-colors"
                             title="Reject request"
                           >
@@ -432,6 +484,85 @@ export function PendingLeaveTable({
                             <span>Reject</span>
                           </button>
                         </div>
+                      </div>
+                    ) : isHold ? (
+                      <div className="flex flex-col items-end gap-1.5 text-right">
+                        <div className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
+                          <PauseCircle className="w-3 h-3 text-amber-600" />
+                          <span>On Hold — Settle:</span>
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGrantDays(diffDays);
+                              setActionNotes(item.reviewerNotes ? `Settled after hold: ${item.reviewerNotes}` : "");
+                              setActiveAction({
+                                id: item.id,
+                                type: "approve",
+                                studentName: item.studentName || "Student",
+                                requestedDays: diffDays,
+                                startDate: item.startDate,
+                                isSettlingHold: true,
+                              });
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all"
+                            title="Settle hold and approve leave"
+                          >
+                            <Palmtree className="w-3.5 h-3.5" />
+                            <span>Approve (Settle)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActionNotes(item.reviewerNotes ? `Declined after review: ${item.reviewerNotes}` : "");
+                              setActiveAction({
+                                id: item.id,
+                                type: "reject",
+                                studentName: item.studentName || "Student",
+                                isSettlingHold: true,
+                              });
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 border border-rose-200 transition-colors"
+                            title="Settle hold and reject leave"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+
+                          {onHold && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionNotes(item.reviewerNotes || "");
+                                setActiveAction({
+                                  id: item.id,
+                                  type: "hold",
+                                  studentName: item.studentName || "Student",
+                                  requestedDays: diffDays,
+                                  startDate: item.startDate,
+                                });
+                              }}
+                              className="px-2 py-1.5 rounded-lg bg-white hover:bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-300"
+                              title="Update hold remarks"
+                            >
+                              Edit Remarks
+                            </button>
+                          )}
+                        </div>
+                        {item.whatsAppUrl && (
+                          <a
+                            href={item.whatsAppUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline mt-0.5"
+                            title="Shoot official Hold WhatsApp notice to parent"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Shoot Hold WhatsApp Notice</span>
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="flex flex-col items-end gap-1.5 text-right">
@@ -475,11 +606,21 @@ export function PendingLeaveTable({
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setActiveAction(null)} />
           <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-gray-100">
             <h3 className="font-bold text-sm text-gray-900 mb-1">
-              {activeAction.type === "approve" ? "Approve Leave Application" : "Reject Leave Request"}
+              {activeAction.type === "approve"
+                ? activeAction.isSettlingHold
+                  ? "Settle & Approve Leave Application"
+                  : "Approve Leave Application"
+                : activeAction.type === "hold"
+                ? "Place Leave Application On Hold"
+                : activeAction.isSettlingHold
+                ? "Settle & Reject Leave Request"
+                : "Reject Leave Request"}
             </h3>
             <p className="text-xs text-gray-500 mb-4">
               {activeAction.type === "approve"
                 ? `Approve ${activeAction.studentName}'s leave. Choose how many days to grant — attendance and the Google Sheet will reflect only the granted dates.`
+                : activeAction.type === "hold"
+                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. The remarks entered below will be dispatched to the parent via WhatsApp and reflected on the portal.`
                 : `Specify why the leave for ${activeAction.studentName} is being rejected.`}
             </p>
 
@@ -496,6 +637,8 @@ export function PendingLeaveTable({
                 placeholder={
                   activeAction.type === "approve"
                     ? "e.g., Leave granted as requested / Reduced due to exam schedule..."
+                    : activeAction.type === "hold"
+                    ? "e.g., Medical certificate required / Clarification needed on travel dates / Under review with Masool..."
                     : "e.g., Leave application declined due to mandatory academic schedule..."
                 }
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 resize-none"
@@ -654,15 +797,20 @@ export function PendingLeaveTable({
                     ? grantDays < (activeAction.requestedDays ?? 1)
                       ? "bg-amber-600 hover:bg-amber-700"
                       : "bg-emerald-600 hover:bg-emerald-700"
+                    : activeAction.type === "hold"
+                    ? "bg-amber-600 hover:bg-amber-700"
                     : "bg-rose-600 hover:bg-rose-700"
                 }`}
               >
                 {processing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {activeAction.type === "hold" && <PauseCircle className="w-3.5 h-3.5" />}
                 <span>
                   {activeAction.type === "approve"
                     ? grantDays < (activeAction.requestedDays ?? 1)
                       ? `Approve Reduced (${grantDays} Days) & Sync`
                       : `Approve (${grantDays} Days) & Sync`
+                    : activeAction.type === "hold"
+                    ? "Put On Hold & Send Notice"
                     : "Confirm Rejection"}
                 </span>
               </button>
