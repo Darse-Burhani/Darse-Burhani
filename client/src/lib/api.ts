@@ -889,6 +889,40 @@ export async function pollHikvisionDevicesNow(date?: string): Promise<{
     }>;
   };
 }> {
+  // 1. Try local hardware bridge first (runs on port 8099 on the school PC connected to Hikvision terminals)
+  try {
+    const bridgeUrl = `http://127.0.0.1:8099/api/sync${date ? `?date=${encodeURIComponent(date)}` : ""}`;
+    const bridgeRes = await fetch(bridgeUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(60000),
+    });
+    if (bridgeRes.ok) {
+      const bData = await bridgeRes.json();
+      if (bData && bData.success) {
+        return {
+          success: true,
+          message: `Pulled ${bData.totalFetched} scans from Hikvision terminals and synchronized ${bData.pushedToRender} scans to Render.`,
+          data: {
+            totalFetched: bData.totalFetched,
+            totalProcessed: bData.pushedToRender ?? bData.totalFetched,
+            devices: (bData.devices || []).map((d: any, idx: number) => ({
+              id: `dev-${idx + 1}`,
+              name: d.name,
+              host: d.host,
+              success: d.success ?? true,
+              scansFetched: d.fetched ?? 0,
+              scansProcessed: d.fetched ?? 0,
+            })),
+          },
+        };
+      }
+    }
+  } catch {
+    // If local bridge is unreachable (e.g. user browsing off-campus or bridge inactive), fallback to server endpoint
+  }
+
+  // 2. Server-side poll fallback (works when running locally or LAN connected)
   const url = date
     ? `/api/admin/attendance-logs/poll-now?date=${encodeURIComponent(date)}`
     : "/api/admin/attendance-logs/poll-now";

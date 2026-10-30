@@ -569,15 +569,15 @@ export default function AdminAttendanceHikPage() {
               onClick={handlePollDevicesNow}
               disabled={pollingHardware || refreshing}
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
-              title={date === todayStr ? "Poll MinMoe hardware terminals for today's scans" : `Poll MinMoe hardware terminals for ${date}'s scans`}
+              title={date === todayStr ? "Poll MinMoe hardware terminals & sync all scans to Render" : `Poll MinMoe hardware terminals for ${date} & sync to Render`}
             >
               <RefreshCw className={`w-4 h-4 shrink-0 ${pollingHardware ? "animate-spin" : ""}`} />
               <span className="truncate">
                 {pollingHardware
-                  ? "Polling Devices..."
+                  ? "Polling & Syncing..."
                   : date === todayStr
-                  ? "Poll Today's Scans Now"
-                  : `Poll ${date} Scans Now`}
+                  ? "Poll from Hik & Sync to Render"
+                  : `Poll ${date} & Sync to Render`}
               </span>
             </button>
 
@@ -1071,7 +1071,7 @@ export default function AdminAttendanceHikPage() {
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${pollingHardware ? "animate-spin" : ""}`} />
-                <span>{pollingHardware ? "Polling..." : date === todayStr ? "Poll Today's Scans Now" : `Poll ${date} Scans Now`}</span>
+                <span>{pollingHardware ? "Polling & Syncing..." : date === todayStr ? "Poll from Hik & Sync to Render" : `Poll ${date} & Sync to Render`}</span>
               </button>
             </div>
           </div>

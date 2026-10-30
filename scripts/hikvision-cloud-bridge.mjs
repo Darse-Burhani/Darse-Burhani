@@ -41,9 +41,9 @@ const stats = {
   renderSynced: 0,
   dbDirectSynced: 0,
   lastPunch: null,
-  keepAliveStatus: 'INITIALIZING',
-  keepAliveWindow: '07:20 – 20:30 IST',
-  lastKeepAlivePing: null,
+  lastSyncAt: null,
+  lastSyncCount: 0,
+  syncStatus: 'IDLE (Scans stored in Hikvision hardware)',
 };
 
 // Cloud target. Prefer an explicit CLI/RENDER_URL, then the same public
@@ -286,96 +286,186 @@ function normalizeDeviceTime(raw) {
   return s;
 }
 
-// ── Keep-Alive School Hours & Dynamic Schedule Window ─────────────
-// Default school hours: 07:20 AM to 08:30 PM IST (07:20 - 20:30)
-// Outside this window, keep-alive pings to Render are paused so the
-// instance can sleep and conserve its 750 free-tier monthly hours.
-// When active BiometricScanWindows are configured in the DB, this
-// window automatically expands to ensure the server is awake for all scans.
-const FIXED_KEEP_ALIVE_START = process.env.KEEP_ALIVE_START || '07:20';
-const FIXED_KEEP_ALIVE_END = process.env.KEEP_ALIVE_END || '20:30';
 
-let cachedKeepAliveWindow = {
-  lastChecked: 0,
-  windowStart: FIXED_KEEP_ALIVE_START,
-  windowEnd: FIXED_KEEP_ALIVE_END,
-  windowName: 'Fixed School Hours (07:20 – 20:30 IST)',
-};
+// ── On-Demand Hikvision Cloud Sync ─────────────────────────────────
+// Automatic 3-minute keep-alive pings to Render have been disabled to conserve
+// Render's 750 free-tier monthly hours. All punches remain safely stored inside
+// the Hikvision hardware memory and the local database.
+//
+// When the admin clicks "Poll from Hik & Sync to Render" on the web page or the
+// bridge dashboard, syncAllDevicesToRender() is executed on demand.
 
-async function getEffectiveKeepAliveWindow() {
-  const now = Date.now();
-  // Cache scan window calculation for 5 minutes
-  if (now - cachedKeepAliveWindow.lastChecked < 5 * 60 * 1000) {
-    return cachedKeepAliveWindow;
-  }
+export async function syncAllDevicesToRender(targetDateStr) {
+  const ist = getIstParts();
+  const dateStr = targetDateStr || `${ist.year}-${ist.month}-${ist.day}`;
+  console.log(`\n============================================================`);
+  console.log(`⚡ [ON-DEMAND SYNC] PULLING HIKVISION SCANS FOR ${dateStr}`);
+  console.log(`============================================================`);
+  stats.syncStatus = `SYNCING ${dateStr}...`;
 
-  let start = FIXED_KEEP_ALIVE_START;
-  let end = FIXED_KEEP_ALIVE_END;
-  let name = 'Fixed School Hours (07:20 – 20:30 IST)';
+  const startTime = `${dateStr}T00:00:00+05:30`;
+  const endTime = `${dateStr}T23:59:59+05:30`;
+  const allEvents = [];
+  const deviceReports = [];
 
-  try {
-    const windows = await prisma.biometricScanWindow.findMany({
-      where: { enabled: true },
-    });
+  for (const dev of DEVICES) {
+    let devEvents = [];
+    let position = 0;
+    const pageSize = 30;
+    let hasMore = true;
+    let totalMatches = null;
 
-    if (windows && windows.length > 0) {
-      const toMins = (t) => {
-        if (!t || typeof t !== 'string' || !t.includes(':')) return null;
-        const [h, m] = t.split(':').map(Number);
-        return isNaN(h) || isNaN(m) ? null : h * 60 + m;
-      };
+    console.log(`   ⏳ Querying ${dev.name} (${dev.host})...`);
 
-      let minStartMins = toMins(FIXED_KEEP_ALIVE_START);
-      let maxEndMins = toMins(FIXED_KEEP_ALIVE_END);
-      const activeNames = [];
+    while (hasMore) {
+      const payload = JSON.stringify({
+        AcsEventCond: {
+          searchID: `sync-${Date.now()}`,
+          searchResultPosition: position,
+          maxResults: pageSize,
+          major: 0,
+          minor: 0,
+          startTime,
+          endTime,
+        },
+      });
 
-      for (const w of windows) {
-        activeNames.push(w.name || 'Window');
-        const sMins = toMins(w.startTime) ?? toMins(w.facultyStartTime);
-        const eMins = toMins(w.lateEndTime) ?? toMins(w.endTime) ?? toMins(w.facultyLateEndTime) ?? toMins(w.facultyEndTime);
+      const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
+      try {
+        const res = await digestFetch(url, {
+          method: 'POST',
+          username: dev.username,
+          password: dev.password,
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          timeoutMs: 8000,
+        });
 
-        // If a window starts earlier than 07:20, wake up 15 mins before
-        if (sMins !== null && (sMins - 15) < minStartMins) {
-          minStartMins = Math.max(0, sMins - 15);
+        if (!res.ok) {
+          console.warn(`      ⚠️ HTTP ${res.status} at position ${position}`);
+          break;
         }
-        // If a window ends later than 20:30, stay awake 15 mins after
-        if (eMins !== null && (eMins + 15) > maxEndMins) {
-          maxEndMins = Math.min(24 * 60 - 1, eMins + 15);
+
+        const data = await res.json();
+        const acs = data?.AcsEvent;
+        if (!acs) break;
+
+        totalMatches = acs.totalMatches ?? totalMatches;
+        const list = acs.InfoList || [];
+        if (list.length === 0) break;
+
+        for (const item of list) {
+          const rawEmp = item.employeeNoString || item.name || item.cardNo;
+          if (!rawEmp) continue;
+          const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
+          const timeStr = normalizeDeviceTime(item.time);
+          const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
+          const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
+          devEvents.push({
+            employeeNo: empNo,
+            name: item.name || '',
+            cardNo: item.cardNo || '',
+            time: timeStr,
+            currentVerifyMode: verifyMode,
+            serialNo: serial,
+            deviceHost: dev.host,
+          });
         }
+
+        position += list.length;
+        if (totalMatches !== null && position >= totalMatches) break;
+        if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') break;
+      } catch (err) {
+        console.error(`      ❌ Fetch error for ${dev.name}:`, err.message);
+        break;
       }
-
-      const formatMins = (m) => {
-        const hh = String(Math.floor(m / 60)).padStart(2, '0');
-        const mm = String(m % 60).padStart(2, '0');
-        return `${hh}:${mm}`;
-      };
-
-      start = formatMins(minStartMins);
-      end = formatMins(maxEndMins);
-      name = `Schedule Windows (${activeNames.join(', ')}) + Base 07:20–20:30 IST`;
     }
-  } catch (err) {
-    // If DB check fails, fallback safely to fixed school hours
+
+    console.log(`   ✓ Retrieved ${devEvents.length} events from ${dev.name} (${dev.host})`);
+    deviceReports.push({
+      name: dev.name,
+      host: dev.host,
+      fetched: devEvents.length,
+      success: true,
+    });
+    allEvents.push(...devEvents);
   }
 
-  cachedKeepAliveWindow = {
-    lastChecked: now,
-    windowStart: start,
-    windowEnd: end,
-    windowName: name,
+  // Deduplicate by employeeNo + date/time minute
+  const uniqueEvents = [];
+  const seen = new Set();
+  for (const ev of allEvents) {
+    const key = `${ev.employeeNo}-${ev.time.slice(0, 16)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueEvents.push(ev);
+    }
+  }
+
+  console.log(`   📦 Total unique events to forward: ${uniqueEvents.length}`);
+
+  // Ensure local DB has all of them as well
+  for (const ev of uniqueEvents) {
+    recordDirectScanInDatabase(ev).catch(() => {});
+  }
+
+  // Push to Render Cloud in concurrent batches of 15
+  let pushedToCloud = 0;
+  let failedCloud = 0;
+  const chunkSize = 15;
+
+  for (let i = 0; i < uniqueEvents.length; i += chunkSize) {
+    const chunk = uniqueEvents.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (ev) => {
+        try {
+          const payload = {
+            AccessControllerEvent: {
+              employeeNoString: String(ev.employeeNo),
+              name: ev.name || '',
+              cardNo: ev.cardNo || '',
+              time: ev.time,
+              currentVerifyMode: ev.currentVerifyMode || 'FINGERPRINT',
+              serialNo: String(ev.serialNo || `${ev.employeeNo}-${ev.time}`),
+              deviceId: ev.deviceHost,
+            },
+          };
+          const res = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-biometric-secret': SECRET,
+              'x-webhook-secret': SECRET,
+            },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (res.ok) pushedToCloud++;
+          else failedCloud++;
+        } catch {
+          failedCloud++;
+        }
+      })
+    );
+  }
+
+  stats.renderSynced += pushedToCloud;
+  stats.lastSyncAt = new Date().toISOString();
+  stats.lastSyncCount = pushedToCloud;
+  stats.syncStatus = `COMPLETED (${pushedToCloud} pushed to Render for ${dateStr})`;
+
+  console.log(`✅ [SYNC COMPLETE] ${uniqueEvents.length} events processed. ${pushedToCloud} pushed to Render Cloud (${failedCloud} failed).`);
+
+  return {
+    success: true,
+    date: dateStr,
+    totalFetched: uniqueEvents.length,
+    pushedToRender: pushedToCloud,
+    failedRender: failedCloud,
+    devices: deviceReports,
   };
-  return cachedKeepAliveWindow;
 }
 
-function isCurrentTimeInKeepAliveWindow(windowInfo, d = new Date()) {
-  const ist = getIstParts(d);
-  const currentMins = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
-  const [sh, sm] = (windowInfo.windowStart || FIXED_KEEP_ALIVE_START).split(':').map(Number);
-  const [eh, em] = (windowInfo.windowEnd || FIXED_KEEP_ALIVE_END).split(':').map(Number);
-  const startMins = sh * 60 + sm;
-  const endMins = eh * 60 + em;
-  return currentMins >= startMins && currentMins <= endMins;
-}
 
 // ── Identity aliases ─────────────────────────────────────────────
 // Terminals may enrol a person under a display name or numeric ID instead of
@@ -660,35 +750,30 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
   stats.totalPunches++;
   stats.lastPunch = { employeeNo, name, time: timeStr, currentVerifyMode, deviceHost };
 
-  // 1. Send to Render Cloud Webhook (primary gateway + automatic fallbacks)
-  let webhookSuccess = false;
-  for (let attempt = 0; attempt < WEBHOOK_FALLBACKS.length && !webhookSuccess; attempt++) {
-    // Sticky routing: always retry the last-known-good gateway first.
-    const idx = (lastGoodWebhookIndex + attempt) % WEBHOOK_FALLBACKS.length;
-    const target = WEBHOOK_FALLBACKS[idx];
-    try {
-      const res = await fetch(target, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-biometric-secret': SECRET,
-          'x-webhook-secret': SECRET,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (res.ok) {
-        webhookSuccess = true;
-        lastGoodWebhookIndex = idx;
-        stats.renderSynced++;
-        if (attempt > 0) console.log(`   🔁 [CLOUD WEBHOOK] Recovered via fallback gateway #${idx}`);
-        console.log(`   ☁️  [CLOUD WEBHOOK] Synced to Render (${res.status} OK)`);
-      } else {
-        console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Gateway #${idx} returned HTTP ${res.status}${attempt < WEBHOOK_FALLBACKS.length - 1 ? ' (trying fallback)' : ' (activating direct DB sync)'}`);
-      }
-    } catch (e) {
-      console.warn(`   ⚠️ [CLOUD WEBHOOK NOTICE] Cannot reach gateway #${idx} (${new URL(target).host}): ${e.message}${attempt < WEBHOOK_FALLBACKS.length - 1 ? ' — trying fallback gateway' : ''}`);
+  // 1. Optional live webhook forward (disabled by default to let Render sleep and conserve 750 free-tier hours)
+  const shouldLivePush = process.env.LIVE_CLOUD_PUSH === 'true';
+  if (shouldLivePush) {
+    let webhookSuccess = false;
+    for (let attempt = 0; attempt < WEBHOOK_FALLBACKS.length && !webhookSuccess; attempt++) {
+      const idx = (lastGoodWebhookIndex + attempt) % WEBHOOK_FALLBACKS.length;
+      const target = WEBHOOK_FALLBACKS[idx];
+      try {
+        const res = await fetch(target, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-biometric-secret': SECRET,
+            'x-webhook-secret': SECRET,
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          webhookSuccess = true;
+          lastGoodWebhookIndex = idx;
+          stats.renderSynced++;
+        }
+      } catch (e) {}
     }
   }
 
@@ -1174,39 +1259,9 @@ async function startBridge() {
     }
   }, 30000);
 
-  // 5. Render Keep-Alive ping (Every 3 minutes, ONLY during school hours 07:20 - 20:30 IST)
-  let lastLoggedSleepHour = -1;
-  setInterval(async () => {
-    const windowInfo = await getEffectiveKeepAliveWindow();
-    stats.keepAliveWindow = `${windowInfo.windowStart} – ${windowInfo.windowEnd} IST`;
-    const isActive = isCurrentTimeInKeepAliveWindow(windowInfo);
-    const ist = getIstParts();
-
-    if (!isActive) {
-      stats.keepAliveStatus = `SLEEPING (Night — outside ${windowInfo.windowStart}–${windowInfo.windowEnd} IST)`;
-      const currentHour = parseInt(ist.hour, 10);
-      if (lastLoggedSleepHour !== currentHour) {
-        lastLoggedSleepHour = currentHour;
-        console.log(`🌙 [KEEP-ALIVE SLEEP] Current time ${ist.hour}:${ist.minute} IST is outside active window (${stats.keepAliveWindow}). Render ping paused to conserve free-tier hours.`);
-      }
-      return;
-    }
-
-    stats.keepAliveStatus = `ACTIVE (School Hours ${stats.keepAliveWindow})`;
-    try {
-      await fetch(`${lastGoodHealthBase}/api/health`, { signal: AbortSignal.timeout(10000) });
-      stats.lastKeepAlivePing = `${ist.hour}:${ist.minute}:${ist.second} IST (${lastGoodHealthBase})`;
-    } catch {
-      for (const base of CLOUD_HEALTH_BASES) {
-        try {
-          await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(10000) });
-          lastGoodHealthBase = base;
-          stats.lastKeepAlivePing = `${ist.hour}:${ist.minute}:${ist.second} IST (${base})`;
-          break;
-        } catch {}
-      }
-    }
-  }, 180000);
+  // 5. Automatic 3-minute keep-alive removed to conserve Render's 750 free-tier hours.
+  // Punches remain safely recorded in Hikvision hardware and the local DB.
+  // Full cloud sync to Render is executed on demand via the Hik scan page button or the bridge UI.
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');
   console.log('   All biometric punches from physical terminals are syncing to Render.');
@@ -1217,22 +1272,54 @@ const STATUS_PORT = parseInt(process.env.BRIDGE_STATUS_PORT || '8099', 10);
 
 function startStatusServer() {
   return new Promise((resolve) => {
-    const server = http.createServer((req, res) => {
-      if (req.url === '/health' || req.url === '/api/status') {
+    const server = http.createServer(async (req, res) => {
+      // Enable CORS & Chrome Private Network Access (PNA) so browser pages on HTTPS (e.g. darse-burhani.onrender.com) can call this local bridge
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      const reqUrl = new URL(req.url, 'http://127.0.0.1:8099');
+
+      if (reqUrl.pathname === '/health' || reqUrl.pathname === '/api/status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'ONLINE',
-        uptimeSeconds: Math.round(process.uptime()),
-        startedAt: stats.startedAt,
-        totalPunches: stats.totalPunches,
-        renderSynced: stats.renderSynced,
-        dbDirectSynced: stats.dbDirectSynced,
-        lastPunch: stats.lastPunch,
-        devices: DEVICES.map((d) => ({ name: d.name, host: d.host, port: d.port })),
-        cloudUrl: RENDER_BASE,
-      }, null, 2));
-      return;
-    }
+        res.end(JSON.stringify({
+          status: 'ONLINE',
+          mode: 'ON_DEMAND_SYNC',
+          uptimeSeconds: Math.round(process.uptime()),
+          startedAt: stats.startedAt,
+          totalPunches: stats.totalPunches,
+          renderSynced: stats.renderSynced,
+          dbDirectSynced: stats.dbDirectSynced,
+          lastPunch: stats.lastPunch,
+          lastSyncAt: stats.lastSyncAt,
+          lastSyncCount: stats.lastSyncCount,
+          syncStatus: stats.syncStatus,
+          devices: DEVICES.map((d) => ({ name: d.name, host: d.host, port: d.port })),
+          cloudUrl: RENDER_BASE,
+        }, null, 2));
+        return;
+      }
+
+      // On-Demand Sync Endpoint called by the "Poll from Hik & Sync to Render" button
+      if (reqUrl.pathname === '/api/sync' || reqUrl.pathname === '/api/sync-to-render') {
+        const dateParam = reqUrl.searchParams.get('date');
+        try {
+          const result = await syncAllDevicesToRender(dateParam);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+        return;
+      }
 
     const uptimeMins = Math.floor(process.uptime() / 60);
     const uptimeHours = Math.floor(uptimeMins / 60);
@@ -1279,15 +1366,46 @@ function startStatusServer() {
       <div class="metric"><div class="metric-val">${stats.lastPunch ? (stats.lastPunch.name || stats.lastPunch.employeeNo) : 'None yet'}</div><div class="metric-lbl">Last Punch Person</div></div>
     </div>
 
-    <div style="background:#0f172a; border-radius:8px; padding:12px; border:1px solid #334155; margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:13px; color:#cbd5e1; font-weight:600;">⏰ Keep-Alive School Hours</span>
-        <span style="font-size:12px; color:${stats.keepAliveStatus.startsWith('ACTIVE') ? '#34d399' : '#fbbf24'}; font-weight:600;">${stats.keepAliveStatus}</span>
+    <!-- On-Demand Sync Control Cockpit -->
+    <div style="background: linear-gradient(135deg, #064e3b 0%, #022c22 100%); border-radius: 10px; padding: 18px; border: 1px solid #10b981; margin: 16px 0; text-align: center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span style="font-size:13px; color:#a7f3d0; font-weight:700;">⚡ CLOUD SYNC ON-DEMAND</span>
+        <span style="font-size:11px; background:#047857; color:#fff; padding:2px 8px; border-radius:6px; font-weight:600;">Render Free Tier Safe</span>
       </div>
-      <div style="font-size:12px; color:#94a3b8; margin-top:4px;">
-        Active Window: <strong>${stats.keepAliveWindow}</strong> • Last Ping: <strong>${stats.lastKeepAlivePing || 'None yet'}</strong>
+      <button id="syncBtn" onclick="runSync()" style="width:100%; background: linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; padding:14px 20px; border-radius:8px; font-weight:800; font-size:15px; cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.35); transition:all 0.2s;">
+        ⚡ Poll Scans from Hikvision & Push to Render
+      </button>
+      <div id="syncStatus" style="font-size:12px; color:#6ee7b7; margin-top:10px; line-height:1.5;">
+        ${stats.syncStatus}
       </div>
     </div>
+
+    <script>
+      async function runSync() {
+        const btn = document.getElementById('syncBtn');
+        const st = document.getElementById('syncStatus');
+        btn.disabled = true;
+        btn.innerText = '⏳ Polling terminals & syncing to Render...';
+        st.innerText = 'Connecting to 192.168.0.4 & 192.168.0.5...';
+        try {
+          const res = await fetch('/api/sync', { method: 'POST' });
+          const json = await res.json();
+          if (json.success) {
+            btn.innerText = '✓ Sync Complete!';
+            st.innerHTML = '<span style="color:#34d399; font-weight:bold;">Successfully pulled ' + json.totalFetched + ' scans across terminals and pushed ' + json.pushedToRender + ' to Render!</span>';
+            setTimeout(() => { location.reload(); }, 2500);
+          } else {
+            btn.innerText = '❌ Sync Failed';
+            st.innerText = json.error || 'Failed to sync to Render';
+            btn.disabled = false;
+          }
+        } catch (err) {
+          btn.innerText = '❌ Network Error';
+          st.innerText = err.message;
+          btn.disabled = false;
+        }
+      }
+    </script>
 
     <div class="list">
       <strong style="color:#cbd5e1;">Monitored Terminals:</strong>
