@@ -61,6 +61,25 @@ function isPlaceholderSecret(secret: string): boolean {
   );
 }
 
+/**
+ * Checks whether an email address belongs to a routable domain.
+ * Blocks synthetic seed addresses (*@darseburhani.edu) from triggering bounce emails.
+ */
+export function isDeliverableEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const s = email.trim().toLowerCase();
+  if (
+    s.endsWith("@darseburhani.edu") ||
+    s.endsWith(".edu.invalid") ||
+    s.includes("example.com") ||
+    s.includes("localhost") ||
+    s.endsWith("@test.com")
+  ) {
+    return false;
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
 export const LEAVE_FROM =
   process.env.LEAVE_SMTP_FROM ||
   `Darse Burhani Galiakot <${cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org"}>`;
@@ -177,6 +196,11 @@ function buildMailOptions(options: SendEmailOptions, from: string, fromEmail: st
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
+  if (!isDeliverableEmail(options.to)) {
+    console.warn(`[email] Skipping dispatch to unroutable or placeholder email: ${options.to}`);
+    return false;
+  }
+
   const primary = getPrimaryTransporter();
   const fallback = getFallbackTransporter();
 
@@ -221,6 +245,11 @@ export async function sendLeaveEmailDetailed(options: SendEmailOptions): Promise
   error?: string;
   messageId?: string;
 }> {
+  if (!isDeliverableEmail(options.to)) {
+    console.warn(`[email] Skipping dispatch to unroutable or placeholder email: ${options.to}`);
+    return { success: false, error: `Skipped unroutable address (${options.to})` };
+  }
+
   const fromEmail =
     cleanEmail(process.env.LEAVE_SMTP_USER) ||
     cleanEmail(process.env.LEAVE_ADMIN_EMAIL) ||

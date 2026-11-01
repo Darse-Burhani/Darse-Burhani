@@ -1,7 +1,7 @@
 import prisma from "./prisma";
 import { cache } from "./cache";
 import { queueAutoSheetSync } from "./google-attendance-sync";
-import { sendLeaveEmail } from "./email";
+import { sendLeaveEmail, isDeliverableEmail } from "./email";
 import {
   leaveApplicationAdminEmail,
   leaveDecisionParentEmail,
@@ -455,10 +455,16 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     // Always include the designated Galiakot administrative mailbox
     adminEmailList.add("admin.galiakot@darseburhani.org");
     if (process.env.LEAVE_ADMIN_EMAIL?.trim()) {
-      adminEmailList.add(process.env.LEAVE_ADMIN_EMAIL.trim().toLowerCase());
+      const configuredAdmin = process.env.LEAVE_ADMIN_EMAIL.trim().toLowerCase();
+      if (isDeliverableEmail(configuredAdmin)) {
+        adminEmailList.add(configuredAdmin);
+      }
     }
     adminUsers.forEach((a) => {
-      if (a.email?.trim()) adminEmailList.add(a.email.trim().toLowerCase());
+      const email = a.email?.trim().toLowerCase();
+      if (email && isDeliverableEmail(email)) {
+        adminEmailList.add(email);
+      }
     });
 
     const emailSubject = `New Leave Application — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`;
