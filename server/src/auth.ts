@@ -127,7 +127,11 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
     // it in a loop). Return a clean 500 instead so a transient DB outage doesn't
     // take the whole backend down (see other routes for the same convention).
     console.error("Login error:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details: (error as any)?.message || String(error),
+    });
   }
 }
 
