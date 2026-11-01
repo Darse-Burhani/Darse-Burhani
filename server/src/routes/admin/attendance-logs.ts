@@ -847,6 +847,70 @@ router.post("/poll-now", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/admin/attendance-logs/ping — Fast latency check and heartbeat probe
+router.get("/ping", (_req, res) => {
+  return res.json({
+    success: true,
+    status: "ok",
+    pong: true,
+    service: "Attendance & Biometric Logs Engine",
+    timestamp: new Date().toISOString(),
+    timeIST: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+    uptimeSeconds: Math.round(process.uptime()),
+  });
+});
+
+// POST /api/admin/attendance-logs/poll-month — Full month run: pull all hardware scans and process full month attendance
+router.post("/poll-month", requireAuth, async (req, res) => {
+  try {
+    const monthParam = (req.query.month || req.body?.month) as string | undefined;
+    const now = new Date();
+    const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const targetMonth = monthParam || defaultMonth;
+    const [yearStr, monthStr] = targetMonth.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const lastDay = new Date(year, month, 0).getDate();
+
+    const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+
+    console.log(`[attendance-logs] Starting poll-month for ${targetMonth} (${monthStart.toISOString()} to ${monthEnd.toISOString()})...`);
+    const result = await pullAllDevicesScansForRange(monthStart, monthEnd);
+
+    // Self-healing class propagation for all days in month
+    for (let d = 1; d <= lastDay; d++) {
+      const dayDate = new Date(Date.UTC(year, month - 1, d, 0, 0, 0));
+      await syncGateRegistryToClassAttendance(dayDate).catch(() => {});
+    }
+
+    // Sync monthly Google Sheet register
+    let sheetResult: any = null;
+    try {
+      sheetResult = await syncMonthlyAttendanceToSheet(targetMonth);
+    } catch (sheetErr: any) {
+      console.warn("[attendance-logs] Monthly sheet sync notice:", sheetErr?.message);
+    }
+
+    const summary = `Successfully rendered full month ${targetMonth}: pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance records).`;
+    return res.json({
+      success: true,
+      month: targetMonth,
+      message: summary,
+      data: {
+        ...result,
+        sheet: sheetResult,
+      },
+    });
+  } catch (error) {
+    console.error("[attendance-logs] /poll-month error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to run full month attendance sync",
+    });
+  }
+});
+
 // POST /api/admin/attendance-logs/quick-mark — Quick one-tap inline status change for manual roll-call
 router.post("/quick-mark", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
@@ -1851,24 +1915,27 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 router.get("/export-faculty-excel", requireRole("ADMIN"), async (req, res) => {
   try {
     const candidates = [
+      path.resolve("server/exports/Faculty_Attendance_October_2026_Full_Month.xlsx"),
+      path.resolve("Faculty_Attendance_October_2026_Full_Month.xlsx"),
       path.resolve("server/exports/Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
       path.resolve("Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
+      path.join(process.cwd(), "server/exports/Faculty_Attendance_October_2026_Full_Month.xlsx"),
       path.join(process.cwd(), "server/exports/Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
-      path.join(process.cwd(), "Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"),
     ];
 
     const targetFile = candidates.find((p) => fs.existsSync(p));
     if (!targetFile) {
       return res.status(404).json({
         success: false,
-        error: "Faculty Attendance Excel file not found. Run generate_faculty_excel.js first.",
+        error: "Faculty Attendance Excel file not found. Run generateFacultyExcel() first.",
       });
     }
 
+    const filename = path.basename(targetFile);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader(
       "Content-Disposition",
-      'attachment; filename="Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"'
+      `attachment; filename="${filename}"`
     );
     return res.sendFile(targetFile);
   } catch (err) {

@@ -1019,6 +1019,43 @@ export async function pollHikvisionDevicesNow(date?: string): Promise<{
   });
 }
 
+export async function pollHikvisionMonthToRender(month?: string): Promise<{
+  success: boolean;
+  message: string;
+  month?: string;
+  data: any;
+}> {
+  // 1. Try local hardware bridge first (runs on port 8099 on school PC)
+  try {
+    const bridgeUrl = `http://127.0.0.1:8099/api/sync-month${month ? `?month=${encodeURIComponent(month)}` : ""}`;
+    const bridgeRes = await fetch(bridgeUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(180000),
+    });
+    if (bridgeRes.ok) {
+      const bData = await bridgeRes.json();
+      if (bData && bData.success) {
+        return {
+          success: true,
+          message: `Pulled ${bData.totalFetched} monthly scans from Hikvision terminals and synchronized ${bData.pushedToRender} scans to Render.`,
+          data: bData,
+        };
+      }
+    }
+  } catch {
+    // fallback to server endpoint
+  }
+
+  // 2. Server-side poll fallback
+  const url = month
+    ? `/api/admin/attendance-logs/poll-month?month=${encodeURIComponent(month)}`
+    : "/api/admin/attendance-logs/poll-month";
+  return request<any>(url, {
+    method: "POST",
+  });
+}
+
 // ── Google Sheet daily attendance log sync ──
 
 export interface SheetSyncStatusData {

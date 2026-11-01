@@ -87,14 +87,15 @@ export const FACULTY_MEMBERS = [
   },
 ];
 
-export const DATES = [
-  { dateStr: '2026-10-19', dayName: 'Monday' },
-  { dateStr: '2026-10-20', dayName: 'Tuesday' },
-  { dateStr: '2026-10-21', dayName: 'Wednesday' },
-  { dateStr: '2026-10-22', dayName: 'Thursday' },
-  { dateStr: '2026-10-23', dayName: 'Friday' },
-  { dateStr: '2026-10-24', dayName: 'Saturday' },
-];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const DATES = Array.from({ length: 31 }, (_, i) => {
+  const day = i + 1;
+  const dayStr = String(day).padStart(2, '0');
+  const dateStr = `2026-10-${dayStr}`;
+  const d = new Date(Date.UTC(2026, 9, day));
+  const dayName = DAY_NAMES[d.getUTCDay()];
+  return { dateStr, dayName, isSunday: d.getUTCDay() === 0 };
+});
 
 function formatTimeIST(isoStr?: string | null): string {
   if (!isoStr) return '—';
@@ -119,8 +120,8 @@ export async function generateFacultyExcel(): Promise<string> {
   const dbRecords = await prisma.teacherAttendanceRecord.findMany({
     where: {
       date: {
-        gte: new Date('2026-10-19T00:00:00.000Z'),
-        lte: new Date('2026-10-24T23:59:59.999Z'),
+        gte: new Date('2026-10-01T00:00:00.000Z'),
+        lte: new Date('2026-10-31T23:59:59.999Z'),
       },
     },
     include: {
@@ -172,6 +173,14 @@ export async function generateFacultyExcel(): Promise<string> {
       let device = '—';
       let outcome = 'NO_PUNCH';
       let remarks = 'No scan recorded on terminal';
+
+      const isSunday = new Date(`${dateStr}T12:00:00Z`).getUTCDay() === 0;
+      if (isSunday) {
+        status = 'HOLIDAY';
+        remarks = 'Institutional Sunday Holiday';
+        checkInIST = 'Holiday';
+        outcome = 'SUNDAY_HOLIDAY';
+      }
 
       if (logRec) {
         checkInTime = logRec.timestamp || logRec.checkInTime || logRec.time;
@@ -527,8 +536,13 @@ export async function generateFacultyExcel(): Promise<string> {
     fs.mkdirSync(exportDir, { recursive: true });
   }
 
-  const exportPath = path.join(exportDir, 'Faculty_Attendance_19Oct_to_24Oct_2026.xlsx');
+  const exportPath = path.join(exportDir, 'Faculty_Attendance_October_2026_Full_Month.xlsx');
   await workbook.xlsx.writeFile(exportPath);
+
+  // Also maintain backwards-compatible copy for legacy links
+  const legacyPath = path.join(exportDir, 'Faculty_Attendance_19Oct_to_24Oct_2026.xlsx');
+  await workbook.xlsx.writeFile(legacyPath);
+
   return exportPath;
 }
 

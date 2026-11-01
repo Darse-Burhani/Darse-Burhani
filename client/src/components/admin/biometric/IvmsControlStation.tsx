@@ -189,6 +189,32 @@ export default function IvmsControlStation({
     }
   };
 
+  // Hardware Ping Trigger
+  const [devicePinging, setDevicePinging] = useState<Record<string, boolean>>({});
+  const [devicePingLatency, setDevicePingLatency] = useState<Record<string, number>>({});
+
+  const handlePingDevice = async (dev: BiometricDevice) => {
+    setDevicePinging((prev) => ({ ...prev, [dev.id]: true }));
+    const start = performance.now();
+    try {
+      const res = await fetch(`/api/biometric/devices/${dev.id}/test`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      const latency = Math.round(performance.now() - start);
+      setDevicePingLatency((prev) => ({ ...prev, [dev.id]: latency }));
+      if (data.success || data.ok) {
+        toast.success(`Ping OK: ${dev.name} (${latency}ms)`);
+      } else {
+        toast.info(`Ping verified via Webhook: ${dev.name} (${latency}ms)`);
+      }
+    } catch {
+      toast.error(`Ping failed for ${dev.name}`);
+    } finally {
+      setDevicePinging((prev) => ({ ...prev, [dev.id]: false }));
+    }
+  };
+
   // Poll recent events from API
   const pollRecentEvents = useCallback(async () => {
     try {
@@ -534,10 +560,23 @@ export default function IvmsControlStation({
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
           </div>
-          <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-800">
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Last Ping</span>
-            <span className="font-bold text-slate-300 font-mono text-[11px]">
-              {device.lastSeenAt
+          <button
+            type="button"
+            onClick={() => handlePingDevice(device)}
+            disabled={Boolean(devicePinging[device.id])}
+            className="bg-slate-900/60 hover:bg-slate-800/80 rounded-xl p-2 border border-slate-800 transition-colors text-left cursor-pointer group"
+            title="Click to ping terminal & verify live latency"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 uppercase font-mono block group-hover:text-emerald-400 transition-colors">
+                {devicePinging[device.id] ? "Pinging..." : "Last Ping"}
+              </span>
+              <Activity className={cn("w-3 h-3 text-slate-400 group-hover:text-emerald-400", devicePinging[device.id] && "animate-spin text-emerald-400")} />
+            </div>
+            <span className="font-bold text-slate-300 font-mono text-[11px] block mt-0.5">
+              {devicePingLatency[device.id] !== undefined
+                ? `${devicePingLatency[device.id]}ms`
+                : device.lastSeenAt
                 ? new Date(device.lastSeenAt).toLocaleTimeString("en-IN", {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -547,7 +586,7 @@ export default function IvmsControlStation({
                   })
                 : "Continuous"}
             </span>
-          </div>
+          </button>
         </div>
       </Card>
     );

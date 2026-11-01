@@ -267,10 +267,13 @@ function getHikvisionTime(d = new Date()) {
  * limiting monthly usage to ~403 hours (well within the 750 free-tier budget).
  */
 function isSchoolHoursIST(d = new Date()) {
-  if (isSundayIST(d)) return false;
+  if (process.env.FORCE_PING === 'true') return true;
   const ist = getIstParts(d);
   const minutes = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
-  return minutes >= (7 * 60 + 15) && minutes <= (20 * 60 + 30);
+  if (isSundayIST(d)) {
+    return minutes >= (8 * 60) && minutes <= (22 * 60 + 30);
+  }
+  return minutes >= (7 * 60) && minutes <= (22 * 60);
 }
 
 /**
@@ -306,6 +309,190 @@ function normalizeDeviceTime(raw) {
 //
 // When the admin clicks "Poll from Hik & Sync to Render" on the web page or the
 // bridge dashboard, syncAllDevicesToRender() is executed on demand.
+
+/**
+ * Pull all scans from both Hikvision terminals for an ENTIRE MONTH
+ * and sync every single punch to Render Cloud and database.
+ */
+export async function syncMonthDevicesToRender(monthStr) {
+  const ist = getIstParts();
+  const targetMonth = monthStr || `${ist.year}-${ist.month}`;
+  const [yStr, mStr] = targetMonth.split('-');
+  const y = parseInt(yStr, 10);
+  const m = parseInt(mStr, 10);
+  const lastDay = new Date(y, m, 0).getDate();
+  const startDateStr = `${targetMonth}-01`;
+  const endDateStr = `${targetMonth}-${String(lastDay).padStart(2, '0')}`;
+
+  console.log(`\n============================================================`);
+  console.log(`⚡ [RENDER FULL MONTH RUN] PULLING HIKVISION SCANS FOR ${targetMonth}`);
+  console.log(`📅 Period: ${startDateStr} to ${endDateStr} (Full ${lastDay} Days)`);
+  console.log(`============================================================`);
+  stats.syncStatus = `RUNNING FULL MONTH ${targetMonth}...`;
+
+  const startTime = `${startDateStr}T00:00:00+05:30`;
+  const endTime = `${endDateStr}T23:59:59+05:30`;
+  const allEvents = [];
+  const deviceReports = [];
+
+  for (const dev of DEVICES) {
+    let devEvents = [];
+    let position = 0;
+    const pageSize = 30;
+    let hasMore = true;
+    let totalMatches = null;
+
+    console.log(`   ⏳ Querying ${dev.name} (${dev.host}) for entire month ${targetMonth}...`);
+
+    while (hasMore) {
+      const payload = JSON.stringify({
+        AcsEventCond: {
+          searchID: `month-${Date.now()}`,
+          searchResultPosition: position,
+          maxResults: pageSize,
+          major: 0,
+          minor: 0,
+          startTime,
+          endTime,
+        },
+      });
+
+      const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
+      try {
+        const res = await digestFetch(url, {
+          method: 'POST',
+          username: dev.username,
+          password: dev.password,
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          timeoutMs: 12000,
+        });
+
+        if (!res.ok) {
+          console.warn(`      ⚠️ HTTP ${res.status} at position ${position}`);
+          break;
+        }
+
+        const data = await res.json();
+        const acs = data?.AcsEvent;
+        if (!acs) break;
+
+        totalMatches = acs.totalMatches ?? totalMatches;
+        const list = acs.InfoList || [];
+        if (list.length === 0) break;
+
+        for (const item of list) {
+          const rawEmp = item.employeeNoString || item.name || item.cardNo;
+          if (!rawEmp) continue;
+          const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
+          const timeStr = normalizeDeviceTime(item.time);
+          const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
+          const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
+          devEvents.push({
+            employeeNo: empNo,
+            name: item.name || '',
+            cardNo: item.cardNo || '',
+            time: timeStr,
+            currentVerifyMode: verifyMode,
+            serialNo: serial,
+            deviceHost: dev.host,
+          });
+        }
+
+        position += list.length;
+        if (totalMatches !== null && position >= totalMatches) break;
+        if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') break;
+      } catch (err) {
+        console.error(`      ❌ Month fetch error for ${dev.name}:`, err.message);
+        break;
+      }
+    }
+
+    console.log(`   ✓ Retrieved ${devEvents.length} events for ${targetMonth} from ${dev.name} (${dev.host})`);
+    deviceReports.push({
+      name: dev.name,
+      host: dev.host,
+      fetched: devEvents.length,
+      success: true,
+    });
+    allEvents.push(...devEvents);
+  }
+
+  // Deduplicate by employeeNo + date/time minute
+  const uniqueEvents = [];
+  const seen = new Set();
+  for (const ev of allEvents) {
+    const key = `${ev.employeeNo}-${ev.time.slice(0, 16)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueEvents.push(ev);
+    }
+  }
+
+  console.log(`   📦 Total unique monthly scans: ${uniqueEvents.length}. Syncing to DB & Render...`);
+
+  // Ensure local DB has all records
+  for (const ev of uniqueEvents) {
+    recordDirectScanInDatabase(ev).catch(() => {});
+  }
+
+  // Forward to Render Cloud in chunks of 15
+  let pushedToCloud = 0;
+  let failedCloud = 0;
+  const chunkSize = 15;
+
+  for (let i = 0; i < uniqueEvents.length; i += chunkSize) {
+    const chunk = uniqueEvents.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (ev) => {
+        try {
+          const payload = {
+            AccessControllerEvent: {
+              employeeNoString: String(ev.employeeNo),
+              name: ev.name || '',
+              cardNo: ev.cardNo || '',
+              time: ev.time,
+              currentVerifyMode: ev.currentVerifyMode || 'FINGERPRINT',
+              serialNo: String(ev.serialNo || `${ev.employeeNo}-${ev.time}`),
+              deviceId: ev.deviceHost,
+            },
+          };
+          const res = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-biometric-secret': SECRET,
+              'x-webhook-secret': SECRET,
+            },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (res.ok) pushedToCloud++;
+          else failedCloud++;
+        } catch {
+          failedCloud++;
+        }
+      })
+    );
+  }
+
+  stats.renderSynced += pushedToCloud;
+  stats.lastSyncAt = new Date().toISOString();
+  stats.lastSyncCount = pushedToCloud;
+  stats.syncStatus = `FULL MONTH ${targetMonth} COMPLETE (${pushedToCloud} pushed to Render)`;
+
+  console.log(`✅ [FULL MONTH RUN COMPLETED] ${uniqueEvents.length} events processed. ${pushedToCloud} pushed to Render Cloud (${failedCloud} failed).`);
+
+  return {
+    success: true,
+    month: targetMonth,
+    daysInMonth: lastDay,
+    totalFetched: uniqueEvents.length,
+    pushedToRender: pushedToCloud,
+    failedRender: failedCloud,
+    devices: deviceReports,
+  };
+}
 
 export async function syncAllDevicesToRender(targetDateStr) {
   const ist = getIstParts();
@@ -1284,14 +1471,17 @@ async function startBridge() {
         clearTimeout(t);
         if (res.ok) {
           lastGoodHealthBase = base;
+          console.log(`[bridge:ping] ⚡ Attendance keep-alive ping to ${base}/api/health OK (${res.status}) at ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`);
           break;
         }
-      } catch {}
+      } catch (err) {
+        // Fallback to next base
+      }
     }
   }
 
-  // Ping every 10 minutes during school hours
-  setInterval(pingRenderSchoolHours, 10 * 60 * 1000);
+  // Ping every 4 minutes during active hours (Render sleeps after 15m of inactivity)
+  setInterval(pingRenderSchoolHours, 4 * 60 * 1000);
   pingRenderSchoolHours().catch(() => {});
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');
@@ -1317,6 +1507,32 @@ function startStatusServer() {
       }
 
       const reqUrl = new URL(req.url, 'http://127.0.0.1:8099');
+
+      // Ping & Keep-Alive endpoints
+      if (reqUrl.pathname === '/ping' || reqUrl.pathname === '/api/ping') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'ok',
+          pong: true,
+          timeIST: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+          uptimeSeconds: Math.round(process.uptime()),
+        }));
+        return;
+      }
+
+      // Full Month Run endpoint: /api/sync-month?month=YYYY-MM
+      if (reqUrl.pathname === '/api/sync-month' || reqUrl.pathname === '/api/sync-month-to-render') {
+        const monthParam = reqUrl.searchParams.get('month');
+        try {
+          const result = await syncMonthDevicesToRender(monthParam);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+        return;
+      }
 
       if (reqUrl.pathname === '/health' || reqUrl.pathname === '/api/status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });

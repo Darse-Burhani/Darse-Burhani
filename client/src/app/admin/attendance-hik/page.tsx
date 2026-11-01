@@ -42,6 +42,7 @@ import {
   getAttendanceLogEvents,
   getExportAttendanceLogsUrl,
   pollHikvisionDevicesNow,
+  pollHikvisionMonthToRender,
   AttendanceLogsResponse,
   ScheduledEventWindow,
   AttendanceLogRecordItem,
@@ -138,6 +139,7 @@ export default function AdminAttendanceHikPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [pollingHardware, setPollingHardware] = useState<boolean>(false);
+  const [pollingMonth, setPollingMonth] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Live state
@@ -252,6 +254,37 @@ export default function AdminAttendanceHikPage() {
       if (timedOut) window.setTimeout(() => loadAttendance(true), 4000);
     } finally {
       setPollingHardware(false);
+    }
+  };
+
+  // Full Month Sync Handler (pulls entire month scans from Hikvision & pushes to Render)
+  const handlePollMonthNow = async () => {
+    setPollingMonth(true);
+    const targetMonth = date.slice(0, 7);
+    try {
+      const res = await pollHikvisionMonthToRender(targetMonth);
+      if (res.success) {
+        toast({
+          variant: "success",
+          title: "Full Month Synchronized to Render",
+          description: res.message || `Successfully rendered full month attendance for ${targetMonth} across terminals.`,
+        });
+        await loadAttendance(true);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Month Sync Notice",
+          description: res.message || "Failed to sync full month scans",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Full Month Run Error",
+        description: err.message || "Failed to communicate with Hikvision terminals or Render Cloud",
+      });
+    } finally {
+      setPollingMonth(false);
     }
   };
 
@@ -567,7 +600,7 @@ export default function AdminAttendanceHikPage() {
             <button
               type="button"
               onClick={handlePollDevicesNow}
-              disabled={pollingHardware || refreshing}
+              disabled={pollingHardware || pollingMonth || refreshing}
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
               title={date === todayStr ? "Poll MinMoe hardware terminals & sync all scans to Render" : `Poll MinMoe hardware terminals for ${date} & sync to Render`}
             >
@@ -581,14 +614,27 @@ export default function AdminAttendanceHikPage() {
               </span>
             </button>
 
+            <button
+              type="button"
+              onClick={handlePollMonthNow}
+              disabled={pollingMonth || pollingHardware || refreshing}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-700 hover:from-sky-500 hover:to-indigo-600 text-white font-black text-xs shadow-lg shadow-sky-700/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              title={`Poll entire month (${date.slice(0, 7)}) scans from Hikvision terminals & push full month to Render`}
+            >
+              <Calendar className={`w-4 h-4 shrink-0 ${pollingMonth ? "animate-spin" : ""}`} />
+              <span className="truncate">
+                {pollingMonth ? "Syncing Month..." : "Render Full Month Run"}
+              </span>
+            </button>
+
             <a
               href="/api/admin/attendance-logs/export-faculty-excel"
-              download="Faculty_Attendance_19Oct_to_24Oct_2026.xlsx"
+              download="Faculty_Attendance_October_2026_Full_Month.xlsx"
               className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 border border-emerald-400/40 text-white font-bold text-xs shadow-md transition-all min-h-[42px]"
-              title="Download 19 Oct to 24 Oct Faculty Biometric Attendance in Excel"
+              title="Download October 2026 Full Month Faculty Biometric Attendance in Excel"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
-              <span>Faculty Excel (19-24 Oct)</span>
+              <span>Faculty Excel (Full Month Oct)</span>
             </a>
 
             <a
