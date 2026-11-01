@@ -17,11 +17,19 @@ import {
   CheckSquare,
   Square,
   MessageCircle,
+  Mail,
+  Send,
+  Phone,
+  BellRing,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import type { LeaveRequestItem, PortalLeaveMember } from "@/lib/api";
+import {
+  notifyParentAdminLeave,
+  type LeaveRequestItem,
+  type PortalLeaveMember,
+} from "@/lib/api";
 
 interface PendingLeaveTableProps {
   requests: LeaveRequestItem[];
@@ -53,6 +61,9 @@ export function PendingLeaveTable({
     id: string;
     type: "approve" | "reject" | "hold";
     studentName: string;
+    parentName?: string | null;
+    parentPhone?: string | null;
+    parentEmail?: string | null;
     requestedDays?: number;
     startDate?: string;
     isSettlingHold?: boolean;
@@ -62,6 +73,40 @@ export function PendingLeaveTable({
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [batchProcessing, setBatchProcessing] = useState(false);
+
+  // Dedicated parent notification modal state
+  const [notifyTarget, setNotifyTarget] = useState<LeaveRequestItem | null>(null);
+  const [notifyChannel, setNotifyChannel] = useState<"EMAIL" | "WHATSAPP" | "BOTH">("BOTH");
+  const [customNotifyMsg, setCustomNotifyMsg] = useState("");
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifySuccessMsg, setNotifySuccessMsg] = useState<string | null>(null);
+
+  const handleSendParentNotification = async () => {
+    if (!notifyTarget) return;
+    setNotifySending(true);
+    setNotifySuccessMsg(null);
+    try {
+      const res = await notifyParentAdminLeave(
+        notifyTarget.id,
+        notifyChannel,
+        customNotifyMsg.trim() || undefined
+      );
+      if (res.success) {
+        setNotifySuccessMsg(res.message || "Notification sent to parent successfully!");
+        setTimeout(() => {
+          setNotifyTarget(null);
+          setCustomNotifyMsg("");
+          setNotifySuccessMsg(null);
+        }, 2200);
+      } else {
+        alert("Failed to send parent notification");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to notify parent");
+    } finally {
+      setNotifySending(false);
+    }
+  };
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
   const allPendingSelected =
@@ -283,19 +328,70 @@ export function PendingLeaveTable({
                   </div>
                 </div>
 
-                {/* Parent Information with 1-tap call */}
-                {item.parentPhone && (
-                  <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl bg-amber-50/60 border border-amber-200/80">
-                    <div className="flex items-center gap-1.5 text-slate-700 truncate min-w-0">
-                      <span className="text-slate-400 text-[10px] uppercase font-bold shrink-0">Parent:</span>
-                      <span className="font-semibold text-[11px] truncate">{item.parentName || item.parentPhone}</span>
+                {/* Parent Contact Info Box */}
+                {(item.parentPhone || item.parentEmail || item.parentName) && (
+                  <div className="p-2.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-1 text-[11px]">
+                      <span className="text-[10px] uppercase font-bold text-amber-900 shrink-0">Parent Contact:</span>
+                      <span className="font-semibold text-slate-800 truncate">{item.parentName || "Registered Parent"}</span>
                     </div>
-                    <a
-                      href={`tel:${item.parentPhone}`}
-                      className="text-[11px] font-bold text-amber-900 hover:text-amber-950 underline font-mono shrink-0 ml-2"
-                    >
-                      {item.parentPhone}
-                    </a>
+                    <div className="flex items-center justify-between gap-2 pt-0.5 flex-wrap">
+                      {item.parentPhone ? (
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`tel:${item.parentPhone}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-950 font-mono hover:underline"
+                            title="Call parent"
+                          >
+                            <Phone className="w-3 h-3 text-amber-700" />
+                            <span>{item.parentPhone}</span>
+                          </a>
+                          {item.whatsAppUrl && (
+                            <a
+                              href={item.whatsAppUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 text-white font-bold text-[10px] hover:bg-emerald-700 shadow-2xs"
+                              title="Send 1-way WhatsApp Notice"
+                            >
+                              <MessageCircle className="w-2.5 h-2.5" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10.5px] text-slate-400 italic">No phone linked</span>
+                      )}
+
+                      {item.parentEmail && (
+                        <a
+                          href={`mailto:${item.parentEmail}`}
+                          className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-800 hover:underline max-w-[170px] truncate"
+                          title={`Email ${item.parentEmail}`}
+                        >
+                          <Mail className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span className="truncate">{item.parentEmail}</span>
+                        </a>
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-500">Parent notices active</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNotifyTarget(item);
+                            setNotifyChannel("BOTH");
+                            setCustomNotifyMsg("");
+                            setNotifySuccessMsg(null);
+                          }}
+                          className="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-900 hover:text-amber-950 hover:underline cursor-pointer"
+                        >
+                          <BellRing className="w-3 h-3 text-amber-700" />
+                          <span>Dispatch Notice</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -359,6 +455,9 @@ export function PendingLeaveTable({
                             id: item.id,
                             type: "approve",
                             studentName: item.studentName || "Student",
+                            parentName: item.parentName,
+                            parentPhone: item.parentPhone,
+                            parentEmail: item.parentEmail,
                             requestedDays: diffDays,
                             startDate: item.startDate,
                           });
@@ -378,6 +477,9 @@ export function PendingLeaveTable({
                               id: item.id,
                               type: "hold",
                               studentName: item.studentName || "Student",
+                              parentName: item.parentName,
+                              parentPhone: item.parentPhone,
+                              parentEmail: item.parentEmail,
                               requestedDays: diffDays,
                               startDate: item.startDate,
                             });
@@ -397,6 +499,9 @@ export function PendingLeaveTable({
                             id: item.id,
                             type: "reject",
                             studentName: item.studentName || "Student",
+                            parentName: item.parentName,
+                            parentPhone: item.parentPhone,
+                            parentEmail: item.parentEmail,
                           });
                         }}
                         className="depth-3d-btn-dark flex items-center justify-center gap-1 py-3 px-2 rounded-xl text-white font-bold text-xs cursor-pointer"
@@ -418,6 +523,9 @@ export function PendingLeaveTable({
                             id: item.id,
                             type: "approve",
                             studentName: item.studentName || "Student",
+                            parentName: item.parentName,
+                            parentPhone: item.parentPhone,
+                            parentEmail: item.parentEmail,
                             requestedDays: diffDays,
                             startDate: item.startDate,
                             isSettlingHold: true,
@@ -437,6 +545,9 @@ export function PendingLeaveTable({
                             id: item.id,
                             type: "reject",
                             studentName: item.studentName || "Student",
+                            parentName: item.parentName,
+                            parentPhone: item.parentPhone,
+                            parentEmail: item.parentEmail,
                             isSettlingHold: true,
                           });
                         }}
@@ -457,6 +568,9 @@ export function PendingLeaveTable({
                               id: item.id,
                               type: "hold",
                               studentName: item.studentName || "Student",
+                              parentName: item.parentName,
+                              parentPhone: item.parentPhone,
+                              parentEmail: item.parentEmail,
                               requestedDays: diffDays,
                               startDate: item.startDate,
                             });
@@ -584,10 +698,20 @@ export function PendingLeaveTable({
                           {item.studentName || "Student"}
                         </div>
                         <div className="text-[11px] text-gray-500">ITS / ID: {item.its || "—"}</div>
-                        {item.parentPhone && (
-                          <div className="text-[10px] text-emerald-800 font-semibold mt-0.5 flex items-center gap-1">
-                            <span className="text-gray-400 font-normal">Parent:</span>
-                            <span>{item.parentName ? `${item.parentName} (${item.parentPhone})` : item.parentPhone}</span>
+                        {(item.parentPhone || item.parentEmail) && (
+                          <div className="text-[10px] text-emerald-800 font-semibold mt-0.5 space-y-0.5">
+                            {item.parentPhone && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-400 font-normal">Parent:</span>
+                                <span>{item.parentName ? `${item.parentName} (${item.parentPhone})` : item.parentPhone}</span>
+                              </div>
+                            )}
+                            {item.parentEmail && (
+                              <div className="flex items-center gap-1 text-[9.5px] text-slate-500 font-normal">
+                                <Mail className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                <span className="truncate max-w-[150px]">{item.parentEmail}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                         {item.assignedTo && (
@@ -752,6 +876,9 @@ export function PendingLeaveTable({
                                 id: item.id,
                                 type: "approve",
                                 studentName: item.studentName || "Student",
+                                parentName: item.parentName,
+                                parentPhone: item.parentPhone,
+                                parentEmail: item.parentEmail,
                                 requestedDays: diffDays,
                                 startDate: item.startDate,
                               });
@@ -773,6 +900,9 @@ export function PendingLeaveTable({
                                   id: item.id,
                                   type: "hold",
                                   studentName: item.studentName || "Student",
+                                  parentName: item.parentName,
+                                  parentPhone: item.parentPhone,
+                                  parentEmail: item.parentEmail,
                                   requestedDays: diffDays,
                                   startDate: item.startDate,
                                 });
@@ -794,6 +924,9 @@ export function PendingLeaveTable({
                                 id: item.id,
                                 type: "reject",
                                 studentName: item.studentName || "Student",
+                                parentName: item.parentName,
+                                parentPhone: item.parentPhone,
+                                parentEmail: item.parentEmail,
                               });
                             }}
                             className="depth-3d-btn-dark px-3 py-1.5 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
@@ -802,6 +935,36 @@ export function PendingLeaveTable({
                             <X className="w-3.5 h-3.5" strokeWidth={2} />
                             <span>Reject</span>
                           </button>
+                        </div>
+                        <div className="flex items-center justify-end gap-2.5 mt-1">
+                          {item.whatsAppUrl && (
+                            <a
+                              href={item.whatsAppUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                              title="Send 1-way WhatsApp Notice to Parent"
+                            >
+                              <MessageCircle className="w-3 h-3 text-emerald-600" />
+                              <span>WhatsApp Notice</span>
+                            </a>
+                          )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNotifyTarget(item);
+                                setNotifyChannel("BOTH");
+                                setCustomNotifyMsg("");
+                                setNotifySuccessMsg(null);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-600 hover:text-slate-900 hover:underline cursor-pointer"
+                              title="Send or resend parent notification via Email / WhatsApp"
+                            >
+                              <BellRing className="w-3 h-3 text-amber-600" />
+                              <span>Notify Parent</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     ) : isHold ? (
@@ -820,6 +983,9 @@ export function PendingLeaveTable({
                                 id: item.id,
                                 type: "approve",
                                 studentName: item.studentName || "Student",
+                                parentName: item.parentName,
+                                parentPhone: item.parentPhone,
+                                parentEmail: item.parentEmail,
                                 requestedDays: diffDays,
                                 startDate: item.startDate,
                                 isSettlingHold: true,
@@ -840,6 +1006,9 @@ export function PendingLeaveTable({
                                 id: item.id,
                                 type: "reject",
                                 studentName: item.studentName || "Student",
+                                parentName: item.parentName,
+                                parentPhone: item.parentPhone,
+                                parentEmail: item.parentEmail,
                                 isSettlingHold: true,
                               });
                             }}
@@ -859,6 +1028,9 @@ export function PendingLeaveTable({
                                   id: item.id,
                                   type: "hold",
                                   studentName: item.studentName || "Student",
+                                  parentName: item.parentName,
+                                  parentPhone: item.parentPhone,
+                                  parentEmail: item.parentEmail,
                                   requestedDays: diffDays,
                                   startDate: item.startDate,
                                 });
@@ -870,36 +1042,71 @@ export function PendingLeaveTable({
                             </button>
                           )}
                         </div>
-                        {item.whatsAppUrl && (
-                          <a
-                            href={item.whatsAppUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline mt-0.5"
-                            title="Shoot official Hold WhatsApp notice to parent"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Shoot Hold WhatsApp Notice</span>
-                          </a>
-                        )}
+                        <div className="flex items-center gap-2.5 mt-0.5">
+                          {item.whatsAppUrl && (
+                            <a
+                              href={item.whatsAppUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                              title="Shoot official Hold WhatsApp notice to parent"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>WhatsApp Notice</span>
+                            </a>
+                          )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNotifyTarget(item);
+                                setNotifyChannel("BOTH");
+                                setCustomNotifyMsg("");
+                                setNotifySuccessMsg(null);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-600 hover:text-slate-900 hover:underline cursor-pointer"
+                            >
+                              <BellRing className="w-3 h-3 text-amber-600" />
+                              <span>Notify</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-end gap-1.5 text-right">
                         <div className="text-[11px] text-gray-500 font-medium">
                           {item.reviewedBy ? `${item.status === "APPROVED" ? "Approved" : "Reviewed"} by ${item.reviewedBy}` : "Processed"}
                         </div>
-                        {item.whatsAppUrl && (
-                          <a
-                            href={item.whatsAppUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-[11px] shadow-xs transition-all"
-                            title={`Shoot official 1-way WhatsApp notice to parent (${item.parentPhone || ""})`}
-                          >
-                            <MessageCircle className="w-3.5 h-3.5 text-white" />
-                            <span>WhatsApp Notice</span>
-                          </a>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {item.whatsAppUrl && (
+                            <a
+                              href={item.whatsAppUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-[11px] shadow-xs transition-all"
+                              title={`Shoot official 1-way WhatsApp notice to parent (${item.parentPhone || ""})`}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-white" />
+                              <span>WhatsApp Notice</span>
+                            </a>
+                          )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNotifyTarget(item);
+                                setNotifyChannel("BOTH");
+                                setCustomNotifyMsg("");
+                                setNotifySuccessMsg(null);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-[11px] cursor-pointer"
+                              title="Dispatch parent notice via Email and/or WhatsApp"
+                            >
+                              <BellRing className="w-3 h-3 text-amber-600" />
+                              <span>Notify</span>
+                            </button>
+                          )}
+                        </div>
                         {isAdmin && onDelete && (
                           <button
                             type="button"
@@ -1089,12 +1296,50 @@ export function PendingLeaveTable({
               </div>
             )}
 
+            {/* Parent Notification Target Preview */}
+            <div className="mb-4 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/90 text-xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-amber-950 uppercase tracking-wider text-[10px]">
+                  Parent Notification Target
+                </span>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300/80">
+                  Email &amp; WhatsApp Auto-Dispatched
+                </span>
+              </div>
+              <div className="space-y-1 text-[11px] text-slate-700">
+                {activeAction.parentName && (
+                  <div>
+                    <span className="text-slate-500 font-medium">Recipient: </span>
+                    <span className="font-semibold text-slate-900">{activeAction.parentName}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Mail className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span className="text-slate-500 font-medium">Email: </span>
+                  {activeAction.parentEmail ? (
+                    <span className="font-mono text-slate-900 font-semibold truncate">{activeAction.parentEmail}</span>
+                  ) : (
+                    <span className="text-slate-400 italic">No parent email on file</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span className="text-slate-500 font-medium">WhatsApp: </span>
+                  {activeAction.parentPhone ? (
+                    <span className="font-mono text-emerald-900 font-bold">+{activeAction.parentPhone}</span>
+                  ) : (
+                    <span className="text-slate-400 italic">No parent mobile on file</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-start gap-2.5">
               <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <span className="font-bold text-gray-900 block text-[11.5px]">Strictly One-Way Outbound Notification</span>
                 <span className="text-[11px] text-gray-500 leading-relaxed block mt-0.5">
-                  An official one-way WhatsApp notice & in-portal notification are automatically dispatched to the student's registered parents upon decision.
+                  Official one-way WhatsApp notice &amp; transactional email are automatically dispatched to the student's registered parents upon decision.
                 </span>
               </div>
             </div>
@@ -1134,6 +1379,151 @@ export function PendingLeaveTable({
                     : "Confirm Rejection"}
                 </span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin On-Demand Notify Parent Modal */}
+      {notifyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setNotifyTarget(null)} />
+          <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-3xl bg-white p-5 sm:p-6 depth-3d-card border border-amber-200/60 animate-slide-up">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-display font-bold text-base text-slate-900">
+                Notify Parent via Email &amp; WhatsApp
+              </h3>
+              <button
+                type="button"
+                onClick={() => setNotifyTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Send an administrative notification to {notifyTarget.studentName}'s parents regarding their {notifyTarget.status.toLowerCase()} leave application.
+            </p>
+
+            {/* Recipient Details */}
+            <div className="mb-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+              <div className="font-bold text-slate-800 text-[11px] uppercase tracking-wider mb-1">
+                Parent Contact Information
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Parent Name:</span>
+                <span className="font-semibold text-slate-800">{notifyTarget.parentName || "Parent / Guardian"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Email Address:</span>
+                <span className="font-mono text-slate-800 font-semibold">{notifyTarget.parentEmail || "Not on file"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">WhatsApp / Mobile:</span>
+                <span className="font-mono text-emerald-800 font-bold">{notifyTarget.parentPhone ? `+${notifyTarget.parentPhone}` : "Not on file"}</span>
+              </div>
+            </div>
+
+            {/* Channel Selection */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Notification Channel
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifyChannel("BOTH")}
+                  className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                    notifyChannel === "BOTH"
+                      ? "bg-slate-950 text-amber-300 border-slate-950 shadow-xs ring-1 ring-amber-400/40"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Both</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifyChannel("WHATSAPP")}
+                  className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                    notifyChannel === "WHATSAPP"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifyChannel("EMAIL")}
+                  className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                    notifyChannel === "EMAIL"
+                      ? "bg-sky-600 text-white border-sky-600 shadow-xs"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Email</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Message input */}
+            <div className="mb-4">
+              <label htmlFor="custom-notify-msg" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Remarks / Custom Note
+                <span className="normal-case font-normal text-slate-500 ml-1.5">(Optional: leave blank for standard status template)</span>
+              </label>
+              <textarea
+                id="custom-notify-msg"
+                rows={3}
+                value={customNotifyMsg}
+                onChange={(e) => setCustomNotifyMsg(e.target.value)}
+                placeholder="Optional notes or instructions to the parent..."
+                className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none"
+              />
+            </div>
+
+            {notifySuccessMsg && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{notifySuccessMsg}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              {notifyTarget.whatsAppUrl ? (
+                <a
+                  href={notifyTarget.whatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 font-bold text-xs hover:bg-emerald-100"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Open WhatsApp</span>
+                </a>
+              ) : <div />}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifyTarget(null)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendParentNotification}
+                  disabled={notifySending}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  {notifySending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>Send Notice</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

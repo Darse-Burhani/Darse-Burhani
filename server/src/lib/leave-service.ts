@@ -5,6 +5,7 @@ import { sendLeaveEmail } from "./email";
 import {
   leaveApplicationAdminEmail,
   leaveDecisionParentEmail,
+  leaveApplicationReceivedParentEmail,
 } from "./leave-email-templates";
 import { sendPushToUser, sendPushToUsers } from "./push";
 import { LeaveType, LeaveStatus, AttendanceSource, AttendanceStatus } from "@prisma/client";
@@ -92,38 +93,98 @@ function formatDateTime(date: Date): string {
 }
 
 function appUrl(path: string): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:4000").replace(/\/$/, "");
+  const base = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    process.env.RENDER_URL ||
+    "https://darse-burhani.onrender.com"
+  ).replace(/\/$/, "");
   return `${base}${path}`;
 }
 
-async function getParentContacts(studentId: string) {
-  const links = await prisma.parentStudentLink.findMany({
-    where: { studentId },
-    include: {
-      parent: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              isActive: true,
+export async function getParentContacts(studentId: string) {
+  const [links, student] = await Promise.all([
+    prisma.parentStudentLink.findMany({
+      where: { studentId },
+      include: {
+        parent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                isActive: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      select: {
+        fatherName: true,
+        fatherEmail: true,
+        motherName: true,
+        motherEmail: true,
+        user: { select: { firstName: true, lastName: true } },
+      },
+    }),
+  ]);
 
-  return links
-    .map((link) => ({
-      userId: link.parent.user.id,
-      name: `${link.parent.user.firstName} ${link.parent.user.lastName}`.trim(),
-      email: link.parent.user.email,
-      isActive: link.parent.user.isActive,
-    }))
-    .filter((contact) => !!contact.email);
+  const contacts: Array<{
+    userId?: string;
+    name: string;
+    email: string;
+    isActive: boolean;
+  }> = [];
+  const seenEmails = new Set<string>();
+
+  for (const link of links) {
+    const rawEmail = link.parent.user.email?.trim().toLowerCase();
+    if (rawEmail && !seenEmails.has(rawEmail)) {
+      seenEmails.add(rawEmail);
+      contacts.push({
+        userId: link.parent.user.id,
+        name: `${link.parent.user.firstName} ${link.parent.user.lastName}`.trim(),
+        email: rawEmail,
+        isActive: link.parent.user.isActive,
+      });
+    }
+  }
+
+  if (student) {
+    if (student.fatherEmail && student.fatherEmail.trim()) {
+      const fEmail = student.fatherEmail.trim().toLowerCase();
+      if (!seenEmails.has(fEmail)) {
+        seenEmails.add(fEmail);
+        contacts.push({
+          name:
+            student.fatherName?.trim() ||
+            `Father of ${student.user.firstName} ${student.user.lastName}`.trim(),
+          email: fEmail,
+          isActive: true,
+        });
+      }
+    }
+    if (student.motherEmail && student.motherEmail.trim()) {
+      const mEmail = student.motherEmail.trim().toLowerCase();
+      if (!seenEmails.has(mEmail)) {
+        seenEmails.add(mEmail);
+        contacts.push({
+          name:
+            student.motherName?.trim() ||
+            `Mother of ${student.user.firstName} ${student.user.lastName}`.trim(),
+          email: mEmail,
+          isActive: true,
+        });
+      }
+    }
+  }
+
+  return contacts;
 }
 
 export async function getStudentParentPhones(studentId: string): Promise<Array<{ name: string; phone: string; relationship?: string }>> {
@@ -485,6 +546,84 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     } catch (assigneeErr) {
       console.error("[leave-service] Failed to notify assigned portal member:", assigneeErr);
     }
+  }
+
+  // Notify Parent(s) via In-App Alert, Push, Email & WhatsApp Receipt Confirmation
+  try {
+    const parentUserIds = await notifyParents(
+      student.id,
+      "Leave Application Received",
+      `Leave application for ${studentFullName} (${dateRangeStr}, ${requestedDays} ${requestedDays === 1 ? "day" : "days"}) has been received and is under administrative review.`,
+      "/parent"
+    );
+
+    const pushTargets = Array.from(
+      new Set(
+        [
+          student.userId,
+          ...parentUserIds,
+          ...parentContacts.map((c) => c.userId).filter(Boolean) as string[],
+        ].filter(Boolean)
+      )
+    );
+
+    if (pushTargets.length > 0) {
+      sendPushToUsers(pushTargets, {
+        title: "Leave Application Received",
+        body: `${studentFullName} · ${requestedDays} ${requestedDays === 1 ? "day" : "days"} · Under Review`,
+        url: "/parent",
+        tag: `leave-received-${leave.id}`,
+      }).catch((pErr) => {
+        console.warn("[leave-service] Parent push receipt error:", pErr);
+      });
+    }
+
+    // Confirmation of receipt via Email to all parent email contacts
+    if (parentContacts.length > 0) {
+      const emailSubject = `Leave Application Received — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`;
+      for (const contact of parentContacts) {
+        if (!contact.email) continue;
+        const html = leaveApplicationReceivedParentEmail({
+          studentName: studentFullName,
+          parentName: contact.name,
+          type: input.type,
+          startDate: formatUtcDate(start),
+          endDate: formatUtcDate(end),
+          days: requestedDays,
+          reason: input.reason.trim(),
+          portalUrl: appUrl("/parent"),
+        });
+
+        sendLeaveEmail({
+          to: contact.email,
+          subject: emailSubject,
+          html,
+        }).catch((emErr) => {
+          console.warn(`[leave-service] Parent receipt email failed for ${contact.email}:`, emErr);
+        });
+      }
+    }
+
+    // Confirmation of receipt via WhatsApp to all registered parent/guardian phones
+    const parentPhones = await getStudentParentPhones(student.id);
+    for (const p of parentPhones) {
+      const waMsg = formatLeaveWhatsAppMessage({
+        parentName: p.name,
+        studentName: studentFullName,
+        className: student.classEnrollments[0]?.class?.name || null,
+        status: "PENDING",
+        leaveType: input.type,
+        startDate: formatUtcDate(start),
+        endDate: formatUtcDate(end),
+        requestedDays,
+        reviewerNotes: input.reason.trim(),
+      });
+      dispatchWhatsAppNotification({ phone: p.phone, message: waMsg }).catch((waErr) =>
+        console.error(`[leave-service] WhatsApp receipt notification failed for ${p.phone}:`, waErr)
+      );
+    }
+  } catch (parentNoticeErr) {
+    console.error("[leave-service] Error notifying parents of leave submission:", parentNoticeErr);
   }
 
   cache.invalidateTag("attendanceRecord");
@@ -1596,6 +1735,224 @@ export async function markHolidayLeaveBatch(input: BatchHolidayLeaveInput) {
     total: input.studentIds.length,
     successCount: results.filter((r) => r.success).length,
     results,
+  };
+}
+
+/**
+ * On-demand parent notification dispatch via WhatsApp and/or Email.
+ * Allows administrators to re-send status decisions or custom messages to parents.
+ */
+export async function notifyParentLeaveAction(params: {
+  leaveId: string;
+  channel?: "EMAIL" | "WHATSAPP" | "BOTH";
+  customMessage?: string;
+  senderId?: string;
+}): Promise<{
+  success: boolean;
+  emailSent: boolean;
+  waSent: boolean;
+  whatsAppUrl: string | null;
+  parentPhone: string | null;
+  parentEmail: string | null;
+  message?: string;
+}> {
+  const { leaveId, channel = "BOTH", customMessage } = params;
+
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: leaveId },
+    include: {
+      student: {
+        include: {
+          user: true,
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: true },
+            take: 1,
+          },
+        },
+      },
+      reviewer: {
+        select: { firstName: true, lastName: true },
+      },
+    },
+  });
+
+  if (!leave) {
+    throw new Error("Leave request not found");
+  }
+
+  const studentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+  const className =
+    leave.student.classEnrollments[0]?.class?.name || `Grade ${leave.student.grade}-${leave.student.section}`;
+  const parentContacts = await getParentContacts(leave.studentId);
+  const parentPhones = await getStudentParentPhones(leave.studentId);
+
+  const isApproved = leave.status === LeaveStatus.APPROVED;
+  const isReduced = isApproved && leave.approvedDays !== null && leave.approvedDays !== undefined;
+  const waStatus = isApproved
+    ? (isReduced ? "APPROVED_REDUCED" : "APPROVED")
+    : leave.status === LeaveStatus.HOLD
+    ? "HOLD"
+    : leave.status === LeaveStatus.REJECTED
+    ? "REJECTED"
+    : "PENDING";
+
+  const reviewerName = leave.reviewer
+    ? `${leave.reviewer.firstName} ${leave.reviewer.lastName}`.trim()
+    : "Administration Desk";
+
+  const requestedDays = countLeaveDays(leave.startDate, leave.endDate);
+  const grantedStart = leave.grantedStartDate || leave.startDate;
+  const grantedEnd = leave.grantedEndDate || leave.endDate;
+
+  let emailSent = false;
+  let waSent = false;
+  let primaryWaUrl: string | null = null;
+  const primaryPhone = parentPhones[0]?.phone || null;
+  const primaryEmail = parentContacts[0]?.email || null;
+
+  // 1. WhatsApp Notification / wa.me link generation
+  if (channel === "WHATSAPP" || channel === "BOTH") {
+    for (const p of parentPhones) {
+      let waMsg: string;
+      if (customMessage?.trim()) {
+        waMsg = `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
+_Academic Administration Desk • Galiakot_
+
+Afzalus Salam Janab ${p.name || "Respected Parent"},
+
+Administrative message regarding talib *${studentName}* (${className}):
+
+${customMessage.trim()}
+
+----------------------------------------
+_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored._`;
+      } else {
+        waMsg = formatLeaveWhatsAppMessage({
+          parentName: p.name,
+          studentName,
+          className,
+          status: waStatus,
+          leaveType: leave.type,
+          startDate: formatUtcDate(grantedStart),
+          endDate: formatUtcDate(grantedEnd),
+          requestedDays,
+          approvedDays: leave.approvedDays || undefined,
+          reviewerNotes: leave.reviewerNotes,
+          reviewerName,
+        });
+      }
+
+      const waRes = await dispatchWhatsAppNotification({ phone: p.phone, message: waMsg });
+      if (waRes.success) waSent = true;
+      if (!primaryWaUrl && waRes.waLink) {
+        primaryWaUrl = waRes.waLink;
+      }
+    }
+
+    if (!primaryWaUrl && primaryPhone) {
+      const fallbackMsg = formatLeaveWhatsAppMessage({
+        parentName: parentPhones[0]?.name,
+        studentName,
+        className,
+        status: waStatus,
+        leaveType: leave.type,
+        startDate: formatUtcDate(grantedStart),
+        endDate: formatUtcDate(grantedEnd),
+        requestedDays,
+        approvedDays: leave.approvedDays || undefined,
+        reviewerNotes: leave.reviewerNotes,
+        reviewerName,
+      });
+      primaryWaUrl = generateWhatsAppLink(primaryPhone, fallbackMsg);
+    }
+  }
+
+  // 2. Email Dispatch
+  if (channel === "EMAIL" || channel === "BOTH") {
+    for (const c of parentContacts) {
+      if (!c.email) continue;
+      try {
+        let emailHtml: string;
+        let subject: string;
+
+        if (customMessage?.trim()) {
+          subject = `Official Administrative Notice — ${studentName}`;
+          emailHtml = leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName,
+            parentName: c.name,
+            type: leave.type,
+            status: leave.status === "HOLD" ? "HOLD" : leave.status === "APPROVED" ? "APPROVED" : "REJECTED",
+            requestedStart: formatUtcDate(leave.startDate),
+            requestedEnd: formatUtcDate(leave.endDate),
+            requestedDays,
+            approvedDays: leave.approvedDays,
+            grantedStart: leave.grantedStartDate ? formatUtcDate(leave.grantedStartDate) : null,
+            grantedEnd: leave.grantedEndDate ? formatUtcDate(leave.grantedEndDate) : null,
+            reviewerName,
+            reviewerNotes: customMessage.trim(),
+            portalUrl: appUrl("/parent"),
+          });
+        } else if (leave.status === LeaveStatus.PENDING) {
+          subject = `Leave Application Under Review — ${studentName}`;
+          emailHtml = leaveApplicationReceivedParentEmail({
+            studentName,
+            parentName: c.name,
+            type: leave.type,
+            startDate: formatUtcDate(leave.startDate),
+            endDate: formatUtcDate(leave.endDate),
+            days: requestedDays,
+            reason: leave.reason,
+            portalUrl: appUrl("/parent"),
+          });
+        } else {
+          subject = isReduced
+            ? `Leave Approved (Reduced Days) — ${studentName}`
+            : isApproved
+            ? `Leave Application Approved — ${studentName}`
+            : leave.status === LeaveStatus.HOLD
+            ? `Leave Application On Hold — ${studentName}`
+            : `Leave Application Not Approved — ${studentName}`;
+
+          emailHtml = leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName,
+            parentName: c.name,
+            type: leave.type,
+            status: leave.status === "HOLD" ? "HOLD" : leave.status === "APPROVED" ? "APPROVED" : "REJECTED",
+            requestedStart: formatUtcDate(leave.startDate),
+            requestedEnd: formatUtcDate(leave.endDate),
+            requestedDays,
+            approvedDays: leave.approvedDays,
+            grantedStart: leave.grantedStartDate ? formatUtcDate(leave.grantedStartDate) : null,
+            grantedEnd: leave.grantedEndDate ? formatUtcDate(leave.grantedEndDate) : null,
+            reviewerName,
+            reviewerNotes: leave.reviewerNotes,
+            portalUrl: appUrl("/parent"),
+          });
+        }
+
+        await sendLeaveEmail({
+          to: c.email,
+          subject,
+          html: emailHtml,
+        });
+        emailSent = true;
+      } catch (emErr) {
+        console.error(`[leave-service] Manual parent email notification error for ${c.email}:`, emErr);
+      }
+    }
+  }
+
+  return {
+    success: emailSent || waSent || !!primaryWaUrl,
+    emailSent,
+    waSent,
+    whatsAppUrl: primaryWaUrl,
+    parentPhone: primaryPhone,
+    parentEmail: primaryEmail,
+    message: `Parent notification processed via ${channel}`,
   };
 }
 

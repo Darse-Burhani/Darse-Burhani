@@ -11,6 +11,9 @@ import {
   markHolidayLeaveBatch,
   assignLeaveRequest,
   unassignLeaveRequest,
+  notifyParentLeaveAction,
+  getStudentParentPhones,
+  getParentContacts,
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { formatLeaveWhatsAppMessage, generateWhatsAppLink } from "../../lib/whatsapp";
@@ -300,7 +303,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
                   include: {
                     parent: {
                       include: {
-                        user: { select: { firstName: true, lastName: true } },
+                        user: { select: { firstName: true, lastName: true, email: true } },
                       },
                     },
                   },
@@ -349,13 +352,18 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           const primaryParent = l.student.parentLinks?.[0]?.parent;
           const parentName = primaryParent?.user
             ? `${primaryParent.user.firstName} ${primaryParent.user.lastName}`.trim()
-            : null;
+            : l.student.fatherName || l.student.motherName || null;
           const parentPhone =
             primaryParent?.phone ||
             primaryParent?.secondaryPhone ||
             l.student.fatherPhone ||
             l.student.motherPhone ||
             l.student.mobileNumber ||
+            null;
+          const parentEmail =
+            primaryParent?.user?.email ||
+            l.student.fatherEmail ||
+            l.student.motherEmail ||
             null;
 
           const isApproved = l.status === "APPROVED";
@@ -366,7 +374,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             ? "HOLD"
             : l.status === "REJECTED"
             ? "REJECTED"
-            : "APPROVED";
+            : "PENDING";
 
           const waMessage = formatLeaveWhatsAppMessage({
             parentName,
@@ -419,6 +427,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             createdAt: l.createdAt.toISOString(),
             parentName,
             parentPhone,
+            parentEmail,
             whatsAppUrl,
           };
         }),
@@ -452,6 +461,27 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
           : Number(approvedDays),
     });
 
+    const [parentPhones, parentContacts] = await Promise.all([
+      getStudentParentPhones(leave.studentId),
+      getParentContacts(leave.studentId),
+    ]);
+    const primaryPhone = parentPhones[0]?.phone || null;
+    const primaryEmail = parentContacts[0]?.email || null;
+    const isReduced = leave.approvedDays !== null && leave.approvedDays !== undefined;
+    const waMsg = formatLeaveWhatsAppMessage({
+      parentName: parentPhones[0]?.name,
+      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
+      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      status: isReduced ? "APPROVED_REDUCED" : "APPROVED",
+      leaveType: leave.type,
+      startDate: (leave.grantedStartDate || leave.startDate).toISOString().split("T")[0],
+      endDate: (leave.grantedEndDate || leave.endDate).toISOString().split("T")[0],
+      approvedDays: leave.approvedDays || undefined,
+      reviewerNotes: leave.reviewerNotes,
+      reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+    const whatsAppUrl = primaryPhone ? generateWhatsAppLink(primaryPhone, waMsg) : null;
+
     return res.json({
       success: true,
       data: {
@@ -461,6 +491,9 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
         grantedStartDate: leave.grantedStartDate?.toISOString() || null,
         grantedEndDate: leave.grantedEndDate?.toISOString() || null,
         reviewedAt: leave.reviewedAt?.toISOString(),
+        parentPhone: primaryPhone,
+        parentEmail: primaryEmail,
+        whatsAppUrl,
       },
     });
   } catch (error: any) {
@@ -484,12 +517,34 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: reviewerNotes || "Rejected by Administrator.",
     });
 
+    const [parentPhones, parentContacts] = await Promise.all([
+      getStudentParentPhones(leave.studentId),
+      getParentContacts(leave.studentId),
+    ]);
+    const primaryPhone = parentPhones[0]?.phone || null;
+    const primaryEmail = parentContacts[0]?.email || null;
+    const waMsg = formatLeaveWhatsAppMessage({
+      parentName: parentPhones[0]?.name,
+      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
+      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      status: "REJECTED",
+      leaveType: leave.type,
+      startDate: leave.startDate.toISOString().split("T")[0],
+      endDate: leave.endDate.toISOString().split("T")[0],
+      reviewerNotes: leave.reviewerNotes,
+      reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+    const whatsAppUrl = primaryPhone ? generateWhatsAppLink(primaryPhone, waMsg) : null;
+
     return res.json({
       success: true,
       data: {
         id: leave.id,
         status: leave.status,
         reviewedAt: leave.reviewedAt?.toISOString(),
+        parentPhone: primaryPhone,
+        parentEmail: primaryEmail,
+        whatsAppUrl,
       },
     });
   } catch (error: any) {
@@ -513,6 +568,25 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: reviewerNotes || "Placed on hold pending administrative review.",
     });
 
+    const [parentPhones, parentContacts] = await Promise.all([
+      getStudentParentPhones(leave.studentId),
+      getParentContacts(leave.studentId),
+    ]);
+    const primaryPhone = parentPhones[0]?.phone || null;
+    const primaryEmail = parentContacts[0]?.email || null;
+    const waMsg = formatLeaveWhatsAppMessage({
+      parentName: parentPhones[0]?.name,
+      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
+      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      status: "HOLD",
+      leaveType: leave.type,
+      startDate: leave.startDate.toISOString().split("T")[0],
+      endDate: leave.endDate.toISOString().split("T")[0],
+      reviewerNotes: leave.reviewerNotes,
+      reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+    const whatsAppUrl = primaryPhone ? generateWhatsAppLink(primaryPhone, waMsg) : null;
+
     return res.json({
       success: true,
       message: "Leave request placed on hold",
@@ -521,6 +595,9 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
         status: leave.status,
         reviewerNotes: leave.reviewerNotes,
         reviewedAt: leave.reviewedAt?.toISOString(),
+        parentPhone: primaryPhone,
+        parentEmail: primaryEmail,
+        whatsAppUrl,
       },
     });
   } catch (error: any) {
@@ -528,6 +605,33 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
     return res.status(400).json({
       success: false,
       error: error.message || "Failed to put leave request on hold",
+    });
+  }
+});
+
+// POST /api/admin/leave/:id/notify-parent — Trigger on-demand parent notice (Email / WhatsApp / Both)
+router.post("/:id/notify-parent", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { channel = "BOTH", customMessage } = req.body;
+
+    const result = await notifyParentLeaveAction({
+      leaveId: req.params.id,
+      channel: channel as "EMAIL" | "WHATSAPP" | "BOTH",
+      customMessage: typeof customMessage === "string" ? customMessage : undefined,
+      senderId: session.user.id,
+    });
+
+    return res.json({
+      success: true,
+      message: result.message || "Parent notification dispatched successfully",
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Notify parent error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to notify parent",
     });
   }
 });

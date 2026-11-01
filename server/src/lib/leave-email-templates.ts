@@ -250,3 +250,43 @@ export function leaveDecisionParentEmail(data: LeaveDecisionEmailData): string {
 
   return shell(headline, accent, body);
 }
+
+export interface LeaveReceivedEmailData {
+  studentName: string;
+  parentName?: string | null;
+  type: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  portalUrl: string;
+}
+
+/**
+ * Receipt confirmation dispatched to parents immediately upon leave application submission.
+ */
+export function leaveApplicationReceivedParentEmail(data: LeaveReceivedEmailData): string {
+  const pName = data.parentName?.trim() || "Respected Parent";
+  const body = `
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#374151;">
+      Afzalus Salam Janab ${escapeHtml(pName)},<br/><br/>
+      We have received the leave application for talib <strong>${escapeHtml(data.studentName)}</strong>. The request has been submitted to the academic administration desk and is currently <strong>under review</strong>.
+    </p>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8faf9;border:1px solid #e5ebe8;border-radius:14px;padding:6px 16px;margin:0 0 16px;">
+      ${infoRow("Student", escapeHtml(data.studentName))}
+      ${infoRow("Leave Category", escapeHtml(labelType(data.type)))}
+      ${infoRow("Requested Dates", `${escapeHtml(data.startDate)} → ${escapeHtml(data.endDate)} (${data.days} ${data.days === 1 ? "day" : "days"})`)}
+      ${infoRow("Reason / Notes", escapeHtml(data.reason))}
+      ${infoRow("Current Status", "Under Administrative Review")}
+    </table>
+
+    ${button("Check Live Status in Parent Portal", data.portalUrl)}
+
+    <p style="margin:14px 0 0;font-size:11.5px;line-height:1.7;color:#6b7280;">
+      You will receive an automated notification via Email &amp; WhatsApp as soon as the application is sanctioned by the administration.
+    </p>
+  `;
+
+  return shell("Leave Application Received — Under Review", "#0f766e", body);
+}

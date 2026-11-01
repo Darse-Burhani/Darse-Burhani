@@ -35,6 +35,7 @@ export interface LeaveRequestItem {
   createdAt: string;
   parentName?: string | null;
   parentPhone?: string | null;
+  parentEmail?: string | null;
   whatsAppUrl?: string | null;
 }
 
@@ -805,6 +806,39 @@ export async function assignAdminLeave(
 export async function unassignAdminLeave(leaveId: string): Promise<{ id: string; assignedTo: null }> {
   return request<{ id: string; assignedTo: null }>(`/api/admin/leave/${leaveId}/assign`, {
     method: "DELETE",
+  });
+}
+
+export async function notifyParentAdminLeave(
+  leaveId: string,
+  channel: "EMAIL" | "WHATSAPP" | "BOTH" = "BOTH",
+  customMessage?: string
+): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    success: boolean;
+    emailSent: boolean;
+    waSent: boolean;
+    whatsAppUrl: string | null;
+    parentPhone: string | null;
+    parentEmail: string | null;
+  };
+}> {
+  return request<{
+    success: boolean;
+    message: string;
+    data: {
+      success: boolean;
+      emailSent: boolean;
+      waSent: boolean;
+      whatsAppUrl: string | null;
+      parentPhone: string | null;
+      parentEmail: string | null;
+    };
+  }>(`/api/admin/leave/${leaveId}/notify-parent`, {
+    method: "POST",
+    body: JSON.stringify({ channel, customMessage }),
   });
 }
 

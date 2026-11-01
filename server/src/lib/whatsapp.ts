@@ -8,7 +8,7 @@ export interface LeaveWhatsAppParams {
   parentName?: string | null;
   studentName: string;
   className?: string | null;
-  status: "APPROVED" | "REJECTED" | "APPROVED_REDUCED" | "HOLD";
+  status: "APPROVED" | "REJECTED" | "APPROVED_REDUCED" | "HOLD" | "PENDING";
   leaveType: string;
   startDate: string;
   endDate: string;
@@ -45,6 +45,7 @@ export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string 
   const pName = params.parentName?.trim() || "Respected Parent";
   const sName = params.studentName.trim();
   const cName = params.className ? ` (Class ${params.className})` : "";
+  const isPending = params.status === "PENDING";
   const statusLabel =
     params.status === "APPROVED"
       ? "✅ APPROVED"
@@ -52,6 +53,8 @@ export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string 
       ? "⚠️ APPROVED (REDUCED DAYS)"
       : params.status === "HOLD"
       ? "⏸️ ON HOLD / PENDING CLARIFICATION"
+      : params.status === "PENDING"
+      ? "⏳ UNDER REVIEW (PENDING)"
       : "❌ REJECTED";
 
   const periodStr =
@@ -72,8 +75,31 @@ export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string 
       ? "Placed on hold pending administrative review / verification."
       : params.status === "REJECTED"
       ? "Decision recorded by administration."
+      : params.status === "PENDING"
+      ? "Application received and queued for administrative review."
       : "Approved by administration.");
   const authority = params.reviewerName?.trim() || "Administration Desk";
+
+  if (isPending) {
+    return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
+_Academic Administration Desk • Galiakot_
+
+Afzalus Salam Janab ${pName},
+
+The leave application for talib *${sName}*${cName} has been *SUBMITTED & IS UNDER REVIEW*.
+
+📋 *Leave Application Details:*
+• *Application Status:* ${statusLabel}
+• *Leave Category:* ${params.leaveType}
+• *Requested Period:* ${periodStr}
+• *Requested Days:* ${daysStr}
+• *Reason / Remarks:* ${remarks}
+
+You will receive an automated one-way update via WhatsApp and Email once the administration decides on this request.
+
+----------------------------------------
+_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored. For queries, contact support.darseburhanigaliakot@gmail.com or call +91 2964 282222._`;
+  }
 
   return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
 _Academic Administration Desk • Galiakot_
