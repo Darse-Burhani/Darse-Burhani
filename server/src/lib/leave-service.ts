@@ -452,15 +452,14 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
       select: { email: true },
     });
     const adminEmailList = new Set<string>();
+    // Always include the designated Galiakot administrative mailbox
+    adminEmailList.add("admin.galiakot@darseburhani.org");
     if (process.env.LEAVE_ADMIN_EMAIL?.trim()) {
       adminEmailList.add(process.env.LEAVE_ADMIN_EMAIL.trim().toLowerCase());
     }
     adminUsers.forEach((a) => {
       if (a.email?.trim()) adminEmailList.add(a.email.trim().toLowerCase());
     });
-    if (adminEmailList.size === 0) {
-      adminEmailList.add("admin.galiakot@darseburhani.org");
-    }
 
     const emailSubject = `New Leave Application — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`;
     const emailHtml = leaveApplicationAdminEmail({
@@ -489,9 +488,17 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
         to: toEmail,
         subject: emailSubject,
         html: emailHtml,
-      }).catch((err) => {
-        console.warn(`[leave-service] Admin leave email could not be delivered to ${toEmail}:`, err);
-      });
+      })
+        .then((ok) => {
+          if (ok) {
+            console.log(`[leave-service] Admin leave email sent to ${toEmail}`);
+          } else {
+            console.warn(`[leave-service] Admin leave email could not be sent to ${toEmail} (check SMTP credentials)`);
+          }
+        })
+        .catch((err) => {
+          console.warn(`[leave-service] Admin leave email could not be delivered to ${toEmail}:`, err);
+        });
     }
   } catch (err) {
     console.error("[leave-service] Admin leave email error:", err);

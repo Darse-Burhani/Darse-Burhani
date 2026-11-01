@@ -842,6 +842,37 @@ export async function notifyParentAdminLeave(
   });
 }
 
+export interface LeaveSmtpStatus {
+  config: {
+    configured: boolean;
+    activeMailbox: string;
+    hasDedicatedLeaveCreds: boolean;
+    hasPrimaryCreds: boolean;
+    adminMailbox: string;
+    host: string;
+    port: number;
+  };
+  live: {
+    ok: boolean;
+    mailbox: string;
+    transportType: "dedicated_leave" | "primary" | "outlook" | "none";
+    error?: string;
+    message?: string;
+  };
+}
+
+export async function getAdminLeaveSmtpStatus(): Promise<LeaveSmtpStatus> {
+  const res = await request<{ success: boolean; data: LeaveSmtpStatus }>(`/api/admin/leave/smtp-status`);
+  return res.data;
+}
+
+export async function testAdminLeaveEmail(to?: string): Promise<{ success: boolean; message: string; data: any }> {
+  return request<{ success: boolean; message: string; data: any }>(`/api/admin/leave/test-email`, {
+    method: "POST",
+    body: JSON.stringify({ to }),
+  });
+}
+
 // ── Web Push (browser notifications outside the website) ──
 
 export async function getPushPublicKey(): Promise<{ publicKey: string | null; configured: boolean }> {

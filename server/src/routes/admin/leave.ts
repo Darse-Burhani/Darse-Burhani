@@ -17,6 +17,7 @@ import {
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { formatLeaveWhatsAppMessage, generateWhatsAppLink } from "../../lib/whatsapp";
+import { getSmtpConfigStatus, testLeaveSmtpConnection, sendTestLeaveEmail } from "../../lib/email";
 
 const router = Router();
 
@@ -727,6 +728,47 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
       success: false,
       error: error.message || "Failed to delete leave request",
     });
+  }
+});
+
+// GET /api/admin/leave/smtp-status — Live email configuration & connectivity status
+router.get("/smtp-status", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const config = getSmtpConfigStatus();
+    const live = await testLeaveSmtpConnection();
+    return res.json({
+      success: true,
+      data: {
+        config,
+        live,
+      },
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] SMTP status error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to check SMTP status" });
+  }
+});
+
+// POST /api/admin/leave/test-email — Dispatch a real test leave notification email
+router.post("/test-email", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const target = typeof req.body?.to === "string" ? req.body.to.trim() : undefined;
+    const result = await sendTestLeaveEmail(target);
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error || "Failed to send test email",
+        data: result,
+      });
+    }
+    return res.json({
+      success: true,
+      message: `Test email dispatched successfully to ${result.to}`,
+      data: result,
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] Test email error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Internal error sending test email" });
   }
 });
 

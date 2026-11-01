@@ -20,5 +20,17 @@ services:
         sync: false
       - key: NEXTAUTH_SECRET
         generateValue: true
+      - key: LEAVE_ADMIN_EMAIL
+        value: admin.galiakot@darseburhani.org
+      - key: LEAVE_SMTP_USER
+        value: admin.galiakot@darseburhani.org
+      - key: LEAVE_SMTP_PASS
+        sync: false
+      - key: LEAVE_SMTP_HOST
+        value: smtp.gmail.com
+      - key: LEAVE_SMTP_PORT
+        value: "587"
+      - key: LEAVE_SMTP_SECURE
+        value: "false"
 
 
