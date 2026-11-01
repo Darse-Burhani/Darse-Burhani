@@ -337,7 +337,9 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
   const overlapping = await prisma.leaveRequest.findFirst({
     where: {
       studentId: student.id,
-      status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED, LeaveStatus.HOLD] },
+      status: {
+        in: [LeaveStatus.PENDING, LeaveStatus.APPROVED, LeaveStatus.HOLD || "HOLD"].filter(Boolean) as LeaveStatus[],
+      },
       OR: [
         {
           startDate: { lte: end },

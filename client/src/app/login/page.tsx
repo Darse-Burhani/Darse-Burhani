@@ -227,8 +227,8 @@ export default function LoginPage() {
   const forgotSupportMailto = useMemo(() => {
     const ident = forgotIdentifier.trim();
     const subject = forgotProfile
-      ? `Password Reset Request â ${forgotProfile.portal} â ${forgotProfile.displayName}`
-      : "Password Reset Request â Darse Burhani (Nisab)";
+      ? `Password Reset Request — ${forgotProfile.portal} — ${forgotProfile.displayName}`
+      : "Password Reset Request — Darse Burhani (Nisab)";
     const lines = [
       "Assalamu Alaikum,",
       "",
@@ -585,19 +585,19 @@ export default function LoginPage() {
     <>
       <SEO
         title="Sign In | Darse Burhani (Nisab)"
-        description="Official sign-in portal for Darse Burhani (Nisab) â Mahad al Zahra talabat, faculty, administration, and parents."
+        description="Official sign-in portal for Darse Burhani (Nisab) — Mahad al Zahra talabat, faculty, administration, and parents."
       />
       <canvas ref={canvasRef} className="hidden" />
 
       {/* ââ Twilight Palace Backdrop ââ
           Layered cinematic composition:
-          1. Blurred full-bleed fill â same panorama, cover-scaled and defocused, so
+          1. Blurred full-bleed fill — same panorama, cover-scaled and defocused, so
              the backdrop reaches every screen edge with no letterbox gaps
-          2. Tint wash â photo-sampled gradient that unifies the composition
-          3. Photo â entire panorama, no crop (centered on desktop, hero band on mobile)
-          4. Seam fade â melts the photo edge into the wash on desktop and mobile
-          5. Sun glow â breathing amber light where the sun sets in the photo
-          6. Parallax â the panorama drifts with the cursor (desktop, motion-safe) */}
+          2. Tint wash — photo-sampled gradient that unifies the composition
+          3. Photo — entire panorama, no crop (centered on desktop, hero band on mobile)
+          4. Seam fade — melts the photo edge into the wash on desktop and mobile
+          5. Sun glow — breathing amber light where the sun sets in the photo
+          6. Parallax — the panorama drifts with the cursor (desktop, motion-safe) */}
       {/* ââ Twilight Palace Backdrop (Full-Fit Uncropped Panorama with Ambient Twilight Fill) ââ */}
       {/* 1. Ambient underlay layer: fills entire viewport on any aspect ratio with zero letterbox gaps */}
       <div
@@ -966,7 +966,8 @@ export default function LoginPage() {
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
-                      placeholder="â¢â¢â¢â¢â¢â¢â¢â¢"
+                      placeholder="Enter your password"
+                      className="placeholder:text-white/35"
                       style={{
                         width: "100%",
                         height: 46,
@@ -982,7 +983,7 @@ export default function LoginPage() {
                         backdropFilter: "blur(8px)",
                         WebkitBackdropFilter: "blur(8px)",
                         boxSizing: "border-box",
-                        letterSpacing: showPassword ? "normal" : "0.12em",
+                        letterSpacing: showPassword || !password ? "normal" : "0.14em",
                       }}
                       onFocus={(e) => {
                         e.currentTarget.style.borderColor = "#fcd468";
@@ -1422,7 +1423,8 @@ export default function LoginPage() {
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
-                      placeholder="â¢â¢â¢â¢â¢â¢â¢â¢"
+                      placeholder="Enter your password"
+                      className="placeholder:text-white/35"
                       style={{
                         width: "100%",
                         height: 44,
@@ -1435,7 +1437,7 @@ export default function LoginPage() {
                         color: "#ffffff",
                         outline: "none",
                         boxSizing: "border-box",
-                        letterSpacing: showPassword ? "normal" : "0.12em",
+                        letterSpacing: showPassword || !password ? "normal" : "0.14em",
                       }}
                     />
                     <button
@@ -1881,15 +1883,15 @@ export default function LoginPage() {
                 {forgotIdentifier.trim().length >= 3 && (
                   <div role="status" aria-live="polite" style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6, minHeight: 16 }}>
                     {forgotChecking ? (
-                      <span style={{ color: "#94a3b8" }}>Catching profileâ¦</span>
+                      <span style={{ color: "#94a3b8" }}>Catching profile...</span>
                     ) : forgotProfile ? (
                       <span style={{ color: "#8a3e14", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
                         <CheckCircle2 size={13} />
-                        {forgotProfile.displayName} Â· {forgotProfile.portal}
-                        {forgotProfile.its ? ` Â· ITS ${forgotProfile.its}` : ""}
+                        {forgotProfile.displayName} · {forgotProfile.portal}
+                        {forgotProfile.its ? ` · ITS ${forgotProfile.its}` : ""}
                       </span>
                     ) : (
-                      <span style={{ color: "#94a3b8" }}>No matching profile found â you can still email support below.</span>
+                      <span style={{ color: "#94a3b8" }}>No matching profile found — you can still email support below.</span>
                     )}
                   </div>
                 )}
@@ -1929,8 +1931,8 @@ export default function LoginPage() {
               >
                 <Mail size={15} />
                 {forgotProfile
-                  ? `Email support â ${forgotProfile.displayName}'s reset request`
-                  : "Email support â password reset request"}
+                  ? `Email support — ${forgotProfile.displayName}'s reset request`
+                  : "Email support — password reset request"}
               </a>
               {forgotProfile && (
                 <p style={{ fontSize: 11, color: "#94a3b8", marginTop: -4 }}>
