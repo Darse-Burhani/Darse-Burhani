@@ -268,12 +268,11 @@ function getHikvisionTime(d = new Date()) {
  */
 function isSchoolHoursIST(d = new Date()) {
   if (process.env.FORCE_PING === 'true') return true;
+  if (isSundayIST(d)) return false;
   const ist = getIstParts(d);
   const minutes = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
-  if (isSundayIST(d)) {
-    return minutes >= (8 * 60) && minutes <= (22 * 60 + 30);
-  }
-  return minutes >= (7 * 60) && minutes <= (22 * 60);
+  // STRICTLY ACTIVE FROM 07:20 AM TILL 08:30 AM FOR ATTENDANCE
+  return minutes >= (7 * 60 + 20) && minutes <= (8 * 60 + 30);
 }
 
 /**
