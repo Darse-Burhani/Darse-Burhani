@@ -262,6 +262,18 @@ function getHikvisionTime(d = new Date()) {
 }
 
 /**
+ * Check if current time falls within active school / portal hours in IST (07:15 AM - 08:30 PM, Mon-Sat).
+ * Outside these hours and on Sundays, keep-alive pings pause so Render automatically sleeps,
+ * limiting monthly usage to ~403 hours (well within the 750 free-tier budget).
+ */
+function isSchoolHoursIST(d = new Date()) {
+  if (isSundayIST(d)) return false;
+  const ist = getIstParts(d);
+  const minutes = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
+  return minutes >= (7 * 60 + 15) && minutes <= (20 * 60 + 30);
+}
+
+/**
  * Parse an ISAPI <localTime> value. Terminals frequently omit the timezone
  * offset; in that case the value is IST wall-clock and must be anchored with
  * +05:30 explicitly. Parsing it with `new Date(raw)` would use the bridge PC's
@@ -1259,9 +1271,28 @@ async function startBridge() {
     }
   }, 30000);
 
-  // 5. Automatic 3-minute keep-alive removed to conserve Render's 750 free-tier hours.
-  // Punches remain safely recorded in Hikvision hardware and the local DB.
-  // Full cloud sync to Render is executed on demand via the Hik scan page button or the bridge UI.
+  // 5. Smart School-Hours Keep-Alive (07:15 AM - 08:30 PM IST, Mon-Sat):
+  // Keeps Render online and warm during all school & portal hours (instant punches & fast page loads).
+  // Automatically sleeps overnight and on Sundays, consuming only ~403 hours/month so Render never runs out of hours!
+  async function pingRenderSchoolHours() {
+    if (!isSchoolHoursIST()) return;
+    for (const base of CLOUD_HEALTH_BASES) {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(`${base}/api/health`, { signal: controller.signal });
+        clearTimeout(t);
+        if (res.ok) {
+          lastGoodHealthBase = base;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  // Ping every 10 minutes during school hours
+  setInterval(pingRenderSchoolHours, 10 * 60 * 1000);
+  pingRenderSchoolHours().catch(() => {});
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');
   console.log('   All biometric punches from physical terminals are syncing to Render.');
