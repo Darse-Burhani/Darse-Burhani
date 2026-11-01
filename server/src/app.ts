@@ -474,7 +474,8 @@ export function createApp() {
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
-        error: process.env.NODE_ENV === "production" ? "Internal server error" : err.message || "Internal server error",
+        error: "Internal server error",
+        message: err.message || "Internal server error",
       });
     }
   });
