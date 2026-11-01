@@ -63,10 +63,10 @@
   --db-c-emerald-400: 252 212 104;  /* gold-400 */
   --db-c-emerald-500: 243 184 51;   /* gold-500 (core brand) */
   --db-c-emerald-600: 239 154 51;   /* gold-600 */
-  --db-c-emerald-700: 220 107 39;   /* gold-700 */
-  --db-c-emerald-800: 184 84 30;    /* gold-800 */
-  --db-c-emerald-900: 138 62 20;    /* gold-900 (deep amber) */
-  --db-c-emerald-950: 26 18 9;      /* charcoal brown-black canvas */
+  --db-c-emerald-700: 197 155 39;   /* gold-700 / deep antique gold #c59b27 */
+  --db-c-emerald-800: 163 122 26;   /* gold-800 / burnished gold #a37a1a */
+  --db-c-emerald-900: 122 90 19;    /* gold-900 / dark rich gold #7a5a13 */
+  --db-c-emerald-950: 13 13 13;     /* midnight charcoal obsidian canvas */
   --db-c-green-50: 253 250 238;
   --db-c-green-100: 253 243 220;
   --db-c-green-200: 251 233 190;
@@ -74,10 +74,10 @@
   --db-c-green-400: 252 212 104;
   --db-c-green-500: 243 184 51;
   --db-c-green-600: 239 154 51;
-  --db-c-green-700: 220 107 39;
-  --db-c-green-800: 184 84 30;
-  --db-c-green-900: 138 62 20;
-  --db-c-green-950: 26 18 9;
+  --db-c-green-700: 197 155 39;
+  --db-c-green-800: 163 122 26;
+  --db-c-green-900: 122 90 19;
+  --db-c-green-950: 13 13 13;
   --db-c-teal-50: 253 250 238;
   --db-c-teal-100: 253 243 220;
   --db-c-teal-200: 251 233 190;
@@ -85,10 +85,10 @@
   --db-c-teal-400: 252 212 104;
   --db-c-teal-500: 243 184 51;
   --db-c-teal-600: 239 154 51;
-  --db-c-teal-700: 220 107 39;
-  --db-c-teal-800: 184 84 30;
-  --db-c-teal-900: 138 62 20;
-  --db-c-teal-950: 26 18 9;
+  --db-c-teal-700: 197 155 39;
+  --db-c-teal-800: 163 122 26;
+  --db-c-teal-900: 122 90 19;
+  --db-c-teal-950: 13 13 13;
   --db-c-fatimi-obsidian: 13 13 13;       /* obsidian charcoal */
   --db-c-student-vibrant: 252 212 104;    /* gold vibrant */
 }
@@ -352,15 +352,18 @@
 }
 
 .toast-fatimi.success {
-  border-left: 4px solid #f3b833;
+  border-color: rgba(243, 184, 51, 0.5);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .toast-fatimi.error {
-  border-left: 4px solid #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .toast-fatimi.warning {
-  border-left: 4px solid var(--fatimi-gold);
+  border-color: rgba(243, 184, 51, 0.5);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* Dropdown / Select */
@@ -454,9 +457,9 @@
 
 /* Utility Classes for Theme Consistency */
 .text-fatimi-gold { color: var(--fatimi-gold) !important; }
-.text-fatimi-primary { color: var(--fatimi-text-primary, #f5f0e8) !important; }
-.text-fatimi-body { color: var(--fatimi-text-body, #e8e0d0) !important; }
-.text-fatimi-muted { color: var(--fatimi-text-muted, #9a9280) !important; }
+.text-fatimi-primary { color: var(--fatimi-text-primary, #221c12) !important; }
+.text-fatimi-body { color: var(--fatimi-text-body, #3d3426) !important; }
+.text-fatimi-muted { color: var(--fatimi-text-muted, #97896f) !important; }
 
 .bg-fatimi-primary { background: var(--fatimi-primary) !important; }
 .bg-fatimi-surface { background: var(--fatimi-surface) !important; }

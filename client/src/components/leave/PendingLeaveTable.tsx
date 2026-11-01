@@ -203,10 +203,10 @@ export function PendingLeaveTable({
                   ? "bg-amber-400/30 ring-2 ring-amber-400"
                   : isHold
                   ? "bg-amber-100/60 ring-1 ring-amber-300/80 shadow-xs"
-                  : "bg-slate-900/5 ring-1 ring-slate-900/10 shadow-2xs"
+                  : "bg-black/[0.03] ring-1 ring-black/[0.06] shadow-xs"
               }`}
             >
-              <div className="bg-white rounded-[calc(1.75rem-0.25rem)] p-4 space-y-3">
+              <div className="depth-3d-card rounded-[calc(1.75rem-0.25rem)] p-4 space-y-3">
                 {/* Top Row: Avatar, Student Info, Checkbox & Status */}
                 <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -363,7 +363,7 @@ export function PendingLeaveTable({
                             startDate: item.startDate,
                           });
                         }}
-                        className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white font-bold text-xs shadow-xs active:scale-95 transition-all cursor-pointer"
+                        className="depth-3d-btn-emerald flex items-center justify-center gap-1 py-3 px-2 rounded-xl text-white font-bold text-xs cursor-pointer"
                       >
                         <Palmtree className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
                         <span>Approve</span>
@@ -382,9 +382,9 @@ export function PendingLeaveTable({
                               startDate: item.startDate,
                             });
                           }}
-                          className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs border border-amber-300 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                          className="depth-3d-btn-gold flex items-center justify-center gap-1 py-3 px-2 rounded-xl text-stone-950 font-bold text-xs cursor-pointer"
                         >
-                          <PauseCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" strokeWidth={1.75} />
+                          <PauseCircle className="w-3.5 h-3.5 text-stone-950 shrink-0" strokeWidth={2} />
                           <span>Hold</span>
                         </button>
                       )}
@@ -399,7 +399,7 @@ export function PendingLeaveTable({
                             studentName: item.studentName || "Student",
                           });
                         }}
-                        className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 active:scale-95 transition-all cursor-pointer"
+                        className="depth-3d-btn-dark flex items-center justify-center gap-1 py-3 px-2 rounded-xl text-white font-bold text-xs cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
                         <span>Reject</span>
@@ -423,7 +423,7 @@ export function PendingLeaveTable({
                             isSettlingHold: true,
                           });
                         }}
-                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-800 text-white font-bold text-xs shadow-xs active:scale-95 cursor-pointer"
+                        className="depth-3d-btn-emerald flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl text-white font-bold text-xs cursor-pointer"
                       >
                         <Palmtree className="w-3.5 h-3.5" strokeWidth={1.75} />
                         <span>Approve (Settle)</span>
@@ -440,7 +440,7 @@ export function PendingLeaveTable({
                             isSettlingHold: true,
                           });
                         }}
-                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs active:scale-95 cursor-pointer"
+                        className="depth-3d-btn-dark flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl text-white font-bold text-xs cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" strokeWidth={2} />
                         <span>Reject</span>
@@ -756,10 +756,10 @@ export function PendingLeaveTable({
                                 startDate: item.startDate,
                               });
                             }}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all"
+                            className="depth-3d-btn-emerald px-3 py-1.5 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                             title="Approve leave and sync attendance"
                           >
-                            <Palmtree className="w-3.5 h-3.5" />
+                            <Palmtree className="w-3.5 h-3.5" strokeWidth={1.75} />
                             <span>Approve</span>
                           </button>
 
@@ -777,10 +777,10 @@ export function PendingLeaveTable({
                                   startDate: item.startDate,
                                 });
                               }}
-                              className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs flex items-center gap-1 border border-amber-300 transition-colors"
+                              className="depth-3d-btn-gold px-3 py-1.5 rounded-xl text-stone-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                               title="Put on hold with administrative remarks sent to parent"
                             >
-                              <PauseCircle className="w-3.5 h-3.5 text-amber-600" />
+                              <PauseCircle className="w-3.5 h-3.5 text-stone-950" strokeWidth={2} />
                               <span>Hold</span>
                             </button>
                           )}
@@ -796,10 +796,10 @@ export function PendingLeaveTable({
                                 studentName: item.studentName || "Student",
                               });
                             }}
-                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 border border-rose-200 transition-colors"
+                            className="depth-3d-btn-dark px-3 py-1.5 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                             title="Reject request"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-3.5 h-3.5" strokeWidth={2} />
                             <span>Reject</span>
                           </button>
                         </div>
@@ -825,10 +825,10 @@ export function PendingLeaveTable({
                                 isSettlingHold: true,
                               });
                             }}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all"
+                            className="depth-3d-btn-emerald px-3 py-1.5 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                             title="Settle hold and approve leave"
                           >
-                            <Palmtree className="w-3.5 h-3.5" />
+                            <Palmtree className="w-3.5 h-3.5" strokeWidth={1.75} />
                             <span>Approve (Settle)</span>
                           </button>
 
@@ -843,10 +843,10 @@ export function PendingLeaveTable({
                                 isSettlingHold: true,
                               });
                             }}
-                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 border border-rose-200 transition-colors"
+                            className="depth-3d-btn-dark px-3 py-1.5 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                             title="Settle hold and reject leave"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-3.5 h-3.5" strokeWidth={2} />
                             <span>Reject</span>
                           </button>
 
@@ -923,7 +923,9 @@ export function PendingLeaveTable({
       {activeAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setActiveAction(null)} />
-          <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-3xl bg-white p-5 sm:p-6 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-slate-200/90 animate-slide-up">
+          <div className="relative z-10 w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-3xl bg-white p-5 sm:p-6 depth-3d-card border border-amber-200/60 animate-slide-up">
+            {/* Top gold hairline */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
             <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4 sm:hidden" />
             <h3 className="font-display font-bold text-base text-slate-900 mb-1 leading-tight">
               {activeAction.type === "approve"
@@ -1104,7 +1106,7 @@ export function PendingLeaveTable({
                   setActiveAction(null);
                   setActionNotes("");
                 }}
-                className="px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
               >
                 Cancel
               </button>
@@ -1112,18 +1114,16 @@ export function PendingLeaveTable({
                 type="button"
                 onClick={handleActionConfirm}
                 disabled={processing}
-                className={`px-4 py-2 rounded-xl text-xs font-bold text-white shadow-xs flex items-center gap-1.5 ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
                   activeAction.type === "approve"
-                    ? grantDays < (activeAction.requestedDays ?? 1)
-                      ? "bg-amber-600 hover:bg-amber-700"
-                      : "bg-emerald-600 hover:bg-emerald-700"
+                    ? "depth-3d-btn-emerald"
                     : activeAction.type === "hold"
-                    ? "bg-amber-600 hover:bg-amber-700"
-                    : "bg-rose-600 hover:bg-rose-700"
+                    ? "depth-3d-btn-gold text-stone-950 font-extrabold"
+                    : "depth-3d-btn-dark"
                 }`}
               >
                 {processing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {activeAction.type === "hold" && <PauseCircle className="w-3.5 h-3.5" />}
+                {activeAction.type === "hold" && <PauseCircle className="w-3.5 h-3.5 text-stone-950" strokeWidth={2} />}
                 <span>
                   {activeAction.type === "approve"
                     ? grantDays < (activeAction.requestedDays ?? 1)

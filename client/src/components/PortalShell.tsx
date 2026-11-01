@@ -804,8 +804,8 @@ export function PortalShell({
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-[11px] font-bold whitespace-nowrap transition-all duration-200 shrink-0 active:scale-95",
                       active
-                        ? "bg-slate-950 text-amber-300 shadow-sm ring-1 ring-amber-400/60 border border-slate-800"
-                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/90 shadow-2xs"
+                        ? "depth-3d-btn-dark text-amber-300 ring-1 ring-amber-400/60 border border-slate-800"
+                        : "depth-3d-card text-slate-700 hover:bg-slate-50 border border-slate-200/90"
                     )}
                   >
                     <Icon className={cn("w-3.5 h-3.5", active ? "text-amber-300" : "text-amber-700")} strokeWidth={1.75} />
@@ -839,7 +839,7 @@ export function PortalShell({
              4. REDESIGNED MOBILE NATIVE BOTTOM APP DOCK (Fixed & Ergonomic)
              ───────────────────────────────────────────────────────────── */}
           <nav
-            className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-2xl border-t border-amber-400/30 shadow-[0_-8px_32px_rgba(0,0,0,0.6)] safe-area-bottom select-none"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-40 depth-3d-dock safe-area-bottom select-none"
             aria-label="Mobile Bottom App Bar"
           >
             <div className="px-3 py-2 flex items-center justify-around gap-1 text-white max-w-md mx-auto">
@@ -891,13 +891,12 @@ export function PortalShell({
                   type="button"
                   onClick={() => setQuickCommandOpen(!quickCommandOpen)}
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-[0_6px_25px_rgba(243,184,51,0.55)] ring-2 ring-amber-400/90 active:scale-90 transition-all cursor-pointer",
+                    "w-12 h-12 rounded-full flex items-center justify-center shrink-0 depth-3d-orb ring-2 ring-amber-400/90 active:scale-90 transition-all cursor-pointer",
                     quickCommandOpen ? "rotate-45" : ""
                   )}
-                  style={{ background: `linear-gradient(135deg, ${GOLD}, #b8860b)` }}
                   aria-label="Quick Launch Center"
                 >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-950/20 text-white">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-stone-950/25 text-white">
                     {quickCommandOpen ? <X className="w-5 h-5 text-white" strokeWidth={2} /> : <FatimiLogo size={22} variant="gold" />}
                   </div>
                 </button>
