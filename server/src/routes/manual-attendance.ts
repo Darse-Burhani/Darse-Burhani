@@ -212,11 +212,22 @@ router.get("/roster", requireAuth, async (req, res) => {
       const [students, registries, records] = await Promise.all([
         prisma.studentProfile.findMany({
           where: studentWhere,
-          include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } },
+          include: {
+            user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+            leaveRequests: {
+              where: {
+                status: "APPROVED",
+                startDate: { lte: dayEnd },
+                endDate: { gte: targetDate },
+              },
+              take: 1,
+            },
+          },
           orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
         }),
         prisma.attendanceRegistry.findMany({
           where: { date: targetDate },
+          include: { leave: true },
         }),
         prisma.attendanceRecord.findMany({
           where: { date: { gte: targetDate, lt: dayEnd } },
@@ -234,11 +245,26 @@ router.get("/roster", requireAuth, async (req, res) => {
       for (const s of students) {
         const reg = regMap.get(s.id);
         const rec = recMap.get(s.id);
-        const status = reg?.status || rec?.status || "NOT_MARKED";
-        const source = reg?.source || rec?.source || "MANUAL";
-        const checkInTime = reg?.checkInTime || rec?.checkInTime || null;
-        const checkOutTime = reg?.checkOutTime || rec?.checkOutTime || null;
-        const remarks = reg?.remarks || rec?.justification || null;
+        const hasApprovedLeave = Boolean(
+          s.leaveRequests?.[0] ||
+          reg?.status === "ON_LEAVE" ||
+          rec?.status === "ON_LEAVE" ||
+          reg?.source === "LEAVE_APPROVED" ||
+          rec?.source === "LEAVE_APPROVED" ||
+          reg?.leaveId
+        );
+
+        let status = reg?.status || rec?.status || "NOT_MARKED";
+        let source = reg?.source || rec?.source || "MANUAL";
+        let checkInTime = reg?.checkInTime || rec?.checkInTime || null;
+        let checkOutTime = reg?.checkOutTime || rec?.checkOutTime || null;
+        let remarks = reg?.remarks || rec?.justification || null;
+
+        if (hasApprovedLeave) {
+          status = "ON_LEAVE";
+          source = "LEAVE_APPROVED";
+          remarks = s.leaveRequests?.[0]?.reason || reg?.remarks || rec?.justification || "Approved Official Leave (Holiday)";
+        }
 
         roster.push({
           id: s.id,

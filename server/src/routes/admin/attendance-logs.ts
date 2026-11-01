@@ -392,27 +392,36 @@ router.get("/", requireAuth, async (req, res) => {
           (registry && registry.source === "BIOMETRIC")
         );
 
-        if (isManuallyRecorded) {
+        const hasLeaveEntry = Boolean(
+          hasApprovedLeave ||
+          registry?.status === "ON_LEAVE" ||
+          record?.status === "ON_LEAVE" ||
+          registry?.source === "LEAVE_APPROVED" ||
+          record?.source === "LEAVE_APPROVED" ||
+          registry?.leaveId
+        );
+
+        if (hasLeaveEntry) {
+          effectiveStatus = "ON_LEAVE";
+          effectiveSource = "LEAVE_APPROVED";
+          remarks = hasApprovedLeave?.reason || registry?.remarks || record?.justification || "Approved Official Leave (Holiday)";
+          leaveDetails = {
+            id: hasApprovedLeave?.id || registry?.leaveId || "leave-approved",
+            type: hasApprovedLeave?.type || (registry?.leave as any)?.type || "PERSONAL",
+            reason: hasApprovedLeave?.reason || registry?.remarks || record?.justification || "Approved Official Leave (Holiday)",
+            startDate: hasApprovedLeave?.startDate ? hasApprovedLeave.startDate.toISOString() : dayStart.toISOString(),
+            endDate: hasApprovedLeave?.endDate ? hasApprovedLeave.endDate.toISOString() : dayEnd.toISOString(),
+          };
+        } else if (hasMedical || registry?.status === "MEDICAL" || record?.status === "MEDICAL") {
+          effectiveStatus = "MEDICAL";
+          effectiveSource = "MEDICAL_LEAVE";
+          remarks = hasMedical?.reason || registry?.remarks || "Medical Duty Exemption";
+        } else if (isManuallyRecorded) {
           effectiveStatus = registry?.status || record?.status || "NOT_MARKED";
           effectiveSource = "MANUAL";
           checkInTime = registry?.checkInTime?.toISOString() || record?.checkInTime?.toISOString() || null;
           checkOutTime = registry?.checkOutTime?.toISOString() || record?.checkOutTime?.toISOString() || null;
           remarks = registry?.remarks || record?.justification || null;
-        } else if (hasApprovedLeave) {
-          effectiveStatus = "ON_LEAVE";
-          effectiveSource = "LEAVE_APPROVED";
-          remarks = hasApprovedLeave.reason || "Approved Official Leave";
-          leaveDetails = {
-            id: hasApprovedLeave.id,
-            type: hasApprovedLeave.type,
-            reason: hasApprovedLeave.reason,
-            startDate: hasApprovedLeave.startDate.toISOString(),
-            endDate: hasApprovedLeave.endDate.toISOString(),
-          };
-        } else if (hasMedical) {
-          effectiveStatus = "MEDICAL";
-          effectiveSource = "MEDICAL_LEAVE";
-          remarks = hasMedical.reason || "Medical Duty Exemption";
         } else if (registry) {
           effectiveStatus = registry.status;
           checkInTime = registry.checkInTime?.toISOString() || null;

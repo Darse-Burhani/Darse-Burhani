@@ -705,7 +705,19 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
   const registrySource: AttendanceSource =
     leave.type === LeaveType.MEDICAL ? AttendanceSource.MEDICAL_LEAVE : AttendanceSource.LEAVE_APPROVED;
 
-  // Sync AttendanceRegistry for each day in range
+  // Resolve active classes for AttendanceRecord (fallback to grade/section classes if direct enrollment is unlinked)
+  let classes = leave.student.classEnrollments.map((e) => e.class);
+  if (classes.length === 0 && leave.student.grade) {
+    classes = await prisma.class.findMany({
+      where: {
+        grade: leave.student.grade,
+        ...(leave.student.section ? { section: leave.student.section } : {}),
+        isActive: true,
+      },
+    });
+  }
+
+  // Sync AttendanceRegistry and AttendanceRecord for each day in range
   for (const date of dates) {
     await prisma.attendanceRegistry.upsert({
       where: {
@@ -732,8 +744,6 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
       },
     });
 
-    // Also sync AttendanceRecord for assigned active classes
-    const classes = leave.student.classEnrollments.map((e) => e.class);
     for (const c of classes) {
       await prisma.attendanceRecord.upsert({
         where: {
@@ -882,10 +892,12 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
   }
 
   cache.invalidateTag("attendanceRecord");
+  cache.invalidateTag("attendanceRegistry");
   cache.invalidateTag("dashboard");
   cache.invalidateTag("stats");
 
-  queueAutoSheetSync(leave.startDate);
+  // Sync Google Attendance Sheets for all granted leave dates
+  dates.forEach((d) => queueAutoSheetSync(d));
 
   return updatedLeave;
 }

@@ -172,8 +172,8 @@ const STATUS_CONFIG: {
   },
   {
     key: "ON_LEAVE",
-    label: "Leave",
-    shortLabel: "Leave",
+    label: "Holiday / Leave",
+    shortLabel: "Holiday",
     hotkey: "4",
     icon: ShieldCheck,
     bgActive: "bg-purple-600 text-white",
@@ -747,7 +747,7 @@ export default function AdminManualAttendancePage() {
                 <kbd className="px-2 py-0.5 rounded bg-rose-900/80 border border-rose-600 font-mono font-bold text-rose-200">3</kbd> Absent
               </span>
               <span className="flex items-center gap-1.5">
-                <kbd className="px-2 py-0.5 rounded bg-purple-900/80 border border-purple-600 font-mono font-bold text-purple-200">4</kbd> Leave
+                <kbd className="px-2 py-0.5 rounded bg-purple-900/80 border border-purple-600 font-mono font-bold text-purple-200">4</kbd> Holiday / Leave
               </span>
             </div>
 
@@ -977,7 +977,7 @@ export default function AdminManualAttendancePage() {
                 : "bg-purple-50/60 text-purple-900 border-purple-200/80 hover:bg-purple-100/60 shadow-2xs"
             )}
           >
-            <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Leave</p>
+            <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Holiday / Leave</p>
             <p className="text-xl font-black mt-1">{stats.onLeave}</p>
           </button>
 
