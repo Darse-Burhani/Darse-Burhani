@@ -26,13 +26,17 @@ function withSingleConnection(urlStr) {
 const args = process.argv.slice(2);
 const isMigration = args.includes("migrate");
 
+// If migrate deploy is called on a database already initialized via db push,
+// fall back directly to db push to avoid duplicate enum/table errors.
 if (isMigration) {
-  if (process.env.DIRECT_URL) {
-    process.env.DIRECT_URL = withSingleConnection(process.env.DIRECT_URL);
-  }
-  if (process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = withSingleConnection(process.env.DATABASE_URL);
-  }
+  args.splice(0, args.length, "db", "push", "--skip-generate");
+}
+
+if (process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = withSingleConnection(process.env.DIRECT_URL);
+}
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = withSingleConnection(process.env.DATABASE_URL);
 }
 
 const cmd = `npx prisma ${args.join(" ")}`;
