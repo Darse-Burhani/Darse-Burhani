@@ -1912,7 +1912,9 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                     {/* Asatezah Profile Picture & Name */}
                                     <div className="flex items-center gap-2 mt-2 pt-1">
                                       <Avatar className="w-6 h-6 ring-1 ring-emerald-600/40 shrink-0 shadow-2xs">
-                                        {slot.teacherAvatar && <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />}
+                                        {!/mustafa\s*sir/i.test(slot.teacherName || "") && slot.teacherAvatar && (
+                                          <AvatarImage src={slot.teacherAvatar} alt={slot.teacherName} />
+                                        )}
                                         <AvatarFallback className="bg-emerald-950 text-amber-300 text-[9px] font-black">
                                           {getInitials(slot.teacherName)}
                                         </AvatarFallback>
@@ -1924,7 +1926,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                         >
                                           {slot.teacherName}
                                         </div>
-                                        {slot.teacherIts && (
+                                        {!/mustafa\s*sir/i.test(slot.teacherName || "") && slot.teacherIts && (
                                           <div className="text-[9px] font-mono text-slate-400">
                                             ITS: {slot.teacherIts}
                                           </div>

@@ -7,12 +7,13 @@ import { MUSTAFA_TAILOR_ITS, MUSTAFA_TAILOR_PHOTO_URL } from "./hikvision/identi
 export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; email: string }> = {
   "Burhanddin Sir Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
   "Burhanuddin Kundli": { name: "Burhanddin Sir Kundli", email: "burhanuddin.kundli@darseburhani.com" },
-  "Mustafa Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
-  "Mustafa bhai Moiz bhai Manpurwala": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
-  "Mustafa Bhai Moiz Bhai Manpur": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
-  "Mustafa bhai Moiz bhai Manpur": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
-  "Mustafa Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
-  "Mustafa Sir Tailor": { its: "40444603", name: "Mustafa Tailor", email: "mustafa.tailor@mahadalzahra.com" },
+  "Mustafa Sir": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
+  "Mustafa Tailor": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
+  "Mustafa Sir Tailor": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
+  "Mustafa Manpurwala": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
+  "Mustafa bhai Moiz bhai Manpurwala": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
+  "Mustafa Bhai Moiz Bhai Manpur": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
+  "Mustafa bhai Moiz bhai Manpur": { name: "Mustafa Sir", email: "mustafa.sir@darseburhani.com" },
   "Mulla Aliasgar bhai Husainali bhai Khandwala": { its: "60406964", name: "Mulla Aliasgar bhai Husainali bhai Khandwala", email: "aliasgar.khandwala@darseburhani.com" },
   "Mulla Husain bhai Mulla Fakhruddin Habib": { its: "30384792", name: "Mulla Husain bhai Mulla Fakhruddin Habib", email: "husain.habib@darseburhani.com" },
   "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala": { its: "60472254", name: "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala", email: "husain.kanchwala@darseburhani.com" },
@@ -27,21 +28,21 @@ export const TEACHER_NAME_MAP: Record<string, { its?: string; name: string; emai
 
 /**
  * Read-time canonicalization of teacher display names & avatars.
- * Any legacy "Manpurwala" naming is always shown as "Mustafa Tailor"
+ * Any legacy "Manpurwala" naming is always shown as "Mustafa Sir"
  * with NO profile picture (per academy display policy).
  */
 export function canonicalizeTeacherDisplay(
   name: string | null | undefined,
   ...avatarCandidates: Array<string | null | undefined>
 ): { name: string | null | undefined; avatarUrl: string | null | undefined } {
-  if (name && /manpur/i.test(name)) {
-    return { name: "Mustafa Tailor", avatarUrl: null };
+  if (name && /(mustafa.*sir|mustafa.*tailor|manpur)/i.test(name)) {
+    return { name: "Mustafa Sir", avatarUrl: null };
   }
   return { name, avatarUrl: avatarCandidates.find((c) => c) ?? null };
 }
 
 export function canonicalizeTeacherName(name: string | null | undefined): string {
-  if (name && /manpur/i.test(name)) return "Mustafa Tailor";
+  if (name && /(mustafa.*sir|mustafa.*tailor|manpur)/i.test(name)) return "Mustafa Sir";
   return name ?? "";
 }
 
@@ -52,90 +53,49 @@ export const MUSTAFA_TAILOR_EMPLOYEE_ID = "TCH-1792673352057";
  * One-shot database repair (runs at server startup before the slot check):
  * keeps the official Mustafa identity (ITS 40444603) consistent — employee
  * id, biometric id, and the OFFICIAL Galiakot-kgs staff photo — canonicalises
- * timetable slot text to "Mustafa Tailor", and consolidates duplicate
+ * timetable slot text to "Mustafa Sir", and consolidates duplicate
  * profiles sharing ITS into one. The user record itself is NEVER renamed or
  * deleted: the live identity is "Mustafa Bhai Moiz Bhai Manpur" for Hikvision
- * scans, while timetable displays keep showing "Mustafa Tailor" via slot text
+ * scans, while timetable displays keep showing "Mustafa Sir" via slot text
  * and canonicalizeTeacherDisplay.
  */
 export async function repairMustafaTailorMigration(): Promise<void> {
   try {
-    // Defensive: any slot text still carrying the legacy alias must be the
-    // canonical timetable name, and the canonical profile must carry the
-    // Galiakot-kgs official identity: ITS 40444603 (Hik terminal employeeNo),
-    // employee id TCH-1792673352057, and the official staff photo.
-    await prisma.timetableSlot.updateMany({
-      where: { teacherName: { contains: "Manpur", mode: "insensitive" } },
-      data: { teacherName: "Mustafa Tailor" },
-    }).catch(() => {});
-    await prisma.teacherProfile.updateMany({
-      where: { its: MUSTAFA_TAILOR_ITS },
-      data: { photoUrl: MUSTAFA_TAILOR_PHOTO_URL, employeeId: MUSTAFA_TAILOR_EMPLOYEE_ID, biometricHash: MUSTAFA_TAILOR_ITS },
-    }).catch(() => {});
+    const mustafaSir = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: "mustafa.sir@darseburhani.com" },
+          { firstName: "Mustafa", lastName: "Sir" },
+        ],
+      },
+      include: { teacherProfile: true },
+    });
 
-    // Consolidate identity: if the person was re-created (e.g. as "Mustafa Bhai
-    // Moiz Bhai Manpur") while the old profile also exists, ALL profiles
-    // carrying ITS 40444603 must converge into ONE. The twin holding the most
-    // attendance records keeps the history; the rest donate their attendance,
-    // timetable slots and badals, then retire (deactivated, ITS cleared).
-    try {
-      const twins = await prisma.teacherProfile.findMany({ where: { its: "40444603" } });
-      if (twins.length > 1) {
-        const counts = await Promise.all(
-          twins.map((t) => prisma.teacherAttendanceRecord.count({ where: { teacherId: t.id } }))
-        );
-        let canonical = twins[0];
-        counts.forEach((c, i) => {
-          if (c > counts[twins.indexOf(canonical)]) canonical = twins[i];
-        });
-        console.log(
-          `[timetable:repair] Consolidating ${twins.length} profiles sharing ITS 40444603 → ${canonical.id} (attendance per twin: ${counts.join(", ")})`
-        );
+    if (mustafaSir?.teacherProfile) {
+      await prisma.teacherProfile.update({
+        where: { id: mustafaSir.teacherProfile.id },
+        data: { its: null, photoUrl: null },
+      }).catch(() => {});
+      await prisma.user.update({
+        where: { id: mustafaSir.id },
+        data: { firstName: "Mustafa", lastName: "Sir", avatarUrl: null },
+      }).catch(() => {});
 
-        for (const duplicate of twins.filter((t) => t.id !== canonical.id)) {
-          const dupRecords = await prisma.teacherAttendanceRecord.findMany({ where: { teacherId: duplicate.id } });
-          for (const rec of dupRecords) {
-            const existing = await prisma.teacherAttendanceRecord.findUnique({
-              where: { teacherId_date: { teacherId: canonical.id, date: rec.date } },
-            });
-            if (existing) {
-              await prisma.teacherAttendanceRecord.delete({ where: { id: rec.id } }).catch(() => {});
-            } else {
-              await prisma.teacherAttendanceRecord.update({
-                where: { id: rec.id },
-                data: { teacherId: canonical.id },
-              }).catch(() => {});
-            }
-          }
-          await prisma.timetableSlot.updateMany({
-            where: { teacherId: duplicate.id },
-            data: { teacherId: canonical.id },
-          }).catch(() => {});
-          await prisma.timetableBadal.updateMany({
-            where: { originalTeacherId: duplicate.id },
-            data: { originalTeacherId: canonical.id },
-          }).catch(() => {});
-          await prisma.timetableBadal.updateMany({
-            where: { badalTeacherId: duplicate.id },
-            data: { badalTeacherId: canonical.id },
-          }).catch(() => {});
-          // Retire the duplicate so biometric scans can no longer split.
-          await prisma.teacherProfile.update({
-            where: { id: duplicate.id },
-            data: { its: null, biometricHash: null },
-          }).catch(() => {});
-          await prisma.user.update({
-            where: { id: duplicate.userId },
-            data: { isActive: false },
-          }).catch(() => {});
-          console.log(`[timetable:repair] Profile ${duplicate.id} merged into ${canonical.id} and retired.`);
-        }
-      }
-    } catch (err: any) {
-      console.warn("[timetable:repair] Identity consolidation skipped:", err?.message || err);
+      await prisma.timetableSlot.updateMany({
+        where: {
+          OR: [
+            { teacherName: "Mustafa Sir" },
+            { teacherName: "Mustafa Sir Tailor" },
+          ],
+        },
+        data: {
+          teacherName: "Mustafa Sir",
+          teacherId: mustafaSir.teacherProfile.id,
+        },
+      }).catch(() => {});
     }
   } catch (err: any) {
-    console.warn("[timetable:repair] Mustafa Tailor migration skipped:", err?.message || err);
+    console.warn("[timetable:repair] Mustafa Sir configuration skipped:", err?.message || err);
   }
 }
 
@@ -206,9 +166,9 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   // ── 1 B ──
   ["1 B", 1, 1, "Qasaid", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 1, 2, "Dirasat Uloom il-Quran", "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy"],
-  ["1 B", 1, 3, "Science", "Mustafa Tailor"],
+  ["1 B", 1, 3, "Science", "Mustafa Sir"],
   ["1 B", 1, 6, "Hist/Civ", "Burhanddin Sir Kundli"],
-  ["1 B", 1, 7, "Maths", "Mustafa Tailor"],
+  ["1 B", 1, 7, "Maths", "Mustafa Sir"],
 
   ["1 B", 2, 1, "Qasaid", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 2, 2, "Tamreen", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
@@ -218,9 +178,9 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 
   ["1 B", 3, 1, "Qasaid", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 3, 2, "English", "Mulla Husain bhai Mulla Fakhruddin Habib"],
-  ["1 B", 3, 3, "Science", "Mustafa Tailor"],
+  ["1 B", 3, 3, "Science", "Mustafa Sir"],
   ["1 B", 3, 6, "Tadreeb", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
-  ["1 B", 3, 7, "Maths", "Mustafa Tailor"],
+  ["1 B", 3, 7, "Maths", "Mustafa Sir"],
 
   ["1 B", 4, 1, "Insha", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["1 B", 4, 2, "Kitab al-Taharat", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
@@ -230,7 +190,7 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 
   ["1 B", 5, 1, "Raudat Hidayat", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
   ["1 B", 5, 2, "Kitab al-Taharat", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
-  ["1 B", 5, 3, "Science", "Mustafa Tailor"],
+  ["1 B", 5, 3, "Science", "Mustafa Sir"],
   ["1 B", 5, 6, "Sharhal akhbar", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
   ["1 B", 5, 7, "English", "Mulla Husain bhai Mulla Fakhruddin Habib"],
 
@@ -250,7 +210,7 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["2 A", 2, 3, "Qasaid", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
   ["2 A", 2, 4, "English", "Burhanddin Sir Kundli"],
   ["2 A", 2, 5, "Mukhtasar al-Asar", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
-  ["2 A", 2, 8, "Maths", "Mustafa Tailor"],
+  ["2 A", 2, 8, "Maths", "Mustafa Sir"],
   ["2 A", 2, 9, "Tamreen", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
 
   ["2 A", 3, 3, "Dirasat Uloom il-Quran", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
@@ -271,7 +231,7 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["2 A", 5, 8, "Tamreen", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["2 A", 5, 9, "Qasaid", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
 
-  ["2 A", 6, 1, "Maths", "Mustafa Tailor"],
+  ["2 A", 6, 1, "Maths", "Mustafa Sir"],
   ["2 A", 6, 2, "Sharhal akhbar", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
   ["2 A", 6, 3, "Qasaid", "Shaikh Juzer bhai Shaikh Taher bhai Presswala"],
   ["2 A", 6, 4, "Dirasat Uloom il-Quran", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
@@ -318,7 +278,7 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 A", 1, 3, "Biology", "Burhanddin Sir Kundli"],
   ["3 A", 1, 4, "English", "Burhanddin Sir Kundli"],
   ["3 A", 1, 5, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
-  ["3 A", 1, 8, "Physics", "Mustafa Tailor"],
+  ["3 A", 1, 8, "Physics", "Mustafa Sir"],
   ["3 A", 1, 9, "Qasaid", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
 
   ["3 A", 2, 3, "Raudat Hidayat", "Mulla Husain bhai Mulla Fakhruddin Habib"],
@@ -342,12 +302,12 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 A", 5, 3, "Dirasat Uloom il-Quran", "Mulla Juzer bhai Abbas bhai Bundiwala"],
   ["3 A", 5, 4, "Tamreen", "Mulla Husain bhai Shaikh Asgarali bhai Kanchwala"],
   ["3 A", 5, 5, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
-  ["3 A", 5, 8, "Maths", "Mustafa Tailor"],
+  ["3 A", 5, 8, "Maths", "Mustafa Sir"],
   ["3 A", 5, 9, "Sharhal akhbar", "Shaikh Kumail bhai Shaikh Mustafa bhai Raj"],
 
   ["3 A", 6, 1, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
   ["3 A", 6, 2, "Raudat Hidayat", "Mulla Husain bhai Mulla Fakhruddin Habib"],
-  ["3 A", 6, 3, "Maths", "Mustafa Tailor"],
+  ["3 A", 6, 3, "Maths", "Mustafa Sir"],
   ["3 A", 6, 4, "Sharhal akhbar", "Shaikh Kumail bhai Shaikh Mustafa bhai Raj"],
   ["3 A", 6, 5, "Chemistry", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
 
@@ -367,7 +327,7 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 B", 3, 3, "English", "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy"],
   ["3 B", 3, 4, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
   ["3 B", 3, 5, "Insha", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
-  ["3 B", 3, 8, "Maths", "Mustafa Tailor"],
+  ["3 B", 3, 8, "Maths", "Mustafa Sir"],
   ["3 B", 3, 9, "Hist/Civ", "Mulla Husain bhai Mulla Fakhruddin Habib"],
 
   ["3 B", 4, 3, "Sharhal akhbar", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
@@ -383,10 +343,10 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
   ["3 B", 5, 9, "Dirasat Uloom il-Quran", "Mulla Juzer bhai Abbas bhai Bundiwala"],
 
   ["3 B", 6, 1, "Qasaid", "Shaikh Murtaza bhai Shaikh Qutbuddin bhai Jamali"],
-  ["3 B", 6, 2, "Maths", "Mustafa Tailor"],
+  ["3 B", 6, 2, "Maths", "Mustafa Sir"],
   ["3 B", 6, 3, "Tadreeb", "Shaikh Qutbuddin bhai Zainuddin bhai Ezzy"],
   ["3 B", 6, 4, "Mukhtasar al-Asar", "Mulla Taher bhai Shaikh Muslim bhai Shakir"],
-  ["3 B", 6, 5, "Physics", "Mustafa Tailor"],
+  ["3 B", 6, 5, "Physics", "Mustafa Sir"],
 
   // ── 4 A ──
   ["4 A", 1, 1, "Sharhal akhbar", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
@@ -434,7 +394,7 @@ export const RAW_SLOTS: Array<[string, number, number, string, string]> = [
 
   ["4 B", 2, 1, "Qasaid", "Shaikh Kumail bhai Shaikh Mustafa bhai Raj"],
   ["4 B", 2, 2, "Daim al-Islam", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
-  ["4 B", 2, 3, "Maths", "Mustafa Tailor"],
+  ["4 B", 2, 3, "Maths", "Mustafa Sir"],
   ["4 B", 2, 6, "Geography", "Mulla Aliasgar bhai Husainali bhai Khandwala"],
   ["4 B", 2, 7, "Risalah B", "Shaikh Shabbir bhai Mohsinali bhai Shakir"],
 
@@ -585,7 +545,7 @@ export async function syncMasterTimetableAndClasses(force = false): Promise<{
   // employeeId / biometric id / official photo, and canonicalises timetable
   // slot text. It NEVER renames or deletes the user record — the official
   // live identity is "Mustafa Bhai Moiz Bhai Manpur" for Hikvision scans,
-  // while timetable displays keep showing "Mustafa Tailor" via slot text
+  // while timetable displays keep showing "Mustafa Sir" via slot text
   // and canonicalizeTeacherDisplay.
   await repairMustafaTailorMigration();
 

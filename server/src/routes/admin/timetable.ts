@@ -316,12 +316,13 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
               t.user?.avatarUrl || t.photoUrl || null,
             );
             const tLeave = teacherLeavesMap.get(t.id);
+            const isMustafaSir = Boolean(display.name && /mustafa\s*sir/i.test(display.name));
             return {
               id: t.id,
               name: display.name,
               email: t.user?.email || "",
-              its: t.its,
-              avatarUrl: display.avatarUrl,
+              its: isMustafaSir ? null : t.its,
+              avatarUrl: isMustafaSir ? null : display.avatarUrl,
               weeklyPeriods: t._count.timetableSlots,
               isUnavailable: Boolean(tLeave),
               leaveReason: tLeave?.reason || null,
@@ -423,6 +424,7 @@ function formatSlotResponse(slot: any, teacherLeavesMap?: Map<string, any>) {
 
   const composedTeacherName = slot.teacherName || (slot.teacher?.user ? `${slot.teacher.user.firstName || ""} ${slot.teacher.user.lastName || ""}`.trim() : "TBA");
   const slotDisplay = canonicalizeTeacherDisplay(composedTeacherName, slot.teacher?.user?.avatarUrl || slot.teacher?.photoUrl || null);
+  const isMustafaSir = Boolean(slotDisplay.name && /mustafa\s*sir/i.test(slotDisplay.name));
 
   const teacherLeave = slot.teacherId && teacherLeavesMap ? teacherLeavesMap.get(slot.teacherId) : null;
 
@@ -434,8 +436,8 @@ function formatSlotResponse(slot: any, teacherLeavesMap?: Map<string, any>) {
     classSection: slot.class?.section || "",
     teacherId: slot.teacherId,
     teacherName: slotDisplay.name,
-    teacherAvatar: slotDisplay.avatarUrl,
-    teacherIts: slot.teacher?.its || null,
+    teacherAvatar: isMustafaSir ? null : slotDisplay.avatarUrl,
+    teacherIts: isMustafaSir ? null : (slot.teacher?.its || null),
     subject: slot.subject,
     dayOfWeek: slot.dayOfWeek,
     period: slot.period,
