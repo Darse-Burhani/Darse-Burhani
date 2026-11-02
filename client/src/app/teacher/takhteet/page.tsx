@@ -54,6 +54,16 @@ export default function TeacherTakhteetPage() {
       const res = await fetch(`/api/teacher/takhteet?_t=${Date.now()}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
+        if (data.data.length === 0) {
+          // If direct teacher assignments are empty, load active Darajah syllabus
+          const fbRes = await fetch(`/api/teacher/takhteet?view=all&_t=${Date.now()}`);
+          const fbData = await fbRes.json();
+          if (fbData.success && Array.isArray(fbData.data) && fbData.data.length > 0) {
+            setPlans(fbData.data);
+            if (fbData.meta) setMeta(fbData.meta);
+            return;
+          }
+        }
         setPlans(data.data);
         if (data.meta) {
           setMeta(data.meta);
@@ -311,7 +321,7 @@ export default function TeacherTakhteetPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Card key={i} className="fatimi-card animate-pulse">
-                <CardContent className="p-5">
+                <CardContent className="p-4 sm:p-5">
                   <div className="w-10 h-10 bg-gray-200 rounded-xl mb-3" />
                   <div className="w-16 h-4 bg-gray-200 rounded mb-2" />
                   <div className="w-10 h-7 bg-gray-200 rounded" />
@@ -578,7 +588,7 @@ export default function TeacherTakhteetPage() {
                             </div>
 
                             {/* Quick Increment buttons */}
-                            <div className="flex items-center gap-1.5 pt-1">
+                            <div className="overflow-x-auto pb-1 flex items-center gap-1.5 scrollbar-none pt-1">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -616,11 +626,11 @@ export default function TeacherTakhteetPage() {
                           </div>
 
                           {/* Right: Detailed Update Progress Modal Button */}
-                          <div className="shrink-0 flex items-center gap-2">
+                          <div className="shrink-0 flex items-center gap-2 w-full lg:w-auto">
                             <Button
                               variant="default"
                               size="sm"
-                              className="fatimi-emerald-gradient text-white font-semibold text-xs h-9 px-3.5 rounded-xl shadow-sm"
+                              className="fatimi-emerald-gradient text-white font-semibold text-xs h-9 px-3.5 rounded-xl shadow-sm w-full lg:w-auto justify-center flex items-center"
                               onClick={() => openUpdateModal(p)}
                             >
                               <Pencil className="w-3.5 h-3.5 mr-1.5" />
@@ -636,7 +646,7 @@ export default function TeacherTakhteetPage() {
                               <History className="w-3 h-3 text-amber-600" />
                               Recent Telemetry History
                             </p>
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-thin">
                               {p.logs.slice(0, 2).map((log: any) => (
                                 <div key={log.id} className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                                   <span className="font-medium text-gray-500 shrink-0">
@@ -712,6 +722,26 @@ export default function TeacherTakhteetPage() {
                 : "Curriculum portions are displayed only to teachers assigned to the respective subjects and classes. If you teach Darajah subjects, please contact the Academic Administrator to assign your syllabus portions."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setLoading(true);
+                  fetch(`/api/teacher/takhteet?view=all&_t=${Date.now()}`)
+                    .then((r) => r.json())
+                    .then((d) => {
+                      if (d.success && Array.isArray(d.data)) {
+                        setPlans(d.data);
+                        if (d.meta) setMeta(d.meta);
+                      }
+                    })
+                    .finally(() => setLoading(false));
+                }}
+                className="text-xs border-amber-300 bg-amber-50 text-amber-950 font-bold hover:bg-amber-100 rounded-xl"
+              >
+                <BookOpen className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                Explore Complete Darajah Syllabus
+              </Button>
               {hasActiveFilters && (
                 <Button
                   variant="outline"

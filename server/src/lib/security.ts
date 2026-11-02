@@ -714,14 +714,19 @@ export function corsGuardMiddleware(req: Request, res: Response, next: NextFunct
   if (process.env.NEXTAUTH_URL) allowedOrigins.add(process.env.NEXTAUTH_URL.replace(/\/+$/, ""));
 
   if (origin && typeof origin === "string") {
-    const isAllowed = allowedOrigins.has(origin) || (isDev && origin.includes("localhost"));
+    const isAllowed =
+      allowedOrigins.has(origin) ||
+      (isDev && origin.includes("localhost")) ||
+      origin.endsWith(".onrender.com") ||
+      origin.includes("darseburhani.org") ||
+      origin.includes("darseburhani.edu");
     if (isAllowed) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
       res.setHeader(
         "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, X-Requested-With, X-CSRF-Token, X-Biometric-Secret"
+        "Content-Type, Authorization, X-Requested-With, X-CSRF-Token, X-Biometric-Secret, X-Session-Token"
       );
     }
   }

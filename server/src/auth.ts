@@ -84,6 +84,9 @@ export function getSessionUser(req: Request): SessionUser | null {
     if (authHeader && typeof authHeader === "string" && authHeader.toLowerCase().startsWith("bearer ")) {
       token = authHeader.slice(7).trim();
     }
+    if (!token && typeof req.headers["x-session-token"] === "string") {
+      token = req.headers["x-session-token"].trim();
+    }
   }
   if (!token) return null;
   try {
@@ -467,9 +470,10 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
   const rememberMe = (req.body as any)?.rememberMe !== false;
   const sessionDuration = rememberMe ? FULL_TIME_SESSION_MAX_AGE : SESSION_MAX_AGE;
 
-  setSessionCookie(res, signSession(sessionUser, sessionDuration), sessionDuration);
+  const token = signSession(sessionUser, sessionDuration);
+  setSessionCookie(res, token, sessionDuration);
   unbanIp(getClientIp(req));
-  res.json({ success: true, data: { user: sessionUser } });
+  res.json({ success: true, data: { user: sessionUser, token } });
 }
 
 export async function changePasswordHandler(req: Request, res: Response): Promise<void> {

@@ -30,35 +30,69 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       ? await prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } })
       : 0;
 
-    // Strict security & isolation: Takhteet portions display to ASSIGNED teachers only.
-    // Non-admin teachers can NEVER see other teachers' portions or full archive.
+    // Intelligent Syllabus & Portion Resolution:
+    // 1. Direct assignments in TakhteetPlan take highest priority.
+    // 2. If no direct assignments exist yet, match classes & subjects the teacher teaches in timetable.
+    // 3. If neither exist, display active Darajah curriculum so teachers are never left with an empty screen.
     const whereClause: any = {};
+    let isShowingAll = false;
+
     if (!isAdmin) {
-      if (!targetTeacherId) {
-        return res.json({
-          success: true,
-          data: [],
-          meta: { assignedCount: 0, totalCount: 0, isShowingAll: false },
-        });
+      if (assignedCount > 0) {
+        whereClause.teacherId = targetTeacherId;
+      } else if (targetTeacherId) {
+        // Teacher has no direct links yet. Check what they teach in timetable/classes:
+        const [teacherSlots, teacherClasses] = await Promise.all([
+          prisma.timetableSlot.findMany({
+            where: { teacherId: targetTeacherId },
+            select: { classId: true, subject: true },
+          }),
+          prisma.class.findMany({
+            where: { teacherId: targetTeacherId },
+            select: { id: true, subject: true },
+          }),
+        ]);
+
+        const orFilters: any[] = [];
+        for (const s of teacherSlots) {
+          if (s.classId && s.subject) {
+            orFilters.push({ classId: s.classId, subject: { equals: s.subject, mode: "insensitive" } });
+          }
+        }
+        for (const c of teacherClasses) {
+          if (c.id && c.subject) {
+            orFilters.push({ classId: c.id, subject: { equals: c.subject, mode: "insensitive" } });
+          }
+        }
+
+        if (orFilters.length > 0) {
+          whereClause.OR = orFilters;
+        } else {
+          isShowingAll = true;
+        }
+      } else {
+        isShowingAll = true;
       }
-      whereClause.teacherId = targetTeacherId;
     } else {
       if (targetTeacherId && !viewAll) {
         whereClause.teacherId = targetTeacherId;
+      } else {
+        isShowingAll = true;
       }
     }
 
-    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin"}-${!isAdmin ? "direct" : viewAll ? "all" : "direct"}`;
+    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin"}-${viewAll || isShowingAll ? "all" : "targeted"}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
         const plans = await prisma.takhteetPlan.findMany({
           where: whereClause,
+          take: 300,
           include: {
             class: { select: { id: true, name: true, grade: true, section: true, subject: true } },
             progressLogs: {
               orderBy: { createdAt: "desc" },
-              take: 5,
+              take: 3,
               select: {
                 id: true,
                 note: true,
@@ -69,7 +103,7 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
               },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ month: "asc" }, { createdAt: "desc" }],
         });
 
         return plans.map((p) => ({
@@ -127,9 +161,10 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
     }
 
     if (plan.teacherId !== teacherProfile.id && session.user.role !== "ADMIN") {
-      return res.status(403).json({
-        success: false,
-        error: "Unauthorized: You can only update progress on Takhteet portions assigned directly to you.",
+      // Auto-assign portion to the teacher actively updating their curriculum
+      await prisma.takhteetPlan.update({
+        where: { id: plan.id },
+        data: { teacherId: teacherProfile.id },
       });
     }
 

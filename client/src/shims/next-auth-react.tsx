@@ -54,18 +54,41 @@ async function fetchSession(): Promise<SessionResult> {
 }
 
 async function fetchSessionOnce(): Promise<SessionResult> {
+  const savedToken = typeof window !== "undefined" ? localStorage.getItem("sis_jwt_token") : null;
+  const savedUserJson = typeof window !== "undefined" ? localStorage.getItem("sis_session_user") : null;
+  let savedUser: SessionUser | null = null;
+  if (savedUserJson) {
+    try {
+      savedUser = JSON.parse(savedUserJson);
+    } catch {}
+  }
+
   let lastError: unknown;
   for (let attempt = 0; attempt <= SESSION_RETRY_DELAYS_MS.length; attempt++) {
     try {
-      const res = await fetch("/api/auth/session", { credentials: "include" });
+      const headers: Record<string, string> = {};
+      if (savedToken) {
+        headers["Authorization"] = `Bearer ${savedToken}`;
+      }
+      const res = await fetch("/api/auth/session", { credentials: "include", headers });
       if (res.ok) {
         const json = await res.json();
         const data = json?.data ?? json;
-        if (data?.user) return { user: data.user };
+        if (data?.user) {
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("sis_session_user", JSON.stringify(data.user));
+            } catch {}
+          }
+          return { user: data.user };
+        }
+        if (savedUser) return { user: savedUser };
         return null;
       }
-      // 4xx/401 means genuinely not signed in — no point retrying.
-      if (res.status < 500) return null;
+      if (res.status < 500) {
+        if (savedUser) return { user: savedUser };
+        return null;
+      }
       lastError = new Error(`session request failed with status ${res.status}`);
     } catch (err) {
       lastError = err;
@@ -74,6 +97,7 @@ async function fetchSessionOnce(): Promise<SessionResult> {
       await new Promise((resolve) => setTimeout(resolve, SESSION_RETRY_DELAYS_MS[attempt]));
     }
   }
+  if (savedUser) return { user: savedUser };
   if (lastError) console.warn("[session] backend unreachable after retries:", lastError);
   return undefined;
 }
@@ -191,6 +215,16 @@ export async function signIn(
         if (!json) {
           lastStatus = res.status;
         } else if (json.success) {
+          if (typeof window !== "undefined" && json.data) {
+            try {
+              if (json.data.user) {
+                localStorage.setItem("sis_session_user", JSON.stringify(json.data.user));
+              }
+              if (json.data.token) {
+                localStorage.setItem("sis_jwt_token", json.data.token);
+              }
+            } catch {}
+          }
           if (refreshHandler) await refreshHandler();
           if (options?.redirect) {
             window.location.href = options.callbackUrl || "/";
@@ -226,6 +260,12 @@ export async function signIn(
 
 export async function signOut(options?: { callbackUrl?: string; redirect?: boolean }): Promise<void> {
   try {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("sis_session_user");
+        localStorage.removeItem("sis_jwt_token");
+      } catch {}
+    }
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
   } catch {
     // ignore network errors on logout

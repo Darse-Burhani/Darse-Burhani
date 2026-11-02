@@ -1166,6 +1166,22 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
 router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
+
+    // Restrict Badal creation & management to Admin and teachers with explicit portal assignment
+    if (session.user.role === "TEACHER") {
+      const assignment = await prisma.teacherPortalAssignment.findFirst({
+        where: {
+          teacher: { userId: session.user.id },
+          assignedPages: { hasSome: ["badal-management", "timetable-management", "timetable", "ALL", "*"] },
+        },
+      });
+      if (!assignment) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized: Badal management is restricted to Admin and designated teachers.",
+        });
+      }
+    }
     const {
       date,
       slotId,

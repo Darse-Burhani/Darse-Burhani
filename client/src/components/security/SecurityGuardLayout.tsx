@@ -14,7 +14,7 @@ const SecurityContext = createContext<SecurityContextType>({
   isLocked: false,
   lockNow: () => {},
   unlock: () => {},
-  idleMinutes: 15,
+  idleMinutes: 120,
 });
 
 export const useSecurity = () => useContext(SecurityContext);
@@ -27,7 +27,7 @@ interface SecurityGuardLayoutProps {
 
 export function SecurityGuardLayout({
   children,
-  idleTimeoutMinutes = 15,
+  idleTimeoutMinutes = 120,
 }: SecurityGuardLayoutProps) {
   const { data: session, status, update } = useSession();
   const [isLocked, setIsLocked] = useState(false);

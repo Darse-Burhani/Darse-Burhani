@@ -76,8 +76,21 @@ const ALL_DARAJAH_CLASSES = ["1 A", "1 B", "2 A", "2 B", "3 A", "3 B", "4 A", "4
 
 export default function TeacherTimetablePage() {
   const { data: session } = useSession();
-  const { isPageAssigned } = usePortalAccess();
-  const canManageTimetable = session?.user?.role === "ADMIN" || isPageAssigned("timetable");
+  const { isPageAssigned, assignedPages } = usePortalAccess();
+  // Badal & Timetable management is restricted strictly to Admin and teachers explicitly assigned by Admin
+  const canManageTimetable =
+    session?.user?.role === "ADMIN" ||
+    (Array.isArray(assignedPages) &&
+      assignedPages.some((p) => {
+        const lower = String(p).toLowerCase().trim();
+        return (
+          lower === "badal-management" ||
+          lower === "timetable-management" ||
+          lower === "matrix-management" ||
+          lower === "all" ||
+          lower === "*"
+        );
+      }));
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
@@ -644,14 +657,14 @@ export default function TeacherTimetablePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+              <div className="overflow-x-auto pb-2 flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1 -mx-2 px-2 sm:mx-0 sm:px-0 scrollbar-thin">
                 {badalDuties.map((b: any) => {
                   const bTheme = getSubjectTheme(b.subject);
                   const isTodayDuty = b.date === todayIso;
                   return (
                     <div
                       key={b.id}
-                      className={`p-4 rounded-2xl bg-white border-2 transition-all flex flex-col justify-between space-y-3 ${
+                      className={`p-4 rounded-2xl bg-white border-2 transition-all flex flex-col justify-between space-y-3 min-w-[285px] w-[85vw] sm:w-auto shrink-0 sm:shrink ${
                         isTodayDuty
                           ? "border-amber-500 ring-4 ring-amber-400/40 shadow-lg shadow-amber-500/15"
                           : "border-amber-200 hover:border-amber-300 shadow-sm"

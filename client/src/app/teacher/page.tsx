@@ -1540,10 +1540,10 @@ export default function ExpertTeacherDashboard() {
                     </div>
 
                     {takhteetLoading ? (
-                      <div className="h-12 bg-gray-100 rounded-2xl animate-pulse w-72" />
+                      <div className="h-12 bg-gray-100 rounded-2xl animate-pulse w-full sm:w-72" />
                     ) : (
-                      <div className="flex items-center gap-8 shrink-0">
-                        <div className="grid grid-cols-3 gap-4 text-center">
+                      <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 w-full sm:w-auto shrink-0">
+                        <div className="grid grid-cols-3 gap-3 sm:gap-4 text-center w-full sm:w-auto">
                           <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Portions</p>
                             <p className="text-base font-black text-gray-900 num-tabular">{takhteet.length}</p>
