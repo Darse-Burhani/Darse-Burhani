@@ -10,7 +10,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Download,
+  X,
   FileText,
   Loader2,
   Sliders,
@@ -114,38 +114,48 @@ export function TilawatDuaViewer({
     };
   }, [isProjectorMode, triggerActivity]);
 
-  // ── Fullscreen synchronization with Projector Mode ──
-  const toggleFullscreen = useCallback(async () => {
+  // ── Projector Mode Exit Handler ──
+  const handleExitProjector = useCallback(async () => {
     try {
-      if (!document.fullscreenElement) {
-        if (wrapperRef.current?.requestFullscreen) {
-          await wrapperRef.current.requestFullscreen();
-          setIsProjectorMode(true);
-        }
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-          setIsProjectorMode(false);
-          if (onCloseProjector) onCloseProjector();
-        }
+      if (typeof document !== "undefined" && document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
       }
-    } catch {
-      // Fallback: toggle CSS-based fullscreen projector
-      setIsProjectorMode((prev) => !prev);
+    } catch {}
+    setIsProjectorMode(false);
+    if (onCloseProjector) {
+      onCloseProjector();
     }
   }, [onCloseProjector]);
+
+  // ── Fullscreen synchronization with Projector Mode ──
+  const toggleFullscreen = useCallback(async () => {
+    if (isProjectorMode) {
+      await handleExitProjector();
+      return;
+    }
+    setIsProjectorMode(true);
+    try {
+      if (typeof document !== "undefined" && !document.fullscreenElement && wrapperRef.current?.requestFullscreen) {
+        await wrapperRef.current.requestFullscreen();
+      }
+    } catch {
+      // Browser blocked native fullscreen without user gesture; CSS fullscreen remains active
+    }
+  }, [isProjectorMode, handleExitProjector]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFs = Boolean(document.fullscreenElement);
-      setIsProjectorMode(isFs);
-      if (!isFs && onCloseProjector) {
-        onCloseProjector();
+      if (!isFs && isProjectorMode) {
+        if (onCloseProjector) {
+          onCloseProjector();
+        }
+        setIsProjectorMode(false);
       }
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [onCloseProjector]);
+  }, [isProjectorMode, onCloseProjector]);
 
   // ── Load PDF via PDF.js with Native Fallback ──
   useEffect(() => {
@@ -234,19 +244,28 @@ export function TilawatDuaViewer({
   // ── Calculate dynamic scale based on viewport & container ──
   const calculateAutoFitScale = useCallback(
     (page: any, mode: "page" | "width") => {
-      if (!containerRef.current) return 1.0;
       const viewport = page.getViewport({ scale: 1.0, rotation });
 
-      const measuredWidth =
-        containerRef.current.clientWidth ||
-        (typeof window !== "undefined" ? window.innerWidth * (isProjectorMode ? 1.0 : 0.85) : 800);
-      const measuredHeight =
-        containerRef.current.clientHeight && containerRef.current.clientHeight > 200
-          ? containerRef.current.clientHeight
-          : (typeof window !== "undefined" ? window.innerHeight * (isProjectorMode ? 1.0 : 0.72) : 600);
+      let containerWidth: number;
+      let containerHeight: number;
 
-      const containerWidth = Math.max(280, measuredWidth - (isProjectorMode ? 16 : 48));
-      const containerHeight = Math.max(280, measuredHeight - (isProjectorMode ? 80 : 120));
+      if (isProjectorMode) {
+        const winW = typeof window !== "undefined" ? window.innerWidth : 1920;
+        const winH = typeof window !== "undefined" ? window.innerHeight : 1080;
+        containerWidth = Math.max(300, winW - 16);
+        containerHeight = Math.max(300, winH - (controlsVisible ? 70 : 16));
+      } else {
+        const measuredWidth =
+          containerRef.current?.clientWidth ||
+          (typeof window !== "undefined" ? window.innerWidth * 0.85 : 800);
+        const measuredHeight =
+          containerRef.current?.clientHeight && containerRef.current.clientHeight > 200
+            ? containerRef.current.clientHeight
+            : (typeof window !== "undefined" ? window.innerHeight * 0.72 : 600);
+
+        containerWidth = Math.max(280, measuredWidth - 32);
+        containerHeight = Math.max(280, measuredHeight - 80);
+      }
 
       if (containerWidth <= 0 || containerHeight <= 0) return 1.0;
 
@@ -254,14 +273,14 @@ export function TilawatDuaViewer({
       const scaleY = containerHeight / viewport.height;
 
       if (mode === "page") {
-        // Fits entire page on screen without scrolling (perfect for projectors)
-        return Math.min(scaleX, scaleY, 2.5);
+        // Fits entire page on screen without scrolling (perfect for classroom projectors)
+        return Math.min(scaleX, scaleY);
       } else {
-        // Fit width fills projector width
-        return Math.min(scaleX, 3.0);
+        // Fit width fills projector width (huge text readable from the back of the classroom)
+        return Math.min(scaleX, 6.0);
       }
     },
-    [isProjectorMode, rotation]
+    [isProjectorMode, rotation, controlsVisible]
   );
 
   // ── Render Page on Canvas with High-DPI support ──
@@ -329,7 +348,16 @@ export function TilawatDuaViewer({
     if (pdfDoc && !useNativeViewer) {
       renderPage(currentPage);
     }
-  }, [pdfDoc, currentPage, scale, autoFitMode, rotation, isProjectorMode, useNativeViewer, renderPage]);
+  }, [pdfDoc, currentPage, scale, autoFitMode, rotation, isProjectorMode, controlsVisible, useNativeViewer, renderPage]);
+
+  // Recalculate full dimensions right after entering/exiting projector mode
+  useEffect(() => {
+    if (!pdfDoc || useNativeViewer) return;
+    const timer = setTimeout(() => {
+      renderPage(currentPage);
+    }, 75);
+    return () => clearTimeout(timer);
+  }, [isProjectorMode, pdfDoc, useNativeViewer, currentPage, renderPage]);
 
   // Window resize handler for auto-fit recalculation
   useEffect(() => {
@@ -342,7 +370,7 @@ export function TilawatDuaViewer({
     return () => window.removeEventListener("resize", handleResize);
   }, [pdfDoc, autoFitMode, currentPage, useNativeViewer, renderPage]);
 
-  // ── Keyboard Navigation (Arrows, Space, PageUp/Down, Fullscreen) ──
+  // ── Keyboard Navigation (Arrows, Space, PageUp/Down, Fullscreen, Shortcuts) ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -374,11 +402,24 @@ export function TilawatDuaViewer({
           e.preventDefault();
           toggleFullscreen();
           break;
+        case "w":
+        case "W":
+          e.preventDefault();
+          setAutoFitMode("width");
+          setScale(1.0);
+          break;
+        case "p":
+        case "P":
+        case "0":
+          e.preventDefault();
+          setAutoFitMode("page");
+          setScale(1.0);
+          break;
         case "+":
         case "=":
           e.preventDefault();
           setAutoFitMode("custom");
-          setScale((s) => Math.min(s + 0.2, 3.5));
+          setScale((s) => Math.min(s + 0.2, 5.0));
           break;
         case "-":
         case "_":
@@ -386,14 +427,9 @@ export function TilawatDuaViewer({
           setAutoFitMode("custom");
           setScale((s) => Math.max(s - 0.2, 0.4));
           break;
-        case "0":
-          e.preventDefault();
-          setAutoFitMode("page");
-          break;
         case "Escape":
-          if (isProjectorMode && !document.fullscreenElement) {
-            setIsProjectorMode(false);
-            if (onCloseProjector) onCloseProjector();
+          if (isProjectorMode) {
+            handleExitProjector();
           }
           break;
       }
@@ -401,7 +437,7 @@ export function TilawatDuaViewer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, totalPages, isProjectorMode, toggleFullscreen, onCloseProjector, triggerActivity]);
+  }, [currentPage, totalPages, isProjectorMode, toggleFullscreen, handleExitProjector, triggerActivity]);
 
   // ── Touch swipe navigation for mobile & smartboard touchscreens ──
   const touchStartXRef = useRef<number | null>(null);
@@ -583,20 +619,12 @@ export function TilawatDuaViewer({
                 {useNativeViewer ? "Canvas HD" : "Native Embed"}
               </Button>
 
-              {/* Download */}
-              <a href={pdfUrl} download={dua.fileName || "tilawat-dua.pdf"} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="sm" className="text-xs text-slate-300 hover:text-white hover:bg-slate-800/80">
-                  <Download className="w-4 h-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Download</span>
-                </Button>
-              </a>
-
               {/* Dedicated Projector Button */}
               <Button
                 onClick={toggleFullscreen}
                 className={`${
                   isProjectorMode
-                    ? "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                    ? "bg-amber-600 hover:bg-amber-500 text-white font-bold border border-amber-400"
                     : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/30"
                 } text-xs px-3.5 py-1.5 rounded-xl transition-all duration-200 active:scale-95`}
               >
@@ -617,6 +645,20 @@ export function TilawatDuaViewer({
         )}
       </AnimatePresence>
 
+      {/* Floating Exit Button in Projector Mode (Always Accessible) */}
+      {isProjectorMode && (
+        <button
+          type="button"
+          onClick={handleExitProjector}
+          aria-label="Exit Projector"
+          className="fixed top-3.5 right-3.5 z-[10000] px-3.5 py-2 rounded-xl bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xl hover:scale-105 active:scale-95"
+          title="Exit Projector Mode (Esc)"
+        >
+          <X className="w-4 h-4 text-amber-400" />
+          <span className="text-xs font-bold">Exit Projector</span>
+        </button>
+      )}
+
       {/* ── Main Canvas / Viewing Area ── */}
       <div
         ref={containerRef}
@@ -636,15 +678,15 @@ export function TilawatDuaViewer({
         )}
 
         {useNativeViewer ? (
-          <div className="w-full h-full min-h-[520px] flex-1 flex flex-col items-center justify-center relative p-1 sm:p-2">
+          <div className="w-full h-full min-h-[520px] flex-1 flex flex-col items-center justify-center relative p-0 m-0">
             <object
-              data={`${resolvedPdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+              data={`${resolvedPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=${autoFitMode === "width" ? "FitH" : "Fit"}`}
               type="application/pdf"
-              className="w-full h-full min-h-[520px] rounded-xl border border-slate-700 bg-white shadow-xl"
+              className="w-full h-full min-h-[520px] border-0 bg-white"
             >
               <iframe
-                src={`${resolvedPdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-                className="w-full h-full min-h-[520px] rounded-xl border border-slate-700 bg-white shadow-xl"
+                src={`${resolvedPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=${autoFitMode === "width" ? "FitH" : "Fit"}`}
+                className="w-full h-full min-h-[520px] border-0 bg-white"
                 title="Tilawat Dua Native PDF"
               />
             </object>
@@ -653,7 +695,9 @@ export function TilawatDuaViewer({
           <div className="relative flex items-center justify-center transition-all duration-200 max-w-full max-h-full m-auto">
             {/* Canvas with smooth shadow and rounded corners */}
             <div
-              className="relative shadow-2xl rounded-lg overflow-hidden transition-all duration-200 m-auto flex items-center justify-center"
+              className={`relative overflow-hidden transition-all duration-200 m-auto flex items-center justify-center ${
+                isProjectorMode ? "rounded-none shadow-none" : "shadow-2xl rounded-lg"
+              }`}
               style={getColorFilterStyle()}
             >
               <canvas
@@ -663,7 +707,7 @@ export function TilawatDuaViewer({
                     renderPage(currentPage);
                   }
                 }}
-                className="block max-w-full h-auto cursor-grab active:cursor-grabbing mx-auto my-auto"
+                className="block max-w-full mx-auto my-auto"
               />
             </div>
 
@@ -673,6 +717,33 @@ export function TilawatDuaViewer({
                 Page {currentPage} / {totalPages}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Floating Page Navigation Pill on Projector Screen */}
+        {isProjectorMode && totalPages > 1 && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-black/75 backdrop-blur-md border border-white/15 text-amber-300 px-4 py-1.5 rounded-full text-xs font-mono font-bold flex items-center gap-2.5 shadow-2xl pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="hover:text-white disabled:opacity-30 cursor-pointer p-0.5"
+              title="Previous Page (Left Arrow)"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-white text-[11px] font-sans">
+              Page <strong className="text-amber-400 font-mono text-xs">{currentPage}</strong> of <strong className="text-white font-mono text-xs">{totalPages}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="hover:text-white disabled:opacity-30 cursor-pointer p-0.5"
+              title="Next Page (Right Arrow / Space)"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
 

@@ -7,7 +7,6 @@ import {
   Calendar,
   Tv,
   Sparkles,
-  Download,
   Loader2,
   RefreshCw,
   Plus,
