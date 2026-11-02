@@ -23,9 +23,9 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { monthName, statusMeta } from "@/lib/takhteet";
+import { TakhteetUpdateModal } from "@/components/takhteet/TakhteetUpdateModal";
 
 export default function TeacherTakhteetPage() {
   const { data: session } = useSession();
@@ -45,7 +45,6 @@ export default function TeacherTakhteetPage() {
   const pageSize = 20;
 
   const [updatingPlan, setUpdatingPlan] = useState<any>(null);
-  const [updateForm, setUpdateForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [quickUpdatingId, setQuickUpdatingId] = useState<string | null>(null);
 
@@ -173,17 +172,16 @@ export default function TeacherTakhteetPage() {
 
   const openUpdateModal = (plan: any) => {
     setUpdatingPlan(plan);
-    setUpdateForm({ progress: String(plan.progress), status: plan.status, note: "" });
   };
 
-  const handleSaveModal = async () => {
+  const handleSaveModal = async (payload: { progress: number; status: string; note: string }) => {
     if (!updatingPlan) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/teacher/takhteet/${updatingPlan.id}/progress`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updateForm),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -200,7 +198,7 @@ export default function TeacherTakhteetPage() {
     }
   };
 
-  // Direct quick progress increment (+10%, +25%, or 100% Mark Completed)
+  // Direct quick progress increment (+5%, +10%, +25%, or 100% Mark Completed)
   const handleQuickProgress = async (plan: any, delta: number | "COMPLETED") => {
     setQuickUpdatingId(plan.id);
     try {
@@ -215,7 +213,8 @@ export default function TeacherTakhteetPage() {
       } else {
         nextProgress = Math.min(100, Math.max(0, plan.progress + delta));
         nextStatus = nextProgress >= 100 ? "COMPLETED" : nextProgress > 0 ? "IN_PROGRESS" : "PENDING";
-        note = `Progress bumped by +${delta}% (Now ${nextProgress}%)`;
+        const sign = delta > 0 ? `+${delta}%` : `${delta}%`;
+        note = `Quick progress update (${sign} → ${nextProgress}%)`;
       }
 
       const res = await fetch(`/api/teacher/takhteet/${plan.id}/progress`, {
@@ -562,14 +561,19 @@ export default function TeacherTakhteetPage() {
                           </div>
 
                           {/* Center: Progress Bar & Quick Increment Actions */}
-                          <div className="lg:w-64 shrink-0 flex flex-col gap-2">
+                          <div className="lg:w-72 shrink-0 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
                                 Progress
                               </span>
-                              <span className="text-sm font-extrabold text-gray-900 dark:text-white">
-                                {p.progress}%
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-extrabold text-gray-900 dark:text-white">
+                                  {p.progress}%
+                                </span>
+                                {p.progress >= 100 && (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                )}
+                              </div>
                             </div>
 
                             <div className="h-2.5 rounded-full bg-emerald-100/60 dark:bg-slate-800 overflow-hidden border border-emerald-200/40">
@@ -579,15 +583,37 @@ export default function TeacherTakhteetPage() {
                               />
                             </div>
 
-                            {/* Quick Increment buttons */}
-                            <div className="overflow-x-auto pb-1 flex items-center gap-1.5 scrollbar-none pt-1">
+                            {/* Tactile Quick Increment & Stepper buttons */}
+                            <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                              {p.progress > 0 && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isQuickBusy}
+                                  onClick={() => handleQuickProgress(p, -5)}
+                                  className="h-6 px-1.5 text-[11px] font-bold border-gray-200 hover:bg-gray-100 text-gray-700 dark:border-slate-700 dark:text-gray-300 rounded-md"
+                                  title="Reduce -5%"
+                                >
+                                  -5%
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isQuickBusy || p.progress >= 100}
+                                onClick={() => handleQuickProgress(p, 5)}
+                                className="h-6 px-1.5 text-[11px] font-bold border-emerald-200 hover:bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:text-emerald-300 rounded-md"
+                                title="Add +5%"
+                              >
+                                +5%
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 disabled={isQuickBusy || p.progress >= 100}
                                 onClick={() => handleQuickProgress(p, 10)}
-                                className="h-6 px-2 text-[11px] font-bold border-gray-200 hover:bg-emerald-50 text-emerald-800"
-                                title="Add +10% to progress"
+                                className="h-6 px-2 text-[11px] font-bold border-gray-200 hover:bg-emerald-50 text-emerald-800 dark:border-slate-700 dark:text-emerald-400 rounded-md"
+                                title="Add +10%"
                               >
                                 +10%
                               </Button>
@@ -596,8 +622,8 @@ export default function TeacherTakhteetPage() {
                                 size="sm"
                                 disabled={isQuickBusy || p.progress >= 100}
                                 onClick={() => handleQuickProgress(p, 25)}
-                                className="h-6 px-2 text-[11px] font-bold border-gray-200 hover:bg-emerald-50 text-emerald-800"
-                                title="Add +25% to progress"
+                                className="h-6 px-2 text-[11px] font-bold border-gray-200 hover:bg-emerald-50 text-emerald-800 dark:border-slate-700 dark:text-emerald-400 rounded-md"
+                                title="Add +25%"
                               >
                                 +25%
                               </Button>
@@ -607,10 +633,10 @@ export default function TeacherTakhteetPage() {
                                   size="sm"
                                   disabled={isQuickBusy}
                                   onClick={() => handleQuickProgress(p, "COMPLETED")}
-                                  className="h-6 px-2 text-[11px] font-bold border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                                  className="h-6 px-2 text-[11px] font-bold border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-300 rounded-md"
                                   title="Mark 100% Complete"
                                 >
-                                  <CheckCircle2 className="w-3 h-3 mr-0.5 text-emerald-600" />
+                                  <CheckCircle2 className="w-3 h-3 mr-0.5 text-emerald-600 dark:text-emerald-400" />
                                   100%
                                 </Button>
                               )}
@@ -750,125 +776,16 @@ export default function TeacherTakhteetPage() {
           </Card>
         )}
 
-        {/* Update Progress Modal */}
-        <Modal open={!!updatingPlan} onOpenChange={() => setUpdatingPlan(null)}>
-          <ModalContent className="max-w-md">
-            <ModalHeader>
-              <ModalTitle className="flex items-center gap-2 text-base font-bold">
-                <div className="w-8 h-8 rounded-xl fatimi-emerald-gradient flex items-center justify-center text-white">
-                  <Pencil className="w-4 h-4" />
-                </div>
-                Update Curriculum Progress
-              </ModalTitle>
-            </ModalHeader>
-            {updatingPlan && updateForm && (
-              <div className="space-y-4 py-4">
-                <div className="rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/60 p-3.5">
-                  <p className="font-bold text-gray-900 dark:text-white text-sm">{updatingPlan.title}</p>
-                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 mt-0.5">
-                    {updatingPlan.className} • {updatingPlan.subject}
-                  </p>
-                  {updatingPlan.description && (
-                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                      {updatingPlan.description}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="up-status" className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <select
-                    id="up-status"
-                    name="status"
-                    className="fatimi-input w-full h-10 rounded-xl text-sm"
-                    value={updateForm.status}
-                    onChange={(e) => setUpdateForm({ ...updateForm, status: e.target.value })}
-                  >
-                    <option value="PENDING">Pending</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="COMPLETED">Completed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="up-progress" className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                      Progress: {updateForm.progress}%
-                    </label>
-                    <div className="flex gap-1">
-                      {[25, 50, 75, 100].map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() =>
-                            setUpdateForm({
-                              ...updateForm,
-                              progress: String(val),
-                              status: val === 100 ? "COMPLETED" : "IN_PROGRESS",
-                            })
-                          }
-                          className="px-2 py-0.5 text-[10px] font-bold rounded bg-gray-100 hover:bg-emerald-100 text-gray-700"
-                        >
-                          {val}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input
-                    id="up-progress"
-                    name="progress"
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    className="w-full mt-2 accent-emerald-600 cursor-pointer"
-                    value={updateForm.progress}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      setUpdateForm({
-                        ...updateForm,
-                        progress: String(val),
-                        status: val >= 100 ? "COMPLETED" : val > 0 ? "IN_PROGRESS" : "PENDING",
-                      });
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="up-note" className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
-                    Teaching Note / Remarks (optional)
-                  </label>
-                  <input
-                    id="up-note"
-                    name="note"
-                    className="fatimi-input w-full h-10 rounded-xl text-sm"
-                    placeholder="e.g. Covered initial chapters, homework assigned"
-                    value={updateForm.note}
-                    onChange={(e) => setUpdateForm({ ...updateForm, note: e.target.value })}
-                  />
-                </div>
-              </div>
-            )}
-            <ModalFooter>
-              <ModalClose asChild>
-                <Button variant="outline" size="sm" className="rounded-xl border-gray-200">
-                  Cancel
-                </Button>
-              </ModalClose>
-              <Button
-                size="sm"
-                className="fatimi-emerald-gradient text-white font-semibold rounded-xl"
-                onClick={handleSaveModal}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
-                Save Progress
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+        {/* Modernized Takhteet Update Modal */}
+        <TakhteetUpdateModal
+          plan={updatingPlan}
+          open={!!updatingPlan}
+          onOpenChange={(open) => {
+            if (!open) setUpdatingPlan(null);
+          }}
+          onSave={handleSaveModal}
+          saving={saving}
+        />
       </div>
     );
 }

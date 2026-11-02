@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   ClipboardList,
   Plus,
+  Minus,
   Search,
   Loader2,
   Trash2,
@@ -1122,157 +1123,332 @@ export default function AdminTakhteetPage() {
 
       {/* Edit Plan Modal */}
       <Modal open={!!editingPlan} onOpenChange={() => setEditingPlan(null)}>
-        <ModalContent className="max-w-xl">
+        <ModalContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <ModalHeader>
-            <ModalTitle className="flex items-center gap-2 text-gray-900">
-              <div className="w-8 h-8 rounded-xl bg-[#b8541e] flex items-center justify-center text-white">
+            <ModalTitle className="flex items-center gap-2.5 text-gray-950 dark:text-white font-bold text-lg">
+              <div className="w-9 h-9 rounded-xl fatimi-emerald-gradient flex items-center justify-center text-white shadow-sm shrink-0">
                 <Pencil className="w-4 h-4" />
               </div>
-              Update Portion Progress
+              <div className="min-w-0">
+                <span>Update Portion Progress & Details</span>
+                {editingPlan && (
+                  <p className="text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                    {editingPlan.className ? `${editingPlan.className} • ` : ""}{editingPlan.subject}
+                  </p>
+                )}
+              </div>
             </ModalTitle>
           </ModalHeader>
+
           {editForm && (
             <div className="space-y-4 py-3">
-              <div>
-                <label htmlFor="edit-title" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                  Portion Title *
-                </label>
-                <input
-                  id="edit-title"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              {/* Portion Metadata Card */}
+              <div className="space-y-3 p-4 rounded-2xl bg-gray-50/80 dark:bg-slate-900/60 border border-gray-200/80 dark:border-slate-800">
                 <div>
-                  <label htmlFor="edit-subject" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                    Subject
+                  <label htmlFor="edit-title" className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider block mb-1.5">
+                    Portion Title *
                   </label>
                   <input
-                    id="edit-subject"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                    value={editForm.subject}
-                    onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                    id="edit-title"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label htmlFor="edit-year" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                    Academic Year
-                  </label>
-                  <select
-                    id="edit-year"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                    value={editForm.academicYear}
-                    onChange={(e) => setEditForm({ ...editForm, academicYear: e.target.value })}
-                  >
-                    {years.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="edit-subject" className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider block mb-1.5">
+                      Subject
+                    </label>
+                    <input
+                      id="edit-subject"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editForm.subject}
+                      onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-year" className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider block mb-1.5">
+                      Academic Year
+                    </label>
+                    <select
+                      id="edit-year"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editForm.academicYear}
+                      onChange={(e) => setEditForm({ ...editForm, academicYear: e.target.value })}
+                    >
+                      {years.map((y) => (
+                        <option key={y} value={y}>
+                          {y}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="edit-month" className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider block mb-1.5">
+                      Target Month
+                    </label>
+                    <select
+                      id="edit-month"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editForm.month}
+                      onChange={(e) => setEditForm({ ...editForm, month: e.target.value })}
+                    >
+                      <option value="">Full Year</option>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                        <option key={m} value={m}>
+                          {monthName(m)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="edit-status" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                    Status
-                  </label>
-                  <select
-                    id="edit-status"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                    value={editForm.status}
-                    onChange={(e) => {
-                      const newStatus = e.target.value;
-                      let newProgress = editForm.progress;
-                      if (newStatus === "COMPLETED") newProgress = "100";
-                      if (newStatus === "PENDING") newProgress = "0";
-                      setEditForm({ ...editForm, status: newStatus, progress: newProgress });
-                    }}
-                  >
-                    <option value="PENDING">Pending (0%)</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="COMPLETED">Completed (100%)</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="edit-month" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                    Target Month
-                  </label>
-                  <select
-                    id="edit-month"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                    value={editForm.month}
-                    onChange={(e) => setEditForm({ ...editForm, month: e.target.value })}
-                  >
-                    <option value="">Full Year</option>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                      <option key={m} value={m}>
-                        {monthName(m)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="edit-progress" className="text-xs font-bold text-gray-800 uppercase tracking-wider">
-                    Progress Percentage
-                  </label>
-                  <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    {editForm.progress}%
-                  </span>
-                </div>
-                <input
-                  id="edit-progress"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  className="w-full accent-[#b8541e] cursor-pointer"
-                  value={editForm.progress}
-                  onChange={(e) => {
-                    const prog = parseInt(e.target.value) || 0;
-                    let st = editForm.status;
-                    if (prog === 100) st = "COMPLETED";
-                    else if (prog > 0) st = "IN_PROGRESS";
-                    else st = "PENDING";
-                    setEditForm({ ...editForm, progress: String(prog), status: st });
-                  }}
-                />
-              </div>
-
+              {/* Status Segmented Tabs */}
               <div>
-                <label htmlFor="edit-note" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">
-                  Progress Note / Changelog (Optional)
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 block mb-2">
+                  Status
                 </label>
-                <input
+                <div className="grid grid-cols-3 gap-2 p-1 bg-gray-100 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prog = Number(editForm.progress) || 0;
+                      setEditForm({
+                        ...editForm,
+                        status: "PENDING",
+                        progress: String(prog === 100 ? 0 : prog),
+                      });
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      editForm.status === "PENDING"
+                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 shadow-sm border border-amber-300 dark:border-amber-800"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Pending
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      let prog = Number(editForm.progress) || 0;
+                      if (prog === 0 || prog === 100) prog = 50;
+                      setEditForm({
+                        ...editForm,
+                        status: "IN_PROGRESS",
+                        progress: String(prog),
+                      });
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      editForm.status === "IN_PROGRESS"
+                        ? "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200 shadow-sm border border-blue-300 dark:border-blue-800"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    In Progress
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditForm({
+                        ...editForm,
+                        status: "COMPLETED",
+                        progress: "100",
+                      });
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      editForm.status === "COMPLETED"
+                        ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 shadow-sm border border-emerald-300 dark:border-emerald-800"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    Completed
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress Dial / Tactile Gauge */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/40 dark:from-emerald-950/20 dark:to-slate-900/40 border border-emerald-200/70 dark:border-emerald-900/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 dark:text-emerald-300">
+                      Progress Gauge
+                    </span>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Drag slider or click milestone pills
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-2xl font-black text-emerald-900 dark:text-emerald-200">
+                      {editForm.progress}%
+                    </span>
+                    {Number(editForm.progress) >= 100 && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-300">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Done
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual Progress Bar */}
+                <div className="h-3 w-full rounded-full bg-emerald-100/70 dark:bg-slate-800 overflow-hidden border border-emerald-200/50">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-500"
+                    animate={{ width: `${Math.min(100, Math.max(0, Number(editForm.progress) || 0))}%` }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  />
+                </div>
+
+                {/* Slider + Stepper Controls */}
+                <div className="flex items-center gap-3 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={Number(editForm.progress) <= 0}
+                    onClick={() => {
+                      const cur = Number(editForm.progress) || 0;
+                      const next = Math.max(0, cur - 5);
+                      const st = next >= 100 ? "COMPLETED" : next > 0 ? "IN_PROGRESS" : "PENDING";
+                      setEditForm({ ...editForm, progress: String(next), status: st });
+                    }}
+                    className="h-8 w-8 p-0 rounded-xl border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 shrink-0"
+                    title="Decrement -5%"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </Button>
+
+                  <input
+                    id="edit-progress"
+                    name="progress"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={editForm.progress}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      const st = val >= 100 ? "COMPLETED" : val > 0 ? "IN_PROGRESS" : "PENDING";
+                      setEditForm({ ...editForm, progress: String(val), status: st });
+                    }}
+                    className="flex-1 accent-emerald-600 h-2 bg-emerald-100/80 rounded-lg cursor-pointer"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={Number(editForm.progress) >= 100}
+                    onClick={() => {
+                      const cur = Number(editForm.progress) || 0;
+                      const next = Math.min(100, cur + 5);
+                      const st = next >= 100 ? "COMPLETED" : next > 0 ? "IN_PROGRESS" : "PENDING";
+                      setEditForm({ ...editForm, progress: String(next), status: st });
+                    }}
+                    className="h-8 w-8 p-0 rounded-xl border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 shrink-0"
+                    title="Increment +5%"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+
+                {/* 1-Tap Milestone Pills */}
+                <div className="flex items-center justify-between gap-1.5 pt-1">
+                  {[0, 25, 50, 75, 100].map((val) => {
+                    const isSelected = Number(editForm.progress) === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => {
+                          const st = val >= 100 ? "COMPLETED" : val > 0 ? "IN_PROGRESS" : "PENDING";
+                          setEditForm({ ...editForm, progress: String(val), status: st });
+                        }}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all border ${
+                          isSelected
+                            ? "bg-emerald-700 text-white border-emerald-800 shadow-sm"
+                            : "bg-white/90 dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-emerald-50 hover:border-emerald-300"
+                        }`}
+                      >
+                        {val === 100 ? "100% ✓" : `${val}%`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Progress Note & Smart Suggestions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="edit-note" className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    Progress Note / Changelog
+                  </label>
+                  <span className="text-[11px] text-gray-400">Recorded in telemetry history</span>
+                </div>
+
+                {/* Smart Note Suggestion Chips */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-gray-400 mr-1 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-500" /> Quick tags:
+                  </span>
+                  {[
+                    "📖 Chapter completed",
+                    "📝 Exercises solved",
+                    "🎒 Homework assigned",
+                    "🧪 Revision test held",
+                    "🎯 On schedule",
+                  ].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        const current = (editForm.note || "").trim();
+                        if (!current) {
+                          setEditForm({ ...editForm, note: tag });
+                        } else if (!current.includes(tag)) {
+                          setEditForm({ ...editForm, note: `${current} • ${tag}` });
+                        }
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-gray-100 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 border border-gray-200 dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 transition-colors"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
                   id="edit-note"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="e.g., Completed pages 1-30, exercise 4 due on Monday"
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-gray-400"
+                  placeholder="e.g. Covered initial chapters, homework assigned, test scheduled..."
                   value={editForm.note || ""}
                   onChange={(e) => setEditForm({ ...editForm, note: e.target.value })}
                 />
               </div>
             </div>
           )}
+
           <ModalFooter>
             <ModalClose asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="rounded-xl border-gray-200 dark:border-slate-700">
                 Cancel
               </Button>
             </ModalClose>
             <Button
               size="sm"
-              className="bg-[#b8541e] hover:bg-[#8a3e14] text-white font-medium shadow-sm"
+              className="fatimi-emerald-gradient text-white font-semibold rounded-xl shadow-sm px-4"
               onClick={handleEditSave}
               disabled={editSaving || !editForm?.title?.trim()}
             >
-              {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null} Save Changes
+              {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
+              Save Changes
             </Button>
           </ModalFooter>
         </ModalContent>
