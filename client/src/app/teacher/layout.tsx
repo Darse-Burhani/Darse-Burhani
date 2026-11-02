@@ -86,7 +86,8 @@ export default function TeacherLayout() {
   const { isPageAssigned } = usePortalAccess();
 
   const filteredNavItems = useMemo(() => {
-    return rawNavItems.filter((item) => item.key === "takhteet" || isPageAssigned(item.key));
+    // Takhteet portion displays to assigned teachers only (via portal assignments)
+    return rawNavItems.filter((item) => isPageAssigned(item.key));
   }, [isPageAssigned]);
 
   const showProfile = isPageAssigned("profile");

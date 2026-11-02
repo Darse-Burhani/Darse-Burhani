@@ -34,10 +34,10 @@ import {
 interface PendingLeaveTableProps {
   requests: LeaveRequestItem[];
   isAdmin?: boolean;
-  onApprove: (id: string, notes?: string, approvedDays?: number | null) => Promise<void>;
-  onReject: (id: string, notes?: string) => Promise<void>;
-  onHold?: (id: string, notes?: string) => Promise<void>;
-  onBatchApprove?: (ids: string[], notes?: string) => Promise<void>;
+  onApprove: (id: string, notes?: string, approvedDays?: number | null) => Promise<any>;
+  onReject: (id: string, notes?: string) => Promise<any>;
+  onHold?: (id: string, notes?: string) => Promise<any>;
+  onBatchApprove?: (ids: string[], notes?: string) => Promise<any>;
   onDelete?: (id: string) => Promise<void>;
   assignees?: PortalLeaveMember[];
   onAssign?: (id: string, memberId: string | null) => Promise<void>;
@@ -57,6 +57,14 @@ export function PendingLeaveTable({
   loading = false,
 }: PendingLeaveTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [actionSuccessNotice, setActionSuccessNotice] = useState<{
+    type: "approve" | "reject" | "hold";
+    studentName: string;
+    status: string;
+    parentPhone?: string | null;
+    parentEmail?: string | null;
+    whatsAppUrl?: string | null;
+  } | null>(null);
   const [activeAction, setActiveAction] = useState<{
     id: string;
     type: "approve" | "reject" | "hold";
@@ -132,18 +140,33 @@ export function PendingLeaveTable({
 
     setProcessing(true);
     try {
+      let result: any = null;
       if (activeAction.type === "approve") {
-        await onApprove(
+        result = await onApprove(
           activeAction.id,
           actionNotes.trim() || undefined,
           grantDays
         );
       } else if (activeAction.type === "hold") {
         if (!onHold) throw new Error("Hold action is not supported in this view");
-        await onHold(activeAction.id, actionNotes.trim() || undefined);
+        result = await onHold(activeAction.id, actionNotes.trim() || undefined);
       } else {
-        await onReject(activeAction.id, actionNotes.trim() || "Declined");
+        result = await onReject(activeAction.id, actionNotes.trim() || "Declined");
       }
+
+      const parentPhone = result?.parentPhone || activeAction.parentPhone;
+      const parentEmail = result?.parentEmail || activeAction.parentEmail;
+      const whatsAppUrl = result?.whatsAppUrl;
+
+      setActionSuccessNotice({
+        type: activeAction.type,
+        studentName: activeAction.studentName,
+        status: activeAction.type === "approve" ? "Approved" : activeAction.type === "hold" ? "Placed On Hold" : "Rejected",
+        parentPhone,
+        parentEmail,
+        whatsAppUrl,
+      });
+
       setActiveAction(null);
       setActionNotes("");
     } catch (err: any) {
@@ -1524,6 +1547,74 @@ export function PendingLeaveTable({
                   <span>Send Notice</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Success / Multi-Channel Delivery Feedback Modal */}
+      {actionSuccessNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md animate-fade-in" onClick={() => setActionSuccessNotice(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-3xl bg-white p-5 sm:p-6 depth-3d-card border border-amber-200/60 animate-slide-up shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3 shadow-inner">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h3 className="font-display font-bold text-lg text-slate-900 text-center mb-1">
+              Leave Application {actionSuccessNotice.status}!
+            </h3>
+            <p className="text-xs text-slate-600 text-center mb-4 leading-relaxed">
+              Official decisions and notifications for <span className="font-bold text-slate-900">{actionSuccessNotice.studentName}</span> were automatically queued &amp; dispatched.
+            </p>
+
+            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs mb-5">
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-medium text-slate-600">Email Notice:</span>
+                <span className="font-mono font-semibold text-slate-900 truncate">
+                  {actionSuccessNotice.parentEmail || "Dispatched to registered parent inbox"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <BellRing className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-medium text-slate-600">Portal Push:</span>
+                <span className="font-semibold text-slate-900">
+                  Delivered to Parent &amp; Student Portals
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-medium text-slate-600">WhatsApp Notice:</span>
+                <span className="font-mono font-semibold text-slate-900 truncate">
+                  {actionSuccessNotice.parentPhone ? `+${actionSuccessNotice.parentPhone}` : "Prepared for WhatsApp dispatch"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {actionSuccessNotice.whatsAppUrl ? (
+                <a
+                  href={actionSuccessNotice.whatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Send via WhatsApp Now</span>
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setActionSuccessNotice(null)}
+                className={`py-3 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-100 transition-all cursor-pointer ${
+                  actionSuccessNotice.whatsAppUrl ? "" : "flex-1"
+                }`}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

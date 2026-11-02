@@ -30,12 +30,25 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       ? await prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } })
       : 0;
 
+    // Strict security & isolation: Takhteet portions display to ASSIGNED teachers only.
+    // Non-admin teachers can NEVER see other teachers' portions or full archive.
     const whereClause: any = {};
-    if (targetTeacherId && assignedCount > 0 && !viewAll) {
+    if (!isAdmin) {
+      if (!targetTeacherId) {
+        return res.json({
+          success: true,
+          data: [],
+          meta: { assignedCount: 0, totalCount: 0, isShowingAll: false },
+        });
+      }
       whereClause.teacherId = targetTeacherId;
+    } else {
+      if (targetTeacherId && !viewAll) {
+        whereClause.teacherId = targetTeacherId;
+      }
     }
 
-    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin"}-${viewAll ? "all" : "direct"}`;
+    const cacheKey = `teacher-takhteet-${targetTeacherId || "admin"}-${!isAdmin ? "direct" : viewAll ? "all" : "direct"}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
@@ -114,10 +127,9 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
     }
 
     if (plan.teacherId !== teacherProfile.id && session.user.role !== "ADMIN") {
-      // Automatically assign plan to active updating teacher
-      await prisma.takhteetPlan.update({
-        where: { id: plan.id },
-        data: { teacherId: teacherProfile.id },
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized: You can only update progress on Takhteet portions assigned directly to you.",
       });
     }
 

@@ -146,8 +146,9 @@ export default function AdminLeavePage() {
   }, []);
 
   const handleApprove = async (id: string, notes?: string, approvedDays?: number | null) => {
-    await approveAdminLeave(id, notes, approvedDays);
+    const res = await approveAdminLeave(id, notes, approvedDays);
     await fetchData(true);
+    return res;
   };
 
   const handleAssign = async (id: string, memberId: string | null) => {
@@ -165,13 +166,15 @@ export default function AdminLeavePage() {
   };
 
   const handleReject = async (id: string, notes?: string) => {
-    await rejectAdminLeave(id, notes);
+    const res = await rejectAdminLeave(id, notes);
     await fetchData(true);
+    return res;
   };
 
   const handleHold = async (id: string, notes?: string) => {
-    await holdAdminLeave(id, notes);
+    const res = await holdAdminLeave(id, notes);
     await fetchData(true);
+    return res;
   };
 
   const handleDelete = async (id: string) => {

@@ -62,6 +62,7 @@ export default function AdminTakhteetPage() {
   const [filterTeacher, setFilterTeacher] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
+  const [onlyAssignedTeachers, setOnlyAssignedTeachers] = useState(true);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState<any>(emptyForm);
@@ -129,10 +130,11 @@ export default function AdminTakhteetPage() {
   const isDueThisMonth = (p: any) => p.month === currentMonth && p.status !== "COMPLETED";
 
   const filteredTeachers = useMemo(() => {
-    return teachers.filter((t) =>
-      `${t.name} ${t.email} ${t.employeeId || ""} ${t.department || ""}`.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [teachers, search]);
+    return teachers.filter((t) => {
+      if (onlyAssignedTeachers && (t.planCount || 0) === 0) return false;
+      return `${t.name} ${t.email} ${t.employeeId || ""} ${t.department || ""}`.toLowerCase().includes(search.toLowerCase());
+    });
+  }, [teachers, search, onlyAssignedTeachers]);
 
   const filteredPlans = useMemo(() => {
     return plans.filter((p) => {
@@ -530,11 +532,37 @@ export default function AdminTakhteetPage() {
         <div className="space-y-8">
           {/* Teachers Section */}
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-1 h-6 rounded-full bg-gradient-to-b from-[#d4af37] to-[#b8860b]" />
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#b8541e]" /> Teachers ({filteredTeachers.length})
-              </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-[#d4af37] to-[#b8860b]" />
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-[#b8541e]" /> Teachers ({filteredTeachers.length})
+                </h2>
+              </div>
+              <div className="inline-flex rounded-xl bg-gray-100 p-1 text-xs self-start sm:self-auto shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setOnlyAssignedTeachers(true)}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    onlyAssignedTeachers
+                      ? "bg-white text-emerald-950 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Assigned Only ({teachers.filter((t) => (t.planCount || 0) > 0).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOnlyAssignedTeachers(false)}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    !onlyAssignedTeachers
+                      ? "bg-white text-emerald-950 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  All Faculty ({teachers.length})
+                </button>
+              </div>
             </div>
 
             {loading ? (

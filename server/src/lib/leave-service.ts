@@ -265,14 +265,38 @@ async function notifyAdmins(title: string, body: string, link: string = "/admin/
 
 async function notifyParents(studentId: string, title: string, body: string, link: string = "/parent") {
   try {
-    const links = await prisma.parentStudentLink.findMany({
-      where: { studentId },
-      include: { parent: { select: { userId: true } } },
-    });
-    const parentUserIds = Array.from(new Set(links.map((l) => l.parent.userId).filter(Boolean)));
-    if (parentUserIds.length > 0) {
+    const [links, student] = await Promise.all([
+      prisma.parentStudentLink.findMany({
+        where: { studentId },
+        include: { parent: { select: { userId: true } } },
+      }),
+      prisma.studentProfile.findUnique({
+        where: { id: studentId },
+        select: { fatherEmail: true, motherEmail: true, fatherPhone: true, motherPhone: true },
+      }),
+    ]);
+
+    const parentUserIds = new Set<string>();
+    for (const l of links) {
+      if (l.parent?.userId) parentUserIds.add(l.parent.userId);
+    }
+
+    // Resolve parent accounts matching registered emails on student profile
+    const emails = [student?.fatherEmail, student?.motherEmail]
+      .filter(Boolean)
+      .map((e) => e!.trim().toLowerCase());
+    if (emails.length > 0) {
+      const emailUsers = await prisma.user.findMany({
+        where: { email: { in: emails }, role: "PARENT", isActive: true },
+        select: { id: true },
+      });
+      for (const u of emailUsers) parentUserIds.add(u.id);
+    }
+
+    const targetUserIds = Array.from(parentUserIds);
+    if (targetUserIds.length > 0) {
       await prisma.notification.createMany({
-        data: parentUserIds.map((userId) => ({
+        data: targetUserIds.map((userId) => ({
           userId,
           title,
           body,
@@ -282,7 +306,7 @@ async function notifyParents(studentId: string, title: string, body: string, lin
         })),
       });
     }
-    return parentUserIds;
+    return targetUserIds;
   } catch (err) {
     console.error("[leave-service] Failed to notify parents:", err);
     return [];
@@ -908,7 +932,18 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
 export async function rejectLeaveRequest(input: ReviewLeaveInput) {
   const leave = await prisma.leaveRequest.findUnique({
     where: { id: input.leaveId },
-    include: { student: { include: { user: true } } },
+    include: {
+      student: {
+        include: {
+          user: true,
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: true },
+            take: 1,
+          },
+        },
+      },
+    },
   });
 
   if (!leave) {
@@ -1583,6 +1618,58 @@ export async function createDirectApprovedLeave(input: CreateManualLeaveInput) {
     console.error("[leave-service] Notification error:", e);
   }
 
+  const manualStudentName = `${student.user.firstName} ${student.user.lastName}`.trim();
+
+  // Notify Parent(s) inside the portal
+  const parentUserIds = await notifyParents(
+    student.id,
+    "Leave Recorded & Approved",
+    `Leave application for ${manualStudentName} (${formatUtcDate(start)} – ${formatUtcDate(end)}) has been authorized by administration.${input.reviewerNotes ? ` Remarks: ${input.reviewerNotes}` : ""}`,
+    "/parent"
+  );
+
+  // Notify Parent(s) outside the website (browser push)
+  const parentContacts = await getParentContacts(student.id);
+  await sendPushToUsers(
+    [student.userId, ...parentUserIds, ...parentContacts.map((c) => c.userId || "")],
+    {
+      title: "Leave Authorized & Recorded",
+      body: `${manualStudentName} · ${formatUtcDate(start)} – ${formatUtcDate(end)} · Approved`,
+      url: "/parent",
+      tag: `leave-manual-${leave.id}`,
+      requireInteraction: true,
+    }
+  );
+
+  // Email the decision to linked parents from the Galiakot admin mailbox
+  const requestedDays = countLeaveDays(start, end);
+  await Promise.allSettled(
+    parentContacts
+      .filter((contact) => contact.isActive)
+      .map((contact) =>
+        sendLeaveEmail({
+          to: contact.email,
+          subject: `Leave Application Approved — ${manualStudentName}`,
+          html: leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName: manualStudentName,
+            parentName: contact.name,
+            type: input.type || "PERSONAL",
+            status: "APPROVED",
+            requestedStart: formatUtcDate(start),
+            requestedEnd: formatUtcDate(end),
+            requestedDays,
+            approvedDays: requestedDays,
+            grantedStart: formatUtcDate(start),
+            grantedEnd: formatUtcDate(end),
+            reviewerName: "Academic Administration",
+            reviewerNotes: input.reviewerNotes?.trim() || "Direct authorized leave by administration.",
+            portalUrl: appUrl("/parent"),
+          }),
+        })
+      )
+  );
+
   // One-way WhatsApp notification dispatch to parent(s)
   try {
     const parentPhones = await getStudentParentPhones(student.id);
@@ -1970,6 +2057,33 @@ _⚠️ NOTICE: This is an automated one-way administrative notification. Incomi
         console.error(`[leave-service] Manual parent email notification error for ${c.email}:`, emErr);
       }
     }
+  }
+
+  // 3. In-Portal & Browser Push Dispatch
+  try {
+    const noticeTitle = customMessage?.trim()
+      ? `Administrative Notice — ${studentName}`
+      : isApproved
+      ? `Leave Application Approved — ${studentName}`
+      : leave.status === LeaveStatus.HOLD
+      ? `Leave Application On Hold — ${studentName}`
+      : `Leave Application Not Approved — ${studentName}`;
+
+    const noticeBody = customMessage?.trim() || `Leave status update for ${studentName}: ${leave.status}`;
+
+    const parentUserIds = await notifyParents(leave.studentId, noticeTitle, noticeBody, "/parent");
+    await sendPushToUsers(
+      [leave.student.userId, ...parentUserIds, ...parentContacts.map((c) => c.userId || "")],
+      {
+        title: noticeTitle,
+        body: `${studentName} · ${noticeBody}`,
+        url: "/parent",
+        tag: `leave-notice-${leave.id}`,
+        requireInteraction: true,
+      }
+    );
+  } catch (pushErr) {
+    console.error("[leave-service] In-portal/push dispatch error in notifyParentLeaveAction:", pushErr);
   }
 
   return {

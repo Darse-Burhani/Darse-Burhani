@@ -176,7 +176,8 @@ const quickActionPresets: QuickActionPreset[] = [
 
 export default function ExpertTeacherDashboard() {
   const { isModuleVisible, isPageAssigned } = usePortalAccess();
-  const can = (key: string) => key === "takhteet" || (isModuleVisible(key, "TEACHER") && isPageAssigned(key));
+  // Takhteet portion displays to assigned teachers only (respects module visibility & page assignment)
+  const can = (key: string) => isModuleVisible(key, "TEACHER") && isPageAssigned(key);
 
   // Check if point matrix is restricted to specific faculty
   const isPointMatrixRestricted = (key: string) => key === "point-matrix" && (!isModuleVisible(key, "TEACHER") || !isPageAssigned(key));

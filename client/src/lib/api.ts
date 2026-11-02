@@ -711,35 +711,51 @@ export async function getAdminLeaves(params?: {
   }>(`/api/admin/leave?${query.toString()}`);
 }
 
+export interface LeaveActionResponse {
+  id: string;
+  status: string;
+  approvedDays?: number | null;
+  grantedStartDate?: string | null;
+  grantedEndDate?: string | null;
+  reviewedAt: string;
+  reviewerNotes?: string | null;
+  parentPhone?: string | null;
+  parentEmail?: string | null;
+  whatsAppUrl?: string | null;
+}
+
 export async function approveAdminLeave(
   leaveId: string,
   reviewerNotes?: string,
   approvedDays?: number | null
-): Promise<{ id: string; status: string; approvedDays?: number | null; grantedStartDate?: string | null; grantedEndDate?: string | null; reviewedAt: string }> {
-  return request<{ id: string; status: string; approvedDays?: number | null; grantedStartDate?: string | null; grantedEndDate?: string | null; reviewedAt: string }>(`/api/admin/leave/${leaveId}/approve`, {
+): Promise<LeaveActionResponse> {
+  const res = await request<{ success: boolean; data: LeaveActionResponse }>(`/api/admin/leave/${leaveId}/approve`, {
     method: "POST",
     body: JSON.stringify({ reviewerNotes, approvedDays }),
   });
+  return res.data || (res as any);
 }
 
 export async function rejectAdminLeave(
   leaveId: string,
   reviewerNotes?: string
-): Promise<{ id: string; status: string; reviewedAt: string }> {
-  return request<{ id: string; status: string; reviewedAt: string }>(`/api/admin/leave/${leaveId}/reject`, {
+): Promise<LeaveActionResponse> {
+  const res = await request<{ success: boolean; data: LeaveActionResponse }>(`/api/admin/leave/${leaveId}/reject`, {
     method: "POST",
     body: JSON.stringify({ reviewerNotes }),
   });
+  return res.data || (res as any);
 }
 
 export async function holdAdminLeave(
   leaveId: string,
   reviewerNotes?: string
-): Promise<{ id: string; status: string; reviewerNotes?: string | null; reviewedAt: string }> {
-  return request<{ id: string; status: string; reviewerNotes?: string | null; reviewedAt: string }>(`/api/admin/leave/${leaveId}/hold`, {
+): Promise<LeaveActionResponse> {
+  const res = await request<{ success: boolean; data: LeaveActionResponse }>(`/api/admin/leave/${leaveId}/hold`, {
     method: "POST",
     body: JSON.stringify({ reviewerNotes }),
   });
+  return res.data || (res as any);
 }
 
 export async function deleteAdminLeave(leaveId: string): Promise<{ id: string; status: string }> {

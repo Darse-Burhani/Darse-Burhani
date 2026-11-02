@@ -29,7 +29,6 @@ import { monthName, statusMeta } from "@/lib/takhteet";
 export default function TeacherTakhteetPage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"assigned" | "all">("assigned");
   const [meta, setMeta] = useState<{ assignedCount: number; totalCount: number; isShowingAll: boolean }>({
     assignedCount: 0,
     totalCount: 0,
@@ -48,20 +47,16 @@ export default function TeacherTakhteetPage() {
   const [saving, setSaving] = useState(false);
   const [quickUpdatingId, setQuickUpdatingId] = useState<string | null>(null);
 
-  const fetchData = async (overrideMode?: "assigned" | "all") => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const targetMode = overrideMode || viewMode;
-      const res = await fetch(`/api/teacher/takhteet?view=${targetMode}&_t=${Date.now()}`);
+      // Strictly loads portions assigned to the authenticated teacher only
+      const res = await fetch(`/api/teacher/takhteet?_t=${Date.now()}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPlans(data.data);
         if (data.meta) {
           setMeta(data.meta);
-          // If teacher has 0 personal portions, automatically switch viewMode to 'all'
-          if (data.meta.assignedCount === 0 && targetMode !== "all") {
-            setViewMode("all");
-          }
         }
       }
     } catch {
@@ -76,12 +71,10 @@ export default function TeacherTakhteetPage() {
       const params = new URLSearchParams(window.location.search);
       const subjectParam = params.get("subject");
       const classParam = params.get("class");
-      const viewParam = params.get("view");
       if (subjectParam && subjectParam !== "Darajah Core Curriculum" && subjectParam !== "General") {
         setFilterSubject(subjectParam);
       }
       if (classParam) setFilterClass(classParam);
-      if (viewParam === "all") setViewMode("all");
     }
     fetchData();
   }, []);
@@ -351,43 +344,16 @@ export default function TeacherTakhteetPage() {
           </motion.div>
         )}
 
-        {/* ── View Switcher: My Assigned Portions vs Full Darajah 1–4 Syllabus ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-xs">
-          <div className="inline-flex rounded-xl bg-gray-100 dark:bg-slate-800 p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode("assigned");
-                fetchData("assigned");
-              }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                viewMode === "assigned"
-                  ? "bg-white dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
-              }`}
-            >
-              My Portions ({meta.assignedCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode("all");
-                fetchData("all");
-              }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                viewMode === "all"
-                  ? "bg-white dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
-              }`}
-            >
-              All Darajah 1–4 Tafseel ({meta.totalCount || 6512})
-            </button>
+        {/* ── Assigned Portions Info Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-xs">
+          <div className="flex items-center gap-2 px-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-gray-900 dark:text-white">
+              Assigned Curriculum Portions ({plans.length})
+            </span>
           </div>
-
-          <div className="text-xs text-gray-500 font-medium px-2">
-            {viewMode === "all" || meta.assignedCount === 0
-              ? "Showing Full Darajah 1–4 Syllabus Archive"
-              : `Showing your assigned subject portions (${plans.length})`}
+          <div className="text-xs text-gray-500 font-medium px-1">
+            Displaying only curriculum portions officially assigned to your subjects and classes.
           </div>
         </div>
 
@@ -737,11 +703,13 @@ export default function TeacherTakhteetPage() {
         ) : (
           <Card className="p-12 text-center fatimi-card border border-gray-200">
             <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No matching Takhteet portions found</h3>
-            <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+            <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">
+              {hasActiveFilters ? "No matching Takhteet portions found" : "No Takhteet portions assigned"}
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto leading-relaxed">
               {hasActiveFilters
                 ? "Try adjusting your search query, class, subject, or status filter."
-                : "You are currently viewing your personal portions. Click below to view the full Darajah 1–4 Tafseel curriculum."}
+                : "Curriculum portions are displayed only to teachers assigned to the respective subjects and classes. If you teach Darajah subjects, please contact the Academic Administrator to assign your syllabus portions."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
               {hasActiveFilters && (
@@ -752,20 +720,6 @@ export default function TeacherTakhteetPage() {
                   className="text-xs fatimi-emerald-gradient text-white rounded-xl"
                 >
                   Clear All Filters
-                </Button>
-              )}
-              {viewMode !== "all" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setViewMode("all");
-                    fetchData("all");
-                  }}
-                  className="text-xs bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 rounded-xl font-bold"
-                >
-                  <BookOpen className="w-3.5 h-3.5 mr-1 text-amber-700" />
-                  Browse All Darajah 1–4 Tafseel (6,512 Portions)
                 </Button>
               )}
             </div>
