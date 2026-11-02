@@ -727,11 +727,13 @@ export interface LeaveActionResponse {
 export async function approveAdminLeave(
   leaveId: string,
   reviewerNotes?: string,
-  approvedDays?: number | null
+  approvedDays?: number | null,
+  startDate?: string | null,
+  endDate?: string | null
 ): Promise<LeaveActionResponse> {
   const res = await request<{ success: boolean; data: LeaveActionResponse }>(`/api/admin/leave/${leaveId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ reviewerNotes, approvedDays }),
+    body: JSON.stringify({ reviewerNotes, approvedDays, startDate, endDate }),
   });
   return res.data || (res as any);
 }
@@ -749,13 +751,27 @@ export async function rejectAdminLeave(
 
 export async function holdAdminLeave(
   leaveId: string,
-  reviewerNotes?: string
+  reviewerNotes?: string,
+  startDate?: string | null,
+  endDate?: string | null
 ): Promise<LeaveActionResponse> {
   const res = await request<{ success: boolean; data: LeaveActionResponse }>(`/api/admin/leave/${leaveId}/hold`, {
     method: "POST",
-    body: JSON.stringify({ reviewerNotes }),
+    body: JSON.stringify({ reviewerNotes, startDate, endDate }),
   });
   return res.data || (res as any);
+}
+
+export async function updateAdminLeaveDates(
+  leaveId: string,
+  startDate: string,
+  endDate: string,
+  notes?: string
+): Promise<{ success: boolean; message: string; data: any }> {
+  return request<{ success: boolean; message: string; data: any }>(`/api/admin/leave/${leaveId}/dates`, {
+    method: "PATCH",
+    body: JSON.stringify({ startDate, endDate, notes }),
+  });
 }
 
 export async function deleteAdminLeave(leaveId: string): Promise<{ id: string; status: string }> {

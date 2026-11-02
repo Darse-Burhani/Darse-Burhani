@@ -450,7 +450,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
-    const { reviewerNotes, approvedDays } = req.body;
+    const { reviewerNotes, approvedDays, startDate, endDate } = req.body;
 
     const leave = await approveLeaveRequest({
       leaveId: req.params.id,
@@ -460,6 +460,8 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
         approvedDays === undefined || approvedDays === null || approvedDays === ""
           ? null
           : Number(approvedDays),
+      startDate: startDate || null,
+      endDate: endDate || null,
     });
 
     const [parentPhones, parentContacts] = await Promise.all([
@@ -561,12 +563,14 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
 router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
-    const { reviewerNotes } = req.body;
+    const { reviewerNotes, startDate, endDate } = req.body;
 
     const leave = await holdLeaveRequest({
       leaveId: req.params.id,
       reviewerId: session.user.id,
       reviewerNotes: reviewerNotes || "Placed on hold pending administrative review.",
+      startDate: startDate || null,
+      endDate: endDate || null,
     });
 
     const [parentPhones, parentContacts] = await Promise.all([
@@ -606,6 +610,84 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
     return res.status(400).json({
       success: false,
       error: error.message || "Failed to put leave request on hold",
+    });
+  }
+});
+
+// PATCH /api/admin/leave/:id/dates — Update leave start and end dates directly
+router.patch("/:id/dates", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { startDate, endDate, notes } = req.body;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, error: "Both startDate and endDate are required" });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      return res.status(400).json({ success: false, error: "Invalid date range: start date must be before or equal to end date" });
+    }
+
+    const leave = await prisma.leaveRequest.findUnique({
+      where: { id: req.params.id },
+      include: { student: { include: { user: true } } },
+    });
+    if (!leave) {
+      return res.status(404).json({ success: false, error: "Leave request not found" });
+    }
+
+    // If leave was already approved, re-run approveLeaveRequest to synchronize attendance records and days granted
+    if (leave.status === LeaveStatus.APPROVED) {
+      const authedReq = req as any;
+      const reviewerId = authedReq.auth?.user?.id || null;
+      const updated = await approveLeaveRequest({
+        leaveId: leave.id,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        reviewerNotes: notes || leave.reviewerNotes || undefined,
+        reviewerId,
+      });
+
+      return res.json({
+        success: true,
+        message: "Leave dates and attendance synchronized successfully",
+        data: {
+          id: updated.id,
+          startDate: updated.startDate.toISOString(),
+          endDate: updated.endDate.toISOString(),
+          grantedStartDate: updated.grantedStartDate?.toISOString(),
+          grantedEndDate: updated.grantedEndDate?.toISOString(),
+          approvedDays: updated.approvedDays,
+          status: updated.status,
+        },
+      });
+    }
+
+    // For non-approved leaves (PENDING / HOLD), update the requested dates directly
+    const updated = await prisma.leaveRequest.update({
+      where: { id: req.params.id },
+      data: {
+        startDate: start,
+        endDate: end,
+        ...(notes ? { reviewerNotes: notes } : {}),
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Leave dates updated successfully",
+      data: {
+        id: updated.id,
+        startDate: updated.startDate.toISOString(),
+        endDate: updated.endDate.toISOString(),
+        status: updated.status,
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Update dates error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to update leave dates",
     });
   }
 });

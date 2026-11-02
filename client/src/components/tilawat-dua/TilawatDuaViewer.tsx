@@ -61,6 +61,7 @@ export function TilawatDuaViewer({
   className = "",
   showDetailsHeader = true,
 }: TilawatDuaViewerProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -83,6 +84,10 @@ export function TilawatDuaViewer({
   const renderTaskRef = useRef<any>(null);
 
   const pdfUrl = dua?.pdfUrl || "";
+  const resolvedPdfUrl =
+    typeof window !== "undefined" && pdfUrl.startsWith("/")
+      ? `${window.location.origin}${pdfUrl}`
+      : pdfUrl;
 
   // ── Auto-hide controls in projector mode on idle mouse ──
   const triggerActivity = useCallback(() => {
@@ -113,8 +118,8 @@ export function TilawatDuaViewer({
   const toggleFullscreen = useCallback(async () => {
     try {
       if (!document.fullscreenElement) {
-        if (containerRef.current?.requestFullscreen) {
-          await containerRef.current.requestFullscreen();
+        if (wrapperRef.current?.requestFullscreen) {
+          await wrapperRef.current.requestFullscreen();
           setIsProjectorMode(true);
         }
       } else {
@@ -142,7 +147,7 @@ export function TilawatDuaViewer({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [onCloseProjector]);
 
-  // ── Load PDF via PDF.js ──
+  // ── Load PDF via PDF.js with Native Fallback ──
   useEffect(() => {
     if (!pdfUrl) {
       setLoading(false);
@@ -154,6 +159,15 @@ export function TilawatDuaViewer({
     setRenderError(null);
     setCurrentPage(1);
 
+    // Auto-fallback timer: if PDF.js takes over 3s, activate native embed
+    const fallbackTimer = setTimeout(() => {
+      if (!isCancelled && loading) {
+        console.warn("[TilawatDuaViewer] PDF.js rendering timed out, switching to native embed");
+        setUseNativeViewer(true);
+        setLoading(false);
+      }
+    }, 3200);
+
     async function loadPdf() {
       try {
         const pdfjsLib = await import("pdfjs-dist");
@@ -163,7 +177,7 @@ export function TilawatDuaViewer({
 
         // Try local cmaps first for zero-latency Arabic / Quran font rendering
         const loadingTask = pdfjsLib.getDocument({
-          url: pdfUrl,
+          url: resolvedPdfUrl,
           cMapUrl: "/cmaps/",
           cMapPacked: true,
           standardFontDataUrl: "/standard_fonts/",
@@ -172,22 +186,24 @@ export function TilawatDuaViewer({
 
         const doc = await loadingTask.promise;
         if (!isCancelled) {
+          clearTimeout(fallbackTimer);
           setPdfDoc(doc);
           setTotalPages(doc.numPages);
           setLoading(false);
           setRenderError(null);
         }
       } catch (err: any) {
-        console.warn("[TilawatDuaViewer] Local PDF.js load notice, trying CDN cMaps fallback:", err);
+        console.warn("[TilawatDuaViewer] Local PDF.js load notice, trying CDN fallback:", err);
         try {
           const pdfjsLib = await import("pdfjs-dist");
           const fallbackTask = pdfjsLib.getDocument({
-            url: pdfUrl,
+            url: resolvedPdfUrl,
             cMapUrl: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/",
             cMapPacked: true,
           });
           const doc = await fallbackTask.promise;
           if (!isCancelled) {
+            clearTimeout(fallbackTimer);
             setPdfDoc(doc);
             setTotalPages(doc.numPages);
             setLoading(false);
@@ -195,13 +211,14 @@ export function TilawatDuaViewer({
             return;
           }
         } catch (fallbackErr: any) {
-          console.warn("[TilawatDuaViewer] Fallback failed, activating native PDF embed:", fallbackErr);
+          console.warn("[TilawatDuaViewer] Fallback failed, activating native browser PDF embed:", fallbackErr);
         }
 
         if (!isCancelled) {
+          clearTimeout(fallbackTimer);
           setUseNativeViewer(true);
           setLoading(false);
-          setRenderError(err?.message || "Failed to render with Canvas engine");
+          setRenderError(err?.message || "Switched to native viewer");
         }
       }
     }
@@ -210,8 +227,9 @@ export function TilawatDuaViewer({
 
     return () => {
       isCancelled = true;
+      clearTimeout(fallbackTimer);
     };
-  }, [pdfUrl]);
+  }, [pdfUrl, resolvedPdfUrl]);
 
   // ── Calculate dynamic scale based on viewport & container ──
   const calculateAutoFitScale = useCallback(
@@ -249,17 +267,26 @@ export function TilawatDuaViewer({
   // ── Render Page on Canvas with High-DPI support ──
   const renderPage = useCallback(
     async (pageNumber: number) => {
-      if (!pdfDoc || !canvasRef.current) return;
+      if (!pdfDoc) return;
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        requestAnimationFrame(() => renderPage(pageNumber));
+        return;
+      }
 
       try {
         if (renderTaskRef.current) {
-          renderTaskRef.current.cancel();
+          try {
+            renderTaskRef.current.cancel();
+          } catch {}
         }
 
         const page = await pdfDoc.getPage(pageNumber);
-        const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d", { alpha: false });
-        if (!ctx) return;
+        if (!ctx) {
+          setUseNativeViewer(true);
+          return;
+        }
 
         let effectiveScale = scale;
         if (autoFitMode === "page") {
@@ -290,6 +317,7 @@ export function TilawatDuaViewer({
       } catch (err: any) {
         if (err?.name !== "RenderingCancelledException") {
           console.error("[TilawatDuaViewer] Page render error:", err);
+          setUseNativeViewer(true);
         }
       }
     },
@@ -434,7 +462,7 @@ export function TilawatDuaViewer({
 
   return (
     <div
-      ref={containerRef}
+      ref={wrapperRef}
       onMouseMove={triggerActivity}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -549,7 +577,7 @@ export function TilawatDuaViewer({
                 size="sm"
                 onClick={() => setUseNativeViewer((v) => !v)}
                 title={useNativeViewer ? "Switch to Canvas HD" : "Switch to Native Viewer"}
-                className="hidden md:inline-flex text-xs text-slate-300 hover:text-white hover:bg-slate-800/80"
+                className="inline-flex text-xs text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-xl px-2.5 py-1"
               >
                 <Layers className="w-4 h-4 mr-1.5" />
                 {useNativeViewer ? "Canvas HD" : "Native Embed"}
@@ -591,6 +619,7 @@ export function TilawatDuaViewer({
 
       {/* ── Main Canvas / Viewing Area ── */}
       <div
+        ref={containerRef}
         className={`relative flex-1 flex items-center justify-center overflow-auto p-2 sm:p-4 transition-all duration-300 ${
           isProjectorMode ? "h-full w-full" : "min-h-[500px] max-h-[82vh]"
         }`}
@@ -599,38 +628,25 @@ export function TilawatDuaViewer({
             colorMode === "theater-dark" ? "#030712" : colorMode === "cream" ? "#221c14" : "#0f172a",
         }}
       >
-        {loading ? (
-          <div className="flex flex-col items-center justify-center gap-3 text-slate-400">
+        {loading && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 text-slate-400 bg-slate-950/80 backdrop-blur-xs">
             <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
             <p className="text-sm font-medium tracking-wide">Rendering Tilawat Dua in High Definition…</p>
           </div>
-        ) : useNativeViewer ? (
-          <div className="w-full h-full min-h-[600px] flex flex-col items-center justify-center relative p-1 sm:p-2">
+        )}
+
+        {useNativeViewer ? (
+          <div className="w-full h-full min-h-[520px] flex-1 flex flex-col items-center justify-center relative p-1 sm:p-2">
             <object
-              data={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+              data={`${resolvedPdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
               type="application/pdf"
-              className="w-full h-full min-h-[600px] rounded-lg border-0 bg-white shadow-xl"
+              className="w-full h-full min-h-[520px] rounded-xl border border-slate-700 bg-white shadow-xl"
             >
               <iframe
-                src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-                className="w-full h-full min-h-[600px] rounded-lg border-0 bg-white shadow-xl"
+                src={`${resolvedPdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+                className="w-full h-full min-h-[520px] rounded-xl border border-slate-700 bg-white shadow-xl"
                 title="Tilawat Dua Native PDF"
-              >
-                <div className="flex flex-col items-center justify-center p-8 text-center text-slate-300 bg-slate-900/90 rounded-xl border border-slate-800">
-                  <AlertCircle className="w-12 h-12 text-amber-400 mb-3" />
-                  <p className="text-base font-semibold text-white mb-2">Native PDF preview unavailable</p>
-                  <p className="text-sm text-slate-400 mb-4">Your browser may not support inline PDF viewing.</p>
-                  <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 font-medium transition"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Open / Download PDF Document
-                  </a>
-                </div>
-              </iframe>
+              />
             </object>
           </div>
         ) : (
@@ -640,7 +656,15 @@ export function TilawatDuaViewer({
               className="relative shadow-2xl rounded-lg overflow-hidden transition-all duration-200 m-auto flex items-center justify-center"
               style={getColorFilterStyle()}
             >
-              <canvas ref={canvasRef} className="block max-w-full h-auto cursor-grab active:cursor-grabbing mx-auto my-auto" />
+              <canvas
+                ref={(el) => {
+                  (canvasRef as any).current = el;
+                  if (el && pdfDoc && !loading) {
+                    renderPage(currentPage);
+                  }
+                }}
+                className="block max-w-full h-auto cursor-grab active:cursor-grabbing mx-auto my-auto"
+              />
             </div>
 
             {/* Subtle Screen Page Indicator Overlay in Projector Mode */}

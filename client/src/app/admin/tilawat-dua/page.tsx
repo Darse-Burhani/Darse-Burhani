@@ -740,6 +740,59 @@ export default function AdminTilawatDuaPage() {
                   </div>
                 )}
               </div>
+
+              {/* Live PDF Preview Box Right After Uploading */}
+              {formPdfUrl && (
+                <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Uploaded PDF Ready ({formFileName || "PDF"})
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedForView({
+                            id: "preview-temp",
+                            title: formTitle || "Uploaded Tilawat Dua Preview",
+                            pdfUrl: formPdfUrl,
+                            fileName: formFileName || "tilawat-dua.pdf",
+                            fileSize: formFileSize,
+                            date: formDate,
+                            targetAudience: formAudience,
+                          })
+                        }
+                        className="text-emerald-600 hover:text-emerald-500 hover:underline text-[11px] flex items-center gap-1 font-bold cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Full HD Preview
+                      </button>
+                      <a
+                        href={formPdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-amber-600 hover:text-amber-500 hover:underline text-[11px] flex items-center gap-1 font-semibold"
+                      >
+                        Open Tab <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                  <div className="h-64 sm:h-80 w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-inner">
+                    <object
+                      data={`${typeof window !== "undefined" && formPdfUrl.startsWith("/") ? window.location.origin + formPdfUrl : formPdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+                      type="application/pdf"
+                      className="w-full h-full rounded-xl border-0 bg-white"
+                    >
+                      <iframe
+                        src={`${typeof window !== "undefined" && formPdfUrl.startsWith("/") ? window.location.origin + formPdfUrl : formPdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+                        className="w-full h-full rounded-xl border-0 bg-white"
+                        title="Uploaded PDF Document Preview"
+                      />
+                    </object>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Title */}
@@ -912,7 +965,7 @@ export default function AdminTilawatDuaPage() {
       {/* ── Modal In-Page Preview Viewer ── */}
       {selectedForView && (
         <Modal open={!!selectedForView} onOpenChange={() => setSelectedForView(null)}>
-          <ModalContent className="w-[96vw] max-w-5xl bg-slate-950 p-1.5 sm:p-3 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden">
+          <ModalContent className="w-[96vw] max-w-[96vw] sm:max-w-5xl md:max-w-6xl xl:max-w-7xl bg-slate-950 p-1.5 sm:p-3 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden min-h-[78vh] flex flex-col">
             <TilawatDuaViewer dua={selectedForView} />
           </ModalContent>
         </Modal>

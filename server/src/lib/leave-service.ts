@@ -31,6 +31,10 @@ export interface ReviewLeaveInput {
   reviewerNotes?: string;
   /** Number of days granted from the requested start date. Omit for the full range. */
   approvedDays?: number | null;
+  /** Optional custom start date override by administrator */
+  startDate?: Date | string | null;
+  /** Optional custom end date override by administrator */
+  endDate?: Date | string | null;
 }
 
 export interface AssignLeaveInput {
@@ -698,15 +702,22 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     return leave;
   }
 
-  const requestedDays = countLeaveDays(leave.startDate, leave.endDate);
+  // Base start and end dates (overridden if administrator changed them)
+  const baseStart = input.startDate ? normalizeDateToUTC(input.startDate) : normalizeDateToUTC(leave.startDate);
+  const baseEnd = input.endDate ? normalizeDateToUTC(input.endDate) : normalizeDateToUTC(leave.endDate);
+
+  const requestedDays = countLeaveDays(baseStart, baseEnd);
   const requestedGrant =
     input.approvedDays == null ? requestedDays : Number(input.approvedDays);
   const grantedDays = Math.min(
     Math.max(Number.isFinite(requestedGrant) ? Math.trunc(requestedGrant) : requestedDays, 1),
     requestedDays
   );
-  const grantedStart = normalizeDateToUTC(leave.startDate);
-  const grantedEnd = addUtcDays(grantedStart, grantedDays - 1);
+  const grantedStart = baseStart;
+  const grantedEnd =
+    input.endDate && (input.approvedDays == null || Number(input.approvedDays) === requestedDays)
+      ? baseEnd
+      : addUtcDays(grantedStart, grantedDays - 1);
   const reduced = grantedDays < requestedDays;
   const grantedRangeStr = `${formatUtcDate(grantedStart)} – ${formatUtcDate(grantedEnd)}`;
 
@@ -720,10 +731,20 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
       approvedDays: grantedDays,
       grantedStartDate: grantedStart,
       grantedEndDate: grantedEnd,
+      startDate: baseStart,
+      endDate: grantedEnd,
     },
   });
 
   const dates = getDateRangeArray(grantedStart, grantedEnd);
+
+  // Clean up any previously generated registry records for this leave that fall outside the approved range
+  await prisma.attendanceRegistry.deleteMany({
+    where: {
+      leaveId: leave.id,
+      date: { notIn: dates },
+    },
+  });
   const registryStatus: AttendanceStatus =
     leave.type === LeaveType.MEDICAL ? AttendanceStatus.MEDICAL : AttendanceStatus.ON_LEAVE;
   const registrySource: AttendanceSource =
@@ -1116,6 +1137,8 @@ export async function holdLeaveRequest(input: ReviewLeaveInput) {
       approvedDays: null,
       grantedStartDate: null,
       grantedEndDate: null,
+      ...(input.startDate ? { startDate: normalizeDateToUTC(input.startDate) } : {}),
+      ...(input.endDate ? { endDate: normalizeDateToUTC(input.endDate) } : {}),
     },
   });
 

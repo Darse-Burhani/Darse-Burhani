@@ -28,6 +28,7 @@ import {
   approveAdminLeave,
   rejectAdminLeave,
   holdAdminLeave,
+  updateAdminLeaveDates,
   deleteAdminLeave,
   batchApproveAdminLeaves,
   getAdminLeaveMembers,
@@ -145,8 +146,14 @@ export default function AdminLeavePage() {
       .catch((err) => console.error("Failed to load portal members:", err));
   }, []);
 
-  const handleApprove = async (id: string, notes?: string, approvedDays?: number | null) => {
-    const res = await approveAdminLeave(id, notes, approvedDays);
+  const handleApprove = async (
+    id: string,
+    notes?: string,
+    approvedDays?: number | null,
+    startDate?: string | null,
+    endDate?: string | null
+  ) => {
+    const res = await approveAdminLeave(id, notes, approvedDays, startDate, endDate);
     await fetchData(true);
     return res;
   };
@@ -171,8 +178,24 @@ export default function AdminLeavePage() {
     return res;
   };
 
-  const handleHold = async (id: string, notes?: string) => {
-    const res = await holdAdminLeave(id, notes);
+  const handleHold = async (
+    id: string,
+    notes?: string,
+    startDate?: string | null,
+    endDate?: string | null
+  ) => {
+    const res = await holdAdminLeave(id, notes, startDate, endDate);
+    await fetchData(true);
+    return res;
+  };
+
+  const handleUpdateDates = async (
+    id: string,
+    startDate: string,
+    endDate: string,
+    notes?: string
+  ) => {
+    const res = await updateAdminLeaveDates(id, startDate, endDate, notes);
     await fetchData(true);
     return res;
   };
@@ -491,6 +514,7 @@ export default function AdminLeavePage() {
           onDelete={handleDelete}
           assignees={members}
           onAssign={handleAssign}
+          onUpdateDates={handleUpdateDates}
           loading={loading}
         />
       )}
