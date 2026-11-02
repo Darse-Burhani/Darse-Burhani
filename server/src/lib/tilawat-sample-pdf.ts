@@ -91,3 +91,4 @@ ${520 + contentPage1.length + contentPage2.length}
 
   return Buffer.from(pdfTemplate, "utf-8");
 }
+

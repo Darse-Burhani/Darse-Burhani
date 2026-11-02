@@ -15,15 +15,15 @@ export function InstitutionalFooter({
 
   if (variant === "minimal") {
     return (
-      <footer className={`mt-auto border-t border-slate-200 bg-white/95 backdrop-blur-sm py-4 px-4 text-center text-xs text-slate-600 ${className}`}>
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="font-semibold text-slate-700">
-            © {currentYear} Darse Burhani (Nisab) · <span className="font-bold text-emerald-800">Mahad al Zahra</span>
+      <footer className={`w-full border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm py-3.5 px-4 sm:px-6 text-center sm:text-left text-xs text-slate-600 dark:text-slate-400 ${className}`}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4">
+          <p className="font-semibold text-slate-700 dark:text-slate-300">
+            © {currentYear} Darse Burhani (Nisab) · <span className="font-bold text-emerald-800 dark:text-emerald-400">Mahad al Zahra</span>
           </p>
-          <div className="flex items-center gap-5 text-xs font-semibold text-slate-600">
-            <Link href="/privacy" className="hover:text-emerald-800 hover:underline transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-emerald-800 hover:underline transition-colors">Terms of Service</Link>
-            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="hover:text-emerald-800 hover:underline transition-colors">Support</a>
+          <div className="flex items-center gap-5 text-xs font-semibold text-slate-600 dark:text-slate-400">
+            <Link href="/privacy" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Terms of Service</Link>
+            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Support</a>
           </div>
         </div>
       </footer>

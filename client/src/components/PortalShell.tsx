@@ -822,18 +822,18 @@ export function PortalShell({
           </header>
 
           {/* ─────────────────────────────────────────────────────────────
-             3. MAIN PAGE CONTENT (Generous Mobile Bottom Clearance)
+             3. MAIN PAGE CONTENT (Flex-1 stretches naturally to bottom)
              ───────────────────────────────────────────────────────────── */}
-          <main className="relative flex-1 pb-36 sm:pb-32 lg:pb-8 pt-2 sm:pt-4 px-2 sm:px-4 lg:px-8 max-w-full">
-            <div className="min-h-[calc(100vh-8rem)] relative z-10 min-w-0 w-full max-w-full">
-              <Outlet />
-            </div>
-
-            {/* Institutional Footer */}
-            <div className="relative z-10 mt-8 mb-4">
-              <InstitutionalFooter variant="minimal" />
-            </div>
+          <main className="relative flex-1 pb-16 sm:pb-20 lg:pb-8 pt-2 sm:pt-4 px-2 sm:px-4 lg:px-8 max-w-full">
+            <Outlet />
           </main>
+
+          {/* ─────────────────────────────────────────────────────────────
+             4. INSTITUTIONAL FOOTER (Clean Full-Width Sticky Bottom Footer)
+             ───────────────────────────────────────────────────────────── */}
+          <div className="relative z-10 mt-auto shrink-0 pb-20 lg:pb-0">
+            <InstitutionalFooter variant="minimal" />
+          </div>
 
           {/* ─────────────────────────────────────────────────────────────
              4. REDESIGNED MOBILE NATIVE BOTTOM APP DOCK (Fixed & Ergonomic)
