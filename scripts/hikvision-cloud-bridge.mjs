@@ -272,7 +272,8 @@ function isSchoolHoursIST(d = new Date()) {
   const ist = getIstParts(d);
   const minutes = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
   // STRICTLY ACTIVE FROM 07:20 AM TILL 08:30 AM FOR ATTENDANCE
-  return minutes >= (7 * 60 + 20) && minutes <= (8 * 60 + 30);
+  // Strictly active 07:20 AM - 08:35 AM IST for biometric attendance
+  return minutes >= (7 * 60 + 20) && minutes <= (8 * 60 + 35);
 }
 
 /**
@@ -1169,6 +1170,9 @@ async function listenAlertStream(dev) {
 async function pollDeviceEvents(dev, lookbackHours = 3, maxPages = 10) {
   if (isSundayIST(new Date())) {
     return; // Sunday is institutional holiday — no device polling
+  }
+  if (!isSchoolHoursIST(new Date())) {
+    return; // Outside scheduled scanning window: stop polling records so Render rests
   }
   const now = new Date();
   const past = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);

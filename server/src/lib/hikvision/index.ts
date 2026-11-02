@@ -808,9 +808,12 @@ export async function getTilawatScheduleWindowIST(date: Date = new Date()): Prom
   })) || {
     id: "default",
     name: "Tilawat al Dua",
-    startTime: "07:20",
-    endTime: "08:30",
+    startTime: "07:35",
+    endTime: "07:50",
     lateEndTime: "08:30",
+    facultyStartTime: "07:35",
+    facultyEndTime: "08:03",
+    facultyLateEndTime: "08:30",
     enabled: true,
   };
 
@@ -826,18 +829,18 @@ export async function getTilawatScheduleWindowIST(date: Date = new Date()): Prom
   const month = parseInt(get("month"), 10) - 1;
   const day = parseInt(get("day"), 10);
 
-  const [sh, sm] = (window.startTime || "07:20").split(":").map(Number);
-  const [eh, em] = (window.endTime || "08:30").split(":").map(Number);
+  const [sh, sm] = (window.startTime || "07:35").split(":").map(Number);
+  const [eh, em] = (window.endTime || "07:50").split(":").map(Number);
   const [lh, lm] = (window.lateEndTime || window.endTime || "08:30").split(":").map(Number);
 
   // UTC equivalent of IST time: subtract 5.5 hours
-  const startTimeIST = new Date(Date.UTC(year, month, day, sh || 7, sm !== undefined ? sm : 20, 0) - 5.5 * 60 * 60 * 1000);
-  const endTimeIST = new Date(Date.UTC(year, month, day, eh || 8, em !== undefined ? em : 30, 0) - 5.5 * 60 * 60 * 1000);
+  const startTimeIST = new Date(Date.UTC(year, month, day, sh || 7, sm !== undefined ? sm : 35, 0) - 5.5 * 60 * 60 * 1000);
+  const endTimeIST = new Date(Date.UTC(year, month, day, eh || 7, em !== undefined ? em : 50, 0) - 5.5 * 60 * 60 * 1000);
   const lateEndTimeIST = new Date(Date.UTC(year, month, day, lh || 8, lm !== undefined ? lm : 30, 0) - 5.5 * 60 * 60 * 1000);
 
   const nowMs = date.getTime();
-  // Active window includes schedule startTime up to lateEndTime + 5 min buffer for network latency
-  const isWithinSchedule = nowMs >= startTimeIST.getTime() && nowMs <= (lateEndTimeIST.getTime() + 5 * 60 * 1000);
+  // Active window includes schedule startTime (with 5 min pre-buffer) up to lateEndTime + 5 min buffer for network latency
+  const isWithinSchedule = nowMs >= (startTimeIST.getTime() - 5 * 60 * 1000) && nowMs <= (lateEndTimeIST.getTime() + 5 * 60 * 1000);
 
   return { window, startTimeIST, endTimeIST, lateEndTimeIST, isWithinSchedule };
 }

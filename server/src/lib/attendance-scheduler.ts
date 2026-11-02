@@ -234,14 +234,9 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
     exemptIds.forEach((id) => globalExemptStudentIds.add(id));
   }
 
-  // Default-present fallback: when the biometric terminals recorded ZERO
-  // scans today (devices offline / LAN unreachable from the cloud), every
-  // unscanned talib is finalized PRESENT instead of ABSENT so a hardware
-  // outage never fails the students.
-  const defaultPresentMode = (await countRealScansToday(dayStart)) === 0;
-  if (defaultPresentMode) {
-    console.log("[attendance-scheduler] ⚠️ No real biometric scans recorded today — unscanned talabat will be finalized PRESENT (default-present fallback).");
-  }
+  // Strict absent mode: unscanned students are marked ABSENT ("no scanning make absent")
+  // Disabled auto-present fallback per institutional mandate.
+  const defaultPresentMode = false;
 
   for (const s of students) {
     if (s.attendanceRecords.length > 0) {
@@ -681,9 +676,8 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
 
       // Only process periods that have concluded
       if (nowMin >= slotEndMin) {
-        // Default-present fallback: with zero device scans today, unlogged
-        // students are propagated as PRESENT (not ABSENT) into class records.
-        const defaultPresentMode = (await countRealScansToday(dayStart)) === 0;
+        // Strict mode: unlogged students propagate as ABSENT (no scanning make absent)
+        const defaultPresentMode = false;
 
         const enrollments = await prisma.classEnrollment.findMany({
           where: { classId: slot.classId, isActive: true },
