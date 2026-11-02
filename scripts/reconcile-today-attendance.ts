@@ -22,9 +22,9 @@ async function main() {
 
     if (reg.checkInTime) {
       const d = new Date(reg.checkInTime);
-      const totalSeconds = (d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds() + 19800) % 86400;
-      // 07:50:00 cutoff = 7 * 3600 + 50 * 60 = 28200 seconds
-      if (totalSeconds <= (7 * 3600 + 50 * 60)) {
+      // IST is UTC+5:30
+      const totalMinutes = (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
+      if (totalMinutes <= (7 * 60 + 50)) {
         newStatus = "PRESENT";
         remarks = `On-time biometric check-in at ${d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })}`;
       } else {
@@ -72,9 +72,8 @@ async function main() {
 
     if (tr.checkInTime) {
       const d = new Date(tr.checkInTime);
-      const totalSeconds = (d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds() + 19800) % 86400;
-      // 08:03:00 cutoff = 8 * 3600 + 3 * 60 = 28980 seconds
-      if (totalSeconds <= (8 * 3600 + 3 * 60)) {
+      const totalMinutes = (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
+      if (totalMinutes <= (8 * 60 + 3)) {
         newStatus = "PRESENT";
         notes = `On-time biometric check-in at ${d.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })}`;
       } else {

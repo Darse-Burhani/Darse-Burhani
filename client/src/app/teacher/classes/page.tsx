@@ -107,7 +107,15 @@ export default function TeacherClassesPage() {
           ))}
         </div>
       ) : (
-        <Card><CardContent className="p-12 text-center text-gray-500">No classes assigned yet</CardContent></Card>
+        <Card className="rounded-3xl border-gray-200">
+          <CardContent className="p-12 text-center text-gray-500">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-gray-800">No Teaching Classes Assigned</h3>
+            <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+              Classes view is restricted to faculty members with assigned subjects and teaching sessions.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -449,6 +449,25 @@ export default function TeacherTimetablePage() {
     }
   });
 
+  if (!loading && !isPageAssigned("timetable") && session?.user?.role !== "ADMIN") {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-amber-50 text-amber-600 border border-amber-200 mx-auto flex items-center justify-center mb-4 shadow-sm">
+          <CalendarDays className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-gray-900 font-display">No Timetable Assigned</h2>
+        <p className="text-xs sm:text-sm text-gray-600 mt-2 max-w-md mx-auto leading-relaxed">
+          Timetable Matrix is restricted to faculty members with assigned subjects and teaching classes.
+        </p>
+        <Link href="/teacher" className="inline-block mt-6">
+          <Button size="sm" className="fatimi-emerald-gradient text-white rounded-xl text-xs font-bold px-6 h-10 shadow-md">
+            Return to Dashboard
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* ── Header Banner ── */}

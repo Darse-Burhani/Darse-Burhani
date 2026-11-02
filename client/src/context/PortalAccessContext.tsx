@@ -42,17 +42,12 @@ const defaultModules: PortalModulesConfig = {
 };
 
 // Minimal safe defaults while permissions load — keeps core faculty tools open.
+// Teaching modules (classes, timetable, takhteet) are granted exclusively to teachers
+// who have assigned subjects and classes (or explicit Admin portal assignment).
 const DEFAULT_TEACHER_BASE_PAGES = [
   "dashboard",
-  "classes",
-  "takhteet",
-  "attendance",
-  "manual-attendance",
   "profile",
-  "timetable",
   "my-attendance",
-  "student-assignments",
-  "procurement",
   "tilawat-dua",
 ];
 
@@ -223,15 +218,8 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         const key = normalizePageKey(pageIdOrPath);
         return (
           key === "dashboard" ||
-          key === "classes" ||
-          key === "takhteet" ||
-          key === "attendance" ||
-          key === "manual-attendance" ||
           key === "profile" ||
-          key === "timetable" ||
           key === "my-attendance" ||
-          key === "student-assignments" ||
-          key === "procurement" ||
           key === "tilawat-dua"
         );
       }
@@ -242,18 +230,13 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       }
 
       const key = normalizePageKey(pageIdOrPath);
-      // Core individual faculty tools are always accessible to teachers
+      // Safe base tools accessible to every faculty member
+      // NOTE: classes, timetable, and takhteet are strictly restricted to teachers
+      // who have assigned subjects and classes (via assignedPages) or explicit Admin assignment.
       if (
         key === "dashboard" ||
-        key === "classes" ||
-        key === "takhteet" ||
-        key === "attendance" ||
-        key === "manual-attendance" ||
         key === "profile" ||
-        key === "timetable" ||
         key === "my-attendance" ||
-        key === "student-assignments" ||
-        key === "procurement" ||
         key === "tilawat-dua"
       ) {
         return true;

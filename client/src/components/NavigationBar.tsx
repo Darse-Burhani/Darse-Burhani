@@ -120,7 +120,7 @@ const portalConfig: Record<
 
 export function NavigationBar() {
   const { data: session } = useSession();
-  const { isModuleVisible } = usePortalAccess();
+  const { isModuleVisible, isPageAssigned } = usePortalAccess();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -140,20 +140,22 @@ export function NavigationBar() {
   const isTeacher = role === "TEACHER";
   const isParent = role === "PARENT";
 
-  // Build teacher nav items dynamically based on Admin assigned pages & module visibility
+  // Build teacher nav items dynamically based on Admin assigned pages & module visibility.
+  // Classes, Timetable, and Takhteet are shown ONLY if the teacher has assigned subjects/classes or explicit portal assignment.
   const teacherNavItems = isTeacher
     ? [
         { label: "Dashboard", href: "/teacher", icon: Activity },
-        ...(isModuleVisible("classes", "TEACHER") ? [{ label: "Classes", href: "/teacher/classes", icon: BookOpen }] : []),
-        ...(isModuleVisible("quran", "TEACHER") ? [{ label: "Quran (Hifz)", href: "/teacher/hifz", icon: FileText }] : []),
-        ...(isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
-        ...(isModuleVisible("manual-attendance", "TEACHER") ? [{ label: "Manual Logs", href: "/teacher/attendance", icon: ClipboardCheck }] : []),
-        ...(isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Hikvision Scans", href: "/teacher/attendance-hik", icon: Fingerprint }] : []),
-        ...(isModuleVisible("attendance-schedule", "TEACHER") ? [{ label: "Attendance Schedule", href: "/admin/attendance-schedule", icon: Clock }] : []),
-        ...(isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/admin/leave", icon: UserCheck }] : []),
-        ...(isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/admin/procurement", icon: Package }] : []),
-        ...(isModuleVisible("makhzan", "TEACHER") ? [{ label: "Makhzan", href: "/admin/library", icon: Package }] : []),
-        ...(isModuleVisible("library", "TEACHER") ? [{ label: "Library", href: "/admin/library", icon: Library }] : []),
+        ...(isPageAssigned("classes") && isModuleVisible("classes", "TEACHER") ? [{ label: "Classes", href: "/teacher/classes", icon: BookOpen }] : []),
+        ...(isPageAssigned("timetable") && isModuleVisible("timetable", "TEACHER") ? [{ label: "Timetable Matrix", href: "/teacher/timetable", icon: CalendarDays }] : []),
+        ...(isPageAssigned("quran") && isModuleVisible("quran", "TEACHER") ? [{ label: "Quran (Hifz)", href: "/teacher/hifz", icon: FileText }] : []),
+        ...(isPageAssigned("takhteet") && isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
+        ...(isPageAssigned("manual-attendance") && isModuleVisible("manual-attendance", "TEACHER") ? [{ label: "Manual Logs", href: "/teacher/attendance", icon: ClipboardCheck }] : []),
+        ...(isPageAssigned("attendance-logs") && isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Hikvision Scans", href: "/teacher/attendance-hik", icon: Fingerprint }] : []),
+        ...(isPageAssigned("attendance-schedule") && isModuleVisible("attendance-schedule", "TEACHER") ? [{ label: "Attendance Schedule", href: "/admin/attendance-schedule", icon: Clock }] : []),
+        ...(isPageAssigned("leave") && isModuleVisible("leave", "TEACHER") ? [{ label: "Leave", href: "/admin/leave", icon: UserCheck }] : []),
+        ...(isPageAssigned("procurement") && isModuleVisible("procurement", "TEACHER") ? [{ label: "Procurement", href: "/admin/procurement", icon: Package }] : []),
+        ...(isPageAssigned("makhzan") && isModuleVisible("makhzan", "TEACHER") ? [{ label: "Makhzan", href: "/admin/library", icon: Package }] : []),
+        ...(isPageAssigned("library") && isModuleVisible("library", "TEACHER") ? [{ label: "Library", href: "/admin/library", icon: Library }] : []),
         { label: "Profile", href: "/teacher/profile", icon: User },
       ]
     : config?.navItems;

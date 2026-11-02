@@ -26,14 +26,64 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    const assignedCount = targetTeacherId
-      ? await prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } })
-      : 0;
+    const [assignedCount, teacherSlots, teacherClasses, teacherProfileData] = await Promise.all([
+      targetTeacherId ? prisma.takhteetPlan.count({ where: { teacherId: targetTeacherId } }) : 0,
+      targetTeacherId
+        ? prisma.timetableSlot.findMany({
+            where: { teacherId: targetTeacherId },
+            select: { classId: true, subject: true },
+          })
+        : [],
+      targetTeacherId
+        ? prisma.class.findMany({
+            where: { teacherId: targetTeacherId },
+            select: { id: true, subject: true },
+          })
+        : [],
+      targetTeacherId
+        ? prisma.teacherProfile.findUnique({
+            where: { id: targetTeacherId },
+            select: {
+              subjects: true,
+              portalAssignments: { where: { isActive: true }, select: { portalType: true } },
+            },
+          })
+        : null,
+    ]);
 
-    // Intelligent Syllabus & Portion Resolution:
+    const hasExplicitTakhteetAssignment = teacherProfileData?.portalAssignments.some(
+      (a: any) => a.portalType === "ALL" || a.portalType === "PAGE:takhteet" || a.portalType === "TAKHTEET"
+    );
+
+    const hasAssignedTeaching =
+      assignedCount > 0 ||
+      teacherSlots.length > 0 ||
+      teacherClasses.length > 0 ||
+      (Array.isArray(teacherProfileData?.subjects) && teacherProfileData.subjects.length > 0) ||
+      Boolean(hasExplicitTakhteetAssignment);
+
+    // Strictly restrict: Faculty members who do NOT have assigned subjects and classes
+    // must NOT be shown Takhteet portions unless explicitly delegated by Admin.
+    if (!isAdmin && !hasAssignedTeaching) {
+      return res.json({
+        success: true,
+        data: [],
+        meta: {
+          totalPlans: 0,
+          completedPlans: 0,
+          inProgressPlans: 0,
+          notStartedPlans: 0,
+          assignedToTeacherCount: 0,
+          isShowingAll: false,
+        },
+        message: "No assigned teaching subjects or classes found for this faculty member.",
+      });
+    }
+
+    // Intelligent Syllabus & Portion Resolution for assigned teaching faculty:
     // 1. Direct assignments in TakhteetPlan take highest priority.
     // 2. If no direct assignments exist yet, match classes & subjects the teacher teaches in timetable.
-    // 3. If neither exist, display active Darajah curriculum so teachers are never left with an empty screen.
+    // 3. Fallback to active syllabus only if explicitly requested or delegated.
     const whereClause: any = {};
     let isShowingAll = false;
 
@@ -41,22 +91,12 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       if (assignedCount > 0) {
         whereClause.teacherId = targetTeacherId;
       } else if (targetTeacherId) {
-        // Teacher has no direct links yet. Check what they teach in timetable/classes:
-        const [teacherSlots, teacherClasses] = await Promise.all([
-          prisma.timetableSlot.findMany({
-            where: { teacherId: targetTeacherId },
-            select: { classId: true, subject: true },
-          }),
-          prisma.class.findMany({
-            where: { teacherId: targetTeacherId },
-            select: { id: true, subject: true },
-          }),
-        ]);
-
         const orFilters: any[] = [];
         for (const s of teacherSlots) {
           if (s.classId && s.subject) {
             orFilters.push({ classId: s.classId, subject: { equals: s.subject, mode: "insensitive" } });
+          } else if (s.subject) {
+            orFilters.push({ subject: { equals: s.subject, mode: "insensitive" } });
           }
         }
         for (const c of teacherClasses) {
@@ -64,14 +104,23 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
             orFilters.push({ classId: c.id, subject: { equals: c.subject, mode: "insensitive" } });
           }
         }
+        if (Array.isArray(teacherProfileData?.subjects)) {
+          for (const subj of teacherProfileData.subjects) {
+            if (subj) {
+              orFilters.push({ subject: { equals: subj, mode: "insensitive" } });
+            }
+          }
+        }
 
         if (orFilters.length > 0) {
           whereClause.OR = orFilters;
-        } else {
+        } else if (hasExplicitTakhteetAssignment || viewAll) {
           isShowingAll = true;
+        } else {
+          whereClause.teacherId = targetTeacherId;
         }
       } else {
-        isShowingAll = true;
+        whereClause.teacherId = targetTeacherId;
       }
     } else {
       if (targetTeacherId && !viewAll) {

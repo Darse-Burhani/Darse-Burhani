@@ -156,12 +156,14 @@ export function toAssignedPageIds(portalTypes: string[]): string[] {
   }
   result.add("dashboard");
   result.add("profile");
+  result.add("my-attendance");
+  result.add("tilawat-dua");
   return Array.from(result);
 }
 
 // When a teacher has no explicit portal assignments, only give them the safe minimum.
-// All other pages must be explicitly assigned.
-const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "profile"];
+// Teaching modules (classes, timetable, takhteet) are added strictly if they have assigned classes/subjects.
+const DEFAULT_BASE_TEACHER_PAGES = ["dashboard", "profile", "my-attendance", "tilawat-dua"];
 
 function describePortalPages(pageIds: string[]): string {
   const labels = pageIds
@@ -214,7 +216,12 @@ router.get("/", requireAuth, async (req, res) => {
       if (hasManageAuthority) {
         currentTeacherProfile = await prisma.teacherProfile.findFirst({
           where: { OR: [{ userId: session.user.id }, { id: session.user.id }] },
-          include: { portalAssignments: true },
+          include: {
+            portalAssignments: true,
+            classes: { select: { id: true }, take: 1 },
+            masoolClasses: { select: { id: true }, take: 1 },
+            timetableSlots: { select: { id: true }, take: 1 },
+          },
         });
       }
     }
@@ -224,7 +231,12 @@ router.get("/", requireAuth, async (req, res) => {
       if (!currentTeacherProfile) {
         currentTeacherProfile = await prisma.teacherProfile.findFirst({
           where: { OR: [{ userId: session.user.id }, { id: session.user.id }] },
-          include: { portalAssignments: true },
+          include: {
+            portalAssignments: true,
+            classes: { select: { id: true }, take: 1 },
+            masoolClasses: { select: { id: true }, take: 1 },
+            timetableSlots: { select: { id: true }, take: 1 },
+          },
         });
       }
 
@@ -232,6 +244,7 @@ router.get("/", requireAuth, async (req, res) => {
         return res.json({
           success: true,
           data: {
+            hasAssignedTeaching: false,
             assignedPages: DEFAULT_BASE_TEACHER_PAGES,
             allPages: TEACHER_AVAILABLE_PAGES,
           },
@@ -240,6 +253,14 @@ router.get("/", requireAuth, async (req, res) => {
 
       const activeAssignments = currentTeacherProfile.portalAssignments.filter((a: any) => a.isActive);
       const isAll = activeAssignments.some((a: any) => a.portalType === "ALL");
+
+      // Verify whether teacher has assigned subjects and classes (teaching faculty)
+      const hasAssignedTeaching = Boolean(
+        (currentTeacherProfile.classes && currentTeacherProfile.classes.length > 0) ||
+        (currentTeacherProfile.masoolClasses && currentTeacherProfile.masoolClasses.length > 0) ||
+        (currentTeacherProfile.timetableSlots && currentTeacherProfile.timetableSlots.length > 0) ||
+        (Array.isArray(currentTeacherProfile.subjects) && currentTeacherProfile.subjects.length > 0)
+      );
 
       let assignedPageIds: string[] = [];
       if (isAll) {
@@ -250,10 +271,29 @@ router.get("/", requireAuth, async (req, res) => {
         assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
       }
 
+      // Teaching modules (classes, timetable, takhteet) are strictly shown ONLY to teachers
+      // who have assigned subjects and classes, unless explicitly delegated by Admin.
+      if (hasAssignedTeaching) {
+        if (!assignedPageIds.includes("classes")) assignedPageIds.push("classes");
+        if (!assignedPageIds.includes("timetable")) assignedPageIds.push("timetable");
+        if (!assignedPageIds.includes("takhteet")) assignedPageIds.push("takhteet");
+      } else if (!isAll) {
+        const explicitPages = new Set(
+          activeAssignments.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
+        );
+        assignedPageIds = assignedPageIds.filter((p) => {
+          if (p === "classes" || p === "timetable" || p === "takhteet") {
+            return explicitPages.has(p);
+          }
+          return true;
+        });
+      }
+
       return res.json({
         success: true,
         data: {
           teacherId: currentTeacherProfile.id,
+          hasAssignedTeaching,
           assignedPages: Array.from(new Set(assignedPageIds)),
           allPages: TEACHER_AVAILABLE_PAGES,
         },
@@ -285,6 +325,9 @@ router.get("/", requireAuth, async (req, res) => {
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, isActive: true } },
         portalAssignments: true,
+        classes: { select: { id: true }, take: 1 },
+        masoolClasses: { select: { id: true }, take: 1 },
+        timetableSlots: { select: { id: true }, take: 1 },
       },
       orderBy: { user: { firstName: "asc" } },
     });
@@ -307,6 +350,37 @@ router.get("/", requireAuth, async (req, res) => {
         teachers: teachers.map((t) => {
           const raw = t.portalAssignments.filter((a) => a.isActive);
           const hasAll = raw.some((a) => a.portalType === "ALL");
+          const hasAssignedTeaching = Boolean(
+            (t.classes && t.classes.length > 0) ||
+            (t.masoolClasses && t.masoolClasses.length > 0) ||
+            (t.timetableSlots && t.timetableSlots.length > 0) ||
+            (Array.isArray(t.subjects) && t.subjects.length > 0)
+          );
+
+          let assignedPageIds: string[] = [];
+          if (hasAll) {
+            assignedPageIds = TEACHER_AVAILABLE_PAGES.map((p) => p.id);
+          } else if (raw.length > 0) {
+            assignedPageIds = toAssignedPageIds(raw.map((a) => a.portalType));
+          } else {
+            assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
+          }
+
+          if (hasAssignedTeaching) {
+            if (!assignedPageIds.includes("classes")) assignedPageIds.push("classes");
+            if (!assignedPageIds.includes("timetable")) assignedPageIds.push("timetable");
+            if (!assignedPageIds.includes("takhteet")) assignedPageIds.push("takhteet");
+          } else if (!hasAll) {
+            const explicitPages = new Set(
+              raw.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
+            );
+            assignedPageIds = assignedPageIds.filter((p) => {
+              if (p === "classes" || p === "timetable" || p === "takhteet") {
+                return explicitPages.has(p);
+              }
+              return true;
+            });
+          }
 
           return {
             id: t.userId,
@@ -318,9 +392,8 @@ router.get("/", requireAuth, async (req, res) => {
             avatarUrl: t.user.avatarUrl || t.photoUrl,
             isActive: t.user.isActive,
             hasFullAccess: hasAll,
-            assignedPages: hasAll
-              ? TEACHER_AVAILABLE_PAGES.map((p) => p.id)
-              : Array.from(new Set(raw.length > 0 ? toAssignedPageIds(raw.map((a) => a.portalType)) : [...DEFAULT_BASE_TEACHER_PAGES])),
+            hasAssignedTeaching,
+            assignedPages: Array.from(new Set(assignedPageIds)),
             assignments: t.portalAssignments.map((a) => ({
               id: a.id,
               portalType: a.portalType,

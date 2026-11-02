@@ -37,6 +37,9 @@ import {
   ArrowUpRight,
   RefreshCw,
   Tv,
+  CalendarDays,
+  User,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -544,12 +547,12 @@ export default function ExpertTeacherDashboard() {
                 </Link>
               )}
 
-              {can("procurement") && (
-                <Link href="/teacher/procurement" className="group">
+              {can("timetable") && (
+                <Link href="/teacher/timetable" className="group">
                   <button className="h-11 px-4 rounded-full bg-emerald-950/60 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
-                    <span>Procurement</span>
+                    <span>Timetable Matrix</span>
                     <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-                      <ShoppingBag className="w-3.5 h-3.5 text-teal-300" />
+                      <CalendarDays className="w-3.5 h-3.5 text-blue-300" />
                     </span>
                   </button>
                 </Link>
@@ -612,7 +615,7 @@ export default function ExpertTeacherDashboard() {
           2. MACHINED HUD METRICS BENTO (DOUBLE-BEZEL)
          ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {/* Card 1: Total Talabat */}
+            {/* Card 1: Total Talabat / Faculty Profile */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -621,18 +624,20 @@ export default function ExpertTeacherDashboard() {
             >
               <div className="rounded-[calc(1.5rem-0.25rem)] bg-white p-4 sm:p-5 flex items-center gap-4 h-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)]">
                 <div className="w-12 h-12 rounded-2xl bg-amber-400/10 text-amber-700 ring-1 ring-amber-400/25 flex items-center justify-center shrink-0 shadow-xs">
-                  <Users className="w-6 h-6" strokeWidth={1.75} />
+                  {can("classes") ? <Users className="w-6 h-6" strokeWidth={1.75} /> : <User className="w-6 h-6" strokeWidth={1.75} />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Total Enrolled</p>
+                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">
+                    {can("classes") ? "Total Enrolled" : "Faculty Profile"}
+                  </p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <span className="text-2xl sm:text-3xl font-black text-gray-900 num-tabular tracking-tight">
-                      {loading ? "..." : students.length}
+                      {can("classes") ? (loading ? "..." : students.length) : (teacher?.roleTitle || teacher?.department || "Faculty")}
                     </span>
-                    <span className="text-xs text-gray-600 font-bold">Talabat</span>
+                    {can("classes") && <span className="text-xs text-gray-600 font-bold">Talabat</span>}
                   </div>
                   <p className="text-[10.5px] text-emerald-700 font-bold truncate mt-0.5">
-                    Across {classes.length} active classes
+                    {can("classes") ? `Across ${classes.length} active classes` : (teacher?.user ? `${teacher.user.firstName} ${teacher.user.lastName}` : "Darse Burhani")}
                   </p>
                 </div>
               </div>
@@ -726,31 +731,59 @@ export default function ExpertTeacherDashboard() {
                   </div>
                 </motion.div>
               </Link>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="p-1 rounded-3xl bg-blue-950/5 ring-1 ring-blue-900/10 shadow-xs"
-              >
-                <div className="rounded-[calc(1.5rem-0.25rem)] bg-white p-4 sm:p-5 flex items-center gap-4 h-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)]">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-800 border border-blue-200/80 flex items-center justify-center shrink-0 shadow-xs">
-                    <Award className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Assigned Classes</p>
-                    <div className="flex items-baseline gap-1.5 mt-0.5">
-                      <span className="text-2xl sm:text-3xl font-black text-blue-900 num-tabular tracking-tight">
-                        {classes.length}
-                      </span>
-                      <span className="text-xs text-gray-600 font-bold">Sections</span>
+            ) : can("classes") ? (
+              <Link href="/teacher/classes" className="block group">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="p-1 rounded-3xl bg-blue-950/5 ring-1 ring-blue-900/10 shadow-xs hover:ring-blue-400/40 transition-all cursor-pointer h-full"
+                >
+                  <div className="rounded-[calc(1.5rem-0.25rem)] bg-white p-4 sm:p-5 flex items-center gap-4 h-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)]">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-800 border border-blue-200/80 flex items-center justify-center shrink-0 shadow-xs">
+                      <Award className="w-6 h-6" />
                     </div>
-                    <p className="text-[10.5px] text-blue-700 font-bold truncate mt-0.5">
-                      Active teaching sessions
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Assigned Classes</p>
+                      <div className="flex items-baseline gap-1.5 mt-0.5">
+                        <span className="text-2xl sm:text-3xl font-black text-blue-900 num-tabular tracking-tight">
+                          {classes.length}
+                        </span>
+                        <span className="text-xs text-gray-600 font-bold">Sections</span>
+                      </div>
+                      <p className="text-[10.5px] text-blue-700 font-bold truncate mt-0.5">
+                        Active teaching sessions
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </Link>
+            ) : (
+              <Link href="/teacher/my-attendance" className="block group">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="p-1 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/10 shadow-xs hover:ring-emerald-400/40 transition-all cursor-pointer h-full"
+                >
+                  <div className="rounded-[calc(1.5rem-0.25rem)] bg-white p-4 sm:p-5 flex items-center gap-4 h-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)]">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 flex items-center justify-center shrink-0 shadow-xs">
+                      <Activity className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Faculty Service</p>
+                      <div className="flex items-baseline gap-1.5 mt-0.5">
+                        <span className="text-xl sm:text-2xl font-black text-emerald-900 num-tabular tracking-tight">
+                          My Attendance
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-emerald-700 font-bold truncate mt-0.5">
+                        Attendance & scan record
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              </Link>
             )}
           </div>
 

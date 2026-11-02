@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
 import {
   ClipboardList,
   Loader2,
@@ -27,6 +28,7 @@ import { toast } from "@/components/ui/toast";
 import { monthName, statusMeta } from "@/lib/takhteet";
 
 export default function TeacherTakhteetPage() {
+  const { data: session } = useSession();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState<{ assignedCount: number; totalCount: number; isShowingAll: boolean }>({
@@ -54,16 +56,6 @@ export default function TeacherTakhteetPage() {
       const res = await fetch(`/api/teacher/takhteet?_t=${Date.now()}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        if (data.data.length === 0) {
-          // If direct teacher assignments are empty, load active Darajah syllabus
-          const fbRes = await fetch(`/api/teacher/takhteet?view=all&_t=${Date.now()}`);
-          const fbData = await fbRes.json();
-          if (fbData.success && Array.isArray(fbData.data) && fbData.data.length > 0) {
-            setPlans(fbData.data);
-            if (fbData.meta) setMeta(fbData.meta);
-            return;
-          }
-        }
         setPlans(data.data);
         if (data.meta) {
           setMeta(data.meta);
@@ -722,26 +714,28 @@ export default function TeacherTakhteetPage() {
                 : "Curriculum portions are displayed only to teachers assigned to the respective subjects and classes. If you teach Darajah subjects, please contact the Academic Administrator to assign your syllabus portions."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setLoading(true);
-                  fetch(`/api/teacher/takhteet?view=all&_t=${Date.now()}`)
-                    .then((r) => r.json())
-                    .then((d) => {
-                      if (d.success && Array.isArray(d.data)) {
-                        setPlans(d.data);
-                        if (d.meta) setMeta(d.meta);
-                      }
-                    })
-                    .finally(() => setLoading(false));
-                }}
-                className="text-xs border-amber-300 bg-amber-50 text-amber-950 font-bold hover:bg-amber-100 rounded-xl"
-              >
-                <BookOpen className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
-                Explore Complete Darajah Syllabus
-              </Button>
+              {session?.user?.role === "ADMIN" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLoading(true);
+                    fetch(`/api/teacher/takhteet?view=all&_t=${Date.now()}`)
+                      .then((r) => r.json())
+                      .then((d) => {
+                        if (d.success && Array.isArray(d.data)) {
+                          setPlans(d.data);
+                          if (d.meta) setMeta(d.meta);
+                        }
+                      })
+                      .finally(() => setLoading(false));
+                  }}
+                  className="text-xs border-amber-300 bg-amber-50 text-amber-950 font-bold hover:bg-amber-100 rounded-xl"
+                >
+                  <BookOpen className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                  Explore Complete Darajah Syllabus
+                </Button>
+              )}
               {hasActiveFilters && (
                 <Button
                   variant="outline"
