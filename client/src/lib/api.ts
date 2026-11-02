@@ -893,8 +893,9 @@ export interface LeaveSmtpStatus {
   };
 }
 
-export async function getAdminLeaveSmtpStatus(): Promise<LeaveSmtpStatus> {
-  const res = await request<{ success: boolean; data: LeaveSmtpStatus }>(`/api/admin/leave/smtp-status`);
+export async function getAdminLeaveSmtpStatus(force = false): Promise<LeaveSmtpStatus> {
+  const query = force ? "?force=true" : "";
+  const res = await request<{ success: boolean; data: LeaveSmtpStatus }>(`/api/admin/leave/smtp-status${query}`);
   return res.data;
 }
 

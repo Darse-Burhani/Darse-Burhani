@@ -2,7 +2,9 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "node:url";
+import { buildSampleTilawatPdf } from "./lib/tilawat-sample-pdf";
 import { loginHandler, sessionHandler, logoutHandler, changePasswordHandler, verify2FaHandler, profileLookupHandler } from "./auth";
 
 import pointsRoutes from "./routes/points";
@@ -250,11 +252,15 @@ export function createApp() {
   app.use("/uploads/tilawat-dua", express.static(tilawatUploadsDir, tilawatPdfStaticOptions));
   app.use("/uploads/tilawat-dua", express.static(path.join(clientPublicUploadsDir, "tilawat-dua"), tilawatPdfStaticOptions));
   app.use("/uploads/tilawat-dua", express.static(path.join(clientDistUploadsDir, "tilawat-dua"), tilawatPdfStaticOptions));
+  app.use("/uploads/tilawat-dua", express.static(path.join(repoRoot, "public", "uploads", "tilawat-dua"), tilawatPdfStaticOptions));
+  app.use("/uploads/tilawat-dua", express.static(path.join(process.cwd(), "public", "uploads", "tilawat-dua"), tilawatPdfStaticOptions));
 
   // General uploads
   app.use("/uploads", express.static(uploadsDir, uploadStaticOptions));
   app.use("/uploads", express.static(clientPublicUploadsDir, uploadStaticOptions));
   app.use("/uploads", express.static(clientDistUploadsDir, uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(repoRoot, "public", "uploads"), uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads"), uploadStaticOptions));
 
   // Serve cmaps and standard_fonts for PDF.js directly from public/dist
   app.use("/cmaps", express.static(path.join(clientPublicDir, "cmaps")));
@@ -273,15 +279,37 @@ export function createApp() {
       path.join(clientPublicUploadsDir, "tilawat-dua", rawFilename),
       path.join(clientDistUploadsDir, "tilawat-dua", decodedFilename),
       path.join(clientDistUploadsDir, "tilawat-dua", rawFilename),
+      path.join(repoRoot, "public", "uploads", "tilawat-dua", decodedFilename),
+      path.join(repoRoot, "public", "uploads", "tilawat-dua", rawFilename),
+      path.join(process.cwd(), "public", "uploads", "tilawat-dua", decodedFilename),
+      path.join(process.cwd(), "public", "uploads", "tilawat-dua", rawFilename),
     ];
     for (const fileCandidate of candidates) {
       if (fs.existsSync(fileCandidate)) {
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "inline");
         res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
-        return res.sendFile(path.resolve(fileCandidate));
+        return res.sendFile(path.resolve(fileCandidate), (err) => {
+          if (err && !res.headersSent) {
+            next(err);
+          }
+        });
       }
     }
+
+    // If default sample PDF is requested but not found on disk, dynamically generate and deliver it
+    if (decodedFilename === "tilawat_daily_sample.pdf" || rawFilename === "tilawat_daily_sample.pdf") {
+      const sampleBuffer = buildSampleTilawatPdf();
+      try {
+        fs.mkdirSync(tilawatUploadsDir, { recursive: true });
+        fs.writeFileSync(path.join(tilawatUploadsDir, "tilawat_daily_sample.pdf"), sampleBuffer);
+      } catch {}
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+      return res.send(sampleBuffer);
+    }
+
     next();
   });
 

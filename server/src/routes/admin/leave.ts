@@ -17,7 +17,7 @@ import {
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { formatLeaveWhatsAppMessage, generateWhatsAppLink } from "../../lib/whatsapp";
-import { getSmtpConfigStatus, testLeaveSmtpConnection, sendTestLeaveEmail } from "../../lib/email";
+import { getSmtpConfigStatus, testLeaveSmtpConnection, sendTestLeaveEmail, invalidateSmtpTestCache } from "../../lib/email";
 
 const router = Router();
 
@@ -814,10 +814,27 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/admin/leave/smtp-status — Live email configuration & connectivity status
-router.get("/smtp-status", requireRole("ADMIN"), async (_req, res) => {
+router.get("/smtp-status", requireRole("ADMIN"), async (req, res) => {
   try {
     const config = getSmtpConfigStatus();
-    const live = await testLeaveSmtpConnection();
+    // Fast path: if not configured at all, skip outbound network calls completely
+    if (!config.configured) {
+      return res.json({
+        success: true,
+        data: {
+          config,
+          live: {
+            ok: false,
+            transportType: "none",
+            mailbox: config.adminMailbox,
+            error: "No SMTP credentials configured. Set LEAVE_SMTP_PASS in environment variables.",
+          },
+        },
+      });
+    }
+
+    const force = req.query.force === "true";
+    const live = await testLeaveSmtpConnection(force);
     return res.json({
       success: true,
       data: {
@@ -834,6 +851,7 @@ router.get("/smtp-status", requireRole("ADMIN"), async (_req, res) => {
 // POST /api/admin/leave/test-email — Dispatch a real test leave notification email
 router.post("/test-email", requireRole("ADMIN"), async (req, res) => {
   try {
+    invalidateSmtpTestCache();
     const target = typeof req.body?.to === "string" ? req.body.to.trim() : undefined;
     const result = await sendTestLeaveEmail(target);
     if (!result.success) {

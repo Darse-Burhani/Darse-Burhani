@@ -72,9 +72,9 @@ export default function AdminLeavePage() {
   const [testTargetEmail, setTestTargetEmail] = useState("");
   const [smtpFeedback, setSmtpFeedback] = useState<{ success: boolean; message: string; details?: string } | null>(null);
 
-  const loadSmtpStatus = useCallback(async () => {
+  const loadSmtpStatus = useCallback(async (force = false) => {
     try {
-      const data = await getAdminLeaveSmtpStatus();
+      const data = await getAdminLeaveSmtpStatus(force);
       setSmtpStatus(data);
       if (!testTargetEmail && data?.config?.adminMailbox) {
         setTestTargetEmail(data.config.adminMailbox);
@@ -85,7 +85,7 @@ export default function AdminLeavePage() {
   }, [testTargetEmail]);
 
   useEffect(() => {
-    loadSmtpStatus();
+    loadSmtpStatus(false);
   }, [loadSmtpStatus]);
 
   const handleTestEmail = async () => {
@@ -98,7 +98,7 @@ export default function AdminLeavePage() {
         success: true,
         message: res.message || "Test email sent successfully! Please check the inbox and spam folder.",
       });
-      await loadSmtpStatus();
+      await loadSmtpStatus(true);
     } catch (err: any) {
       setSmtpFeedback({
         success: false,

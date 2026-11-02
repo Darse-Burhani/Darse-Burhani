@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
+import { buildSampleTilawatPdf } from "./tilawat-sample-pdf";
 
 let cachedRepoRoot: string | null = null;
 
@@ -90,6 +91,23 @@ try {
   fs.mkdirSync(clientPublicTilawatDir, { recursive: true });
   fs.mkdirSync(clientDistUploadsDir, { recursive: true });
   fs.mkdirSync(clientDistTilawatDir, { recursive: true });
+
+  // Guarantee sample Tilawat Dua PDF is present across all upload targets
+  const sampleName = "tilawat_daily_sample.pdf";
+  const sampleTargets = [
+    path.join(tilawatUploadsDir, sampleName),
+    path.join(clientPublicTilawatDir, sampleName),
+    path.join(clientDistTilawatDir, sampleName),
+  ];
+  let sampleBuffer: Buffer | null = null;
+  for (const targetPath of sampleTargets) {
+    if (!fs.existsSync(targetPath)) {
+      if (!sampleBuffer) sampleBuffer = buildSampleTilawatPdf();
+      try {
+        fs.writeFileSync(targetPath, sampleBuffer);
+      } catch {}
+    }
+  }
 } catch (err) {
   console.warn("[paths] Warning ensuring upload directories:", err);
 }

@@ -862,8 +862,9 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
 
   // Notify Parent(s) outside the website (browser push)
   const parentContacts = await getParentContacts(leave.studentId);
+  const parentContactUserIds = parentContacts.map((c) => c.userId).filter((id): id is string => Boolean(id));
   await sendPushToUsers(
-    [leave.student.userId, ...parentUserIds, ...parentContacts.map((c) => c.userId)],
+    [leave.student.userId, ...parentUserIds, ...parentContactUserIds],
     {
       title: decisionTitle,
       body: `${approvedStudentName} · ${decisionSummary}`,
@@ -1024,9 +1025,10 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
     ? `${reviewer.firstName} ${reviewer.lastName}`.trim()
     : null;
   const parentContacts = await getParentContacts(leave.studentId);
+  const parentContactUserIds = parentContacts.map((c) => c.userId).filter((id): id is string => Boolean(id));
 
   await sendPushToUsers(
-    [leave.student.userId, ...rejectedParentUserIds, ...parentContacts.map((c) => c.userId)],
+    [leave.student.userId, ...rejectedParentUserIds, ...parentContactUserIds],
     {
       title: "Leave Request Not Approved",
       body: `${rejectedStudentName} · ${formatUtcDate(leave.startDate)} – ${formatUtcDate(leave.endDate)}`,
@@ -1183,10 +1185,11 @@ export async function holdLeaveRequest(input: ReviewLeaveInput) {
     ? `${reviewer.firstName} ${reviewer.lastName}`.trim()
     : null;
   const parentContacts = await getParentContacts(leave.studentId);
+  const parentContactUserIds = parentContacts.map((c) => c.userId).filter((id): id is string => Boolean(id));
 
   // Browser push notification
   await sendPushToUsers(
-    [leave.student.userId, ...parentUserIds, ...parentContacts.map((c) => c.userId)],
+    [leave.student.userId, ...parentUserIds, ...parentContactUserIds],
     {
       title: "Leave Application Placed On Hold",
       body: `${holdStudentName} · ${formatUtcDate(leave.startDate)} – ${formatUtcDate(leave.endDate)} · On Hold`,

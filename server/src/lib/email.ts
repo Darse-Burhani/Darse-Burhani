@@ -325,28 +325,70 @@ export async function sendLeaveEmail(options: SendEmailOptions): Promise<boolean
   return result.success;
 }
 
+let cachedSmtpResult: { result: SmtpTestResult; expiresAt: number } | null = null;
+
+export function invalidateSmtpTestCache(): void {
+  cachedSmtpResult = null;
+}
+
+/**
+ * Executes transporter.verify() with a strict timeout to avoid holding HTTP threads
+ * and prevent 504 Gateway Timeouts when outbound SMTP ports are blocked or slow.
+ */
+function verifyWithStrictTimeout(transporter: any, timeoutMs = 3000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`SMTP connection timed out after ${timeoutMs}ms (outbound port blocked or host unreachable)`));
+    }, timeoutMs);
+
+    transporter
+      .verify()
+      .then((res: any) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err: any) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 /**
  * Verifies live SMTP connectivity without sending a message.
+ * Cached for 60 seconds unless force=true to guarantee fast sub-second page loads.
  */
-export async function testLeaveSmtpConnection(): Promise<SmtpTestResult> {
+export async function testLeaveSmtpConnection(force = false): Promise<SmtpTestResult> {
+  const now = Date.now();
+  if (!force && cachedSmtpResult && cachedSmtpResult.expiresAt > now) {
+    return cachedSmtpResult.result;
+  }
+
+  let result: SmtpTestResult;
+
   const leaveTransport = getLeaveTransporter();
   if (leaveTransport) {
     const user = cleanEmail(process.env.LEAVE_SMTP_USER || "admin.galiakot@darseburhani.org");
     try {
-      await leaveTransport.verify();
-      return {
+      await verifyWithStrictTimeout(leaveTransport, 3000);
+      result = {
         ok: true,
         mailbox: user,
         transportType: "dedicated_leave",
         message: `Connected successfully to Google SMTP as ${user}`,
       };
+      cachedSmtpResult = { result, expiresAt: now + 60_000 };
+      return result;
     } catch (err: any) {
-      return {
+      result = {
         ok: false,
         mailbox: user,
         transportType: "dedicated_leave",
         error: err?.message || String(err),
       };
+      // Cache failed attempts for 30s to avoid spamming unreachable SMTP on rapid reloads
+      cachedSmtpResult = { result, expiresAt: now + 30_000 };
+      return result;
     }
   }
 
@@ -354,20 +396,24 @@ export async function testLeaveSmtpConnection(): Promise<SmtpTestResult> {
   if (primaryTransport) {
     const user = cleanEmail(process.env.SMTP_USER || "");
     try {
-      await primaryTransport.verify();
-      return {
+      await verifyWithStrictTimeout(primaryTransport, 3000);
+      result = {
         ok: true,
         mailbox: user,
         transportType: "primary",
         message: `Connected successfully to Primary SMTP as ${user}`,
       };
+      cachedSmtpResult = { result, expiresAt: now + 60_000 };
+      return result;
     } catch (err: any) {
-      return {
+      result = {
         ok: false,
         mailbox: user,
         transportType: "primary",
         error: err?.message || String(err),
       };
+      cachedSmtpResult = { result, expiresAt: now + 30_000 };
+      return result;
     }
   }
 
@@ -375,29 +421,35 @@ export async function testLeaveSmtpConnection(): Promise<SmtpTestResult> {
   if (fallbackTransport) {
     const user = cleanEmail(process.env.OUTLOOK_USER || "");
     try {
-      await fallbackTransport.verify();
-      return {
+      await verifyWithStrictTimeout(fallbackTransport, 3000);
+      result = {
         ok: true,
         mailbox: user,
         transportType: "outlook",
         message: `Connected successfully to Outlook SMTP as ${user}`,
       };
+      cachedSmtpResult = { result, expiresAt: now + 60_000 };
+      return result;
     } catch (err: any) {
-      return {
+      result = {
         ok: false,
         mailbox: user,
         transportType: "outlook",
         error: err?.message || String(err),
       };
+      cachedSmtpResult = { result, expiresAt: now + 30_000 };
+      return result;
     }
   }
 
-  return {
+  result = {
     ok: false,
     mailbox: cleanEmail(process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org"),
     transportType: "none",
-    error: "No SMTP credentials configured. Set LEAVE_SMTP_PASS in Render Environment Variables with your 16-character Google App Password.",
+    error: "No SMTP credentials configured. Set LEAVE_SMTP_PASS in environment variables.",
   };
+  cachedSmtpResult = { result, expiresAt: now + 60_000 };
+  return result;
 }
 
 /**
