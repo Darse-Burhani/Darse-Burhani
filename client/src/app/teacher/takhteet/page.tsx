@@ -11,7 +11,6 @@ import {
   History,
   AlertTriangle,
   Search,
-  Filter,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -21,14 +20,12 @@ import {
   BookOpen,
   CheckSquare,
   Square,
-  Layers,
   LayoutGrid,
   Calendar,
   ChevronDown,
   ChevronUp,
   MessageSquare,
   FastForward,
-  Check,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +38,7 @@ export default function TeacherTakhteetPage() {
   const { data: session } = useSession();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [meta, setMeta] = useState<{ assignedCount: number; totalCount: number; isShowingAll: boolean }>({
+  const [syllabusMeta, setSyllabusMeta] = useState<{ assignedCount: number; totalCount: number; isShowingAll: boolean }>({
     assignedCount: 0,
     totalCount: 0,
     isShowingAll: false,
@@ -76,7 +73,7 @@ export default function TeacherTakhteetPage() {
       if (data.success && Array.isArray(data.data)) {
         setPlans(data.data);
         if (data.meta) {
-          setMeta(data.meta);
+          setSyllabusMeta(data.meta);
         }
       }
     } catch {
@@ -499,11 +496,16 @@ export default function TeacherTakhteetPage() {
 
         {/* ── Assigned Portions Info Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center gap-2 px-1">
+          <div className="flex items-center gap-2 px-1 flex-wrap">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-gray-900 dark:text-white">
               Assigned Curriculum Portions ({plans.length})
             </span>
+            {syllabusMeta.totalCount > 0 && syllabusMeta.totalCount !== plans.length && (
+              <Badge variant="outline" className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 border-emerald-200">
+                {syllabusMeta.assignedCount} of {syllabusMeta.totalCount} School Portions
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-gray-500 font-medium px-1">
             Displaying only curriculum portions officially assigned to your subjects and classes.
@@ -799,7 +801,7 @@ export default function TeacherTakhteetPage() {
             {/* ── Helper Plan Card Component ── */}
             {(() => {
               const renderPlanCard = (p: any, i: number) => {
-                const meta = statusMeta(p.status);
+                const statusInfo = statusMeta(p.status);
                 const overdue = p.month && p.month < currentMonth && p.status !== "COMPLETED";
                 const due = p.month === currentMonth && p.status !== "COMPLETED";
                 const isQuickBusy = quickUpdatingId === p.id;
@@ -847,8 +849,8 @@ export default function TeacherTakhteetPage() {
                               <Badge variant="outline" className="text-xs font-semibold bg-emerald-50 text-emerald-800 border-emerald-200">
                                 {p.subject}
                               </Badge>
-                              <Badge className={`text-xs border ${meta.badge}`}>
-                                {meta.label}
+                              <Badge className={`text-xs border ${statusInfo.badge}`}>
+                                {statusInfo.label}
                               </Badge>
                               {overdue && (
                                 <Badge variant="destructive" className="text-xs flex items-center gap-1 font-semibold">
@@ -920,7 +922,7 @@ export default function TeacherTakhteetPage() {
                               title="Click anywhere to jump to percentage"
                             >
                               <div
-                                className={`h-full rounded-full ${meta.bar} transition-all duration-300`}
+                                className={`h-full rounded-full ${statusInfo.bar} transition-all duration-300`}
                                 style={{ width: `${p.progress}%` }}
                               />
                               {/* Milestone tick marks at 25%, 50%, 75% */}
@@ -1088,12 +1090,12 @@ export default function TeacherTakhteetPage() {
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shadow-2xs ${
                                   isCurrent ? "bg-amber-400 text-amber-950 ring-2 ring-amber-300/60" : "bg-emerald-100 text-emerald-800"
                                 }`}>
-                                  M{monthNum}
+                                  {monthNum === 0 ? "All" : `M${monthNum}`}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                                      Month {monthNum} ({monthName(monthNum)})
+                                      {monthNum === 0 ? "Full Academic Year / General" : `Month ${monthNum} (${monthName(monthNum)})`}
                                     </h4>
                                     {isCurrent && (
                                       <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
@@ -1202,7 +1204,7 @@ export default function TeacherTakhteetPage() {
                       .then((d) => {
                         if (d.success && Array.isArray(d.data)) {
                           setPlans(d.data);
-                          if (d.meta) setMeta(d.meta);
+                          if (d.meta) setSyllabusMeta(d.meta);
                         }
                       })
                       .finally(() => setLoading(false));

@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Pencil,
   CheckCircle2,
   Clock,
   Sparkles,
@@ -11,7 +10,6 @@ import {
   History,
   BookOpen,
   Calendar,
-  Layers,
   Minus,
   Plus,
   Loader2,
@@ -20,7 +18,7 @@ import {
   ChevronUp,
   Award,
 } from "lucide-react";
-import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
+import { Modal, ModalContent, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { monthName } from "@/lib/takhteet";
@@ -218,6 +216,11 @@ export function TakhteetUpdateModal({
                     >
                       <TrendingUp className={`w-3 h-3 ${delta < 0 ? "rotate-180" : ""}`} />
                       {delta > 0 ? `+${delta}%` : `${delta}%`}
+                    </span>
+                  )}
+                  {hasCelebrated && progress >= 100 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                      <Sparkles className="w-3 h-3 text-amber-500" /> Complete!
                     </span>
                   )}
                 </div>
