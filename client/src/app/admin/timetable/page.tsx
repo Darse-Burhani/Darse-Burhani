@@ -3486,6 +3486,34 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                 )}
                                 <span className="text-[10px] text-slate-400 ml-1">• {t.badalCount || 0} Badals taken</span>
                               </div>
+
+                              {/* Interactive Daily 8-Period Schedule Bar */}
+                              {t.daySchedule && (
+                                <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center gap-1 flex-wrap">
+                                  <span className="text-[9px] font-bold text-slate-400 mr-0.5 uppercase tracking-wider">Schedule:</span>
+                                  {[1, 2, 3, 4, 5, 6, 7, 8].map((pNum) => {
+                                    const teaching = t.daySchedule?.[pNum];
+                                    const isTargetPeriod = pNum === badalForm.period;
+                                    return (
+                                      <div
+                                        key={pNum}
+                                        title={`Period ${pNum}: ${teaching ? teaching : "Free"}${isTargetPeriod ? " (Assigning this session)" : ""}`}
+                                        className={`h-4 min-w-[20px] px-1 rounded text-[8.5px] font-black flex items-center justify-center transition-all hover:scale-110 cursor-help ${
+                                          isTargetPeriod
+                                            ? teaching
+                                              ? "bg-rose-500 text-white ring-2 ring-amber-400 shadow-xs"
+                                              : "bg-emerald-500 text-white ring-2 ring-amber-400 shadow-xs font-black"
+                                            : teaching
+                                            ? "bg-slate-200 text-slate-700"
+                                            : "bg-emerald-100 text-emerald-800"
+                                        }`}
+                                      >
+                                        P{pNum}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                           </div>
                           {isChosen && <Check className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />}

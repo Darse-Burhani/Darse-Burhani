@@ -295,4 +295,117 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
   }
 });
 
+// PUT /api/teacher/takhteet/batch-progress - Batch update multiple portions
+router.put("/batch-progress", requireRole("TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
+    const teacherProfile = await prisma.teacherProfile.findUnique({
+      where: { userId: session.user.id },
+    });
+    if (!teacherProfile && !isAdmin) {
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    }
+
+    const { planIds, progress, status, note } = req.body as {
+      planIds: string[];
+      progress?: number;
+      status?: string;
+      note?: string;
+    };
+
+    if (!Array.isArray(planIds) || planIds.length === 0) {
+      return res.status(400).json({ success: false, error: "planIds array is required" });
+    }
+
+    const plans = await prisma.takhteetPlan.findMany({
+      where: { id: { in: planIds } },
+    });
+
+    const authorizedPlans: typeof plans = [];
+
+    if (isAdmin) {
+      authorizedPlans.push(...plans);
+    } else {
+      const [slots, classes] = await Promise.all([
+        prisma.timetableSlot.findMany({
+          where: { teacherId: teacherProfile!.id },
+          select: { classId: true, subject: true },
+        }),
+        prisma.class.findMany({
+          where: { teacherId: teacherProfile!.id },
+          select: { id: true, subject: true },
+        }),
+      ]);
+
+      const allowedPairs = new Set<string>();
+      for (const s of slots) {
+        if (s.classId && s.subject) allowedPairs.add(`${s.classId}:${s.subject.toLowerCase()}`);
+      }
+      for (const c of classes) {
+        if (c.id && c.subject) allowedPairs.add(`${c.id}:${c.subject.toLowerCase()}`);
+      }
+
+      for (const p of plans) {
+        const isOwner = p.teacherId === teacherProfile!.id;
+        const key = `${p.classId}:${p.subject.toLowerCase()}`;
+        if (isOwner || allowedPairs.has(key)) {
+          authorizedPlans.push(p);
+        }
+      }
+    }
+
+    if (authorizedPlans.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: "No authorized portions found in selection to update.",
+      });
+    }
+
+    const newProgress = progress !== undefined ? Math.max(0, Math.min(100, progress)) : undefined;
+    const newStatus = status ? (status as any) : undefined;
+
+    const updateData: any = {};
+    if (newProgress !== undefined) updateData.progress = newProgress;
+    if (newStatus !== undefined) {
+      updateData.status = newStatus;
+      if (newStatus === "COMPLETED") updateData.completedAt = new Date();
+      else if (newProgress !== undefined && newProgress < 100) updateData.completedAt = null;
+    }
+    if (teacherProfile && !isAdmin) {
+      updateData.teacherId = teacherProfile.id;
+    }
+
+    await prisma.takhteetPlan.updateMany({
+      where: { id: { in: authorizedPlans.map((p) => p.id) } },
+      data: updateData,
+    });
+
+    if (teacherProfile) {
+      await prisma.takhteetProgressLog.createMany({
+        data: authorizedPlans.map((p) => ({
+          planId: p.id,
+          teacherId: teacherProfile.id,
+          note: note || `Batch progress update (${authorizedPlans.length} portions)`,
+          progressBefore: p.progress,
+          progressAfter: newProgress !== undefined ? newProgress : p.progress,
+          status: newStatus || p.status,
+        })),
+      });
+    }
+
+    cache.invalidateTag("takhteet");
+    return res.json({
+      success: true,
+      data: {
+        updatedCount: authorizedPlans.length,
+        skippedCount: plans.length - authorizedPlans.length,
+      },
+    });
+  } catch (error) {
+    console.error("Batch takhteet progress error:", error);
+    return res.status(500).json({ success: false, error: "Failed to batch update progress" });
+  }
+});
+
 export default router;

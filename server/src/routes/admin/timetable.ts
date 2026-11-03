@@ -1020,6 +1020,24 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
       }
     }
 
+    // 1b. Fetch all timetable slots for this day to generate interactive period availability bar
+    const dayAllSlots = await prisma.timetableSlot.findMany({
+      where: {
+        dayOfWeek: dow,
+        teacherId: { not: null },
+      },
+      select: { teacherId: true, period: true, className: true, subject: true },
+    });
+    const teacherDayScheduleMap = new Map<string, Map<number, string>>();
+    for (const s of dayAllSlots) {
+      if (s.teacherId) {
+        if (!teacherDayScheduleMap.has(s.teacherId)) {
+          teacherDayScheduleMap.set(s.teacherId, new Map());
+        }
+        teacherDayScheduleMap.get(s.teacherId)!.set(s.period, `Class ${s.className || ""} (${s.subject})`);
+      }
+    }
+
     // 2. Find teachers already assigned as Badal in this period on this date
     const busyBadals = await prisma.timetableBadal.findMany({
       where: {
@@ -1118,6 +1136,12 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           )
         );
 
+        const periodSchedule: Record<number, string | null> = {};
+        const teacherSchedule = teacherDayScheduleMap.get(t.id);
+        for (let periodNum = 1; periodNum <= 8; periodNum++) {
+          periodSchedule[periodNum] = teacherSchedule?.get(periodNum) || null;
+        }
+
         return {
           id: t.id,
           name: substituteDisplay.name || "Teacher",
@@ -1132,6 +1156,7 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           isOnLeave,
           leaveReason: onLeaveReason || null,
           teachesSubject,
+          daySchedule: periodSchedule,
         };
       })
       .sort((a, b) => {

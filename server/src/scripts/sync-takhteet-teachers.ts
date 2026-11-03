@@ -88,3 +88,4 @@ main()
     console.error("Sync error:", e);
     process.exit(1);
   });
+
