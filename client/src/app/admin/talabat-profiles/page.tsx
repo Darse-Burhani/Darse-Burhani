@@ -25,8 +25,21 @@ import {
   ZoomIn,
   AlertCircle,
   RefreshCw,
+  Plus,
+  Trash2,
+  Save,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
+
+const normalizeImgSrc = (url?: string | null): string => {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  return "/" + trimmed;
+};
 
 interface StudentListItem {
   studentId: string;
@@ -91,9 +104,14 @@ export default function AdminTalabatProfilesPage() {
   const [counsellingNotes, setCounsellingNotes] = useState<string>("");
 
   const [savingRemarks, setSavingRemarks] = useState(false);
-  const [modalViewTab, setModalViewTab] = useState<"fill" | "document">("fill");
+  const [modalViewTab, setModalViewTab] = useState<"fill" | "edit-profile" | "document">("fill");
+  const [adminReviewStatus, setAdminReviewStatus] = useState<string>("REVIEWED");
   const [showStudentDetailsAbove, setShowStudentDetailsAbove] = useState(true);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Full admin editing state
+  const [savingAdminProfile, setSavingAdminProfile] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState<Partial<TalabatProfileData>>({});
 
   // Real-time synchronization state
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
@@ -142,7 +160,7 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
-  const openStudentModal = async (studentId: string, defaultTab: "fill" | "document" = "fill") => {
+  const openStudentModal = async (studentId: string, defaultTab: "fill" | "edit-profile" | "document" = "fill") => {
     setSelectedStudentId(studentId);
     setModalLoading(true);
     setFeedbackMsg(null);
@@ -154,6 +172,12 @@ export default function AdminTalabatProfilesPage() {
       if (data.success && data.profile) {
         const p = data.profile;
         setActiveProfile(p);
+        setEditProfileForm({
+          ...p,
+          strengths: Array.isArray(p.strengths) ? [...p.strengths] : ["", "", ""],
+          weaknesses: Array.isArray(p.weaknesses) ? [...p.weaknesses] : ["", "", ""],
+        });
+        setAdminReviewStatus(p.status || "REVIEWED");
         setReviewerName(data.reviewerName || null);
         setBehaviourRating(p.behaviourRating || 5);
         setCommunicationRating(p.communicationRating || 5);
@@ -192,6 +216,7 @@ export default function AdminTalabatProfilesPage() {
           communicationRating,
           dedicationRating,
           disciplineRating,
+          status: adminReviewStatus,
           remarksMasool,
           remarksTahfeez,
           remarksTaleem,
@@ -208,7 +233,7 @@ export default function AdminTalabatProfilesPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setFeedbackMsg({ type: "success", text: "Remarks and ratings saved successfully!" });
+        setFeedbackMsg({ type: "success", text: "Remarks, status, and ratings saved successfully!" });
         if (activeProfile) {
           setActiveProfile({
             ...activeProfile,
@@ -228,7 +253,7 @@ export default function AdminTalabatProfilesPage() {
             remarksCounselling,
             counsellingNotes,
             masoolRemarks: remarksMasool,
-            status: "REVIEWED",
+            status: adminReviewStatus,
           });
         }
         // Optimistic update in students list immediately for real-time KPI reflection
@@ -237,7 +262,7 @@ export default function AdminTalabatProfilesPage() {
             s.studentId === selectedStudentId
               ? {
                   ...s,
-                  status: "REVIEWED",
+                  status: adminReviewStatus,
                   ratings: {
                     behaviour: behaviourRating,
                     communication: communicationRating,
@@ -258,6 +283,98 @@ export default function AdminTalabatProfilesPage() {
     } finally {
       setSavingRemarks(false);
     }
+  };
+
+  const handleSaveAdminProfile = async () => {
+    if (!selectedStudentId) return;
+    try {
+      setSavingAdminProfile(true);
+      setFeedbackMsg(null);
+      const res = await fetch(`/api/talabat-profile/admin/profile/${selectedStudentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editProfileForm),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setFeedbackMsg({ type: "success", text: "Student profile report updated and saved successfully!" });
+        setActiveProfile(data.data);
+        setEditProfileForm({
+          ...data.data,
+          strengths: Array.isArray(data.data.strengths) ? [...data.data.strengths] : ["", "", ""],
+          weaknesses: Array.isArray(data.data.weaknesses) ? [...data.data.weaknesses] : ["", "", ""],
+        });
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.studentId === selectedStudentId
+              ? {
+                  ...s,
+                  name: data.data.name || s.name,
+                  its: data.data.itsNo || s.its,
+                  status: data.data.status || s.status,
+                  studentPhotoUrl: data.data.studentPhotoUrl || s.studentPhotoUrl,
+                  fatherPhotoUrl: data.data.fatherPhotoUrl || s.fatherPhotoUrl,
+                  motherPhotoUrl: data.data.motherPhotoUrl || s.motherPhotoUrl,
+                  hasStudentPhoto: !!(data.data.studentPhotoUrl || s.studentPhotoUrl),
+                  hasFatherPhoto: !!data.data.fatherPhotoUrl,
+                  hasMotherPhoto: !!data.data.motherPhotoUrl,
+                }
+              : s
+          )
+        );
+        fetchList(true);
+      } else {
+        setFeedbackMsg({ type: "error", text: data.error || "Failed to save profile changes" });
+      }
+    } catch (err: any) {
+      setFeedbackMsg({ type: "error", text: err.message || "Network error" });
+    } finally {
+      setSavingAdminProfile(false);
+    }
+  };
+
+  const addEditStrength = () => {
+    setEditProfileForm((prev) => ({
+      ...prev,
+      strengths: [...(prev.strengths || []), ""],
+    }));
+  };
+
+  const removeEditStrength = (index: number) => {
+    setEditProfileForm((prev) => ({
+      ...prev,
+      strengths: (prev.strengths || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateEditStrength = (index: number, val: string) => {
+    setEditProfileForm((prev) => {
+      const list = [...(prev.strengths || [])];
+      list[index] = val;
+      return { ...prev, strengths: list };
+    });
+  };
+
+  const addEditWeakness = () => {
+    setEditProfileForm((prev) => ({
+      ...prev,
+      weaknesses: [...(prev.weaknesses || []), ""],
+    }));
+  };
+
+  const removeEditWeakness = (index: number) => {
+    setEditProfileForm((prev) => ({
+      ...prev,
+      weaknesses: (prev.weaknesses || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateEditWeakness = (index: number, val: string) => {
+    setEditProfileForm((prev) => {
+      const list = [...(prev.weaknesses || [])];
+      list[index] = val;
+      return { ...prev, weaknesses: list };
+    });
   };
 
   const handleAdminPhotoUpload = async (
@@ -652,7 +769,7 @@ export default function AdminTalabatProfilesPage() {
                       <div className="flex items-center gap-3">
                         {s.avatarUrl || s.studentPhotoUrl ? (
                           <img
-                            src={s.studentPhotoUrl || s.avatarUrl!}
+                            src={normalizeImgSrc(s.studentPhotoUrl || s.avatarUrl)}
                             alt={s.name}
                             className="w-10 h-10 rounded-full object-cover border border-slate-200"
                           />
@@ -694,11 +811,11 @@ export default function AdminTalabatProfilesPage() {
                         <div
                           className="relative cursor-pointer group"
                           title={s.studentPhotoUrl ? "Talib Photo Uploaded (Click to view)" : "Talib Photo Missing"}
-                          onClick={() => s.studentPhotoUrl && setLightboxImg({ url: s.studentPhotoUrl, title: `${s.name} (Student)` })}
+                          onClick={() => s.studentPhotoUrl && setLightboxImg({ url: normalizeImgSrc(s.studentPhotoUrl), title: `${s.name} (Student)` })}
                         >
                           {s.studentPhotoUrl ? (
                             <img
-                              src={s.studentPhotoUrl}
+                              src={normalizeImgSrc(s.studentPhotoUrl)}
                               alt="Talib"
                               className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
@@ -719,10 +836,10 @@ export default function AdminTalabatProfilesPage() {
                           <div
                             className="relative cursor-pointer group"
                             title="Father Photo Uploaded (Click to view full size)"
-                            onClick={() => setLightboxImg({ url: s.fatherPhotoUrl!, title: `${s.name}'s Father` })}
+                            onClick={() => setLightboxImg({ url: normalizeImgSrc(s.fatherPhotoUrl), title: `${s.name}'s Father` })}
                           >
                             <img
-                              src={s.fatherPhotoUrl}
+                              src={normalizeImgSrc(s.fatherPhotoUrl)}
                               alt="Father"
                               className="w-7 h-7 rounded-full object-cover border-2 border-blue-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
@@ -752,10 +869,10 @@ export default function AdminTalabatProfilesPage() {
                           <div
                             className="relative cursor-pointer group"
                             title="Mother Photo Uploaded (Click to view full size)"
-                            onClick={() => setLightboxImg({ url: s.motherPhotoUrl!, title: `${s.name}'s Mother` })}
+                            onClick={() => setLightboxImg({ url: normalizeImgSrc(s.motherPhotoUrl), title: `${s.name}'s Mother` })}
                           >
                             <img
-                              src={s.motherPhotoUrl}
+                              src={normalizeImgSrc(s.motherPhotoUrl)}
                               alt="Mother"
                               className="w-7 h-7 rounded-full object-cover border-2 border-purple-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
@@ -876,18 +993,26 @@ export default function AdminTalabatProfilesPage() {
                   <button
                     onClick={() => setModalViewTab("fill")}
                     className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      modalViewTab === "fill" ? "bg-[#1c1c1c] text-white" : "text-slate-300 hover:text-white"
+                      modalViewTab === "fill" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-300 hover:text-white"
                     }`}
                   >
-                    📝 Remarks Form
+                    📝 Remarks &amp; Ratings
+                  </button>
+                  <button
+                    onClick={() => setModalViewTab("edit-profile")}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      modalViewTab === "edit-profile" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    ✏️ Edit Profile Details
                   </button>
                   <button
                     onClick={() => setModalViewTab("document")}
                     className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      modalViewTab === "document" ? "bg-[#1c1c1c] text-white" : "text-slate-300 hover:text-white"
+                      modalViewTab === "document" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-300 hover:text-white"
                     }`}
                   >
-                    👁️ Document &amp; Print View
+                    👁️ Document &amp; Print
                   </button>
                 </div>
 
@@ -910,6 +1035,562 @@ export default function AdminTalabatProfilesPage() {
               ) : activeProfile ? (
                 modalViewTab === "document" ? (
                   <TalabatProfileDocument data={activeProfile} showPrintButton={true} />
+                ) : modalViewTab === "edit-profile" ? (
+                  <div className="space-y-6 max-w-4xl mx-auto">
+                    {/* Admin Profile Details Editor Header */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                          <Edit3 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm sm:text-base">
+                            Administrative Record &amp; Profile Editor (1447 H)
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            Directly edit and correct student identity, family details, academic scores, and self-assessment.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-700">Status:</label>
+                        <select
+                          value={editProfileForm.status || "SUBMITTED"}
+                          onChange={(e) => setEditProfileForm((prev) => ({ ...prev, status: e.target.value }))}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                        >
+                          <option value="DRAFT">Draft</option>
+                          <option value="SUBMITTED">Submitted</option>
+                          <option value="REVIEWED">Reviewed</option>
+                          <option value="APPROVED">Approved</option>
+                          <option value="NEEDS_REVISION">Needs Revision</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {feedbackMsg && (
+                      <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                        feedbackMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-rose-50 text-rose-800 border border-rose-200"
+                      }`}>
+                        <CheckCircle2 className="w-4 h-4" />
+                        {feedbackMsg.text}
+                      </div>
+                    )}
+
+                    {/* Section 1: Photos Management */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Camera className="w-4 h-4 text-[#1c1c1c]" />
+                          1. Passport Photographs (3-Photo Verification)
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Student, Father &amp; Mother photos required
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Student Photo */}
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center text-center">
+                          <span className="text-xs font-bold text-slate-800 mb-2">Talib / Student</span>
+                          <div
+                            className="w-24 h-32 rounded-lg overflow-hidden border border-slate-300 relative bg-white flex items-center justify-center cursor-pointer mb-2"
+                            onClick={() =>
+                              editProfileForm.studentPhotoUrl &&
+                              setLightboxImg({
+                                url: normalizeImgSrc(editProfileForm.studentPhotoUrl),
+                                title: `${editProfileForm.name || "Student"} - Photo`,
+                              })
+                            }
+                          >
+                            {editProfileForm.studentPhotoUrl ? (
+                              <img
+                                src={normalizeImgSrc(editProfileForm.studentPhotoUrl)}
+                                alt="Student"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-slate-400 text-[10px]">No Photo</div>
+                            )}
+                          </div>
+                          <label className="w-full py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer border border-slate-300 transition-colors flex items-center justify-center gap-1">
+                            <Upload className="w-3.5 h-3.5 text-[#1c1c1c]" />
+                            {uploadingAdminPhoto === "studentPhotoUrl" ? "Uploading..." : "Upload Photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingAdminPhoto === "studentPhotoUrl"}
+                              onChange={(e) => handleAdminPhotoUpload(e, "studentPhotoUrl")}
+                            />
+                          </label>
+                        </div>
+
+                        {/* Father Photo */}
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center text-center">
+                          <span className="text-xs font-bold text-blue-900 mb-2">Father / الوالد</span>
+                          <div
+                            className="w-24 h-32 rounded-lg overflow-hidden border border-slate-300 relative bg-white flex items-center justify-center cursor-pointer mb-2"
+                            onClick={() =>
+                              editProfileForm.fatherPhotoUrl &&
+                              setLightboxImg({
+                                url: normalizeImgSrc(editProfileForm.fatherPhotoUrl),
+                                title: `${editProfileForm.fatherName || "Father"} - Photo`,
+                              })
+                            }
+                          >
+                            {editProfileForm.fatherPhotoUrl ? (
+                              <img
+                                src={normalizeImgSrc(editProfileForm.fatherPhotoUrl)}
+                                alt="Father"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-slate-400 text-[10px]">No Photo</div>
+                            )}
+                          </div>
+                          <label className="w-full py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer border border-slate-300 transition-colors flex items-center justify-center gap-1">
+                            <Upload className="w-3.5 h-3.5 text-[#1c1c1c]" />
+                            {uploadingAdminPhoto === "fatherPhotoUrl" ? "Uploading..." : "Upload Photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingAdminPhoto === "fatherPhotoUrl"}
+                              onChange={(e) => handleAdminPhotoUpload(e, "fatherPhotoUrl")}
+                            />
+                          </label>
+                        </div>
+
+                        {/* Mother Photo */}
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center text-center">
+                          <span className="text-xs font-bold text-purple-900 mb-2">Mother / الوالدة</span>
+                          <div
+                            className="w-24 h-32 rounded-lg overflow-hidden border border-slate-300 relative bg-white flex items-center justify-center cursor-pointer mb-2"
+                            onClick={() =>
+                              editProfileForm.motherPhotoUrl &&
+                              setLightboxImg({
+                                url: normalizeImgSrc(editProfileForm.motherPhotoUrl),
+                                title: `${editProfileForm.motherName || "Mother"} - Photo`,
+                              })
+                            }
+                          >
+                            {editProfileForm.motherPhotoUrl ? (
+                              <img
+                                src={normalizeImgSrc(editProfileForm.motherPhotoUrl)}
+                                alt="Mother"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-slate-400 text-[10px]">No Photo</div>
+                            )}
+                          </div>
+                          <label className="w-full py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer border border-slate-300 transition-colors flex items-center justify-center gap-1">
+                            <Upload className="w-3.5 h-3.5 text-[#1c1c1c]" />
+                            {uploadingAdminPhoto === "motherPhotoUrl" ? "Uploading..." : "Upload Photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingAdminPhoto === "motherPhotoUrl"}
+                              onChange={(e) => handleAdminPhotoUpload(e, "motherPhotoUrl")}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Personal Identity Details */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                      <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center gap-1.5">
+                        <User className="w-4 h-4 text-[#1c1c1c]" />
+                        2. Personal &amp; Jamia Identity
+                      </h5>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Full Student Name</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.name || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, name: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">ITS No</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.itsNo || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, itsNo: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Registration / ID No</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.idNo || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, idNo: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Jamaat</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.jamaat || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, jamaat: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Vatan</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.vatan || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, vatan: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Date of Birth</label>
+                          <input
+                            type="text"
+                            placeholder="DD/MM/YYYY"
+                            value={editProfileForm.dob || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, dob: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Age (Years)</label>
+                          <input
+                            type="number"
+                            value={editProfileForm.age ?? ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, age: parseInt(e.target.value) || 0 }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 3: Family Information */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                      <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-[#1c1c1c]" />
+                        3. Parents &amp; Family Information
+                      </h5>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Father's Name</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.fatherName || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, fatherName: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Father's Occupation</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.fatherOccupation || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, fatherOccupation: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Mother's Name</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.motherName || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, motherName: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Mother's Occupation</label>
+                          <input
+                            type="text"
+                            value={editProfileForm.motherOccupation || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, motherOccupation: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 4: Academic Background & Hifz */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                      <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center gap-1.5">
+                        <GraduationCap className="w-4 h-4 text-[#1c1c1c]" />
+                        4. Academic Performance &amp; Al-Tahfeez
+                      </h5>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Result 1444 H</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 78.5% / Mumtaz"
+                            value={editProfileForm.result1444 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, result1444: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Result 1445 H</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 82.0% / Mumtaz"
+                            value={editProfileForm.result1445 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, result1445: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Result 1446 H</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 85.2% / Jayyid Jiddan"
+                            value={editProfileForm.result1446 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, result1446: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Hifz Sanah / Year</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 1442 H"
+                            value={editProfileForm.hifzYear || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, hifzYear: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Hifz Tabaqa</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Tabaqa 1 / Ula"
+                            value={editProfileForm.hifzTabaqa || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, hifzTabaqa: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Result 1447 H</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 84.0% / Mumtaz"
+                            value={editProfileForm.result1447 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, result1447: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Course 1</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Basic IT"
+                            value={editProfileForm.course1 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, course1: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Course 2</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Calligraphy"
+                            value={editProfileForm.course2 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, course2: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Course 3</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Spoken Arabic"
+                            value={editProfileForm.course3 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, course3: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Course 4</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. First Aid"
+                            value={editProfileForm.course4 || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, course4: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">External Board Exams</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 10th NIOS 72%"
+                            value={editProfileForm.otherExams || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, otherExams: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Extra-Curricular Activities</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Football, Swimming"
+                            value={editProfileForm.activities || ""}
+                            onChange={(e) => setEditProfileForm((p) => ({ ...p, activities: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 5: Strengths & Weaknesses */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Strengths */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-emerald-600" />
+                            Strengths (قوة الطالب)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={addEditStrength}
+                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {(editProfileForm.strengths || []).map((str, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={str}
+                                onChange={(e) => updateEditStrength(idx, e.target.value)}
+                                placeholder={`Strength #${idx + 1}`}
+                                className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                              />
+                              {(editProfileForm.strengths || []).length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditStrength(idx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Weaknesses */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <span className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-rose-600" />
+                            Weaknesses (ضعف الطالب)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={addEditWeakness}
+                            className="text-[11px] font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {(editProfileForm.weaknesses || []).map((w, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={w}
+                                onChange={(e) => updateEditWeakness(idx, e.target.value)}
+                                placeholder={`Weakness #${idx + 1}`}
+                                className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-rose-600 focus:outline-none"
+                              />
+                              {(editProfileForm.weaknesses || []).length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditWeakness(idx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 6: About Myself */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                      <label className="text-xs font-bold text-slate-800 block">
+                        6. Personal Statement / About Myself (عن نفسي)
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={editProfileForm.aboutMyself || ""}
+                        onChange={(e) => setEditProfileForm((p) => ({ ...p, aboutMyself: e.target.value }))}
+                        placeholder="Write student's personal statement..."
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Save Footer Bar */}
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStudentId(null)}
+                        className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveAdminProfile}
+                        disabled={savingAdminProfile}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {savingAdminProfile ? "Saving Profile..." : "Save Profile Changes"}
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-6 max-w-4xl mx-auto">
                     {/* ════════════════════════════════════════════════════
@@ -975,7 +1656,7 @@ export default function AdminTalabatProfilesPage() {
                                   onClick={() =>
                                     activeProfile.studentPhotoUrl &&
                                     setLightboxImg({
-                                      url: activeProfile.studentPhotoUrl,
+                                      url: normalizeImgSrc(activeProfile.studentPhotoUrl),
                                       title: `${activeProfile.name || "Student"} - Photo`,
                                     })
                                   }
@@ -983,7 +1664,7 @@ export default function AdminTalabatProfilesPage() {
                                   {activeProfile.studentPhotoUrl ? (
                                     <>
                                       <img
-                                        src={activeProfile.studentPhotoUrl}
+                                        src={normalizeImgSrc(activeProfile.studentPhotoUrl)}
                                         alt="Student"
                                         className="w-full h-full object-cover"
                                       />
@@ -1045,7 +1726,7 @@ export default function AdminTalabatProfilesPage() {
                                   onClick={() =>
                                     activeProfile.fatherPhotoUrl &&
                                     setLightboxImg({
-                                      url: activeProfile.fatherPhotoUrl,
+                                      url: normalizeImgSrc(activeProfile.fatherPhotoUrl),
                                       title: `${activeProfile.fatherName || "Father"} - Photo`,
                                     })
                                   }
@@ -1053,7 +1734,7 @@ export default function AdminTalabatProfilesPage() {
                                   {activeProfile.fatherPhotoUrl ? (
                                     <>
                                       <img
-                                        src={activeProfile.fatherPhotoUrl}
+                                        src={normalizeImgSrc(activeProfile.fatherPhotoUrl)}
                                         alt="Father"
                                         className="w-full h-full object-cover"
                                       />
@@ -1115,7 +1796,7 @@ export default function AdminTalabatProfilesPage() {
                                   onClick={() =>
                                     activeProfile.motherPhotoUrl &&
                                     setLightboxImg({
-                                      url: activeProfile.motherPhotoUrl,
+                                      url: normalizeImgSrc(activeProfile.motherPhotoUrl),
                                       title: `${activeProfile.motherName || "Mother"} - Photo`,
                                     })
                                   }
@@ -1123,7 +1804,7 @@ export default function AdminTalabatProfilesPage() {
                                   {activeProfile.motherPhotoUrl ? (
                                     <>
                                       <img
-                                        src={activeProfile.motherPhotoUrl}
+                                        src={normalizeImgSrc(activeProfile.motherPhotoUrl)}
                                         alt="Mother"
                                         className="w-full h-full object-cover"
                                       />
@@ -1556,23 +2237,39 @@ export default function AdminTalabatProfilesPage() {
                       </div>
 
                       {/* Save Action Buttons */}
-                      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedStudentId(null)}
-                          className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSaveRemarks}
-                          disabled={savingRemarks}
-                          className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          {savingRemarks ? "Saving..." : "Save All Remarks & Ratings"}
-                        </button>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-bold text-slate-700">Profile Status:</label>
+                          <select
+                            value={adminReviewStatus}
+                            onChange={(e) => setAdminReviewStatus(e.target.value)}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          >
+                            <option value="DRAFT">Draft</option>
+                            <option value="SUBMITTED">Submitted</option>
+                            <option value="REVIEWED">Reviewed</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="NEEDS_REVISION">Needs Revision</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStudentId(null)}
+                            className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveRemarks}
+                            disabled={savingRemarks}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            {savingRemarks ? "Saving..." : "Save All Remarks & Ratings"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1606,7 +2303,7 @@ export default function AdminTalabatProfilesPage() {
             </div>
             <div className="p-3 flex items-center justify-center bg-slate-50 rounded-xl max-h-[70vh] overflow-hidden">
               <img
-                src={lightboxImg.url}
+                src={normalizeImgSrc(lightboxImg.url)}
                 alt={lightboxImg.title}
                 className="max-h-[66vh] max-w-full object-contain rounded-lg shadow-sm"
               />

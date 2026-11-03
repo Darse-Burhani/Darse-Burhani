@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { requireAuth } from "../middleware";
-import { uploadsDir } from "../lib/paths";
+import { uploadsDir, clientPublicUploadsDir, clientDistUploadsDir } from "../lib/paths";
 
 const router = Router();
 
@@ -183,6 +183,19 @@ router.post("/", requireAuth, (req, res) => {
         success: false,
         error: "File integrity check failed: file signature does not match a valid image.",
       });
+    }
+
+    // Replicate to client public/dist uploads directories so Vite and client can access immediately
+    try {
+      if (fs.existsSync(clientPublicUploadsDir)) {
+        fs.copyFileSync(filePath, path.join(clientPublicUploadsDir, req.file.filename));
+      }
+      if (fs.existsSync(clientDistUploadsDir)) {
+        fs.copyFileSync(filePath, path.join(clientDistUploadsDir, req.file.filename));
+      }
+    } catch (copyErr) {
+      // Non-fatal, uploadsDir is primary source of truth
+      console.warn("[upload] Non-fatal replication copy notice:", copyErr);
     }
 
     res.json({ success: true, url: `/uploads/${req.file.filename}` });

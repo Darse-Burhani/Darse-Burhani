@@ -38,6 +38,16 @@ import {
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
+const normalizeImgSrc = (url?: string | null): string => {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  return "/" + trimmed;
+};
+
 interface StudentListItem {
   studentId: string;
   idNo: string;
@@ -693,7 +703,7 @@ export default function TeacherTalabatProfilesPage() {
                       <div className="flex items-center gap-3">
                         {s.avatarUrl ? (
                           <img
-                            src={s.avatarUrl}
+                            src={normalizeImgSrc(s.avatarUrl)}
                             alt={s.name}
                             className="w-10 h-10 rounded-full object-cover border border-slate-200"
                           />
@@ -720,11 +730,11 @@ export default function TeacherTalabatProfilesPage() {
                         <div
                           className="relative cursor-pointer group"
                           title={s.studentPhotoUrl ? "Student Photo Uploaded" : "Student Photo Missing"}
-                          onClick={() => s.studentPhotoUrl && setLightboxImg({ url: s.studentPhotoUrl, title: `${s.name} (Student)` })}
+                          onClick={() => s.studentPhotoUrl && setLightboxImg({ url: normalizeImgSrc(s.studentPhotoUrl), title: `${s.name} (Student)` })}
                         >
                           {s.studentPhotoUrl ? (
                             <img
-                              src={s.studentPhotoUrl}
+                              src={normalizeImgSrc(s.studentPhotoUrl)}
                               alt="Student"
                               className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
@@ -745,10 +755,10 @@ export default function TeacherTalabatProfilesPage() {
                           <div
                             className="relative cursor-pointer group"
                             title="Father Photo Uploaded (Click to view full size)"
-                            onClick={() => setLightboxImg({ url: s.fatherPhotoUrl!, title: `${s.name}'s Father` })}
+                            onClick={() => setLightboxImg({ url: normalizeImgSrc(s.fatherPhotoUrl), title: `${s.name}'s Father` })}
                           >
                             <img
-                              src={s.fatherPhotoUrl}
+                              src={normalizeImgSrc(s.fatherPhotoUrl)}
                               alt="Father"
                               className="w-7 h-7 rounded-full object-cover border-2 border-blue-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
@@ -790,10 +800,10 @@ export default function TeacherTalabatProfilesPage() {
                           <div
                             className="relative cursor-pointer group"
                             title="Mother Photo Uploaded (Click to view full size)"
-                            onClick={() => setLightboxImg({ url: s.motherPhotoUrl!, title: `${s.name}'s Mother` })}
+                            onClick={() => setLightboxImg({ url: normalizeImgSrc(s.motherPhotoUrl), title: `${s.name}'s Mother` })}
                           >
                             <img
-                              src={s.motherPhotoUrl}
+                              src={normalizeImgSrc(s.motherPhotoUrl)}
                               alt="Mother"
                               className="w-7 h-7 rounded-full object-cover border-2 border-purple-500 shadow-2xs group-hover:scale-105 transition-transform"
                             />
@@ -1034,7 +1044,7 @@ export default function TeacherTalabatProfilesPage() {
                                   onClick={() =>
                                     activeProfile.studentPhotoUrl &&
                                     setLightboxImg({
-                                      url: activeProfile.studentPhotoUrl,
+                                      url: normalizeImgSrc(activeProfile.studentPhotoUrl),
                                       title: `${activeProfile.name || "Student"} - Photo`,
                                     })
                                   }
@@ -1042,7 +1052,7 @@ export default function TeacherTalabatProfilesPage() {
                                   {activeProfile.studentPhotoUrl ? (
                                     <>
                                       <img
-                                        src={activeProfile.studentPhotoUrl}
+                                        src={normalizeImgSrc(activeProfile.studentPhotoUrl)}
                                         alt="Student"
                                         className="w-full h-full object-cover"
                                       />
@@ -1104,7 +1114,7 @@ export default function TeacherTalabatProfilesPage() {
                                   onClick={() =>
                                     activeProfile.fatherPhotoUrl &&
                                     setLightboxImg({
-                                      url: activeProfile.fatherPhotoUrl,
+                                      url: normalizeImgSrc(activeProfile.fatherPhotoUrl),
                                       title: `${activeProfile.fatherName || "Father"} - Photo`,
                                     })
                                   }
@@ -1112,7 +1122,7 @@ export default function TeacherTalabatProfilesPage() {
                                   {activeProfile.fatherPhotoUrl ? (
                                     <>
                                       <img
-                                        src={activeProfile.fatherPhotoUrl}
+                                        src={normalizeImgSrc(activeProfile.fatherPhotoUrl)}
                                         alt="Father"
                                         className="w-full h-full object-cover"
                                       />
@@ -1174,7 +1184,7 @@ export default function TeacherTalabatProfilesPage() {
                                   onClick={() =>
                                     activeProfile.motherPhotoUrl &&
                                     setLightboxImg({
-                                      url: activeProfile.motherPhotoUrl,
+                                      url: normalizeImgSrc(activeProfile.motherPhotoUrl),
                                       title: `${activeProfile.motherName || "Mother"} - Photo`,
                                     })
                                   }
@@ -1182,7 +1192,7 @@ export default function TeacherTalabatProfilesPage() {
                                   {activeProfile.motherPhotoUrl ? (
                                     <>
                                       <img
-                                        src={activeProfile.motherPhotoUrl}
+                                        src={normalizeImgSrc(activeProfile.motherPhotoUrl)}
                                         alt="Mother"
                                         className="w-full h-full object-cover"
                                       />
@@ -1635,7 +1645,7 @@ export default function TeacherTalabatProfilesPage() {
             </div>
             <div className="p-3 flex items-center justify-center bg-slate-50 rounded-xl max-h-[70vh] overflow-hidden">
               <img
-                src={lightboxImg.url}
+                src={normalizeImgSrc(lightboxImg.url)}
                 alt={lightboxImg.title}
                 className="max-h-[66vh] max-w-full object-contain rounded-lg shadow-sm"
               />

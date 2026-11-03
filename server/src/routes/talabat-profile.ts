@@ -26,6 +26,16 @@ function isGrade4(grade?: string | null): boolean {
   );
 }
 
+function normalizePhotoUrl(val: any): string | null {
+  if (!val || typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  return "/" + trimmed;
+}
+
 function generatePrefilledProfile(sp: any, user: any, parent?: any) {
   return {
     id: "",
@@ -166,7 +176,7 @@ router.get("/me", requireAuth, async (req, res) => {
       success: true,
       isGrade4: true,
       isParent: true,
-      isReadOnly: true,
+      isReadOnly: false,
       profile,
       studentInfo: {
         id: sp.id,
@@ -287,13 +297,60 @@ router.put("/me", requireAuth, async (req, res) => {
   let targetUserId: string | null = null;
 
   if (session.user.role === "PARENT") {
-    return res.status(403).json({
-      success: false,
-      error: "Parents have view-only access to the Yearly Profile and cannot edit or fill the form.",
+    const parent = await prisma.parentProfile.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        user: true,
+        studentLinks: {
+          include: {
+            student: {
+              include: {
+                user: true,
+                talabatProfile1447: true,
+              },
+            },
+          },
+        },
+      },
     });
-  }
 
-  if (session.user.role === "ADMIN" && body.studentId) {
+    if (!parent || !parent.studentLinks.length) {
+      return res.status(404).json({ success: false, error: "Parent profile or linked students not found" });
+    }
+
+    const requestedStudentId = body.studentId as string | undefined;
+    const rabeaChildren = parent.studentLinks.filter(
+      (l) => isGrade4(l.student.grade) || !!l.student.talabatProfile1447
+    );
+
+    let targetLink = requestedStudentId
+      ? parent.studentLinks.find(
+          (l) =>
+            l.student.id === requestedStudentId ||
+            l.student.studentId === requestedStudentId ||
+            l.student.userId === requestedStudentId
+        )
+      : rabeaChildren[0];
+
+    if (!targetLink) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only edit Yearly Profiles for your assigned Darajah 4 (Rabea) children.",
+      });
+    }
+
+    const sp = targetLink.student;
+    if (!isGrade4(sp.grade) && !sp.talabatProfile1447) {
+      return res.status(403).json({
+        success: false,
+        error: "Yearly Profile is strictly restricted to Darajah Rabea (Grade 4) Talabat.",
+      });
+    }
+
+    studentProfileId = sp.id;
+    targetUserAvatar = sp.user.avatarUrl;
+    targetUserId = sp.user.id;
+  } else if (session.user.role === "ADMIN" && body.studentId) {
     const sp = await prisma.studentProfile.findUnique({
       where: { id: body.studentId },
       include: { user: true },
@@ -329,13 +386,53 @@ router.put("/me", requireAuth, async (req, res) => {
 
   const status = body.status === "SUBMITTED" ? "SUBMITTED" : "DRAFT";
 
-  const strengths = Array.isArray(body.strengths) ? body.strengths.filter((s: any) => typeof s === "string" && s.trim().length > 0) : undefined;
-  const weaknesses = Array.isArray(body.weaknesses) ? body.weaknesses.filter((w: any) => typeof w === "string" && w.trim().length > 0) : undefined;
+  const studentPhotoUrl = normalizePhotoUrl(body.studentPhotoUrl);
+  const fatherPhotoUrl = normalizePhotoUrl(body.fatherPhotoUrl);
+  const motherPhotoUrl = normalizePhotoUrl(body.motherPhotoUrl);
+
+  const strengths = Array.isArray(body.strengths)
+    ? body.strengths.map((s: any) => (typeof s === "string" ? s.trim() : "")).filter((s: string) => s.length > 0)
+    : undefined;
+  const weaknesses = Array.isArray(body.weaknesses)
+    ? body.weaknesses.map((w: any) => (typeof w === "string" ? w.trim() : "")).filter((w: string) => w.length > 0)
+    : undefined;
+
+  // Strict completion validation for Rabea final submission
+  if (status === "SUBMITTED") {
+    const effectiveStudentPhoto = studentPhotoUrl || targetUserAvatar || null;
+    const missingFields: string[] = [];
+    if (!effectiveStudentPhoto) missingFields.push("Student Passport Photo");
+    if (!fatherPhotoUrl && !body.fatherPhotoUrl) missingFields.push("Father Passport Photo");
+    if (!motherPhotoUrl && !body.motherPhotoUrl) missingFields.push("Mother Passport Photo");
+    if (!body.name?.trim()) missingFields.push("Student Full Name");
+    if (!body.itsNo?.trim()) missingFields.push("Student ITS Number");
+    if (!body.jamaat?.trim()) missingFields.push("Jamaat / Mauze");
+    if (!body.vatan?.trim()) missingFields.push("Vatan / Native Town");
+    if (!body.dob?.trim()) missingFields.push("Date of Birth");
+    if (!body.age) missingFields.push("Age");
+    if (!body.fatherName?.trim()) missingFields.push("Father Name");
+    if (!body.fatherOccupation?.trim()) missingFields.push("Father Occupation");
+    if (!body.motherName?.trim()) missingFields.push("Mother Name");
+    if (!body.motherOccupation?.trim()) missingFields.push("Mother Occupation");
+    if (!strengths || strengths.length < 3) missingFields.push("At least 3 Strengths");
+    if (!weaknesses || weaknesses.length < 3) missingFields.push("At least 3 Areas for Improvement");
+    if (!body.aboutMyself?.trim() || body.aboutMyself.trim().length < 15) {
+      missingFields.push("About Myself / Vision Statement (min 15 characters)");
+    }
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot submit incomplete profile. Please fill all required fields and photos: ${missingFields.join(", ")}.`,
+        missingFields,
+      });
+    }
+  }
 
   const updateData: any = {};
   if (body.year !== undefined) updateData.year = body.year || "1447 H";
   if (body.status !== undefined) updateData.status = status;
-  if (body.studentPhotoUrl !== undefined) updateData.studentPhotoUrl = body.studentPhotoUrl || null;
+  if (body.studentPhotoUrl !== undefined) updateData.studentPhotoUrl = studentPhotoUrl;
   if (body.name !== undefined) updateData.name = body.name || null;
   if (body.itsNo !== undefined) updateData.itsNo = body.itsNo || null;
   if (body.idNo !== undefined) updateData.idNo = body.idNo || null;
@@ -344,10 +441,10 @@ router.put("/me", requireAuth, async (req, res) => {
   if (body.nationality !== undefined) updateData.nationality = body.nationality || "Indian";
   if (body.dob !== undefined) updateData.dob = body.dob || null;
   if (body.age !== undefined) updateData.age = body.age ? parseInt(String(body.age), 10) : null;
-  if (body.fatherPhotoUrl !== undefined) updateData.fatherPhotoUrl = body.fatherPhotoUrl || null;
+  if (body.fatherPhotoUrl !== undefined) updateData.fatherPhotoUrl = fatherPhotoUrl;
   if (body.fatherName !== undefined) updateData.fatherName = body.fatherName || null;
   if (body.fatherOccupation !== undefined) updateData.fatherOccupation = body.fatherOccupation || null;
-  if (body.motherPhotoUrl !== undefined) updateData.motherPhotoUrl = body.motherPhotoUrl || null;
+  if (body.motherPhotoUrl !== undefined) updateData.motherPhotoUrl = motherPhotoUrl;
   if (body.motherName !== undefined) updateData.motherName = body.motherName || null;
   if (body.motherOccupation !== undefined) updateData.motherOccupation = body.motherOccupation || null;
   if (body.result1444 !== undefined) updateData.result1444 = body.result1444 || null;
@@ -369,7 +466,7 @@ router.put("/me", requireAuth, async (req, res) => {
   const createData = {
     year: body.year || "1447 H",
     status,
-    studentPhotoUrl: body.studentPhotoUrl || targetUserAvatar || null,
+    studentPhotoUrl: studentPhotoUrl || targetUserAvatar || null,
     name: body.name || null,
     itsNo: body.itsNo || null,
     idNo: body.idNo || null,
@@ -378,10 +475,10 @@ router.put("/me", requireAuth, async (req, res) => {
     nationality: body.nationality || "Indian",
     dob: body.dob || null,
     age: body.age ? parseInt(String(body.age), 10) : null,
-    fatherPhotoUrl: body.fatherPhotoUrl || null,
+    fatherPhotoUrl: fatherPhotoUrl || null,
     fatherName: body.fatherName || null,
     fatherOccupation: body.fatherOccupation || null,
-    motherPhotoUrl: body.motherPhotoUrl || null,
+    motherPhotoUrl: motherPhotoUrl || null,
     motherName: body.motherName || null,
     motherOccupation: body.motherOccupation || null,
     result1444: body.result1444 || null,
@@ -427,16 +524,18 @@ router.put("/me", requireAuth, async (req, res) => {
   }
 
   // Sync avatar to User if provided and changed
-  if (body.studentPhotoUrl && targetUserId && body.studentPhotoUrl !== targetUserAvatar) {
+  const effectiveNewStudentPhoto = studentPhotoUrl || body.studentPhotoUrl;
+  if (effectiveNewStudentPhoto && targetUserId && effectiveNewStudentPhoto !== targetUserAvatar) {
     await prisma.user.update({
       where: { id: targetUserId },
-      data: { avatarUrl: body.studentPhotoUrl },
+      data: { avatarUrl: effectiveNewStudentPhoto },
     }).catch(() => {});
   }
 
   // Sync parent photos to linked ParentProfile user accounts
   if (studentProfileId) {
-    if (body.fatherPhotoUrl) {
+    const effectiveFatherPhoto = fatherPhotoUrl || body.fatherPhotoUrl;
+    if (effectiveFatherPhoto) {
       const fatherLinks = await prisma.parentStudentLink.findMany({
         where: {
           studentId: studentProfileId,
@@ -451,12 +550,13 @@ router.put("/me", requireAuth, async (req, res) => {
         if (link.parent?.user?.id) {
           await prisma.user.update({
             where: { id: link.parent.user.id },
-            data: { avatarUrl: body.fatherPhotoUrl },
+            data: { avatarUrl: effectiveFatherPhoto },
           }).catch(() => {});
         }
       }
     }
-    if (body.motherPhotoUrl) {
+    const effectiveMotherPhoto = motherPhotoUrl || body.motherPhotoUrl;
+    if (effectiveMotherPhoto) {
       const motherLinks = await prisma.parentStudentLink.findMany({
         where: {
           studentId: studentProfileId,
@@ -471,7 +571,7 @@ router.put("/me", requireAuth, async (req, res) => {
         if (link.parent?.user?.id) {
           await prisma.user.update({
             where: { id: link.parent.user.id },
-            data: { avatarUrl: body.motherPhotoUrl },
+            data: { avatarUrl: effectiveMotherPhoto },
           }).catch(() => {});
         }
       }
@@ -604,8 +704,14 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
   }
 
   const { studentId } = req.params;
-  const student = await prisma.studentProfile.findUnique({
-    where: { id: studentId },
+  const student = await prisma.studentProfile.findFirst({
+    where: {
+      OR: [
+        { id: studentId },
+        { studentId: studentId },
+        { userId: studentId },
+      ],
+    },
     include: {
       user: true,
       talabatProfile1447: true,
@@ -725,7 +831,7 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   const updateFields: any = {
     reviewedById: session.user.id,
     reviewedAt: new Date(),
-    status: student.talabatProfile1447?.status === "SUBMITTED" ? "REVIEWED" : student.talabatProfile1447?.status || "REVIEWED",
+    status: body.status || (student.talabatProfile1447?.status === "SUBMITTED" ? "REVIEWED" : student.talabatProfile1447?.status || "REVIEWED"),
   };
 
   if (behaviourRating !== undefined) updateFields.behaviourRating = behaviourRating;
@@ -793,11 +899,11 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
 
   const body = req.body || {};
   const dataToUpdate: any = {};
-  if (body.studentPhotoUrl !== undefined) dataToUpdate.studentPhotoUrl = body.studentPhotoUrl || null;
-  if (body.fatherPhotoUrl !== undefined) dataToUpdate.fatherPhotoUrl = body.fatherPhotoUrl || null;
+  if (body.studentPhotoUrl !== undefined) dataToUpdate.studentPhotoUrl = normalizePhotoUrl(body.studentPhotoUrl);
+  if (body.fatherPhotoUrl !== undefined) dataToUpdate.fatherPhotoUrl = normalizePhotoUrl(body.fatherPhotoUrl);
   if (body.fatherName !== undefined) dataToUpdate.fatherName = body.fatherName || null;
   if (body.fatherOccupation !== undefined) dataToUpdate.fatherOccupation = body.fatherOccupation || null;
-  if (body.motherPhotoUrl !== undefined) dataToUpdate.motherPhotoUrl = body.motherPhotoUrl || null;
+  if (body.motherPhotoUrl !== undefined) dataToUpdate.motherPhotoUrl = normalizePhotoUrl(body.motherPhotoUrl);
   if (body.motherName !== undefined) dataToUpdate.motherName = body.motherName || null;
   if (body.motherOccupation !== undefined) dataToUpdate.motherOccupation = body.motherOccupation || null;
   if (body.name !== undefined) dataToUpdate.name = body.name || null;
@@ -805,6 +911,32 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
   if (body.idNo !== undefined) dataToUpdate.idNo = body.idNo || null;
   if (body.jamaat !== undefined) dataToUpdate.jamaat = body.jamaat || null;
   if (body.vatan !== undefined) dataToUpdate.vatan = body.vatan || null;
+  if (body.nationality !== undefined) dataToUpdate.nationality = body.nationality || "Indian";
+  if (body.dob !== undefined) dataToUpdate.dob = body.dob || null;
+  if (body.age !== undefined) dataToUpdate.age = body.age ? parseInt(String(body.age), 10) : null;
+  if (body.result1444 !== undefined) dataToUpdate.result1444 = body.result1444 || null;
+  if (body.result1445 !== undefined) dataToUpdate.result1445 = body.result1445 || null;
+  if (body.result1446 !== undefined) dataToUpdate.result1446 = body.result1446 || null;
+  if (body.result1447 !== undefined) dataToUpdate.result1447 = body.result1447 || null;
+  if (body.hifzYear !== undefined) dataToUpdate.hifzYear = body.hifzYear || null;
+  if (body.hifzTabaqa !== undefined) dataToUpdate.hifzTabaqa = body.hifzTabaqa || null;
+  if (body.course1 !== undefined) dataToUpdate.course1 = body.course1 || null;
+  if (body.course2 !== undefined) dataToUpdate.course2 = body.course2 || null;
+  if (body.course3 !== undefined) dataToUpdate.course3 = body.course3 || null;
+  if (body.course4 !== undefined) dataToUpdate.course4 = body.course4 || null;
+  if (body.activities !== undefined) dataToUpdate.activities = body.activities || null;
+  if (body.otherExams !== undefined) dataToUpdate.otherExams = body.otherExams || null;
+  if (body.strengths !== undefined) {
+    dataToUpdate.strengths = Array.isArray(body.strengths)
+      ? body.strengths.map((s: any) => (typeof s === "string" ? s.trim() : "")).filter(Boolean)
+      : [];
+  }
+  if (body.weaknesses !== undefined) {
+    dataToUpdate.weaknesses = Array.isArray(body.weaknesses)
+      ? body.weaknesses.map((w: any) => (typeof w === "string" ? w.trim() : "")).filter(Boolean)
+      : [];
+  }
+  if (body.aboutMyself !== undefined) dataToUpdate.aboutMyself = body.aboutMyself || null;
   if (body.status !== undefined) dataToUpdate.status = body.status;
 
   const saved = await prisma.talabatProfile1447.upsert({
@@ -812,27 +944,43 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
     create: {
       studentId: student.id,
       year: "1447 H",
-      status: "DRAFT",
-      name: `${student.user.firstName} ${student.user.lastName}`.trim(),
-      itsNo: student.its || null,
-      idNo: student.studentId || null,
+      status: body.status || "DRAFT",
+      name: body.name || `${student.user.firstName} ${student.user.lastName}`.trim(),
+      itsNo: body.itsNo || student.its || null,
+      idNo: body.idNo || student.studentId || null,
       ...dataToUpdate,
     },
     update: dataToUpdate,
   });
 
-  if (body.studentPhotoUrl) {
+  // Sync basic profile fields to StudentProfile
+  const spUpdates: any = {};
+  if (body.fatherName) spUpdates.fatherName = body.fatherName.trim();
+  if (body.fatherOccupation) spUpdates.fatherOccupation = body.fatherOccupation.trim();
+  if (body.motherName) spUpdates.motherName = body.motherName.trim();
+  if (body.vatan) spUpdates.watan = body.vatan.trim();
+  if (body.jamaat) spUpdates.residentCity = body.jamaat.trim();
+  if (Object.keys(spUpdates).length > 0) {
+    await prisma.studentProfile.update({
+      where: { id: student.id },
+      data: spUpdates,
+    }).catch(() => {});
+  }
+
+  const effectiveAdminStudentPhoto = dataToUpdate.studentPhotoUrl || (body.studentPhotoUrl ? normalizePhotoUrl(body.studentPhotoUrl) : null);
+  if (effectiveAdminStudentPhoto) {
     await prisma.user.update({
       where: { id: student.user.id },
-      data: { avatarUrl: body.studentPhotoUrl },
+      data: { avatarUrl: effectiveAdminStudentPhoto },
     }).catch(() => {});
   }
 
   // Sync parent photos to linked ParentProfile user accounts
-  if (body.fatherPhotoUrl) {
+  const effectiveAdminFatherPhoto = dataToUpdate.fatherPhotoUrl || (body.fatherPhotoUrl ? normalizePhotoUrl(body.fatherPhotoUrl) : null);
+  if (effectiveAdminFatherPhoto) {
     const fatherLinks = await prisma.parentStudentLink.findMany({
       where: {
-        studentId,
+        studentId: student.id,
         OR: [
           { relationship: { contains: "father", mode: "insensitive" } },
           { parent: { relationType: { contains: "father", mode: "insensitive" } } },
@@ -844,15 +992,17 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
       if (link.parent?.user?.id) {
         await prisma.user.update({
           where: { id: link.parent.user.id },
-          data: { avatarUrl: body.fatherPhotoUrl },
+          data: { avatarUrl: effectiveAdminFatherPhoto },
         }).catch(() => {});
       }
     }
   }
-  if (body.motherPhotoUrl) {
+
+  const effectiveAdminMotherPhoto = dataToUpdate.motherPhotoUrl || (body.motherPhotoUrl ? normalizePhotoUrl(body.motherPhotoUrl) : null);
+  if (effectiveAdminMotherPhoto) {
     const motherLinks = await prisma.parentStudentLink.findMany({
       where: {
-        studentId,
+        studentId: student.id,
         OR: [
           { relationship: { contains: "mother", mode: "insensitive" } },
           { parent: { relationType: { contains: "mother", mode: "insensitive" } } },
@@ -864,7 +1014,7 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
       if (link.parent?.user?.id) {
         await prisma.user.update({
           where: { id: link.parent.user.id },
-          data: { avatarUrl: body.motherPhotoUrl },
+          data: { avatarUrl: effectiveAdminMotherPhoto },
         }).catch(() => {});
       }
     }

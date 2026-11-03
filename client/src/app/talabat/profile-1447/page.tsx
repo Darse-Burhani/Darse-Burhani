@@ -82,6 +82,36 @@ export default function TalabatProfile1447Page() {
 
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+
+  const validateProfileForSubmission = (data: TalabatProfileData): string[] => {
+    const missing: string[] = [];
+    if (!data.studentPhotoUrl?.trim()) missing.push("Student Passport Photo");
+    if (!data.fatherPhotoUrl?.trim()) missing.push("Father Passport Photo");
+    if (!data.motherPhotoUrl?.trim()) missing.push("Mother Passport Photo");
+    if (!data.name?.trim()) missing.push("Student Full Name");
+    if (!data.itsNo?.trim()) missing.push("Student ITS Number");
+    if (!data.jamaat?.trim()) missing.push("Jamaat / Mauze");
+    if (!data.vatan?.trim()) missing.push("Vatan / Native Town");
+    if (!data.dob?.trim()) missing.push("Date of Birth");
+    if (!data.age || String(data.age).trim() === "") missing.push("Age");
+    if (!data.fatherName?.trim()) missing.push("Father Name");
+    if (!data.fatherOccupation?.trim()) missing.push("Father Occupation");
+    if (!data.motherName?.trim()) missing.push("Mother Name");
+    if (!data.motherOccupation?.trim()) missing.push("Mother Occupation");
+
+    const validStrengths = (data.strengths || []).map((s) => s.trim()).filter(Boolean);
+    if (validStrengths.length < 3) missing.push("At least 3 Strengths");
+
+    const validWeaknesses = (data.weaknesses || []).map((w) => w.trim()).filter(Boolean);
+    if (validWeaknesses.length < 3) missing.push("At least 3 Areas of Improvement (Weaknesses)");
+
+    if (!data.aboutMyself?.trim() || data.aboutMyself.trim().length < 15) {
+      missing.push("About Myself statement (min 15 characters)");
+    }
+
+    return missing;
+  };
 
   useEffect(() => {
     const qId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("studentId") : null;
@@ -106,7 +136,11 @@ export default function TalabatProfile1447Page() {
       setIsGrade4(data.isGrade4);
       if (data.isParent || session?.user?.role === "PARENT") {
         setIsParent(true);
-        setActiveTab("preview");
+        if (data.profile?.status === "SUBMITTED" || data.profile?.status === "REVIEWED") {
+          setActiveTab("preview");
+        } else {
+          setActiveTab("edit");
+        }
       }
       if (data.studentInfo) {
         setStudentInfo(data.studentInfo);
@@ -139,26 +173,46 @@ export default function TalabatProfile1447Page() {
     inputId: string,
     guideline?: string
   ) => {
-    const photoUrl = formData[field];
+    const rawPhotoUrl = formData[field];
+    const photoUrl = rawPhotoUrl
+      ? rawPhotoUrl.startsWith("http") || rawPhotoUrl.startsWith("data:") || rawPhotoUrl.startsWith("/")
+        ? rawPhotoUrl
+        : "/" + rawPhotoUrl
+      : "";
     const isUploading = uploadingField === field;
     const cameraInputId = `${inputId}-camera`;
+    const isFieldMissing = missingFields.some((f) =>
+      f.toLowerCase().includes(
+        field === "studentPhotoUrl" ? "student passport" : field === "fatherPhotoUrl" ? "father passport" : "mother passport"
+      )
+    );
 
     return (
       <div className="flex flex-col items-center w-full max-w-[260px]">
         <div className="flex items-center justify-between w-full mb-1.5 px-0.5">
-          <span className="text-xs font-bold text-slate-800">{label}</span>
+          <span className="text-xs font-bold text-slate-800">
+            {label} <span className="text-rose-500 font-extrabold">*</span>
+          </span>
           {photoUrl ? (
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1 shadow-2xs">
               <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Saved
             </span>
           ) : (
-            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-              Required
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              isFieldMissing
+                ? "text-rose-700 bg-rose-50 border-rose-300 animate-pulse"
+                : "text-amber-700 bg-amber-50 border-amber-200"
+            }`}>
+              Required *
             </span>
           )}
         </div>
 
-        <div className="w-full h-48 border-2 border-dashed border-slate-300 hover:border-emerald-600 rounded-2xl overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/80 hover:bg-emerald-50/20 transition-all group shadow-2xs">
+        <div className={`w-full h-48 border-2 border-dashed rounded-2xl overflow-hidden relative flex flex-col items-center justify-center transition-all group shadow-2xs ${
+          isFieldMissing
+            ? "border-rose-400 bg-rose-50/40 ring-2 ring-rose-200 hover:border-rose-500"
+            : "border-slate-300 hover:border-emerald-600 bg-slate-50/80 hover:bg-emerald-50/20"
+        }`}>
           {photoUrl ? (
             <div className="relative w-full h-full">
               <img
@@ -376,6 +430,23 @@ export default function TalabatProfile1447Page() {
       setSaving(true);
       setNotification(null);
 
+      if (submitStatus === "SUBMITTED") {
+        const missing = validateProfileForSubmission(formData);
+        if (missing.length > 0) {
+          setMissingFields(missing);
+          setNotification({
+            type: "error",
+            text: `⚠️ Incomplete Submission: Please complete all ${missing.length} required fields and upload all 3 passport photos before final submission.`,
+          });
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          setSaving(false);
+          return;
+        }
+        setMissingFields([]);
+      } else {
+        setMissingFields([]);
+      }
+
       const res = await fetch("/api/talabat-profile/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -392,10 +463,16 @@ export default function TalabatProfile1447Page() {
         setNotification({
           type: "success",
           text: submitStatus === "SUBMITTED"
-            ? "🎉 Profile submitted successfully to Administration & Teachers!"
-            : "💾 Profile draft saved.",
+            ? "🎉 Profile submitted successfully to Administration & Teachers! Status is now SUBMITTED."
+            : "💾 Profile draft saved successfully. You can complete and submit anytime.",
         });
+        if (submitStatus === "SUBMITTED") {
+          setActiveTab("preview");
+        }
       } else {
+        if (data.missingFields) {
+          setMissingFields(data.missingFields);
+        }
         setNotification({ type: "error", text: data.error || "Failed to save profile" });
       }
     } catch (err: any) {
@@ -570,7 +647,7 @@ export default function TalabatProfile1447Page() {
             </h1>
             <p className="text-emerald-100/80 text-xs sm:text-sm mt-0.5">
               {isParentUser
-                ? "Official verified academic, hifz milestones and character records (Parent View-Only Mode)."
+                ? "Parent Portal: Complete your child's comprehensive 1447 H profile, upload passport photos, and review official records."
                 : "Fill and submit your official comprehensive academic and self-assessment profile."}
             </p>
           </div>
@@ -589,20 +666,18 @@ export default function TalabatProfile1447Page() {
           </div>
 
           <div className="flex items-center gap-2">
-            {!isParentUser && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("edit")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                  activeTab === "edit"
-                    ? "bg-white text-[#1c1c1c] shadow-md"
-                    : "bg-white/15 text-white hover:bg-white/25"
-                }`}
-              >
-                <FileEdit className="w-3.5 h-3.5 text-emerald-700" />
-                Edit Form
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setActiveTab("edit")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                activeTab === "edit"
+                  ? "bg-white text-[#1c1c1c] shadow-md"
+                  : "bg-white/15 text-white hover:bg-white/25"
+              }`}
+            >
+              <FileEdit className="w-3.5 h-3.5 text-emerald-700" />
+              Edit Form
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab("preview")}
@@ -613,7 +688,7 @@ export default function TalabatProfile1447Page() {
               }`}
             >
               <Eye className="w-3.5 h-3.5 text-amber-600" />
-              {isParentUser ? "Official Document View" : "Document View & Print"}
+              Document View &amp; Print
             </button>
           </div>
         </div>
@@ -629,14 +704,14 @@ export default function TalabatProfile1447Page() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-700 text-white px-2 py-0.5 rounded-full shadow-2xs">
-                  Parent View-Only Mode
+                  Parent Submission &amp; Review Mode
                 </span>
                 <span className="text-xs font-bold text-slate-800">
                   {studentInfo?.name || "Student"} • Grade {studentInfo?.grade || "Rabea"}
                 </span>
               </div>
               <p className="text-xs text-slate-600 mt-0.5">
-                Parents have view-only access to inspect and print this official Yearly Profile document. Form editing is restricted to Darajah Rabea students and school administration.
+                You have access to fill and complete all sections of your child's Darajah Rabea Yearly Profile, upload required passport photos (Student, Father, Mother), and submit directly to administration.
               </p>
             </div>
           </div>
@@ -646,7 +721,11 @@ export default function TalabatProfile1447Page() {
               <span className="text-xs font-semibold text-slate-700">Select Rabea Child:</span>
               <select
                 value={studentInfo?.id || ""}
-                onChange={(e) => fetchProfile(e.target.value)}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setSelectedChildId(newId);
+                  fetchProfile(newId);
+                }}
                 className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
               >
                 {availableChildren.map((c) => (
@@ -657,6 +736,42 @@ export default function TalabatProfile1447Page() {
               </select>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Mandatory Fields Missing Warning Alert ── */}
+      {missingFields.length > 0 && (
+        <div className="mb-6 bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 text-rose-950 shadow-sm animate-shake">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-sm sm:text-base text-rose-900">
+                  Mandatory Requirements for Final Submission ({missingFields.length} remaining):
+                </h3>
+                <span className="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                  Action Required
+                </span>
+              </div>
+              <p className="text-xs text-rose-800 mt-1">
+                Darajah Rabea Yearly Profile submission requires completing all student and family details, uploading all 3 passport photographs, and filling personal appraisal statements. Please complete the following items:
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {missingFields.map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-rose-300 text-rose-900 font-bold text-xs rounded-lg shadow-2xs"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    {item}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-2 italic">
+                Tip: You can click &quot;Save Draft&quot; at the bottom at any time to preserve your work without submitting.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -679,7 +794,7 @@ export default function TalabatProfile1447Page() {
           </div>
           <button
             onClick={() => setNotification(null)}
-            className="text-xs font-bold hover:underline ml-3"
+            className="text-xs font-bold hover:underline ml-3 cursor-pointer"
           >
             Dismiss
           </button>
@@ -689,7 +804,7 @@ export default function TalabatProfile1447Page() {
       {/* ════════════════════════════════════════════════════════════
           TAB 1: EDIT FORM
       ════════════════════════════════════════════════════════════ */}
-      {!isParentUser && activeTab === "edit" && (
+      {activeTab === "edit" && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -719,25 +834,37 @@ export default function TalabatProfile1447Page() {
               {/* Personal Fields */}
               <div className="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Full Name <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.name || ""}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Jafar bhai Husain bhai Badri"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                      missingFields.some((f) => f.includes("Full Name"))
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                        : "border-slate-300"
+                    }`}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">ITS No.</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    ITS No. <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.itsNo || ""}
                     onChange={(e) => setFormData({ ...formData, itsNo: e.target.value })}
                     placeholder="e.g. 30382713"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                      missingFields.some((f) => f.includes("ITS"))
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                        : "border-slate-300"
+                    }`}
                   />
                 </div>
 
@@ -753,24 +880,36 @@ export default function TalabatProfile1447Page() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Jamaat</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Jamaat / Mauze <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.jamaat || ""}
                     onChange={(e) => setFormData({ ...formData, jamaat: e.target.value })}
                     placeholder="e.g. Ratlam"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                      missingFields.some((f) => f.includes("Jamaat"))
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                        : "border-slate-300"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Vatan</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Vatan / Native Town <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.vatan || ""}
                     onChange={(e) => setFormData({ ...formData, vatan: e.target.value })}
                     placeholder="e.g. Ratlam"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                      missingFields.some((f) => f.includes("Vatan"))
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                        : "border-slate-300"
+                    }`}
                   />
                 </div>
 
@@ -787,23 +926,35 @@ export default function TalabatProfile1447Page() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">DOB</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      DOB <span className="text-rose-500 font-bold">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.dob || ""}
                       onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                       placeholder="YYYY-MM-DD"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                        missingFields.some((f) => f.includes("Birth"))
+                          ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                          : "border-slate-300"
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Age</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Age <span className="text-rose-500 font-bold">*</span>
+                    </label>
                     <input
                       type="number"
                       value={formData.age || ""}
                       onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                       placeholder="e.g. 17"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                        missingFields.some((f) => f.includes("Age"))
+                          ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                          : "border-slate-300"
+                      }`}
                     />
                   </div>
                 </div>
@@ -834,26 +985,34 @@ export default function TalabatProfile1447Page() {
                 <div className="flex-1 w-full space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Father's Full Name
+                      Father's Full Name <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.fatherName || ""}
                       onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
                       placeholder="e.g. Husain bhai Shaikh Abdulhusain"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                        missingFields.some((f) => f.includes("Father Name"))
+                          ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                          : "border-slate-300"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Father's Occupation / Khidmat
+                      Father's Occupation / Khidmat <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.fatherOccupation || ""}
                       onChange={(e) => setFormData({ ...formData, fatherOccupation: e.target.value })}
                       placeholder="e.g. Business / Service"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                        missingFields.some((f) => f.includes("Father Occupation"))
+                          ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                          : "border-slate-300"
+                      }`}
                     />
                   </div>
                 </div>
@@ -874,26 +1033,34 @@ export default function TalabatProfile1447Page() {
                 <div className="flex-1 w-full space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Mother's Full Name
+                      Mother's Full Name <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.motherName || ""}
                       onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
                       placeholder="e.g. Zainab bai Husain bhai"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                        missingFields.some((f) => f.includes("Mother Name"))
+                          ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                          : "border-slate-300"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Mother's Occupation
+                      Mother's Occupation <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.motherOccupation || "Homemaker"}
                       onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
                       placeholder="Homemaker"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                        missingFields.some((f) => f.includes("Mother Occupation"))
+                          ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                          : "border-slate-300"
+                      }`}
                     />
                   </div>
                 </div>
@@ -1067,14 +1234,22 @@ export default function TalabatProfile1447Page() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
               <Award className="w-5 h-5 text-emerald-700" />
-              <h2 className="text-lg font-bold text-slate-900">4. Self – Assessment</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                4. Self – Assessment <span className="text-rose-500 font-bold">*</span>
+              </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Strengths */}
-              <div className="p-4 bg-emerald-50/50 border border-emerald-200/60 rounded-xl space-y-3">
+              <div className={`p-4 rounded-xl space-y-3 transition-all ${
+                missingFields.some((f) => f.includes("Strengths"))
+                  ? "bg-rose-50/50 border-2 border-rose-300 ring-2 ring-rose-200"
+                  : "bg-emerald-50/50 border border-emerald-200/60"
+              }`}>
                 <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
-                  <h3 className="text-sm font-bold text-emerald-900">My Strengths</h3>
+                  <h3 className="text-sm font-bold text-emerald-900">
+                    My Strengths (Min 3 required) <span className="text-rose-500 font-bold">*</span>
+                  </h3>
                   <button
                     type="button"
                     onClick={addStrength}
@@ -1110,9 +1285,15 @@ export default function TalabatProfile1447Page() {
               </div>
 
               {/* Weaknesses */}
-              <div className="p-4 bg-rose-50/50 border border-rose-200/60 rounded-xl space-y-3">
+              <div className={`p-4 rounded-xl space-y-3 transition-all ${
+                missingFields.some((f) => f.includes("Weaknesses"))
+                  ? "bg-rose-50/50 border-2 border-rose-300 ring-2 ring-rose-200"
+                  : "bg-rose-50/50 border border-rose-200/60"
+              }`}>
                 <div className="flex items-center justify-between border-b border-rose-200/60 pb-2">
-                  <h3 className="text-sm font-bold text-rose-900">My Weaknesses</h3>
+                  <h3 className="text-sm font-bold text-rose-900">
+                    Areas to Improve (Weaknesses - Min 3) <span className="text-rose-500 font-bold">*</span>
+                  </h3>
                   <button
                     type="button"
                     onClick={addWeakness}
@@ -1153,7 +1334,9 @@ export default function TalabatProfile1447Page() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
               <Sparkles className="w-5 h-5 text-emerald-700" />
-              <h2 className="text-lg font-bold text-slate-900">5. About Myself (Hobbies, Interests &amp; Skills)</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                5. About Myself (Hobbies, Interests &amp; Vision Statement) <span className="text-rose-500 font-bold">*</span>
+              </h2>
             </div>
 
             <div>
@@ -1161,9 +1344,16 @@ export default function TalabatProfile1447Page() {
                 rows={4}
                 value={formData.aboutMyself || ""}
                 onChange={(e) => setFormData({ ...formData, aboutMyself: e.target.value })}
-                placeholder="e.g. Hobbies - Reading Books, Learning new things. Interest - Computers, Dawat ni akhbar. Skills - Good in computers, can adapt to work with everyone."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                placeholder="e.g. Hobbies - Reading Books, Learning new things. Interest - Computers, Dawat ni akhbar. Skills - Good in computers, can adapt to work with everyone. Future vision - I aspire to serve Mawla with excellence..."
+                className={`w-full px-3 py-2 border rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-emerald-700 focus:outline-none transition-all ${
+                  missingFields.some((f) => f.includes("About Myself"))
+                    ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
+                    : "border-slate-300"
+                }`}
               />
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                Minimum 15 characters required for final submission.
+              </span>
             </div>
           </div>
 
@@ -1211,9 +1401,16 @@ export default function TalabatProfile1447Page() {
 
           {/* ── Form Actions Bottom Bar ── */}
           <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur border border-slate-300 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs text-slate-600">
-              <Clock className="w-4 h-4 text-slate-400" />
-              <span>Make sure all details and photos are verified before submission.</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5 font-medium">
+                <Clock className="w-4 h-4 text-emerald-700" />
+                <span>All 3 passport photos and required fields must be filled before submission.</span>
+              </div>
+              {missingFields.length > 0 && (
+                <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                  {missingFields.length} missing items
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -1243,7 +1440,7 @@ export default function TalabatProfile1447Page() {
       {/* ════════════════════════════════════════════════════════════
           TAB 2: OFFICIAL 2-PAGE DOCUMENT PREVIEW & PRINT
       ════════════════════════════════════════════════════════════ */}
-      {(isParentUser || activeTab === "preview") && (
+      {activeTab === "preview" && (
         <div className="space-y-6">
           <TalabatProfileDocument data={formData} showPrintButton={true} />
         </div>

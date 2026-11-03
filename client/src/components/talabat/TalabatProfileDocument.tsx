@@ -83,6 +83,16 @@ export function TalabatProfileDocument({
     return str.length > 0 && str !== "—" && str !== "-" && str !== "null" && str !== "undefined";
   };
 
+  const normalizeImgSrc = (url?: string | null): string => {
+    if (!url || typeof url !== "string") return "";
+    const trimmed = url.trim();
+    if (!trimmed || trimmed === "null" || trimmed === "undefined") return "";
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("/")) {
+      return trimmed;
+    }
+    return "/" + trimmed;
+  };
+
   // Helper to detect if text is predominantly Arabic/Lisan al-Dawat
   const isArabicText = (text?: string | null) => {
     if (!text) return false;
@@ -334,7 +344,7 @@ export function TalabatProfileDocument({
                     {isFilled(data.studentPhotoUrl) && (
                       <div className="w-28 sm:w-32 min-h-[110px] p-2 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
                         <img
-                          src={data.studentPhotoUrl!}
+                          src={normalizeImgSrc(data.studentPhotoUrl)}
                           alt={data.name || "Student"}
                           className="w-full h-28 object-cover rounded shadow-xs border border-slate-200"
                         />
@@ -421,10 +431,9 @@ export function TalabatProfileDocument({
                         {isFilled(data.fatherPhotoUrl) && (
                           <div className="w-20 sm:w-24 h-24 sm:h-28 p-1 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
                             <img
-                              src={data.fatherPhotoUrl!}
+                              src={normalizeImgSrc(data.fatherPhotoUrl)}
                               alt="Father"
                               className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
-                              onError={(e) => ((e.target as HTMLElement).style.display = "none")}
                             />
                           </div>
                         )}
@@ -447,10 +456,9 @@ export function TalabatProfileDocument({
                         {isFilled(data.motherPhotoUrl) && (
                           <div className="w-20 sm:w-24 h-24 sm:h-28 p-1 border-r border-slate-800 flex items-center justify-center bg-slate-50 shrink-0">
                             <img
-                              src={data.motherPhotoUrl!}
+                              src={normalizeImgSrc(data.motherPhotoUrl)}
                               alt="Mother"
                               className="w-full h-full object-cover rounded shadow-2xs border border-slate-200"
-                              onError={(e) => ((e.target as HTMLElement).style.display = "none")}
                             />
                           </div>
                         )}
