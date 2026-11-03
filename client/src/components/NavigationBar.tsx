@@ -147,7 +147,6 @@ export function NavigationBar() {
         { label: "Dashboard", href: "/teacher", icon: Activity },
         ...(isPageAssigned("classes") && isModuleVisible("classes", "TEACHER") ? [{ label: "Classes", href: "/teacher/classes", icon: BookOpen }] : []),
         ...(isPageAssigned("timetable") && isModuleVisible("timetable", "TEACHER") ? [{ label: "Timetable Matrix", href: "/teacher/timetable", icon: CalendarDays }] : []),
-        ...(isPageAssigned("quran") && isModuleVisible("quran", "TEACHER") ? [{ label: "Quran (Hifz)", href: "/teacher/hifz", icon: FileText }] : []),
         ...(isPageAssigned("takhteet") && isModuleVisible("takhteet", "TEACHER") ? [{ label: "Takhteet", href: "/teacher/takhteet", icon: Layers }] : []),
         ...(isPageAssigned("manual-attendance") && isModuleVisible("manual-attendance", "TEACHER") ? [{ label: "Manual Logs", href: "/teacher/attendance", icon: ClipboardCheck }] : []),
         ...(isPageAssigned("attendance-logs") && isModuleVisible("attendance-logs", "TEACHER") ? [{ label: "Hikvision Scans", href: "/teacher/attendance-hik", icon: Fingerprint }] : []),
@@ -181,7 +180,6 @@ export function NavigationBar() {
     if (href === "/admin/leave" || href === "/teacher/leave") return "leave";
     if (href === "/admin/procurement" || href === "/teacher/procurement") return "procurement";
     if (href === "/teacher/takhteet") return "takhteet";
-    if (href === "/teacher/hifz" || href === "/teacher/hifz-reports") return "quran";
     if (href === "/teacher/profile") return "profile";
     return null;
   };

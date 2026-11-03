@@ -35,11 +35,6 @@ import adminPortalAssignmentsRoutes from "./routes/admin/portal-assignments";
 import adminTakhteetRoutes from "./routes/admin/takhteet";
 import adminMonitoringRoutes from "./routes/admin/monitoring";
 import adminActivityRoutes from "./routes/admin/activity";
-import adminHifzRoutes from "./routes/admin/hifz";
-import adminHifzPublishRoutes from "./routes/admin/hifz/publish";
-import adminHifzSendEmailsRoutes from "./routes/admin/hifz/send-emails";
-import adminHifzImportRoutes from "./routes/admin/hifz/import";
-import adminHifzMarhalaRoutes from "./routes/admin/hifz-marhala";
 import adminLibraryRoutes from "./routes/admin/library";
 import adminLibraryOverviewRoutes from "./routes/admin/library/overview";
 import adminAnalyticsRoutes from "./routes/admin/analytics";
@@ -83,8 +78,6 @@ import teacherJustificationsRoutes from "./routes/teacher/justifications";
 import teacherTakhteetRoutes from "./routes/teacher/takhteet";
 import teacherProfileRoutes from "./routes/teacher/profile";
 import teacherLeaveRoutes from "./routes/teacher/leave";
-import teacherHifzMarhalaRoutes from "./routes/teacher/hifz-marhala";
-import teacherHifzWeeklySlipRoutes from "./routes/teacher/hifz-weekly-slip";
 import teacherTimetableRoutes from "./routes/teacher/timetable";
 import teacherMyAttendanceRoutes from "./routes/teacher/my-attendance";
 
@@ -96,9 +89,7 @@ import talabatAttendanceRoutes from "./routes/talabat/attendance";
 import talabatScansRoutes from "./routes/talabat/scans";
 import talabatLibraryRoutes from "./routes/talabat/library";
 import talabatDashboardRoutes from "./routes/talabat/dashboard";
-import talabatHifzRoutes from "./routes/talabat/hifz";
 import talabatLeaveRoutes from "./routes/talabat/leave";
-import talabatHifzMarhalaRoutes from "./routes/talabat/hifz-marhala";
 import talabatProfile1447Routes from "./routes/talabat-profile";
 import talabatTimetableRoutes from "./routes/talabat/timetable";
 import assignmentsRoutes from "./routes/assignments";
@@ -106,13 +97,11 @@ import hobbiesRoutes from "./routes/hobbies";
 import skillsRoutes from "./routes/skills";
 
 // ── Parent routes ──
-import parentHifzRoutes from "./routes/parent/hifz";
 import parentDashboardRoutes from "./routes/parent/dashboard";
 import parentActivityRoutes from "./routes/parent/activity";
 import parentProfileRoutes from "./routes/parent/profile";
 import parentLeaveRoutes from "./routes/parent/leave";
 import parentTimetableRoutes from "./routes/parent/timetable";
-import hifzDailyEvaluationRoutes from "./routes/hifz/daily-evaluation";
 
 import prisma from "./lib/prisma";
 import {
@@ -399,11 +388,6 @@ export function createApp() {
   app.use("/api/admin/monitoring", adminMonitoringRoutes);
   app.use("/api/admin/activity", adminActivityRoutes);
   app.use("/api/admin/analytics", adminAnalyticsRoutes);
-  app.use("/api/admin/hifz", adminHifzRoutes);
-  app.use("/api/admin/hifz/publish", adminHifzPublishRoutes);
-  app.use("/api/admin/hifz/send-emails", adminHifzSendEmailsRoutes);
-  app.use("/api/admin/hifz/import", adminHifzImportRoutes);
-  app.use("/api/admin/hifz-marhala", adminHifzMarhalaRoutes);
   app.use("/api/admin/library/overview", adminLibraryOverviewRoutes);
   app.use("/api/admin/library", adminLibraryRoutes);
   app.use("/api/admin/library/students", adminLibraryStudentsRoutes);
@@ -430,8 +414,6 @@ export function createApp() {
   app.use("/api/teacher/takhteet", teacherTakhteetRoutes);
   app.use("/api/teacher/profile", teacherProfileRoutes);
   app.use("/api/teacher/leave", teacherLeaveRoutes);
-  app.use("/api/teacher/hifz-marhala", teacherHifzMarhalaRoutes);
-  app.use("/api/teacher/hifz-weekly-slip", teacherHifzWeeklySlipRoutes);
   app.use("/api/teacher/timetable", teacherTimetableRoutes);
   app.use("/api/teacher/my-attendance", teacherMyAttendanceRoutes);
 
@@ -444,22 +426,18 @@ export function createApp() {
   app.use("/api/talabat/scans", talabatScansRoutes);
   app.use("/api/talabat/library", talabatLibraryRoutes);
   app.use("/api/talabat/dashboard", talabatDashboardRoutes);
-  app.use("/api/talabat/hifz", talabatHifzRoutes);
   app.use("/api/talabat/leave", talabatLeaveRoutes);
-  app.use("/api/talabat/hifz-marhala", talabatHifzMarhalaRoutes);
   app.use("/api/talabat/timetable", talabatTimetableRoutes);
   app.use("/api/assignments", assignmentsRoutes);
   app.use("/api/hobbies", hobbiesRoutes);
   app.use("/api/skills", skillsRoutes);
 
   // ── Parent routes ──
-  app.use("/api/parent/hifz", parentHifzRoutes);
   app.use("/api/parent/dashboard", parentDashboardRoutes);
   app.use("/api/parent/activity", parentActivityRoutes);
   app.use("/api/parent/profile", parentProfileRoutes);
   app.use("/api/parent/leave", parentLeaveRoutes);
   app.use("/api/parent/timetable", parentTimetableRoutes);
-  app.use("/api/hifz/daily-evaluation", hifzDailyEvaluationRoutes);
 
   // ── Serve the built SPA (production) with immutable asset caching ──
   const clientDist = path.join(repoRoot, "client", "dist");

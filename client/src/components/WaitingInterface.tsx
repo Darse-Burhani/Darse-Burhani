@@ -11,7 +11,7 @@ interface WaitingInterfaceProps {
 
 const DEFAULT_MESSAGES = [
   "Synchronizing academic records...",
-  "Retrieving Hifz and attendance details...",
+  "Retrieving timetable and attendance details...",
   "Verifying session permissions...",
   "Loading Mahad al Zahra portal...",
 ];

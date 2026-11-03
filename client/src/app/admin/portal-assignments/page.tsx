@@ -60,7 +60,7 @@ import { getInitials } from "@/lib/utils";
 export interface PageDefinition {
   id: string;
   label: string;
-  category: "Academics" | "Hifz" | "Attendance" | "Operations" | "Communications" | "Library" | "General" | "Community" | "Systems";
+  category: "Academics" | "Attendance" | "Operations" | "Communications" | "Library" | "General" | "Community" | "Systems";
   description: string;
   icon: React.ElementType;
 }
@@ -151,20 +151,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Master timetable & schedule",
     icon: CalendarDays,
-  },
-  {
-    id: "quran",
-    label: "Quran (Hifz)",
-    category: "Hifz",
-    description: "Memorization ajza tracking, marhala grading & weekly slips",
-    icon: Sparkles,
-  },
-  {
-    id: "hifz-marhala",
-    label: "Hifz Marhala",
-    category: "Hifz",
-    description: "Marhala progress & exams",
-    icon: GraduationCap,
   },
   {
     id: "takhteet",
@@ -348,7 +334,6 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
 const CATEGORY_TONES: Record<PageDefinition["category"], { badge: string; icon: string; dot: string }> = {
   General: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
   Academics: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
-  Hifz: { badge: "bg-emerald-50 text-emerald-800 border-emerald-200", icon: "text-emerald-700", dot: "bg-emerald-500" },
   Attendance: { badge: "bg-emerald-50 text-emerald-800 border-emerald-200", icon: "text-emerald-700", dot: "bg-emerald-500" },
   Operations: { badge: "bg-amber-50 text-amber-800 border-amber-200", icon: "text-amber-700", dot: "bg-amber-500" },
   Communications: { badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-600", dot: "bg-slate-400" },
@@ -365,8 +350,8 @@ const PRESETS = [
   },
   {
     name: "Standard Academic Faculty",
-    description: "Dashboard, Classes, Yearly Profile, Timetable, Quran, Manual Attendance, Profile",
-    pages: ["dashboard", "classes", "talabat-profiles", "timetable", "quran", "manual-attendance", "profile"],
+    description: "Dashboard, Classes, Yearly Profile, Timetable, Manual Attendance, Profile",
+    pages: ["dashboard", "classes", "talabat-profiles", "timetable", "manual-attendance", "profile"],
   },
   {
     name: "Takhteet & Portion In-Charge (Specific Faculty)",
@@ -382,11 +367,6 @@ const PRESETS = [
     name: "Attendance & Scanners Officer",
     description: "Dashboard, Manual Attendance, Hikvision Logs, Attendance Schedule, Email Reports, Google Sheets, Biometric, Leave, Profile",
     pages: ["dashboard", "manual-attendance", "attendance-logs", "attendance-schedule", "email-reports", "google-sheets", "biometric", "leave", "profile"],
-  },
-  {
-    name: "Hifz Department (Muhaffiz)",
-    description: "Dashboard, Quran, Hifz Marhala, Manual Attendance, Leave, Profile",
-    pages: ["dashboard", "quran", "hifz-marhala", "manual-attendance", "leave", "profile"],
   },
   {
     name: "Operations & Makhzan",

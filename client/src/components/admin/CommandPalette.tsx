@@ -399,7 +399,7 @@ export function CommandPalette() {
           >
             <Sparkles className="w-3.5 h-3.5 text-[#fde047]" />
             <span>
-              Press key: <strong>D</strong> (Dashboard), <strong>A</strong> (Attendance), <strong>C</strong> (Classes), <strong>H</strong> (Hifz), <strong>U</strong> (Users)...
+              Press key: <strong>D</strong> (Dashboard), <strong>A</strong> (Attendance), <strong>C</strong> (Classes), <strong>U</strong> (Users)...
             </span>
           </motion.div>
         )}
@@ -427,7 +427,7 @@ export function CommandPalette() {
                     setSelectedIndex(0);
                   }}
                   onKeyDown={handleInputKeyDown}
-                  placeholder="Type a command, page, or search (e.g. attendance, classes, hifz)..."
+                  placeholder="Type a command, page, or search (e.g. attendance, classes, timetable)..."
                   className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none font-medium"
                 />
                 <kbd className="hidden sm:inline-block px-2 py-1 rounded bg-white border border-gray-200 text-[10px] font-mono text-gray-500 shadow-2xs">
@@ -601,10 +601,6 @@ export function CommandPalette() {
                     <div className="p-2 bg-gray-50 rounded-lg flex items-center justify-between">
                       <span>Classes</span>
                       <kbd className="px-1.5 py-0.5 rounded bg-white border font-mono font-bold">G C</kbd>
-                    </div>
-                    <div className="p-2 bg-gray-50 rounded-lg flex items-center justify-between">
-                      <span>Quran &amp; Hifz</span>
-                      <kbd className="px-1.5 py-0.5 rounded bg-white border font-mono font-bold">G H</kbd>
                     </div>
                     <div className="p-2 bg-gray-50 rounded-lg flex items-center justify-between">
                       <span>Talabat (Students)</span>

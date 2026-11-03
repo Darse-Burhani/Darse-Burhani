@@ -188,7 +188,7 @@ export function CommandPalette() {
       {
         id: "portal-teacher",
         title: "Teacher & Faculty Portal",
-        subtitle: "Daily class takhteet, attendance, and hifz logs",
+        subtitle: "Daily class takhteet, attendance, and timetable",
         category: "Portals",
         icon: GraduationCap,
         href: "/teacher",
@@ -292,7 +292,7 @@ export function CommandPalette() {
                 setSelectedIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search tools, portals, live attendance, hifz marhala, library..."
+              placeholder="Search tools, portals, live attendance, takhteet, library..."
               className="w-full bg-transparent text-sm sm:text-base text-white placeholder:text-gray-500 outline-none font-medium"
             />
             <div className="flex items-center gap-1 shrink-0">
@@ -315,7 +315,7 @@ export function CommandPalette() {
               <div className="py-12 text-center text-gray-400">
                 <Search className="w-8 h-8 text-gray-600 mx-auto mb-2 opacity-60" />
                 <p className="text-xs font-semibold">No commands found for "{query}"</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Try searching for attendance, hifz, classes, or library</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Try searching for attendance, classes, takhteet, or library</p>
               </div>
             ) : (
               filteredCommands.map((cmd, idx) => {

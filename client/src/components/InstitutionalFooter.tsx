@@ -50,7 +50,7 @@ export function InstitutionalFooter({
               </div>
             </div>
             <p className="text-xs text-[#b8b2a5] leading-relaxed max-w-sm">
-              Academic records, classroom attendance, Quran Hifz milestones, and institutional governance for faculty, talabat students, and families.
+              Academic records, classroom attendance, curriculum milestones, and institutional governance for faculty, talabat students, and families.
             </p>
           </div>
 

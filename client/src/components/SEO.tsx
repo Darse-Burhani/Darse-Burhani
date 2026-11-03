@@ -16,7 +16,7 @@ export interface SEOProps {
 const DEFAULT_TITLE = "Darse Burhani — Mahad al-Zahra Academic Portal & Nisab";
 const TITLE_TEMPLATE = "%s | Darse Burhani";
 const DEFAULT_DESCRIPTION =
-  "Unified academic portal, biometric attendance telemetry, Quran Hifz milestones, Takhteet lesson plans, and student learning console for Mahad al-Zahra.";
+  "Unified academic portal, biometric attendance telemetry, Takhteet lesson plans, and student learning console for Mahad al-Zahra.";
 const DEFAULT_OG_IMAGE = "https://darseburhani.edu/og-image.svg";
 const BASE_URL = "https://darseburhani.edu";
 
@@ -65,17 +65,17 @@ export const ROUTE_METADATA: Record<string, { title: string; description: string
   },
   "/teacher": {
     title: "Teacher & Faculty Portal",
-    description: "Classroom management, daily attendance rosters, Hifz assessment slips, and takhteet lesson planning.",
+    description: "Classroom management, daily attendance rosters, timetable, and takhteet lesson planning.",
     noIndex: true,
   },
   "/talabat": {
     title: "Talabat Student Portal",
-    description: "Personal attendance ledger, Quran Hifz progress, Maktabat book catalog, badges, and skill achievements.",
+    description: "Personal attendance ledger, Maktabat book catalog, badges, and skill achievements.",
     noIndex: true,
   },
   "/parent": {
     title: "Parent Portal Console",
-    description: "Real-time updates on your child's attendance records, Hifz milestones, and institutional notices.",
+    description: "Real-time updates on your child's attendance records and institutional notices.",
     noIndex: true,
   },
 };

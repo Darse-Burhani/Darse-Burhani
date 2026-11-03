@@ -2,26 +2,6 @@ import { google } from "googleapis";
 
 const sheets = google.sheets("v4");
 
-export interface HifzSheetRow {
-  srNo: number;
-  its: string;
-  studentName: string;
-  darajah: string;
-  sanah: string;
-  currentJuz: number;
-  currentSafah: number;
-  totalJadeedPages: number;
-  pendingAjza: number;
-  weakAjza: number;
-  murajaatMarks: number;
-  juzhaliMarks: number;
-  jadeedMarks: number;
-  totalMarks: number;
-  performancePercent: number;
-  email1: string;
-  email2: string;
-}
-
 function getAuth() {
   const apiKey = process.env.GOOGLE_SHEETS_API_KEY;
   if (!apiKey) {
@@ -91,59 +71,4 @@ export async function getSheetData(rawInput: string, range?: string, gidParam?: 
   });
 
   return response.data.values || [];
-}
-
-export function parseSheetRows(rows: string[][]): HifzSheetRow[] {
-  if (rows.length < 2) return [];
-
-  const headers = rows[0].map((h) => h.toLowerCase().trim());
-  
-  // Find column indices based on actual sheet headers
-  const srNoIdx = headers.findIndex((h) => ["sr.no", "srno", "sr no", "serial", "#"].includes(h));
-  const itsIdx = headers.findIndex((h) => ["its", "its id", "itsid"].includes(h));
-  const nameIdx = headers.findIndex((h) => ["name", "student name", "studentname", "اسم الطالب", "الطالب"].includes(h));
-  const darajahIdx = headers.findIndex((h) => ["darajah", "grade", "الصف"].includes(h));
-  const sanahIdx = headers.findIndex((h) => ["sanah", "year", "section", "القسم"].includes(h));
-  const currentJuzIdx = headers.findIndex((h) => ["current juz", "currentjuz", "juz", "الجزء الحالي"].includes(h));
-  const currentSafahIdx = headers.findIndex((h) => ["current safah", "currentsafah", "safah", "page", "الصفحة الحالية"].includes(h));
-  const totalJadeedPagesIdx = headers.findIndex((h) => ["total jadeed pages", "totaljadeedpages", "jadeed pages", "الصفحات الجديدة"].includes(h));
-  const pendingAjzaIdx = headers.findIndex((h) => ["pending ajza", "pendingajza", "pending", "المعلقة"].includes(h));
-  const weakAjzaIdx = headers.findIndex((h) => ["weak ajza", "weakajza", "weak", "الضعيفة"].includes(h));
-  const murajaatMarksIdx = headers.findIndex((h) => ["murajaat marks (20)", "murajaat marks", "murajaat", "المراجعة"].includes(h));
-  const juzhaliMarksIdx = headers.findIndex((h) => ["juzhali marks (20)", "juzhali marks", "juzhali", "الحفظ"].includes(h));
-  const jadeedMarksIdx = headers.findIndex((h) => ["jadeed marks (10)", "jadeed marks", "jadeed", "الجديد"].includes(h));
-  const totalMarksIdx = headers.findIndex((h) => ["total (50)", "total", "المجموع"].includes(h));
-  const performanceIdx = headers.findIndex((h) => ["overall performance %", "overall performance", "performance", "الأداء العام"].includes(h));
-  const email1Idx = headers.findIndex((h) => ["email id 1", "email1", "email", "البريد الإلكتروني"].includes(h));
-  const email2Idx = headers.findIndex((h) => ["email id 2", "email2"].includes(h));
-
-  return rows.slice(1).filter((row) => row.some((cell) => cell.trim() !== "")).map((row) => {
-    const currentJuz = parseInt(row[currentJuzIdx] || "0", 10) || 0;
-    
-    // Determine status based on current juz
-    let status = "NOT_STARTED";
-    if (currentJuz >= 30) status = "COMPLETED";
-    else if (currentJuz > 0) status = "IN_PROGRESS";
-
-    return {
-      srNo: parseInt(row[srNoIdx] || "0", 10) || 0,
-      its: (row[itsIdx] || "").trim(),
-      studentName: (row[nameIdx] || "").trim(),
-      darajah: (row[darajahIdx] || "").trim(),
-      sanah: (row[sanahIdx] || "").trim(),
-      currentJuz,
-      currentSafah: parseInt(row[currentSafahIdx] || "0", 10) || 0,
-      totalJadeedPages: parseInt(row[totalJadeedPagesIdx] || "0", 10) || 0,
-      pendingAjza: parseInt(row[pendingAjzaIdx] || "0", 10) || 0,
-      weakAjza: parseInt(row[weakAjzaIdx] || "0", 10) || 0,
-      murajaatMarks: parseInt(row[murajaatMarksIdx] || "0", 10) || 0,
-      juzhaliMarks: parseInt(row[juzhaliMarksIdx] || "0", 10) || 0,
-      jadeedMarks: parseInt(row[jadeedMarksIdx] || "0", 10) || 0,
-      totalMarks: parseInt(row[totalMarksIdx] || "0", 10) || 0,
-      performancePercent: parseFloat(row[performanceIdx] || "0") || 0,
-      email1: (row[email1Idx] || "").trim(),
-      email2: (row[email2Idx] || "").trim(),
-      status,
-    };
-  });
 }

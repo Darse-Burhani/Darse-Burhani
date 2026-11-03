@@ -44,8 +44,6 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/admin/notifications") || url.includes("/api/notifications")) return ["notifications"];
   if (url.includes("/api/admin/portal-assignments")) return ["portal-assignments"];
   if (url.includes("/api/admin/takhteet") || url.includes("/api/teacher/takhteet") || url.includes("/api/takhteet")) return ["takhteet"];
-  if (url.includes("/api/admin/hifz-marhala") || url.includes("/api/teacher/hifz-marhala")) return ["hifz-marhala", "quran"];
-  if (url.includes("/api/admin/hifz") || url.includes("/api/teacher/hifz") || url.includes("/api/teacher/hifz-weekly-slip")) return ["quran", "hifz-marhala"];
   if (url.includes("/api/admin/library/shelves") || url.includes("/api/admin/makhz"))
     return ["makhzan", "library", "library-overview", "library-shelves", "library-checkout", "library-overdue", "library-auditor"];
   if (url.includes("/api/admin/library"))
@@ -122,7 +120,6 @@ export async function hasTeacherPageAuthority(userId: string, reqOrPages: Reques
         assignedPages.has(p) ||
         p === "dashboard" ||
         p === "profile" ||
-        (p === "quran" && assignedPages.has("quran")) ||
         (p === "passwords" && assignedPages.has("users")) ||
         (p.startsWith("library-") && assignedPages.has("library")) ||
         (p === "parents-assign" && assignedPages.has("parents"))

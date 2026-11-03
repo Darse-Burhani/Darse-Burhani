@@ -12,8 +12,6 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
   { id: "talabat-profiles", label: "Yearly Profile (1447 H)", category: "Community", description: "Talabat yearly profile, remarks & 1447 H records", path: "/teacher/talabat-profiles", icon: "GraduationCap" },
   { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
-  { id: "quran", label: "Quran (Hifz)", category: "Hifz", description: "Ajza progress, marhala & weekly slips", path: "/teacher/hifz", icon: "Sparkles" },
-  { id: "hifz-marhala", label: "Hifz Marhala", category: "Hifz", description: "Marhala progress & exams", path: "/teacher/hifz-marhala", icon: "GraduationCap" },
   { id: "takhteet", label: "Takhteet (Curriculum Portion)", category: "Academics", description: "Curriculum pacing & syllabus tracking (Restricted to specific assigned faculty)", path: "/teacher/takhteet", icon: "Layers" },
   { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
   { id: "attendance-logs", label: "Hikvision Scans & Logs", category: "Attendance", description: "Live Hikvision scans, manual logs, exports & audit timeline", path: "/teacher/attendance-hik", icon: "Fingerprint" },
@@ -69,8 +67,6 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "google-sheets" || clean === "google_sheets" || clean === "google-sheet" || clean === "sheets" || clean === "sheet-sync" || clean === "sheet_sync") return ["google-sheets"];
   if (clean === "biometric" || clean === "biometrics" || clean === "scanners") return ["biometric"];
   if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return ["medical-duty"];
-  if (clean === "quran" || clean === "hifz" || clean === "hifz-reports" || clean === "weekly-slips") return ["quran"];
-  if (clean === "hifz-marhala" || clean === "hifz_marhala" || clean === "marhala") return ["hifz-marhala"];
   if (clean === "makhzan" || clean === "makhzn" || clean === "warehouse" || clean === "inventory") return ["makhzan"];
   if (clean === "point-matrix" || clean === "point_matrix" || clean === "point-rules" || clean === "points") return ["point-matrix"];
   if (clean === "portal-assignments" || clean === "portal_assignments" || clean === "assignments") return ["portal-assignments"];

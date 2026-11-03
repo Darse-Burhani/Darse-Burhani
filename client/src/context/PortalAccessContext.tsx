@@ -19,7 +19,6 @@ const defaultModules: PortalModulesConfig = {
     attendance: true,
     scans: true,
     calendar: true,
-    hifz: true,
     library: true,
     skillTree: true,
     badges: true,
@@ -34,7 +33,6 @@ const defaultModules: PortalModulesConfig = {
     attendance: true,
     faculty: true,
     calendar: true,
-    hifz: true,
     profile: true,
     pointMatrix: false,
     tilawatDua: true,
@@ -76,8 +74,6 @@ export function normalizePageKey(keyOrPath: string): string {
   clean = clean.replace(/^\/+|\/+$/g, "");
   clean = clean.replace(/^page:/, "");
   if (!clean || clean === "admin" || clean === "teacher") return "dashboard";
-  if (clean === "hifz" || clean === "hifz-reports" || clean === "hifz-weekly-slip" || clean === "weekly-slips") return "quran";
-  if (clean === "hifz-marhala" || clean === "hifz_marhala" || clean === "marhala") return "hifz-marhala";
   if (clean === "attendance" || clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance_manual" || clean === "manual_attendance" || clean === "manual") return "manual-attendance";
   if (clean === "attendance-emails" || clean === "attendance-email" || clean === "email-reports" || clean === "email_reports" || clean === "emails") return "email-reports";
   if (clean === "attendance-log" || clean === "attendance-logs" || clean === "attendance_logs" || clean === "attendance_log" || clean === "logs" || clean === "log" || clean === "attendance-registry" || clean === "attendance-hik" || clean === "hik") return "attendance-logs";
@@ -117,7 +113,6 @@ export function normalizePageKey(keyOrPath: string): string {
  */
 function navKeyToModuleConfigKey(navKey: string): string {
   if (navKey === "tilawat-dua" || navKey === "tilawat_dua") return "tilawatDua";
-  if (navKey === "quran" || navKey === "hifz-marhala" || navKey === "hifz-weekly-slip") return "hifz";
   if (
     navKey === "manual-attendance" ||
     navKey === "attendance-logs" ||
@@ -311,8 +306,6 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       }
 
       // Legacy synonyms and parent page mappings
-      if (key === "quran" && (assignedPages.includes("hifz") || assignedPages.includes("PAGE:hifz") || normalizedAssigned.includes("quran"))) return true;
-      if (key === "hifz-marhala" && (assignedPages.includes("hifz") || assignedPages.includes("quran") || normalizedAssigned.includes("hifz-marhala"))) return true;
       if (key === "passwords" && (assignedPages.includes("users") || assignedPages.includes("PAGE:users") || normalizedAssigned.includes("users") || normalizedAssigned.includes("passwords"))) return true;
 
       return false;
