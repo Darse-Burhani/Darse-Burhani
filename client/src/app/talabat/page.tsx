@@ -26,13 +26,15 @@ import {
   ArrowRightLeft,
   Calendar,
   Tv,
+  BellRing,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/utils";
+import { getInitials, timeAgo } from "@/lib/utils";
 import { PremiumTalabatCard } from "@/components/student/PremiumTalabatCard";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -47,6 +49,8 @@ const skillCategories = [
 const portalOptions = [
   { key: "timetable", label: "Class Timetable", href: "/talabat/timetable", icon: CalendarDays, description: "Official weekly class schedule & faculty", chip: "Academics" },
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock, description: "Track your attendance & record logs", chip: "Record" },
+  { key: "leave", label: "Leave Requests", href: "/talabat/leave-request", icon: Calendar, description: "Submit applications & track approval status", chip: "Leave" },
+  { key: "profile1447", label: "Yearly Profile (1447 H)", href: "/talabat/profile-1447", icon: Sparkles, description: "Darajah 4 profile, photos & faculty remarks", chip: "Report" },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays, description: "View the Fatimi academic calendar", chip: "Schedule" },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen, description: "Explore every rack, shelf & book", chip: "Books" },
   { key: "tilawatDua", label: "Tilawat Dua", href: "/talabat/tilawat-dua", icon: BookOpen, description: "Daily recitation & classroom projector display", chip: "Daily" },
@@ -91,9 +95,28 @@ export default function TalabatDashboard() {
         }
       })
       .catch(() => {});
+
+    // Fetch in-portal notifications feed
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const [todayDua, setTodayDua] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  const fetchNotifs = () => {
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data?.notifications) {
+          setNotifications(res.data.notifications.slice(0, 4));
+          setUnreadNotifCount(res.data.unreadCount || 0);
+        }
+      })
+      .catch(() => {});
+  };
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -316,6 +339,111 @@ export default function TalabatDashboard() {
               </div>
             </motion.div>
           )}
+
+          {/* ═══════════ In-Portal Notices & Recent Activity Feed ═══════════ */}
+          <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.08, ease: "easeOut" }}>
+            <div className="p-1 rounded-3xl bg-slate-900/5 ring-1 ring-slate-900/10 shadow-xs">
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 border border-amber-400/30 flex items-center justify-center">
+                      <BellRing className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                        <span>Live Notices, Attendance & Remarks Feed</span>
+                        {unreadNotifCount > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white animate-pulse">
+                            {unreadNotifCount} unread
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Real-time delivery of campus biometric scans, leave decisions, and faculty evaluations
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/talabat/attendance"
+                    className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 self-start sm:self-center"
+                  >
+                    <span>View Attendance History</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-400">
+                    No recent notices. Everything is up to date!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {notifications.map((notif: any) => {
+                      const isAtt = notif.type === "ATTENDANCE" || notif.title?.includes("Attendance");
+                      const isLeave = notif.type === "LEAVE" || notif.title?.includes("Leave");
+                      const isRemarks =
+                        notif.type === "REMARKS" ||
+                        notif.title?.includes("Remarks") ||
+                        notif.title?.includes("Evaluation") ||
+                        notif.title?.includes("Profile");
+
+                      const iconBg = isAtt
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : isLeave
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : isRemarks
+                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                        : "bg-slate-50 text-slate-700 border-slate-200";
+
+                      const targetLink =
+                        notif.link ||
+                        (isAtt
+                          ? "/talabat/attendance"
+                          : isLeave
+                          ? "/talabat/leave-request"
+                          : isRemarks
+                          ? "/talabat/profile-1447"
+                          : "/talabat/profile");
+
+                      return (
+                        <Link
+                          key={notif.id}
+                          href={targetLink}
+                          className="group p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-amber-300 hover:shadow-xs transition-all flex items-start gap-3"
+                        >
+                          <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${iconBg}`}>
+                            {isAtt ? (
+                              <Zap className="w-4 h-4" />
+                            ) : isLeave ? (
+                              <CalendarDays className="w-4 h-4" />
+                            ) : isRemarks ? (
+                              <Sparkles className="w-4 h-4" />
+                            ) : (
+                              <Clock className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                              <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-900 truncate">
+                                {notif.title}
+                              </h4>
+                              <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                                {timeAgo(notif.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                              {notif.body}
+                            </p>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
 
           {/* ═══════════ Portal Options Hub ═══════════ */}
           <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }} className="space-y-4">

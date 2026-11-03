@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware";
 import { AttendanceStatus, AttendanceSource } from "@prisma/client";
 import { broadcastAttendanceEvent, getWindowType } from "../lib/biometric";
+import { sendPushToUser } from "../lib/push";
 import {
   queueAutoSheetSync,
   manualSheetSyncStatus,
@@ -449,7 +450,7 @@ router.post("/", requireAuth, async (req, res) => {
     const validStudentRecords = studentRecords.filter((r) => r.id && validStatuses.includes(r.status));
     if (validStudentRecords.length > 0) {
       const studentIds = validStudentRecords.map((s) => s.id);
-      const [fallbackClass, allEnrollments, existingRegistries] = await Promise.all([
+      const [fallbackClass, allEnrollments, existingRegistries, studentProfiles] = await Promise.all([
         prisma.class.findFirst({ where: { isActive: true }, select: { id: true } }),
         prisma.classEnrollment.findMany({
           where: { studentId: { in: studentIds }, isActive: true },
@@ -457,6 +458,15 @@ router.post("/", requireAuth, async (req, res) => {
         }),
         prisma.attendanceRegistry.findMany({
           where: { studentId: { in: studentIds }, date: targetDate },
+        }),
+        prisma.studentProfile.findMany({
+          where: { id: { in: studentIds } },
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { firstName: true, lastName: true } },
+            parents: { select: { parent: { select: { userId: true } } } },
+          },
         }),
       ]);
 
@@ -551,6 +561,72 @@ router.post("/", requireAuth, async (req, res) => {
         }),
       );
       updatedStudentCount = validStudentRecords.length;
+
+      // 4. Dispatch In-Portal Notifications to Students and Parents
+      try {
+        const studentProfileMap = new Map(studentProfiles.map((p) => [p.id, p]));
+        const notifData: Array<{
+          userId: string;
+          title: string;
+          body: string;
+          type: "ATTENDANCE";
+          link: string;
+        }> = [];
+        const studentPushTargets: Array<{ userId: string; title: string; body: string }> = [];
+        const parentPushTargets: Array<{ userId: string; title: string; body: string }> = [];
+
+        const formattedDateStr = targetDate.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          timeZone: "Asia/Kolkata",
+        });
+
+        for (const item of validStudentRecords) {
+          const prof = studentProfileMap.get(item.id);
+          if (!prof) continue;
+
+          const studentName = `${prof.user.firstName} ${prof.user.lastName}`.trim();
+          const notifTitle = `⚡ Attendance Marked: ${studentName}`;
+          const notifBody = `${studentName} was marked ${item.status} for ${formattedDateStr} (${windowName || "Manual Registry"}).`;
+
+          if (prof.userId) {
+            notifData.push({
+              userId: prof.userId,
+              title: notifTitle,
+              body: notifBody,
+              type: "ATTENDANCE",
+              link: "/talabat/attendance",
+            });
+            studentPushTargets.push({ userId: prof.userId, title: notifTitle, body: notifBody });
+          }
+
+          for (const pl of prof.parents) {
+            if (pl.parent?.userId) {
+              notifData.push({
+                userId: pl.parent.userId,
+                title: notifTitle,
+                body: notifBody,
+                type: "ATTENDANCE",
+                link: "/parent/activity",
+              });
+              parentPushTargets.push({ userId: pl.parent.userId, title: notifTitle, body: notifBody });
+            }
+          }
+        }
+
+        if (notifData.length > 0) {
+          await prisma.notification.createMany({ data: notifData });
+        }
+        for (const sp of studentPushTargets) {
+          sendPushToUser(sp.userId, { title: sp.title, body: sp.body, url: "/talabat/attendance" }).catch(() => {});
+        }
+        for (const pp of parentPushTargets) {
+          sendPushToUser(pp.userId, { title: pp.title, body: pp.body, url: "/parent/activity" }).catch(() => {});
+        }
+      } catch (notifErr) {
+        console.warn("[manual-attendance] Notification dispatch error:", notifErr);
+      }
     }
 
     const totalUpdated = updatedTeacherCount + updatedStudentCount;

@@ -441,7 +441,7 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
         userId: student.userId,
         title: "Leave Request Submitted",
         body: `Your ${input.type.toLowerCase()} leave request (${formatUtcDate(start)} - ${formatUtcDate(end)}) has been submitted for review.`,
-        type: "ANNOUNCEMENT",
+        type: "ALERT",
         link: "/talabat/leave-request",
         priority: "NORMAL",
       },
@@ -454,6 +454,14 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
   const studentFullName = `${student.user.firstName} ${student.user.lastName}`.trim();
   const requestedDays = countLeaveDays(start, end);
   const dateRangeStr = `${formatUtcDate(start)} – ${formatUtcDate(end)}`;
+
+  // Notify Parent(s) in-portal
+  await notifyParents(
+    student.id,
+    "Leave Request Submitted",
+    `Leave request for ${studentFullName} (${dateRangeStr}, ${requestedDays} ${requestedDays === 1 ? "day" : "days"}) has been submitted for institutional review.`,
+    "/parent"
+  );
   const parentContacts = await getParentContacts(student.id);
   const primaryParent = parentContacts[0];
   const assignedMemberName = assignedMemberUser

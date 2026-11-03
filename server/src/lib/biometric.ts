@@ -1683,14 +1683,26 @@ export async function processBiometricScan(
           title: notifTitle,
           body: notifMsg,
           type: "ATTENDANCE" as any,
-          link: "/parent/activity",
+          link: userId === student.userId ? "/talabat/attendance" : "/parent/activity",
         })),
       });
-      sendPushToUsers(Array.from(recipientUserIds), {
-        title: notifTitle,
-        body: notifMsg,
-        url: "/parent/activity",
-      }).catch(() => {});
+
+      // Send targeted push notifications with correct portal links
+      if (student.userId) {
+        sendPushToUser(student.userId, {
+          title: notifTitle,
+          body: notifMsg,
+          url: "/talabat/attendance",
+        }).catch(() => {});
+      }
+      const parentUserIdsOnly = Array.from(recipientUserIds).filter((id) => id !== student.userId);
+      if (parentUserIdsOnly.length > 0) {
+        sendPushToUsers(parentUserIdsOnly, {
+          title: notifTitle,
+          body: notifMsg,
+          url: "/parent/activity",
+        }).catch(() => {});
+      }
     }
   } catch (notifErr) {
     console.warn("[biometric] scan notification dispatch notice:", notifErr);

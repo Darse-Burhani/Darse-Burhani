@@ -1,8 +1,72 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware";
+import { sendPushToUsers } from "../lib/push";
 
 const router = Router();
+
+async function notifyStudentAndParents(
+  studentProfileId: string,
+  title: string,
+  body: string,
+  link: string = "/talabat/profile-1447"
+) {
+  try {
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentProfileId },
+      select: {
+        userId: true,
+        parents: { select: { parent: { select: { userId: true } } } },
+      },
+    });
+    if (!student) return;
+
+    const notifData: Array<{
+      userId: string;
+      title: string;
+      body: string;
+      type: "ANNOUNCEMENT";
+      link: string;
+      priority: string;
+    }> = [];
+
+    const recipientUserIds: string[] = [];
+    if (student.userId) {
+      notifData.push({
+        userId: student.userId,
+        title,
+        body,
+        type: "ANNOUNCEMENT",
+        link,
+        priority: "NORMAL",
+      });
+      recipientUserIds.push(student.userId);
+    }
+
+    for (const pl of student.parents) {
+      if (pl.parent?.userId && !recipientUserIds.includes(pl.parent.userId)) {
+        notifData.push({
+          userId: pl.parent.userId,
+          title,
+          body,
+          type: "ANNOUNCEMENT",
+          link,
+          priority: "NORMAL",
+        });
+        recipientUserIds.push(pl.parent.userId);
+      }
+    }
+
+    if (notifData.length > 0) {
+      await prisma.notification.createMany({ data: notifData });
+    }
+    if (recipientUserIds.length > 0) {
+      sendPushToUsers(recipientUserIds, { title, body, url: link }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("[talabat-profile] Failed to dispatch notifications:", err);
+  }
+}
 
 function isGrade4(grade?: string | null): boolean {
   if (!grade) return false;
@@ -578,6 +642,43 @@ router.put("/me", requireAuth, async (req, res) => {
     }
   }
 
+  // If submitted, dispatch notifications to administration, student, and parents
+  if (status === "SUBMITTED" && studentProfileId) {
+    try {
+      const studentName = body.name || "Darajah 4 Student";
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN", isActive: true },
+        select: { id: true },
+      });
+      if (admins.length > 0) {
+        await prisma.notification.createMany({
+          data: admins.map((a) => ({
+            userId: a.id,
+            title: `📄 Talabat 1447 Profile Submitted: ${studentName}`,
+            body: `${studentName} (Darajah 4 / Rabea) has submitted their complete 1447 H profile report for review.`,
+            type: "ALERT",
+            link: "/admin/talabat-profiles",
+            priority: "HIGH",
+          })),
+        });
+        sendPushToUsers(admins.map((a) => a.id), {
+          title: `📄 Profile Submitted: ${studentName}`,
+          body: `1447 H profile submitted for Darajah 4 review.`,
+          url: "/admin/talabat-profiles",
+        }).catch(() => {});
+      }
+
+      notifyStudentAndParents(
+        studentProfileId,
+        "📄 Profile Submitted (1447 H)",
+        `Your 1447 H profile report for ${studentName} has been submitted successfully to administration for faculty review.`,
+        "/talabat/profile-1447"
+      ).catch(() => {});
+    } catch (notifErr) {
+      console.warn("[talabat-profile] submission notification error:", notifErr);
+    }
+  }
+
   return res.json({
     success: true,
     data: saved,
@@ -866,6 +967,12 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
     update: updateFields,
   });
 
+  // Notify Student and Parents of faculty remarks & performance evaluation
+  const remarksStudentName = `${student.user.firstName} ${student.user.lastName}`.trim();
+  const evaluationTitle = `🌟 Faculty Remarks & Evaluation (1447 H): ${remarksStudentName}`;
+  const evaluationBody = `Institutional evaluation, department remarks, and performance ratings have been recorded for ${remarksStudentName}. Review the full report.`;
+  notifyStudentAndParents(student.id, evaluationTitle, evaluationBody, "/talabat/profile-1447").catch(() => {});
+
   return res.json({
     success: true,
     data: saved,
@@ -1019,6 +1126,12 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
       }
     }
   }
+
+  // Dispatch in-portal notification for student and linked parents
+  const adminUpdatedStudentName = `${student.user.firstName} ${student.user.lastName}`.trim();
+  const updateTitle = `✏️ 1447 H Profile Record Updated: ${adminUpdatedStudentName}`;
+  const updateBody = `Administrative details, academic results, or evaluation records for ${adminUpdatedStudentName} have been updated. View your profile.`;
+  notifyStudentAndParents(student.id, updateTitle, updateBody, "/talabat/profile-1447").catch(() => {});
 
   return res.json({
     success: true,

@@ -17,6 +17,8 @@ import {
   X,
   ExternalLink,
   ShieldCheck,
+  CalendarDays,
+  FileText,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn, timeAgo } from "@/lib/utils";
@@ -41,6 +43,9 @@ const typeIconMap: Record<string, React.ElementType> = {
   ALERT: AlertTriangle,
   PROCUREMENT: ShoppingBag,
   PORTAL_ACCESS: ShieldCheck,
+  LEAVE: CalendarDays,
+  REMARKS: Sparkles,
+  PROFILE: FileText,
 };
 
 function getTypeIcon(type: string) {
@@ -56,6 +61,9 @@ const typeColorMap: Record<string, string> = {
   ALERT: "text-red-500 bg-red-50",
   PROCUREMENT: "text-emerald-700 bg-emerald-100",
   PORTAL_ACCESS: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  LEAVE: "text-blue-600 bg-blue-50 border-blue-200",
+  REMARKS: "text-purple-600 bg-purple-50 border-purple-200",
+  PROFILE: "text-teal-600 bg-teal-50 border-teal-200",
 };
 
 function getTypeColor(type: string) {

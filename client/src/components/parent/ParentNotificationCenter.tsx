@@ -15,6 +15,7 @@ import {
   Shield,
   Heart,
   Radio,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,7 +25,7 @@ import { sendDesktopNotification } from "@/lib/notification-sound";
 
 export interface ParentNotification {
   id: string;
-  type: "ATTENDANCE" | "HIFZ" | "POINTS" | "SYSTEM" | "ANNOUNCEMENT";
+  type: "ATTENDANCE" | "HIFZ" | "POINTS" | "SYSTEM" | "ANNOUNCEMENT" | "ALERT" | "LEAVE" | "REMARKS";
   title: string;
   body: string;
   childName?: string;
@@ -43,7 +44,7 @@ interface Props {
 export function ParentNotificationCenter({ childrenList = [], onChildSelect, onRefreshData }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<ParentNotification[]>([]);
-  const [filter, setFilter] = useState<"ALL" | "ATTENDANCE" | "HIFZ" | "POINTS" | "ANNOUNCEMENT">("ALL");
+  const [filter, setFilter] = useState<"ALL" | "ATTENDANCE" | "LEAVE" | "REMARKS" | "HIFZ" | "POINTS" | "ANNOUNCEMENT">("ALL");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
 
@@ -173,6 +174,20 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
 
   const filteredNotifications = useMemo(() => {
     if (filter === "ALL") return notifications;
+    if (filter === "LEAVE") {
+      return notifications.filter(
+        (n) => n.type === "LEAVE" || (n.type === "ALERT" && n.title.toLowerCase().includes("leave"))
+      );
+    }
+    if (filter === "REMARKS") {
+      return notifications.filter(
+        (n) =>
+          n.type === "REMARKS" ||
+          n.title.toLowerCase().includes("remarks") ||
+          n.title.toLowerCase().includes("evaluation") ||
+          n.title.toLowerCase().includes("profile")
+      );
+    }
     return notifications.filter((n) => n.type === filter);
   }, [notifications, filter]);
 
@@ -204,8 +219,13 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
     switch (type) {
       case "ATTENDANCE":
         return <Clock className="w-4 h-4 text-emerald-600" />;
+      case "LEAVE":
+      case "ALERT":
+        return <CalendarDays className="w-4 h-4 text-amber-600" />;
+      case "REMARKS":
+        return <Sparkles className="w-4 h-4 text-purple-600" />;
       case "HIFZ":
-        return <BookOpen className="w-4 h-4 text-amber-600" />;
+        return <BookOpen className="w-4 h-4 text-blue-600" />;
       case "POINTS":
         return <Award className="w-4 h-4 text-purple-600" />;
       case "ANNOUNCEMENT":
@@ -297,7 +317,8 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
                   {[
                     { id: "ALL", label: `All (${notifications.length})` },
                     { id: "ATTENDANCE", label: "Attendance" },
-                    { id: "HIFZ", label: "Hifz" },
+                    { id: "LEAVE", label: "Leave" },
+                    { id: "REMARKS", label: "Faculty Remarks" },
                     { id: "POINTS", label: "Merits" },
                   ].map((t) => (
                     <button
