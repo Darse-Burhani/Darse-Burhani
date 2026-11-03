@@ -11,7 +11,7 @@ import { cache } from "../../lib/cache";
 const { hash } = bcrypt;
 const router = Router();
 
-import { parentsUploadsDir } from "../../lib/paths";
+import { parentsUploadsDir, clientPublicParentsDir, clientDistParentsDir } from "../../lib/paths";
 
 
 const avatarUpload = multer({
@@ -50,6 +50,9 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
             firstName: true,
             lastName: true,
             avatarUrl: true,
+            pendingAvatarUrl: true,
+            avatarStatus: true,
+            avatarRejectionReason: true,
             plainPassword: true,
             isActive: true,
             createdAt: true,
@@ -101,6 +104,9 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
         firstName: parent.user.firstName,
         lastName: parent.user.lastName,
         avatarUrl: parent.user.avatarUrl || yearlyParentPhoto || null,
+        pendingAvatarUrl: parent.user.pendingAvatarUrl || null,
+        avatarStatus: parent.user.avatarStatus || (parent.user.pendingAvatarUrl ? "PENDING" : "APPROVED"),
+        avatarRejectionReason: parent.user.avatarRejectionReason || null,
         plainPassword: parent.user.plainPassword,
         isActive: parent.user.isActive,
         phone: parent.phone,
@@ -473,6 +479,9 @@ router.put("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     if (firstName !== undefined) userData.firstName = firstName.trim();
     if (lastName !== undefined) userData.lastName = lastName.trim();
     if (avatarUrl !== undefined) userData.avatarUrl = avatarUrl || null;
+    if (body.pendingAvatarUrl !== undefined) userData.pendingAvatarUrl = body.pendingAvatarUrl || null;
+    if (body.avatarStatus !== undefined) userData.avatarStatus = body.avatarStatus;
+    if (body.avatarRejectionReason !== undefined) userData.avatarRejectionReason = body.avatarRejectionReason || null;
     if (isActive !== undefined) userData.isActive = Boolean(isActive);
 
     const profileData: Record<string, any> = {};
@@ -507,7 +516,70 @@ router.put("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       });
     }
 
-    return res.json({ success: true, message: "Parent profile updated successfully" });
+    // Synchronize parent's contact/location info to linked StudentProfiles & TalabatProfile1447
+    const currentParent = await prisma.parentProfile.findUnique({
+      where: { userId },
+      include: { studentLinks: { select: { studentId: true, relationship: true } } },
+    });
+    if (currentParent?.studentLinks && currentParent.studentLinks.length > 0) {
+      const activeRel = (relationType || currentParent.relationType || "").toLowerCase();
+      const isMother = activeRel.includes("mother");
+      for (const link of currentParent.studentLinks) {
+        try {
+          const studentUpdate: Record<string, any> = {};
+          if (address !== undefined && address?.trim()) studentUpdate.address = address.trim();
+          if (city !== undefined && city?.trim()) studentUpdate.residentCity = city.trim();
+          if (watan !== undefined && watan?.trim()) studentUpdate.watan = watan.trim();
+
+          if (isMother) {
+            if (phone !== undefined && phone?.trim()) studentUpdate.motherPhone = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) studentUpdate.motherOccupation = occupation.trim();
+          } else {
+            if (phone !== undefined && phone?.trim()) studentUpdate.fatherPhone = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) studentUpdate.fatherOccupation = occupation.trim();
+          }
+
+          if (Object.keys(studentUpdate).length > 0) {
+            await prisma.studentProfile.update({
+              where: { id: link.studentId },
+              data: studentUpdate,
+            });
+          }
+
+          const yearlyUpdate: Record<string, any> = {};
+          if (address !== undefined && address?.trim()) yearlyUpdate.address = address.trim();
+          if (city !== undefined && city?.trim()) yearlyUpdate.residentCity = city.trim();
+          if (watan !== undefined && watan?.trim()) yearlyUpdate.watan = watan.trim();
+
+          if (isMother) {
+            if (phone !== undefined && phone?.trim()) yearlyUpdate.motherMobile = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) yearlyUpdate.motherOccupation = occupation.trim();
+            if (its !== undefined && its?.trim()) yearlyUpdate.motherIts = its.trim();
+          } else {
+            if (phone !== undefined && phone?.trim()) yearlyUpdate.fatherMobile = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) yearlyUpdate.fatherOccupation = occupation.trim();
+            if (its !== undefined && its?.trim()) yearlyUpdate.fatherIts = its.trim();
+          }
+
+          if (Object.keys(yearlyUpdate).length > 0) {
+            await prisma.talabatProfile1447.updateMany({
+              where: { studentId: link.studentId },
+              data: yearlyUpdate,
+            });
+          }
+        } catch (syncErr) {
+          console.warn("[admin:parent:sync] Warning syncing student " + link.studentId + ":", syncErr);
+        }
+      }
+    }
+
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("user");
+    cache.invalidateTag("studentprofile");
+    cache.invalidateTag("students");
+    cache.invalidateTag("dashboard");
+
+    return res.json({ success: true, message: "Parent profile updated successfully and synced with student records" });
   } catch (error) {
     console.error("Parent update error:", error);
     return res.status(500).json({ success: false, error: "Failed to update parent profile" });
@@ -544,7 +616,30 @@ router.post("/:userId/avatar", requireRole("ADMIN", "TEACHER"), (req, res) => {
       }
 
       const url = `/uploads/parents/${req.file.filename}`;
-      await prisma.user.update({ where: { id: userId }, data: { avatarUrl: url } });
+      const filePath = path.join(parentsUploadsDir, req.file.filename);
+      try {
+        if (fs.existsSync(clientPublicParentsDir)) {
+          fs.copyFileSync(filePath, path.join(clientPublicParentsDir, req.file.filename));
+        }
+        if (fs.existsSync(clientDistParentsDir)) {
+          fs.copyFileSync(filePath, path.join(clientDistParentsDir, req.file.filename));
+        }
+      } catch (copyErr) {
+        console.warn("[admin:parent:avatar] Replication copy notice:", copyErr);
+      }
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          avatarUrl: url,
+          pendingAvatarUrl: null,
+          avatarStatus: "APPROVED",
+          avatarRejectionReason: null,
+        },
+      });
+      cache.invalidateTag("user");
+      cache.invalidateTag("parentprofile");
+      cache.invalidateTag("dashboard");
 
       return res.json({ success: true, url });
     } catch (error) {
@@ -638,6 +733,110 @@ router.post("/reset-password", requireRole("ADMIN", "TEACHER"), async (req, res)
   } catch (error) {
     console.error("Parent reset password error:", error);
     return res.status(500).json({ success: false, error: "Failed to reset parent password" });
+  }
+});
+
+
+// PUT /api/admin/parents/:userId/avatar-approval - Approve or reject parent profile photo
+router.put("/:userId/avatar-approval", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const body = req.body as { action: "APPROVE" | "REJECT"; rejectionReason?: string };
+    const { action, rejectionReason } = body;
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true, avatarUrl: true, pendingAvatarUrl: true },
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: "Parent user not found" });
+    }
+
+    if (action === "APPROVE") {
+      const activeUrl = targetUser.pendingAvatarUrl || targetUser.avatarUrl;
+      if (!activeUrl) {
+        return res.status(400).json({ success: false, error: "No image found to approve" });
+      }
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          avatarUrl: activeUrl,
+          pendingAvatarUrl: null,
+          avatarStatus: "APPROVED",
+          avatarRejectionReason: null,
+        },
+      });
+
+      cache.invalidateTag("user");
+      cache.invalidateTag("parentprofile");
+      cache.invalidateTag("dashboard");
+
+      // Send in-portal notification to the parent
+      try {
+        await prisma.notification.create({
+          data: {
+            userId,
+            title: "Profile Photo Approved",
+            message: "Your profile picture has been reviewed and approved by the administration.",
+            type: "PROFILE",
+            link: "/parent/settings",
+            metadata: { avatarUrl: activeUrl, status: "APPROVED" },
+          },
+        });
+      } catch (notifErr) {
+        console.warn("[avatar-approval] Notification warning:", notifErr);
+      }
+
+      return res.json({
+        success: true,
+        message: "Profile photo approved successfully",
+        data: { avatarUrl: activeUrl, pendingAvatarUrl: null, avatarStatus: "APPROVED" },
+      });
+    } else if (action === "REJECT") {
+      const reason = rejectionReason?.trim() || "The uploaded picture does not conform to institutional dress code or clarity guidelines.";
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          pendingAvatarUrl: null,
+          avatarStatus: "REJECTED",
+          avatarRejectionReason: reason,
+        },
+      });
+
+      cache.invalidateTag("user");
+      cache.invalidateTag("parentprofile");
+      cache.invalidateTag("dashboard");
+
+      // Send in-portal notification to the parent
+      try {
+        await prisma.notification.create({
+          data: {
+            userId,
+            title: "Profile Photo Rejected",
+            message: "Your uploaded profile picture was rejected: " + reason + ". Please upload a new formal photo from Settings.",
+            type: "PROFILE",
+            link: "/parent/settings",
+            metadata: { reason, status: "REJECTED" },
+          },
+        });
+      } catch (notifErr) {
+        console.warn("[avatar-approval] Notification warning:", notifErr);
+      }
+
+      return res.json({
+        success: true,
+        message: "Profile photo rejected",
+        data: { pendingAvatarUrl: null, avatarStatus: "REJECTED", avatarRejectionReason: reason },
+      });
+    } else {
+      return res.status(400).json({ success: false, error: "Action must be APPROVE or REJECT" });
+    }
+  } catch (error) {
+    console.error("Avatar approval error:", error);
+    return res.status(500).json({ success: false, error: "Failed to process photo approval" });
   }
 });
 

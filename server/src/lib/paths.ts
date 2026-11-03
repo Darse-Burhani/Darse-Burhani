@@ -76,10 +76,14 @@ export const talabatUploadsDir = path.join(uploadsDir, "talabat");
 export const clientPublicDir = path.join(repoRoot, "client", "public");
 export const clientPublicUploadsDir = path.join(clientPublicDir, "uploads");
 export const clientPublicTilawatDir = path.join(clientPublicUploadsDir, "tilawat-dua");
+export const clientPublicParentsDir = path.join(clientPublicUploadsDir, "parents");
+export const clientPublicTalabatDir = path.join(clientPublicUploadsDir, "talabat");
 
 export const clientDistDir = path.join(repoRoot, "client", "dist");
 export const clientDistUploadsDir = path.join(clientDistDir, "uploads");
 export const clientDistTilawatDir = path.join(clientDistUploadsDir, "tilawat-dua");
+export const clientDistParentsDir = path.join(clientDistUploadsDir, "parents");
+export const clientDistTalabatDir = path.join(clientDistUploadsDir, "talabat");
 
 // Ensure essential upload directories exist synchronously at startup
 try {
@@ -89,8 +93,12 @@ try {
   fs.mkdirSync(talabatUploadsDir, { recursive: true });
   fs.mkdirSync(clientPublicUploadsDir, { recursive: true });
   fs.mkdirSync(clientPublicTilawatDir, { recursive: true });
+  fs.mkdirSync(clientPublicParentsDir, { recursive: true });
+  fs.mkdirSync(clientPublicTalabatDir, { recursive: true });
   fs.mkdirSync(clientDistUploadsDir, { recursive: true });
   fs.mkdirSync(clientDistTilawatDir, { recursive: true });
+  fs.mkdirSync(clientDistParentsDir, { recursive: true });
+  fs.mkdirSync(clientDistTalabatDir, { recursive: true });
 
   // Guarantee sample Tilawat Dua PDF is present across all upload targets
   const sampleName = "tilawat_daily_sample.pdf";

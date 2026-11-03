@@ -480,10 +480,10 @@ export default function AdminPointMatrixPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400">
+              <div className="p-2 rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-400">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 dark:from-white dark:via-indigo-200 dark:to-slate-300 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-800 dark:from-white dark:via-emerald-200 dark:to-slate-300 bg-clip-text text-transparent">
                 Point Matrix Hub
               </h1>
             </div>
@@ -499,7 +499,7 @@ export default function AdminPointMatrixPage() {
                 onClick={() => setActiveTab("matrix")}
                 className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   activeTab === "matrix"
-                    ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    ? "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -509,7 +509,7 @@ export default function AdminPointMatrixPage() {
                 onClick={() => setActiveTab("rules")}
                 className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   activeTab === "rules"
-                    ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    ? "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -519,7 +519,7 @@ export default function AdminPointMatrixPage() {
                 onClick={() => setActiveTab("history")}
                 className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   activeTab === "history"
-                    ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    ? "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -529,7 +529,7 @@ export default function AdminPointMatrixPage() {
 
             <Button
               variant="default"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs sm:text-sm"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs sm:text-sm"
               onClick={() => handleOpenAssignModal()}
             >
               <Zap className="w-4 h-4" /> Assign Points
@@ -558,12 +558,12 @@ export default function AdminPointMatrixPage() {
             <CardContent className="p-4 flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Score Pool</p>
-                <p className="text-2xl font-bold mt-1 text-indigo-600 dark:text-indigo-400">
+                <p className="text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-400">
                   {metrics.totalPointsAwarded.toLocaleString()}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Active points tally</p>
               </div>
-              <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+              <div className="p-3 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-2xl">
                 <Award className="w-6 h-6" />
               </div>
             </CardContent>
@@ -589,7 +589,7 @@ export default function AdminPointMatrixPage() {
                 <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{logs.length}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Recorded merit transactions</p>
               </div>
-              <div className="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl">
+              <div className="p-3 bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-2xl">
                 <History className="w-6 h-6" />
               </div>
             </CardContent>
@@ -606,17 +606,17 @@ export default function AdminPointMatrixPage() {
                 <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-xs leading-relaxed">
                   <span className="font-extrabold text-amber-900">Point Matrix Standby (Clean Mode): </span>
-                  No arbitrary placeholder points are shown. Points are generated and credited dynamically through <strong className="font-black text-indigo-950">Monthly Stack Assignment Submissions</strong>. As Asatezah assign tasks with due dates in the academic module and submit marks, merit points will automatically calculate and flow into this matrix.
+                  No arbitrary placeholder points are shown. Points are generated and credited dynamically through <strong className="font-black text-emerald-950">Monthly Stack Assignment Submissions</strong>. As Asatezah assign tasks with due dates in the academic module and submit marks, merit points will automatically calculate and flow into this matrix.
                 </div>
               </div>
             )}
 
             {/* Decided Actions Quick-Bar */}
-            <Card className="border-indigo-100 dark:border-indigo-950 bg-gradient-to-r from-indigo-50/70 via-white to-purple-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/40 shadow-sm">
+            <Card className="border-emerald-200 dark:border-emerald-950 bg-gradient-to-r from-emerald-50/70 via-white to-amber-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/40 shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <Zap className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                     <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                       Decided Quick Actions
                     </h2>
@@ -627,7 +627,7 @@ export default function AdminPointMatrixPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 p-0 h-auto"
+                    className="text-xs text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 p-0 h-auto"
                     onClick={openCreateRule}
                   >
                     + Add New Rule Preset
@@ -685,7 +685,7 @@ export default function AdminPointMatrixPage() {
                   placeholder="Search Talabat by name, ITS, ID, or Grade..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
                 />
               </div>
 
@@ -696,7 +696,7 @@ export default function AdminPointMatrixPage() {
                   aria-label="Filter by Grade"
                   value={selectedGrade}
                   onChange={(e) => setSelectedGrade(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
                 >
                   <option value="ALL">All Grades</option>
                   {availableGrades.map((g) => (
@@ -711,7 +711,7 @@ export default function AdminPointMatrixPage() {
                   aria-label="Filter by Section"
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
                 >
                   <option value="ALL">All Sections</option>
                   {availableSections.map((s) => (
@@ -731,7 +731,7 @@ export default function AdminPointMatrixPage() {
                 >
                   {selectedStudentIds.length === filteredTalabat.length && filteredTalabat.length > 0 ? (
                     <>
-                      <CheckSquare className="w-3.5 h-3.5 text-indigo-600" /> Deselect All
+                      <CheckSquare className="w-3.5 h-3.5 text-emerald-700" /> Deselect All
                     </>
                   ) : (
                     <>
@@ -756,7 +756,7 @@ export default function AdminPointMatrixPage() {
                             filteredTalabat.length > 0
                           }
                           onChange={handleSelectAll}
-                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
                         />
                       </th>
                       <th className="py-3.5 px-4">Talib</th>
@@ -771,7 +771,7 @@ export default function AdminPointMatrixPage() {
                     {loading ? (
                       <tr>
                         <td colSpan={7} className="py-12 text-center text-slate-400">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-700" />
                           Loading Talabat point matrix...
                         </td>
                       </tr>
@@ -791,7 +791,7 @@ export default function AdminPointMatrixPage() {
                             key={talib.id}
                             className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
                               isSelected
-                                ? "bg-indigo-50/60 dark:bg-indigo-950/20"
+                                ? "bg-emerald-50/60 dark:bg-emerald-950/20"
                                 : ""
                             }`}
                           >
@@ -800,12 +800,12 @@ export default function AdminPointMatrixPage() {
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => toggleStudentSelection(talib.id)}
-                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
                               />
                             </td>
                             <td className="py-3.5 px-4 font-medium">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-600 to-amber-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
                                   {talib.avatarUrl ? (
                                     <img
                                       src={talib.avatarUrl}
@@ -835,7 +835,7 @@ export default function AdminPointMatrixPage() {
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               <div className="inline-flex flex-col items-center">
-                                <span className="text-base font-bold text-indigo-600 dark:text-indigo-400">
+                                <span className="text-base font-bold text-emerald-700 dark:text-emerald-400">
                                   {talib.currentPoints} pts
                                 </span>
                                 <span className="text-[10px] text-slate-400">
@@ -896,7 +896,7 @@ export default function AdminPointMatrixPage() {
                   className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 dark:bg-slate-900/95 text-white backdrop-blur-xl border border-slate-700/80 px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-4 text-xs sm:text-sm"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs">
+                    <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
                       {selectedStudentIds.length}
                     </div>
                     <span className="font-medium text-slate-200">Talabat Selected</span>
@@ -969,7 +969,7 @@ export default function AdminPointMatrixPage() {
               </div>
               <Button
                 onClick={openCreateRule}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm"
               >
                 <Plus className="w-4 h-4 mr-1.5" /> Add New Rule
               </Button>
@@ -1017,7 +1017,7 @@ export default function AdminPointMatrixPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-slate-500 hover:text-indigo-600"
+                              className="h-7 w-7 p-0 text-slate-500 hover:text-emerald-700"
                               onClick={() => openEditRule(rule)}
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -1078,7 +1078,7 @@ export default function AdminPointMatrixPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-slate-500 hover:text-indigo-600"
+                              className="h-7 w-7 p-0 text-slate-500 hover:text-emerald-700"
                               onClick={() => openEditRule(rule)}
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -1108,7 +1108,7 @@ export default function AdminPointMatrixPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <History className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Live Audit Log & Reversals
+                    <History className="w-5 h-5 text-emerald-700 dark:text-emerald-400" /> Live Audit Log & Reversals
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
                     Chronological ledger of point assignments with one-click undo capability.
@@ -1188,15 +1188,15 @@ export default function AdminPointMatrixPage() {
         <ModalContent className="max-w-lg rounded-2xl p-6">
           <ModalHeader>
             <ModalTitle className="text-lg font-bold flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" /> Assign Points on Decided Action
+              <Sparkles className="w-5 h-5 text-emerald-700" /> Assign Points on Decided Action
             </ModalTitle>
           </ModalHeader>
 
           <div className="space-y-4 py-3 text-xs sm:text-sm">
             {/* Target Talabat count */}
-            <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900 flex items-center justify-between">
+            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-900 flex items-center justify-between">
               <span className="text-slate-700 dark:text-slate-300 font-medium">Target Recipient(s):</span>
-              <Badge className="bg-indigo-600 text-white border-0">
+              <Badge className="bg-emerald-700 text-white border-0">
                 {selectedStudentIds.length} Talib(s) Selected
               </Badge>
             </div>
@@ -1210,7 +1210,7 @@ export default function AdminPointMatrixPage() {
                 aria-label="Preset Decided Rule"
                 value={assignForm.selectedRuleId}
                 onChange={(e) => handleRuleSelectChange(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">-- Choose a Decided Rule or Custom --</option>
                 {rules.map((r) => (
@@ -1232,7 +1232,7 @@ export default function AdminPointMatrixPage() {
                 placeholder="e.g. Completed Hifz Revision, Exemplary Adab"
                 value={assignForm.actionName}
                 onChange={(e) => setAssignForm({ ...assignForm, actionName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
 
@@ -1247,7 +1247,7 @@ export default function AdminPointMatrixPage() {
                   placeholder="e.g. Quran, Adab, Khidmat"
                   value={assignForm.category}
                   onChange={(e) => setAssignForm({ ...assignForm, category: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
@@ -1260,7 +1260,7 @@ export default function AdminPointMatrixPage() {
                   min="1"
                   value={assignForm.points}
                   onChange={(e) => setAssignForm({ ...assignForm, points: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
             </div>
@@ -1306,7 +1306,7 @@ export default function AdminPointMatrixPage() {
                 placeholder="e.g. Excellent recitation during morning session"
                 value={assignForm.note}
                 onChange={(e) => setAssignForm({ ...assignForm, note: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -1321,7 +1321,7 @@ export default function AdminPointMatrixPage() {
               size="sm"
               disabled={actionLoading || selectedStudentIds.length === 0 || !assignForm.actionName.trim()}
               onClick={handleAssignPoints}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl"
             >
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}
               Confirm & Assign
@@ -1349,7 +1349,7 @@ export default function AdminPointMatrixPage() {
                 placeholder="e.g. Hifz Excellence, Peer Mentoring"
                 value={ruleForm.actionName}
                 onChange={(e) => setRuleForm({ ...ruleForm, actionName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
 
@@ -1363,7 +1363,7 @@ export default function AdminPointMatrixPage() {
                   placeholder="e.g. Hifz, Adab, Conduct"
                   value={ruleForm.category}
                   onChange={(e) => setRuleForm({ ...ruleForm, category: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
@@ -1376,7 +1376,7 @@ export default function AdminPointMatrixPage() {
                   min="1"
                   value={ruleForm.pointValue}
                   onChange={(e) => setRuleForm({ ...ruleForm, pointValue: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
             </div>
@@ -1422,7 +1422,7 @@ export default function AdminPointMatrixPage() {
               size="sm"
               disabled={actionLoading || !ruleForm.actionName.trim() || !ruleForm.category.trim()}
               onClick={handleSaveRule}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl"
             >
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
               {editingRule ? "Update Rule" : "Create Rule"}

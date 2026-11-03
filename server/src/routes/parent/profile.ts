@@ -7,7 +7,8 @@ import { requireRole } from "../../middleware";
 
 const router = Router();
 
-import { parentsUploadsDir } from "../../lib/paths";
+import { parentsUploadsDir, clientPublicParentsDir, clientDistParentsDir } from "../../lib/paths";
+import { cache } from "../../lib/cache";
 
 
 const avatarUpload = multer({
@@ -45,6 +46,9 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
           firstName: true,
           lastName: true,
           avatarUrl: true,
+          pendingAvatarUrl: true,
+          avatarStatus: true,
+          avatarRejectionReason: true,
         },
       },
       studentLinks: {
@@ -90,6 +94,9 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
         firstName: parent.user.firstName,
         lastName: parent.user.lastName,
         avatarUrl: parent.user.avatarUrl,
+        pendingAvatarUrl: parent.user.pendingAvatarUrl,
+        avatarStatus: parent.user.avatarStatus || (parent.user.pendingAvatarUrl ? "PENDING" : "APPROVED"),
+        avatarRejectionReason: parent.user.avatarRejectionReason,
         phone: parent.phone,
         secondaryPhone: parent.secondaryPhone,
         occupation: parent.occupation,
@@ -160,23 +167,116 @@ router.put("/", requireRole("PARENT"), async (req, res) => {
       });
     }
 
-    await prisma.parentProfile.upsert({
+    const savedParent = await prisma.parentProfile.upsert({
       where: { userId },
       update: profileData,
       create: {
         userId,
         ...profileData,
       },
+      include: {
+        studentLinks: {
+          select: {
+            studentId: true,
+            relationship: true,
+          },
+        },
+      },
     });
 
-    return res.json({ success: true, message: "Profile updated successfully" });
+    // Synchronize parent's contact/location info to linked StudentProfiles & TalabatProfile1447
+    if (savedParent.studentLinks && savedParent.studentLinks.length > 0) {
+      const activeRel = (relationType || savedParent.relationType || "").toLowerCase();
+      const isMother = activeRel.includes("mother");
+
+      for (const link of savedParent.studentLinks) {
+        try {
+          const studentUpdate: Record<string, any> = {};
+          if (address !== undefined && address?.trim()) studentUpdate.address = address.trim();
+          if (city !== undefined && city?.trim()) studentUpdate.residentCity = city.trim();
+          if (watan !== undefined && watan?.trim()) studentUpdate.watan = watan.trim();
+
+          if (isMother) {
+            if (phone !== undefined && phone?.trim()) studentUpdate.motherPhone = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) studentUpdate.motherOccupation = occupation.trim();
+          } else {
+            if (phone !== undefined && phone?.trim()) studentUpdate.fatherPhone = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) studentUpdate.fatherOccupation = occupation.trim();
+          }
+
+          if (Object.keys(studentUpdate).length > 0) {
+            await prisma.studentProfile.update({
+              where: { id: link.studentId },
+              data: studentUpdate,
+            });
+          }
+
+          // Also synchronize to Talabat yearly profile (1447)
+          const yearlyUpdate: Record<string, any> = {};
+          if (address !== undefined && address?.trim()) yearlyUpdate.address = address.trim();
+          if (city !== undefined && city?.trim()) yearlyUpdate.residentCity = city.trim();
+          if (watan !== undefined && watan?.trim()) yearlyUpdate.watan = watan.trim();
+
+          if (isMother) {
+            if (phone !== undefined && phone?.trim()) yearlyUpdate.motherMobile = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) yearlyUpdate.motherOccupation = occupation.trim();
+            if (its !== undefined && its?.trim()) yearlyUpdate.motherIts = its.trim();
+          } else {
+            if (phone !== undefined && phone?.trim()) yearlyUpdate.fatherMobile = phone.trim();
+            if (occupation !== undefined && occupation?.trim()) yearlyUpdate.fatherOccupation = occupation.trim();
+            if (its !== undefined && its?.trim()) yearlyUpdate.fatherIts = its.trim();
+          }
+
+          if (Object.keys(yearlyUpdate).length > 0) {
+            await prisma.talabatProfile1447.updateMany({
+              where: { studentId: link.studentId },
+              data: yearlyUpdate,
+            });
+          }
+        } catch (syncErr) {
+          console.warn(`[parent:sync] Warning syncing to student ${link.studentId}:`, syncErr);
+        }
+      }
+    }
+
+    // Invalidate caches across parent and student entities
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("user");
+    cache.invalidateTag("studentprofile");
+    cache.invalidateTag("students");
+    cache.invalidateTag("dashboard");
+
+    // In-portal notification to Administration
+    try {
+      const parentName = `${userData.firstName || session.user.name || "Parent"} ${userData.lastName || ""}`.trim();
+      const admins = await prisma.user.findMany({
+        where: { role: "ADMIN", isActive: true, deletedAt: null },
+        select: { id: true },
+      });
+      for (const adm of admins) {
+        await prisma.notification.create({
+          data: {
+            userId: adm.id,
+            title: "Parent Profile Updated",
+            message: `${parentName} updated their family profile details and synced them to institutional records.`,
+            type: "PROFILE",
+            link: "/admin/parents",
+            metadata: { parentUserId: userId },
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn("[parent:profile] Notification dispatch warning:", notifErr);
+    }
+
+    return res.json({ success: true, message: "Profile updated successfully and synced with student records" });
   } catch (error) {
     console.error("Parent profile update error:", error);
     return res.status(500).json({ success: false, error: "Failed to update profile" });
   }
 });
 
-// POST /api/parent/avatar - Upload profile picture
+// POST /api/parent/avatar - Upload profile picture with admin approval workflow
 router.post("/avatar", requireRole("PARENT"), (req, res) => {
   const session = req.auth!;
   const userId = session.user.id;
@@ -198,10 +298,70 @@ router.post("/avatar", requireRole("PARENT"), (req, res) => {
     }
 
     try {
-      const url = `/uploads/parents/${req.file.filename}`;
-      await prisma.user.update({ where: { id: userId }, data: { avatarUrl: url } });
+      const filePath = path.join(parentsUploadsDir, req.file.filename);
 
-      return res.json({ success: true, url });
+      // Replicate image to client public & dist upload folders for immediate preview
+      try {
+        if (fs.existsSync(clientPublicParentsDir)) {
+          fs.copyFileSync(filePath, path.join(clientPublicParentsDir, req.file.filename));
+        }
+        if (fs.existsSync(clientDistParentsDir)) {
+          fs.copyFileSync(filePath, path.join(clientDistParentsDir, req.file.filename));
+        }
+      } catch (copyErr) {
+        console.warn("[parent:avatar] Replication copy notice:", copyErr);
+      }
+
+      const url = `/uploads/parents/${req.file.filename}`;
+
+      // Save as pending approval so administrators can review and approve/reject
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          pendingAvatarUrl: url,
+          avatarStatus: "PENDING",
+          avatarRejectionReason: null,
+        },
+      });
+
+      cache.invalidateTag("user");
+      cache.invalidateTag("parentprofile");
+      cache.invalidateTag("dashboard");
+
+      // Dispatch alert to Administrators
+      try {
+        const parentUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { firstName: true, lastName: true },
+        });
+        const parentName = `${parentUser?.firstName || "Parent"} ${parentUser?.lastName || ""}`.trim();
+        const admins = await prisma.user.findMany({
+          where: { role: "ADMIN", isActive: true, deletedAt: null },
+          select: { id: true },
+        });
+        for (const adm of admins) {
+          await prisma.notification.create({
+            data: {
+              userId: adm.id,
+              title: "New Parent Photo For Approval",
+              message: `${parentName} uploaded a new profile photo awaiting review.`,
+              type: "PROFILE",
+              link: "/admin/parents",
+              metadata: { parentUserId: userId, pendingAvatarUrl: url },
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.warn("[parent:avatar] Notification warning:", notifErr);
+      }
+
+      return res.json({
+        success: true,
+        url,
+        pending: true,
+        avatarStatus: "PENDING",
+        message: "Profile photo uploaded and submitted for administrator approval.",
+      });
     } catch (error) {
       console.error("Parent avatar upload error:", error);
       return res.status(500).json({ success: false, error: "Failed to upload avatar" });

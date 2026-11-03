@@ -70,6 +70,9 @@ interface ParentData {
   lastName: string;
   plainPassword?: string | null;
   avatarUrl: string | null;
+  pendingAvatarUrl?: string | null;
+  avatarStatus?: "PENDING" | "APPROVED" | "REJECTED" | string | null;
+  avatarRejectionReason?: string | null;
   isActive: boolean;
   phone: string | null;
   secondaryPhone: string | null;
@@ -92,7 +95,10 @@ export default function AdminParentsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<"ALL" | "FATHERS" | "MOTHERS" | "LINKED" | "UNLINKED" | "PHOTOS">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<"ALL" | "FATHERS" | "MOTHERS" | "LINKED" | "UNLINKED" | "PHOTOS" | "PENDING_APPROVAL">("ALL");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [rejectingParent, setRejectingParent] = useState<ParentData | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
@@ -100,6 +106,84 @@ export default function AdminParentsPage() {
   // Real-time synchronization state
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const [secondsAgo, setSecondsAgo] = useState<number>(0);
+
+  const handleApproveAvatar = async (userId: string) => {
+    setActionLoadingId(userId);
+    try {
+      const res = await fetch(`/api/admin/parents/${userId}/avatar-approval`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "APPROVE" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          variant: "success",
+          title: "Photo Approved",
+          description: "Parent profile photo has been approved and published.",
+        });
+        setParents((prev) =>
+          prev.map((p) =>
+            p.userId === userId
+              ? {
+                  ...p,
+                  avatarUrl: data.data?.avatarUrl || p.pendingAvatarUrl || p.avatarUrl,
+                  pendingAvatarUrl: null,
+                  avatarStatus: "APPROVED",
+                  avatarRejectionReason: null,
+                }
+              : p
+          )
+        );
+      } else {
+        toast({ variant: "destructive", title: "Approval Failed", description: data.error || "Could not approve photo." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network Error", description: "Failed to connect to server." });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRejectAvatar = async () => {
+    if (!rejectingParent) return;
+    setActionLoadingId(rejectingParent.userId);
+    try {
+      const res = await fetch(`/api/admin/parents/${rejectingParent.userId}/avatar-approval`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REJECT", rejectionReason: rejectionReasonInput }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          variant: "default",
+          title: "Photo Rejected",
+          description: "The photo was rejected and notification dispatched to the parent.",
+        });
+        setParents((prev) =>
+          prev.map((p) =>
+            p.userId === rejectingParent.userId
+              ? {
+                  ...p,
+                  pendingAvatarUrl: null,
+                  avatarStatus: "REJECTED",
+                  avatarRejectionReason: rejectionReasonInput || "Photo does not meet institutional dress code or clarity guidelines.",
+                }
+              : p
+          )
+        );
+        setRejectingParent(null);
+        setRejectionReasonInput("");
+      } else {
+        toast({ variant: "destructive", title: "Rejection Failed", description: data.error || "Could not reject photo." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network Error", description: "Failed to connect to server." });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const toggleShowPassword = (userId: string) => {
     setShowPasswordMap((prev) => ({ ...prev, [userId]: !prev[userId] }));
@@ -229,6 +313,7 @@ export default function AdminParentsPage() {
       if (categoryFilter === "LINKED" && (!p.children || p.children.length === 0)) return false;
       if (categoryFilter === "UNLINKED" && p.children && p.children.length > 0) return false;
       if (categoryFilter === "PHOTOS" && !p.avatarUrl) return false;
+      if (categoryFilter === "PENDING_APPROVAL" && (p.avatarStatus !== "PENDING" && !p.pendingAvatarUrl)) return false;
 
       if (!q) return true;
 
@@ -310,7 +395,11 @@ export default function AdminParentsPage() {
       if (data.success && data.url) {
         setEditForm((prev) => ({ ...prev, avatarUrl: data.url }));
         setParents((prev) =>
-          prev.map((p) => (p.userId === editingParent.userId ? { ...p, avatarUrl: data.url } : p))
+          prev.map((p) =>
+            p.userId === editingParent.userId
+              ? { ...p, avatarUrl: data.url, pendingAvatarUrl: null, avatarStatus: "APPROVED", avatarRejectionReason: null }
+              : p
+          )
         );
         toast({ variant: "success", title: "Photo Uploaded", description: "Parent profile image updated." });
       } else {
@@ -511,6 +600,7 @@ export default function AdminParentsPage() {
   const fathersCount = parents.filter((p) => (p.relationType || "").toLowerCase().includes("father")).length;
   const mothersCount = parents.filter((p) => (p.relationType || "").toLowerCase().includes("mother")).length;
   const withPhotosCount = parents.filter((p) => !!p.avatarUrl).length;
+  const pendingApprovalCount = parents.filter((p) => p.avatarStatus === "PENDING" || !!p.pendingAvatarUrl).length;
   const photoPct = parents.length > 0 ? Math.round((withPhotosCount / parents.length) * 100) : 0;
   const withItsCount = parents.filter((p) => !!p.its).length;
   const avgPerLinked = linkedParentsCount > 0 ? (totalLinkedStudents / linkedParentsCount).toFixed(1) : "0";
@@ -691,20 +781,33 @@ export default function AdminParentsPage() {
           </div>
         </div>
 
-        {/* Photos Verified */}
-        <div className="bg-white border border-purple-100 rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
+        {/* Photos & Review Status */}
+        <div
+          onClick={() => setCategoryFilter(pendingApprovalCount > 0 ? "PENDING_APPROVAL" : "PHOTOS")}
+          className={`rounded-2xl p-4 border flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow cursor-pointer ${
+            pendingApprovalCount > 0
+              ? "bg-amber-50/80 border-amber-300 ring-2 ring-amber-200"
+              : "bg-white border-purple-100"
+          }`}
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-700">Photos Uploaded</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+            <span className={`text-xs font-bold uppercase tracking-wider ${pendingApprovalCount > 0 ? "text-amber-800" : "text-purple-700"}`}>
+              {pendingApprovalCount > 0 ? "Photos Pending" : "Photos Ready"}
+            </span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+              pendingApprovalCount > 0 ? "bg-amber-100 text-amber-700" : "bg-purple-50 text-purple-600"
+            }`}>
               <Camera className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-purple-700 leading-none">{withPhotosCount}</span>
-            <span className="text-xs font-bold text-purple-600 font-mono">({photoPct}%)</span>
+            <span className={`text-2xl font-black leading-none ${pendingApprovalCount > 0 ? "text-amber-800" : "text-purple-700"}`}>
+              {pendingApprovalCount > 0 ? `${pendingApprovalCount} Review` : `${withPhotosCount}`}
+            </span>
+            {pendingApprovalCount === 0 && <span className="text-xs font-bold text-purple-600 font-mono">({photoPct}%)</span>}
           </div>
-          <div className="w-full bg-purple-100 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div className="bg-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${photoPct}%` }} />
+          <div className={`text-[11px] font-medium mt-2 ${pendingApprovalCount > 0 ? "text-amber-800 font-bold" : "text-purple-600"}`}>
+            {pendingApprovalCount > 0 ? "⚡ Click to review submissions" : `${withPhotosCount} active parent photos`}
           </div>
         </div>
 
@@ -753,6 +856,9 @@ export default function AdminParentsPage() {
         <div className="flex items-center gap-1.5 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
           {[
             { key: "ALL" as const, label: `All (${parents.length})` },
+            ...(pendingApprovalCount > 0
+              ? [{ key: "PENDING_APPROVAL" as const, label: `⚡ Review Photos (${pendingApprovalCount})` }]
+              : []),
             { key: "FATHERS" as const, label: `Fathers (${fathersCount})` },
             { key: "MOTHERS" as const, label: `Mothers (${mothersCount})` },
             { key: "LINKED" as const, label: `Linked (${linkedParentsCount})` },
@@ -797,12 +903,25 @@ export default function AdminParentsPage() {
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
                     {/* Left: Avatar + Profile Details */}
                     <div className="flex items-start gap-4 min-w-0 flex-1">
-                      <Avatar className="w-16 h-16 rounded-2xl border-2 border-rose-200 ring-2 ring-rose-50 shrink-0 shadow-xs">
-                        {parent.avatarUrl && <AvatarImage src={parent.avatarUrl} alt={parent.firstName} />}
-                        <AvatarFallback className="bg-gradient-to-br from-rose-500 to-pink-600 text-white font-bold text-lg">
-                          {getInitials(parent.firstName, parent.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative shrink-0">
+                        <Avatar className={`w-16 h-16 rounded-2xl border-2 ring-2 shadow-xs transition-all ${
+                          parent.pendingAvatarUrl || parent.avatarStatus === "PENDING"
+                            ? "border-amber-400 ring-amber-200 shadow-amber-100"
+                            : "border-rose-200 ring-rose-50"
+                        }`}>
+                          {(parent.pendingAvatarUrl || parent.avatarUrl) && (
+                            <AvatarImage src={parent.pendingAvatarUrl || parent.avatarUrl || ""} alt={parent.firstName} />
+                          )}
+                          <AvatarFallback className="bg-gradient-to-br from-rose-500 to-pink-600 text-white font-bold text-lg">
+                            {getInitials(parent.firstName, parent.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {(parent.pendingAvatarUrl || parent.avatarStatus === "PENDING") && (
+                          <span className="absolute -top-1.5 -right-1.5 bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs uppercase tracking-wider animate-pulse">
+                            Review
+                          </span>
+                        )}
+                      </div>
 
                       <div className="min-w-0 flex-1 space-y-2">
                         {/* Name & Badges */}
@@ -837,6 +956,69 @@ export default function AdminParentsPage() {
                             </span>
                           )}
                         </div>
+
+                        {/* Pending Photo Review Strip */}
+                        {(parent.avatarStatus === "PENDING" || parent.pendingAvatarUrl) && (
+                          <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <Avatar className="w-12 h-12 rounded-xl border-2 border-amber-400 shadow-xs">
+                                  <AvatarImage src={parent.pendingAvatarUrl || ""} alt="Proposed Photo" />
+                                  <AvatarFallback className="bg-amber-200 text-amber-900 text-xs font-bold">New</AvatarFallback>
+                                </Avatar>
+                                <span className="absolute -top-1 -right-1 px-1 py-0.2 bg-amber-600 text-[9px] text-white font-black rounded-full uppercase">
+                                  New
+                                </span>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-extrabold text-amber-950">Profile Picture Awaiting Review</span>
+                                  <Badge className="text-[10px] bg-amber-200/80 text-amber-900 border-amber-300 font-bold">Pending Review</Badge>
+                                </div>
+                                <p className="text-[11px] text-amber-800 mt-0.5">
+                                  Uploaded by parent for institutional records. Verify dress code and clarity before approving.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                              <Button
+                                size="sm"
+                                disabled={actionLoadingId === parent.userId}
+                                onClick={() => handleApproveAvatar(parent.userId)}
+                                className="h-8 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs gap-1.5 cursor-pointer"
+                              >
+                                {actionLoadingId === parent.userId ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                )}
+                                Approve Photo
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={actionLoadingId === parent.userId}
+                                onClick={() => {
+                                  setRejectingParent(parent);
+                                  setRejectionReasonInput("Photo does not meet institutional dress code or clarity guidelines.");
+                                }}
+                                className="h-8 px-3 border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold rounded-xl gap-1.5 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {parent.avatarStatus === "REJECTED" && (
+                          <div className="text-[11px] text-rose-700 font-medium flex items-center gap-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                            <span>Photo was rejected: {parent.avatarRejectionReason || "Awaiting resubmission by parent"}</span>
+                          </div>
+                        )}
 
                         {/* Contact & Location Info */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1.5 text-xs text-gray-600 pt-1">
@@ -1556,6 +1738,70 @@ export default function AdminParentsPage() {
             >
               {creating ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
               Create Parent Account
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Reject Photo Modal */}
+      <Modal open={!!rejectingParent} onOpenChange={(open) => !open && setRejectingParent(null)}>
+        <ModalContent className="max-w-md rounded-3xl p-6 bg-white">
+          <ModalHeader>
+            <ModalTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600" />
+              Reject Profile Photo
+            </ModalTitle>
+          </ModalHeader>
+          <div className="space-y-4 py-3">
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Select or enter the reason for rejecting the photo uploaded by <strong className="text-gray-900">{rejectingParent?.firstName} {rejectingParent?.lastName}</strong>. An in-portal notification will be sent to the parent requesting a resubmission.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">Common Reasons</label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Photo must show formal Libas al-Anwar (Topi / Rida)",
+                  "Photo is blurry, low resolution, or too dark",
+                  "Photo includes multiple people or inappropriate background",
+                  "Face is partially covered or obscured",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setRejectionReasonInput(preset)}
+                    className="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 hover:border-rose-300 hover:bg-rose-50 text-slate-700 hover:text-rose-800 text-left cursor-pointer transition-colors"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                Custom Rejection Reason / Note *
+              </label>
+              <textarea
+                rows={3}
+                value={rejectionReasonInput}
+                onChange={(e) => setRejectionReasonInput(e.target.value)}
+                placeholder="State clearly why the photo is rejected and how the parent should retake it..."
+                className="w-full p-2.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          <ModalFooter className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+            <Button variant="ghost" size="sm" onClick={() => setRejectingParent(null)} className="rounded-xl text-xs">
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={actionLoadingId === rejectingParent?.userId}
+              onClick={handleRejectAvatar}
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold px-4 cursor-pointer"
+            >
+              {actionLoadingId === rejectingParent?.userId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirm Rejection"}
             </Button>
           </ModalFooter>
         </ModalContent>

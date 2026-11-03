@@ -111,7 +111,10 @@ model User {
   firstName     String
   lastName      String
   role          UserRole
-  avatarUrl     String?
+  avatarUrl             String?
+  pendingAvatarUrl      String?
+  avatarStatus          String?   @default("APPROVED")
+  avatarRejectionReason String?
   emailVerified DateTime?
   isActive      Boolean   @default(true)
   deletedAt     DateTime?

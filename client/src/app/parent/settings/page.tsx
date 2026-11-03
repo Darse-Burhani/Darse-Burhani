@@ -17,6 +17,10 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,9 @@ interface ParentProfileData {
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
+  pendingAvatarUrl?: string | null;
+  avatarStatus?: "PENDING" | "APPROVED" | "REJECTED" | string | null;
+  avatarRejectionReason?: string | null;
   phone: string | null;
   secondaryPhone: string | null;
   occupation: string | null;
@@ -176,8 +183,17 @@ export default function ParentSettingsPage() {
       });
       const data = await res.json();
       if (data.success && data.url) {
-        setProfile((prev) => (prev ? { ...prev, avatarUrl: data.url } : null));
-        toast({ variant: "success", title: "Photo Updated", description: "Your profile picture has been updated." });
+        setProfile((prev) => (prev ? {
+          ...prev,
+          pendingAvatarUrl: data.url,
+          avatarStatus: "PENDING",
+          avatarRejectionReason: null,
+        } : null));
+        toast({
+          variant: "success",
+          title: "Photo Submitted For Approval",
+          description: "Your picture has been uploaded and sent to administration for review.",
+        });
       } else {
         toast({ variant: "destructive", title: "Upload Failed", description: data.error || "Failed to upload photo." });
       }
@@ -204,7 +220,11 @@ export default function ParentSettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ variant: "success", title: "Profile Saved", description: "Your parent profile information is updated." });
+        toast({
+          variant: "success",
+          title: "Profile Saved & Synchronized",
+          description: "Your contact details, address, and profile data have been updated and synced to madrasah records.",
+        });
         await fetchProfile();
       } else {
         toast({ variant: "destructive", title: "Save Failed", description: data.error || "Failed to update profile." });
@@ -258,8 +278,20 @@ export default function ParentSettingsPage() {
             {/* Avatar & Photo Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-6 pb-6 mb-6 border-b border-gray-100">
               <div className="relative group shrink-0">
-                <Avatar className="w-24 h-24 rounded-3xl border-4 border-rose-100 shadow-md ring-2 ring-rose-50">
-                  {profile?.avatarUrl && <AvatarImage src={profile.avatarUrl} alt="Parent" />}
+                <Avatar className={`w-24 h-24 rounded-3xl border-4 shadow-md ring-2 transition-all ${
+                  profile?.avatarStatus === "PENDING" || profile?.pendingAvatarUrl
+                    ? "border-amber-300 ring-amber-100"
+                    : profile?.avatarStatus === "REJECTED"
+                      ? "border-rose-300 ring-rose-100"
+                      : "border-rose-100 ring-rose-50"
+                }`}>
+                  {(profile?.pendingAvatarUrl || profile?.avatarUrl) && (
+                    <AvatarImage
+                      src={profile.pendingAvatarUrl || profile.avatarUrl || ""}
+                      alt="Parent"
+                      className="object-cover"
+                    />
+                  )}
                   <AvatarFallback className="bg-gradient-to-br from-rose-500 to-pink-600 text-white font-black text-2xl">
                     {getInitials(form.firstName || user?.firstName || "", form.lastName || user?.lastName || "")}
                   </AvatarFallback>
@@ -291,6 +323,25 @@ export default function ParentSettingsPage() {
                   <Badge className="text-xs bg-rose-50 text-rose-700 border-rose-200 font-bold uppercase">
                     {form.relationType || "PARENT"}
                   </Badge>
+
+                  {/* Photo Review Status Badge */}
+                  {profile?.avatarStatus === "PENDING" || profile?.pendingAvatarUrl ? (
+                    <Badge className="text-xs bg-amber-50 text-amber-800 border-amber-300 font-bold flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                      Photo Pending Approval
+                    </Badge>
+                  ) : profile?.avatarStatus === "REJECTED" ? (
+                    <Badge className="text-xs bg-rose-50 text-rose-700 border-rose-300 font-bold flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-rose-600" />
+                      Photo Rejected
+                    </Badge>
+                  ) : profile?.avatarUrl ? (
+                    <Badge className="text-xs bg-emerald-50 text-emerald-800 border-emerald-300 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      Photo Approved
+                    </Badge>
+                  ) : null}
+
                   {form.bloodGroup && (
                     <span className="inline-flex items-center gap-1 text-xs font-bold bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-md font-mono">
                       <Droplet className="w-3 h-3 text-red-500 fill-red-500" />
@@ -319,6 +370,31 @@ export default function ParentSettingsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Profile Photo Approval Banners */}
+            {(profile?.avatarStatus === "PENDING" || profile?.pendingAvatarUrl) && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 mb-6 shadow-xs">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-bold text-amber-900">Photo Submitted For Administrative Approval</div>
+                  <div className="text-amber-800 mt-0.5 leading-relaxed">
+                    Your new profile photo has been received and is currently under review by the madrasah administration. Once approved, it will automatically update across all institutional portals and linked student files.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {profile?.avatarStatus === "REJECTED" && (
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3 mb-6 shadow-xs">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-bold text-rose-900">Photo Resubmission Required</div>
+                  <div className="text-rose-800 mt-0.5 leading-relaxed">
+                    {profile.avatarRejectionReason || "The uploaded picture does not conform to institutional dress code or clarity guidelines."} Please upload a formal photograph conforming to standards (Topi / Rida).
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Profile Form */}
             <form onSubmit={handleSave} className="space-y-6">
