@@ -337,7 +337,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     sendEmailNotification: true,
   });
   const [savingBadal, setSavingBadal] = useState(false);
-  const [badalTeacherFilterMode, setBadalTeacherFilterMode] = useState<"ALL" | "FREE" | "SAME_SUBJECT">("ALL");
+  const [badalTeacherFilterMode, setBadalTeacherFilterMode] = useState<"ALL" | "FREE" | "SAME_SUBJECT">("SAME_SUBJECT");
   const [badalTeacherSearchQuery, setBadalTeacherSearchQuery] = useState("");
 
   const filteredAvailableTeachers = useMemo(() => {
@@ -809,7 +809,10 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setAvailableTeachers(data.data);
-        const firstFree = data.data.find((t: any) => t.isFree && !t.isOnLeave);
+        const firstFree =
+          data.data.find((t: any) => t.isFree && !t.isOnLeave && t.teachesSubject) ||
+          data.data.find((t: any) => t.teachesSubject && !t.isOnLeave) ||
+          data.data.find((t: any) => t.isFree && !t.isOnLeave);
         if (firstFree) {
           const emailTpl = generateBadalEmailTemplate({
             substituteName: firstFree.name,
@@ -907,6 +910,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       sendEmailNotification: true,
     });
 
+    setBadalTeacherFilterMode("SAME_SUBJECT");
     setShowBadalModal(true);
     fetchAvailableTeachersForSlot(
       slot.dayOfWeek,
@@ -3307,19 +3311,19 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
               <div className="space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700">
-                    4. Select Substitute Teacher (Displaying All Teachers with Assigned Subjects)
+                    4. Select Substitute Teacher (Assigned Subject Specialists Only)
                   </label>
                   <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => setBadalTeacherFilterMode("ALL")}
+                      onClick={() => setBadalTeacherFilterMode("SAME_SUBJECT")}
                       className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
-                        badalTeacherFilterMode === "ALL"
-                          ? "bg-slate-900 text-amber-300"
+                        badalTeacherFilterMode === "SAME_SUBJECT"
+                          ? "bg-slate-900 text-amber-300 ring-2 ring-amber-400/40"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      All Teachers ({availableTeachers.length})
+                      ★ Assigned Subject Only ({availableTeachers.filter((t) => t.teachesSubject).length})
                     </button>
                     <button
                       type="button"
@@ -3334,14 +3338,14 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                     </button>
                     <button
                       type="button"
-                      onClick={() => setBadalTeacherFilterMode("SAME_SUBJECT")}
+                      onClick={() => setBadalTeacherFilterMode("ALL")}
                       className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
-                        badalTeacherFilterMode === "SAME_SUBJECT"
+                        badalTeacherFilterMode === "ALL"
                           ? "bg-slate-900 text-amber-300"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      Same Subject ({availableTeachers.filter((t) => t.teachesSubject).length})
+                      All Teachers ({availableTeachers.length})
                     </button>
                   </div>
                 </div>
@@ -3373,8 +3377,21 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                     <span className="text-[11px] text-slate-500 mt-1 block">Loading faculty roster &amp; assigned subjects...</span>
                   </div>
                 ) : filteredAvailableTeachers.length === 0 ? (
-                  <div className="p-4 text-center bg-amber-50 text-amber-900 rounded-2xl border border-amber-200 text-xs">
-                    No faculty found matching the filter. Choose &ldquo;All Teachers&rdquo; above.
+                  <div className="p-4 text-center bg-amber-50 text-amber-900 rounded-2xl border border-amber-200 text-xs space-y-2">
+                    <p className="font-semibold">
+                      {badalTeacherFilterMode === "SAME_SUBJECT"
+                        ? `No other faculty teaches "${badalForm.subject}" in this schedule.`
+                        : "No faculty found matching the selected filter."}
+                    </p>
+                    {badalTeacherFilterMode === "SAME_SUBJECT" && (
+                      <button
+                        type="button"
+                        onClick={() => setBadalTeacherFilterMode("ALL")}
+                        className="px-3 py-1 bg-slate-900 text-amber-300 rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        Show All Faculty Members ({availableTeachers.length})
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">

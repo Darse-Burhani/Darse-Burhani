@@ -3,6 +3,7 @@ import { cache } from "./cache";
 import { appendLocalScanLog } from "./attendance-local-log";
 import { queueAutoSheetSync } from "./google-attendance-sync";
 import { resolveAliasIts } from "./hikvision/identity-aliases";
+import { sendPushToUser, sendPushToUsers } from "./push";
 
 export type ScanOutcome = "MATCHED" | "UNKNOWN" | "NO_CLASS" | "DUPLICATE" | "TOO_EARLY" | "WINDOW_CLOSED";
 
@@ -1267,6 +1268,11 @@ export async function processBiometricScan(
               link: "/faculty/attendance",
             },
           });
+          sendPushToUser(teacher.userId, {
+            title: `⚡ Faculty Check-In: ${teacherInfo.name}`,
+            body: `${teacherInfo.name} checked in (${teacherStatus}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`,
+            url: "/faculty/attendance",
+          }).catch(() => {});
         }
       } catch (notifErr) {
         console.warn("[biometric] faculty notification dispatch notice:", notifErr);
@@ -1680,6 +1686,11 @@ export async function processBiometricScan(
           link: "/parent/activity",
         })),
       });
+      sendPushToUsers(Array.from(recipientUserIds), {
+        title: notifTitle,
+        body: notifMsg,
+        url: "/parent/activity",
+      }).catch(() => {});
     }
   } catch (notifErr) {
     console.warn("[biometric] scan notification dispatch notice:", notifErr);

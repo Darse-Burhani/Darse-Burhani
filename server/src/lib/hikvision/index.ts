@@ -879,8 +879,10 @@ export async function pollDevice(
     const tilawat = await getTilawatScheduleWindowIST(to).catch(() => null);
     const scheduleStart = tilawat?.startTimeIST ?? startOfToday;
 
-    // During automatic polling, skip if current time is outside the scheduled scan window
-    if (!force && tilawat && !tilawat.isWithinSchedule) {
+    // During automatic polling outside operational hours (before 05:00 or after 22:30 IST), skip polling
+    const istMinutes = (to.getUTCHours() * 60 + to.getUTCMinutes() + 330) % 1440;
+    const isNightTime = istMinutes < 300 || istMinutes > 1350; // Between 10:30 PM and 5:00 AM IST
+    if (!force && isNightTime) {
       return { scansFetched: 0, scansProcessed: 0 };
     }
 

@@ -972,7 +972,7 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // GET /api/admin/timetable/badal/available-teachers - Intelligent Free Teacher Finder
 router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    const { dayOfWeek, period, date, subject, originalTeacherId } = req.query as Record<string, string | undefined>;
+    const { dayOfWeek, period, date, subject, originalTeacherId, onlyAssignedSubject, sameSubjectOnly } = req.query as Record<string, string | undefined>;
     if (!dayOfWeek || !period) {
       return res.status(400).json({ success: false, error: "dayOfWeek and period are required" });
     }
@@ -1146,7 +1146,7 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
 
     return res.json({
       success: true,
-      data: mappedTeachers,
+      data: (onlyAssignedSubject === "true" || sameSubjectOnly === "true") ? mappedTeachers.filter((t) => t.teachesSubject) : mappedTeachers,
       meta: {
         subject: normalizedSubject || null,
         period: p,
@@ -1154,6 +1154,7 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         totalCount: mappedTeachers.length,
         freeCount: mappedTeachers.filter((t) => t.isFree).length,
         sameSubjectCount: mappedTeachers.filter((t) => t.teachesSubject).length,
+        isFilteredBySubject: onlyAssignedSubject === "true" || sameSubjectOnly === "true",
       },
     });
   } catch (error) {

@@ -924,10 +924,9 @@ export function startAttendanceScheduler() {
         try {
           const { pullAllDevicesScansForRange, getTilawatScheduleWindowIST } = await import("./hikvision");
           const tilawatSched = await getTilawatScheduleWindowIST(now);
-          if (tilawatSched.isWithinSchedule) {
-            await pullAllDevicesScansForRange(tilawatSched.startTimeIST, now);
-            await syncGateRegistryToClassAttendance(now);
-          }
+          const pullStart = tilawatSched.isWithinSchedule ? tilawatSched.startTimeIST : undefined;
+          await pullAllDevicesScansForRange(pullStart, now);
+          await syncGateRegistryToClassAttendance(now);
         } catch (pollErr) {
           // Non-critical background hardware poll notification
         }

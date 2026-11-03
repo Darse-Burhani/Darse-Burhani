@@ -80,47 +80,45 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       });
     }
 
-    // Intelligent Syllabus & Portion Resolution for assigned teaching faculty:
-    // 1. Direct assignments in TakhteetPlan take highest priority.
-    // 2. If no direct assignments exist yet, match classes & subjects the teacher teaches in timetable.
-    // 3. Fallback to active syllabus only if explicitly requested or delegated.
+    // Strictly isolate Takhteet portions:
+    // Teachers must ONLY see portions for the exact class and subject assigned to them in timetable or class assignments.
     const whereClause: any = {};
     let isShowingAll = false;
 
     if (!isAdmin) {
-      if (assignedCount > 0) {
-        whereClause.teacherId = targetTeacherId;
-      } else if (targetTeacherId) {
-        const orFilters: any[] = [];
-        for (const s of teacherSlots) {
-          if (s.classId && s.subject) {
-            orFilters.push({ classId: s.classId, subject: { equals: s.subject, mode: "insensitive" } });
-          } else if (s.subject) {
-            orFilters.push({ subject: { equals: s.subject, mode: "insensitive" } });
-          }
-        }
-        for (const c of teacherClasses) {
-          if (c.id && c.subject) {
-            orFilters.push({ classId: c.id, subject: { equals: c.subject, mode: "insensitive" } });
-          }
-        }
-        if (Array.isArray(teacherProfileData?.subjects)) {
-          for (const subj of teacherProfileData.subjects) {
-            if (subj) {
-              orFilters.push({ subject: { equals: subj, mode: "insensitive" } });
-            }
-          }
-        }
+      const orFilters: any[] = [];
 
-        if (orFilters.length > 0) {
-          whereClause.OR = orFilters;
-        } else if (hasExplicitTakhteetAssignment || viewAll) {
-          isShowingAll = true;
-        } else {
-          whereClause.teacherId = targetTeacherId;
+      // 1. Explicitly assigned portions where teacherId matches
+      if (targetTeacherId) {
+        orFilters.push({ teacherId: targetTeacherId });
+      }
+
+      // 2. Strict (classId, subject) pairs from TimetableSlot assigned to this teacher
+      for (const s of teacherSlots) {
+        if (s.classId && s.subject) {
+          orFilters.push({
+            classId: s.classId,
+            subject: { equals: s.subject.trim(), mode: "insensitive" },
+          });
         }
+      }
+
+      // 3. Strict (classId, subject) pairs from Class assigned to this teacher
+      for (const c of teacherClasses) {
+        if (c.id && c.subject && c.subject !== "General" && c.subject !== "Darajah Core Curriculum") {
+          orFilters.push({
+            classId: c.id,
+            subject: { equals: c.subject.trim(), mode: "insensitive" },
+          });
+        }
+      }
+
+      if (orFilters.length > 0) {
+        whereClause.OR = orFilters;
+      } else if (hasExplicitTakhteetAssignment && viewAll) {
+        isShowingAll = true;
       } else {
-        whereClause.teacherId = targetTeacherId;
+        whereClause.teacherId = targetTeacherId || "__NONE__";
       }
     } else {
       if (targetTeacherId && !viewAll) {
@@ -136,7 +134,7 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       async () => {
         const plans = await prisma.takhteetPlan.findMany({
           where: whereClause,
-          take: 300,
+          take: 1500,
           include: {
             class: { select: { id: true, name: true, grade: true, section: true, subject: true } },
             progressLogs: {
@@ -209,12 +207,38 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Plan not found" });
     }
 
-    if (plan.teacherId !== teacherProfile.id && session.user.role !== "ADMIN") {
-      // Auto-assign portion to the teacher actively updating their curriculum
-      await prisma.takhteetPlan.update({
-        where: { id: plan.id },
-        data: { teacherId: teacherProfile.id },
+    if (session.user.role !== "ADMIN") {
+      // Strictly enforce: Teacher can ONLY update portions for the class and subject assigned to them!
+      const isDirectOwner = plan.teacherId === teacherProfile.id;
+      const teachesClassSubjectInTimetable = await prisma.timetableSlot.findFirst({
+        where: {
+          teacherId: teacherProfile.id,
+          classId: plan.classId,
+          subject: { equals: plan.subject, mode: "insensitive" },
+        },
       });
+      const teachesClassDirectly = await prisma.class.findFirst({
+        where: {
+          teacherId: teacherProfile.id,
+          id: plan.classId,
+          subject: { equals: plan.subject, mode: "insensitive" },
+        },
+      });
+
+      if (!isDirectOwner && !teachesClassSubjectInTimetable && !teachesClassDirectly) {
+        return res.status(403).json({
+          success: false,
+          error: "You can only update syllabus portions for classes and subjects assigned to you.",
+        });
+      }
+
+      // Auto-assign portion to the teacher actively updating their curriculum if not yet assigned
+      if (!isDirectOwner) {
+        await prisma.takhteetPlan.update({
+          where: { id: plan.id },
+          data: { teacherId: teacherProfile.id },
+        });
+      }
     }
 
     const body = req.body as Record<string, any>;
