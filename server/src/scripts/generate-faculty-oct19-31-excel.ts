@@ -12,16 +12,17 @@ import { gregorianToJulianDay, julianDayToHijri, formatHijriDate } from '../lib/
 interface DayRecord {
   gregorian: string;      // "2026-10-19"
   hijriDay: number;
+  hijriMonth: number;
   hijriDateStr: string;   // "9 Jumādā al-Ūlā 1448 AH"
   hijriArabic: string;    // "٩ جمادى الأولى ١٤٤٨"
   dayOfWeek: string;      // "Monday"
   isSunday: boolean;
   isHoliday: boolean;
   holidayReason?: string;
-  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'HOLIDAY';
-  checkInISO: string | null;
+  status: 'PRESENT' | 'LATE' | 'ABSENT' | 'HOLIDAY';
+  checkInISO?: string | null;
   checkInIST: string;
-  checkOutISO: string | null;
+  checkOutISO?: string | null;
   checkOutIST: string;
   duration: string;
   device: string;
@@ -154,27 +155,44 @@ function toArabicNumerals(num: number): string {
   return String(num).split('').map(d => arabicDigits[parseInt(d, 10)] || d).join('');
 }
 
-async function generateAttendanceExcel() {
-  console.log('=== GENERATING FACULTY ATTENDANCE EXCEL (19 OCT - 31 OCT 2026) ===');
+/**
+ * Cutoff: 07:31:00 AM IST
+ * Arrived at 07:31:00 AM or later -> true (LATE)
+ * Arrived before 07:31:00 AM -> false (PRESENT)
+ */
+function isLateCheckInIST(date: Date): boolean {
+  const ist = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+  const hours = ist.getUTCHours();
+  const minutes = ist.getUTCMinutes();
+  if (hours > 7) return true;
+  if (hours === 7 && minutes >= 31) return true;
+  return false;
+}
 
-  // Dates array from 2026-10-19 to 2026-10-31
+async function generateAttendanceWorkbook(startDay: number, endDay: number, filename: string) {
+  console.log(`\n=== GENERATING WORKBOOK: ${filename} (${startDay} Oct – ${endDay} Oct 2026) ===`);
+
+  // Dates array from startDay to endDay
   const dateList: string[] = [];
-  for (let day = 19; day <= 31; day++) {
+  for (let day = startDay; day <= endDay; day++) {
     dateList.push(`2026-10-${String(day).padStart(2, '0')}`);
   }
 
-  // Fetch DB records
+  // Fetch DB records for target faculty
   const teachers = await prisma.teacherProfile.findMany({
     where: { its: { in: TARGET_FACULTY.map(f => f.its) } },
     include: { user: true },
   });
 
+  const startDateISO = new Date(`2026-10-${String(startDay - 1).padStart(2, '0')}T00:00:00.000Z`);
+  const endDateISO = new Date(`2026-11-01T23:59:59.999Z`);
+
   const dbRecords = await prisma.teacherAttendanceRecord.findMany({
     where: {
       teacherId: { in: teachers.map(t => t.id) },
       date: {
-        gte: new Date('2026-10-18T00:00:00.000Z'),
-        lte: new Date('2026-11-01T23:59:59.999Z'),
+        gte: startDateISO,
+        lte: endDateISO,
       },
     },
   });
@@ -225,11 +243,25 @@ async function generateAttendanceExcel() {
         method = 'Calendar Rule';
         remarks = holidayReason || 'Institutional Holiday';
       } else if (dbRec) {
-        status = (dbRec.status as DayRecord['status']) || 'PRESENT';
         checkInISO = dbRec.checkInTime ? dbRec.checkInTime.toISOString() : null;
         checkInIST = formatTimeIST(dbRec.checkInTime);
         checkOutISO = dbRec.checkOutTime ? dbRec.checkOutTime.toISOString() : null;
-        
+
+        // Apply strict 07:31 Late rule
+        if (dbRec.checkInTime) {
+          if (isLateCheckInIST(dbRec.checkInTime)) {
+            status = 'LATE';
+          } else {
+            status = 'PRESENT';
+          }
+        } else if (dbRec.status === 'LATE') {
+          status = 'LATE';
+        } else if (dbRec.status === 'PRESENT') {
+          status = 'PRESENT';
+        } else {
+          status = 'ABSENT';
+        }
+
         // Check if checkout is actually a distinct departure scan (> 5 minutes after checkin)
         if (dbRec.checkInTime && dbRec.checkOutTime) {
           const diffMs = Math.abs(dbRec.checkOutTime.getTime() - dbRec.checkInTime.getTime());
@@ -237,7 +269,6 @@ async function generateAttendanceExcel() {
             checkOutIST = formatTimeIST(dbRec.checkOutTime);
             duration = calcDuration(dbRec.checkInTime, dbRec.checkOutTime);
           } else {
-            // Rapid double-scan at entrance gate
             checkOutIST = '—';
             duration = '—';
           }
@@ -251,12 +282,20 @@ async function generateAttendanceExcel() {
 
         method = dbRec.biometricMethod ? `Biometric ${dbRec.biometricMethod}` : 'Biometric Facial / Fingerprint';
         device = dbRec.notes?.includes('MinMoe') ? 'MinMoe Biometric Terminal (192.168.0.4/5)' : 'Main Entrance MinMoe Terminal';
-        remarks = dbRec.notes || (checkInIST !== '—' ? `Verified scan at ${checkInIST} (Tilawat al-Dua morning window)` : `Departure scan recorded at ${checkOutIST}`);
+
+        if (status === 'LATE') {
+          remarks = `Late arrival at ${checkInIST} (after 07:30 AM cutoff)`;
+        } else if (status === 'PRESENT') {
+          remarks = `On-time arrival at ${checkInIST} (before 07:31 AM cutoff)`;
+        } else {
+          remarks = checkOutIST !== '—' ? `Departure scan recorded at ${checkOutIST} (No morning check-in)` : (dbRec.notes || 'No morning scan recorded');
+        }
       }
 
       const rec: DayRecord = {
         gregorian: dateStr,
         hijriDay: hijri.day,
+        hijriMonth: hijri.month,
         hijriDateStr: `${hijri.day} ${hInfo.monthName} ${hijri.year} AH`,
         hijriArabic: `${toArabicNumerals(hijri.day)} ${hInfo.monthNameAr} ${toArabicNumerals(hijri.year)} هـ`,
         dayOfWeek,
@@ -280,10 +319,9 @@ async function generateAttendanceExcel() {
     facultyData.set(faculty.its, dayMap);
   }
 
-  // Create Workbook
+  // BUILD WORKBOOK
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Darse Burhani Administration';
-  wb.lastModifiedBy = 'Antigravity Biometric Polling & Sync Engine';
+  wb.creator = 'Al Jamea tus Saifiyah / Darse Burhani Portal';
   wb.created = new Date();
   wb.modified = new Date();
 
@@ -294,31 +332,6 @@ async function generateAttendanceExcel() {
     views: [{ showGridLines: true }],
   });
 
-  // Title Banner
-  summarySheet.mergeCells('A1:Q1');
-  const t1 = summarySheet.getCell('A1');
-  t1.value = 'AL JAMEA TUS SAIFIYAH / DARSE BURHANI — GALIAKOT CAMPUS';
-  t1.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-  t1.alignment = { horizontal: 'center', vertical: 'middle' };
-  t1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D3B2E' } };
-  summarySheet.getRow(1).height = 30;
-
-  summarySheet.mergeCells('A2:Q2');
-  const t2 = summarySheet.getCell('A2');
-  t2.value = 'FACULTY BIOMETRIC AUDIT REPORT & HIJRI SCAN LEDGER (19 OCT 2026 – 31 OCT 2026)';
-  t2.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFD4AF37' } };
-  t2.alignment = { horizontal: 'center', vertical: 'middle' };
-  t2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E26' } };
-  summarySheet.getRow(2).height = 24;
-
-  summarySheet.mergeCells('A3:Q3');
-  const t3 = summarySheet.getCell('A3');
-  t3.value = `Hijri Period: 9 Jumādā al-Ūlā 1448 to 21 Jumādā al-Ūlā 1448 AH • Polled Live from Hikvision MinMoe Terminals • Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`;
-  t3.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF4A5568' } };
-  t3.alignment = { horizontal: 'center', vertical: 'middle' };
-  summarySheet.getRow(3).height = 20;
-
-  // Header Row for Daily Matrix
   const matrixHeaders = [
     'S.No',
     'ITS ID',
@@ -331,12 +344,43 @@ async function generateAttendanceExcel() {
       const h = julianDayToHijri(jd);
       const dObj = new Date(Date.UTC(y, m - 1, day));
       const dayShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dObj.getUTCDay()];
-      return `${dayShort} (${dayNum} Oct)\n[${h.day} Jumada I]`;
+      const mShort = h.month === 4 ? 'Rabi II' : h.month === 5 ? 'Jumada I' : `M${h.month}`;
+      return `${dayShort} (${dayNum} Oct)\n[${h.day} ${mShort}]`;
     }),
     'Working Days',
-    'Present Days',
+    'On-Time (<7:31)',
+    'Late (≥7:31)',
+    'Total Attended',
+    'Absent Days',
     'Attendance %',
   ];
+
+  const totalCols = matrixHeaders.length;
+  const endColLetter = summarySheet.getColumn(totalCols).letter;
+
+  // Title Banners
+  summarySheet.mergeCells(`A1:${endColLetter}1`);
+  const t1 = summarySheet.getCell('A1');
+  t1.value = 'AL JAMEA TUS SAIFIYAH / DARSE BURHANI — GALIAKOT CAMPUS';
+  t1.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  t1.alignment = { horizontal: 'center', vertical: 'middle' };
+  t1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D3B2E' } };
+  summarySheet.getRow(1).height = 30;
+
+  summarySheet.mergeCells(`A2:${endColLetter}2`);
+  const t2 = summarySheet.getCell('A2');
+  t2.value = `FACULTY BIOMETRIC AUDIT REPORT & HIJRI SCAN LEDGER (${startDay} OCT 2026 – ${endDay} OCT 2026)`;
+  t2.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFD4AF37' } };
+  t2.alignment = { horizontal: 'center', vertical: 'middle' };
+  t2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E26' } };
+  summarySheet.getRow(2).height = 24;
+
+  summarySheet.mergeCells(`A3:${endColLetter}3`);
+  const t3 = summarySheet.getCell('A3');
+  t3.value = `Arrival Policy: On-Time Before 07:31 AM IST | Late at 07:31 AM or After • Polled Live from Hikvision MinMoe Terminals • Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`;
+  t3.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF4A5568' } };
+  t3.alignment = { horizontal: 'center', vertical: 'middle' };
+  summarySheet.getRow(3).height = 20;
 
   const mHeaderRow = summarySheet.getRow(5);
   matrixHeaders.forEach((h, idx) => {
@@ -352,9 +396,8 @@ async function generateAttendanceExcel() {
       right: { style: 'thin', color: { argb: 'FFCCCCCC' } },
     };
   });
-  mHeaderRow.height = 36;
+  mHeaderRow.height = 32;
 
-  // Populate Matrix Data Rows
   let sRowIdx = 6;
   TARGET_FACULTY.forEach((fac, idx) => {
     const row = summarySheet.getRow(sRowIdx);
@@ -371,7 +414,9 @@ async function generateAttendanceExcel() {
     row.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
 
     let workingDays = 0;
-    let presentDays = 0;
+    let onTimeCount = 0;
+    let lateCount = 0;
+    let absentCount = 0;
 
     dateList.forEach((dStr, dIdx) => {
       const cell = row.getCell(5 + dIdx);
@@ -379,8 +424,12 @@ async function generateAttendanceExcel() {
 
       if (!rec.isHoliday) {
         workingDays++;
-        if (rec.status === 'PRESENT' || rec.status === 'LATE') {
-          presentDays++;
+        if (rec.status === 'PRESENT') {
+          onTimeCount++;
+        } else if (rec.status === 'LATE') {
+          lateCount++;
+        } else {
+          absentCount++;
         }
       }
 
@@ -395,7 +444,7 @@ async function generateAttendanceExcel() {
       } else if (rec.status === 'LATE') {
         cell.value = `LATE\n${rec.checkInIST}`;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
-        cell.font = { name: 'Calibri', size: 8.5, bold: true, color: { argb: 'FF664D03' } };
+        cell.font = { name: 'Calibri', size: 8.5, bold: true, color: { argb: 'FF856404' } };
       } else {
         cell.value = 'ABSENT';
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } };
@@ -411,24 +460,47 @@ async function generateAttendanceExcel() {
       };
     });
 
-    const pct = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0;
-    const workCell = row.getCell(5 + dateList.length);
-    workCell.value = `${workingDays} Days`;
-    workCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    workCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF4A5568' } };
+    const totalAttended = onTimeCount + lateCount;
+    const pct = workingDays > 0 ? Math.round((totalAttended / workingDays) * 100) : 0;
 
-    const presCell = row.getCell(6 + dateList.length);
-    presCell.value = `${presentDays} / ${workingDays}`;
-    presCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    presCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F5132' } };
+    // Working Days
+    const c1 = row.getCell(5 + dateList.length);
+    c1.value = `${workingDays} Days`;
+    c1.alignment = { horizontal: 'center', vertical: 'middle' };
+    c1.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF4A5568' } };
 
-    const pctCell = row.getCell(7 + dateList.length);
-    pctCell.value = `${pct}%`;
-    pctCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    pctCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F5132' } };
+    // On-Time (<7:31)
+    const c2 = row.getCell(6 + dateList.length);
+    c2.value = `${onTimeCount}`;
+    c2.alignment = { horizontal: 'center', vertical: 'middle' };
+    c2.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F5132' } };
+
+    // Late (≥7:31)
+    const c3 = row.getCell(7 + dateList.length);
+    c3.value = `${lateCount}`;
+    c3.alignment = { horizontal: 'center', vertical: 'middle' };
+    c3.font = { name: 'Calibri', size: 9.5, bold: true, color: lateCount > 0 ? { argb: 'FF856404' } : { argb: 'FF718096' } };
+
+    // Total Attended
+    const c4 = row.getCell(8 + dateList.length);
+    c4.value = `${totalAttended} / ${workingDays}`;
+    c4.alignment = { horizontal: 'center', vertical: 'middle' };
+    c4.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0D3B2E' } };
+
+    // Absent
+    const c5 = row.getCell(9 + dateList.length);
+    c5.value = `${absentCount}`;
+    c5.alignment = { horizontal: 'center', vertical: 'middle' };
+    c5.font = { name: 'Calibri', size: 9.5, bold: true, color: absentCount > 0 ? { argb: 'FF842029' } : { argb: 'FF718096' } };
+
+    // Attendance %
+    const c6 = row.getCell(10 + dateList.length);
+    c6.value = `${pct}%`;
+    c6.alignment = { horizontal: 'center', vertical: 'middle' };
+    c6.font = { name: 'Calibri', size: 10, bold: true, color: pct >= 90 ? { argb: 'FF0F5132' } : pct >= 75 ? { argb: 'FF856404' } : { argb: 'FF842029' } };
 
     // Set borders on all fixed columns
-    [1, 2, 3, 4, 5 + dateList.length, 6 + dateList.length, 7 + dateList.length].forEach(c => {
+    [1, 2, 3, 4, 5 + dateList.length, 6 + dateList.length, 7 + dateList.length, 8 + dateList.length, 9 + dateList.length, 10 + dateList.length].forEach(c => {
       row.getCell(c).border = {
         top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
         bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -449,6 +521,9 @@ async function generateAttendanceExcel() {
     { width: 22 },
     ...dateList.map(() => ({ width: 16 })),
     { width: 14 },
+    { width: 15 },
+    { width: 14 },
+    { width: 16 },
     { width: 14 },
     { width: 14 },
   ];
@@ -522,7 +597,9 @@ async function generateAttendanceExcel() {
 
     let rIdx = 6;
     let totalWorking = 0;
-    let totalPresent = 0;
+    let totalOnTime = 0;
+    let totalLate = 0;
+    let totalAbsent = 0;
 
     dateList.forEach((dStr) => {
       const rec = dayMap.get(dStr)!;
@@ -530,7 +607,9 @@ async function generateAttendanceExcel() {
 
       if (!rec.isHoliday) {
         totalWorking++;
-        if (rec.status === 'PRESENT' || rec.status === 'LATE') totalPresent++;
+        if (rec.status === 'PRESENT') totalOnTime++;
+        else if (rec.status === 'LATE') totalLate++;
+        else totalAbsent++;
       }
 
       row.getCell(1).value = rec.gregorian;
@@ -562,7 +641,7 @@ async function generateAttendanceExcel() {
         statusCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F5132' } };
       } else if (rec.status === 'LATE') {
         statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
-        statusCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF664D03' } };
+        statusCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF856404' } };
       } else if (rec.status === 'HOLIDAY') {
         statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
         statusCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF4A5568' } };
@@ -572,12 +651,14 @@ async function generateAttendanceExcel() {
       }
 
       // Check In cell highlighting
-      if (rec.status === 'PRESENT' || rec.status === 'LATE') {
+      if (rec.status === 'PRESENT') {
         row.getCell(6).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F5132' } };
+      } else if (rec.status === 'LATE') {
+        row.getCell(6).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF856404' } };
       }
 
       for (let c = 1; c <= 10; c++) {
-        if (c !== 5) {
+        if (c !== 5 && c !== 6) {
           row.getCell(c).font = row.getCell(c).font || { name: 'Calibri', size: 9.5 };
         }
         row.getCell(c).border = {
@@ -593,10 +674,11 @@ async function generateAttendanceExcel() {
     });
 
     // Summary Statistics Footer Box
-    const pct = totalWorking > 0 ? Math.round((totalPresent / totalWorking) * 100) : 0;
+    const totalAttended = totalOnTime + totalLate;
+    const pct = totalWorking > 0 ? Math.round((totalAttended / totalWorking) * 100) : 0;
     const fRow = ws.getRow(rIdx + 1);
     ws.mergeCells(`A${rIdx + 1}:J${rIdx + 1}`);
-    fRow.getCell(1).value = `📌 AUDIT SUMMARY (${faculty.displayName}): Total Scheduled Days: ${dateList.length} | Operational Working Days: ${totalWorking} | Present Days: ${totalPresent} | Holidays/Observances: ${dateList.length - totalWorking} | Biometric Attendance Ratio: ${pct}%`;
+    fRow.getCell(1).value = `📌 AUDIT SUMMARY (${faculty.displayName}): Working Days: ${totalWorking} | On-Time (<7:31 AM): ${totalOnTime} | Late (≥7:31 AM): ${totalLate} | Absent: ${totalAbsent} | Overall Attendance: ${totalAttended}/${totalWorking} (${pct}%)`;
     fRow.getCell(1).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0D3B2E' } };
     fRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } };
     fRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -636,7 +718,7 @@ async function generateAttendanceExcel() {
   createFacultyDetailSheet(TARGET_FACULTY[10], 'Mustafa Bangrodwala Attend');
 
   // ══════════════════════════════════════════════════════════════════
-  // SHEET 5: CHRONOLOGICAL BIOMETRIC AUDIT FEED
+  // SHEET: CHRONOLOGICAL BIOMETRIC AUDIT FEED
   // ══════════════════════════════════════════════════════════════════
   const feedSheet = wb.addWorksheet('Chronological Scan Audit', {
     views: [{ showGridLines: true }],
@@ -652,7 +734,7 @@ async function generateAttendanceExcel() {
 
   feedSheet.mergeCells('A2:H2');
   const feedSub = feedSheet.getCell('A2');
-  feedSub.value = 'RAW TIME-SERIES SCAN EVENT LOGS FOR AUDITED FACULTY MEMBERS (19 OCT – 31 OCT 2026)';
+  feedSub.value = `RAW TIME-SERIES SCAN EVENT LOGS FOR AUDITED FACULTY MEMBERS (${startDay} OCT – ${endDay} OCT 2026)`;
   feedSub.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFD4AF37' } };
   feedSub.alignment = { horizontal: 'center', vertical: 'middle' };
   feedSub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E26' } };
@@ -710,9 +792,9 @@ async function generateAttendanceExcel() {
           hijriStr: rec.hijriDateStr,
           its: fac.its,
           name: fac.displayName,
-          eventType: 'CHECK_IN (Arrival)',
+          eventType: rec.status === 'LATE' ? 'CHECK_IN (Late Arrival)' : 'CHECK_IN (On-Time Arrival)',
           device: rec.device,
-          remarks: 'Morning Attendance Scan (Tilawat al-Dua)',
+          remarks: rec.status === 'LATE' ? 'Late arrival (after 07:30 AM cutoff)' : 'On-time arrival (before 07:31 AM cutoff)',
         });
       }
       if (rec.checkOutISO && rec.checkOutIST !== '—') {
@@ -726,7 +808,7 @@ async function generateAttendanceExcel() {
           name: fac.displayName,
           eventType: 'CHECK_OUT (Departure)',
           device: rec.device,
-          remarks: `Campus Departure Scan (${rec.duration})`,
+          remarks: `Campus Departure (Duration: ${rec.duration})`,
         });
       }
     }
@@ -737,7 +819,7 @@ async function generateAttendanceExcel() {
   let feedRowIdx = 5;
   for (const ev of allEventsList) {
     const row = feedSheet.getRow(feedRowIdx);
-    row.getCell(1).value = `${ev.dateStr} ${ev.timestampIST}`;
+    row.getCell(1).value = ev.timestampIST;
     row.getCell(2).value = ev.dateStr;
     row.getCell(3).value = ev.hijriStr;
     row.getCell(4).value = ev.its;
@@ -755,18 +837,17 @@ async function generateAttendanceExcel() {
     row.getCell(7).alignment = { horizontal: 'left', vertical: 'middle' };
     row.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
 
-    const isCheckIn = ev.eventType.includes('Arrival');
-    row.getCell(6).font = {
-      name: 'Calibri',
-      size: 9.5,
-      bold: true,
-      color: isCheckIn ? { argb: 'FF0F5132' } : { argb: 'FF1E40AF' },
-    };
-    row.getCell(6).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: isCheckIn ? { argb: 'FFD1E7DD' } : { argb: 'FFDBEAFE' },
-    };
+    // Highlighting
+    if (ev.eventType.includes('On-Time')) {
+      row.getCell(6).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F5132' } };
+      row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1E7DD' } };
+    } else if (ev.eventType.includes('Late')) {
+      row.getCell(6).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF856404' } };
+      row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+    } else {
+      row.getCell(6).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0D6EFD' } };
+      row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCFE2FF' } };
+    }
 
     for (let c = 1; c <= 8; c++) {
       if (c !== 6) {
@@ -790,7 +871,7 @@ async function generateAttendanceExcel() {
     { width: 24 },
     { width: 14 },
     { width: 38 },
-    { width: 24 },
+    { width: 26 },
     { width: 34 },
     { width: 38 },
   ];
@@ -801,7 +882,6 @@ async function generateAttendanceExcel() {
     fs.mkdirSync(exportDir, { recursive: true });
   }
 
-  const filename = 'Faculty_Attendance_19Oct_to_31Oct_2026.xlsx';
   const rootFilePath = path.resolve(filename);
   const serverFilePath = path.join(exportDir, filename);
 
@@ -813,7 +893,7 @@ async function generateAttendanceExcel() {
     console.log(`📁 Saved to root: ${rootFilePath}`);
   } catch (err: any) {
     if (err.code === 'EBUSY') {
-      const fallbackPath = path.resolve('Faculty_Attendance_19Oct_to_31Oct_2026_Updated.xlsx');
+      const fallbackPath = path.resolve(`${filename.replace('.xlsx', '')}_Updated.xlsx`);
       await wb.xlsx.writeFile(fallbackPath);
       console.warn(`⚠️ Notice: '${rootFilePath}' is currently open in Microsoft Excel.`);
       console.warn(`📄 Updated version saved to: ${fallbackPath}`);
@@ -822,10 +902,20 @@ async function generateAttendanceExcel() {
     }
   }
 
-  console.log(`\n✅ EXCEL SHEET GENERATED SUCCESSFULLY!`);
+  console.log(`✅ WORKBOOK GENERATED: ${filename}`);
 }
 
-generateAttendanceExcel().catch(err => {
+async function run() {
+  // 1. Generate 9 Oct to 31 Oct (23 days) as requested
+  await generateAttendanceWorkbook(9, 31, 'Faculty_Attendance_9Oct_to_31Oct_2026.xlsx');
+
+  // 2. Also refresh 19 Oct to 31 Oct with the same 7:31 late rule for complete consistency
+  await generateAttendanceWorkbook(19, 31, 'Faculty_Attendance_19Oct_to_31Oct_2026.xlsx');
+
+  console.log('\n🎉 ALL EXCEL WORKBOOKS SUCCESSFULLY REGENERATED WITH 07:31 LATE CUTOFF RULE!');
+}
+
+run().catch(err => {
   console.error("Failed to generate excel:", err);
   process.exit(1);
 });
