@@ -78,6 +78,14 @@ const TARGET_FACULTY = [
     department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
     designation: 'Senior Faculty Member',
   },
+  {
+    its: '30390267',
+    displayName: 'M Abdulqadir bhai Qaidjoher bhai Kuksiwala',
+    officialName: 'Mulla Abdulqadir bhai Qaidjoher bhai Nanpurwala (Kuksiwala)',
+    email: 'abdulqadir.kuksiwala@mahadalzahra.com',
+    department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
+    designation: 'Senior Faculty Member',
+  },
 ];
 
 function formatTimeIST(dateOrIso?: string | Date | null): string {
@@ -586,6 +594,7 @@ async function generateAttendanceExcel() {
   createFacultyDetailSheet(TARGET_FACULTY[3], 'M Shabbir bhai Attendance');
   createFacultyDetailSheet(TARGET_FACULTY[4], 'M Yusuf bhai Attendance');
   createFacultyDetailSheet(TARGET_FACULTY[5], 'Abdulqadir bhai Attendance');
+  createFacultyDetailSheet(TARGET_FACULTY[6], 'M Abdulqadir Kuksiwala Attend');
 
   // ══════════════════════════════════════════════════════════════════
   // SHEET 5: CHRONOLOGICAL BIOMETRIC AUDIT FEED
