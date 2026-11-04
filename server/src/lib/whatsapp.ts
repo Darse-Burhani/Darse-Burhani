@@ -10,7 +10,7 @@ export interface LeaveWhatsAppParams {
   parentName?: string | null;
   studentName: string;
   className?: string | null;
-  status: "APPROVED" | "REJECTED" | "APPROVED_REDUCED" | "HOLD" | "PENDING";
+  status: "APPROVED" | "REJECTED" | "APPROVED_REDUCED" | "HOLD" | "PENDING" | string;
   leaveType: string;
   startDate: string;
   endDate: string;

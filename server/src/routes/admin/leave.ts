@@ -465,17 +465,32 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
       endDate: endDate || null,
     });
 
-    const [parentPhones, parentContacts] = await Promise.all([
+    const [parentPhones, parentContacts, studentProfile] = await Promise.all([
       getStudentParentPhones(leave.studentId),
       getParentContacts(leave.studentId),
+      prisma.studentProfile.findUnique({
+        where: { id: leave.studentId },
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: { select: { name: true } } },
+            take: 1,
+          },
+        },
+      }),
     ]);
-    const primaryPhone = parentPhones[0]?.phone || null;
+    const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
     const primaryEmail = parentContacts[0]?.email || null;
+    const studentName = studentProfile?.user
+      ? `${studentProfile.user.firstName} ${studentProfile.user.lastName}`.trim()
+      : "Student";
+    const className = studentProfile?.classEnrollments?.[0]?.class?.name || null;
     const isReduced = leave.approvedDays !== null && leave.approvedDays !== undefined;
     const waMsg = formatLeaveWhatsAppMessage({
       parentName: parentPhones[0]?.name,
-      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
-      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      studentName,
+      className,
       status: isReduced ? "APPROVED_REDUCED" : "APPROVED",
       leaveType: leave.type,
       startDate: (leave.grantedStartDate || leave.startDate).toISOString().split("T")[0],
@@ -484,7 +499,8 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: leave.reviewerNotes,
       reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
     });
-    const whatsAppUrl = primaryPhone ? generateWhatsAppLink(primaryPhone, waMsg) : null;
+    const whatsAppUrl = generateWhatsAppLink(primaryPhone, waMsg);
+    const designatedWhatsAppUrl = generateWhatsAppLink(DESIGNATED_ADMIN_PARENT_WHATSAPP, waMsg);
 
     return res.json({
       success: true,
@@ -498,6 +514,7 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
         parentPhone: primaryPhone,
         parentEmail: primaryEmail,
         whatsAppUrl,
+        designatedWhatsAppUrl,
       },
     });
   } catch (error: any) {
@@ -521,16 +538,31 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: reviewerNotes || "Rejected by Administrator.",
     });
 
-    const [parentPhones, parentContacts] = await Promise.all([
+    const [parentPhones, parentContacts, studentProfile] = await Promise.all([
       getStudentParentPhones(leave.studentId),
       getParentContacts(leave.studentId),
+      prisma.studentProfile.findUnique({
+        where: { id: leave.studentId },
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: { select: { name: true } } },
+            take: 1,
+          },
+        },
+      }),
     ]);
-    const primaryPhone = parentPhones[0]?.phone || null;
+    const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
     const primaryEmail = parentContacts[0]?.email || null;
+    const studentName = studentProfile?.user
+      ? `${studentProfile.user.firstName} ${studentProfile.user.lastName}`.trim()
+      : "Student";
+    const className = studentProfile?.classEnrollments?.[0]?.class?.name || null;
     const waMsg = formatLeaveWhatsAppMessage({
       parentName: parentPhones[0]?.name,
-      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
-      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      studentName,
+      className,
       status: "REJECTED",
       leaveType: leave.type,
       startDate: leave.startDate.toISOString().split("T")[0],
@@ -538,7 +570,8 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: leave.reviewerNotes,
       reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
     });
-    const whatsAppUrl = primaryPhone ? generateWhatsAppLink(primaryPhone, waMsg) : null;
+    const whatsAppUrl = generateWhatsAppLink(primaryPhone, waMsg);
+    const designatedWhatsAppUrl = generateWhatsAppLink(DESIGNATED_ADMIN_PARENT_WHATSAPP, waMsg);
 
     return res.json({
       success: true,
@@ -549,6 +582,7 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
         parentPhone: primaryPhone,
         parentEmail: primaryEmail,
         whatsAppUrl,
+        designatedWhatsAppUrl,
       },
     });
   } catch (error: any) {
@@ -574,16 +608,31 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
       endDate: endDate || null,
     });
 
-    const [parentPhones, parentContacts] = await Promise.all([
+    const [parentPhones, parentContacts, studentProfile] = await Promise.all([
       getStudentParentPhones(leave.studentId),
       getParentContacts(leave.studentId),
+      prisma.studentProfile.findUnique({
+        where: { id: leave.studentId },
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: { select: { name: true } } },
+            take: 1,
+          },
+        },
+      }),
     ]);
     const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
     const primaryEmail = parentContacts[0]?.email || null;
+    const studentName = studentProfile?.user
+      ? `${studentProfile.user.firstName} ${studentProfile.user.lastName}`.trim()
+      : "Student";
+    const className = studentProfile?.classEnrollments?.[0]?.class?.name || null;
     const waMsg = formatLeaveWhatsAppMessage({
       parentName: parentPhones[0]?.name,
-      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
-      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      studentName,
+      className,
       status: "HOLD",
       leaveType: leave.type,
       startDate: leave.startDate.toISOString().split("T")[0],
@@ -617,8 +666,8 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// PATCH /api/admin/leave/:id/remarks — Add or update administrative remarks and notify parent via Email, Portal, Notification & WhatsApp (+91 8955199220)
-router.patch("/:id/remarks", requireRole("ADMIN"), async (req, res) => {
+// Helper for updating remarks and returning response
+async function handleUpdateRemarks(req: any, res: any) {
   try {
     const session = req.auth!;
     const { reviewerNotes, notes, customMessage } = req.body;
@@ -634,18 +683,42 @@ router.patch("/:id/remarks", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: remarks,
     });
 
-    const [parentPhones, parentContacts] = await Promise.all([
+    const [parentPhones, parentContacts, studentProfile] = await Promise.all([
       getStudentParentPhones(leave.studentId),
       getParentContacts(leave.studentId),
+      prisma.studentProfile.findUnique({
+        where: { id: leave.studentId },
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: { select: { name: true } } },
+            take: 1,
+          },
+        },
+      }),
     ]);
     const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
     const primaryEmail = parentContacts[0]?.email || null;
+    const studentName = studentProfile?.user
+      ? `${studentProfile.user.firstName} ${studentProfile.user.lastName}`.trim()
+      : "Student";
+    const className = studentProfile?.classEnrollments?.[0]?.class?.name || null;
+
+    const waStatus =
+      leave.status === LeaveStatus.APPROVED
+        ? (leave.approvedDays ? "APPROVED_REDUCED" : "APPROVED")
+        : leave.status === LeaveStatus.HOLD
+        ? "HOLD"
+        : leave.status === LeaveStatus.REJECTED
+        ? "REJECTED"
+        : "PENDING";
 
     const waMsg = formatLeaveWhatsAppMessage({
       parentName: parentPhones[0]?.name,
-      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
-      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
-      status: leave.status,
+      studentName,
+      className,
+      status: waStatus,
       leaveType: leave.type,
       startDate: (leave.grantedStartDate || leave.startDate).toISOString().split("T")[0],
       endDate: (leave.grantedEndDate || leave.endDate).toISOString().split("T")[0],
@@ -678,70 +751,13 @@ router.patch("/:id/remarks", requireRole("ADMIN"), async (req, res) => {
       error: error.message || "Failed to update leave remarks",
     });
   }
-});
+}
+
+// PATCH /api/admin/leave/:id/remarks — Add or update administrative remarks and notify parent via Email, Portal, Notification & WhatsApp (+91 8955199220)
+router.patch("/:id/remarks", requireRole("ADMIN"), handleUpdateRemarks);
 
 // POST /api/admin/leave/:id/remarks — Alias for remarks update
-router.post("/:id/remarks", requireRole("ADMIN"), async (req, res) => {
-  try {
-    const session = req.auth!;
-    const { reviewerNotes, notes, customMessage } = req.body;
-    const remarks = (reviewerNotes || notes || customMessage || "").trim();
-
-    if (!remarks) {
-      return res.status(400).json({ success: false, error: "Remarks content is required" });
-    }
-
-    const leave = await updateLeaveRemarks({
-      leaveId: req.params.id,
-      reviewerId: session.user.id,
-      reviewerNotes: remarks,
-    });
-
-    const [parentPhones, parentContacts] = await Promise.all([
-      getStudentParentPhones(leave.studentId),
-      getParentContacts(leave.studentId),
-    ]);
-    const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
-    const primaryEmail = parentContacts[0]?.email || null;
-
-    const waMsg = formatLeaveWhatsAppMessage({
-      parentName: parentPhones[0]?.name,
-      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
-      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
-      status: leave.status,
-      leaveType: leave.type,
-      startDate: (leave.grantedStartDate || leave.startDate).toISOString().split("T")[0],
-      endDate: (leave.grantedEndDate || leave.endDate).toISOString().split("T")[0],
-      approvedDays: leave.approvedDays || undefined,
-      reviewerNotes: leave.reviewerNotes,
-      reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
-    });
-
-    const whatsAppUrl = generateWhatsAppLink(primaryPhone, waMsg);
-    const designatedWhatsAppUrl = generateWhatsAppLink(DESIGNATED_ADMIN_PARENT_WHATSAPP, waMsg);
-
-    return res.json({
-      success: true,
-      message: "Leave remarks updated and parents notified via Email, In-app Notification, and WhatsApp (+91 8955199220)",
-      data: {
-        id: leave.id,
-        status: leave.status,
-        reviewerNotes: leave.reviewerNotes,
-        reviewedAt: leave.reviewedAt?.toISOString(),
-        parentPhone: primaryPhone,
-        parentEmail: primaryEmail,
-        whatsAppUrl,
-        designatedWhatsAppUrl,
-      },
-    });
-  } catch (error: any) {
-    console.error("[admin-leave] POST remarks error:", error);
-    return res.status(400).json({
-      success: false,
-      error: error.message || "Failed to update leave remarks",
-    });
-  }
-});
+router.post("/:id/remarks", requireRole("ADMIN"), handleUpdateRemarks);
 
 // PATCH /api/admin/leave/:id/dates — Update leave start and end dates directly
 router.patch("/:id/dates", requireRole("ADMIN"), async (req, res) => {
