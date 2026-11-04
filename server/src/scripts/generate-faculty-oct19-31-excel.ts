@@ -94,6 +94,14 @@ const TARGET_FACULTY = [
     department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
     designation: 'Senior Faculty Member',
   },
+  {
+    its: '40462129',
+    displayName: 'M Mohammed bhai Mustafa bhai Saifee',
+    officialName: 'Mulla Mohammed bhai Mustafa bhai Saify',
+    email: 'mohammed.saify@mahadalzahra.com',
+    department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
+    designation: 'Senior Faculty Member',
+  },
 ];
 
 function formatTimeIST(dateOrIso?: string | Date | null): string {
@@ -604,6 +612,7 @@ async function generateAttendanceExcel() {
   createFacultyDetailSheet(TARGET_FACULTY[5], 'Abdulqadir bhai Attendance');
   createFacultyDetailSheet(TARGET_FACULTY[6], 'M Abdulqadir Kuksiwala Attend');
   createFacultyDetailSheet(TARGET_FACULTY[7], 'M Moiz bhai Attendance');
+  createFacultyDetailSheet(TARGET_FACULTY[8], 'M Mohammed Saifee Attendance');
 
   // ══════════════════════════════════════════════════════════════════
   // SHEET 5: CHRONOLOGICAL BIOMETRIC AUDIT FEED
@@ -775,12 +784,24 @@ async function generateAttendanceExcel() {
   const rootFilePath = path.resolve(filename);
   const serverFilePath = path.join(exportDir, filename);
 
-  await wb.xlsx.writeFile(rootFilePath);
   await wb.xlsx.writeFile(serverFilePath);
+  console.log(`📁 Saved to server exports: ${serverFilePath}`);
+
+  try {
+    await wb.xlsx.writeFile(rootFilePath);
+    console.log(`📁 Saved to root: ${rootFilePath}`);
+  } catch (err: any) {
+    if (err.code === 'EBUSY') {
+      const fallbackPath = path.resolve('Faculty_Attendance_19Oct_to_31Oct_2026_Updated.xlsx');
+      await wb.xlsx.writeFile(fallbackPath);
+      console.warn(`⚠️ Notice: '${rootFilePath}' is currently open in Microsoft Excel.`);
+      console.warn(`📄 Updated version saved to: ${fallbackPath}`);
+    } else {
+      throw err;
+    }
+  }
 
   console.log(`\n✅ EXCEL SHEET GENERATED SUCCESSFULLY!`);
-  console.log(`📁 Saved to root: ${rootFilePath}`);
-  console.log(`📁 Saved to server exports: ${serverFilePath}`);
 }
 
 generateAttendanceExcel().catch(err => {
