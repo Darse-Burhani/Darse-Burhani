@@ -46,6 +46,14 @@ const TARGET_FACULTY = [
     department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
     designation: 'Senior Faculty Member',
   },
+  {
+    its: '60414938',
+    displayName: 'M Mustafa bhai Bharmal',
+    officialName: 'Mulla Mustafa bhai Mulla Shabbir bhai Bharmal',
+    email: 'mustafa.bharmal@mahadalzahra.com',
+    department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
+    designation: 'Senior Faculty Member',
+  },
 ];
 
 function formatTimeIST(dateOrIso?: string | Date | null): string {
@@ -550,9 +558,10 @@ async function generateAttendanceExcel() {
   // Generate individual sheets
   createFacultyDetailSheet(TARGET_FACULTY[0], 'M Juzer bhai Attendance');
   createFacultyDetailSheet(TARGET_FACULTY[1], 'M Huzaifa bhai Attendance');
+  createFacultyDetailSheet(TARGET_FACULTY[2], 'M Mustafa bhai Attendance');
 
   // ══════════════════════════════════════════════════════════════════
-  // SHEET 4: CHRONOLOGICAL BIOMETRIC AUDIT FEED
+  // SHEET 5: CHRONOLOGICAL BIOMETRIC AUDIT FEED
   // ══════════════════════════════════════════════════════════════════
   const feedSheet = wb.addWorksheet('Chronological Scan Audit', {
     views: [{ showGridLines: true }],
@@ -568,7 +577,7 @@ async function generateAttendanceExcel() {
 
   feedSheet.mergeCells('A2:H2');
   const feedSub = feedSheet.getCell('A2');
-  feedSub.value = 'RAW TIME-SERIES SCAN EVENT LOGS FOR M JUZER BHAI & M HUZAIFA BHAI (19 OCT – 31 OCT 2026)';
+  feedSub.value = 'RAW TIME-SERIES SCAN EVENT LOGS FOR AUDITED FACULTY MEMBERS (19 OCT – 31 OCT 2026)';
   feedSub.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FFD4AF37' } };
   feedSub.alignment = { horizontal: 'center', vertical: 'middle' };
   feedSub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E26' } };
