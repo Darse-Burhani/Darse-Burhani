@@ -18,6 +18,7 @@ import {
   Paperclip,
   ExternalLink,
   UploadCloud,
+  MessageCircle,
 } from "lucide-react";
 import {
   getParentLeaves,
@@ -266,6 +267,8 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
           {visibleLeaves.map((l) => {
             const reqDays = Math.round((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / 86400000) + 1;
             const isReduced = l.status === "APPROVED" && l.approvedDays != null && l.approvedDays < reqDays;
+            const studentInfo = childrenList.find((c) => c.studentProfileId === l.studentProfileId);
+            const childName = studentInfo ? `${studentInfo.firstName} ${studentInfo.lastName}`.trim() : "Student";
 
             return (
               <div key={l.id} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -327,25 +330,68 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
 
                     {/* On Hold Callout Card */}
                     {l.status === "HOLD" && (
-                      <div className="mt-2.5 p-3 rounded-xl border border-amber-300 bg-amber-50/90 text-[12px] text-amber-950 shadow-2xs">
-                        <div className="font-extrabold flex items-center gap-1.5 text-amber-900">
-                          <Clock size={14} className="text-amber-700" />
-                          <span>Leave Application On Hold</span>
+                      <div className="mt-2.5 p-3.5 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50/60 text-[12px] text-amber-950 shadow-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                            <Clock size={15} className="text-amber-700 animate-pulse" />
+                            <span>Leave Application Placed On Hold</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/90 text-amber-900 border border-amber-300">
+                            Action / Clarification Needed
+                          </span>
                         </div>
-                        <p className="mt-1 text-[11.5px] text-amber-900 font-medium">
+                        <p className="mt-1.5 text-[11.5px] text-amber-900 leading-relaxed font-medium">
                           The administration has placed this leave request on hold pending verification or clarification.
-                          {l.reviewerNotes ? " Please review the school remarks below." : " Please contact the school office if clarification was requested."}
+                          {l.reviewerNotes ? " Please review the official school remarks below." : " Please contact the school office if clarification was requested."}
                         </p>
+                        <div className="mt-2.5 pt-2 border-t border-amber-200/80 flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[11px] text-amber-800 font-semibold">
+                            Have questions or documents to submit?
+                          </span>
+                          <a
+                            href={`https://wa.me/918955199220?text=${encodeURIComponent(
+                              `Salam, regarding the leave application for ${childName} (${new Date(l.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} - ${new Date(l.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}) which is on hold:`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11.5px] shadow-xs transition-colors"
+                          >
+                            <MessageCircle size={13} />
+                            <span>Reply via WhatsApp (+91 8955199220)</span>
+                          </a>
+                        </div>
                       </div>
                     )}
 
                     {l.reviewerNotes && (
-                      <div className="mt-2 rounded-xl bg-slate-50 border border-slate-200 p-2.5 text-[12px] text-slate-700">
-                        <div className="font-bold text-slate-900 text-[11px] uppercase tracking-wider mb-0.5">School Remarks</div>
-                        <div className="text-slate-800 font-medium leading-relaxed">{l.reviewerNotes}</div>
-                        {l.reviewedBy && (
-                          <div className="text-[10.5px] text-slate-500 mt-1">Reviewed by: {l.reviewedBy}</div>
-                        )}
+                      <div className="mt-2.5 rounded-2xl bg-amber-50/50 border border-amber-200 p-3 text-[12px] text-slate-800 shadow-2xs">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="font-bold text-amber-950 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                            <FileText size={13} className="text-amber-700" />
+                            <span>Official Remarks from Administration</span>
+                          </div>
+                          {l.reviewedBy && (
+                            <span className="text-[10.5px] text-amber-900 font-semibold bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                              Reviewed by: {l.reviewedBy}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-slate-900 font-medium leading-relaxed bg-white rounded-xl p-2.5 border border-amber-100 shadow-2xs">
+                          {l.reviewerNotes}
+                        </div>
+                        <div className="mt-2 flex items-center justify-end">
+                          <a
+                            href={`https://wa.me/918955199220?text=${encodeURIComponent(
+                              `Salam, regarding the school remarks on ${childName}'s leave application: "${l.reviewerNotes}"`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:text-emerald-900 hover:underline"
+                          >
+                            <MessageCircle size={12} className="text-emerald-600" />
+                            <span>Inquire / Discuss on WhatsApp (+91 8955199220)</span>
+                          </a>
+                        </div>
                       </div>
                     )}
 

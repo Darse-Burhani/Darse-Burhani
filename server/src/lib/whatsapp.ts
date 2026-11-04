@@ -1,8 +1,10 @@
 /**
  * WhatsApp One-Way Notification Service
- * Strictly handles outbound administrative notifications (e.g. Leave Approval/Rejection).
+ * Strictly handles outbound administrative notifications (e.g. Leave Approval/Rejection/Hold).
  * Non-conversational: strictly one-way notification to parents.
  */
+
+export const DESIGNATED_ADMIN_PARENT_WHATSAPP = "918955199220";
 
 export interface LeaveWhatsAppParams {
   parentName?: string | null;
@@ -98,7 +100,29 @@ The leave application for talib *${sName}*${cName} has been *SUBMITTED & IS UNDE
 You will receive an automated one-way update via WhatsApp and Email once the administration decides on this request.
 
 ----------------------------------------
-_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored. For queries, contact support.darseburhanigaliakot@gmail.com or call +91 2964 282222._`;
+_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored. WhatsApp Helpline: +91 8955199220._`;
+  }
+
+  if (params.status === "HOLD") {
+    return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
+_Academic Administration Desk • Galiakot_
+
+Afzalus Salam Janab ${pName},
+
+The leave application for talib *${sName}*${cName} has been placed *⏸️ ON HOLD / PENDING CLARIFICATION*.
+
+📋 *Leave Application Details:*
+• *Application Status:* ⏸️ ON HOLD / PENDING CLARIFICATION
+• *Leave Category:* ${params.leaveType}
+• *Requested Period:* ${periodStr} (${daysStr})
+• *Administrative Remarks:* 📝 ${remarks}
+• *Reviewed By:* ${authority}
+
+📌 *Action Required for Parents:*
+Please review the administrative remarks above on the Parent Portal. If clarification, travel details, or medical documentation were requested, kindly update on the portal or contact the administration desk at *+91 8955199220*.
+
+----------------------------------------
+_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
   }
 
   return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
@@ -117,16 +141,18 @@ The leave application for talib *${sName}*${cName} has been *${statusLabel}*.
 • *Sanctioned By:* ${authority}
 
 ----------------------------------------
-_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored. For queries, contact support.darseburhanigaliakot@gmail.com or call +91 2964 282222._`;
+_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
 }
 
 /**
- * Generate direct 1-click wa.me URL
+ * Generate direct 1-click wa.me URL.
+ * Falls back to designated WhatsApp (+91 8955199220) if rawPhone is missing.
  */
-export function generateWhatsAppLink(rawPhone: string, message: string): string | null {
-  const cleanPhone = formatWhatsAppPhone(rawPhone);
+export function generateWhatsAppLink(rawPhone?: string | null, message?: string): string | null {
+  const targetPhone = rawPhone?.trim() || DESIGNATED_ADMIN_PARENT_WHATSAPP;
+  const cleanPhone = formatWhatsAppPhone(targetPhone) || DESIGNATED_ADMIN_PARENT_WHATSAPP;
   if (!cleanPhone) return null;
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message || "")}`;
 }
 
 /**

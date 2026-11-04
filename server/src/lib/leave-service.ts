@@ -14,6 +14,7 @@ import {
   dispatchWhatsAppNotification,
   formatWhatsAppPhone,
   generateWhatsAppLink,
+  DESIGNATED_ADMIN_PARENT_WHATSAPP,
 } from "./whatsapp";
 
 export interface CreateLeaveInput {
@@ -238,6 +239,9 @@ export async function getStudentParentPhones(studentId: string): Promise<Array<{
     addPhone(`Mother of ${studentName}`, student.motherPhone, "Mother");
     addPhone(`Guardian`, student.mobileNumber, "Guardian");
   }
+
+  // Always include designated WhatsApp recipient (+91 8955199220) so parent notifications and holds reach the specified hotline
+  addPhone("Parent / Administration Hotline", DESIGNATED_ADMIN_PARENT_WHATSAPP, "Designated WhatsApp (+91 8955199220)");
 
   return results;
 }
@@ -1275,6 +1279,171 @@ export async function holdLeaveRequest(input: ReviewLeaveInput) {
 }
 
 /**
+ * Updates administration remarks on a leave request (whether on HOLD, PENDING, or APPROVED)
+ * and notifies parents via Email, Portal Display, In-App Notification, Push, and WhatsApp (+91 8955199220).
+ */
+export async function updateLeaveRemarks(input: {
+  leaveId: string;
+  reviewerId?: string | null;
+  reviewerNotes: string;
+}) {
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: input.leaveId },
+    include: {
+      student: {
+        include: {
+          user: true,
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: true },
+            take: 1,
+          },
+        },
+      },
+      reviewer: {
+        select: { firstName: true, lastName: true },
+      },
+    },
+  });
+
+  if (!leave) {
+    throw new Error("Leave request not found");
+  }
+
+  const updatedNotes = input.reviewerNotes.trim();
+
+  const updatedLeave = await prisma.leaveRequest.update({
+    where: { id: leave.id },
+    data: {
+      reviewerNotes: updatedNotes,
+      reviewedAt: new Date(),
+      ...(input.reviewerId ? { reviewerId: input.reviewerId } : {}),
+    },
+    include: {
+      student: {
+        include: {
+          user: true,
+          classEnrollments: {
+            where: { isActive: true },
+            include: { class: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  const studentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();
+  const reviewer = input.reviewerId
+    ? await prisma.user.findUnique({
+        where: { id: input.reviewerId },
+        select: { firstName: true, lastName: true },
+      })
+    : leave.reviewer;
+  const reviewerName = reviewer ? `${reviewer.firstName} ${reviewer.lastName}`.trim() : "School Administration";
+
+  // 1. In-App Notification to Student
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: leave.student.userId,
+        title: "Leave Remarks Added / Updated",
+        body: `Administration added remarks to your leave request: "${updatedNotes}"`,
+        type: "ALERT",
+        link: "/talabat/leave-request",
+        priority: "HIGH",
+      },
+    });
+  } catch (e) {
+    console.error("[leave-service] Student notification error on remark update:", e);
+  }
+
+  // 2. In-App Notification to Parents
+  const parentNoticeTitle = `Official Remarks on Leave Request — ${studentName}`;
+  const parentNoticeBody = `Administration remarks: "${updatedNotes}"`;
+  const parentUserIds = await notifyParents(leave.studentId, parentNoticeTitle, parentNoticeBody, "/parent");
+
+  const parentContacts = await getParentContacts(leave.studentId);
+  const parentContactUserIds = parentContacts.map((c) => c.userId).filter((id): id is string => Boolean(id));
+
+  // 3. Browser Push Notification
+  try {
+    await sendPushToUsers(
+      [leave.student.userId, ...parentUserIds, ...parentContactUserIds],
+      {
+        title: parentNoticeTitle,
+        body: `${studentName} · ${parentNoticeBody}`,
+        url: "/parent",
+        tag: `leave-remark-${leave.id}`,
+        requireInteraction: true,
+      }
+    );
+  } catch (pushErr) {
+    console.error("[leave-service] Push error on remark update:", pushErr);
+  }
+
+  // 4. Transactional Email to Parents
+  const requestedDays = countLeaveDays(leave.startDate, leave.endDate);
+  const grantedStart = leave.grantedStartDate ? formatUtcDate(leave.grantedStartDate) : null;
+  const grantedEnd = leave.grantedEndDate ? formatUtcDate(leave.grantedEndDate) : null;
+
+  await Promise.allSettled(
+    parentContacts
+      .filter((c) => c.isActive)
+      .map((c) =>
+        sendLeaveEmail({
+          to: c.email,
+          subject: `Official Remarks on Leave Application — ${studentName}`,
+          html: leaveDecisionParentEmail({
+            leaveId: leave.id,
+            studentName,
+            parentName: c.name,
+            type: leave.type,
+            status: leave.status,
+            requestedStart: formatUtcDate(leave.startDate),
+            requestedEnd: formatUtcDate(leave.endDate),
+            requestedDays,
+            approvedDays: leave.approvedDays || null,
+            grantedStart,
+            grantedEnd,
+            reviewerName,
+            reviewerNotes: updatedNotes,
+            portalUrl: appUrl("/parent"),
+          }),
+        })
+      )
+  );
+
+  // 5. WhatsApp Notification to Parent phones & Hotline (+91 8955199220)
+  try {
+    const parentPhones = await getStudentParentPhones(leave.studentId);
+    for (const p of parentPhones) {
+      const waMsg = formatLeaveWhatsAppMessage({
+        parentName: p.name,
+        studentName,
+        className: leave.student.classEnrollments[0]?.class?.name || null,
+        status: leave.status,
+        leaveType: leave.type,
+        startDate: formatUtcDate(leave.grantedStartDate || leave.startDate),
+        endDate: formatUtcDate(leave.grantedEndDate || leave.endDate),
+        requestedDays,
+        approvedDays: leave.approvedDays || undefined,
+        reviewerNotes: updatedNotes,
+        reviewerName,
+      });
+      dispatchWhatsAppNotification({ phone: p.phone, message: waMsg }).catch((err) =>
+        console.error(`[leave-service] WhatsApp remark notification failed for ${p.phone}:`, err)
+      );
+    }
+  } catch (waErr) {
+    console.error("[leave-service] WhatsApp dispatch error on remark update:", waErr);
+  }
+
+  cache.invalidateTag("dashboard");
+  return updatedLeave;
+}
+
+/**
  * Assigns a pending leave application to a faculty member with portal access.
  */
 export async function assignLeaveRequest(input: AssignLeaveInput) {
@@ -1927,6 +2096,22 @@ export async function notifyParentLeaveAction(params: {
 
   if (!leave) {
     throw new Error("Leave request not found");
+  }
+
+  if (customMessage?.trim()) {
+    try {
+      await prisma.leaveRequest.update({
+        where: { id: leaveId },
+        data: {
+          reviewerNotes: customMessage.trim(),
+          reviewedAt: new Date(),
+          ...(params.senderId ? { reviewerId: params.senderId } : {}),
+        },
+      });
+      leave.reviewerNotes = customMessage.trim();
+    } catch (e) {
+      console.warn("[leave-service] Failed to persist custom message as reviewerNotes:", e);
+    }
   }
 
   const studentName = `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim();

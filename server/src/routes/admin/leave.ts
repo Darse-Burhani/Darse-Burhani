@@ -5,6 +5,7 @@ import {
   approveLeaveRequest,
   rejectLeaveRequest,
   holdLeaveRequest,
+  updateLeaveRemarks,
   cancelLeaveRequest,
   createDirectApprovedLeave,
   createDirectFacultyLeave,
@@ -16,7 +17,7 @@ import {
   getParentContacts,
 } from "../../lib/leave-service";
 import { LeaveStatus, LeaveType } from "@prisma/client";
-import { formatLeaveWhatsAppMessage, generateWhatsAppLink } from "../../lib/whatsapp";
+import { formatLeaveWhatsAppMessage, generateWhatsAppLink, DESIGNATED_ADMIN_PARENT_WHATSAPP } from "../../lib/whatsapp";
 import { getSmtpConfigStatus, testLeaveSmtpConnection, sendTestLeaveEmail, invalidateSmtpTestCache } from "../../lib/email";
 
 const router = Router();
@@ -577,7 +578,7 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
       getStudentParentPhones(leave.studentId),
       getParentContacts(leave.studentId),
     ]);
-    const primaryPhone = parentPhones[0]?.phone || null;
+    const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
     const primaryEmail = parentContacts[0]?.email || null;
     const waMsg = formatLeaveWhatsAppMessage({
       parentName: parentPhones[0]?.name,
@@ -590,11 +591,12 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
       reviewerNotes: leave.reviewerNotes,
       reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
     });
-    const whatsAppUrl = primaryPhone ? generateWhatsAppLink(primaryPhone, waMsg) : null;
+    const whatsAppUrl = generateWhatsAppLink(primaryPhone, waMsg);
+    const designatedWhatsAppUrl = generateWhatsAppLink(DESIGNATED_ADMIN_PARENT_WHATSAPP, waMsg);
 
     return res.json({
       success: true,
-      message: "Leave request placed on hold",
+      message: "Leave request placed on hold and parent notified via Email, In-app Notification, and WhatsApp (+91 8955199220)",
       data: {
         id: leave.id,
         status: leave.status,
@@ -603,6 +605,7 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
         parentPhone: primaryPhone,
         parentEmail: primaryEmail,
         whatsAppUrl,
+        designatedWhatsAppUrl,
       },
     });
   } catch (error: any) {
@@ -610,6 +613,132 @@ router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
     return res.status(400).json({
       success: false,
       error: error.message || "Failed to put leave request on hold",
+    });
+  }
+});
+
+// PATCH /api/admin/leave/:id/remarks — Add or update administrative remarks and notify parent via Email, Portal, Notification & WhatsApp (+91 8955199220)
+router.patch("/:id/remarks", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { reviewerNotes, notes, customMessage } = req.body;
+    const remarks = (reviewerNotes || notes || customMessage || "").trim();
+
+    if (!remarks) {
+      return res.status(400).json({ success: false, error: "Remarks content is required" });
+    }
+
+    const leave = await updateLeaveRemarks({
+      leaveId: req.params.id,
+      reviewerId: session.user.id,
+      reviewerNotes: remarks,
+    });
+
+    const [parentPhones, parentContacts] = await Promise.all([
+      getStudentParentPhones(leave.studentId),
+      getParentContacts(leave.studentId),
+    ]);
+    const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
+    const primaryEmail = parentContacts[0]?.email || null;
+
+    const waMsg = formatLeaveWhatsAppMessage({
+      parentName: parentPhones[0]?.name,
+      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
+      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      status: leave.status,
+      leaveType: leave.type,
+      startDate: (leave.grantedStartDate || leave.startDate).toISOString().split("T")[0],
+      endDate: (leave.grantedEndDate || leave.endDate).toISOString().split("T")[0],
+      approvedDays: leave.approvedDays || undefined,
+      reviewerNotes: leave.reviewerNotes,
+      reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+
+    const whatsAppUrl = generateWhatsAppLink(primaryPhone, waMsg);
+    const designatedWhatsAppUrl = generateWhatsAppLink(DESIGNATED_ADMIN_PARENT_WHATSAPP, waMsg);
+
+    return res.json({
+      success: true,
+      message: "Leave remarks updated and parents notified via Email, In-app Notification, and WhatsApp (+91 8955199220)",
+      data: {
+        id: leave.id,
+        status: leave.status,
+        reviewerNotes: leave.reviewerNotes,
+        reviewedAt: leave.reviewedAt?.toISOString(),
+        parentPhone: primaryPhone,
+        parentEmail: primaryEmail,
+        whatsAppUrl,
+        designatedWhatsAppUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] Update remarks error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to update leave remarks",
+    });
+  }
+});
+
+// POST /api/admin/leave/:id/remarks — Alias for remarks update
+router.post("/:id/remarks", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { reviewerNotes, notes, customMessage } = req.body;
+    const remarks = (reviewerNotes || notes || customMessage || "").trim();
+
+    if (!remarks) {
+      return res.status(400).json({ success: false, error: "Remarks content is required" });
+    }
+
+    const leave = await updateLeaveRemarks({
+      leaveId: req.params.id,
+      reviewerId: session.user.id,
+      reviewerNotes: remarks,
+    });
+
+    const [parentPhones, parentContacts] = await Promise.all([
+      getStudentParentPhones(leave.studentId),
+      getParentContacts(leave.studentId),
+    ]);
+    const primaryPhone = parentPhones[0]?.phone || DESIGNATED_ADMIN_PARENT_WHATSAPP;
+    const primaryEmail = parentContacts[0]?.email || null;
+
+    const waMsg = formatLeaveWhatsAppMessage({
+      parentName: parentPhones[0]?.name,
+      studentName: `${(leave as any).student?.user?.firstName || "Student"} ${(leave as any).student?.user?.lastName || ""}`.trim(),
+      className: (leave as any).student?.classEnrollments?.[0]?.class?.name || null,
+      status: leave.status,
+      leaveType: leave.type,
+      startDate: (leave.grantedStartDate || leave.startDate).toISOString().split("T")[0],
+      endDate: (leave.grantedEndDate || leave.endDate).toISOString().split("T")[0],
+      approvedDays: leave.approvedDays || undefined,
+      reviewerNotes: leave.reviewerNotes,
+      reviewerName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+
+    const whatsAppUrl = generateWhatsAppLink(primaryPhone, waMsg);
+    const designatedWhatsAppUrl = generateWhatsAppLink(DESIGNATED_ADMIN_PARENT_WHATSAPP, waMsg);
+
+    return res.json({
+      success: true,
+      message: "Leave remarks updated and parents notified via Email, In-app Notification, and WhatsApp (+91 8955199220)",
+      data: {
+        id: leave.id,
+        status: leave.status,
+        reviewerNotes: leave.reviewerNotes,
+        reviewedAt: leave.reviewedAt?.toISOString(),
+        parentPhone: primaryPhone,
+        parentEmail: primaryEmail,
+        whatsAppUrl,
+        designatedWhatsAppUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin-leave] POST remarks error:", error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Failed to update leave remarks",
     });
   }
 });
@@ -672,6 +801,20 @@ router.patch("/:id/dates", requireRole("ADMIN"), async (req, res) => {
         ...(notes ? { reviewerNotes: notes } : {}),
       },
     });
+
+    if (notes) {
+      const authedReq = req as any;
+      const reviewerId = authedReq.auth?.user?.id || null;
+      try {
+        await updateLeaveRemarks({
+          leaveId: updated.id,
+          reviewerId,
+          reviewerNotes: notes,
+        });
+      } catch (err) {
+        console.warn("[admin-leave] Failed to notify on dates update remark:", err);
+      }
+    }
 
     return res.json({
       success: true,

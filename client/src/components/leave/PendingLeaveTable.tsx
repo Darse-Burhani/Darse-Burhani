@@ -1369,14 +1369,14 @@ export function PendingLeaveTable({
               {activeAction.type === "approve"
                 ? `Approve ${activeAction.studentName}'s leave. Choose how many days to grant — attendance and the Google Sheet will reflect only the granted dates.`
                 : activeAction.type === "hold"
-                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. Remarks will be dispatched to the parent via 1-way WhatsApp & in-app alert.`
+                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. Remarks will be dispatched to the parent via Email, In-app Alert & WhatsApp (+91 8955199220).`
                 : `Specify why the leave for ${activeAction.studentName} is being rejected.`}
             </p>
 
             <div className="mb-4">
               <label htmlFor="action-notes" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Reviewer Remarks / School Notes
-                <span className="normal-case font-normal text-slate-500 ml-1.5">(Dispatched via 1-way WhatsApp)</span>
+                <span className="normal-case font-normal text-slate-500 ml-1.5">(Dispatched via Email, In-app Alert & WhatsApp: +91 8955199220)</span>
               </label>
               <textarea
                 id="action-notes"
@@ -1861,7 +1861,9 @@ export function PendingLeaveTable({
                 <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span className="font-medium text-slate-600">WhatsApp Notice:</span>
                 <span className="font-mono font-semibold text-slate-900 truncate">
-                  {actionSuccessNotice.parentPhone ? `+${actionSuccessNotice.parentPhone}` : "Prepared for WhatsApp dispatch"}
+                  {actionSuccessNotice.parentPhone
+                    ? `+${actionSuccessNotice.parentPhone.replace(/^\+/, "")} & +91 8955199220`
+                    : "+91 8955199220"}
                 </span>
               </div>
             </div>

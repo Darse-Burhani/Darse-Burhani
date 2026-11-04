@@ -762,6 +762,17 @@ export async function holdAdminLeave(
   return res.data || (res as any);
 }
 
+export async function updateAdminLeaveRemarks(
+  leaveId: string,
+  reviewerNotes: string
+): Promise<LeaveActionResponse> {
+  const res = await request<{ success: boolean; data: LeaveActionResponse }>(`/api/admin/leave/${leaveId}/remarks`, {
+    method: "PATCH",
+    body: JSON.stringify({ reviewerNotes }),
+  });
+  return res.data || (res as any);
+}
+
 export async function updateAdminLeaveDates(
   leaveId: string,
   startDate: string,
