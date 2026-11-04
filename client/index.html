@@ -181,60 +181,7 @@
       fbq('track', 'PageView');
     </script>
 
-    <style>
-      /* Clean institutional preboot indicator (replaced smoothly on mount) */
-      #db-preboot-splash {
-        position: fixed;
-        inset: 0;
-        z-index: 999999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #f6f4f8 0%, #e9ebf5 50%, #fdeacb 100%);
-        color: #1a2038;
-        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      }
-      .db-splash-stage {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .db-splash-emblem {
-        width: 88px;
-        height: 88px;
-        border-radius: 20px;
-        background: #ffffff;
-        border: 2px solid #fbbf24;
-        box-shadow: 0 20px 40px -10px rgba(26, 32, 56, 0.28), 0 8px 20px -5px rgba(217, 119, 6, 0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 12px;
-      }
-      .db-splash-logo {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-      .db-splash-title {
-        margin-top: 20px;
-        font-family: 'Cormorant Garamond', Georgia, serif;
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        color: #0f172a;
-      }
-      .db-splash-sub {
-        margin-top: 4px;
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.22em;
-        color: #b45309;
-      }
-    </style>
+    <link rel="stylesheet" href="/src/preboot-splash.css" />
   </head>
   <body>
     <noscript>
