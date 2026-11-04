@@ -170,10 +170,10 @@ export function ManualAttendanceModal({
   }, [open, selectedScheduleId, selectedGrade, selectedSection, date]);
 
   useEffect(() => {
-    if (open && (selectedScheduleId || scheduledWindows.length > 0)) {
+    if (open) {
       fetchRoster();
     }
-  }, [open, selectedScheduleId, selectedGrade, selectedSection, date, fetchRoster, scheduledWindows.length]);
+  }, [open, selectedScheduleId, selectedGrade, selectedSection, date, fetchRoster]);
 
   const statusCounts = useMemo(() => {
     let present = 0, late = 0, absent = 0, onLeave = 0;
@@ -279,16 +279,13 @@ export function ManualAttendanceModal({
       <ModalContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
         <ModalHeader className="pb-0">
           <ModalTitle className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg"
-              style={{ background: "linear-gradient(135deg, #b8541e 0%, #8a3e14 100%)" }}
-            >
-              <CheckCircle2 className="w-5 h-5 text-amber-300" />
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg bg-gradient-to-br from-emerald-600 to-teal-800 text-white border border-emerald-400/40">
+              <CheckCircle2 className="w-5 h-5 text-amber-300 stroke-[2.2]" />
             </div>
             <div>
-              <p className="text-xl font-black text-gray-900 tracking-tight">Record Manual Attendance — Talabat</p>
+              <p className="text-xl font-black text-gray-900 tracking-tight font-display">Record Manual Roll-Call Attendance</p>
               <p className="text-xs text-gray-500 font-medium">
-                Mark manual roll-call for <strong>Talabat students</strong> (Present, Late, Absent, Leave).
+                Mark attendance register for students with instant cloud database sync.
               </p>
             </div>
           </ModalTitle>
@@ -456,20 +453,25 @@ export function ManualAttendanceModal({
                       className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-emerald-50/40 transition-colors"
                     >
                       {/* Member Info */}
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          {getInitials(item.name)}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
+                          {getInitials(item.name || item.its || "ST")}
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-900 truncate">{item.name}</span>
-                            <span className="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Grade {item.grade || "1"}-{item.section || "A"}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black text-slate-900 leading-tight truncate font-display">
+                              {item.name || item.its || item.identifier || "Student"}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              Grade {item.grade || "—"}{item.section ? `-${item.section}` : ""}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-gray-500 font-medium">
-                            <span className="font-mono">ITS: {item.identifier || item.its}</span>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 font-medium mt-0.5">
+                            <span className="inline-flex items-center gap-1 font-mono font-black text-amber-950 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300 text-[11px] shadow-2xs">
+                              <span className="text-[9px] uppercase font-bold text-amber-700 tracking-wider">ITS</span>
+                              <span>{item.its || item.identifier || "—"}</span>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -485,13 +487,13 @@ export function ManualAttendanceModal({
                               key={st}
                               type="button"
                               onClick={() => updateItemStatus(item.id, st)}
-                              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-1 border ${
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-150 flex items-center gap-1.5 border active:scale-95 ${
                                 isActive
                                   ? conf.activeClass
-                                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                                  : "border-slate-200 bg-slate-50/80 text-slate-700 hover:bg-slate-100"
                               }`}
                             >
-                              <Icon className="w-3 h-3" />
+                              <Icon className="w-3.5 h-3.5" />
                               <span>{conf.label}</span>
                             </button>
                           );

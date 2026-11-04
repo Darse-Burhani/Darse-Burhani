@@ -135,7 +135,7 @@ const STATUS_CONFIG: {
     hotkey: "1",
     icon: CheckCircle2,
     bgActive: "bg-emerald-600 text-white font-black",
-    bgLight: "bg-emerald-50 text-emerald-900 hover:bg-emerald-100/80 border-emerald-300 font-bold",
+    bgLight: "bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 border-slate-200 font-bold",
     borderActive: "border-emerald-600 ring-2 ring-emerald-400/50 shadow-emerald-500/20 shadow-md",
     textActive: "text-white",
     textLight: "text-emerald-900 font-bold",
@@ -149,12 +149,12 @@ const STATUS_CONFIG: {
     hotkey: "2",
     icon: Clock,
     bgActive: "bg-amber-500 text-slate-950 font-black",
-    bgLight: "bg-amber-50 text-amber-900 hover:bg-amber-100/80 border-amber-200/80",
+    bgLight: "bg-slate-50 text-slate-700 hover:bg-amber-50 hover:text-amber-900 border-slate-200 font-bold",
     borderActive: "border-amber-500 ring-2 ring-amber-400/40 shadow-amber-500/20 shadow-md",
     textActive: "text-slate-950",
     textLight: "text-amber-900",
     glowColor: "rgba(245, 158, 11, 0.25)",
-    badgeClass: "bg-amber-500/15 text-amber-800 border-amber-300 font-bold",
+    badgeClass: "bg-amber-500/20 text-amber-900 border-amber-300 font-black",
   },
   {
     key: "ABSENT",
@@ -162,13 +162,13 @@ const STATUS_CONFIG: {
     shortLabel: "Abs",
     hotkey: "3",
     icon: XCircle,
-    bgActive: "bg-rose-600 text-white",
-    bgLight: "bg-rose-50 text-rose-800 hover:bg-rose-100/80 border-rose-200/80",
+    bgActive: "bg-rose-600 text-white font-black",
+    bgLight: "bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-rose-900 border-slate-200 font-bold",
     borderActive: "border-rose-600 ring-2 ring-rose-400/40 shadow-rose-500/20 shadow-md",
     textActive: "text-white",
     textLight: "text-rose-800",
     glowColor: "rgba(225, 29, 72, 0.25)",
-    badgeClass: "bg-rose-500/15 text-rose-700 border-rose-300 font-bold",
+    badgeClass: "bg-rose-500/20 text-rose-800 border-rose-300 font-black",
   },
   {
     key: "ON_LEAVE",
@@ -176,13 +176,13 @@ const STATUS_CONFIG: {
     shortLabel: "Holiday",
     hotkey: "4",
     icon: ShieldCheck,
-    bgActive: "bg-purple-600 text-white",
-    bgLight: "bg-purple-50 text-purple-800 hover:bg-purple-100/80 border-purple-200/80",
+    bgActive: "bg-purple-600 text-white font-black",
+    bgLight: "bg-slate-50 text-slate-700 hover:bg-purple-50 hover:text-purple-900 border-slate-200 font-bold",
     borderActive: "border-purple-600 ring-2 ring-purple-400/40 shadow-purple-500/20 shadow-md",
     textActive: "text-white",
     textLight: "text-purple-800",
     glowColor: "rgba(147, 51, 234, 0.25)",
-    badgeClass: "bg-purple-500/15 text-purple-700 border-purple-300 font-bold",
+    badgeClass: "bg-purple-500/20 text-purple-900 border-purple-300 font-black",
   },
 ];
 
@@ -564,8 +564,8 @@ export default function AdminManualAttendancePage() {
         ]}
       />
 
-      {/* ── Dynamic Hero Cockpit (Fatimi Luxury Emerald & Obsidian Theme) ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/40 bg-gradient-to-br from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] p-6 sm:p-8 shadow-[0_16px_40px_rgba(2,31,24,0.45)] text-white">
+      {/* ── Dynamic Hero Cockpit (Fatimi Luxury Emerald Theme) ── */}
+      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#064e3b] via-[#043327] to-[#022c22] p-6 sm:p-8 shadow-[0_16px_40px_rgba(2,44,34,0.35)] text-white">
         <div className="pointer-events-none absolute -right-16 -bottom-16 w-96 h-96 rounded-full bg-[#d4af37]/15 blur-3xl" />
         <div className="pointer-events-none absolute -left-12 -top-12 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl" />
         <div
@@ -1114,7 +1114,9 @@ export default function AdminManualAttendancePage() {
                               {getInitials(member.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-bold text-gray-900">{member.name}</span>
+                          <span className="font-black text-slate-900 font-display">
+                            {member.name || member.its || member.identifier || "Member"}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -1204,8 +1206,8 @@ export default function AdminManualAttendancePage() {
                   "p-4 rounded-3xl border transition-all duration-200 bg-white shadow-2xs relative flex flex-col justify-between cursor-pointer group select-none",
                   isFocused && "ring-2 ring-emerald-500 border-emerald-400 shadow-md",
                   isMarked
-                    ? "border-gray-200/90 hover:border-emerald-400 hover:shadow-md"
-                    : "border-amber-300/80 bg-amber-50/15 hover:border-amber-400"
+                    ? "border-emerald-200/90 hover:border-emerald-400 hover:shadow-md"
+                    : "border-slate-200/90 hover:border-slate-300 hover:shadow-sm"
                 )}
               >
                 {/* Top Row: Avatar, Name, ITS, Status Badge */}
@@ -1292,11 +1294,11 @@ export default function AdminManualAttendancePage() {
                           setFocusedIndex(idx);
                         }}
                         className={cn(
-                          "flex flex-col items-center justify-center p-2 rounded-2xl text-[11px] font-extrabold border transition-all duration-150 select-none active:scale-95 relative",
+                          "flex flex-col items-center justify-center p-2 rounded-2xl text-[11px] font-black border transition-all duration-150 select-none active:scale-95 relative",
                           viewLayout === "kiosk" ? "py-3 text-xs" : "py-2.5",
                           isSelected
                             ? cn(btn.bgActive, btn.borderActive)
-                            : cn(btn.bgLight, "border")
+                            : "bg-slate-50/80 text-slate-700 border-slate-200/80 hover:bg-slate-100 hover:text-slate-900"
                         )}
                       >
                         <span className="absolute top-1 right-1.5 text-[9px] opacity-50 font-mono font-bold">

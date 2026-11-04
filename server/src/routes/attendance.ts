@@ -436,9 +436,19 @@ router.get("/", requireAuth, async (req, res) => {
       if (!teacher) {
         return res.status(403).json({ success: false, error: "Teacher profile not found" });
       }
-      where.class = {
-        OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
-      };
+
+      const hasManualAttendanceAssignment = await prisma.teacherPortalAssignment.findFirst({
+        where: {
+          teacherId: teacher.id,
+          portal: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs"] },
+        },
+      });
+
+      if (!hasManualAttendanceAssignment) {
+        where.class = {
+          OR: [{ teacherId: teacher.id }, { masoolId: teacher.id }],
+        };
+      }
     } else if (role === "STUDENT") {
       const student = await prisma.studentProfile.findUnique({
         where: { userId: session.user.id },

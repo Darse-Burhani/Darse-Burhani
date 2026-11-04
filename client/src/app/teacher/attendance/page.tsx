@@ -64,7 +64,7 @@ const STATUSES: {
     label: "Present",
     hotkey: "1",
     icon: CheckCircle2,
-    idle: "bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 font-bold",
+    idle: "bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 font-bold",
     active: "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400 ring-offset-1 font-black shadow-md shadow-emerald-500/20",
     dot: "bg-emerald-500",
     badgeClass: "bg-emerald-600 text-white font-black border-emerald-500 shadow-xs",
@@ -74,7 +74,7 @@ const STATUSES: {
     label: "Late",
     hotkey: "2",
     icon: Clock,
-    idle: "bg-white text-amber-700 border-amber-200 hover:bg-amber-50 hover:border-amber-300 font-bold",
+    idle: "bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300 font-bold",
     active: "bg-amber-500 text-slate-950 border-amber-500 ring-2 ring-amber-300 ring-offset-1 font-black shadow-md shadow-amber-500/20",
     dot: "bg-amber-400",
     badgeClass: "bg-amber-500/20 text-amber-900 border-amber-300 font-black",
@@ -84,7 +84,7 @@ const STATUSES: {
     label: "Absent",
     hotkey: "3",
     icon: XCircle,
-    idle: "bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 font-bold",
+    idle: "bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-rose-50 hover:text-rose-800 hover:border-rose-300 font-bold",
     active: "bg-red-600 text-white border-red-600 ring-2 ring-red-400 ring-offset-1 font-black shadow-md shadow-red-500/20",
     dot: "bg-red-400",
     badgeClass: "bg-rose-500/20 text-rose-800 border-rose-300 font-black",
@@ -94,7 +94,7 @@ const STATUSES: {
     label: "Leave",
     hotkey: "4",
     icon: ShieldCheck,
-    idle: "bg-white text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300 font-bold",
+    idle: "bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-300 font-bold",
     active: "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-400 ring-offset-1 font-black shadow-md shadow-purple-500/20",
     dot: "bg-purple-400",
     badgeClass: "bg-purple-500/20 text-purple-900 border-purple-300 font-black",
@@ -631,7 +631,7 @@ export default function TeacherAttendancePage() {
 
       {/* ── Schedule Timetable Master Header Banner ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/40 bg-gradient-to-br from-[#0c0f0e] via-[#14231b] to-[#0c0f0e] p-6 sm:p-7 shadow-[0_16px_36px_rgba(4,38,28,0.35)] text-white">
+        <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#064e3b] via-[#043327] to-[#022c22] p-6 sm:p-7 shadow-[0_16px_36px_rgba(2,44,34,0.3)] text-white">
           <div className="pointer-events-none absolute -right-12 -bottom-12 w-80 h-80 rounded-full bg-[#d4af37]/15 blur-3xl" />
           <div className="pointer-events-none absolute -left-12 -top-12 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl" />
 
@@ -670,10 +670,10 @@ export default function TeacherAttendancePage() {
               <button
                 type="button"
                 onClick={() => setManualModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-xs font-bold text-white transition-all shadow-inner"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-xs font-bold text-white transition-all shadow-xs"
               >
                 <Fingerprint className="w-3.5 h-3.5 text-amber-300" />
-                Schedule Roll-Call Modal
+                Manual Entry
               </button>
             </div>
           </div>
