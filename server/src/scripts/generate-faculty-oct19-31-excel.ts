@@ -110,6 +110,14 @@ const TARGET_FACULTY = [
     department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
     designation: 'Senior Faculty Member',
   },
+  {
+    its: '30381831',
+    displayName: 'Mustafa bhai Khuzaima bhai Bangrodwala',
+    officialName: 'Mustafa bhai Khuzaima bhai Bangrodwala',
+    email: 'mustafa.bangrodwala@mahadalzahra.com',
+    department: 'Nisab & Takhteet / Faculty of Quran & Sharia',
+    designation: 'Senior Faculty Member',
+  },
 ];
 
 function formatTimeIST(dateOrIso?: string | Date | null): string {
@@ -233,6 +241,9 @@ async function generateAttendanceExcel() {
             checkOutIST = '—';
             duration = '—';
           }
+        } else if (dbRec.checkOutTime) {
+          checkOutIST = formatTimeIST(dbRec.checkOutTime);
+          duration = '—';
         } else {
           checkOutIST = '—';
           duration = '—';
@@ -240,7 +251,7 @@ async function generateAttendanceExcel() {
 
         method = dbRec.biometricMethod ? `Biometric ${dbRec.biometricMethod}` : 'Biometric Facial / Fingerprint';
         device = dbRec.notes?.includes('MinMoe') ? 'MinMoe Biometric Terminal (192.168.0.4/5)' : 'Main Entrance MinMoe Terminal';
-        remarks = dbRec.notes || `Verified scan at ${checkInIST} (Tilawat al-Dua morning window)`;
+        remarks = dbRec.notes || (checkInIST !== '—' ? `Verified scan at ${checkInIST} (Tilawat al-Dua morning window)` : `Departure scan recorded at ${checkOutIST}`);
       }
 
       const rec: DayRecord = {
@@ -622,6 +633,7 @@ async function generateAttendanceExcel() {
   createFacultyDetailSheet(TARGET_FACULTY[7], 'M Moiz bhai Attendance');
   createFacultyDetailSheet(TARGET_FACULTY[8], 'M Mohammed Saifee Attendance');
   createFacultyDetailSheet(TARGET_FACULTY[9], 'M Husain Kherodawala Attend');
+  createFacultyDetailSheet(TARGET_FACULTY[10], 'Mustafa Bangrodwala Attend');
 
   // ══════════════════════════════════════════════════════════════════
   // SHEET 5: CHRONOLOGICAL BIOMETRIC AUDIT FEED
