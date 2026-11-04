@@ -267,16 +267,18 @@ router.get("/roster", requireAuth, async (req, res) => {
           remarks = s.leaveRequests?.[0]?.reason || reg?.remarks || rec?.justification || "Approved Official Leave (Holiday)";
         }
 
+        const studentFullName = `${s.user?.firstName || ""} ${s.user?.lastName || ""}`.trim();
+
         roster.push({
           id: s.id,
           profileId: s.id,
-          name: `${s.user.firstName} ${s.user.lastName}`.trim(),
-          email: s.user.email,
+          name: studentFullName || s.its || s.studentId || "Student",
+          email: s.user?.email,
           identifier: s.studentId,
           its: s.its || s.studentId,
           grade: s.grade,
           section: s.section,
-          avatarUrl: s.user.avatarUrl,
+          avatarUrl: s.user?.avatarUrl,
           targetType: "STUDENT",
           status,
           source,

@@ -148,7 +148,21 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
     if (!cls) {
       return res.status(404).json({ success: false, error: "Class not found" });
     }
-    if (cls.teacherId !== teacher.id && cls.masoolId !== teacher.id) {
+
+    // Check if teacher has delegated administrative portal assignment for manual attendance
+    const hasManualAttendanceAssignment = await prisma.teacherPortalAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        portal: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs"] },
+      },
+    });
+
+    if (
+      cls.teacherId !== teacher.id &&
+      cls.masoolId !== teacher.id &&
+      !hasManualAttendanceAssignment &&
+      session.user.role !== "ADMIN"
+    ) {
       return res.status(403).json({ success: false, error: "You can only mark attendance for your own or assigned Masool classes" });
     }
 

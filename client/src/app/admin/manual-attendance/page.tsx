@@ -1223,23 +1223,34 @@ export default function AdminManualAttendancePage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <h4 className="text-sm font-black text-gray-900 leading-tight break-words min-w-0 font-display group-hover:text-emerald-900">
-                          {member.name}
+                          {member.name || member.its || member.identifier || "Student"}
                         </h4>
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200"
-                        >
-                          Talabat
-                        </Badge>
+                        {member.grade && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200"
+                          >
+                            Grade {member.grade}{member.section ? `-${member.section}` : ""}
+                          </Badge>
+                        )}
+                        {member.targetType === "TEACHER" && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-800 border-purple-200"
+                          >
+                            Faculty
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-[11px] font-mono font-black shadow-2xs">
-                          ITS: {member.its || member.identifier || "—"}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-950 border border-amber-300 text-[11px] font-mono font-black shadow-2xs">
+                          <span className="text-[9px] uppercase font-bold text-amber-700 tracking-wider">ITS</span>
+                          <span>{member.its || member.identifier || "—"}</span>
                         </span>
-                        {member.grade && (
+                        {member.department && member.targetType === "TEACHER" && (
                           <span className="text-[11px] text-gray-600 font-semibold">
-                            Grade {member.grade}-{member.section}
+                            {member.department}
                           </span>
                         )}
                       </div>

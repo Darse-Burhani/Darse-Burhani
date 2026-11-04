@@ -17,13 +17,25 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    const classes = await prisma.class.findMany({
+    // Check if teacher has administrative / delegated manual attendance portal assignment
+    const hasManualAttendanceAssignment = await prisma.teacherPortalAssignment.findFirst({
       where: {
-        OR: [
-          { teacherId: teacherProfile.id },
-          { masoolId: teacherProfile.id },
-        ],
+        teacherId: teacherProfile.id,
+        portal: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs"] },
       },
+    });
+
+    const whereClause: any = hasManualAttendanceAssignment
+      ? { isActive: true }
+      : {
+          OR: [
+            { teacherId: teacherProfile.id },
+            { masoolId: teacherProfile.id },
+          ],
+        };
+
+    const classes = await prisma.class.findMany({
+      where: whereClause,
       include: {
         _count: { select: { enrollments: true } },
         enrollments: {
@@ -36,7 +48,7 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ grade: "asc" }, { section: "asc" }, { name: "asc" }],
     });
 
     return res.json({
@@ -53,18 +65,25 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
         isMasool: c.masoolId === teacherProfile.id,
         masoolId: c.masoolId,
         studentCount: c._count.enrollments,
-        students: c.enrollments.map((e) => ({
-          id: e.student.userId,
-          profileId: e.student.id,
-          studentNumber: e.student.studentId,
-          firstName: e.student.user.firstName,
-          lastName: e.student.user.lastName,
-          avatarUrl: e.student.user.avatarUrl,
-          grade: e.student.grade,
-          section: e.student.section,
-          points: e.student.currentPoints,
-          tier: e.student.tier,
-        })),
+        students: c.enrollments.map((e) => {
+          const fn = e.student.user?.firstName || "";
+          const ln = e.student.user?.lastName || "";
+          const fullName = `${fn} ${ln}`.trim();
+          return {
+            id: e.student.userId,
+            profileId: e.student.id,
+            studentNumber: e.student.studentId,
+            its: e.student.studentId,
+            firstName: fn,
+            lastName: ln,
+            name: fullName || e.student.studentId || "Student",
+            avatarUrl: e.student.user?.avatarUrl || null,
+            grade: e.student.grade,
+            section: e.student.section,
+            points: e.student.currentPoints,
+            tier: e.student.tier,
+          };
+        }),
       })),
     });
   } catch (error) {
