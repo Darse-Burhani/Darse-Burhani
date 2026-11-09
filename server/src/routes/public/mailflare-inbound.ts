@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
+import { isSuppressedAutomatedEmail } from "../../lib/email-filter";
 
 const router = Router();
 
@@ -26,6 +27,19 @@ router.post("/inbound", async (req, res) => {
       ? cleanSender.match(/<([^>]+)>/)?.[1] || cleanSender
       : cleanSender;
 
+    const subjectClean = (subject || "(No Subject)").trim();
+    const messageBody = (text || html || "").trim();
+
+    // 1. Noise Suppression: Filter out automated bots, cloud vendors (Render, Google Gemini), social media, and newsletters
+    if (isSuppressedAutomatedEmail(senderEmail, subjectClean, headers)) {
+      console.log(`[public/mailflare/inbound] Filtered automated/vendor email: ${senderEmail} ("${subjectClean}")`);
+      return res.status(200).json({
+        success: true,
+        ignored: true,
+        reason: "Automated vendor/bot email suppressed from student support stack.",
+      });
+    }
+
     // Look up if sender matches an existing User (Student, Parent, Teacher)
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -37,7 +51,16 @@ router.post("/inbound", async (req, res) => {
       select: { id: true, firstName: true, lastName: true, role: true },
     });
 
-    // If not found, assign to default Admin so it appears in the master inbox
+    // If sender is NOT an existing user and has no body or is suspicious, skip
+    if (!existingUser && messageBody.length < 5) {
+      return res.status(200).json({
+        success: true,
+        ignored: true,
+        reason: "Empty or malformed external message ignored.",
+      });
+    }
+
+    // Assign to default Admin so it appears in the master inbox
     const adminUser = await prisma.user.findFirst({
       where: { role: "ADMIN", isActive: true },
       select: { id: true },
@@ -49,8 +72,6 @@ router.post("/inbound", async (req, res) => {
     }
 
     const ticketCode = `INB-${Date.now().toString().slice(-6)}`;
-    const subjectClean = (subject || "(No Subject)").trim();
-    const messageBody = (text || html || "").trim();
 
     const payload = {
       ticketId: ticketCode,
@@ -110,4 +131,3 @@ router.post("/inbound", async (req, res) => {
 });
 
 export default router;
-

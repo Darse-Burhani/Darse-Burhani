@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { sendEmail, getSmtpConfigStatus, cleanEmail } from "../../lib/email";
 import { TALABAT_FQDN_DOMAIN, extractStudentNameParts } from "../../lib/talabat-email";
+import { isSuppressedAutomatedEmail } from "../../lib/email-filter";
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
     // Deduplicate by canonicalTicketId so we don't display duplicate cards for student+admin copies
     const ticketMap = new Map<string, any>();
+    const spamIdsToPurge: string[] = [];
 
     for (const notif of rawNotifications) {
       let meta: any = {};
@@ -56,6 +58,13 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         meta = JSON.parse(notif.body);
       } catch {
         meta = { message: notif.body, category: "General Inquiry", status: "OPEN", replies: [] };
+      }
+
+      // Suppress automated vendor communications (Render tips, Google Gemini welcome, bots, newsletters)
+      const senderCandidate = meta.studentEmail || notif.title;
+      if (isSuppressedAutomatedEmail(senderCandidate, meta.subject || notif.title, meta.headers)) {
+        spamIdsToPurge.push(notif.id);
+        continue;
       }
 
       const canonicalTicketId = meta.ticketId || `IT-${notif.id.slice(-6).toUpperCase()}`;
@@ -66,7 +75,10 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         if (Array.isArray(meta.replies) && meta.replies.length > existing.replies.length) {
           existing.replies = meta.replies;
         }
-        if (meta.status) {
+        // Sticky status: If either record is RESOLVED, preserve RESOLVED so it never resurfaces in active stack!
+        if (meta.status === "RESOLVED" || existing.status === "RESOLVED") {
+          existing.status = "RESOLVED";
+        } else if (meta.status) {
           existing.status = (meta.status || "OPEN").toUpperCase();
         }
         continue;
@@ -153,6 +165,14 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       else openCount++;
 
       if (!t.isRead) unreadCount++;
+    }
+
+    if (spamIdsToPurge.length > 0) {
+      prisma.notification
+        .deleteMany({
+          where: { id: { in: spamIdsToPurge } },
+        })
+        .catch((err) => console.warn("[admin/mailflare] auto-purge background warning:", err?.message));
     }
 
     return res.json({
@@ -428,13 +448,15 @@ router.patch("/status", requireRole("ADMIN"), async (req, res) => {
 
     const canonicalTicketId = meta.ticketId || ticketId;
 
-    // Update all notifications linked to this canonical ticket
+    // Update all notifications linked to this canonical ticket or primary ID
     const linkedNotifications = await prisma.notification.findMany({
       where: {
         OR: [
           { id: primaryNotification.id },
+          { id: ticketId },
           { body: { contains: canonicalTicketId } },
           { title: { contains: canonicalTicketId } },
+          { body: { contains: ticketId } },
         ],
       },
     });
@@ -460,6 +482,115 @@ router.patch("/status", requireRole("ADMIN"), async (req, res) => {
   } catch (error: any) {
     console.error("[admin/mailflare] status error:", error);
     return res.status(500).json({ success: false, error: "Failed to update ticket status" });
+  }
+});
+
+/**
+ * DELETE /api/admin/mailflare/ticket/:ticketId
+ * Permanently deletes / dismisses a ticket or unwanted message thread.
+ */
+router.delete("/ticket/:ticketId", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    if (!ticketId) {
+      return res.status(400).json({ success: false, error: "Ticket ID is required." });
+    }
+
+    const primaryNotification = await prisma.notification.findFirst({
+      where: {
+        OR: [
+          { id: ticketId },
+          { body: { contains: ticketId } },
+          { title: { contains: ticketId } },
+        ],
+      },
+    });
+
+    let canonicalTicketId = ticketId;
+    if (primaryNotification) {
+      try {
+        const meta = JSON.parse(primaryNotification.body);
+        if (meta.ticketId) canonicalTicketId = meta.ticketId;
+      } catch {}
+    }
+
+    const deleteResult = await prisma.notification.deleteMany({
+      where: {
+        OR: [
+          { id: ticketId },
+          ...(primaryNotification ? [{ id: primaryNotification.id }] : []),
+          { body: { contains: canonicalTicketId } },
+          { title: { contains: canonicalTicketId } },
+          { body: { contains: ticketId } },
+        ],
+      },
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        deletedCount: deleteResult.count,
+        ticketId: canonicalTicketId,
+        message: "Ticket removed successfully.",
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin/mailflare] delete error:", error);
+    return res.status(500).json({ success: false, error: "Failed to delete ticket" });
+  }
+});
+
+/**
+ * POST /api/admin/mailflare/purge-spam
+ * Purges automated vendor/bot emails (Render tips, Google Gemini welcome, Facebook, etc.)
+ */
+router.post("/purge-spam", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const inboundNotifs = await prisma.notification.findMany({
+      where: {
+        type: { in: ["INBOUND_EMAIL", "SUPPORT_TICKET"] },
+      },
+      select: { id: true, title: true, body: true },
+    });
+
+    const spamIds: string[] = [];
+    for (const notif of inboundNotifs) {
+      try {
+        const meta = JSON.parse(notif.body);
+        if (
+          isSuppressedAutomatedEmail(
+            meta.studentEmail || notif.title,
+            meta.subject || notif.title,
+            meta.headers
+          )
+        ) {
+          spamIds.push(notif.id);
+        }
+      } catch {
+        if (isSuppressedAutomatedEmail(notif.title, notif.title)) {
+          spamIds.push(notif.id);
+        }
+      }
+    }
+
+    let deletedCount = 0;
+    if (spamIds.length > 0) {
+      const del = await prisma.notification.deleteMany({
+        where: { id: { in: spamIds } },
+      });
+      deletedCount = del.count;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        purgedCount: deletedCount,
+        message: `Purged ${deletedCount} automated/vendor messages.`,
+      },
+    });
+  } catch (error: any) {
+    console.error("[admin/mailflare] purge-spam error:", error);
+    return res.status(500).json({ success: false, error: "Failed to purge spam" });
   }
 });
 

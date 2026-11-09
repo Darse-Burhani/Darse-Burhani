@@ -29,6 +29,7 @@ import {
   UserCheck,
   GraduationCap,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -335,27 +336,25 @@ export default function AdminMailflarePage() {
     // 1. Instantly update local state so the card vanishes with zero wait
     setData((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        tickets: prev.tickets.map((t) =>
-          t.id === targetTicketId || t.ticketId === targetTicketId
-            ? { ...t, status }
-            : t
-        ),
-      };
-    });
-
-    if (status === "RESOLVED") {
-      setSelectedTicketId((prevId) => {
-        const remainingActive = (data?.tickets || []).filter(
+      const updatedTickets = prev.tickets.map((t) =>
+        t.id === targetTicketId || t.ticketId === targetTicketId
+          ? { ...t, status }
+          : t
+      );
+      if (status === "RESOLVED") {
+        const remainingActive = updatedTickets.filter(
           (t) =>
             t.id !== targetTicketId &&
             t.ticketId !== targetTicketId &&
             t.status !== "RESOLVED"
         );
-        return remainingActive.length > 0 ? remainingActive[0].id : null;
-      });
-    }
+        setSelectedTicketId(remainingActive.length > 0 ? remainingActive[0].id : null);
+      }
+      return {
+        ...prev,
+        tickets: updatedTickets,
+      };
+    });
 
     try {
       const res = await fetch("/api/admin/mailflare/status", {
@@ -385,6 +384,76 @@ export default function AdminMailflarePage() {
     } catch {
       toast({ title: "Status update failed", variant: "destructive" });
       await fetchData(true);
+    }
+  };
+
+  // Permanently delete or dismiss a junk / bot ticket
+  const handleDeleteTicket = async (targetTicketId: string) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const remaining = prev.tickets.filter(
+        (t) => t.id !== targetTicketId && t.ticketId !== targetTicketId
+      );
+      setSelectedTicketId((prevId) => {
+        if (prevId === targetTicketId) {
+          const remainingActive = remaining.filter((t) => t.status !== "RESOLVED");
+          return remainingActive.length > 0 ? remainingActive[0].id : null;
+        }
+        return prevId;
+      });
+      return {
+        ...prev,
+        tickets: remaining,
+      };
+    });
+
+    try {
+      const res = await fetch(`/api/admin/mailflare/ticket/${targetTicketId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "Ticket Dismissed 🗑️",
+          description: "Message thread permanently removed.",
+          variant: "success",
+        });
+        await fetchData(true);
+      } else {
+        toast({ title: "Failed to dismiss ticket", description: json.error, variant: "destructive" });
+        await fetchData(true);
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+      await fetchData(true);
+    }
+  };
+
+  // Deep purge of automated vendor & bot noise
+  const [purgingSpam, setPurgingSpam] = useState(false);
+  const handlePurgeSpam = async () => {
+    setPurgingSpam(true);
+    try {
+      const res = await fetch("/api/admin/mailflare/purge-spam", {
+        method: "POST",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "Shield Cleaned 🛡️",
+          description: json.data?.message || "Automated vendor emails purged.",
+          variant: "success",
+        });
+        await fetchData(true);
+      } else {
+        toast({ title: "Purge failed", description: json.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setPurgingSpam(false);
     }
   };
 
@@ -504,6 +573,17 @@ export default function AdminMailflarePage() {
               {copiedEmail ? <Check className="w-3.5 h-3.5 text-[#f3b833]" /> : <Copy className="w-3.5 h-3.5 text-stone-300" />}
               <span>{copiedEmail ? "Copied" : "Copy Desk Email"}</span>
             </button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePurgeSpam}
+              disabled={purgingSpam}
+              className="bg-white/10 hover:bg-white/15 text-white border border-white/20 text-xs rounded-xl cursor-pointer"
+              title="Purge automated vendor onboarding and bot noise"
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 mr-1.5 text-emerald-400 ${purgingSpam ? "animate-spin" : ""}`} />
+              <span>{purgingSpam ? "Cleaning..." : "Purge Bot Spam"}</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -785,7 +865,7 @@ export default function AdminMailflarePage() {
 
                   {/* Status Actions */}
                   <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                    {selectedTicket.status !== "IN_PROGRESS" && (
+                    {selectedTicket.status !== "IN_PROGRESS" && selectedTicket.status !== "RESOLVED" && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -795,13 +875,25 @@ export default function AdminMailflarePage() {
                         Mark In Progress
                       </Button>
                     )}
+                    {selectedTicket.status !== "RESOLVED" && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleUpdateStatus(selectedTicket.id, "RESOLVED")}
+                        className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c59b27] hover:to-[#9a7318] text-[#191512] text-xs font-black rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Resolve & Stack</span>
+                      </Button>
+                    )}
                     <Button
                       size="sm"
-                      onClick={() => handleUpdateStatus(selectedTicket.id, "RESOLVED")}
-                      className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c59b27] hover:to-[#9a7318] text-[#191512] text-xs font-black rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      variant="outline"
+                      onClick={() => handleDeleteTicket(selectedTicket.id)}
+                      className="border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+                      title="Permanently remove this thread"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Resolve & Stack</span>
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      <span>Dismiss</span>
                     </Button>
                   </div>
                 </div>
@@ -1011,16 +1103,27 @@ export default function AdminMailflarePage() {
                       <h4 className="text-sm font-extrabold text-[#221c12] truncate">{t.subject}</h4>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleUpdateStatus(t.id, "OPEN")}
-                      className="text-xs font-bold rounded-xl text-[#3d3426] hover:bg-[#f4efe5] border-[#e7e0d0] shrink-0 flex items-center gap-1"
-                      title="Reopen inquiry and return to Active Stack"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Reopen</span>
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUpdateStatus(t.id, "OPEN")}
+                        className="text-xs font-bold rounded-xl text-[#3d3426] hover:bg-[#f4efe5] border-[#e7e0d0] shrink-0 flex items-center gap-1"
+                        title="Reopen inquiry and return to Active Stack"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reopen</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteTicket(t.id)}
+                        className="border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl flex items-center gap-1"
+                        title="Delete permanently from archive"
+                      >
+                        <Trash2 className="w-3 h-3 text-red-500" />
+                      </Button>
+                    </div>
                   </div>
 
                   <p className="text-xs text-[#6b5f4b] line-clamp-2 leading-relaxed bg-[#faf7f0] p-3 rounded-xl border border-[#f0eadb]">
