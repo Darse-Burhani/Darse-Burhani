@@ -1109,7 +1109,7 @@ export async function processBiometricScan(
         teacherStatus = "PRESENT";
       }
 
-      // Check if faculty member is on active Medical Exemption today
+      // Check if faculty member is on active Medical Exemption or Authorized Leave today
       const activeMedical = await prisma.medicalExemption.findFirst({
         where: {
           teacherId: teacher.id,
@@ -1118,27 +1118,67 @@ export async function processBiometricScan(
         },
       });
 
-      if (activeMedical) {
-        await prisma.teacherAttendanceRecord.upsert({
-          where: { teacherId_date: { teacherId: teacher.id, date } },
-          create: {
-            teacherId: teacher.id,
-            date,
-            status: "MEDICAL",
-            checkInTime: when,
-            verificationMethod: "BIOMETRIC",
-            biometricMethod: method === "BIOMETRIC" ? null : method,
-            biometricHash: fingerprint,
-            notes: `Medical Exemption: ${activeMedical.eventName || "Medical Duty"} (${activeMedical.reason})`,
-          },
-          update: {
-            checkInTime: when,
-          },
-        });
+      // Check if attendance already recorded for this faculty member today.
+      const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
+        where: { teacherId_date: { teacherId: teacher.id, date } },
+      });
+
+      const isFacultyOnLeaveOrExempt =
+        Boolean(activeMedical) ||
+        (existingTeacherRecord &&
+          (existingTeacherRecord.status === "ON_LEAVE" ||
+            existingTeacherRecord.status === "MEDICAL" ||
+            existingTeacherRecord.status === "HOLIDAY"));
+
+      if (isFacultyOnLeaveOrExempt) {
+        const isMedical =
+          (activeMedical && /medical|sick|hospital|health/i.test(activeMedical.eventName || "")) ||
+          existingTeacherRecord?.status === "MEDICAL";
+        const isHoliday = existingTeacherRecord?.status === "HOLIDAY";
+        const preservedStatus = isMedical ? "MEDICAL" : isHoliday ? "HOLIDAY" : "ON_LEAVE";
+        const reasonText =
+          activeMedical?.reason ||
+          existingTeacherRecord?.notes ||
+          (isMedical ? "Medical Exemption" : isHoliday ? "Institutional Holiday" : "Authorized Leave");
+
+        // Record check-in / check-out time without overriding their leave / holiday status
+        if (existingTeacherRecord) {
+          const firstCheckIn = existingTeacherRecord.checkInTime;
+          if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+            await prisma.teacherAttendanceRecord.update({
+              where: { teacherId_date: { teacherId: teacher.id, date } },
+              data: { checkOutTime: when },
+            });
+          } else if (!firstCheckIn) {
+            await prisma.teacherAttendanceRecord.update({
+              where: { teacherId_date: { teacherId: teacher.id, date } },
+              data: {
+                checkInTime: when,
+                verificationMethod: "BIOMETRIC",
+                biometricMethod: method === "BIOMETRIC" ? null : method,
+                biometricHash: fingerprint,
+              },
+            });
+          }
+        } else {
+          await prisma.teacherAttendanceRecord.create({
+            data: {
+              teacherId: teacher.id,
+              date,
+              status: preservedStatus as any,
+              checkInTime: when,
+              verificationMethod: "BIOMETRIC",
+              biometricMethod: method === "BIOMETRIC" ? null : method,
+              biometricHash: fingerprint,
+              notes: `[LEAVE_SCAN] ${reasonText}`,
+            },
+          });
+        }
 
         cache.invalidateTag("teacherAttendanceRecord");
         cache.invalidateTag("dashboard");
 
+        const statusLabel = isMedical ? "Medical Leave" : isHoliday ? "Holiday" : "Approved Leave";
         return pushEvent({
           type: "MATCHED",
           fingerprint,
@@ -1146,22 +1186,14 @@ export async function processBiometricScan(
           role: "TEACHER",
           teacher: {
             ...teacherInfo,
-            status: "MEDICAL" as any,
+            status: preservedStatus as any,
+            attendanceId: existingTeacherRecord?.id,
           },
-          message: `Faculty Verified (Medical Leave active): ${teacherInfo.name}`,
+          message: `Faculty Verified (On ${statusLabel}): ${teacherInfo.name}`,
           verifyMode: method,
           scanWindow: windowPayload(facultyWindow),
         }, when, false);
       }
-
-      // Check if attendance already recorded for this faculty member today.
-      // A genuine scan must always correct an AUTO_SYSTEM absent mark (e.g. the
-      // auto-absent watchdog fired before a late faculty scan arrived) instead
-      // of being swallowed as a duplicate — otherwise late faculty check-ins
-      // after finalization are silently lost and the member stays ABSENT.
-      const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
-        where: { teacherId_date: { teacherId: teacher.id, date } },
-      });
 
       if (
         existingTeacherRecord &&
@@ -1341,18 +1373,122 @@ export async function processBiometricScan(
   // Ensure active class enrollment exists
   const activeClasses = await ensureStudentEnrollment(student);
 
-  // Check if student is on approved leave today
-  const leave = await prisma.leaveRequest.findFirst({
-    where: {
-      studentId: student.id,
-      status: "APPROVED",
-      startDate: { lte: date },
-      endDate: { gte: date },
-    },
-  });
+  // Check if student is on approved leave, holiday, or medical exemption today
+  const startOfDay = new Date(date);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setUTCHours(23, 59, 59, 999);
 
-  if (leave) {
-    const leaveStatus = leave.type === "MEDICAL" ? "MEDICAL" : "ON_LEAVE";
+  const [leave, existingRegistry, activeStudentMedical] = await Promise.all([
+    prisma.leaveRequest.findFirst({
+      where: {
+        studentId: student.id,
+        status: "APPROVED",
+        startDate: { lte: endOfDay },
+        endDate: { gte: startOfDay },
+      },
+    }),
+    prisma.attendanceRegistry.findUnique({
+      where: { studentId_date: { studentId: student.id, date } },
+    }),
+    prisma.medicalExemption.findFirst({
+      where: { studentId: student.id, date, isActive: true },
+    }),
+  ]);
+
+  const isStudentOnLeaveOrHoliday =
+    Boolean(leave) ||
+    Boolean(activeStudentMedical) ||
+    (existingRegistry &&
+      (existingRegistry.status === "ON_LEAVE" ||
+        existingRegistry.status === "MEDICAL" ||
+        existingRegistry.status === "HOLIDAY"));
+
+  if (isStudentOnLeaveOrHoliday) {
+    const isMedical =
+      leave?.type === "MEDICAL" ||
+      Boolean(activeStudentMedical) ||
+      existingRegistry?.status === "MEDICAL";
+    const isHoliday = existingRegistry?.status === "HOLIDAY";
+    const leaveStatus = isMedical ? "MEDICAL" : isHoliday ? "HOLIDAY" : "ON_LEAVE";
+    const leaveSource = isMedical ? "MEDICAL_LEAVE" : "LEAVE_APPROVED";
+    const reasonText =
+      leave?.reason ||
+      activeStudentMedical?.reason ||
+      existingRegistry?.remarks ||
+      (isMedical ? "Medical Exemption" : isHoliday ? "Institutional Holiday" : "Approved Leave");
+
+    // Heal check-in time into AttendanceRegistry and AttendanceRecord without overriding leave/holiday status
+    if (existingRegistry) {
+      const firstCheckIn = existingRegistry.checkInTime;
+      if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+        await prisma.attendanceRegistry.update({
+          where: { studentId_date: { studentId: student.id, date } },
+          data: { checkOutTime: when },
+        });
+        await prisma.attendanceRecord.updateMany({
+          where: { studentId: student.id, date },
+          data: { checkOutTime: when },
+        });
+      } else if (!firstCheckIn) {
+        await prisma.attendanceRegistry.update({
+          where: { studentId_date: { studentId: student.id, date } },
+          data: { checkInTime: when },
+        });
+        await prisma.attendanceRecord.updateMany({
+          where: { studentId: student.id, date },
+          data: {
+            checkInTime: when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
+            biometricHash: fingerprint,
+          },
+        });
+      }
+    } else {
+      await prisma.attendanceRegistry.create({
+        data: {
+          studentId: student.id,
+          date,
+          status: leaveStatus as any,
+          source: leaveSource as any,
+          checkInTime: when,
+          remarks: `Premises scan during approved leave: ${reasonText.slice(0, 80)}`,
+        },
+      });
+      for (const cl of activeClasses) {
+        await prisma.attendanceRecord.upsert({
+          where: {
+            studentId_classId_date: {
+              studentId: student.id,
+              classId: cl.classId,
+              date,
+            },
+          },
+          create: {
+            studentId: student.id,
+            classId: cl.classId,
+            date,
+            status: leaveStatus as any,
+            source: leaveSource as any,
+            checkInTime: when,
+            verificationMethod: "BIOMETRIC",
+            biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
+            biometricHash: fingerprint,
+          },
+          update: {
+            checkInTime: when,
+          },
+        });
+      }
+    }
+
+    cache.invalidateTag("attendanceRecord");
+    cache.invalidateTag("attendanceRegistry");
+    cache.invalidateTag("dashboard");
+    cache.invalidateTag("stats");
+
+    const statusLabel = isMedical ? "Medical Leave" : isHoliday ? "Holiday" : "Approved Leave";
     return pushEvent({
       type: "MATCHED",
       fingerprint,
@@ -1361,8 +1497,8 @@ export async function processBiometricScan(
       student: {
         ...studentInfo,
         status: leaveStatus as any,
-        leaveReason: leave.reason,
-        leaveType: leave.type,
+        leaveReason: reasonText,
+        leaveType: leave?.type || leaveStatus,
       },
       classes: activeClasses.map((c) => ({
         classId: c.classId,
@@ -1372,9 +1508,9 @@ export async function processBiometricScan(
         startTime: studentWindow?.startTime || "07:30",
         endTime: studentWindow?.endTime || "08:15",
         status: leaveStatus,
-        attendanceId: `leave_${leave.id}`,
+        attendanceId: leave ? `leave_${leave.id}` : `holiday_${student.id}`,
       })),
-      message: `Learner Verified (On Approved ${leave.type} Leave): ${studentInfo.name}`,
+      message: `Learner Verified (On ${statusLabel}): ${studentInfo.name}`,
       verifyMode: method,
       scanWindow: windowPayload(studentWindow),
     }, when, false);
@@ -1448,12 +1584,7 @@ export async function processBiometricScan(
       // checkInTime: null, written by the scheduler cutoff) must be filled in
       // with the real scan time instead of silently hiding it forever.
       const staleAutoPresent = existingRecords.filter(
-        (r) =>
-          (r.status === "PRESENT" ||
-            r.status === "LATE" ||
-            r.status === "ON_LEAVE" ||
-            r.status === "MEDICAL") &&
-          !r.checkInTime
+        (r) => (r.status === "PRESENT" || r.status === "LATE") && !r.checkInTime
       );
       if (staleAutoPresent.length > 0) {
         await prisma.attendanceRecord.updateMany({

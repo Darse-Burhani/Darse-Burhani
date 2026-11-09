@@ -42,6 +42,8 @@ interface ManualLeaveModalProps {
   onClose: () => void;
   onSuccess: () => void;
   isAdmin?: boolean;
+  defaultRole?: "STUDENT" | "TEACHER";
+  preselectedTeacherId?: string;
 }
 
 const leaveCategories = [
@@ -84,12 +86,20 @@ export function ManualLeaveModal({
   onClose,
   onSuccess,
   isAdmin = true,
+  defaultRole,
+  preselectedTeacherId,
 }: ManualLeaveModalProps) {
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const [role, setRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
+  const [role, setRole] = useState<"STUDENT" | "TEACHER">(defaultRole || "STUDENT");
   const [selectedStudent, setSelectedStudent] = useState<RosterStudent | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<RosterTeacher | null>(null);
+
+  useEffect(() => {
+    if (defaultRole) {
+      setRole(defaultRole);
+    }
+  }, [defaultRole, isOpen]);
 
   // Roster lists
   const [students, setStudents] = useState<RosterStudent[]>([]);
@@ -122,7 +132,16 @@ export function ManualLeaveModal({
       .then((res) => {
         if (res.success && res.data) {
           setStudents(res.data.students || []);
-          setTeachers(res.data.teachers || []);
+          const fetchedTeachers: RosterTeacher[] = res.data.teachers || [];
+          setTeachers(fetchedTeachers);
+
+          if (preselectedTeacherId) {
+            const match = fetchedTeachers.find((t) => t.id === preselectedTeacherId);
+            if (match) {
+              setSelectedTeacher(match);
+              setRole("TEACHER");
+            }
+          }
         }
       })
       .catch((err) => {
@@ -131,7 +150,7 @@ export function ManualLeaveModal({
       .finally(() => {
         setLoadingRoster(false);
       });
-  }, [isOpen, isAdmin]);
+  }, [isOpen, isAdmin, preselectedTeacherId]);
 
   // Handle single day sync
   useEffect(() => {
@@ -670,6 +689,18 @@ export function ManualLeaveModal({
                 placeholder="e.g. Verified with parent / Authorized by Principal"
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500"
               />
+            </div>
+
+            {/* Auto-Mark Real-Time Protection Banner */}
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 text-xs flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-bold text-amber-950">Automated Holiday & Scanner Protection: </span>
+                From <span className="font-semibold underline">{startDate}</span> till{" "}
+                <span className="font-semibold underline">{isSingleDay ? startDate : endDate}</span>, attendance will be
+                automatically marked as <span className="font-semibold">{category === "MEDICAL" ? "MEDICAL" : "ON_LEAVE"}</span>.
+                Biometric scans during this period will preserve leave and will not mark absent or override to present.
+              </div>
             </div>
           </div>
 

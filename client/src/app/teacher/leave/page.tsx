@@ -15,6 +15,8 @@ import {
   Palmtree,
   Sparkles,
   PauseCircle,
+  GraduationCap,
+  Users,
 } from "lucide-react";
 import {
   getTeacherLeaves,
@@ -22,14 +24,20 @@ import {
   rejectTeacherLeave,
   holdTeacherLeave,
   batchApproveTeacherLeaves,
+  getFacultyLeaves,
   LeaveRequestItem,
   TeacherLeaveStats,
+  FacultyLeaveItem,
+  FacultyLeaveStats,
 } from "@/lib/api";
 import { PendingLeaveTable } from "@/components/leave/PendingLeaveTable";
 import { ManualLeaveModal } from "@/components/leave/ManualLeaveModal";
+import { FacultyLeaveTable } from "@/components/leave/FacultyLeaveTable";
 
 export default function TeacherLeavePage() {
+  const [activeTab, setActiveTab] = useState<"STUDENT" | "FACULTY">("STUDENT");
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [manualModalDefaultRole, setManualModalDefaultRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
   const [requests, setRequests] = useState<LeaveRequestItem[]>([]);
   const [stats, setStats] = useState<TeacherLeaveStats>({
     pending: 0,
@@ -37,6 +45,18 @@ export default function TeacherLeavePage() {
     rejected: 0,
     total: 0,
   });
+
+  // Faculty state for assigned members
+  const [facultyItems, setFacultyItems] = useState<FacultyLeaveItem[]>([]);
+  const [facultyStats, setFacultyStats] = useState<FacultyLeaveStats>({
+    active: 0,
+    upcoming: 0,
+    medical: 0,
+    completed: 0,
+    total: 0,
+  });
+  const [loadingFaculty, setLoadingFaculty] = useState(false);
+
   const [classes, setClasses] = useState<Array<{ id: string; name: string; grade: string; section: string }>>([]);
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("PENDING");
@@ -46,10 +66,27 @@ export default function TeacherLeavePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchFacultyData = useCallback(async () => {
+    setLoadingFaculty(true);
+    try {
+      const res = await getFacultyLeaves({ isAdmin: false });
+      if (res.success && res.data) {
+        setFacultyItems(res.data);
+        if (res.stats) setFacultyStats(res.stats);
+      }
+    } catch (err: any) {
+      console.error("Failed to load faculty leaves in teacher portal:", err);
+    } finally {
+      setLoadingFaculty(false);
+    }
+  }, []);
+
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
+
+    fetchFacultyData();
 
     try {
       const res = await getTeacherLeaves({
@@ -126,7 +163,60 @@ export default function TeacherLeavePage() {
         </div>
       </div>
 
-      {/* ── Metric Summary Stack ── */}
+      {/* ── Main Tab Navigation (Talabat vs Faculty) ── */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("STUDENT")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+            activeTab === "STUDENT"
+              ? "bg-slate-900 text-white shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          <span>Student Leaves</span>
+          {stats.pending > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+              {stats.pending}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("FACULTY")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+            activeTab === "FACULTY"
+              ? "bg-amber-500 text-slate-950 shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Faculty & Asateezah Leaves</span>
+          {facultyStats.active > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
+              {facultyStats.active}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === "FACULTY" ? (
+        <FacultyLeaveTable
+          items={facultyItems}
+          stats={facultyStats}
+          loading={loadingFaculty}
+          onRefresh={fetchFacultyData}
+          onOpenRecordModal={() => {
+            setManualModalDefaultRole("TEACHER");
+            setManualModalOpen(true);
+          }}
+          isAdmin={false}
+        />
+      ) : (
+        <>
+          {/* ── Metric Summary Stack ── */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <button
           type="button"
@@ -295,12 +385,19 @@ export default function TeacherLeavePage() {
         />
       )}
 
+        </>
+      )}
+
       {/* ── Manual Leave Entry Modal ── */}
       <ManualLeaveModal
         isOpen={manualModalOpen}
         onClose={() => setManualModalOpen(false)}
-        onSuccess={() => fetchData(true)}
+        onSuccess={() => {
+          fetchData(true);
+          fetchFacultyData();
+        }}
         isAdmin={false}
+        defaultRole={manualModalDefaultRole}
       />
     </div>
   );

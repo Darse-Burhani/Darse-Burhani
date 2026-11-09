@@ -862,6 +862,82 @@ export async function unassignAdminLeave(leaveId: string): Promise<{ id: string;
   });
 }
 
+export interface FacultyLeaveItem {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  teacherIts: string;
+  department: string;
+  avatarUrl?: string | null;
+  type: "MEDICAL" | "PERSONAL" | "OFFICIAL" | "CASUAL";
+  reason: string;
+  startDate: string;
+  endDate: string;
+  dates: string[];
+  totalDays: number;
+  assignedByName?: string | null;
+  status: "ACTIVE" | "UPCOMING" | "COMPLETED";
+  exemptionIds: string[];
+  recordIds: string[];
+}
+
+export interface FacultyLeaveStats {
+  active: number;
+  upcoming: number;
+  medical: number;
+  completed: number;
+  total: number;
+}
+
+export async function getFacultyLeaves(params?: {
+  search?: string;
+  type?: string;
+  status?: string;
+  isAdmin?: boolean;
+}): Promise<{ success: boolean; data: FacultyLeaveItem[]; stats: FacultyLeaveStats }> {
+  const query = new URLSearchParams();
+  if (params?.search) query.set("search", params.search);
+  if (params?.type) query.set("type", params.type);
+  if (params?.status) query.set("status", params.status);
+
+  const base = params?.isAdmin === false ? "/api/teacher/leave/faculty" : "/api/admin/leave/faculty";
+  return request<{ success: boolean; data: FacultyLeaveItem[]; stats: FacultyLeaveStats }>(
+    `${base}?${query.toString()}`
+  );
+}
+
+export async function deleteFacultyLeave(
+  teacherId: string,
+  startDate: string,
+  endDate: string,
+  isAdmin = true
+): Promise<{ success: boolean; message: string }> {
+  const base = isAdmin ? `/api/admin/leave/faculty/${teacherId}` : `/api/teacher/leave/faculty/${teacherId}`;
+  return request<{ success: boolean; message: string }>(base, {
+    method: "DELETE",
+    body: JSON.stringify({ startDate, endDate }),
+  });
+}
+
+export async function updateFacultyLeave(
+  teacherId: string,
+  data: {
+    oldStartDate: string;
+    oldEndDate: string;
+    newStartDate: string;
+    newEndDate: string;
+    type?: string;
+    reason: string;
+  },
+  isAdmin = true
+): Promise<{ success: boolean; message: string; data: any }> {
+  const base = isAdmin ? `/api/admin/leave/faculty/${teacherId}` : `/api/teacher/leave/faculty/${teacherId}`;
+  return request<{ success: boolean; message: string; data: any }>(base, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function notifyParentAdminLeave(
   leaveId: string,
   channel: "EMAIL" | "WHATSAPP" | "BOTH" = "BOTH",

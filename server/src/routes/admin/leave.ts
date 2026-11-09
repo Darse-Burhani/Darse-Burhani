@@ -16,7 +16,10 @@ import {
   notifyParentLeaveAction,
   getStudentParentPhones,
   getParentContacts,
+  normalizeDateToUTC,
+  getDateRangeArray,
 } from "../../lib/leave-service";
+import { cache } from "../../lib/cache";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { formatLeaveWhatsAppMessage, generateWhatsAppLink, DESIGNATED_ADMIN_PARENT_WHATSAPP } from "../../lib/whatsapp";
 import { getSmtpConfigStatus, testLeaveSmtpConnection, sendTestLeaveEmail, invalidateSmtpTestCache } from "../../lib/email";
@@ -244,6 +247,349 @@ router.post("/manual", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     return res.status(400).json({
       success: false,
       error: err.message || "Failed to create manual leave",
+    });
+  }
+});
+
+// GET /api/admin/leave/faculty/members — Active faculty members for selection
+router.get("/faculty/members", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
+  try {
+    const teachers = await prisma.teacherProfile.findMany({
+      where: { user: { isActive: true } },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, email: true, avatarUrl: true },
+        },
+      },
+      orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }],
+    });
+
+    return res.json({
+      success: true,
+      data: teachers.map((t) => ({
+        id: t.id,
+        name: `${t.user.firstName} ${t.user.lastName}`.trim(),
+        employeeId: t.employeeId || t.user.email,
+        its: (t as any).its || t.employeeId || "",
+        department: t.department || "Faculty Member",
+        avatarUrl: t.user.avatarUrl,
+      })),
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] Faculty members error:", err);
+    return res.status(500).json({ success: false, error: "Failed to load faculty members" });
+  }
+});
+
+// GET /api/admin/leave/faculty — List all faculty leaves & exemptions
+router.get("/faculty", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { search, type, status } = req.query;
+
+    const exemptions = await prisma.medicalExemption.findMany({
+      where: {
+        OR: [{ personType: "TEACHER" }, { teacherId: { not: null } }],
+      },
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+      orderBy: { date: "desc" },
+    });
+
+    const teacherRecords = await prisma.teacherAttendanceRecord.findMany({
+      where: {
+        status: { in: ["ON_LEAVE", "MEDICAL"] },
+      },
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+      orderBy: { date: "desc" },
+    });
+
+    const groups: {
+      [key: string]: {
+        teacherId: string;
+        teacherName: string;
+        teacherIts: string;
+        department: string;
+        avatarUrl?: string | null;
+        type: "MEDICAL" | "PERSONAL" | "OFFICIAL" | "CASUAL";
+        reason: string;
+        dates: Date[];
+        assignedByName?: string | null;
+        exemptionIds: string[];
+        recordIds: string[];
+      };
+    } = {};
+
+    for (const ex of exemptions) {
+      if (!ex.teacher) continue;
+      const isMed = /medical|sick|hospital|health/i.test(ex.eventName || "");
+      const leaveType = isMed ? "MEDICAL" : "PERSONAL";
+      const cleanedReason = (ex.reason || ex.eventName || "Authorized Leave").trim();
+      const groupKey = `${ex.teacherId}_${leaveType}_${cleanedReason.toLowerCase()}`;
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          teacherId: ex.teacherId!,
+          teacherName: `${ex.teacher.user.firstName} ${ex.teacher.user.lastName}`.trim(),
+          teacherIts: (ex.teacher as any).its || ex.teacher.employeeId || "",
+          department: ex.teacher.department || "Faculty Member",
+          avatarUrl: ex.teacher.user.avatarUrl,
+          type: leaveType,
+          reason: cleanedReason,
+          dates: [],
+          assignedByName: ex.assignedByName || "Administration",
+          exemptionIds: [],
+          recordIds: [],
+        };
+      }
+      groups[groupKey].dates.push(new Date(ex.date));
+      groups[groupKey].exemptionIds.push(ex.id);
+    }
+
+    for (const tr of teacherRecords) {
+      if (!tr.teacher) continue;
+      const isMed = tr.status === "MEDICAL";
+      const leaveType = isMed ? "MEDICAL" : "PERSONAL";
+      const noteReason =
+        (tr.notes || "").replace(/^\[.*?\]\s*/, "").trim() ||
+        (isMed ? "Medical Leave" : "Authorized Faculty Leave");
+      const groupKey = `${tr.teacherId}_${leaveType}_${noteReason.toLowerCase()}`;
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          teacherId: tr.teacherId,
+          teacherName: `${tr.teacher.user.firstName} ${tr.teacher.user.lastName}`.trim(),
+          teacherIts: (tr.teacher as any).its || tr.teacher.employeeId || "",
+          department: tr.teacher.department || "Faculty Member",
+          avatarUrl: tr.teacher.user.avatarUrl,
+          type: leaveType,
+          reason: noteReason,
+          dates: [],
+          assignedByName: "Administration",
+          exemptionIds: [],
+          recordIds: [],
+        };
+      }
+      const d = new Date(tr.date);
+      const dStr = d.toISOString().slice(0, 10);
+      if (!groups[groupKey].dates.some((existing) => existing.toISOString().slice(0, 10) === dStr)) {
+        groups[groupKey].dates.push(d);
+      }
+      groups[groupKey].recordIds.push(tr.id);
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    let list = Object.values(groups).map((g) => {
+      g.dates.sort((a, b) => a.getTime() - b.getTime());
+      const startDate = g.dates[0] ? g.dates[0].toISOString().slice(0, 10) : todayStr;
+      const endDate = g.dates[g.dates.length - 1]
+        ? g.dates[g.dates.length - 1].toISOString().slice(0, 10)
+        : todayStr;
+      const isCurrent = todayStr >= startDate && todayStr <= endDate;
+      const isUpcoming = todayStr < startDate;
+      const itemStatus = isCurrent ? "ACTIVE" : isUpcoming ? "UPCOMING" : "COMPLETED";
+
+      return {
+        id: `fac_${g.teacherId}_${startDate}_${endDate}`,
+        teacherId: g.teacherId,
+        teacherName: g.teacherName,
+        teacherIts: g.teacherIts,
+        department: g.department,
+        avatarUrl: g.avatarUrl,
+        type: g.type,
+        reason: g.reason,
+        startDate,
+        endDate,
+        dates: g.dates.map((d) => d.toISOString().slice(0, 10)),
+        totalDays: g.dates.length,
+        assignedByName: g.assignedByName,
+        status: itemStatus,
+        exemptionIds: g.exemptionIds,
+        recordIds: g.recordIds,
+      };
+    });
+
+    if (search && typeof search === "string" && search.trim()) {
+      const q = search.toLowerCase().trim();
+      list = list.filter(
+        (i) =>
+          i.teacherName.toLowerCase().includes(q) ||
+          i.teacherIts.toLowerCase().includes(q) ||
+          i.department.toLowerCase().includes(q) ||
+          i.reason.toLowerCase().includes(q)
+      );
+    }
+
+    if (type && typeof type === "string") {
+      list = list.filter((i) => i.type === type);
+    }
+
+    if (status && typeof status === "string" && status !== "ALL") {
+      list = list.filter((i) => i.status === status);
+    }
+
+    list.sort((a, b) => (b.startDate > a.startDate ? 1 : -1));
+
+    const stats = {
+      active: list.filter((i) => i.status === "ACTIVE").length,
+      upcoming: list.filter((i) => i.status === "UPCOMING").length,
+      medical: list.filter((i) => i.type === "MEDICAL").length,
+      completed: list.filter((i) => i.status === "COMPLETED").length,
+      total: list.length,
+    };
+
+    return res.json({
+      success: true,
+      data: list,
+      stats,
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] Faculty leaves error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to load faculty leaves" });
+  }
+});
+
+// POST /api/admin/leave/faculty — Create approved faculty leave
+router.post("/faculty", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { teacherId, type = "PERSONAL", startDate, endDate, reason } = req.body;
+
+    if (!teacherId || !startDate || !endDate || !reason?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Teacher, start date, end date, and reason are required",
+      });
+    }
+
+    const result = await createDirectFacultyLeave({
+      teacherId,
+      type,
+      startDate,
+      endDate,
+      reason: reason.trim(),
+      assignedById: session.user.id,
+      assignedByName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+
+    return res.json({
+      success: true,
+      message: `Faculty leave recorded successfully for ${result.datesCount} day(s).`,
+      data: result,
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] Create faculty leave error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message || "Failed to create faculty leave",
+    });
+  }
+});
+
+// PATCH /api/admin/leave/faculty/:teacherId — Update faculty leave dates / reason
+router.patch("/faculty/:teacherId", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { teacherId } = req.params;
+    const { oldStartDate, oldEndDate, newStartDate, newEndDate, type = "PERSONAL", reason } = req.body;
+
+    if (!oldStartDate || !oldEndDate || !newStartDate || !newEndDate || !reason?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Old dates, new dates, and reason are required",
+      });
+    }
+
+    const oldStart = normalizeDateToUTC(oldStartDate);
+    const oldEnd = normalizeDateToUTC(oldEndDate);
+    const oldDates = getDateRangeArray(oldStart, oldEnd);
+
+    // Remove old range
+    await prisma.medicalExemption.deleteMany({
+      where: { teacherId, date: { in: oldDates } },
+    });
+    await prisma.teacherAttendanceRecord.deleteMany({
+      where: { teacherId, date: { in: oldDates }, status: { in: ["ON_LEAVE", "MEDICAL"] } },
+    });
+
+    // Create new range
+    const result = await createDirectFacultyLeave({
+      teacherId,
+      type,
+      startDate: newStartDate,
+      endDate: newEndDate,
+      reason: reason.trim(),
+      assignedById: session.user.id,
+      assignedByName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    });
+
+    return res.json({
+      success: true,
+      message: `Faculty leave updated for ${result.datesCount} day(s).`,
+      data: result,
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] Update faculty leave error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message || "Failed to update faculty leave",
+    });
+  }
+});
+
+// DELETE /api/admin/leave/faculty/:teacherId — Cancel faculty leave
+router.delete("/faculty/:teacherId", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const startDate = (req.body?.startDate || req.query?.startDate) as string;
+    const endDate = (req.body?.endDate || req.query?.endDate) as string;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: "Start and end dates are required to cancel faculty leave",
+      });
+    }
+
+    const start = normalizeDateToUTC(startDate);
+    const end = normalizeDateToUTC(endDate);
+    const dates = getDateRangeArray(start, end);
+
+    await prisma.medicalExemption.deleteMany({
+      where: { teacherId, date: { in: dates } },
+    });
+    await prisma.teacherAttendanceRecord.deleteMany({
+      where: { teacherId, date: { in: dates }, status: { in: ["ON_LEAVE", "MEDICAL"] } },
+    });
+
+    cache.invalidateTag("teacherAttendanceRecord");
+    cache.invalidateTag("dashboard");
+    cache.invalidateTag("stats");
+
+    return res.json({
+      success: true,
+      message: `Faculty leave cancelled and attendance restored for ${dates.length} day(s).`,
+    });
+  } catch (err: any) {
+    console.error("[admin-leave] Cancel faculty leave error:", err);
+    return res.status(400).json({
+      success: false,
+      error: err.message || "Failed to cancel faculty leave",
     });
   }
 });
