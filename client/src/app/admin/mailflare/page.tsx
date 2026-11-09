@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Mail,
   Send,
@@ -10,9 +10,7 @@ import {
   Clock,
   AlertCircle,
   Search,
-  Filter,
   User,
-  ExternalLink,
   Copy,
   Check,
   ShieldCheck,
@@ -21,9 +19,17 @@ import {
   Globe,
   Radio,
   Sparkles,
-  FileText,
   Lock,
-  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Archive,
+  RotateCcw,
+  MessageSquare,
+  Plus,
+  UserCheck,
+  GraduationCap,
+  Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +68,7 @@ interface MailflareTicket {
   replies: TicketReply[];
   isRead: boolean;
   createdAt: string;
+  outbound?: boolean;
   sender: TicketSender;
 }
 
@@ -83,35 +90,74 @@ interface MailflareData {
   tickets: MailflareTicket[];
 }
 
+interface StudentOption {
+  id: string;
+  name: string;
+  its: string;
+  grade: string;
+  email: string;
+  institutionalEmail: string;
+  avatarUrl?: string | null;
+  mobile?: string;
+}
+
+const CANNED_RESPONSES = [
+  {
+    title: "Credentials Reset",
+    text: "Afzalus Salam. Your portal credentials and login identity have been securely verified and updated. You may now sign in using your ITS and institutional email.",
+  },
+  {
+    title: "Visit IT Lab",
+    text: "Afzalus Salam. Please visit the Maktab IT Support Lab (Room 102) with your device during break hours for hardware and network diagnostics.",
+  },
+  {
+    title: "Biometric Re-sync",
+    text: "Afzalus Salam. Your biometric profile and RFID card have been resynchronized across the MinMoe campus check-in gates.",
+  },
+  {
+    title: "Inquiry Rectified",
+    text: "Afzalus Salam. Your inquiry has been thoroughly investigated and resolved on the institutional network. Please verify in your student portal.",
+  },
+];
+
 export default function AdminMailflarePage() {
   const [data, setData] = useState<MailflareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
-  // Search & Filter
+  // Stacks and Tabs
+  const [stackView, setStackView] = useState<"ACTIVE" | "RESOLVED" | "COMPOSE">("ACTIVE");
+  const [activeSubFilter, setActiveSubFilter] = useState<"ALL" | "OPEN" | "IN_PROGRESS">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "IN_PROGRESS" | "RESOLVED">("ALL");
-  const [activeTab, setActiveTab] = useState<"inbox" | "compose" | "cloudflare">("inbox");
 
   // Reply Form
   const [replyText, setReplyText] = useState("");
+  const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [submittingReply, setSubmittingReply] = useState(false);
 
   // Compose Form
+  const [studentsList, setStudentsList] = useState<StudentOption[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
   const [composeTo, setComposeTo] = useState("");
   const [composeSubject, setComposeSubject] = useState("");
   const [composeMessage, setComposeMessage] = useState("");
   const [composePriority, setComposePriority] = useState<"NORMAL" | "HIGH" | "URGENT">("NORMAL");
+  const [composeCategory, setComposeCategory] = useState("Administrative Notice");
   const [submittingCompose, setSubmittingCompose] = useState(false);
 
   // Copy feedback
-  const [copiedCode, setCopiedCode] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
+
+  // Real-time polling
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
+
     try {
       const res = await fetch("/api/admin/mailflare", {
         credentials: "include",
@@ -120,46 +166,129 @@ export default function AdminMailflarePage() {
       if (json.success && json.data) {
         setData(json.data);
         if (!selectedTicketId && json.data.tickets.length > 0) {
-          setSelectedTicketId(json.data.tickets[0].id);
+          // Select first active ticket by default
+          const firstActive = json.data.tickets.find((t: any) => t.status !== "RESOLVED");
+          setSelectedTicketId(firstActive ? firstActive.id : json.data.tickets[0].id);
         }
       }
     } catch {
-      toast({ title: "Failed to load Mailflare", description: "Network error", variant: "destructive" });
+      if (!isSilent) {
+        toast({ title: "Failed to load Mailflare", description: "Network error", variant: "destructive" });
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [selectedTicketId]);
 
+  // Load students list once for Compose picker
+  const fetchStudents = useCallback(async () => {
+    try {
+      setLoadingStudents(true);
+      const res = await fetch("/api/admin/mailflare/students", {
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setStudentsList(json.data);
+      }
+    } catch (err) {
+      console.warn("Could not load students for mailflare compose:", err);
+    } finally {
+      setLoadingStudents(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
+    fetchStudents();
+  }, [fetchData, fetchStudents]);
+
+  // Real-time live polling every 4 seconds when tab is focused
+  useEffect(() => {
+    const startPolling = () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      pollingRef.current = setInterval(() => {
+        if (typeof document !== "undefined" && document.hasFocus()) {
+          fetchData(true);
+        }
+      }, 4000);
+    };
+
+    startPolling();
+
+    const handleFocus = () => fetchData(true);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [fetchData]);
 
+  // Selected ticket
   const selectedTicket = useMemo(() => {
     if (!data?.tickets) return null;
     return data.tickets.find((t) => t.id === selectedTicketId) || null;
   }, [data?.tickets, selectedTicketId]);
 
-  const filteredTickets = useMemo(() => {
+  // Active stack tickets
+  const activeTickets = useMemo(() => {
     if (!data?.tickets) return [];
     return data.tickets.filter((t) => {
-      const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
+      if (t.status === "RESOLVED") return false;
+      if (activeSubFilter !== "ALL" && t.status !== activeSubFilter) return false;
+      if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase().trim();
-      const matchesQuery =
-        !q ||
+      return (
         t.subject.toLowerCase().includes(q) ||
         t.ticketId.toLowerCase().includes(q) ||
         t.message.toLowerCase().includes(q) ||
         t.sender.name.toLowerCase().includes(q) ||
         t.sender.its.toLowerCase().includes(q) ||
-        t.sender.email.toLowerCase().includes(q);
-      return matchesStatus && matchesQuery;
+        t.sender.email.toLowerCase().includes(q)
+      );
     });
-  }, [data?.tickets, statusFilter, searchQuery]);
+  }, [data?.tickets, activeSubFilter, searchQuery]);
 
+  // Resolved stack tickets
+  const resolvedTickets = useMemo(() => {
+    if (!data?.tickets) return [];
+    return data.tickets.filter((t) => {
+      if (t.status !== "RESOLVED") return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        t.subject.toLowerCase().includes(q) ||
+        t.ticketId.toLowerCase().includes(q) ||
+        t.message.toLowerCase().includes(q) ||
+        t.sender.name.toLowerCase().includes(q) ||
+        t.sender.its.toLowerCase().includes(q) ||
+        t.sender.email.toLowerCase().includes(q)
+      );
+    });
+  }, [data?.tickets, searchQuery]);
+
+  // Filtered students for picker
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return studentsList.slice(0, 8);
+    const q = studentSearch.toLowerCase().trim();
+    return studentsList
+      .filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.its.includes(q) ||
+          s.grade.toLowerCase().includes(q) ||
+          s.email.toLowerCase().includes(q)
+      )
+      .slice(0, 10);
+  }, [studentsList, studentSearch]);
+
+  // Send reply
   const handleSendReply = async () => {
     if (!selectedTicket || !replyText.trim()) return;
     setSubmittingReply(true);
+
     try {
       const res = await fetch("/api/admin/mailflare/reply", {
         method: "POST",
@@ -168,16 +297,17 @@ export default function AdminMailflarePage() {
         body: JSON.stringify({
           ticketId: selectedTicket.id,
           replyText: replyText.trim(),
-          notifyEmail: true,
+          notifyEmail: notifyByEmail,
         }),
       });
+
       const json = await res.json();
       if (json.success) {
         toast({
-          title: "Reply Sent Successfully ✉️",
+          title: "Official Response Dispatched ✉️",
           description: json.data?.emailDispatched
-            ? `Delivered to student portal and dispatched to ${selectedTicket.sender.email}`
-            : "Saved and delivered to student portal.",
+            ? `Synchronized to Talabat portal and sent to ${selectedTicket.sender.email}`
+            : "Saved and synchronized directly into Talabat student portal.",
           variant: "success",
         });
         setReplyText("");
@@ -192,29 +322,52 @@ export default function AdminMailflarePage() {
     }
   };
 
-  const handleUpdateStatus = async (status: "OPEN" | "IN_PROGRESS" | "RESOLVED") => {
-    if (!selectedTicket) return;
+  // Update status (e.g. RESOLVE -> auto-stacks)
+  const handleUpdateStatus = async (
+    targetTicketId: string,
+    status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
+  ) => {
     try {
       const res = await fetch("/api/admin/mailflare/status", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketId: selectedTicket.id, status }),
+        body: JSON.stringify({ ticketId: targetTicketId, status }),
       });
+
       const json = await res.json();
       if (json.success) {
-        toast({ title: "Status Updated", description: `Marked as ${status}`, variant: "success" });
+        if (status === "RESOLVED") {
+          toast({
+            title: "Inquiry Resolved & Stacked 📂",
+            description: "Ticket automatically archived into the Resolved Stack.",
+            variant: "success",
+          });
+        } else {
+          toast({
+            title: "Status Updated",
+            description: `Thread marked as ${status.replace("_", " ")}`,
+            variant: "success",
+          });
+        }
         fetchData(true);
       }
     } catch {
-      toast({ title: "Update failed", variant: "destructive" });
+      toast({ title: "Status update failed", variant: "destructive" });
     }
   };
 
+  // Dispatch Direct Outbound Compose
   const handleSendCompose = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!composeTo.trim() || !composeSubject.trim() || !composeMessage.trim()) {
-      toast({ title: "Missing fields", description: "Please complete recipient, subject, and message.", variant: "destructive" });
+    const recipient = selectedStudent ? selectedStudent.email : composeTo.trim();
+
+    if (!recipient || !composeSubject.trim() || !composeMessage.trim()) {
+      toast({
+        title: "Incomplete details",
+        description: "Please select a recipient, subject, and message.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -225,26 +378,37 @@ export default function AdminMailflarePage() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: composeTo.trim(),
+          recipientUserId: selectedStudent?.id || null,
+          to: recipient,
           subject: composeSubject.trim(),
           message: composeMessage.trim(),
           priority: composePriority,
+          category: composeCategory,
         }),
       });
+
       const json = await res.json();
       if (json.success) {
         toast({
-          title: "Official Email Sent 🚀",
-          description: json.data?.message || `Dispatched to ${composeTo}`,
+          title: "Official Message Dispatched 🚀",
+          description:
+            json.data?.message ||
+            `Synchronized to Talabat portal and dispatched to ${recipient}`,
           variant: "success",
         });
+
+        // Reset form
+        setSelectedStudent(null);
         setComposeTo("");
         setComposeSubject("");
         setComposeMessage("");
-        setActiveTab("inbox");
+        setStudentSearch("");
+
+        // Switch to Active stack to view the new inquiry
+        setStackView("ACTIVE");
         fetchData(true);
       } else {
-        toast({ title: "Failed to send", description: json.error, variant: "destructive" });
+        toast({ title: "Dispatch Failed", description: json.error, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "Network error", description: err?.message, variant: "destructive" });
@@ -253,37 +417,18 @@ export default function AdminMailflarePage() {
     }
   };
 
-  const cloudflareWorkerCode = `/**
- * Cloudflare Email Worker for Mailflare / Darse Burhani
- * Automatically pipes inbound emails for support@darseburhani-galiakot.org
- * into your Darse Burhani Admin Mailflare Inbox!
- */
-export default {
-  async email(message, env, ctx) {
-    const raw = await new Response(message.raw).text();
-    const payload = {
-      from: message.from,
-      to: message.to,
-      headers: Object.fromEntries(message.headers.entries()),
-      subject: message.headers.get("subject") || "(No Subject)",
-      text: raw,
-    };
-
-    // Forward inbound message to your active server webhook
-    await fetch("https://${typeof window !== "undefined" ? window.location.host : "darseburhani-galiakot.org"}/api/public/mailflare/inbound", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  }
-};`;
+  const handleSelectStudent = (student: StudentOption) => {
+    setSelectedStudent(student);
+    setComposeTo(student.institutionalEmail || student.email);
+    setStudentSearch("");
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* ── Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Systems & Institutional Communications"
-        hubDescription="Manage official communications, Mailflare webmail, broadcast alerts, and cloud WhatsApp messaging."
+        hubDescription="Manage official communications, Mailflare webmail, broadcast alerts, and real-time student support synchronization."
         tabs={[
           { label: "Mailflare Webmail", href: "/admin/mailflare", icon: Mail },
           { label: "Broadcast Studio", href: "/admin/notifications", icon: Radio },
@@ -291,30 +436,31 @@ export default {
         ]}
       />
 
-      {/* ── Mailflare Status Header Card ── */}
-      <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 text-white shadow-xl border border-emerald-700/40 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
+      {/* ── Top Header / Status Banner ── */}
+      <div className="rounded-3xl p-5 sm:p-7 bg-gradient-to-br from-[#06241b] via-[#093527] to-[#041a13] text-white shadow-xl border border-emerald-600/30 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Mailflare Institutional Webmail
+                Live Sync Desk
               </span>
-              <span className="text-xs text-emerald-200/80 font-mono">
-                Active &middot; Receiving
+              <span className="text-xs text-emerald-200/90 font-mono font-medium">
+                Real-Time Two-Way Sync Active
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {data?.config.supportEmail || "support@darseburhani-galiakot.org"}
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+              <Mail className="w-6 h-6 text-emerald-400" />
+              <span>{data?.config.supportEmail || "support@darseburhani-galiakot.org"}</span>
             </h1>
-            <p className="text-sm text-emerald-100/70 max-w-2xl">
-              Official institutional helpdesk and inbound mail center for Talabat, Faculty, and Parents. Direct inbox receipt and SMTP dispatch without requiring forwarding.
+            <p className="text-xs sm:text-sm text-emerald-100/70 max-w-2xl leading-relaxed">
+              Unified administration webmail. Inquiries and replies synchronize automatically with the Talabat student portal with instant resolved auto-stacking.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={() => {
                 if (data?.config.supportEmail) {
@@ -323,185 +469,249 @@ export default {
                   setTimeout(() => setCopiedEmail(false), 2000);
                 }
               }}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white border border-white/15 flex items-center gap-2 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white border border-white/15 flex items-center gap-2 transition cursor-pointer"
             >
-              {copiedEmail ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-              <span>{copiedEmail ? "Copied" : "Copy Email"}</span>
+              {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedEmail ? "Copied" : "Copy Desk Email"}</span>
             </button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="bg-white text-emerald-950 font-bold border-white hover:bg-emerald-50 hover:text-emerald-950"
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black border-none text-xs rounded-xl shadow-sm"
             >
-              <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
-              Sync Inbox
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span>Sync Now</span>
             </Button>
           </div>
         </div>
 
-        {/* Quick Stats Ribbon */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-emerald-800/60">
-          <div className="bg-white/5 rounded-2xl p-3.5 border border-white/10">
-            <p className="text-xs text-emerald-200/70">Total Inquiries</p>
-            <p className="text-2xl font-black mt-0.5">{data?.counts.total ?? 0}</p>
-          </div>
-          <div className="bg-amber-500/10 rounded-2xl p-3.5 border border-amber-500/20">
-            <p className="text-xs text-amber-300 font-semibold">Open Tickets</p>
-            <p className="text-2xl font-black text-amber-300 mt-0.5">{data?.counts.open ?? 0}</p>
-          </div>
-          <div className="bg-sky-500/10 rounded-2xl p-3.5 border border-sky-500/20">
-            <p className="text-xs text-sky-300 font-semibold">In Progress</p>
-            <p className="text-2xl font-black text-sky-300 mt-0.5">{data?.counts.inProgress ?? 0}</p>
-          </div>
-          <div className="bg-emerald-500/10 rounded-2xl p-3.5 border border-emerald-500/20">
-            <p className="text-xs text-emerald-300 font-semibold">Resolved</p>
-            <p className="text-2xl font-black text-emerald-300 mt-0.5">{data?.counts.resolved ?? 0}</p>
-          </div>
+        {/* Dynamic Metric Tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 mt-5 pt-5 border-t border-emerald-800/60">
+          <button
+            onClick={() => {
+              setStackView("ACTIVE");
+              setActiveSubFilter("ALL");
+            }}
+            className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+              stackView === "ACTIVE"
+                ? "bg-emerald-400/15 border-emerald-400/40"
+                : "bg-white/5 border-white/10 hover:bg-white/10"
+            }`}
+          >
+            <p className="text-[11px] text-emerald-200/80 font-semibold">Active Inquiries</p>
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-white">
+              {(data?.counts.open ?? 0) + (data?.counts.inProgress ?? 0)}
+            </p>
+          </button>
+
+          <button
+            onClick={() => {
+              setStackView("ACTIVE");
+              setActiveSubFilter("OPEN");
+            }}
+            className="p-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-left hover:bg-amber-500/20 transition cursor-pointer"
+          >
+            <p className="text-[11px] text-amber-300 font-semibold">Needs Attention (Open)</p>
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-amber-300">
+              {data?.counts.open ?? 0}
+            </p>
+          </button>
+
+          <button
+            onClick={() => {
+              setStackView("ACTIVE");
+              setActiveSubFilter("IN_PROGRESS");
+            }}
+            className="p-3 rounded-2xl border border-sky-500/20 bg-sky-500/10 text-left hover:bg-sky-500/20 transition cursor-pointer"
+          >
+            <p className="text-[11px] text-sky-300 font-semibold">In Progress</p>
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-sky-300">
+              {data?.counts.inProgress ?? 0}
+            </p>
+          </button>
+
+          <button
+            onClick={() => setStackView("RESOLVED")}
+            className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+              stackView === "RESOLVED"
+                ? "bg-emerald-500/25 border-emerald-400"
+                : "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20"
+            }`}
+          >
+            <p className="text-[11px] text-emerald-300 font-semibold flex items-center justify-between">
+              <span>Resolved Stack</span>
+              <Archive className="w-3.5 h-3.5" />
+            </p>
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-300">
+              {data?.counts.resolved ?? 0}
+            </p>
+          </button>
         </div>
       </div>
 
-      {/* ── Sub Navigation Tabs ── */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-2">
+      {/* ── Main Navigation Stack Switcher ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setActiveTab("inbox")}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === "inbox"
-                ? "bg-emerald-800 text-white shadow-xs"
+            onClick={() => setStackView("ACTIVE")}
+            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
+              stackView === "ACTIVE"
+                ? "bg-emerald-800 text-white shadow-sm"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-700"
             }`}
           >
             <Inbox className="w-4 h-4" />
-            <span>Support Inbox</span>
-            {data && data.counts.open > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-slate-900 font-black">
-                {data.counts.open}
-              </span>
-            )}
+            <span>Active Threads Stack</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 text-emerald-300 font-extrabold">
+              {activeTickets.length}
+            </span>
           </button>
 
           <button
-            onClick={() => setActiveTab("compose")}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === "compose"
-                ? "bg-emerald-800 text-white shadow-xs"
+            onClick={() => setStackView("RESOLVED")}
+            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
+              stackView === "RESOLVED"
+                ? "bg-emerald-800 text-white shadow-sm"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-700"
             }`}
           >
-            <Send className="w-4 h-4" />
-            <span>Compose Official Email</span>
+            <Archive className="w-4 h-4" />
+            <span>Resolved Stack (Auto-Stacked)</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-800 font-extrabold">
+              {resolvedTickets.length}
+            </span>
           </button>
 
           <button
-            onClick={() => setActiveTab("cloudflare")}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === "cloudflare"
-                ? "bg-emerald-800 text-white shadow-xs"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            onClick={() => setStackView("COMPOSE")}
+            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
+              stackView === "COMPOSE"
+                ? "bg-emerald-800 text-white shadow-sm"
+                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
             }`}
           >
-            <Globe className="w-4 h-4" />
-            <span>Cloudflare Inbound Setup</span>
+            <Plus className="w-4 h-4" />
+            <span>New Student Dispatch</span>
           </button>
         </div>
+
+        {/* Search Input across current stack */}
+        {stackView !== "COMPOSE" && (
+          <div className="relative sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by ITS, name, or subject..."
+              className="w-full rounded-xl border border-slate-200 pl-9 pr-3.5 py-1.5 text-xs bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            />
+          </div>
+        )}
       </div>
 
-      {/* ── Tab 1: Inbox Split View ── */}
-      {activeTab === "inbox" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Messages List (5 cols) */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* ── STACK 1: ACTIVE INQUIRIES VIEW ── */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {stackView === "ACTIVE" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left Column: Active List (5 cols) */}
           <div className="lg:col-span-5 space-y-3">
-            {/* Search and Status Filter */}
-            <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search subject, ITS, or sender..."
-                  className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-white text-slate-900 placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {(["ALL", "OPEN", "IN_PROGRESS", "RESOLVED"] as const).map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 cursor-pointer border ${
-                      statusFilter === st
-                        ? "bg-emerald-800 text-white border-emerald-900"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {st === "ALL" ? "All Messages" : st === "OPEN" ? "Open" : st === "IN_PROGRESS" ? "In Progress" : "Resolved"}
-                  </button>
-                ))}
-              </div>
+            {/* Filter pills */}
+            <div className="flex items-center gap-1.5 pb-1">
+              {(["ALL", "OPEN", "IN_PROGRESS"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setActiveSubFilter(filter)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                    activeSubFilter === filter
+                      ? "bg-slate-900 text-white border-slate-900"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {filter === "ALL" ? "All Active" : filter === "OPEN" ? "Open Only" : "In Progress"}
+                </button>
+              ))}
             </div>
 
             {/* List */}
-            <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
-              {filteredTickets.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-600">No inquiries found</p>
-                  <p className="text-[11px] text-slate-400 mt-1">All tickets matching this filter have been answered.</p>
+            <div className="space-y-2.5 max-h-[720px] overflow-y-auto pr-1">
+              {activeTickets.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 space-y-2">
+                  <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800">No active inquiries</p>
+                  <p className="text-xs text-slate-500">
+                    All support threads have been investigated and moved into the Resolved Stack.
+                  </p>
                 </div>
               ) : (
-                filteredTickets.map((t) => {
-                  const isSelected = t.id === selectedTicketId;
+                activeTickets.map((t) => {
+                  const isSelected = selectedTicketId === t.id;
+                  const isOutbound = t.outbound;
+
                   return (
                     <div
                       key={t.id}
                       onClick={() => setSelectedTicketId(t.id)}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative ${
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
                         isSelected
-                          ? "border-emerald-600 bg-emerald-50/70 shadow-xs"
-                          : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70 shadow-2xs"
+                          ? "bg-emerald-50/70 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
+                          : "bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-2xs"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="font-mono text-[10px] font-extrabold text-slate-500 uppercase">
-                            #{t.ticketId}
-                          </span>
-                          <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-700 truncate">
-                            {t.category}
-                          </span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-[11px] font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                              #{t.ticketId}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-bold px-1.5 py-0 ${
+                                t.status === "OPEN"
+                                  ? "bg-amber-100 text-amber-900 border-amber-300"
+                                  : "bg-sky-100 text-sky-900 border-sky-300"
+                              }`}
+                            >
+                              {t.status.replace("_", " ")}
+                            </Badge>
+                            {isOutbound && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-purple-50 text-purple-800 border-purple-200 font-bold"
+                              >
+                                Outbound
+                              </Badge>
+                            )}
+                            <span className="text-[10.5px] text-slate-400 font-mono">
+                              {timeAgo(t.createdAt)}
+                            </span>
+                          </div>
+
+                          <h3 className="text-xs font-bold text-slate-900 truncate">{t.subject}</h3>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                            {t.message}
+                          </p>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                          {timeAgo(t.createdAt)}
-                        </span>
                       </div>
 
-                      <h4 className="font-bold text-xs text-slate-900 line-clamp-1 mb-1">
-                        {t.subject}
-                      </h4>
-
-                      <p className="text-[11px] text-slate-600 line-clamp-2 mb-2 font-normal">
-                        {t.message}
-                      </p>
-
-                      <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-100">
-                        <div className="flex items-center gap-1.5 text-slate-700 min-w-0">
-                          <span className="font-bold truncate">{t.sender.name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">({t.sender.its})</span>
+                      {/* Student Footer Tag */}
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[9px] text-slate-700 shrink-0 overflow-hidden">
+                            {t.sender.photo ? (
+                              <img src={t.sender.photo} alt={t.sender.name} className="w-full h-full object-cover" />
+                            ) : (
+                              t.sender.name.slice(0, 1)
+                            )}
+                          </div>
+                          <span className="font-bold text-slate-800 truncate">{t.sender.name}</span>
+                          <span className="text-slate-400 font-mono text-[10px]">ITS: {t.sender.its}</span>
                         </div>
-
-                        <span
-                          className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                            t.status === "RESOLVED"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : t.status === "IN_PROGRESS"
-                              ? "bg-sky-100 text-sky-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {t.status.replace("_", " ")}
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {t.replies.length} {t.replies.length === 1 ? "reply" : "replies"}
                         </span>
                       </div>
                     </div>
@@ -511,181 +721,208 @@ export default {
             </div>
           </div>
 
-          {/* Right Column: Full Thread View (7 cols) */}
+          {/* Right Column: Full Thread Deep-Dive (7 cols) */}
           <div className="lg:col-span-7">
             {selectedTicket ? (
-              <Card className="fatimi-card h-full flex flex-col shadow-sm">
-                <CardHeader className="pb-3 border-b border-slate-100">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-xs font-extrabold text-emerald-800">
-                          Ticket #{selectedTicket.ticketId}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={
-                            selectedTicket.priority === "URGENT"
-                              ? "bg-rose-50 text-rose-800 border-rose-300"
-                              : selectedTicket.priority === "HIGH"
-                              ? "bg-amber-50 text-amber-800 border-amber-300"
-                              : "bg-slate-50 text-slate-700 border-slate-300"
-                          }
-                        >
-                          {selectedTicket.priority}
-                        </Badge>
-                        <Badge variant="outline" className="bg-slate-100 text-slate-700">
-                          {selectedTicket.category}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-base sm:text-lg font-extrabold text-slate-900">
-                        {selectedTicket.subject}
-                      </CardTitle>
-                    </div>
-
-                    {/* Status Toggle Buttons */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleUpdateStatus("OPEN")}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer border ${
+              <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-[600px]">
+                {/* Thread Header Bar */}
+                <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-mono text-xs font-extrabold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                        #{selectedTicket.ticketId}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs font-bold ${
                           selectedTicket.status === "OPEN"
-                            ? "bg-amber-500 text-white border-amber-600 shadow-2xs"
-                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                            ? "bg-amber-100 text-amber-900 border-amber-300"
+                            : selectedTicket.status === "IN_PROGRESS"
+                            ? "bg-sky-100 text-sky-900 border-sky-300"
+                            : "bg-emerald-100 text-emerald-900 border-emerald-300"
                         }`}
                       >
-                        Open
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus("IN_PROGRESS")}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer border ${
-                          selectedTicket.status === "IN_PROGRESS"
-                            ? "bg-sky-600 text-white border-sky-700 shadow-2xs"
-                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                        }`}
-                      >
-                        In Progress
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus("RESOLVED")}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer border ${
-                          selectedTicket.status === "RESOLVED"
-                            ? "bg-emerald-700 text-white border-emerald-800 shadow-2xs"
-                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                        }`}
-                      >
-                        Resolved
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Sender Profile Strip */}
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/70 mt-3">
-                    {selectedTicket.sender.photo ? (
-                      <img
-                        src={selectedTicket.sender.photo}
-                        alt={selectedTicket.sender.name}
-                        className="w-11 h-11 rounded-xl object-cover border border-emerald-600/40 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold flex items-center justify-center text-sm shrink-0">
-                        {selectedTicket.sender.name.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-extrabold text-xs text-slate-900 truncate">
-                          {selectedTicket.sender.name}
-                        </p>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-800 text-white">
-                          {selectedTicket.sender.role}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {selectedTicket.sender.grade} &middot; ITS: <span className="font-mono font-bold text-slate-700">{selectedTicket.sender.its}</span> &middot; Email: <span className="text-emerald-700 font-mono">{selectedTicket.sender.email}</span>
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4 pt-4 flex-1 flex flex-col justify-between">
-                  {/* Messages Scroll Area */}
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
-                    {/* Original Message Bubble */}
-                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                        <span className="font-bold text-slate-700">{selectedTicket.sender.name} wrote:</span>
-                        <span>{new Date(selectedTicket.createdAt).toLocaleString()}</span>
-                      </div>
-                      <p className="text-xs sm:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-                        {selectedTicket.message}
-                      </p>
-                    </div>
-
-                    {/* Replies */}
-                    {selectedTicket.replies.map((r, idx) => {
-                      const isAdmin = r.sender === "ADMIN";
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-3.5 rounded-2xl border text-xs sm:text-sm ${
-                            isAdmin
-                              ? "bg-emerald-50/80 border-emerald-300 ml-6 text-slate-900"
-                              : "bg-slate-50 border-slate-200 mr-6 text-slate-800"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
-                            <span className={`font-bold ${isAdmin ? "text-emerald-900" : "text-slate-700"}`}>
-                              {r.senderName}
-                            </span>
-                            <span>{new Date(r.timestamp).toLocaleString()}</span>
-                          </div>
-                          <p className="whitespace-pre-wrap leading-relaxed">{r.text}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Reply Input Box */}
-                  <div className="pt-3 border-t border-slate-200 space-y-2">
-                    <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Reply className="w-3.5 h-3.5 text-emerald-700" />
-                        Reply officially from {data?.config.supportEmail}
+                        {selectedTicket.status.replace("_", " ")}
+                      </Badge>
+                      <span className="text-xs font-semibold text-slate-500">
+                        {selectedTicket.category}
                       </span>
-                      <span className="text-[11px] text-slate-400">
-                        Will deliver in-portal + dispatch SMTP email
-                      </span>
-                    </label>
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      rows={3}
-                      placeholder="Type your official reply or resolution details..."
-                      className="w-full rounded-xl border border-slate-200 p-3 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50 text-slate-900 placeholder:text-slate-400 resize-none"
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] text-slate-400">
-                        Student will be notified instantly in their portal.
-                      </p>
+                    </div>
+                    <h2 className="text-base font-extrabold text-slate-900">
+                      {selectedTicket.subject}
+                    </h2>
+                  </div>
+
+                  {/* Status Actions */}
+                  <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                    {selectedTicket.status !== "IN_PROGRESS" && (
                       <Button
-                        onClick={handleSendReply}
-                        disabled={!replyText.trim() || submittingReply}
                         size="sm"
-                        className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-5 rounded-xl"
+                        variant="outline"
+                        onClick={() => handleUpdateStatus(selectedTicket.id, "IN_PROGRESS")}
+                        className="text-xs font-bold rounded-xl border-sky-300 text-sky-800 hover:bg-sky-50"
                       >
-                        <Send className="w-3.5 h-3.5 mr-1.5" />
-                        {submittingReply ? "Dispatching..." : "Send Official Reply"}
+                        Mark In Progress
                       </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => handleUpdateStatus(selectedTicket.id, "RESOLVED")}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Resolve & Stack</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Student Profile Card Ribbon */}
+                <div className="px-5 py-3.5 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-emerald-800 text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden shadow-xs">
+                      {selectedTicket.sender.photo ? (
+                        <img
+                          src={selectedTicket.sender.photo}
+                          alt={selectedTicket.sender.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        selectedTicket.sender.name.slice(0, 1)
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-900">
+                          {selectedTicket.sender.name}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50">
+                          {selectedTicket.sender.grade}
+                        </Badge>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        ITS: <strong className="text-slate-800">{selectedTicket.sender.its}</strong> &middot; {selectedTicket.sender.email}
+                      </div>
                     </div>
                   </div>
-                </CardContent>
+
+                  {selectedTicket.sender.mobile && selectedTicket.sender.mobile !== "N/A" && (
+                    <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
+                      📞 {selectedTicket.sender.mobile}
+                    </span>
+                  )}
+                </div>
+
+                {/* Conversation Body & Thread */}
+                <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[460px] bg-slate-50/40">
+                  {/* Initial Inquiry / Message */}
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-2xs">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>
+                          {selectedTicket.outbound ? "Administration Dispatch" : selectedTicket.sender.name}
+                        </span>
+                      </span>
+                      <span className="text-slate-400 font-mono text-[11px]">
+                        {new Date(selectedTicket.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
+                      {selectedTicket.message}
+                    </p>
+                  </div>
+
+                  {/* Threaded Replies */}
+                  {selectedTicket.replies.map((reply, idx) => {
+                    const isAdmin = reply.sender === "ADMIN";
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-4 rounded-2xl border text-xs sm:text-sm space-y-1.5 shadow-2xs ${
+                          isAdmin
+                            ? "bg-[#064e3b] text-white border-emerald-700 ml-6 sm:ml-12"
+                            : "bg-white text-slate-900 border-slate-200 mr-6 sm:mr-12"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-xs pb-1 border-b border-white/10">
+                          <span className={`font-bold flex items-center gap-1.5 ${isAdmin ? "text-amber-300" : "text-emerald-800"}`}>
+                            {isAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                            <span>{reply.senderName}</span>
+                          </span>
+                          <span className={`font-mono text-[11px] ${isAdmin ? "text-emerald-200/80" : "text-slate-400"}`}>
+                            {timeAgo(reply.timestamp)}
+                          </span>
+                        </div>
+                        <p className={`whitespace-pre-wrap leading-relaxed ${isAdmin ? "text-emerald-50" : "text-slate-800"}`}>
+                          {reply.text}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Reply Composer Box */}
+                <div className="p-4 border-t border-slate-200 bg-white space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Reply className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Post Official Reply (Synchronizes with Student Portal)</span>
+                    </span>
+                    <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notifyByEmail}
+                        onChange={(e) => setNotifyByEmail(e.target.checked)}
+                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
+                      />
+                      <span>Also send email notification</span>
+                    </label>
+                  </div>
+
+                  <textarea
+                    rows={3}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        handleSendReply();
+                      }
+                    }}
+                    placeholder="Type official IT Support response... (Ctrl+Enter to send)"
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 bg-slate-50 text-slate-900"
+                  />
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">
+                      Shortcut: <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px] font-mono">Ctrl+Enter</kbd>
+                    </span>
+                    <Button
+                      onClick={handleSendReply}
+                      disabled={submittingReply || !replyText.trim()}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-xs"
+                    >
+                      {submittingReply ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                          <span>Dispatching...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5 mr-1.5" />
+                          <span>Send Official Response</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </Card>
             ) : (
-              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 h-full flex flex-col items-center justify-center">
-                <Mail className="w-12 h-12 text-slate-300 mb-3" />
-                <h3 className="text-sm font-bold text-slate-800">No inquiry selected</h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Click any ticket or inquiry on the left to read the full conversation and dispatch official responses.
+              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 h-full flex flex-col items-center justify-center space-y-3">
+                <Mail className="w-12 h-12 text-slate-300" />
+                <h3 className="font-bold text-slate-800 text-sm">Select an inquiry to view thread</h3>
+                <p className="text-xs text-slate-500 max-w-sm">
+                  Click on any ticket in the active stack to read replies, change status, or dispatch direct answers.
                 </p>
               </div>
             )}
@@ -693,174 +930,289 @@ export default {
         </div>
       )}
 
-      {/* ── Tab 2: Compose Official Email ── */}
-      {activeTab === "compose" && (
-        <Card className="fatimi-card max-w-3xl mx-auto shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Send className="w-5 h-5 text-emerald-700" />
-              <span>Compose Official Mailflare Email</span>
-            </CardTitle>
-            <p className="text-xs text-slate-500">
-              Dispatch an official communication from <strong>{data?.config.supportEmail}</strong> to any student, faculty member, parent, or outside organization.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSendCompose} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Recipient Email Address *
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* ── STACK 2: RESOLVED ARCHIVE STACK ── */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {stackView === "RESOLVED" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80">
+            <div>
+              <h3 className="text-sm font-extrabold text-emerald-950 flex items-center gap-2">
+                <Archive className="w-4 h-4 text-emerald-800" />
+                <span>Resolved Stack Archive ({resolvedTickets.length})</span>
+              </h3>
+              <p className="text-xs text-emerald-800/80 mt-0.5">
+                Inquiries are automatically moved here when marked resolved. You can reopen any inquiry at any time.
+              </p>
+            </div>
+            <Badge variant="outline" className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold text-xs">
+              🔒 Automated Archive
+            </Badge>
+          </div>
+
+          {resolvedTickets.length === 0 ? (
+            <Card className="rounded-2xl border-slate-200 p-12 text-center bg-white space-y-2">
+              <Archive className="w-10 h-10 text-slate-300 mx-auto" />
+              <h4 className="font-bold text-slate-800 text-sm">No Resolved Inquiries In Stack</h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                When you click "Resolve & Stack" on an active inquiry, it will neatly archive here.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {resolvedTickets.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-2xs hover:border-emerald-300 transition"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                          #{t.ticketId}
+                        </span>
+                        <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold text-[10px]">
+                          RESOLVED
+                        </Badge>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          {timeAgo(t.createdAt)}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-extrabold text-slate-900 truncate">{t.subject}</h4>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUpdateStatus(t.id, "OPEN")}
+                      className="text-xs font-bold rounded-xl text-slate-700 hover:bg-slate-100 shrink-0 flex items-center gap-1"
+                      title="Reopen inquiry and return to Active Stack"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reopen</span>
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    {t.message}
+                  </p>
+
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[9px]">
+                        {t.sender.name.slice(0, 1)}
+                      </div>
+                      <span className="font-bold text-slate-800">{t.sender.name}</span>
+                      <span className="text-slate-400 text-[10.5px] font-mono">ITS: {t.sender.its}</span>
+                    </div>
+
+                    <span className="text-[11px] font-bold text-emerald-700">
+                      {t.replies.length} replies logged
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* ── STACK 3: DIRECT STUDENT DISPATCH (COMPOSE) ── */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {stackView === "COMPOSE" && (
+        <div className="space-y-6">
+          <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white overflow-hidden">
+            <CardHeader className="bg-slate-50/70 border-b border-slate-100 p-5">
+              <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <Send className="w-4 h-4 text-emerald-700" />
+                <span>Dispatch Official Communication to Student</span>
+              </CardTitle>
+              <p className="text-xs text-slate-500">
+                Dispatches directly to the student's Talabat portal and sends an email notification.
+              </p>
+            </CardHeader>
+
+            <CardContent className="p-5 sm:p-7 space-y-6">
+              {/* Quick Student Picker */}
+              <div className="space-y-2.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Select Recipient Student (Instant Talabat Synchronization)
                 </label>
-                <input
-                  type="email"
-                  value={composeTo}
-                  onChange={(e) => setComposeTo(e.target.value)}
-                  placeholder="e.g. abdeali.calcuttawala@darseburhani-galiakot.org or parent@gmail.com"
-                  required
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50 text-slate-900"
-                />
+
+                {selectedStudent ? (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-800 text-white flex items-center justify-center font-black text-sm overflow-hidden shrink-0 shadow-xs">
+                        {selectedStudent.avatarUrl ? (
+                          <img src={selectedStudent.avatarUrl} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                        ) : (
+                          selectedStudent.name.slice(0, 1)
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-900 text-sm">
+                            {selectedStudent.name}
+                          </span>
+                          <Badge className="bg-emerald-700 text-white text-[10px] font-bold">
+                            {selectedStudent.grade}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-emerald-800 font-mono mt-0.5">
+                          ITS: <strong>{selectedStudent.its}</strong> &middot; {selectedStudent.institutionalEmail}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setComposeTo("");
+                      }}
+                      className="text-xs font-bold rounded-xl"
+                    >
+                      Change Student
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="relative">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        placeholder="Search student by Name, ITS Number, or Grade..."
+                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      />
+                    </div>
+
+                    {/* Quick Student Selection Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                      {filteredStudents.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleSelectStudent(s)}
+                          className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition flex items-center gap-2.5 cursor-pointer bg-slate-50/50"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                            {s.avatarUrl ? (
+                              <img src={s.avatarUrl} alt={s.name} className="w-full h-full object-cover" />
+                            ) : (
+                              s.name.slice(0, 1)
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-slate-900 truncate">{s.name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">ITS: {s.its}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Subject Line *
-                  </label>
-                  <input
-                    type="text"
-                    value={composeSubject}
-                    onChange={(e) => setComposeSubject(e.target.value)}
-                    placeholder="e.g. Maktab Taalim Instructions / Portal Intimation"
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50 text-slate-900"
-                  />
+              {/* Canned Response Chips */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Insert One-Click Canned Response</span>
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {CANNED_RESPONSES.map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setComposeSubject(`Administrative Notice: ${chip.title}`);
+                        setComposeMessage(chip.text);
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-emerald-50 hover:text-emerald-900 border border-slate-200 hover:border-emerald-300 transition text-slate-700 cursor-pointer"
+                    >
+                      + {chip.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleSendCompose} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={composeSubject}
+                      onChange={(e) => setComposeSubject(e.target.value)}
+                      placeholder="e.g. Portal Credentials Update & Maktab Guidelines"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Priority
+                    </label>
+                    <select
+                      value={composePriority}
+                      onChange={(e: any) => setComposePriority(e.target.value)}
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                    >
+                      <option value="NORMAL">Normal Priority</option>
+                      <option value="HIGH">High Priority</option>
+                      <option value="URGENT">Urgent Action Required</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Priority
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Official Message Body
                   </label>
-                  <select
-                    value={composePriority}
-                    onChange={(e) => setComposePriority(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-600 outline-none bg-slate-50 text-slate-900 font-medium"
-                  >
-                    <option value="NORMAL">Normal Priority</option>
-                    <option value="HIGH">High Priority</option>
-                    <option value="URGENT">Urgent Intimation</option>
-                  </select>
+                  <textarea
+                    rows={6}
+                    value={composeMessage}
+                    onChange={(e) => setComposeMessage(e.target.value)}
+                    placeholder="Compose official institutional message to the student..."
+                    className="w-full text-xs sm:text-sm p-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                    required
+                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Message Body (Official Text) *
-                </label>
-                <textarea
-                  value={composeMessage}
-                  onChange={(e) => setComposeMessage(e.target.value)}
-                  rows={8}
-                  placeholder="Afzalus Salam,&#10;&#10;Kindly note the following official institutional notice..."
-                  required
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50 text-slate-900 leading-relaxed resize-none"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <p className="text-[11px] text-slate-400">
-                  Sender Header: <span className="font-mono text-emerald-800 font-bold">{data?.config.supportEmail}</span>
-                </p>
-                <Button
-                  type="submit"
-                  disabled={submittingCompose}
-                  className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-6 rounded-xl"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  {submittingCompose ? "Dispatching..." : "Dispatch Official Email"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tab 3: Cloudflare Email Routing / Worker Activation ── */}
-      {activeTab === "cloudflare" && (
-        <Card className="fatimi-card max-w-4xl mx-auto shadow-sm">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-emerald-700" />
-              <CardTitle className="text-base sm:text-lg">
-                Activate Inbound Cloudflare Email Worker for Mailflare
-              </CardTitle>
-            </div>
-            <p className="text-xs text-slate-500">
-              When outside/outsource emails hit <strong>support@darseburhani-galiakot.org</strong>, Cloudflare can pipe them straight into your Darse Burhani Mailflare desk without forwarding to third-party consumer inboxes.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
-              <h4 className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                Webhook Endpoint Already Active &amp; Ready
-              </h4>
-              <p className="text-xs text-emerald-800/80">
-                Your Darse Burhani server is actively listening for inbound emails at:
-              </p>
-              <div className="p-2.5 rounded-xl bg-white border border-emerald-300 font-mono text-xs font-bold text-slate-900 flex items-center justify-between">
-                <span>/api/public/mailflare/inbound</span>
-                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Ready
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-xs font-extrabold text-slate-900">
-                How to activate in Cloudflare (Takes 2 minutes):
-              </h4>
-              <ol className="text-xs text-slate-700 space-y-2 list-decimal list-inside leading-relaxed">
-                <li>
-                  Go to <strong>dash.cloudflare.com</strong> &rarr; Click <strong>Workers &amp; Pages</strong> &rarr; Click <strong>Create Application</strong> &rarr; <strong>Create Worker</strong>.
-                </li>
-                <li>
-                  Name the worker (e.g. <code>mailflare-inbound</code>) and click <strong>Deploy</strong>.
-                </li>
-                <li>
-                  Click <strong>Edit Code</strong>, paste the worker snippet below, and click <strong>Deploy</strong>:
-                </li>
-              </ol>
-
-              {/* Code Box */}
-              <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-emerald-300">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(cloudflareWorkerCode);
-                    setCopiedCode(true);
-                    setTimeout(() => setCopiedCode(false), 2000);
-                  }}
-                  className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-sans font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedCode ? "Copied" : "Copy Worker Code"}</span>
-                </button>
-                <pre className="overflow-x-auto pr-24 whitespace-pre-wrap">{cloudflareWorkerCode}</pre>
-              </div>
-
-              <ol start={4} className="text-xs text-slate-700 space-y-2 list-decimal list-inside leading-relaxed">
-                <li>
-                  Now go to your domain <strong>darseburhani-galiakot.org</strong> in Cloudflare &rarr; <strong>Email Routing</strong> &rarr; <strong>Routing Rules</strong>.
-                </li>
-                <li>
-                  Set custom address <code>support@darseburhani-galiakot.org</code> action to: <strong>Send to a Worker</strong> &rarr; Select <code>mailflare-inbound</code>.
-                </li>
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-slate-500">
+                    A synchronized record will be created in the student's portal immediately.
+                  </span>
+                  <Button
+                    type="submit"
+                    disabled={submittingCompose}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl shadow-md transition"
+                  >
+                    {submittingCompose ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                        <span>Dispatching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        <span>Dispatch Message to Student</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
 }
-
