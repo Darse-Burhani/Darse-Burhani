@@ -29,7 +29,6 @@ import {
   UserCheck,
   GraduationCap,
   Calendar,
-  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -166,7 +165,6 @@ export default function AdminMailflarePage() {
       if (json.success && json.data) {
         setData(json.data);
         if (!selectedTicketId && json.data.tickets.length > 0) {
-          // Select first active ticket by default
           const firstActive = json.data.tickets.find((t: any) => t.status !== "RESOLVED");
           setSelectedTicketId(firstActive ? firstActive.id : json.data.tickets[0].id);
         }
@@ -397,14 +395,12 @@ export default function AdminMailflarePage() {
           variant: "success",
         });
 
-        // Reset form
         setSelectedStudent(null);
         setComposeTo("");
         setComposeSubject("");
         setComposeMessage("");
         setStudentSearch("");
 
-        // Switch to Active stack to view the new inquiry
         setStackView("ACTIVE");
         fetchData(true);
       } else {
@@ -424,7 +420,7 @@ export default function AdminMailflarePage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 text-[#221c12]">
       {/* ── Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Systems & Institutional Communications"
@@ -436,27 +432,28 @@ export default function AdminMailflarePage() {
         ]}
       />
 
-      {/* ── Top Header / Status Banner ── */}
-      <div className="rounded-3xl p-5 sm:p-7 bg-gradient-to-br from-[#06241b] via-[#093527] to-[#041a13] text-white shadow-xl border border-emerald-600/30 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
+      {/* ── Top Header / Status Banner (Fatimi Luxury Midnight & Gold Cockpit) ── */}
+      <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#191512] via-[#211c17] to-[#14100c] text-white shadow-xl border border-[#d4af37]/40 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#d4af37]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-10 -bottom-10 w-80 h-80 bg-[#f3b833]/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Live Sync Desk
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#d4af37]/20 text-[#fff4be] border border-[#d4af37]/40 flex items-center gap-2 shadow-inner">
+                <span className="w-2 h-2 rounded-full bg-[#f3b833] animate-pulse" />
+                Live Sync Desk Active
               </span>
-              <span className="text-xs text-emerald-200/90 font-mono font-medium">
+              <span className="text-xs text-[#e7dec8] font-mono font-medium">
                 Real-Time Two-Way Sync Active
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
-              <Mail className="w-6 h-6 text-emerald-400" />
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5 font-display">
+              <Mail className="w-6 h-6 text-[#f3b833]" />
               <span>{data?.config.supportEmail || "support@darseburhani-galiakot.org"}</span>
             </h1>
-            <p className="text-xs sm:text-sm text-emerald-100/70 max-w-2xl leading-relaxed">
-              Unified administration webmail. Inquiries and replies synchronize automatically with the Talabat student portal with instant resolved auto-stacking.
+            <p className="text-xs sm:text-sm text-[#e7dec8] max-w-2xl leading-relaxed">
+              Unified institutional communications center. Inquiries, replies, and notices synchronize automatically across the Talabat portal with instant resolution stacking.
             </p>
           </div>
 
@@ -469,9 +466,9 @@ export default function AdminMailflarePage() {
                   setTimeout(() => setCopiedEmail(false), 2000);
                 }
               }}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white border border-white/15 flex items-center gap-2 transition cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white border border-white/20 flex items-center gap-2 transition cursor-pointer"
             >
-              {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedEmail ? <Check className="w-3.5 h-3.5 text-[#f3b833]" /> : <Copy className="w-3.5 h-3.5 text-stone-300" />}
               <span>{copiedEmail ? "Copied" : "Copy Desk Email"}</span>
             </button>
             <Button
@@ -479,7 +476,7 @@ export default function AdminMailflarePage() {
               size="sm"
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black border-none text-xs rounded-xl shadow-sm"
+              className="bg-gradient-to-r from-[#d4af37] via-[#f3b833] to-[#c59b27] hover:from-[#c59b27] hover:to-[#b8860b] text-[#191512] font-black border-none text-xs rounded-xl shadow-md cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
               <span>Sync Now</span>
@@ -488,20 +485,20 @@ export default function AdminMailflarePage() {
         </div>
 
         {/* Dynamic Metric Tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 mt-5 pt-5 border-t border-emerald-800/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
           <button
             onClick={() => {
               setStackView("ACTIVE");
               setActiveSubFilter("ALL");
             }}
-            className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+            className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
               stackView === "ACTIVE"
-                ? "bg-emerald-400/15 border-emerald-400/40"
+                ? "bg-[#d4af37]/20 border-[#d4af37]"
                 : "bg-white/5 border-white/10 hover:bg-white/10"
             }`}
           >
-            <p className="text-[11px] text-emerald-200/80 font-semibold">Active Inquiries</p>
-            <p className="text-xl sm:text-2xl font-black mt-0.5 text-white">
+            <p className="text-[11px] text-[#e7dec8] font-semibold">Active Inquiries</p>
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-white font-mono">
               {(data?.counts.open ?? 0) + (data?.counts.inProgress ?? 0)}
             </p>
           </button>
@@ -511,10 +508,10 @@ export default function AdminMailflarePage() {
               setStackView("ACTIVE");
               setActiveSubFilter("OPEN");
             }}
-            className="p-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-left hover:bg-amber-500/20 transition cursor-pointer"
+            className="p-3.5 rounded-2xl border border-[#edd7a6]/30 bg-[#fbf5e6]/10 text-left hover:bg-[#fbf5e6]/20 transition cursor-pointer"
           >
-            <p className="text-[11px] text-amber-300 font-semibold">Needs Attention (Open)</p>
-            <p className="text-xl sm:text-2xl font-black mt-0.5 text-amber-300">
+            <p className="text-[11px] text-[#f3b833] font-semibold">Open Tickets</p>
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-[#f3b833] font-mono">
               {data?.counts.open ?? 0}
             </p>
           </button>
@@ -524,17 +521,17 @@ export default function AdminMailflarePage() {
               setStackView("ACTIVE");
               setActiveSubFilter("IN_PROGRESS");
             }}
-            className="p-3 rounded-2xl border border-sky-500/20 bg-sky-500/10 text-left hover:bg-sky-500/20 transition cursor-pointer"
+            className="p-3.5 rounded-2xl border border-sky-400/30 bg-sky-500/10 text-left hover:bg-sky-500/20 transition cursor-pointer"
           >
             <p className="text-[11px] text-sky-300 font-semibold">In Progress</p>
-            <p className="text-xl sm:text-2xl font-black mt-0.5 text-sky-300">
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-sky-300 font-mono">
               {data?.counts.inProgress ?? 0}
             </p>
           </button>
 
           <button
             onClick={() => setStackView("RESOLVED")}
-            className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+            className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
               stackView === "RESOLVED"
                 ? "bg-emerald-500/25 border-emerald-400"
                 : "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20"
@@ -544,7 +541,7 @@ export default function AdminMailflarePage() {
               <span>Resolved Stack</span>
               <Archive className="w-3.5 h-3.5" />
             </p>
-            <p className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-300">
+            <p className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-300 font-mono">
               {data?.counts.resolved ?? 0}
             </p>
           </button>
@@ -552,19 +549,19 @@ export default function AdminMailflarePage() {
       </div>
 
       {/* ── Main Navigation Stack Switcher ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e7e0d0] pb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setStackView("ACTIVE")}
             className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
               stackView === "ACTIVE"
-                ? "bg-emerald-800 text-white shadow-sm"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                ? "bg-[#191512] text-[#f3b833] border border-[#d4af37]/50 shadow-sm"
+                : "bg-[#f4efe5] hover:bg-[#e7e0d0] text-[#3d3426] border border-[#e7e0d0]"
             }`}
           >
             <Inbox className="w-4 h-4" />
             <span>Active Threads Stack</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 text-emerald-300 font-extrabold">
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#29221b] text-[#f3b833] font-extrabold">
               {activeTickets.length}
             </span>
           </button>
@@ -573,13 +570,13 @@ export default function AdminMailflarePage() {
             onClick={() => setStackView("RESOLVED")}
             className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
               stackView === "RESOLVED"
-                ? "bg-emerald-800 text-white shadow-sm"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                ? "bg-[#191512] text-[#f3b833] border border-[#d4af37]/50 shadow-sm"
+                : "bg-[#f4efe5] hover:bg-[#e7e0d0] text-[#3d3426] border border-[#e7e0d0]"
             }`}
           >
             <Archive className="w-4 h-4" />
-            <span>Resolved Stack (Auto-Stacked)</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-800 font-extrabold">
+            <span>Resolved Stack (Auto-Archive)</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#e7e0d0] text-[#221c12] font-extrabold">
               {resolvedTickets.length}
             </span>
           </button>
@@ -588,8 +585,8 @@ export default function AdminMailflarePage() {
             onClick={() => setStackView("COMPOSE")}
             className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
               stackView === "COMPOSE"
-                ? "bg-emerald-800 text-white shadow-sm"
-                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
+                ? "bg-[#191512] text-[#f3b833] border border-[#d4af37]/50 shadow-sm"
+                : "bg-[#fbf5e6] hover:bg-[#f6ebd1] text-[#9a7318] border border-[#edd7a6]"
             }`}
           >
             <Plus className="w-4 h-4" />
@@ -600,13 +597,13 @@ export default function AdminMailflarePage() {
         {/* Search Input across current stack */}
         {stackView !== "COMPOSE" && (
           <div className="relative sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#97896f]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by ITS, name, or subject..."
-              className="w-full rounded-xl border border-slate-200 pl-9 pr-3.5 py-1.5 text-xs bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              className="w-full rounded-xl border border-[#e7e0d0] pl-9 pr-3.5 py-1.5 text-xs bg-white text-[#221c12] placeholder:text-[#97896f] focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20 shadow-2xs"
             />
           </div>
         )}
@@ -627,8 +624,8 @@ export default function AdminMailflarePage() {
                   onClick={() => setActiveSubFilter(filter)}
                   className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                     activeSubFilter === filter
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                      ? "bg-[#191512] text-[#f3b833] border-[#191512]"
+                      : "bg-white text-[#6b5f4b] border-[#e7e0d0] hover:bg-[#f4efe5]"
                   }`}
                 >
                   {filter === "ALL" ? "All Active" : filter === "OPEN" ? "Open Only" : "In Progress"}
@@ -639,10 +636,10 @@ export default function AdminMailflarePage() {
             {/* List */}
             <div className="space-y-2.5 max-h-[720px] overflow-y-auto pr-1">
               {activeTickets.length === 0 ? (
-                <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 space-y-2">
-                  <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800">No active inquiries</p>
-                  <p className="text-xs text-slate-500">
+                <div className="p-8 text-center bg-white rounded-3xl border border-dashed border-[#e7e0d0] space-y-2">
+                  <CheckCircle2 className="w-9 h-9 text-[#059669] mx-auto" />
+                  <p className="text-sm font-bold text-[#221c12]">No active inquiries</p>
+                  <p className="text-xs text-[#6b5f4b]">
                     All support threads have been investigated and moved into the Resolved Stack.
                   </p>
                 </div>
@@ -657,22 +654,22 @@ export default function AdminMailflarePage() {
                       onClick={() => setSelectedTicketId(t.id)}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
                         isSelected
-                          ? "bg-emerald-50/70 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
-                          : "bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-2xs"
+                          ? "bg-[#fdfbf7] border-2 border-[#d4af37] shadow-sm ring-2 ring-[#d4af37]/20"
+                          : "bg-white border-[#e7e0d0] hover:border-[#d4af37]/60 shadow-2xs"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-[11px] font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                            <span className="font-mono text-[11px] font-black text-[#221c12] bg-[#f4efe5] px-2 py-0.5 rounded-md border border-[#e7e0d0]">
                               #{t.ticketId}
                             </span>
                             <Badge
                               variant="outline"
                               className={`text-[10px] font-bold px-1.5 py-0 ${
                                 t.status === "OPEN"
-                                  ? "bg-amber-100 text-amber-900 border-amber-300"
-                                  : "bg-sky-100 text-sky-900 border-sky-300"
+                                  ? "bg-[#fbf5e6] text-[#9a7318] border-[#edd7a6]"
+                                  : "bg-sky-50 text-sky-800 border-sky-200"
                               }`}
                             >
                               {t.status.replace("_", " ")}
@@ -685,32 +682,32 @@ export default function AdminMailflarePage() {
                                 Outbound
                               </Badge>
                             )}
-                            <span className="text-[10.5px] text-slate-400 font-mono">
+                            <span className="text-[10.5px] text-[#97896f] font-mono">
                               {timeAgo(t.createdAt)}
                             </span>
                           </div>
 
-                          <h3 className="text-xs font-bold text-slate-900 truncate">{t.subject}</h3>
-                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                          <h3 className="text-xs font-bold text-[#221c12] truncate">{t.subject}</h3>
+                          <p className="text-[11px] text-[#6b5f4b] line-clamp-2 leading-relaxed">
                             {t.message}
                           </p>
                         </div>
                       </div>
 
                       {/* Student Footer Tag */}
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <div className="mt-3 pt-2.5 border-t border-[#f0eadb] flex items-center justify-between text-[11px]">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[9px] text-slate-700 shrink-0 overflow-hidden">
+                          <div className="w-5 h-5 rounded-full bg-[#191512] text-[#f3b833] flex items-center justify-center font-bold text-[9px] shrink-0 overflow-hidden border border-[#d4af37]/40">
                             {t.sender.photo ? (
                               <img src={t.sender.photo} alt={t.sender.name} className="w-full h-full object-cover" />
                             ) : (
                               t.sender.name.slice(0, 1)
                             )}
                           </div>
-                          <span className="font-bold text-slate-800 truncate">{t.sender.name}</span>
-                          <span className="text-slate-400 font-mono text-[10px]">ITS: {t.sender.its}</span>
+                          <span className="font-bold text-[#221c12] truncate">{t.sender.name}</span>
+                          <span className="text-[#97896f] font-mono text-[10px]">ITS: {t.sender.its}</span>
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400">
+                        <span className="text-[10px] font-bold text-[#97896f]">
                           {t.replies.length} {t.replies.length === 1 ? "reply" : "replies"}
                         </span>
                       </div>
@@ -724,31 +721,31 @@ export default function AdminMailflarePage() {
           {/* Right Column: Full Thread Deep-Dive (7 cols) */}
           <div className="lg:col-span-7">
             {selectedTicket ? (
-              <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-[600px]">
+              <Card className="rounded-3xl border border-[#e7e0d0] shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-[620px]">
                 {/* Thread Header Bar */}
-                <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="p-4 sm:p-5 border-b border-[#e7e0d0] bg-[#fbf9f4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="font-mono text-xs font-extrabold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                      <span className="font-mono text-xs font-black text-[#9a7318] bg-[#fbf5e6] px-2 py-0.5 rounded-md border border-[#edd7a6]">
                         #{selectedTicket.ticketId}
                       </span>
                       <Badge
                         variant="outline"
                         className={`text-xs font-bold ${
                           selectedTicket.status === "OPEN"
-                            ? "bg-amber-100 text-amber-900 border-amber-300"
+                            ? "bg-[#fbf5e6] text-[#9a7318] border-[#edd7a6]"
                             : selectedTicket.status === "IN_PROGRESS"
-                            ? "bg-sky-100 text-sky-900 border-sky-300"
-                            : "bg-emerald-100 text-emerald-900 border-emerald-300"
+                            ? "bg-sky-50 text-sky-800 border-sky-200"
+                            : "bg-emerald-50 text-emerald-800 border-emerald-200"
                         }`}
                       >
                         {selectedTicket.status.replace("_", " ")}
                       </Badge>
-                      <span className="text-xs font-semibold text-slate-500">
+                      <span className="text-xs font-semibold text-[#6b5f4b]">
                         {selectedTicket.category}
                       </span>
                     </div>
-                    <h2 className="text-base font-extrabold text-slate-900">
+                    <h2 className="text-base font-extrabold text-[#221c12]">
                       {selectedTicket.subject}
                     </h2>
                   </div>
@@ -760,7 +757,7 @@ export default function AdminMailflarePage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleUpdateStatus(selectedTicket.id, "IN_PROGRESS")}
-                        className="text-xs font-bold rounded-xl border-sky-300 text-sky-800 hover:bg-sky-50"
+                        className="text-xs font-bold rounded-xl border-[#e7e0d0] text-[#3d3426] hover:bg-[#f4efe5]"
                       >
                         Mark In Progress
                       </Button>
@@ -768,7 +765,7 @@ export default function AdminMailflarePage() {
                     <Button
                       size="sm"
                       onClick={() => handleUpdateStatus(selectedTicket.id, "RESOLVED")}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+                      className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] hover:from-[#c59b27] hover:to-[#9a7318] text-[#191512] text-xs font-black rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Resolve & Stack</span>
@@ -776,10 +773,10 @@ export default function AdminMailflarePage() {
                   </div>
                 </div>
 
-                {/* Student Profile Card Ribbon */}
-                <div className="px-5 py-3.5 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between gap-3 text-xs">
+                {/* Student Profile Ribbon */}
+                <div className="px-5 py-3.5 bg-[#f4efe5] border-b border-[#e7e0d0] flex items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-emerald-800 text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden shadow-xs">
+                    <div className="w-9 h-9 rounded-full bg-[#191512] text-[#f3b833] flex items-center justify-center font-black text-sm shrink-0 overflow-hidden shadow-xs border border-[#d4af37]/40">
                       {selectedTicket.sender.photo ? (
                         <img
                           src={selectedTicket.sender.photo}
@@ -792,42 +789,42 @@ export default function AdminMailflarePage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900">
+                        <span className="font-extrabold text-[#221c12]">
                           {selectedTicket.sender.name}
                         </span>
-                        <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-800 bg-emerald-50">
+                        <Badge variant="outline" className="text-[10px] border-[#edd7a6] text-[#9a7318] bg-[#fbf5e6] font-bold">
                           {selectedTicket.sender.grade}
                         </Badge>
                       </div>
-                      <div className="text-[11px] text-slate-500 font-mono">
-                        ITS: <strong className="text-slate-800">{selectedTicket.sender.its}</strong> &middot; {selectedTicket.sender.email}
+                      <div className="text-[11px] text-[#6b5f4b] font-mono">
+                        ITS: <strong className="text-[#221c12]">{selectedTicket.sender.its}</strong> &middot; {selectedTicket.sender.email}
                       </div>
                     </div>
                   </div>
 
                   {selectedTicket.sender.mobile && selectedTicket.sender.mobile !== "N/A" && (
-                    <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
+                    <span className="text-[11px] text-[#6b5f4b] font-mono hidden sm:inline">
                       📞 {selectedTicket.sender.mobile}
                     </span>
                   )}
                 </div>
 
                 {/* Conversation Body & Thread */}
-                <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[460px] bg-slate-50/40">
+                <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[460px] bg-[#faf7f0]">
                   {/* Initial Inquiry / Message */}
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-2xs">
+                  <div className="p-4 rounded-2xl bg-white border border-[#e7e0d0] space-y-2 shadow-2xs">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-emerald-700" />
+                      <span className="font-bold text-[#221c12] flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-[#9a7318]" />
                         <span>
                           {selectedTicket.outbound ? "Administration Dispatch" : selectedTicket.sender.name}
                         </span>
                       </span>
-                      <span className="text-slate-400 font-mono text-[11px]">
+                      <span className="text-[#97896f] font-mono text-[11px]">
                         {new Date(selectedTicket.createdAt).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
+                    <p className="text-xs sm:text-sm text-[#221c12] whitespace-pre-wrap leading-relaxed">
                       {selectedTicket.message}
                     </p>
                   </div>
@@ -839,22 +836,22 @@ export default function AdminMailflarePage() {
                     return (
                       <div
                         key={idx}
-                        className={`p-4 rounded-2xl border text-xs sm:text-sm space-y-1.5 shadow-2xs ${
+                        className={`p-4 rounded-2xl border text-xs sm:text-sm space-y-1.5 shadow-sm ${
                           isAdmin
-                            ? "bg-[#064e3b] text-white border-emerald-700 ml-6 sm:ml-12"
-                            : "bg-white text-slate-900 border-slate-200 mr-6 sm:mr-12"
+                            ? "bg-[#191512] text-[#faf7f0] border-[#d4af37]/40 ml-6 sm:ml-12"
+                            : "bg-white text-[#221c12] border-[#e7e0d0] mr-6 sm:mr-12"
                         }`}
                       >
                         <div className="flex items-center justify-between text-xs pb-1 border-b border-white/10">
-                          <span className={`font-bold flex items-center gap-1.5 ${isAdmin ? "text-amber-300" : "text-emerald-800"}`}>
+                          <span className={`font-bold flex items-center gap-1.5 ${isAdmin ? "text-[#f3b833]" : "text-[#065f46]"}`}>
                             {isAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
                             <span>{reply.senderName}</span>
                           </span>
-                          <span className={`font-mono text-[11px] ${isAdmin ? "text-emerald-200/80" : "text-slate-400"}`}>
+                          <span className={`font-mono text-[11px] ${isAdmin ? "text-[#e7dec8]" : "text-[#97896f]"}`}>
                             {timeAgo(reply.timestamp)}
                           </span>
                         </div>
-                        <p className={`whitespace-pre-wrap leading-relaxed ${isAdmin ? "text-emerald-50" : "text-slate-800"}`}>
+                        <p className={`whitespace-pre-wrap leading-relaxed ${isAdmin ? "text-[#fff8e7]" : "text-[#221c12]"}`}>
                           {reply.text}
                         </p>
                       </div>
@@ -863,18 +860,18 @@ export default function AdminMailflarePage() {
                 </div>
 
                 {/* Reply Composer Box */}
-                <div className="p-4 border-t border-slate-200 bg-white space-y-3">
+                <div className="p-4 border-t border-[#e7e0d0] bg-white space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Reply className="w-3.5 h-3.5 text-emerald-700" />
+                    <span className="text-xs font-bold text-[#3d3426] flex items-center gap-1.5">
+                      <Reply className="w-3.5 h-3.5 text-[#9a7318]" />
                       <span>Post Official Reply (Synchronizes with Student Portal)</span>
                     </span>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-xs text-[#6b5f4b] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={notifyByEmail}
                         onChange={(e) => setNotifyByEmail(e.target.checked)}
-                        className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
+                        className="rounded border-[#e7e0d0] text-[#9a7318] focus:ring-[#d4af37]"
                       />
                       <span>Also send email notification</span>
                     </label>
@@ -889,18 +886,18 @@ export default function AdminMailflarePage() {
                         handleSendReply();
                       }
                     }}
-                    placeholder="Type official IT Support response... (Ctrl+Enter to send)"
-                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 bg-slate-50 text-slate-900"
+                    placeholder="Type official response... (Ctrl+Enter to send)"
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-[#e7e0d0] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/20 focus:border-[#d4af37] bg-[#faf7f0] text-[#221c12]"
                   />
 
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">
-                      Shortcut: <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px] font-mono">Ctrl+Enter</kbd>
+                    <span className="text-[11px] text-[#97896f]">
+                      Shortcut: <kbd className="px-1 py-0.5 bg-[#f4efe5] rounded text-[10px] font-mono border border-[#e7e0d0]">Ctrl+Enter</kbd>
                     </span>
                     <Button
                       onClick={handleSendReply}
                       disabled={submittingReply || !replyText.trim()}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-xs"
+                      className="bg-gradient-to-r from-[#d4af37] via-[#f3b833] to-[#c59b27] hover:from-[#c59b27] hover:to-[#b8860b] text-[#191512] font-black text-xs px-5 py-2 rounded-xl shadow-sm cursor-pointer"
                     >
                       {submittingReply ? (
                         <>
@@ -918,10 +915,10 @@ export default function AdminMailflarePage() {
                 </div>
               </Card>
             ) : (
-              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 h-full flex flex-col items-center justify-center space-y-3">
-                <Mail className="w-12 h-12 text-slate-300" />
-                <h3 className="font-bold text-slate-800 text-sm">Select an inquiry to view thread</h3>
-                <p className="text-xs text-slate-500 max-w-sm">
+              <div className="p-12 text-center bg-white rounded-3xl border border-[#e7e0d0] h-full flex flex-col items-center justify-center space-y-3">
+                <Mail className="w-12 h-12 text-[#e7e0d0]" />
+                <h3 className="font-bold text-[#221c12] text-sm">Select an inquiry to view thread</h3>
+                <p className="text-xs text-[#6b5f4b] max-w-sm">
                   Click on any ticket in the active stack to read replies, change status, or dispatch direct answers.
                 </p>
               </div>
@@ -935,26 +932,26 @@ export default function AdminMailflarePage() {
       {/* ══════════════════════════════════════════════════════════ */}
       {stackView === "RESOLVED" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80">
+          <div className="flex items-center justify-between bg-[#fbf9f4] p-4 rounded-2xl border border-[#e7e0d0]">
             <div>
-              <h3 className="text-sm font-extrabold text-emerald-950 flex items-center gap-2">
-                <Archive className="w-4 h-4 text-emerald-800" />
+              <h3 className="text-sm font-extrabold text-[#221c12] flex items-center gap-2">
+                <Archive className="w-4 h-4 text-[#9a7318]" />
                 <span>Resolved Stack Archive ({resolvedTickets.length})</span>
               </h3>
-              <p className="text-xs text-emerald-800/80 mt-0.5">
+              <p className="text-xs text-[#6b5f4b] mt-0.5">
                 Inquiries are automatically moved here when marked resolved. You can reopen any inquiry at any time.
               </p>
             </div>
-            <Badge variant="outline" className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold text-xs">
+            <Badge variant="outline" className="bg-[#fbf5e6] text-[#9a7318] border-[#edd7a6] font-bold text-xs">
               🔒 Automated Archive
             </Badge>
           </div>
 
           {resolvedTickets.length === 0 ? (
-            <Card className="rounded-2xl border-slate-200 p-12 text-center bg-white space-y-2">
-              <Archive className="w-10 h-10 text-slate-300 mx-auto" />
-              <h4 className="font-bold text-slate-800 text-sm">No Resolved Inquiries In Stack</h4>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <Card className="rounded-3xl border border-[#e7e0d0] p-12 text-center bg-white space-y-2">
+              <Archive className="w-10 h-10 text-[#e7e0d0] mx-auto" />
+              <h4 className="font-bold text-[#221c12] text-sm">No Resolved Inquiries In Stack</h4>
+              <p className="text-xs text-[#6b5f4b] max-w-md mx-auto">
                 When you click "Resolve & Stack" on an active inquiry, it will neatly archive here.
               </p>
             </Card>
@@ -963,29 +960,29 @@ export default function AdminMailflarePage() {
               {resolvedTickets.map((t) => (
                 <div
                   key={t.id}
-                  className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-2xs hover:border-emerald-300 transition"
+                  className="p-5 rounded-2xl border border-[#e7e0d0] bg-white space-y-3 shadow-2xs hover:border-[#d4af37] transition"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                        <span className="font-mono text-xs font-black text-[#221c12] bg-[#f4efe5] px-2 py-0.5 rounded-md border border-[#e7e0d0]">
                           #{t.ticketId}
                         </span>
-                        <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold text-[10px]">
+                        <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 font-bold text-[10px]">
                           RESOLVED
                         </Badge>
-                        <span className="text-[11px] text-slate-400 font-mono">
+                        <span className="text-[11px] text-[#97896f] font-mono">
                           {timeAgo(t.createdAt)}
                         </span>
                       </div>
-                      <h4 className="text-sm font-extrabold text-slate-900 truncate">{t.subject}</h4>
+                      <h4 className="text-sm font-extrabold text-[#221c12] truncate">{t.subject}</h4>
                     </div>
 
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleUpdateStatus(t.id, "OPEN")}
-                      className="text-xs font-bold rounded-xl text-slate-700 hover:bg-slate-100 shrink-0 flex items-center gap-1"
+                      className="text-xs font-bold rounded-xl text-[#3d3426] hover:bg-[#f4efe5] border-[#e7e0d0] shrink-0 flex items-center gap-1"
                       title="Reopen inquiry and return to Active Stack"
                     >
                       <RotateCcw className="w-3 h-3" />
@@ -993,20 +990,20 @@ export default function AdminMailflarePage() {
                     </Button>
                   </div>
 
-                  <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-xs text-[#6b5f4b] line-clamp-2 leading-relaxed bg-[#faf7f0] p-3 rounded-xl border border-[#f0eadb]">
                     {t.message}
                   </p>
 
-                  <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-[#f0eadb]">
                     <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[9px]">
+                      <div className="w-5 h-5 rounded-full bg-[#191512] text-[#f3b833] flex items-center justify-center font-bold text-[9px] border border-[#d4af37]/40">
                         {t.sender.name.slice(0, 1)}
                       </div>
-                      <span className="font-bold text-slate-800">{t.sender.name}</span>
-                      <span className="text-slate-400 text-[10.5px] font-mono">ITS: {t.sender.its}</span>
+                      <span className="font-bold text-[#221c12]">{t.sender.name}</span>
+                      <span className="text-[#97896f] text-[10.5px] font-mono">ITS: {t.sender.its}</span>
                     </div>
 
-                    <span className="text-[11px] font-bold text-emerald-700">
+                    <span className="text-[11px] font-bold text-[#9a7318]">
                       {t.replies.length} replies logged
                     </span>
                   </div>
@@ -1022,28 +1019,28 @@ export default function AdminMailflarePage() {
       {/* ══════════════════════════════════════════════════════════ */}
       {stackView === "COMPOSE" && (
         <div className="space-y-6">
-          <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white overflow-hidden">
-            <CardHeader className="bg-slate-50/70 border-b border-slate-100 p-5">
-              <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <Send className="w-4 h-4 text-emerald-700" />
+          <Card className="rounded-3xl border border-[#e7e0d0] shadow-sm bg-white overflow-hidden">
+            <CardHeader className="bg-[#fbf9f4] border-b border-[#e7e0d0] p-5">
+              <CardTitle className="text-base font-extrabold text-[#221c12] flex items-center gap-2 font-display">
+                <Send className="w-4 h-4 text-[#9a7318]" />
                 <span>Dispatch Official Communication to Student</span>
               </CardTitle>
-              <p className="text-xs text-slate-500">
-                Dispatches directly to the student's Talabat portal and sends an email notification.
+              <p className="text-xs text-[#6b5f4b]">
+                Dispatches directly to the student's Talabat portal and triggers real-time synchronization.
               </p>
             </CardHeader>
 
             <CardContent className="p-5 sm:p-7 space-y-6">
               {/* Quick Student Picker */}
               <div className="space-y-2.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#3d3426]">
                   Select Recipient Student (Instant Talabat Synchronization)
                 </label>
 
                 {selectedStudent ? (
-                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-3">
+                  <div className="p-4 rounded-2xl bg-[#fdfbf7] border-2 border-[#d4af37] flex items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-emerald-800 text-white flex items-center justify-center font-black text-sm overflow-hidden shrink-0 shadow-xs">
+                      <div className="w-10 h-10 rounded-full bg-[#191512] text-[#f3b833] flex items-center justify-center font-black text-sm overflow-hidden shrink-0 shadow-xs border border-[#d4af37]/40">
                         {selectedStudent.avatarUrl ? (
                           <img src={selectedStudent.avatarUrl} alt={selectedStudent.name} className="w-full h-full object-cover" />
                         ) : (
@@ -1052,14 +1049,14 @@ export default function AdminMailflarePage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-slate-900 text-sm">
+                          <span className="font-extrabold text-[#221c12] text-sm">
                             {selectedStudent.name}
                           </span>
-                          <Badge className="bg-emerald-700 text-white text-[10px] font-bold">
+                          <Badge className="bg-[#fbf5e6] text-[#9a7318] border border-[#edd7a6] text-[10px] font-bold">
                             {selectedStudent.grade}
                           </Badge>
                         </div>
-                        <div className="text-xs text-emerald-800 font-mono mt-0.5">
+                        <div className="text-xs text-[#9a7318] font-mono mt-0.5">
                           ITS: <strong>{selectedStudent.its}</strong> &middot; {selectedStudent.institutionalEmail}
                         </div>
                       </div>
@@ -1072,7 +1069,7 @@ export default function AdminMailflarePage() {
                         setSelectedStudent(null);
                         setComposeTo("");
                       }}
-                      className="text-xs font-bold rounded-xl"
+                      className="text-xs font-bold rounded-xl border-[#e7e0d0] text-[#3d3426] hover:bg-[#f4efe5]"
                     >
                       Change Student
                     </Button>
@@ -1080,13 +1077,13 @@ export default function AdminMailflarePage() {
                 ) : (
                   <div className="space-y-2.5">
                     <div className="relative">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#97896f]" />
                       <input
                         type="text"
                         value={studentSearch}
                         onChange={(e) => setStudentSearch(e.target.value)}
                         placeholder="Search student by Name, ITS Number, or Grade..."
-                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-2.5 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-[#221c12] focus:bg-white focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
                       />
                     </div>
 
@@ -1097,9 +1094,9 @@ export default function AdminMailflarePage() {
                           key={s.id}
                           type="button"
                           onClick={() => handleSelectStudent(s)}
-                          className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition flex items-center gap-2.5 cursor-pointer bg-slate-50/50"
+                          className="p-2.5 rounded-xl border border-[#e7e0d0] hover:border-[#d4af37] hover:bg-[#fdfbf7] text-left transition flex items-center gap-2.5 cursor-pointer bg-white"
                         >
-                          <div className="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                          <div className="w-7 h-7 rounded-full bg-[#191512] text-[#f3b833] flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-[#d4af37]/40">
                             {s.avatarUrl ? (
                               <img src={s.avatarUrl} alt={s.name} className="w-full h-full object-cover" />
                             ) : (
@@ -1107,8 +1104,8 @@ export default function AdminMailflarePage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-slate-900 truncate">{s.name}</p>
-                            <p className="text-[10px] text-slate-500 font-mono">ITS: {s.its}</p>
+                            <p className="text-xs font-bold text-[#221c12] truncate">{s.name}</p>
+                            <p className="text-[10px] text-[#97896f] font-mono">ITS: {s.its}</p>
                           </div>
                         </button>
                       ))}
@@ -1119,8 +1116,8 @@ export default function AdminMailflarePage() {
 
               {/* Canned Response Chips */}
               <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[#3d3426] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#f3b833]" />
                   <span>Insert One-Click Canned Response</span>
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1132,7 +1129,7 @@ export default function AdminMailflarePage() {
                         setComposeSubject(`Administrative Notice: ${chip.title}`);
                         setComposeMessage(chip.text);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-emerald-50 hover:text-emerald-900 border border-slate-200 hover:border-emerald-300 transition text-slate-700 cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#f4efe5] hover:bg-[#fbf5e6] hover:text-[#9a7318] border border-[#e7e0d0] hover:border-[#edd7a6] transition text-[#3d3426] cursor-pointer"
                     >
                       + {chip.title}
                     </button>
@@ -1143,27 +1140,27 @@ export default function AdminMailflarePage() {
               <form onSubmit={handleSendCompose} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#3d3426] mb-1.5">
                       Subject
                     </label>
                     <input
                       type="text"
                       value={composeSubject}
                       onChange={(e) => setComposeSubject(e.target.value)}
-                      placeholder="e.g. Portal Credentials Update & Maktab Guidelines"
-                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      placeholder="e.g. Portal Credentials Update & Guidelines"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-[#221c12] focus:bg-white focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#3d3426] mb-1.5">
                       Priority
                     </label>
                     <select
                       value={composePriority}
                       onChange={(e: any) => setComposePriority(e.target.value)}
-                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] font-medium text-[#221c12] focus:bg-white focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
                     >
                       <option value="NORMAL">Normal Priority</option>
                       <option value="HIGH">High Priority</option>
@@ -1173,7 +1170,7 @@ export default function AdminMailflarePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#3d3426] mb-1.5">
                     Official Message Body
                   </label>
                   <textarea
@@ -1181,19 +1178,19 @@ export default function AdminMailflarePage() {
                     value={composeMessage}
                     onChange={(e) => setComposeMessage(e.target.value)}
                     placeholder="Compose official institutional message to the student..."
-                    className="w-full text-xs sm:text-sm p-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                    className="w-full text-xs sm:text-sm p-3.5 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-[#221c12] focus:bg-white focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
                     required
                   />
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-[#6b5f4b]">
                     A synchronized record will be created in the student's portal immediately.
                   </span>
                   <Button
                     type="submit"
                     disabled={submittingCompose}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl shadow-md transition"
+                    className="bg-gradient-to-r from-[#d4af37] via-[#f3b833] to-[#c59b27] hover:from-[#c59b27] hover:to-[#b8860b] text-[#191512] font-black text-xs sm:text-sm px-6 py-2.5 rounded-xl shadow-md transition cursor-pointer"
                   >
                     {submittingCompose ? (
                       <>

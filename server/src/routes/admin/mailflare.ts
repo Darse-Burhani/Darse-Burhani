@@ -257,7 +257,8 @@ router.post("/reply", requireRole("ADMIN"), async (req, res) => {
       where: {
         OR: [
           { id: primaryNotification.id },
-          { body: { contains: `"ticketId":"${canonicalTicketId}"` } },
+          { body: { contains: canonicalTicketId } },
+          { title: { contains: canonicalTicketId } },
         ],
       },
     });
@@ -286,16 +287,14 @@ router.post("/reply", requireRole("ADMIN"), async (req, res) => {
     }
 
     // 4. Send in-app push notification to the student user
-    let studentUserId = primaryMeta.studentId;
-    if (!studentUserId && primaryNotification.userId !== session.user.id) {
-      studentUserId = primaryNotification.userId;
-    }
-    // If still not identified, search if recipientUser exists
+    const studentLinkedNotif = linkedNotifications.find((n) => n.userId !== session.user.id);
+    let studentUserId = primaryMeta.studentId || studentLinkedNotif?.userId;
+
     if (!studentUserId && primaryMeta.studentEmail) {
       const u = await prisma.user.findFirst({
         where: {
           OR: [
-            { email: primaryMeta.studentEmail },
+            { email: { equals: primaryMeta.studentEmail, mode: "insensitive" } },
             { studentProfile: { its: primaryMeta.studentIts || "" } },
           ],
         },
@@ -460,13 +459,28 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
       : null;
 
     if (!studentUser && cleanTo) {
+      const itsMatch = cleanTo.match(/\b\d{7,8}\b/)?.[0];
+      const nameParts = cleanTo.split("@")[0].split(/[._\s-]+/).filter((p) => p.length > 2);
+
       studentUser = await prisma.user.findFirst({
         where: {
           role: "STUDENT",
           OR: [
             { email: { equals: cleanTo, mode: "insensitive" } },
+            { email: { startsWith: cleanTo.split("@")[0], mode: "insensitive" } },
+            ...(itsMatch ? [{ studentProfile: { its: itsMatch } }, { studentProfile: { studentId: itsMatch } }] : []),
             { studentProfile: { its: cleanTo } },
             { studentProfile: { studentId: cleanTo } },
+            ...(nameParts.length >= 2
+              ? [
+                  {
+                    AND: [
+                      { firstName: { contains: nameParts[0], mode: "insensitive" } },
+                      { lastName: { contains: nameParts[nameParts.length - 1], mode: "insensitive" } },
+                    ],
+                  },
+                ]
+              : []),
           ],
         },
         include: { studentProfile: true },
@@ -508,6 +522,7 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
         outbound: false,
       };
 
+      // Create primary support ticket
       await prisma.notification.create({
         data: {
           userId: studentUser.id,
@@ -516,6 +531,19 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
           type: "SUPPORT_TICKET",
           link: `/talabat/support?ticket=${ticketCode}`,
           priority,
+          isRead: false,
+        },
+      });
+
+      // Also create an immediate announcement notification so student bell rings with unread dot!
+      await prisma.notification.create({
+        data: {
+          userId: studentUser.id,
+          title: `Administrative Notice: ${subject.trim()}`,
+          body: `Idarah IT Administration dispatched an official communication: "${message.trim().slice(0, 110)}${message.trim().length > 110 ? "…" : ""}"`,
+          type: "ANNOUNCEMENT",
+          link: `/talabat/support?ticket=${ticketCode}`,
+          priority: "HIGH",
           isRead: false,
         },
       });
