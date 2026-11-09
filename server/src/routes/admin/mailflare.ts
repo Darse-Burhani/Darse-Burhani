@@ -26,11 +26,19 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       take: 150,
     });
 
-    const userIds = Array.from(new Set(rawNotifications.map((n) => n.userId).filter(Boolean)));
+    // Collect all relevant user IDs: notif.userId and any studentId embedded in metadata
+    const userIds = new Set<string>();
+    for (const notif of rawNotifications) {
+      if (notif.userId) userIds.add(notif.userId);
+      try {
+        const m = JSON.parse(notif.body);
+        if (m.studentId) userIds.add(m.studentId);
+      } catch {}
+    }
 
     // Batch query users
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
+      where: { id: { in: Array.from(userIds) } },
       include: {
         studentProfile: true,
         teacherProfile: true,
@@ -39,12 +47,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
     const userMap = new Map(users.map((u) => [u.id, u]));
 
-    let openCount = 0;
-    let inProgressCount = 0;
-    let resolvedCount = 0;
-    let unreadCount = 0;
-
-    // Deduplicate by ticketId so we don't display duplicate cards for student+admin copies
+    // Deduplicate by canonicalTicketId so we don't display duplicate cards for student+admin copies
     const ticketMap = new Map<string, any>();
 
     for (const notif of rawNotifications) {
@@ -57,10 +60,9 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
       const canonicalTicketId = meta.ticketId || `IT-${notif.id.slice(-6).toUpperCase()}`;
 
-      // If we already added this canonicalTicketId, check if this one has newer replies or details
+      // If we already added this canonicalTicketId, merge any newer replies or status
       if (ticketMap.has(canonicalTicketId)) {
         const existing = ticketMap.get(canonicalTicketId);
-        // keep latest replies
         if (Array.isArray(meta.replies) && meta.replies.length > existing.replies.length) {
           existing.replies = meta.replies;
         }
@@ -71,11 +73,6 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       }
 
       const status = (meta.status || "OPEN").toUpperCase();
-      if (status === "RESOLVED") resolvedCount++;
-      else if (status === "IN_PROGRESS") inProgressCount++;
-      else openCount++;
-
-      if (!notif.isRead) unreadCount++;
 
       // Identify student or sender
       let senderUser = userMap.get(notif.userId);
@@ -143,6 +140,20 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     }
 
     const tickets = Array.from(ticketMap.values());
+    tickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    let openCount = 0;
+    let inProgressCount = 0;
+    let resolvedCount = 0;
+    let unreadCount = 0;
+
+    for (const t of tickets) {
+      if (t.status === "RESOLVED") resolvedCount++;
+      else if (t.status === "IN_PROGRESS") inProgressCount++;
+      else openCount++;
+
+      if (!t.isRead) unreadCount++;
+    }
 
     return res.json({
       success: true,
@@ -438,7 +449,10 @@ router.patch("/status", requireRole("ADMIN"), async (req, res) => {
       m.status = status;
       await prisma.notification.update({
         where: { id: notif.id },
-        data: { body: JSON.stringify(m) },
+        data: {
+          body: JSON.stringify(m),
+          ...(status === "RESOLVED" ? { isRead: true } : {}),
+        },
       });
     }
 
@@ -484,6 +498,8 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
           OR: [
             { email: { equals: cleanTo, mode: "insensitive" } },
             { email: { startsWith: cleanTo.split("@")[0], mode: "insensitive" } },
+            { username: { equals: cleanTo, mode: "insensitive" } },
+            ...(itsMatch ? [{ username: { equals: itsMatch, mode: "insensitive" } }] : []),
             ...(itsMatch ? [{ studentProfile: { its: itsMatch } }, { studentProfile: { studentId: itsMatch } }] : []),
             { studentProfile: { its: cleanTo } },
             { studentProfile: { studentId: cleanTo } },

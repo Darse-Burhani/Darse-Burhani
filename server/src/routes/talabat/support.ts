@@ -543,7 +543,10 @@ router.patch("/status", requireRole("STUDENT"), async (req, res) => {
 
       await prisma.notification.update({
         where: { id: notif.id },
-        data: { body: JSON.stringify(m) },
+        data: {
+          body: JSON.stringify(m),
+          ...(status === "RESOLVED" ? { isRead: true } : {}),
+        },
       });
     }
 
