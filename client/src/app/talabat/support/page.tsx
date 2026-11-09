@@ -390,8 +390,6 @@ export default function TalabatSupportPage() {
                 <Mail className="w-3.5 h-3.5 text-[#9a7318]" />
                 <span>{itSupportEmail}</span>
               </div>
-              <span className="text-[#e7e0d0] hidden sm:inline">&bull;</span>
-              <span className="text-[#97896f]">Lab 102 &bull; Mon–Sat 8AM–5PM</span>
             </div>
           </div>
         </div>

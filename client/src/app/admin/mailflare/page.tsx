@@ -114,8 +114,8 @@ const CANNED_RESPONSES = [
     text: "Afzalus Salam. Your portal credentials and login identity have been securely verified and updated. You may now sign in using your ITS and institutional email.",
   },
   {
-    title: "Visit IT Lab",
-    text: "Afzalus Salam. Please visit the Maktab IT Support Lab (Room 102) with your device during break hours for hardware and network diagnostics.",
+    title: "Contact IT Desk",
+    text: "Afzalus Salam. Please contact the IT Administration with your device details for hardware and network diagnostics.",
   },
   {
     title: "Biometric Re-sync",

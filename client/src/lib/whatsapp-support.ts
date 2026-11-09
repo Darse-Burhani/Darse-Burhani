@@ -57,7 +57,6 @@ export function generateAdminReplyWhatsAppMessage(params: {
       : `This is an official communication regarding your support ticket #${ticketId}. Our technical team is reviewing your request on the institutional network.`,
     ``,
     `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `📍 *Maktab IT Support Lab (Room 102)*`,
     `📞 *Desk Helpline:* ${OFFICIAL_IT_SUPPORT_PHONE_DISPLAY}`,
     `✉️ *Desk Email:* ${OFFICIAL_IT_SUPPORT_EMAIL}`,
     `🌐 *Talabat Portal:* https://darseburhani-galiakot.org/talabat/support`,
