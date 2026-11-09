@@ -39,8 +39,10 @@ const AdminLibrary = lazy(() => import("@/app/admin/library/page"));
 const AdminLibraryOverview = lazy(() => import("@/app/admin/library/overview/page"));
 const AdminLibraryShelves = lazy(() => import("@/app/admin/library/shelves/page"));
 const AdminLibraryCheckout = lazy(() => import("@/app/admin/library/checkout/page"));
+const AdminLibraryAttendance = lazy(() => import("@/app/admin/library/attendance/page"));
 const AdminLibraryOverdue = lazy(() => import("@/app/admin/library/overdue/page"));
 const AdminLibraryAuditor = lazy(() => import("@/app/admin/library/auditor/page"));
+const AdminWarasMubarak = lazy(() => import("@/app/admin/waras-mubarak/page"));
 const AdminMakhzan = lazy(() => import("@/app/admin/makhzn/page"));
 const AdminPortalAssignments = lazy(() => import("@/app/admin/portal-assignments/page"));
 const AdminTakhteet = lazy(() => import("@/app/admin/takhteet/page"));
@@ -56,12 +58,15 @@ const AdminAttendanceLogs = lazy(() => import("@/app/admin/attendance-logs/page"
 const AdminAttendanceHik = lazy(() => import("@/app/admin/attendance-hik/page"));
 const AdminManualAttendance = lazy(() => import("@/app/admin/manual-attendance/page"));
 const AdminGoogleSheets = lazy(() => import("@/app/admin/google-sheets/page"));
+const AdminWhatsApp = lazy(() => import("@/app/admin/whatsapp/page"));
+const AdminMailflare = lazy(() => import("@/app/admin/mailflare/page"));
 const AdminSettings = lazy(() => import("@/app/admin/settings/page"));
 const AdminTilawatDua = lazy(() => import("@/app/admin/tilawat-dua/page"));
 const TalabatTilawatDua = lazy(() => import("@/app/talabat/tilawat-dua/page"));
 const TeacherTilawatDua = lazy(() => import("@/app/teacher/tilawat-dua/page"));
 const FacultyTilawatDua = lazy(() => import("@/app/faculty/tilawat-dua/page"));
 const DirectProjectorPage = lazy(() => import("@/app/tilawat-dua/projector/page"));
+const FatimiDemoPage = lazy(() => import("@/app/fatimi-demo/page"));
 
 // ── Talabat (Student) Portal Pages ──
 const TalabatLayout = lazy(() => import("@/app/talabat/layout"));
@@ -78,6 +83,7 @@ const TalabatSkillTree = lazy(() => import("@/app/talabat/skill-tree/page"));
 const TalabatAssignments = lazy(() => import("@/app/talabat/assignments/page"));
 const TalabatHobbies = lazy(() => import("@/app/talabat/hobbies/page"));
 const TalabatTimetable = lazy(() => import("@/app/talabat/timetable/page"));
+const TalabatSupport = lazy(() => import("@/app/talabat/support/page"));
 const AdminAssignments = lazy(() => import("@/app/admin/assignments/page"));
 const AdminHobbies = lazy(() => import("@/app/admin/hobbies/page"));
 const AdminSkills = lazy(() => import("@/app/admin/skills/page"));
@@ -189,6 +195,26 @@ function RequireAdminPageAccess({
   return <Navigate to="/login" replace />;
 }
 
+function RootRedirect() {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <WaitingInterface variant="fullscreen" message="Restoring Institutional Session…" />;
+  }
+
+  if (session?.user?.role) {
+    const rolePaths: Record<string, string> = {
+      ADMIN: "/admin",
+      TEACHER: "/teacher",
+      STUDENT: "/talabat",
+      PARENT: "/parent",
+    };
+    return <Navigate to={rolePaths[session.user.role] || "/admin"} replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+}
+
 export default function App() {
   useAutoRouteSEO();
 
@@ -197,15 +223,23 @@ export default function App() {
       <DevLockGuard>
         <Suspense fallback={<SuspenseFallback />}>
           <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/thank-you" element={<ThankYouPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
 
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/fatimi-demo" element={<FatimiDemoPage />} />
         <Route path="/fatimi-calendar" element={<RequireCalendarAccess><FatimiCalendarPage /></RequireCalendarAccess>} />
         <Route path="/calendar" element={<Navigate to="/fatimi-calendar" replace />} />
         <Route path="/library" element={<Navigate to="/admin/library" replace />} />
+        <Route path="/library/attendance" element={<Navigate to="/admin/library/attendance" replace />} />
+        <Route path="/maktabat" element={<Navigate to="/admin/library/attendance" replace />} />
+        <Route path="/waras-mubarak" element={<Navigate to="/admin/waras-mubarak" replace />} />
+        <Route path="/waras" element={<Navigate to="/admin/waras-mubarak" replace />} />
+        <Route path="/whatsapp" element={<Navigate to="/admin/whatsapp" replace />} />
+        <Route path="/mailflare" element={<Navigate to="/admin/mailflare" replace />} />
+        <Route path="/support" element={<Navigate to="/admin/mailflare" replace />} />
         <Route path="/library/tv" element={<LibraryTvPage />} />
         <Route
           path="/notifications"
@@ -245,8 +279,11 @@ export default function App() {
           <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
           <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
           <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
+          <Route path="library/attendance" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryAttendance /></RequireAdminPageAccess>} />
           <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library-overdue"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
           <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library-auditor"><AdminLibraryAuditor /></RequireAdminPageAccess>} />
+          <Route path="waras-mubarak" element={<RequireAdminPageAccess pageKey="students"><AdminWarasMubarak /></RequireAdminPageAccess>} />
+          <Route path="waras" element={<Navigate to="/admin/waras-mubarak" replace />} />
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><AdminTakhteet /></RequireAdminPageAccess>} />
           <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
@@ -269,6 +306,9 @@ export default function App() {
           <Route path="tracking" element={<RequireAdminPageAccess pageKey="tracking"><AdminTracking /></RequireAdminPageAccess>} />
           <Route path="analytics" element={<Navigate to="/admin/tracking" replace />} />
           <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />
+          <Route path="whatsapp" element={<RequireAdminPageAccess pageKey="settings"><AdminWhatsApp /></RequireAdminPageAccess>} />
+          <Route path="mailflare" element={<AdminMailflare />} />
+          <Route path="support" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="security" element={<RequireAdminPageAccess pageKey="security"><AdminSecurity /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><AdminProcurement /></RequireAdminPageAccess>} />
           <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
@@ -312,6 +352,9 @@ export default function App() {
           <Route path="assignments" element={<ModuleLockGuard moduleKey="assignments" role="STUDENT" title="Assignments"><TalabatAssignments /></ModuleLockGuard>} />
           <Route path="hobbies" element={<ModuleLockGuard moduleKey="hobbies" role="STUDENT" title="Hobbies & Skills"><TalabatHobbies /></ModuleLockGuard>} />
           <Route path="tilawat-dua" element={<ModuleLockGuard moduleKey="tilawatDua" role="STUDENT" title="Tilawat Dua"><TalabatTilawatDua /></ModuleLockGuard>} />
+          <Route path="support" element={<TalabatSupport />} />
+          <Route path="mailflare" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="helpdesk" element={<Navigate to="/talabat/support" replace />} />
         </Route>
 
         {/* ── Teacher Routes ── */}
@@ -366,11 +409,17 @@ export default function App() {
           <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
           <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
           <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
+          <Route path="library/attendance" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryAttendance /></RequireAdminPageAccess>} />
           <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library-overdue"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
           <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library-auditor"><AdminLibraryAuditor /></RequireAdminPageAccess>} />
+          <Route path="waras-mubarak" element={<RequireAdminPageAccess pageKey="students"><AdminWarasMubarak /></RequireAdminPageAccess>} />
+          <Route path="waras" element={<Navigate to="/admin/waras-mubarak" replace />} />
           <Route path="makhzn" element={<RequireAdminPageAccess pageKey="makhzan"><AdminMakhzan /></RequireAdminPageAccess>} />
           <Route path="makhzan" element={<Navigate to="/teacher/makhzn" replace />} />
           <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />
+          <Route path="whatsapp" element={<RequireAdminPageAccess pageKey="settings"><AdminWhatsApp /></RequireAdminPageAccess>} />
+          <Route path="mailflare" element={<AdminMailflare />} />
+          <Route path="support" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="security" element={<RequireAdminPageAccess pageKey="security"><AdminSecurity /></RequireAdminPageAccess>} />
           <Route path="schedule" element={<Navigate to="/teacher/attendance-schedule" replace />} />
           <Route path="attendance-log" element={<Navigate to="/teacher/attendance-hik" replace />} />
