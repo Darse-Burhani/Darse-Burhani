@@ -1007,109 +1007,7 @@ export async function processBiometricScan(
         its: (teacher as any).its || teacher.employeeId,
       };
 
-      // Fetch the faculty timer from the unified schedule event (hardware biometric devices)
-      const facultyWindow = await getScanWindow("TEACHER", when, true);
-      const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when, true);
-
-      // Determine attendance status (PRESENT / LATE) with resilient schedule handling
-      let teacherStatus: "PRESENT" | "LATE" = "PRESENT";
-      if (facultyWindow && facultyWindow.enabled) {
-        if (facultyWindowStatus.isUpcoming) {
-          // Early arrival: Faculty member arrived early before official start time -> marked PRESENT
-          teacherStatus = "PRESENT";
-        } else if (facultyWindowStatus.isExceeded || resolveScanStatus(facultyWindow, scanMinutes) === "CLOSED") {
-          const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
-            where: { teacherId_date: { teacherId: teacher.id, date } },
-          });
-
-          if (
-            existingTeacherRecord &&
-            (existingTeacherRecord.status === "PRESENT" ||
-              existingTeacherRecord.status === "LATE" ||
-              existingTeacherRecord.status === "MEDICAL" ||
-              existingTeacherRecord.status === "ON_LEAVE")
-          ) {
-            const firstCheckIn = existingTeacherRecord.checkInTime;
-            if (!firstCheckIn) {
-              await prisma.teacherAttendanceRecord.update({
-                where: { teacherId_date: { teacherId: teacher.id, date } },
-                data: {
-                  checkInTime: when,
-                  verificationMethod: "BIOMETRIC",
-                  biometricMethod: method === "BIOMETRIC" ? null : method,
-                  biometricHash: fingerprint,
-                  notes: `Premises check-in scan (${timeFormatted12} IST via ${method})`,
-                },
-              });
-            } else if (when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
-              await prisma.teacherAttendanceRecord.update({
-                where: { teacherId_date: { teacherId: teacher.id, date } },
-                data: { checkOutTime: when },
-              });
-            }
-
-            const timeStr = firstCheckIn
-              ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
-              : timeFormatted12;
-
-            return pushEvent({
-              type: "DUPLICATE",
-              fingerprint,
-              deviceId: deviceId ?? null,
-              role: "TEACHER",
-              isDuplicate: true,
-              teacher: {
-                ...teacherInfo,
-                status: existingTeacherRecord.status as "PRESENT" | "LATE",
-                attendanceId: existingTeacherRecord.id,
-              },
-              message: `Faculty Verified (Checked in at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
-              verifyMode: method,
-              scanWindow: windowPayload(facultyWindow),
-            }, when, false);
-          }
-
-          // Unscanned during event window was marked ABSENT -> scanning in premises marks PRESENT!
-          teacherStatus = "PRESENT";
-        } else {
-          teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
-        }
-
-        // Strict Exemption: Excluded from schedule session
-        if (facultyWindow.exemptTeacherIds && facultyWindow.exemptTeacherIds.includes(teacher.id)) {
-          return pushEvent({
-            type: "SYSTEM",
-            fingerprint,
-            deviceId: deviceId ?? null,
-            role: "TEACHER",
-            teacher: teacherInfo,
-            message: `Faculty ${teacherInfo.name} is exempt from "${facultyWindow.eventName}". Scan acknowledged.`,
-            verifyMode: method,
-            scanWindow: windowPayload(facultyWindow),
-          }, when, true);
-        }
-
-        // Strict Roster Applicability: If roster is specified, only assigned faculty are processed
-        if (facultyWindow.applicableTeacherIds && facultyWindow.applicableTeacherIds.length > 0) {
-          if (!facultyWindow.applicableTeacherIds.includes(teacher.id)) {
-            return pushEvent({
-              type: "SYSTEM",
-              fingerprint,
-              deviceId: deviceId ?? null,
-              role: "TEACHER",
-              teacher: teacherInfo,
-              message: `Faculty ${teacherInfo.name} is not in the applicability roster for "${facultyWindow.eventName}".`,
-              verifyMode: method,
-              scanWindow: windowPayload(facultyWindow),
-            }, when, true);
-          }
-        }
-      } else {
-        // Post-event premises arrival: Any scan in premises marks PRESENT
-        teacherStatus = "PRESENT";
-      }
-
-      // Check if faculty member is on active Medical Exemption or Authorized Leave today
+      // 1. Check if faculty member is on active Medical Exemption or Authorized Leave / Holiday today
       const activeMedical = await prisma.medicalExemption.findFirst({
         where: {
           teacherId: teacher.id,
@@ -1191,8 +1089,103 @@ export async function processBiometricScan(
           },
           message: `Faculty Verified (On ${statusLabel}): ${teacherInfo.name}`,
           verifyMode: method,
-          scanWindow: windowPayload(facultyWindow),
         }, when, false);
+      }
+
+      // Fetch the faculty timer from the unified schedule event (hardware biometric devices)
+      const facultyWindow = await getScanWindow("TEACHER", when, true);
+      const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when, true);
+
+      // Determine attendance status (PRESENT / LATE) with resilient schedule handling
+      let teacherStatus: "PRESENT" | "LATE" = "PRESENT";
+      if (facultyWindow && facultyWindow.enabled) {
+        if (facultyWindowStatus.isUpcoming) {
+          // Early arrival: Faculty member arrived early before official start time -> marked PRESENT
+          teacherStatus = "PRESENT";
+        } else if (facultyWindowStatus.isExceeded || resolveScanStatus(facultyWindow, scanMinutes) === "CLOSED") {
+          if (
+            existingTeacherRecord &&
+            (existingTeacherRecord.status === "PRESENT" ||
+              existingTeacherRecord.status === "LATE")
+          ) {
+            const firstCheckIn = existingTeacherRecord.checkInTime;
+            if (!firstCheckIn) {
+              await prisma.teacherAttendanceRecord.update({
+                where: { teacherId_date: { teacherId: teacher.id, date } },
+                data: {
+                  checkInTime: when,
+                  verificationMethod: "BIOMETRIC",
+                  biometricMethod: method === "BIOMETRIC" ? null : method,
+                  biometricHash: fingerprint,
+                  notes: `Premises check-in scan (${timeFormatted12} IST via ${method})`,
+                },
+              });
+            } else if (when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+              await prisma.teacherAttendanceRecord.update({
+                where: { teacherId_date: { teacherId: teacher.id, date } },
+                data: { checkOutTime: when },
+              });
+            }
+
+            const timeStr = firstCheckIn
+              ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
+              : timeFormatted12;
+
+            return pushEvent({
+              type: "DUPLICATE",
+              fingerprint,
+              deviceId: deviceId ?? null,
+              role: "TEACHER",
+              isDuplicate: true,
+              teacher: {
+                ...teacherInfo,
+                status: existingTeacherRecord.status as "PRESENT" | "LATE",
+                attendanceId: existingTeacherRecord.id,
+              },
+              message: `Faculty Verified (Checked in at ${timeStr || "earlier"} IST): ${teacherInfo.name}`,
+              verifyMode: method,
+              scanWindow: windowPayload(facultyWindow),
+            }, when, false);
+          }
+
+          // Unscanned during event window was marked ABSENT -> scanning in premises marks PRESENT!
+          teacherStatus = "PRESENT";
+        } else {
+          teacherStatus = resolveScanStatus(facultyWindow, scanMinutes) === "LATE" ? "LATE" : "PRESENT";
+        }
+
+        // Strict Exemption: Excluded from schedule session
+        if (facultyWindow.exemptTeacherIds && facultyWindow.exemptTeacherIds.includes(teacher.id)) {
+          return pushEvent({
+            type: "SYSTEM",
+            fingerprint,
+            deviceId: deviceId ?? null,
+            role: "TEACHER",
+            teacher: teacherInfo,
+            message: `Faculty ${teacherInfo.name} is exempt from "${facultyWindow.eventName}". Scan acknowledged.`,
+            verifyMode: method,
+            scanWindow: windowPayload(facultyWindow),
+          }, when, true);
+        }
+
+        // Strict Roster Applicability: If roster is specified, only assigned faculty are processed
+        if (facultyWindow.applicableTeacherIds && facultyWindow.applicableTeacherIds.length > 0) {
+          if (!facultyWindow.applicableTeacherIds.includes(teacher.id)) {
+            return pushEvent({
+              type: "SYSTEM",
+              fingerprint,
+              deviceId: deviceId ?? null,
+              role: "TEACHER",
+              teacher: teacherInfo,
+              message: `Faculty ${teacherInfo.name} is not in the applicability roster for "${facultyWindow.eventName}".`,
+              verifyMode: method,
+              scanWindow: windowPayload(facultyWindow),
+            }, when, true);
+          }
+        }
+      } else {
+        // Post-event premises arrival: Any scan in premises marks PRESENT
+        teacherStatus = "PRESENT";
       }
 
       if (
