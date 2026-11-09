@@ -33,7 +33,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       try {
         const m = JSON.parse(notif.body);
         if (m.studentId) userIds.add(m.studentId);
-      } catch {}
+      } catch { }
     }
 
     // Batch query users
@@ -483,9 +483,9 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
     // 1. Resolve student recipient user
     let studentUser = recipientUserId
       ? await prisma.user.findUnique({
-          where: { id: recipientUserId },
-          include: { studentProfile: true },
-        })
+        where: { id: recipientUserId },
+        include: { studentProfile: true },
+      })
       : null;
 
     if (!studentUser && cleanTo) {
@@ -505,13 +505,13 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
             { studentProfile: { studentId: cleanTo } },
             ...(nameParts.length >= 2
               ? [
-                  {
-                    AND: [
-                      { firstName: { contains: nameParts[0], mode: "insensitive" } },
-                      { lastName: { contains: nameParts[nameParts.length - 1], mode: "insensitive" } },
-                    ],
-                  },
-                ]
+                {
+                  AND: [
+                    { firstName: { contains: nameParts[0], mode: "insensitive" } },
+                    { lastName: { contains: nameParts[nameParts.length - 1], mode: "insensitive" } },
+                  ],
+                },
+              ]
               : []),
           ],
         },
