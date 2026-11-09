@@ -83,6 +83,18 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         if (studentUser) senderUser = studentUser;
       }
 
+      if (!senderUser || senderUser.role === "ADMIN") {
+        if (meta.studentId) {
+          const u = userMap.get(meta.studentId);
+          if (u) senderUser = u;
+        } else if (meta.studentIts) {
+          const u = Array.from(userMap.values()).find(
+            (usr) => usr.studentProfile?.its === meta.studentIts || usr.studentProfile?.studentId === meta.studentIts
+          );
+          if (u) senderUser = u;
+        }
+      }
+
       const studentProf = senderUser?.studentProfile;
       const photo =
         senderUser?.avatarUrl ||
@@ -407,7 +419,8 @@ router.patch("/status", requireRole("ADMIN"), async (req, res) => {
       where: {
         OR: [
           { id: primaryNotification.id },
-          { body: { contains: `"ticketId":"${canonicalTicketId}"` } },
+          { body: { contains: canonicalTicketId } },
+          { title: { contains: canonicalTicketId } },
         ],
       },
     });
