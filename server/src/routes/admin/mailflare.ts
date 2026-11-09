@@ -7,6 +7,7 @@ import { TALABAT_FQDN_DOMAIN, extractStudentNameParts } from "../../lib/talabat-
 const router = Router();
 
 const SUPPORT_EMAIL = process.env.IT_SUPPORT_EMAIL || "support@darseburhani-galiakot.org";
+const PORTAL_BASE_URL = (process.env.APP_URL || process.env.NEXTAUTH_URL || "https://darseburhani-galiakot.org").replace(/\/+$/, "");
 
 /**
  * GET /api/admin/mailflare
@@ -610,7 +611,7 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
                 <p style="white-space: pre-wrap; font-size: 14px; color: #1e293b; margin: 0;">${message.trim()}</p>
               </div>
               <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
-                You can also view and reply to this message directly in your <a href="https://darseburhani-galiakot.org/talabat/support" style="color: #059669; font-weight: bold;">Talabat Student Portal</a>.
+                You can also view and reply to this message directly in your <a href="${PORTAL_BASE_URL}/talabat/support" style="color: #059669; font-weight: bold;">Talabat Student Portal</a>.
               </p>
               <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: center;">
                 Official message from <strong>${SUPPORT_EMAIL}</strong> &middot; Idarah Darse Burhani, Galiakot

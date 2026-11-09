@@ -156,6 +156,20 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SmartSupportRedirect() {
+  const { data: session, status } = useSession();
+  if (status === "loading") {
+    return <WaitingInterface variant="fullscreen" message="Accessing Communications…" />;
+  }
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+  if (session.user.role === "STUDENT") {
+    return <Navigate to="/talabat/support" replace />;
+  }
+  return <Navigate to="/admin/mailflare" replace />;
+}
+
 // The calendar route is shared cross-role, so the per-role ModuleLockGuard
 // can't cover it — this sends locked-out students/teachers back to their
 // dashboard instead of letting the URL bypass the admin's hide.
@@ -238,8 +252,12 @@ export default function App() {
         <Route path="/waras-mubarak" element={<Navigate to="/admin/waras-mubarak" replace />} />
         <Route path="/waras" element={<Navigate to="/admin/waras-mubarak" replace />} />
         <Route path="/whatsapp" element={<Navigate to="/admin/whatsapp" replace />} />
-        <Route path="/mailflare" element={<Navigate to="/admin/mailflare" replace />} />
-        <Route path="/support" element={<Navigate to="/admin/mailflare" replace />} />
+        <Route path="/mailflare" element={<SmartSupportRedirect />} />
+        <Route path="/support" element={<SmartSupportRedirect />} />
+        <Route path="/webmail" element={<SmartSupportRedirect />} />
+        <Route path="/email" element={<SmartSupportRedirect />} />
+        <Route path="/inbox" element={<SmartSupportRedirect />} />
+        <Route path="/it-support" element={<SmartSupportRedirect />} />
         <Route path="/library/tv" element={<LibraryTvPage />} />
         <Route
           path="/notifications"
@@ -309,6 +327,9 @@ export default function App() {
           <Route path="whatsapp" element={<RequireAdminPageAccess pageKey="settings"><AdminWhatsApp /></RequireAdminPageAccess>} />
           <Route path="mailflare" element={<AdminMailflare />} />
           <Route path="support" element={<Navigate to="/admin/mailflare" replace />} />
+          <Route path="email" element={<Navigate to="/admin/mailflare" replace />} />
+          <Route path="webmail" element={<Navigate to="/admin/mailflare" replace />} />
+          <Route path="inbox" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="security" element={<RequireAdminPageAccess pageKey="security"><AdminSecurity /></RequireAdminPageAccess>} />
           <Route path="procurement" element={<RequireAdminPageAccess pageKey="procurement"><AdminProcurement /></RequireAdminPageAccess>} />
           <Route path="assignments" element={<RequireAdminPageAccess pageKey="student-assignments"><AdminAssignments /></RequireAdminPageAccess>} />
@@ -355,6 +376,18 @@ export default function App() {
           <Route path="support" element={<TalabatSupport />} />
           <Route path="mailflare" element={<Navigate to="/talabat/support" replace />} />
           <Route path="helpdesk" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="mail" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="email" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="emails" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="webmail" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="inbox" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="messages" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="message" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="tickets" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="ticket" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="it-support" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="it" element={<Navigate to="/talabat/support" replace />} />
+          <Route path="*" element={<Navigate to="/talabat" replace />} />
         </Route>
 
         {/* ── Teacher Routes ── */}
@@ -420,6 +453,9 @@ export default function App() {
           <Route path="whatsapp" element={<RequireAdminPageAccess pageKey="settings"><AdminWhatsApp /></RequireAdminPageAccess>} />
           <Route path="mailflare" element={<AdminMailflare />} />
           <Route path="support" element={<Navigate to="/admin/mailflare" replace />} />
+          <Route path="email" element={<Navigate to="/admin/mailflare" replace />} />
+          <Route path="webmail" element={<Navigate to="/admin/mailflare" replace />} />
+          <Route path="inbox" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="security" element={<RequireAdminPageAccess pageKey="security"><AdminSecurity /></RequireAdminPageAccess>} />
           <Route path="schedule" element={<Navigate to="/teacher/attendance-schedule" replace />} />
           <Route path="attendance-log" element={<Navigate to="/teacher/attendance-hik" replace />} />

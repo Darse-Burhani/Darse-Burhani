@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
 import {
   Home,
   Shield,
@@ -17,6 +18,24 @@ import { SEO } from "@/components/SEO";
 
 
 export default function NotFoundPage() {
+  const { data: session } = useSession();
+
+  const role = session?.user?.role;
+  const hubHref = role === "STUDENT" 
+    ? "/talabat" 
+    : role === "TEACHER" 
+      ? "/teacher" 
+      : role === "PARENT" 
+        ? "/parent" 
+        : role === "ADMIN" 
+          ? "/admin" 
+          : "/login";
+
+  const adminHref = role === "ADMIN" ? "/admin" : "/login?role=ADMIN";
+  const teacherHref = role === "TEACHER" || role === "ADMIN" ? "/teacher" : "/login?role=TEACHER";
+  const talabatHref = role === "STUDENT" || role === "ADMIN" || role === "TEACHER" ? "/talabat" : "/login?role=STUDENT";
+  const parentHref = role === "PARENT" || role === "ADMIN" ? "/parent" : "/login?role=PARENT";
+
   return (
     <>
       <SEO
@@ -75,7 +94,7 @@ export default function NotFoundPage() {
 
               {/* Single Clear CTA */}
               <Link
-                href="/login"
+                href={hubHref}
                 className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl font-bold text-sm text-white shadow-lg transition-all active:scale-[0.98] mb-6"
                 style={{
                   background: "linear-gradient(135deg, #1c1c1c 0%, #b8541e 55%, #8a3e14 100%)",
@@ -93,28 +112,28 @@ export default function NotFoundPage() {
                 </span>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <Link
-                    href="/login?role=ADMIN"
+                    href={adminHref}
                     className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-gray-200 hover:text-white transition-colors"
                   >
                     <Shield className="w-3.5 h-3.5 text-[#d4af37]" />
                     <span>Admin</span>
                   </Link>
                   <Link
-                    href="/login?role=TEACHER"
+                    href={teacherHref}
                     className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-gray-200 hover:text-white transition-colors"
                   >
                     <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Teacher</span>
                   </Link>
                   <Link
-                    href="/login?role=STUDENT"
+                    href={talabatHref}
                     className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-gray-200 hover:text-white transition-colors"
                   >
                     <BookOpen className="w-3.5 h-3.5 text-purple-400" />
                     <span>Talabat</span>
                   </Link>
                   <Link
-                    href="/login?role=PARENT"
+                    href={parentHref}
                     className="flex items-center gap-2 p-2.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-gray-200 hover:text-white transition-colors"
                   >
                     <Users className="w-3.5 h-3.5 text-rose-400" />
