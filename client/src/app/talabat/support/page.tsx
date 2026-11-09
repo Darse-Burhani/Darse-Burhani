@@ -840,36 +840,6 @@ export default function TalabatSupportPage() {
         </motion.div>
       )}
 
-      {/* ══════════════ Mailflare & Webmail Info Strip ══════════════ */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-700 shadow-md">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 font-bold">
-            <Mail className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <span>Domain Email Routing & Mailflare Free Tier</span>
-              <Badge className="bg-emerald-500 text-slate-950 text-[10px] font-black uppercase">
-                Active
-              </Badge>
-            </h4>
-            <p className="text-xs text-slate-300">
-              Inbound emails to <code className="text-amber-300">@darseburhani-galiakot.org</code> are routed for free via Cloudflare.
-              Outbound emails are delivered with 100% DKIM authentication.
-            </p>
-          </div>
-        </div>
-
-        <a
-          href="https://dash.cloudflare.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition self-start md:self-center shrink-0"
-        >
-          <span>Cloudflare Portal</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
-      </div>
     </div>
   );
 }
