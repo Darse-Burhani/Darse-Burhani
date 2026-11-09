@@ -395,7 +395,8 @@ router.post("/reply", requireRole("STUDENT"), async (req, res) => {
         userId: session.user.id,
         OR: [
           { id: ticketId },
-          { body: { contains: `"ticketId":"${ticketId}"` } },
+          { body: { contains: ticketId } },
+          { title: { contains: ticketId } },
         ],
       },
     });
@@ -428,7 +429,8 @@ router.post("/reply", requireRole("STUDENT"), async (req, res) => {
       where: {
         OR: [
           { id: primaryNotification.id },
-          { body: { contains: `"ticketId":"${canonicalTicketId}"` } },
+          { body: { contains: canonicalTicketId } },
+          { title: { contains: canonicalTicketId } },
         ],
       },
     });
@@ -501,7 +503,8 @@ router.patch("/status", requireRole("STUDENT"), async (req, res) => {
         userId: session.user.id,
         OR: [
           { id: ticketId },
-          { body: { contains: `"ticketId":"${ticketId}"` } },
+          { body: { contains: ticketId } },
+          { title: { contains: ticketId } },
         ],
       },
     });
@@ -523,7 +526,8 @@ router.patch("/status", requireRole("STUDENT"), async (req, res) => {
       where: {
         OR: [
           { id: primaryNotification.id },
-          { body: { contains: `"ticketId":"${canonicalTicketId}"` } },
+          { body: { contains: canonicalTicketId } },
+          { title: { contains: canonicalTicketId } },
         ],
       },
     });

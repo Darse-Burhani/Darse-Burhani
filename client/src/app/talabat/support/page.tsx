@@ -250,6 +250,15 @@ export default function TalabatSupportPage() {
 
   // Student toggles status (Resolve / Reopen)
   const handleUpdateStatus = async (ticketRecordId: string, newStatus: "OPEN" | "RESOLVED") => {
+    // 1. Instantly update local state so the card vanishes with zero wait
+    setTickets((prev) =>
+      prev.map((t) =>
+        t.id === ticketRecordId || t.ticketId === ticketRecordId
+          ? { ...t, status: newStatus }
+          : t
+      )
+    );
+
     try {
       const res = await fetch("/api/talabat/support/status", {
         method: "PATCH",
@@ -267,6 +276,7 @@ export default function TalabatSupportPage() {
       }
     } catch (err) {
       console.error("Failed to update status:", err);
+      await fetchSupportData(true);
     }
   };
 

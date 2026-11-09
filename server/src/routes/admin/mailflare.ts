@@ -239,7 +239,8 @@ router.post("/reply", requireRole("ADMIN"), async (req, res) => {
       where: {
         OR: [
           { id: ticketId },
-          { body: { contains: `"ticketId":"${ticketId}"` } },
+          { body: { contains: ticketId } },
+          { title: { contains: ticketId } },
         ],
       },
     });
@@ -397,7 +398,8 @@ router.patch("/status", requireRole("ADMIN"), async (req, res) => {
       where: {
         OR: [
           { id: ticketId },
-          { body: { contains: `"ticketId":"${ticketId}"` } },
+          { body: { contains: ticketId } },
+          { title: { contains: ticketId } },
         ],
       },
     });

@@ -164,10 +164,13 @@ export default function AdminMailflarePage() {
       const json = await res.json();
       if (json.success && json.data) {
         setData(json.data);
-        if (!selectedTicketId && json.data.tickets.length > 0) {
-          const firstActive = json.data.tickets.find((t: any) => t.status !== "RESOLVED");
-          setSelectedTicketId(firstActive ? firstActive.id : json.data.tickets[0].id);
-        }
+        const activeTickets = (json.data.tickets || []).filter((t: any) => t.status !== "RESOLVED");
+        setSelectedTicketId((prevId) => {
+          if (prevId && activeTickets.some((t: any) => t.id === prevId)) {
+            return prevId;
+          }
+          return activeTickets.length > 0 ? activeTickets[0].id : null;
+        });
       }
     } catch {
       if (!isSilent) {
@@ -226,9 +229,13 @@ export default function AdminMailflarePage() {
 
   // Selected ticket
   const selectedTicket = useMemo(() => {
-    if (!data?.tickets) return null;
-    return data.tickets.find((t) => t.id === selectedTicketId) || null;
-  }, [data?.tickets, selectedTicketId]);
+    if (!data?.tickets || !selectedTicketId) return null;
+    const ticket = data.tickets.find((t) => t.id === selectedTicketId) || null;
+    if (stackView === "ACTIVE" && ticket?.status === "RESOLVED") {
+      return null;
+    }
+    return ticket;
+  }, [data?.tickets, selectedTicketId, stackView]);
 
   // Active stack tickets
   const activeTickets = useMemo(() => {
@@ -325,6 +332,31 @@ export default function AdminMailflarePage() {
     targetTicketId: string,
     status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
   ) => {
+    // 1. Instantly update local state so the card vanishes with zero wait
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tickets: prev.tickets.map((t) =>
+          t.id === targetTicketId || t.ticketId === targetTicketId
+            ? { ...t, status }
+            : t
+        ),
+      };
+    });
+
+    if (status === "RESOLVED") {
+      setSelectedTicketId((prevId) => {
+        const remainingActive = (data?.tickets || []).filter(
+          (t) =>
+            t.id !== targetTicketId &&
+            t.ticketId !== targetTicketId &&
+            t.status !== "RESOLVED"
+        );
+        return remainingActive.length > 0 ? remainingActive[0].id : null;
+      });
+    }
+
     try {
       const res = await fetch("/api/admin/mailflare/status", {
         method: "PATCH",
@@ -348,10 +380,11 @@ export default function AdminMailflarePage() {
             variant: "success",
           });
         }
-        fetchData(true);
+        await fetchData(true);
       }
     } catch {
       toast({ title: "Status update failed", variant: "destructive" });
+      await fetchData(true);
     }
   };
 
