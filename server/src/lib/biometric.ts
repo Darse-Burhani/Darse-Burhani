@@ -1008,18 +1008,26 @@ export async function processBiometricScan(
       };
 
       // 1. Check if faculty member is on active Medical Exemption or Authorized Leave / Holiday today
-      const activeMedical = await prisma.medicalExemption.findFirst({
-        where: {
-          teacherId: teacher.id,
-          date,
-          isActive: true,
-        },
-      });
+      const startOfDay = new Date(date);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setUTCHours(23, 59, 59, 999);
 
-      // Check if attendance already recorded for this faculty member today.
-      const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
-        where: { teacherId_date: { teacherId: teacher.id, date } },
-      });
+      const [activeMedical, existingTeacherRecord] = await Promise.all([
+        prisma.medicalExemption.findFirst({
+          where: {
+            teacherId: teacher.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            isActive: true,
+          },
+        }),
+        prisma.teacherAttendanceRecord.findFirst({
+          where: {
+            teacherId: teacher.id,
+            date: { gte: startOfDay, lte: endOfDay },
+          },
+        }),
+      ]);
 
       const isFacultyOnLeaveOrExempt =
         Boolean(activeMedical) ||
@@ -1044,12 +1052,12 @@ export async function processBiometricScan(
           const firstCheckIn = existingTeacherRecord.checkInTime;
           if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
             await prisma.teacherAttendanceRecord.update({
-              where: { teacherId_date: { teacherId: teacher.id, date } },
+              where: { id: existingTeacherRecord.id },
               data: { checkOutTime: when },
             });
           } else if (!firstCheckIn) {
             await prisma.teacherAttendanceRecord.update({
-              where: { teacherId_date: { teacherId: teacher.id, date } },
+              where: { id: existingTeacherRecord.id },
               data: {
                 checkInTime: when,
                 verificationMethod: "BIOMETRIC",
@@ -1381,11 +1389,18 @@ export async function processBiometricScan(
         endDate: { gte: startOfDay },
       },
     }),
-    prisma.attendanceRegistry.findUnique({
-      where: { studentId_date: { studentId: student.id, date } },
+    prisma.attendanceRegistry.findFirst({
+      where: {
+        studentId: student.id,
+        date: { gte: startOfDay, lte: endOfDay },
+      },
     }),
     prisma.medicalExemption.findFirst({
-      where: { studentId: student.id, date, isActive: true },
+      where: {
+        studentId: student.id,
+        date: { gte: startOfDay, lte: endOfDay },
+        isActive: true,
+      },
     }),
   ]);
 
@@ -1416,20 +1431,20 @@ export async function processBiometricScan(
       const firstCheckIn = existingRegistry.checkInTime;
       if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
         await prisma.attendanceRegistry.update({
-          where: { studentId_date: { studentId: student.id, date } },
+          where: { id: existingRegistry.id },
           data: { checkOutTime: when },
         });
         await prisma.attendanceRecord.updateMany({
-          where: { studentId: student.id, date },
+          where: { studentId: student.id, date: { gte: startOfDay, lte: endOfDay } },
           data: { checkOutTime: when },
         });
       } else if (!firstCheckIn) {
         await prisma.attendanceRegistry.update({
-          where: { studentId_date: { studentId: student.id, date } },
+          where: { id: existingRegistry.id },
           data: { checkInTime: when },
         });
         await prisma.attendanceRecord.updateMany({
-          where: { studentId: student.id, date },
+          where: { studentId: student.id, date: { gte: startOfDay, lte: endOfDay } },
           data: {
             checkInTime: when,
             verificationMethod: "BIOMETRIC",
