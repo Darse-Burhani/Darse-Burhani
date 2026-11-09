@@ -439,15 +439,15 @@ export function FacultyLeaveTable({
                       type="button"
                       disabled={isDeleting}
                       onClick={() => handleDelete(item)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                      title="Cancel leave and restore attendance"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors cursor-pointer"
+                      title="Delete leave request and restore biometric attendance"
                     >
                       {isDeleting ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Trash2 className="w-3.5 h-3.5" />
                       )}
-                      <span>Cancel</span>
+                      <span>Delete Leave</span>
                     </button>
                   </div>
                 </div>

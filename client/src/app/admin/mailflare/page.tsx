@@ -805,6 +805,21 @@ export default function AdminMailflarePage() {
                             {t.message}
                           </p>
                         </div>
+
+                        {/* Quick 1-click Delete Button on card */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Permanently delete ticket #${t.ticketId}?`)) {
+                              handleDeleteTicket(t.id);
+                            }
+                          }}
+                          title="Delete ticket permanently"
+                          className="p-1.5 rounded-lg text-[#97896f] hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
 
                       {/* Student Footer Tag */}
@@ -888,12 +903,16 @@ export default function AdminMailflarePage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteTicket(selectedTicket.id)}
-                      className="border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
-                      title="Permanently remove this thread"
+                      onClick={() => {
+                        if (confirm(`Permanently delete ticket #${selectedTicket.ticketId}?`)) {
+                          handleDeleteTicket(selectedTicket.id);
+                        }
+                      }}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+                      title="Permanently delete this thread"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                      <span>Dismiss</span>
+                      <span>Delete Ticket</span>
                     </Button>
                   </div>
                 </div>
@@ -1117,11 +1136,16 @@ export default function AdminMailflarePage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteTicket(t.id)}
-                        className="border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-xl flex items-center gap-1"
+                        onClick={() => {
+                          if (confirm(`Permanently delete archived ticket #${t.ticketId}?`)) {
+                            handleDeleteTicket(t.id);
+                          }
+                        }}
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer"
                         title="Delete permanently from archive"
                       >
                         <Trash2 className="w-3 h-3 text-red-500" />
+                        <span>Delete</span>
                       </Button>
                     </div>
                   </div>

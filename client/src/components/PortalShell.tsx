@@ -59,7 +59,6 @@ function getLivePeriodStatus(now = new Date()): { label: string; timing: string;
   if (m >= 885 && m < 915) return { label: "Period 7", timing: "02:45–03:15", isPeriod: true };
   if (m >= 915 && m < 945) return { label: "Period 8", timing: "03:15–03:45", isPeriod: true };
   if (m >= 945 && m < 975) return { label: "Period 9", timing: "03:45–04:15", isPeriod: true };
-  if (m >= 975 && m < 1050) return { label: "Library & Study", timing: "04:15–05:30", isPeriod: false };
   return { label: "Campus Standby", timing: "Active IST", isPeriod: false };
 }
 
