@@ -24,11 +24,19 @@ import {
   RotateCcw,
   User,
   Plus,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { timeAgo } from "@/lib/utils";
+import {
+  OFFICIAL_IT_SUPPORT_PHONE,
+  OFFICIAL_IT_SUPPORT_PHONE_DISPLAY,
+  generateStudentInquiryWhatsAppMessage,
+  getWhatsAppUrl,
+} from "@/lib/whatsapp-support";
 
 interface SupportIdentity {
   name: string;
@@ -53,6 +61,7 @@ interface SupportTicket {
   id: string;
   ticketId: string;
   title: string;
+  subject?: string;
   category: string;
   priority: "NORMAL" | "HIGH" | "URGENT";
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED";
@@ -341,6 +350,72 @@ export default function TalabatSupportPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ══════════════ Official IT Support Contact & WhatsApp Helpdesk Banner ══════════════ */}
+      <div className="rounded-3xl p-5 sm:p-6 bg-white border border-[#e7e0d0] shadow-sm relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shrink-0 shadow-md">
+            <MessageCircle className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md">
+                Official IT Helpdesk
+              </span>
+              <span className="text-xs text-[#6b5f4b] font-medium flex items-center gap-1 font-mono">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Live Desk & WhatsApp Active
+              </span>
+            </div>
+            <h2 className="text-base sm:text-lg font-black text-[#221c12]">
+              Need Immediate Help? Contact IT Administration
+            </h2>
+            <p className="text-xs text-[#6b5f4b] max-w-xl leading-relaxed">
+              For urgent portal access, biometric gate check-in, or password assistance, connect directly with our campus IT desk on WhatsApp with an auto-generated official inquiry.
+            </p>
+
+            {/* Support Desk Coordinates */}
+            <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-[#3d3426] font-medium">
+              <a
+                href="tel:+918955199220"
+                className="flex items-center gap-1.5 hover:text-emerald-700 transition font-mono font-bold"
+              >
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{OFFICIAL_IT_SUPPORT_PHONE_DISPLAY}</span>
+              </a>
+              <span className="text-[#e7e0d0] hidden sm:inline">&bull;</span>
+              <div className="flex items-center gap-1.5 font-mono">
+                <Mail className="w-3.5 h-3.5 text-[#9a7318]" />
+                <span>{itSupportEmail}</span>
+              </div>
+              <span className="text-[#e7e0d0] hidden sm:inline">&bull;</span>
+              <span className="text-[#97896f]">Lab 102 &bull; Mon–Sat 8AM–5PM</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 self-start lg:self-center">
+          <a
+            href={getWhatsAppUrl(
+              OFFICIAL_IT_SUPPORT_PHONE,
+              generateStudentInquiryWhatsAppMessage({
+                studentName: identity?.name || "Student",
+                studentIts: identity?.its || "N/A",
+                grade: identity?.grade,
+                section: identity?.section,
+                institutionalEmail: identity?.institutionalEmail,
+              })
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 active:scale-98 text-white font-black text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer"
+            title="Chat with IT Support on WhatsApp"
+          >
+            <MessageCircle className="w-4 h-4 text-emerald-200" />
+            <span>Chat on WhatsApp</span>
+          </a>
         </div>
       </div>
 
@@ -633,7 +708,7 @@ export default function TalabatSupportPage() {
                               className="flex-1 text-xs sm:text-sm p-3 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-[#221c12] focus:bg-white focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20 shadow-2xs"
                             />
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
                             <Button
                               size="sm"
                               variant="outline"
@@ -643,24 +718,48 @@ export default function TalabatSupportPage() {
                               Mark as Resolved & Stack
                             </Button>
 
-                            <Button
-                              size="sm"
-                              onClick={() => handlePostReply(t.id)}
-                              disabled={isReplying || !(cardReplyText[t.id] || "").trim()}
-                              className="bg-[#191512] hover:bg-[#29221b] text-[#f3b833] border border-[#d4af37]/40 font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
-                            >
-                              {isReplying ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Sending...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="w-3.5 h-3.5" />
-                                  <span>Send Reply</span>
-                                </>
-                              )}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={getWhatsAppUrl(
+                                  OFFICIAL_IT_SUPPORT_PHONE,
+                                  generateStudentInquiryWhatsAppMessage({
+                                    studentName: identity?.name || "Student",
+                                    studentIts: identity?.its || "N/A",
+                                    grade: identity?.grade,
+                                    section: identity?.section,
+                                    institutionalEmail: identity?.institutionalEmail,
+                                    ticketId: t.ticketId,
+                                    inquiryText: cardReplyText[t.id] || `Following up on Ticket #${t.ticketId}: "${t.title || t.subject || "Portal Inquiry"}"`,
+                                  })
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                                title="Send follow-up on official WhatsApp helpdesk"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 text-emerald-200" />
+                                <span>WhatsApp Helpdesk</span>
+                              </a>
+
+                              <Button
+                                size="sm"
+                                onClick={() => handlePostReply(t.id)}
+                                disabled={isReplying || !(cardReplyText[t.id] || "").trim()}
+                                className="bg-[#191512] hover:bg-[#29221b] text-[#f3b833] border border-[#d4af37]/40 font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
+                              >
+                                {isReplying ? (
+                                  <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Sending...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>Send Reply</span>
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>

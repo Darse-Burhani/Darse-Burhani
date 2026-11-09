@@ -30,6 +30,8 @@ import {
   GraduationCap,
   Calendar,
   Trash2,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { timeAgo } from "@/lib/utils";
+import {
+  generateAdminReplyWhatsAppMessage,
+  getWhatsAppUrl,
+  OFFICIAL_IT_SUPPORT_PHONE_DISPLAY,
+} from "@/lib/whatsapp-support";
 
 interface TicketSender {
   id: string;
@@ -835,9 +842,17 @@ export default function AdminMailflarePage() {
                           <span className="font-bold text-[#221c12] truncate">{t.sender.name}</span>
                           <span className="text-[#97896f] font-mono text-[10px]">ITS: {t.sender.its}</span>
                         </div>
-                        <span className="text-[10px] font-bold text-[#97896f]">
-                          {t.replies.length} {t.replies.length === 1 ? "reply" : "replies"}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {t.sender.mobile && t.sender.mobile !== "N/A" && (
+                            <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              <MessageCircle className="w-2.5 h-2.5" />
+                              <span>WA</span>
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-[#97896f]">
+                            {t.replies.length} {t.replies.length === 1 ? "reply" : "replies"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -946,11 +961,63 @@ export default function AdminMailflarePage() {
                     </div>
                   </div>
 
-                  {selectedTicket.sender.mobile && selectedTicket.sender.mobile !== "N/A" && (
-                    <span className="text-[11px] text-[#6b5f4b] font-mono hidden sm:inline">
-                      📞 {selectedTicket.sender.mobile}
-                    </span>
-                  )}
+                  {/* Student Support Contact & Auto-Generated WhatsApp */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedTicket.sender.mobile && selectedTicket.sender.mobile !== "N/A" ? (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`tel:${selectedTicket.sender.mobile}`}
+                          className="text-[11px] text-[#6b5f4b] hover:text-[#221c12] font-mono flex items-center gap-1 font-bold bg-[#faf7f0] px-2.5 py-1 rounded-lg border border-[#e7e0d0]"
+                          title="Call Contact Number"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-[#9a7318]" />
+                          <span>{selectedTicket.sender.mobile}</span>
+                        </a>
+
+                        <a
+                          href={getWhatsAppUrl(
+                            selectedTicket.sender.mobile,
+                            generateAdminReplyWhatsAppMessage({
+                              ticketId: selectedTicket.ticketId,
+                              studentName: selectedTicket.sender.name,
+                              studentIts: selectedTicket.sender.its,
+                              grade: selectedTicket.sender.grade,
+                              subject: selectedTicket.subject,
+                              replyText: replyText.trim() || selectedTicket.message,
+                            })
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-xs transition-all active:scale-98 cursor-pointer"
+                          title={`Auto-generate official WhatsApp message to ${selectedTicket.sender.name}`}
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-200" />
+                          <span>WhatsApp Contact</span>
+                        </a>
+                      </div>
+                    ) : (
+                      <a
+                        href={getWhatsAppUrl(
+                          null,
+                          generateAdminReplyWhatsAppMessage({
+                            ticketId: selectedTicket.ticketId,
+                            studentName: selectedTicket.sender.name,
+                            studentIts: selectedTicket.sender.its,
+                            grade: selectedTicket.sender.grade,
+                            subject: selectedTicket.subject,
+                            replyText: replyText.trim() || selectedTicket.message,
+                          })
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#faf7f0] hover:bg-[#f4efe5] text-[#3d3426] font-bold text-xs border border-[#e7e0d0] transition-all cursor-pointer"
+                        title="Broadcast via WhatsApp Helpdesk"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>WhatsApp Helpdesk</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 {/* Conversation Body & Thread */}
@@ -1034,27 +1101,53 @@ export default function AdminMailflarePage() {
                     className="w-full text-xs sm:text-sm p-3 rounded-xl border border-[#e7e0d0] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/20 focus:border-[#d4af37] bg-[#faf7f0] text-[#221c12]"
                   />
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="text-[11px] text-[#97896f]">
                       Shortcut: <kbd className="px-1 py-0.5 bg-[#f4efe5] rounded text-[10px] font-mono border border-[#e7e0d0]">Ctrl+Enter</kbd>
                     </span>
-                    <Button
-                      onClick={handleSendReply}
-                      disabled={submittingReply || !replyText.trim()}
-                      className="bg-gradient-to-r from-[#d4af37] via-[#f3b833] to-[#c59b27] hover:from-[#c59b27] hover:to-[#b8860b] text-[#191512] font-black text-xs px-5 py-2 rounded-xl shadow-sm cursor-pointer"
-                    >
-                      {submittingReply ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                          <span>Dispatching...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Send Official Response</span>
-                        </>
+
+                    <div className="flex items-center gap-2">
+                      {selectedTicket.sender.mobile && selectedTicket.sender.mobile !== "N/A" && (
+                        <a
+                          href={getWhatsAppUrl(
+                            selectedTicket.sender.mobile,
+                            generateAdminReplyWhatsAppMessage({
+                              ticketId: selectedTicket.ticketId,
+                              studentName: selectedTicket.sender.name,
+                              studentIts: selectedTicket.sender.its,
+                              grade: selectedTicket.sender.grade,
+                              subject: selectedTicket.subject,
+                              replyText: replyText.trim(),
+                            })
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-98 cursor-pointer"
+                          title="Open auto-generated reply directly in WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-200" />
+                          <span>Dispatch via WhatsApp</span>
+                        </a>
                       )}
-                    </Button>
+
+                      <Button
+                        onClick={handleSendReply}
+                        disabled={submittingReply || !replyText.trim()}
+                        className="bg-gradient-to-r from-[#d4af37] via-[#f3b833] to-[#c59b27] hover:from-[#c59b27] hover:to-[#b8860b] text-[#191512] font-black text-xs px-5 py-2 rounded-xl shadow-sm cursor-pointer"
+                      >
+                        {submittingReply ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                            <span>Dispatching...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5 mr-1.5" />
+                            <span>Send Official Response</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Card>
