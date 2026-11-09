@@ -7,11 +7,17 @@ import { startDevicePolling } from "./lib/hikvision";
 import { startAttendanceScheduler } from "./lib/attendance-scheduler";
 import { syncMasterTimetableIfEmpty } from "./lib/timetable-master-sync";
 import { loadSheetConfigFromDb } from "./lib/google-attendance-sync";
+import { initWhatsAppBaileys } from "./lib/whatsapp-baileys";
 import prisma from "./lib/prisma";
 
 // Pre-load Google Sheets configuration from database
 loadSheetConfigFromDb().catch((err) =>
   console.warn("[google-sheets] Startup config load notice:", (err as any)?.message || err)
+);
+
+// Initialize 24/7 Cloud WhatsApp Gateway
+initWhatsAppBaileys().catch((err) =>
+  console.warn("[whatsapp] Background engine startup notice:", (err as any)?.message || err)
 );
 
 // Ensure Tilawat al Dua schedule window applies to ALL Talabat without restrictive class filters

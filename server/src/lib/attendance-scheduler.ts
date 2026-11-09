@@ -139,9 +139,20 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
     });
   }
 
-  // Sunday Institutional Holiday: Do NOT mark absent! Mark Holiday for all active students.
-  if (dayStart.getUTCDay() === 0) {
-    console.log("[attendance-scheduler] Sunday holiday detected: marking Holiday for all active students, skipping absent.");
+  // 1. Check Institutional Calendar Holiday (AcademicCalendarEvent) or Sunday
+  const calendarHoliday = await prisma.academicCalendarEvent.findFirst({
+    where: {
+      eventType: "HOLIDAY",
+      startDate: { lte: dayEnd },
+      endDate: { gte: dayStart },
+    },
+  });
+  const isSunday = dayStart.getUTCDay() === 0;
+  const isInstitutionalHoliday = Boolean(isSunday || calendarHoliday);
+  const holidayLabel = calendarHoliday?.title || "Sunday Holiday";
+
+  if (isInstitutionalHoliday) {
+    console.log(`[attendance-scheduler] Institutional holiday detected (${holidayLabel}): marking Holiday for all active students, skipping absent.`);
     let holidayCount = 0;
     for (const s of students) {
       if (s.attendanceRecords.length > 0 && s.attendanceRecords[0].status !== "ABSENT") {
@@ -157,13 +168,13 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
           date: dayStart,
           status: "ON_LEAVE",
           source: "LEAVE_APPROVED",
-          remarks: "Sunday Holiday",
-          recordedById: "system-sunday-holiday",
+          remarks: holidayLabel,
+          recordedById: "system-institutional-holiday",
         },
         update: {
           status: "ON_LEAVE",
           source: "LEAVE_APPROVED",
-          remarks: "Sunday Holiday",
+          remarks: holidayLabel,
         },
       });
 
@@ -183,14 +194,14 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
             status: "ON_LEAVE",
             source: "LEAVE_APPROVED",
             verificationMethod: "MANUAL",
-            recordedById: "system-sunday-holiday",
-            justification: "Sunday Holiday",
+            recordedById: "system-institutional-holiday",
+            justification: holidayLabel,
             justificationStatus: "APPROVED",
           },
           update: {
             status: "ON_LEAVE",
             source: "LEAVE_APPROVED",
-            justification: "Sunday Holiday",
+            justification: holidayLabel,
           },
         });
       }
@@ -530,9 +541,20 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
 
   const expected = await getExpectedFacultyForDay();
 
-  // Sunday Institutional Holiday: Do NOT mark faculty absent! Mark Holiday for all expected faculty.
-  if (dayStart.getUTCDay() === 0) {
-    console.log("[attendance-scheduler] Sunday holiday detected: marking Holiday for faculty, skipping absent.");
+  // 1. Check Institutional Calendar Holiday (AcademicCalendarEvent) or Sunday
+  const facultyCalendarHoliday = await prisma.academicCalendarEvent.findFirst({
+    where: {
+      eventType: "HOLIDAY",
+      startDate: { lte: dayEnd },
+      endDate: { gte: dayStart },
+    },
+  });
+  const isFacultySunday = dayStart.getUTCDay() === 0;
+  const isFacultyHoliday = Boolean(isFacultySunday || facultyCalendarHoliday);
+  const facultyHolidayLabel = facultyCalendarHoliday?.title || "Sunday Holiday";
+
+  if (isFacultyHoliday) {
+    console.log(`[attendance-scheduler] Institutional holiday detected (${facultyHolidayLabel}): marking Holiday for faculty, skipping absent.`);
     for (const t of expected) {
       await prisma.teacherAttendanceRecord.upsert({
         where: { teacherId_date: { teacherId: t.id, date: dayStart } },
@@ -541,12 +563,12 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
           date: dayStart,
           status: "ON_LEAVE",
           verificationMethod: "MANUAL",
-          notes: "Sunday Holiday",
+          notes: facultyHolidayLabel,
         },
         update: {
           status: "ON_LEAVE",
           verificationMethod: "MANUAL",
-          notes: "Sunday Holiday",
+          notes: facultyHolidayLabel,
         },
       });
     }
@@ -589,19 +611,24 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
     });
 
     if (activeMedicalExemption) {
+      const isMedical = activeMedicalExemption.eventName?.toLowerCase().includes("medical");
+      const status = isMedical ? "MEDICAL" : "ON_LEAVE";
+      const method = isMedical ? "MEDICAL_DUTY" : "LEAVE_APPROVED";
+      const notes = `[${activeMedicalExemption.eventName || "Authorized Leave"}] ${activeMedicalExemption.reason}`;
+
       await prisma.teacherAttendanceRecord.upsert({
         where: { teacherId_date: { teacherId: t.id, date: dayStart } },
         create: {
           teacherId: t.id,
           date: dayStart,
-          status: "MEDICAL",
-          verificationMethod: "MEDICAL_DUTY",
-          notes: `[${activeMedicalExemption.eventName || "Medical Duty"}] ${activeMedicalExemption.reason}`,
+          status,
+          verificationMethod: method,
+          notes,
         },
         update: {
-          status: "MEDICAL",
-          verificationMethod: "MEDICAL_DUTY",
-          notes: `[${activeMedicalExemption.eventName || "Medical Duty"}] ${activeMedicalExemption.reason}`,
+          status,
+          verificationMethod: method,
+          notes,
         },
       });
       medicalCount++;
@@ -668,6 +695,7 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
     });
 
     const dayStart = getStartOfDayIST(nowIST);
+    const dayEnd = new Date(dayStart.getTime() + 86400000);
 
     for (const slot of completedSlots) {
       if (!slot.classId) continue;
@@ -707,7 +735,26 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
             });
 
             const isGateBio = gateLog?.source === "BIOMETRIC" || Boolean(gateLog?.checkInTime);
-            const initialStatus = gateLog?.status || (defaultPresentMode ? "PRESENT" : "ABSENT");
+            let initialStatus = gateLog?.status;
+            let initialSource = isGateBio ? "BIOMETRIC" : gateLog?.source;
+
+            if (!initialStatus) {
+              const approvedLeave = await prisma.leaveRequest.findFirst({
+                where: {
+                  studentId: en.studentId,
+                  status: "APPROVED",
+                  startDate: { lte: dayEnd },
+                  endDate: { gte: dayStart },
+                },
+              });
+              if (approvedLeave) {
+                initialStatus = approvedLeave.type === "MEDICAL" ? "MEDICAL" : "ON_LEAVE";
+                initialSource = approvedLeave.type === "MEDICAL" ? "MEDICAL_LEAVE" : "LEAVE_APPROVED";
+              } else {
+                initialStatus = defaultPresentMode ? "PRESENT" : "ABSENT";
+                initialSource = defaultPresentMode ? "BIOMETRIC" : "AUTO_ABSENT";
+              }
+            }
 
             await prisma.attendanceRecord.create({
               data: {
@@ -715,7 +762,7 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
                 classId: slot.classId,
                 date: dayStart,
                 status: initialStatus as any,
-                source: isGateBio ? "BIOMETRIC" : (gateLog?.source as any) || (defaultPresentMode ? "BIOMETRIC" : "AUTO_ABSENT"),
+                source: (initialSource as any) || "AUTO_ABSENT",
                 checkInTime: gateLog?.checkInTime || null,
                 checkOutTime: gateLog?.checkOutTime || null,
                 verificationMethod: isGateBio ? "BIOMETRIC" : "AUTO_TIMETABLE_SYNC",
@@ -732,6 +779,52 @@ async function syncClassPeriodAttendance(nowIST: Date): Promise<void> {
     }
   } catch (err) {
     // Non-critical timetable background sync notice
+  }
+}
+
+/**
+ * Called whenever an Admin or Assigned Teacher creates or updates an attendance schedule window.
+ * 1. Resets finalization status so the window's updated time is evaluated cleanly.
+ * 2. If the updated window is currently active, immediately pulls latest punches from terminals
+ *    and syncs to class registers.
+ * 3. As soon as the new last time/cutoff passes, pulling strictly stops and Render sleeps to save tokens.
+ */
+export async function handleScheduleWindowChanged(windowId: string): Promise<void> {
+  try {
+    const now = new Date();
+    const { calendarDayUTC, scanMinutes } = getISTDetails(now);
+    const todayStr = calendarDayUTC.toISOString().slice(0, 10);
+
+    // Clear previous finalization flags so the updated window can be evaluated with its new cutoff
+    finalizedWindowsToday.delete(`${todayStr}:${windowId}:STUDENT`);
+    finalizedWindowsToday.delete(`${todayStr}:${windowId}:TEACHER`);
+
+    // Check if the modified window is a hardware window and is currently open
+    const window = await prisma.biometricScanWindow.findUnique({ where: { id: windowId } });
+    if (!window || !window.enabled) return;
+
+    const winType = getWindowType(window as any);
+    if (winType === "MANUAL") return;
+
+    const [sh, sm] = window.startTime.split(":").map(Number);
+    const [lh, lm] = (window.lateEndTime || window.endTime).split(":").map(Number);
+    const startMin = (sh || 0) * 60 + (sm || 0);
+    const cutoffMin = (lh || 0) * 60 + (lm || 0);
+
+    // If current time is within [startMin - 5, cutoffMin], window is currently active!
+    if (scanMinutes >= Math.max(0, startMin - 5) && scanMinutes <= cutoffMin) {
+      console.log(`[attendance-automation] ⚡ Schedule changed for "${window.name}" and window is ACTIVE now! Triggering instant Hikvision pull...`);
+      lastBackgroundHardwarePullMs = Date.now();
+      const { pullAllDevicesScansForRange } = await import("./hikvision");
+      const dayStart = getStartOfDayIST(now);
+      const pullStart = new Date(dayStart.getTime() + startMin * 60000 - 5.5 * 3600000);
+      await pullAllDevicesScansForRange(pullStart, now);
+      await syncGateRegistryToClassAttendance(now);
+    } else {
+      console.log(`[attendance-automation] 🕒 Schedule updated for "${window.name}" (${window.startTime} - ${window.lateEndTime || window.endTime}). Outside active hours: terminal pulling inactive (Render sleeps).`);
+    }
+  } catch (err) {
+    console.error("[attendance-automation] handleScheduleWindowChanged error:", err);
   }
 }
 
@@ -764,6 +857,21 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
         finalizedWindowsToday.add(studentKey);
         console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Talabat window "${w.name}" (Cutoff ${w.lateEndTime || w.endTime} IST passed)...`);
 
+        // Final sweep pull from devices right at cutoff before auto-marking absents
+        const winType = getWindowType(w as any);
+        if (winType !== "MANUAL") {
+          try {
+            const { pullAllDevicesScansForRange } = await import("./hikvision");
+            const dayStart = getStartOfDayIST(now);
+            const [sh, sm] = w.startTime.split(":").map(Number);
+            const winStart = new Date(dayStart.getTime() + ((sh || 0) * 60 + (sm || 0)) * 60000 - 5.5 * 3600000);
+            await pullAllDevicesScansForRange(winStart, now);
+            await syncGateRegistryToClassAttendance(now);
+          } catch (sweepErr) {
+            console.warn(`[attendance-automation] Final sweep pull failed for window "${w.name}":`, sweepErr);
+          }
+        }
+
         const finalizeResult = await runAutoMarkAbsentJob(now);
 
         broadcastAttendanceEvent({
@@ -795,6 +903,21 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
         if (scanMinutes >= facCutoffMin && !finalizedWindowsToday.has(facultyKey)) {
           finalizedWindowsToday.add(facultyKey);
           console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Faculty timer on "${w.name}" (Cutoff ${w.facultyLateEndTime || w.facultyEndTime} IST passed)...`);
+
+          // Final sweep pull for faculty timer
+          const winType = getWindowType(w as any);
+          if (winType !== "MANUAL") {
+            try {
+              const { pullAllDevicesScansForRange } = await import("./hikvision");
+              const dayStart = getStartOfDayIST(now);
+              const [fsh, fsm] = (w.facultyStartTime || w.startTime).split(":").map(Number);
+              const winStart = new Date(dayStart.getTime() + ((fsh || 0) * 60 + (fsm || 0)) * 60000 - 5.5 * 3600000);
+              await pullAllDevicesScansForRange(winStart, now);
+              await syncGateRegistryToClassAttendance(now);
+            } catch (sweepErr) {
+              console.warn(`[attendance-automation] Final sweep pull failed for faculty on window "${w.name}":`, sweepErr);
+            }
+          }
 
           await runAutoMarkFacultyAbsentJob(now);
 
@@ -888,6 +1011,10 @@ export async function syncGateRegistryToClassAttendance(targetDate?: Date): Prom
 }
 
 let watchdogTimer: NodeJS.Timeout | null = null;
+let lastBackgroundHardwarePullMs = 0;
+// Throttle pulls to at least 5 minutes during open windows (prevents 60s CPU/token exhaustion)
+const BACKGROUND_PULL_THROTTLE_MS = 5 * 60 * 1000;
+let lastDormantLogDate = "";
 
 /**
  * Initializes the 24/7 Full Automation Service (runs continuous 60s event loops).
@@ -905,7 +1032,7 @@ export function startAttendanceScheduler() {
   watchdogTimer = setInterval(async () => {
     try {
       const now = new Date();
-      const { calendarDayUTC } = getISTDetails(now);
+      const { calendarDayUTC, scanMinutes } = getISTDetails(now);
       const isSunday = calendarDayUTC.getUTCDay() === 0;
       const currentDayOfWeek = calendarDayUTC.getUTCDay();
       const currentDayOfMonth = calendarDayUTC.getUTCDate();
@@ -916,19 +1043,45 @@ export function startAttendanceScheduler() {
       if (!isSunday) {
         await checkAndAutoFinalizeScanWindows();
 
-        // B. Real-time timetable period attendance sync
-        await syncClassPeriodAttendance(now);
+        // B. Real-time timetable period attendance sync (only during school class hours 07:30 to 16:30 IST)
+        if (scanMinutes >= 450 && scanMinutes <= 990) {
+          await syncClassPeriodAttendance(now);
+        }
 
-        // C. Continuous self-healing terminal scan poll & gate check-in propagation to all classes
-        // Sticking strictly to Tilawat al Dua scheduled scan timing!
-        try {
-          const { pullAllDevicesScansForRange, getTilawatScheduleWindowIST } = await import("./hikvision");
-          const tilawatSched = await getTilawatScheduleWindowIST(now);
-          const pullStart = tilawatSched.isWithinSchedule ? tilawatSched.startTimeIST : undefined;
-          await pullAllDevicesScansForRange(pullStart, now);
-          await syncGateRegistryToClassAttendance(now);
-        } catch (pollErr) {
-          // Non-critical background hardware poll notification
+        // C. Hardware Terminal Scan Pull & Propagation
+        // STRICT SCHEDULE ADHERENCE: Scans are pulled ONLY during active scheduled window times!
+        // Outside scheduled windows / after window closes: NO PULLING takes place -> Render stays dormant / sleeps.
+        const pullScheduleEnabled = process.env.HARDWARE_PULL_SCHEDULE_ENABLED !== "false";
+        if (pullScheduleEnabled) {
+          try {
+            const { isAnyHardwareWindowOpen } = await import("./biometric");
+            const hwStatus = await isAnyHardwareWindowOpen(now, 5).catch(() => ({ isOpen: false, activeWindows: [] as any[] }));
+            if (hwStatus.isOpen && hwStatus.activeWindows && hwStatus.activeWindows.length > 0) {
+              const nowMs = Date.now();
+              if (nowMs - lastBackgroundHardwarePullMs >= BACKGROUND_PULL_THROTTLE_MS) {
+                lastBackgroundHardwarePullMs = nowMs;
+                const { pullAllDevicesScansForRange } = await import("./hikvision");
+
+                // Determine window start from active windows
+                const dayStart = getStartOfDayIST(now);
+                const minStartMinutes = Math.min(...hwStatus.activeWindows.map((w: any) => w.startMinutes));
+                const pullStart = new Date(dayStart.getTime() + minStartMinutes * 60000 - 5.5 * 3600000);
+
+                console.log(`[attendance-automation] 🕒 Active window (${hwStatus.activeWindows.map((w: any) => w.name).join(", ")}): syncing hardware punches...`);
+                await pullAllDevicesScansForRange(pullStart, now);
+                await syncGateRegistryToClassAttendance(now);
+              }
+            } else {
+              // Outside scheduled windows: DO NOT PULL. Render can sleep!
+              const currentHourStr = `${todayDateStr}:${Math.floor(scanMinutes / 60)}`;
+              if (lastDormantLogDate !== currentHourStr) {
+                lastDormantLogDate = currentHourStr;
+                console.log(`[attendance-automation] 🌙 No hardware scan window active. Terminal polling inactive (Render dormant / sleep friendly).`);
+              }
+            }
+          } catch (pollErr) {
+            // Non-critical background hardware poll notification
+          }
         }
       }
 

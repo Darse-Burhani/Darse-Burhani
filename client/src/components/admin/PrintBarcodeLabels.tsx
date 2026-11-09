@@ -1,29 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Printer, CheckCircle2, Search, QrCode, Barcode, Sparkles, Filter, Layers } from "lucide-react";
+import {
+  Printer,
+  CheckCircle2,
+  Search,
+  Barcode,
+  Filter,
+  FileSpreadsheet,
+  Download,
+  Layers,
+  MapPin,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 
 // ── Types ──
-interface LibraryBook {
+export interface LibraryBook {
   id: string;
   title: string;
   author: string | null;
   category: string;
   barcode: string | null;
-  rackNumber: string | null;
-  shelfNumber: string | null;
+  rackNumber?: string | null;
+  shelfNumber?: string | null;
   locationColor?: string | null;
   coverImage?: string | null;
+  status?: string;
+  totalCopies?: number;
+  availableCopies?: number;
 }
 
 interface PrintBarcodeLabelsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   books: LibraryBook[];
+  initialRack?: string;
+  initialShelf?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -35,33 +52,89 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
-export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintBarcodeLabelsProps) {
+export default function PrintBarcodeLabels({
+  open,
+  onOpenChange,
+  books,
+  initialRack,
+  initialShelf,
+}: PrintBarcodeLabelsProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [formatMode, setFormatMode] = useState<"QR" | "BARCODE" | "DUAL">("QR");
+  const [rackFilter, setRackFilter] = useState("ALL");
+  const [shelfFilter, setShelfFilter] = useState("ALL");
+  const [labelSizeFormat, setLabelSizeFormat] = useState<"standard_sheet" | "thermal_50x30">("standard_sheet");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectAll, setSelectAll] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Extract categories
-  const categories = ["ALL", ...Array.from(new Set(books.map((b) => b.category || "General")))];
+  // Extract unique categories, racks, and shelves
+  const categories = useMemo(
+    () => ["ALL", ...Array.from(new Set(books.map((b) => b.category || "General"))).sort()],
+    [books]
+  );
 
-  // Filter books
-  const filteredBooks = books.filter((b) => {
-    const matchesCat = categoryFilter === "ALL" || (b.category || "General") === categoryFilter;
-    if (!matchesCat) return false;
-    if (!searchTerm) return true;
-    const s = searchTerm.toLowerCase();
-    return (
-      b.title.toLowerCase().includes(s) ||
-      (b.author || "").toLowerCase().includes(s) ||
-      (b.barcode || "").toLowerCase().includes(s) ||
-      b.category.toLowerCase().includes(s) ||
-      (b.rackNumber || "").toLowerCase().includes(s)
-    );
-  });
+  const racks = useMemo(
+    () => ["ALL", ...Array.from(new Set(books.map((b) => b.rackNumber).filter(Boolean) as string[])).sort()],
+    [books]
+  );
 
-  // Toggle selection
+  const shelves = useMemo(() => {
+    const pool = rackFilter === "ALL" ? books : books.filter((b) => b.rackNumber === rackFilter);
+    return ["ALL", ...Array.from(new Set(pool.map((b) => b.shelfNumber).filter(Boolean) as string[])).sort()];
+  }, [books, rackFilter]);
+
+  // Sync initialRack and initialShelf when modal opens
+  useEffect(() => {
+    if (open) {
+      const initR = initialRack || "ALL";
+      const initS = initialShelf || "ALL";
+      setRackFilter(initR);
+      setShelfFilter(initS);
+      setCategoryFilter("ALL");
+      setSearchTerm("");
+
+      const matching = books.filter((b) => {
+        if (initR !== "ALL" && b.rackNumber !== initR) return false;
+        if (initS !== "ALL" && b.shelfNumber !== initS) return false;
+        return true;
+      });
+
+      setSelectedIds(new Set(matching.map((b) => b.id)));
+    }
+  }, [open, books, initialRack, initialShelf]);
+
+  // When rack changes, adjust shelf filter if needed
+  const handleRackChange = (newRack: string) => {
+    setRackFilter(newRack);
+    setShelfFilter("ALL");
+  };
+
+  // Filter books based on active criteria
+  const filteredBooks = useMemo(() => {
+    return books.filter((b) => {
+      const matchesCat = categoryFilter === "ALL" || (b.category || "General") === categoryFilter;
+      if (!matchesCat) return false;
+
+      const matchesRack = rackFilter === "ALL" || b.rackNumber === rackFilter;
+      if (!matchesRack) return false;
+
+      const matchesShelf = shelfFilter === "ALL" || b.shelfNumber === shelfFilter;
+      if (!matchesShelf) return false;
+
+      if (!searchTerm) return true;
+      const s = searchTerm.toLowerCase();
+      return (
+        b.title.toLowerCase().includes(s) ||
+        (b.author || "").toLowerCase().includes(s) ||
+        (b.barcode || "").toLowerCase().includes(s) ||
+        (b.category || "").toLowerCase().includes(s) ||
+        (b.rackNumber || "").toLowerCase().includes(s) ||
+        (b.shelfNumber || "").toLowerCase().includes(s)
+      );
+    });
+  }, [books, categoryFilter, rackFilter, shelfFilter, searchTerm]);
+
+  // Selection helpers
   const toggleBook = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -69,30 +142,78 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
       else next.add(id);
       return next;
     });
-    setSelectAll(false);
   };
 
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds(new Set());
-      setSelectAll(false);
-    } else {
-      setSelectedIds(new Set(filteredBooks.map((b) => b.id)));
-      setSelectAll(true);
-    }
+  const selectAllFiltered = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredBooks.forEach((b) => next.add(b.id));
+      return next;
+    });
   };
 
-  // Reset selection when modal opens
-  useEffect(() => {
-    if (open) {
-      setSelectedIds(new Set(books.map((b) => b.id)));
-      setSelectAll(true);
-      setSearchTerm("");
-      setCategoryFilter("ALL");
-    }
-  }, [open, books]);
+  const deselectAllFiltered = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredBooks.forEach((b) => next.delete(b.id));
+      return next;
+    });
+  };
 
-  // ── Handle Print ──
+  const isAllFilteredSelected = filteredBooks.length > 0 && filteredBooks.every((b) => selectedIds.has(b.id));
+
+  // ── Export Selected Books to Excel / CSV ──
+  const handleExportExcel = () => {
+    const targetBooks = books.filter((b) => selectedIds.has(b.id));
+    if (targetBooks.length === 0) {
+      toast({ title: "No books selected", description: "Select at least one book to export", variant: "warning" });
+      return;
+    }
+
+    const headers = [
+      "Barcode",
+      "Book Title",
+      "Author",
+      "Category",
+      "Rack Number",
+      "Shelf Number",
+      "Status",
+      "Available Copies",
+      "Total Copies",
+    ];
+    const rows = targetBooks.map((b) => [
+      `"${(b.barcode || b.id.slice(0, 8).toUpperCase()).replace(/"/g, '""')}"`,
+      `"${b.title.replace(/"/g, '""')}"`,
+      `"${(b.author || "N/A").replace(/"/g, '""')}"`,
+      `"${(b.category || "General").replace(/"/g, '""')}"`,
+      `"${(b.rackNumber || "").replace(/"/g, '""')}"`,
+      `"${(b.shelfNumber || "").replace(/"/g, '""')}"`,
+      `"${(b.status || "AVAILABLE").replace(/"/g, '""')}"`,
+      b.availableCopies ?? 1,
+      b.totalCopies ?? 1,
+    ]);
+
+    // Prepend UTF-8 BOM so Excel opens Arabic and special characters properly
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Maktabat_Barcodes_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Excel Export Generated 📊",
+      description: `Exported ${targetBooks.length} book records with barcodes and shelf locations`,
+      variant: "success",
+    });
+  };
+
+  // ── Handle Print Standard Barcode Labels ──
+  // Note: Two items below book name (author & footer) are intentionally removed as requested.
   const handlePrint = () => {
     if (selectedIds.size === 0) {
       toast({ title: "No books selected", description: "Select at least one book to print labels", variant: "warning" });
@@ -103,291 +224,218 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
 
     const selectedBooks = books.filter((b) => selectedIds.has(b.id));
 
+    // Pure Clean Standard Barcode Sticker:
+    // 1. Header band (Category + Maktabat DB)
+    // 2. Crisp Code-128 Barcode graphic
+    // 3. Barcode text code (e.g. DB-MSH-003)
+    // 4. Book title (prominent & bold)
+    // -> NO author below book name
+    // -> NO footer line below book name
     const labelsHtml = selectedBooks
       .map((book) => {
         const barcodeVal = book.barcode || book.id.slice(0, 8).toUpperCase();
-        const loc = [book.rackNumber, book.shelfNumber].filter(Boolean).join(" · ") || "Library Shelf";
 
-        if (formatMode === "QR") {
-          return `
-          <div class="label-wrapper">
-            <div class="label label-qr">
-              <div class="header-band">
-                <span class="category-tag">${escapeHtml(book.category)}</span>
-                <span class="location-tag">${escapeHtml(loc)}</span>
-              </div>
-              <div class="qr-content-row">
-                <div class="qr-box">
-                  <img class="qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(barcodeVal)}" alt="QR" />
-                </div>
-                <div class="info-box">
-                  <div class="barcode-badge">${escapeHtml(barcodeVal)}</div>
-                  <div class="book-title">${escapeHtml(book.title)}</div>
-                  <div class="book-author">${escapeHtml(book.author || "Maktabat Darse Burhani")}</div>
-                </div>
-              </div>
-              <div class="footer-line">Maktabat Darse Burhani</div>
-            </div>
-          </div>`;
-        }
-
-        if (formatMode === "DUAL") {
-          return `
-          <div class="label-wrapper">
-            <div class="label label-dual">
-              <div class="header-band">
-                <span class="category-tag">${escapeHtml(book.category)}</span>
-                <span class="location-tag">${escapeHtml(loc)}</span>
-              </div>
-              <div class="dual-row">
-                <div class="qr-box">
-                  <img class="qr-img-small" src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(barcodeVal)}" alt="QR" />
-                </div>
-                <div class="barcode-side">
-                  <svg class="barcode-svg" data-barcode="${barcodeVal}"></svg>
-                  <div class="barcode-text">${barcodeVal}</div>
-                </div>
-              </div>
-              <div class="book-title-dual">${escapeHtml(book.title)}</div>
-              <div class="book-author">${escapeHtml(book.author || "Maktabat Darse Burhani")}</div>
-            </div>
-          </div>`;
-        }
-
-        // Standard Barcode Mode
         return `
         <div class="label-wrapper">
           <div class="label">
+            <div class="header-band">
+              <span class="category-tag">${escapeHtml(book.category || "GENERAL")}</span>
+              <span class="inst-tag">Maktabat DB</span>
+            </div>
             <div class="barcode-container">
               <svg class="barcode-svg" data-barcode="${barcodeVal}"></svg>
             </div>
-            <div class="barcode-text">${barcodeVal}</div>
-            <div class="book-title">${escapeHtml(book.title)}</div>
-            <div class="meta">${escapeHtml(book.category)} · ${escapeHtml(loc)}</div>
+            <div class="barcode-meta-row">
+              <span class="barcode-text">${barcodeVal}</span>
+            </div>
+            <div class="book-title" title="${escapeHtml(book.title)}">${escapeHtml(book.title)}</div>
           </div>
         </div>`;
       })
       .join("");
 
     // Open print window
-    const printWindow = window.open("", "_blank", "width=850,height=700");
+    const printWindow = window.open("", "_blank", "width=850,height=750");
     if (!printWindow) {
       toast({ title: "Pop-up blocked", description: "Please allow pop-ups for this site to print labels", variant: "destructive" });
       setIsPrinting(false);
       return;
     }
 
+    const isThermal = labelSizeFormat === "thermal_50x30";
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Print Maktabat QR & Barcode Labels</title>
+        <title>Print Maktabat Barcode Labels (${selectedBooks.length} Labels)</title>
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.3/dist/JsBarcode.all.min.js"><\/script>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           
           @page {
-            size: letter;
-            margin: 0.4in;
+            ${
+              isThermal
+                ? "size: 50mm 30mm; margin: 0;"
+                : "size: A4 portrait; margin: 0.35in 0.28in;"
+            }
           }
 
           body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", Arial, sans-serif;
             background: white;
-            color: #111;
+            color: #0f172a;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
 
-          .labels-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 2.55in);
-            gap: 0.15in 0.15in;
-            justify-content: center;
-            padding: 0.1in;
-          }
+          ${
+            isThermal
+              ? `
+              /* Standard 50mm x 30mm Thermal Barcode Roll */
+              .labels-grid {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0;
+              }
 
-          .label-wrapper {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
+              .label-wrapper {
+                page-break-after: always;
+                break-after: page;
+                width: 50mm;
+                height: 30mm;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
 
-          .label {
-            border: 1.5px solid #8a3e14;
-            border-radius: 6px;
-            padding: 0.08in 0.08in;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: white;
-            min-height: 1.35in;
-            position: relative;
-          }
+              .label {
+                width: 48mm;
+                height: 28mm;
+                border: 1px dashed #065f46;
+                border-radius: 4px;
+                padding: 1.5mm 2mm;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                background: white;
+                box-sizing: border-box;
+                overflow: hidden;
+              }
+              `
+              : `
+              /* Standard A4 3-Column Barcode Sheet (24 labels: 3 cols x 8 rows, 2.5in x 1.2in / 63.5mm x 30.5mm) */
+              .labels-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 2.5in);
+                gap: 0.12in 0.15in;
+                justify-content: center;
+                padding: 0.05in 0;
+              }
 
-          .label-qr {
-            align-items: stretch;
-            justify-content: space-between;
+              .label-wrapper {
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+
+              .label {
+                width: 2.5in;
+                height: 1.2in;
+                max-height: 1.2in;
+                border: 1px dashed #065f46;
+                border-radius: 5px;
+                padding: 0.06in 0.08in;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                background: white;
+                box-sizing: border-box;
+                overflow: hidden;
+              }
+              `
           }
 
           .header-band {
+            width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #fef4dc;
-            padding-bottom: 2px;
-            margin-bottom: 4px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1.5px;
+            margin-bottom: 1px;
           }
 
           .category-tag {
-            font-size: 8px;
+            font-size: 7.5px;
             font-weight: 800;
             text-transform: uppercase;
-            color: #8a3e14;
-            letter-spacing: 0.5px;
-          }
-
-          .location-tag {
-            font-size: 7.5px;
-            font-weight: 700;
-            color: #92400e;
-            background: #fef3c7;
-            padding: 1px 4px;
-            border-radius: 3px;
-          }
-
-          .qr-content-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-          }
-
-          .qr-box {
-            width: 0.75in;
-            height: 0.75in;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            padding: 2px;
-          }
-
-          .qr-img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-          }
-
-          .qr-img-small {
-            width: 0.65in;
-            height: 0.65in;
-            object-fit: contain;
-          }
-
-          .info-box {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-          }
-
-          .barcode-badge {
-            font-family: monospace;
-            font-size: 8px;
-            font-weight: 800;
-            color: #1c1c1c;
-            background: #fff8e7;
-            border: 1px solid #f3d9a0;
-            padding: 1px 4px;
-            border-radius: 3px;
-            display: inline-block;
-            width: fit-content;
-          }
-
-          .book-title {
-            font-size: 8.5px;
-            font-weight: 700;
-            color: #0f172a;
-            line-height: 1.2;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-
-          .book-title-dual {
-            font-size: 8px;
-            font-weight: 700;
-            color: #0f172a;
-            line-height: 1.15;
-            text-align: center;
-            margin-top: 2px;
-            display: -webkit-box;
-            -webkit-line-clamp: 1;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-
-          .book-author {
-            font-size: 7px;
-            color: #64748b;
+            color: #065f46;
+            letter-spacing: 0.4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            max-width: 65%;
           }
 
-          .footer-line {
+          .inst-tag {
             font-size: 6.5px;
             font-weight: 700;
-            color: #ef9a33;
-            text-align: center;
-            border-top: 1px dashed #cbd5e1;
-            padding-top: 2px;
-            margin-top: 3px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            color: #92400e;
+            background: #fef3c7;
+            padding: 1px 3px;
+            border-radius: 2px;
+            white-space: nowrap;
           }
 
-          .dual-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 4px;
+          .barcode-container {
             width: 100%;
-          }
-
-          .barcode-side {
-            flex: 1;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
+            margin: 1px 0;
+            height: 28px;
+            overflow: hidden;
           }
 
           .barcode-svg {
             max-width: 100%;
-            height: 0.35in;
+            height: 26px;
+          }
+
+          .barcode-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            line-height: 1;
           }
 
           .barcode-text {
-            font-family: monospace;
-            font-size: 7.5px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: #111;
-            text-align: center;
+            font-weight: 800;
+            font-size: 9px;
+            letter-spacing: 0.8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: #0f172a;
           }
 
-          .meta {
-            font-size: 7px;
-            color: #64748b;
+          .book-title {
+            width: 100%;
             text-align: center;
-            margin-top: 2px;
+            font-weight: 700;
+            font-size: 9.5px;
+            line-height: 1.2;
+            max-height: 23px;
+            overflow: hidden;
+            color: #0f172a;
+            direction: auto;
           }
 
           @media print {
             body { background: white; }
-            .label { border: 1px solid #8a3e14; }
+            .label { border: 1px solid #94a3b8; }
           }
         </style>
       </head>
@@ -396,13 +444,13 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
           ${labelsHtml}
         </div>
         <script>
-          // Render barcodes if present
+          // Render crisp Code-128 barcodes
           document.querySelectorAll('.barcode-svg').forEach(function(svg) {
             try {
               JsBarcode(svg, svg.dataset.barcode, {
                 format: 'CODE128',
-                width: 1.1,
-                height: 22,
+                width: 1.25,
+                height: 26,
                 displayValue: false,
                 margin: 0,
                 background: '#ffffff',
@@ -423,181 +471,272 @@ export default function PrintBarcodeLabels({ open, onOpenChange, books }: PrintB
     printWindow.document.close();
 
     setIsPrinting(false);
-    toast({ title: "QR & Barcode Labels Ready", description: `${selectedBooks.length} book label(s) generated for printing`, variant: "success" });
+    toast({
+      title: "Barcode Labels Ready 🖨️",
+      description: `${selectedBooks.length} standard barcode label(s) generated for printing`,
+      variant: "success",
+    });
   };
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
-      <ModalContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <ModalHeader>
+      <ModalContent className="max-w-4xl max-h-[92vh] overflow-hidden flex flex-col p-0 rounded-2xl">
+        <ModalHeader className="px-6 pt-5 pb-3 border-b border-slate-100 bg-white">
           <div className="flex items-center justify-between">
-            <ModalTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
-                <QrCode className="w-4 h-4" />
+            <ModalTitle className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800 shadow-xs">
+                <Barcode className="w-5 h-5" />
               </div>
-              <span>Maktabat QR &amp; Barcode Label Studio</span>
+              <div>
+                <span className="text-base font-bold text-slate-900">Standard Barcode Labels &amp; Export</span>
+                <p className="text-xs font-normal text-slate-500 mt-0.5">
+                  Standard 2.5&quot; &times; 1.2&quot; stickers (Avery 3&times;8 sheet or 50&times;30mm thermal roll)
+                </p>
+              </div>
             </ModalTitle>
-          </div>
-          <ModalDescription>
-            Generate and print high-density QR codes and Code-128 barcode stickers for library books and physical shelves.
-          </ModalDescription>
-        </ModalHeader>
 
-        {/* Format Selector Toolbar */}
-        <div className="px-6 py-2 bg-slate-50 border-y border-slate-100 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700">Label Format:</span>
-            <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+            {/* Sticker Size Format Toggle */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => setFormatMode("QR")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  formatMode === "QR" ? "bg-emerald-700 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                onClick={() => setLabelSizeFormat("standard_sheet")}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  labelSizeFormat === "standard_sheet"
+                    ? "bg-white text-emerald-900 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
+                title="Standard A4 sheet (3 columns x 8 rows, 2.5in x 1.2in)"
               >
-                <QrCode className="w-3.5 h-3.5" />
-                <span>2D QR Code</span>
+                A4 Sheet (2.5&quot; &times; 1.2&quot;)
               </button>
               <button
                 type="button"
-                onClick={() => setFormatMode("DUAL")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  formatMode === "DUAL" ? "bg-emerald-700 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                onClick={() => setLabelSizeFormat("thermal_50x30")}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  labelSizeFormat === "thermal_50x30"
+                    ? "bg-white text-emerald-900 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
+                title="Continuous thermal barcode printer (50mm x 30mm)"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Dual (QR + Barcode)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormatMode("BARCODE")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  formatMode === "BARCODE" ? "bg-emerald-700 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Barcode className="w-3.5 h-3.5" />
-                <span>1D Barcode</span>
+                Thermal (50&times;30mm)
               </button>
             </div>
           </div>
+        </ModalHeader>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="text-xs rounded-lg border border-slate-200 px-2.5 py-1 bg-white text-slate-700 font-medium outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat === "ALL" ? "All Genres" : cat}
-                </option>
-              ))}
-            </select>
+        {/* Filter Bar with Rack & Shelf Selectors */}
+        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Category Filter */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-2xs">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[11px] font-semibold text-slate-500">Category:</span>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="text-xs bg-transparent text-slate-800 font-medium outline-none cursor-pointer max-w-[120px]"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat === "ALL" ? "All Categories" : cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Rack Filter */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-2xs">
+              <Layers className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-[11px] font-semibold text-slate-500">Rack:</span>
+              <select
+                value={rackFilter}
+                onChange={(e) => handleRackChange(e.target.value)}
+                className="text-xs bg-transparent text-slate-800 font-medium outline-none cursor-pointer max-w-[180px]"
+              >
+                {racks.map((r) => (
+                  <option key={r} value={r}>
+                    {r === "ALL" ? "All Racks" : r}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Shelf Filter */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-2xs">
+              <MapPin className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-[11px] font-semibold text-slate-500">Shelf:</span>
+              <select
+                value={shelfFilter}
+                onChange={(e) => setShelfFilter(e.target.value)}
+                className="text-xs bg-transparent text-slate-800 font-medium outline-none cursor-pointer max-w-[110px]"
+              >
+                {shelves.map((s) => (
+                  <option key={s} value={s}>
+                    {s === "ALL" ? "All Shelves" : s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Reset Filter Button if active */}
+            {(categoryFilter !== "ALL" || rackFilter !== "ALL" || shelfFilter !== "ALL") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoryFilter("ALL");
+                  setRackFilter("ALL");
+                  setShelfFilter("ALL");
+                }}
+                className="text-[11px] text-slate-500 hover:text-slate-800 underline font-medium px-1 cursor-pointer"
+              >
+                Reset filters
+              </button>
+            )}
           </div>
+
+          {/* Quick preset for Rack M Shelf 3 if available */}
+          {racks.some((r) => r.includes("Rack M")) && (
+            <button
+              type="button"
+              onClick={() => {
+                const rackM = racks.find((r) => r.includes("Rack M")) || "Rack M (Fatimi Heritage & Dawat)";
+                setRackFilter(rackM);
+                setShelfFilter("Shelf 3");
+              }}
+              className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+            >
+              📍 Quick: Rack M &middot; Shelf 3
+            </button>
+          )}
         </div>
 
         {/* Search + Selection Controls */}
-        <div className="px-6 py-3 flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="px-6 py-2.5 flex items-center justify-between gap-3 border-b border-slate-100 bg-white">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search books by title, author, barcode, or rack..."
-              className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/70"
+              placeholder="Search by title, barcode, rack, shelf, or category..."
+              className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/70"
             />
           </div>
-          <button
-            onClick={toggleSelectAll}
-            className="text-xs text-emerald-800 hover:text-emerald-950 font-bold whitespace-nowrap cursor-pointer"
-          >
-            {selectAll ? "Deselect All" : "Select All"}
-          </button>
-          <span className="text-xs font-semibold text-slate-600 whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-100">
-            {selectedIds.size} of {books.length} Selected
-          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={isAllFilteredSelected ? deselectAllFiltered : selectAllFiltered}
+              className="flex items-center gap-1.5 text-xs text-emerald-800 hover:text-emerald-950 font-bold px-2 py-1 rounded-lg bg-emerald-50/70 hover:bg-emerald-100 cursor-pointer"
+            >
+              {isAllFilteredSelected ? (
+                <>
+                  <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
+                  Deselect Filtered ({filteredBooks.length})
+                </>
+              ) : (
+                <>
+                  <Square className="w-3.5 h-3.5 text-slate-400" />
+                  Select Filtered ({filteredBooks.length})
+                </>
+              )}
+            </button>
+
+            <span className="text-xs font-semibold text-slate-700 whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-100">
+              {selectedIds.size} of {books.length} Selected
+            </span>
+          </div>
         </div>
 
-        {/* Book List with Live Labels Preview */}
-        <div className="flex-1 overflow-y-auto px-6 pb-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {filteredBooks.map((book) => {
-              const isSelected = selectedIds.has(book.id);
-              const barcode = book.barcode || book.id.slice(0, 8).toUpperCase();
-              return (
-                <motion.button
-                  key={book.id}
-                  onClick={() => toggleBook(book.id)}
-                  className={`relative rounded-2xl border-2 p-3 text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? "border-emerald-500 bg-emerald-50/50 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs"
-                  }`}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {/* Selection Check Indicator */}
-                  {isSelected && (
-                    <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center shadow-xs">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
+        {/* Book List Preview */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 bg-slate-50/40 min-h-[300px]">
+          {filteredBooks.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 text-xs">
+              No books found matching the selected rack, shelf, or search filters.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {filteredBooks.map((book) => {
+                const isSelected = selectedIds.has(book.id);
+                const barcode = book.barcode || book.id.slice(0, 8).toUpperCase();
+                const loc = [book.rackNumber, book.shelfNumber].filter(Boolean).join(" · ");
 
-                  {/* Visual QR & Barcode Card Preview */}
-                  <div className="border border-slate-200 rounded-xl bg-white p-2.5 flex items-center gap-2.5 mb-2 shadow-2xs">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
-                      {formatMode === "QR" || formatMode === "DUAL" ? (
-                        <QrCode className="w-6 h-6 text-emerald-800" />
-                      ) : (
-                        <Barcode className="w-6 h-6 text-emerald-800" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-mono font-bold text-slate-800 block truncate">
-                        {barcode}
-                      </span>
-                      <span className="text-[9px] font-bold text-amber-800 uppercase tracking-wider block">
-                        {book.rackNumber || "Rack-A1"}
-                      </span>
-                    </div>
-                  </div>
+                return (
+                  <motion.button
+                    key={book.id}
+                    onClick={() => toggleBook(book.id)}
+                    className={`relative rounded-2xl border-2 p-3 text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-emerald-500 bg-white shadow-sm ring-1 ring-emerald-500/20"
+                        : "border-slate-200 bg-white/70 hover:border-slate-300 hover:shadow-xs"
+                    }`}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {/* Selection Check Indicator */}
+                    {isSelected && (
+                      <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center shadow-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      </div>
+                    )}
 
-                  {/* Book Metadata */}
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">{book.title}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{book.author || "Maktabat Darse Burhani"}</p>
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md">
-                        {book.category}
-                      </span>
-                      {book.shelfNumber && (
-                        <span className="text-[9px] font-medium text-slate-500">
-                          {book.shelfNumber}
+                    <div className="space-y-1.5 pr-6">
+                      <p className="font-bold text-xs text-slate-900 line-clamp-1">{book.title}</p>
+
+                      <div className="pt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          <Barcode className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100/60 px-1.5 py-0.5 rounded">
+                            {barcode}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {book.category}
                         </span>
+                      </div>
+
+                      {loc && (
+                        <div className="pt-0.5">
+                          <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded-md truncate max-w-full">
+                            <MapPin className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                            <span className="truncate">{loc}</span>
+                          </span>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}
-        <ModalFooter className="border-t border-slate-100 px-6 py-3 bg-slate-50">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
+        <ModalFooter className="border-t border-slate-200/80 px-6 py-3 bg-white flex items-center justify-between">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl text-xs">
             Cancel
           </Button>
-          <Button
-            onClick={handlePrint}
-            disabled={isPrinting || selectedIds.size === 0}
-            className="btn-fatimi-gold text-white font-bold rounded-xl shadow-md active:scale-95"
-          >
-            <Printer className="w-4 h-4 mr-1.5" />
-            <span>Print {selectedIds.size} {formatMode} Label(s)</span>
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={selectedIds.size === 0}
+              className="border-emerald-300 text-emerald-900 font-bold rounded-xl text-xs"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 mr-1 text-emerald-700" />
+              Export Excel ({selectedIds.size})
+            </Button>
+
+            <Button
+              onClick={handlePrint}
+              disabled={isPrinting || selectedIds.size === 0}
+              className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-md active:scale-95 text-xs"
+            >
+              <Printer className="w-4 h-4 mr-1.5" />
+              <span>Print {selectedIds.size} Standard Sticker(s)</span>
+            </Button>
+          </div>
         </ModalFooter>
       </ModalContent>
     </Modal>

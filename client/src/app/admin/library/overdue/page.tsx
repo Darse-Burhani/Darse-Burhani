@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Barcode, Layers, ShieldCheck, ArrowRight } from "lucide-react";
+import { Barcode, Layers, ShieldCheck, ArrowRight, UserCheck } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──
@@ -53,8 +53,55 @@ interface StudentOverdueGroup {
 interface ReminderResult {
   studentName: string;
   emailSent: boolean;
+  whatsappSent?: boolean;
   smsSent: boolean;
+  whatsAppUrl?: string | null;
   error?: string;
+}
+
+// ── Notice Text Generator ──
+function generateLibraryWhatsAppNotice(studentName: string, className: string, bookTitle: string, barcode: string | null, dueAt: string, daysOverdue: number): string {
+  const isOverdue = daysOverdue > 0;
+  const header = isOverdue
+    ? `🚨 *MAKTABAT DARSE BURHANI • OVERDUE BOOK NOTICE*`
+    : `📚 *MAKTABAT DARSE BURHANI • BOOK RETURN REMINDER*`;
+
+  const statusText = isOverdue
+    ? `*OVERDUE (${daysOverdue} days late)* ⚠️`
+    : `*RETURN DUE SOON* ⏰`;
+
+  const dueParsed = new Date(dueAt);
+  const dueFormatted = !Number.isNaN(dueParsed.getTime())
+    ? dueParsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : dueAt;
+
+  const dueLabel = isOverdue
+    ? `${dueFormatted} (Overdue by ${daysOverdue} days)`
+    : `${dueFormatted} (Due soon)`;
+
+  const cTag = className ? ` (${className})` : "";
+
+  return `*IDARSE BURHANI • MAHAD AL-ZAHRA*
+Maktabat• Galiakot
+
+${header}
+
+Afzalus Salam,
+
+Kindly note the library book details issued to *${studentName}*${cTag}:
+
+📋 *Book Checkout Details:*
+• *Book Title:* *${bookTitle}*
+• *Accession / Barcode:* *${barcode || "N/A"}*
+• *Issued To:* *${studentName}*${cTag}
+• *Return Due Date:* *${dueLabel}*
+• *Status:* ${statusText}
+
+📌 *Important Maktabat Instruction:*
+*Please return or renew this book in the Maktabat  before the due date to avoid overdue notices.*
+
+----------------------------------------
+_⚠️ NOTICE: Automated institutional notice from Maktabat• Galiakot._`;
 }
 
 // ── Severity Helpers ──
@@ -75,7 +122,7 @@ export default function OverduePage() {
   const [sending, setSending] = useState(false);
   const [reminderResults, setReminderResults] = useState<ReminderResult[] | null>(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
-  const [reminderChannels, setReminderChannels] = useState<("email" | "sms")[]>(["email"]);
+  const [reminderChannels, setReminderChannels] = useState<("email" | "whatsapp" | "sms")[]>(["email", "whatsapp"]);
   const [contactInfoMap, setContactInfoMap] = useState<Map<string, { parentEmail: string | null; parentPhone: string | null }>>(new Map());
   const [contactInfoLoading, setContactInfoLoading] = useState(false);
 
@@ -203,11 +250,12 @@ export default function OverduePage() {
       {/* ── Library Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Library & Circulation"
-        hubDescription="Book catalog, smart color-coded shelves, circulation desk, and overdue tracking."
+        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
         tabs={[
           { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
           { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
-          { label: "Quick Checkout", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
         ]}
@@ -236,36 +284,34 @@ export default function OverduePage() {
               {/* Channel Toggle */}
               <div className="flex items-center gap-1 bg-white/10 rounded-xl p-1">
                 <button
+                  type="button"
                   onClick={() => setReminderChannels((prev) =>
-                    prev.includes("email") && prev.includes("sms")
-                      ? ["email"]
-                      : prev.includes("email") && !prev.includes("sms")
-                        ? ["sms"]
-                        : ["email"]
+                    prev.includes("whatsapp")
+                      ? prev.length > 1 ? prev.filter((c) => c !== "whatsapp") : prev
+                      : [...prev, "whatsapp"]
                   )}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    reminderChannels.includes("whatsapp")
+                      ? "bg-amber-500 text-white shadow-sm"
+                      : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReminderChannels((prev) =>
+                    prev.includes("email")
+                      ? prev.length > 1 ? prev.filter((c) => c !== "email") : prev
+                      : [...prev, "email"]
+                  )}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     reminderChannels.includes("email")
                       ? "bg-white text-emerald-800 shadow-sm"
-                      : "text-white/85 hover:text-white"
+                      : "text-white/80 hover:text-white"
                   }`}
                 >
                   <Mail className="w-3.5 h-3.5" /> Email
-                </button>
-                <button
-                  onClick={() => setReminderChannels((prev) =>
-                    prev.includes("sms") && prev.includes("email")
-                      ? ["sms"]
-                      : prev.includes("sms") && !prev.includes("email")
-                        ? ["email"]
-                        : [...prev, "sms"]
-                  )}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
-                    reminderChannels.includes("sms")
-                      ? "bg-white text-emerald-800 shadow-sm"
-                      : "text-white/85 hover:text-white"
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" /> SMS
                 </button>
               </div>
 
@@ -494,25 +540,49 @@ export default function OverduePage() {
                         const contact = contactInfoMap.get(studentName);
                         const email = contact?.parentEmail || null;
                         const phone = contact?.parentPhone || null;
+                        const firstItem = group.items[0];
                         return (
-                          <div className="px-6 pb-4 flex items-center gap-3 border-t border-gray-100 pt-3 flex-wrap">
-                            {email && (
-                              <span className="text-xs text-gray-500 flex items-center gap-1">
-                                <Mail className="w-3.5 h-3.5 text-gray-400" /> {email}
-                              </span>
-                            )}
-                            {phone && (
-                              <span className="text-xs text-gray-500 flex items-center gap-1">
-                                <Phone className="w-3.5 h-3.5 text-gray-400" /> {phone}
-                              </span>
-                            )}
-                            {!email && !phone && !contactInfoLoading && (
-                              <span className="text-xs text-gray-400 italic">No contact info available</span>
-                            )}
-                            {contactInfoLoading && (
-                              <span className="text-xs text-gray-400 italic flex items-center gap-1">
-                                <Loader2 className="w-3 h-3 animate-spin" /> Loading contact info...
-                              </span>
+                          <div className="px-6 pb-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-3 flex-wrap">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {email && (
+                                <span className="text-xs text-gray-500 flex items-center gap-1">
+                                  <Mail className="w-3.5 h-3.5 text-gray-400" /> {email}
+                                </span>
+                              )}
+                              {phone && (
+                                <span className="text-xs text-gray-500 flex items-center gap-1">
+                                  <Phone className="w-3.5 h-3.5 text-gray-400" /> {phone}
+                                </span>
+                              )}
+                              {!email && !phone && !contactInfoLoading && (
+                                <span className="text-xs text-gray-400 italic">No contact info available</span>
+                              )}
+                              {contactInfoLoading && (
+                                <span className="text-xs text-gray-400 italic flex items-center gap-1">
+                                  <Loader2 className="w-3 h-3 animate-spin" /> Loading contact info...
+                                </span>
+                              )}
+                            </div>
+
+                            {phone && firstItem && (
+                              <a
+                                href={`https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                                  generateLibraryWhatsAppNotice(
+                                    studentName,
+                                    group.className,
+                                    firstItem.bookTitle,
+                                    firstItem.bookBarcode,
+                                    firstItem.dueAt,
+                                    firstItem.daysOverdue
+                                  )
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 shadow-sm transition-all flex items-center gap-1.5 ml-auto cursor-pointer"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                WhatsApp Notice
+                              </a>
                             )}
                           </div>
                         );

@@ -7,6 +7,7 @@ import {
   holdLeaveRequest,
   updateLeaveRemarks,
   cancelLeaveRequest,
+  deleteLeaveRequest,
   createDirectApprovedLeave,
   createDirectFacultyLeave,
   markHolidayLeaveBatch,
@@ -23,7 +24,7 @@ import { getSmtpConfigStatus, testLeaveSmtpConnection, sendTestLeaveEmail, inval
 const router = Router();
 
 // GET /api/admin/leave/roster — Searchable roster for manual leave assignment
-router.get("/roster", requireRole("ADMIN"), async (req, res) => {
+router.get("/roster", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const [students, teachers] = await Promise.all([
       prisma.studentProfile.findMany({
@@ -32,7 +33,18 @@ router.get("/roster", requireRole("ADMIN"), async (req, res) => {
           user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
           classEnrollments: {
             where: { isActive: true },
-            include: { class: { select: { id: true, name: true, grade: true, section: true } } },
+            include: {
+                    class: {
+                      select: {
+                        id: true,
+                        name: true,
+                        grade: true,
+                        section: true,
+                        masool: { select: { user: { select: { firstName: true, lastName: true } } } },
+                        teacher: { select: { user: { select: { firstName: true, lastName: true } } } },
+                      },
+                    },
+                  },
             take: 1,
           },
         },
@@ -172,7 +184,7 @@ router.delete("/:id/assign", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/leave/manual — Record direct approved manual leave for Student or Faculty
-router.post("/manual", requireRole("ADMIN"), async (req, res) => {
+router.post("/manual", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { role = "STUDENT", studentId, teacherId, type = "PERSONAL", startDate, endDate, reason, notes } = req.body;
@@ -237,7 +249,7 @@ router.post("/manual", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/admin/leave — List all leave requests with administrative filtering
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { status, type, grade, section, search, startDate, endDate } = req.query;
     const page = Math.max(parseInt((req.query.page as string) || "1"), 1);
@@ -313,7 +325,22 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
                 },
                 classEnrollments: {
                   where: { isActive: true },
-                  include: { class: { select: { id: true, name: true, grade: true, section: true } } },
+                  include: {
+                    class: {
+                      select: {
+                        id: true,
+                        name: true,
+                        grade: true,
+                        section: true,
+                        masool: {
+                          select: { user: { select: { firstName: true, lastName: true } } },
+                        },
+                        teacher: {
+                          select: { user: { select: { firstName: true, lastName: true } } },
+                        },
+                      },
+                    },
+                  },
                   take: 1,
                 },
               },
@@ -351,6 +378,13 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         },
         gradesSections: grades,
         requests: leaves.map((l) => {
+          const enrolledClass = l.student.classEnrollments[0]?.class;
+          const darajahMasoolName = enrolledClass?.masool?.user
+            ? `${enrolledClass.masool.user.firstName} ${enrolledClass.masool.user.lastName}`.trim()
+            : enrolledClass?.teacher?.user
+            ? `${enrolledClass.teacher.user.firstName} ${enrolledClass.teacher.user.lastName}`.trim()
+            : null;
+
           const primaryParent = l.student.parentLinks?.[0]?.parent;
           const parentName = primaryParent?.user
             ? `${primaryParent.user.firstName} ${primaryParent.user.lastName}`.trim()
@@ -388,7 +422,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             endDate: (l.grantedEndDate || l.endDate).toISOString().split("T")[0],
             approvedDays: l.approvedDays || undefined,
             reviewerNotes: l.reviewerNotes,
-            reviewerName: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : null,
+            reviewerName: l.reviewer ? `${l.reviewer.firstName} ${l.reviewer.lastName}` : "Maktab Tanzeem • Galiakot",
           });
 
           const whatsAppUrl = parentPhone ? generateWhatsAppLink(parentPhone, waMessage) : null;
@@ -402,6 +436,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
             grade: l.student.grade,
             section: l.student.section,
             className: l.student.classEnrollments[0]?.class?.name || `Grade ${l.student.grade}-${l.student.section}`,
+            darajahMasoolName,
             type: l.type,
             startDate: l.startDate.toISOString(),
             endDate: l.endDate.toISOString(),
@@ -448,7 +483,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/leave/:id/approve — Admin override / approve
-router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
+router.post("/:id/approve", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { reviewerNotes, approvedDays, startDate, endDate } = req.body;
@@ -527,7 +562,7 @@ router.post("/:id/approve", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/leave/:id/reject — Admin override / reject
-router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
+router.post("/:id/reject", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { reviewerNotes } = req.body;
@@ -595,7 +630,7 @@ router.post("/:id/reject", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/leave/:id/hold — Put leave request on hold
-router.post("/:id/hold", requireRole("ADMIN"), async (req, res) => {
+router.post("/:id/hold", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { reviewerNotes, startDate, endDate } = req.body;
@@ -879,7 +914,7 @@ router.post("/:id/notify-parent", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/leave/batch-approve — 1-Click Approve multiple pending leave requests
-router.post("/batch-approve", requireRole("ADMIN"), async (req, res) => {
+router.post("/batch-approve", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { leaveIds, reviewerNotes } = req.body;
@@ -918,7 +953,7 @@ router.post("/batch-approve", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/leave/mark-holiday — 1-Click Mark applied / selected students on Holiday / Leave
-router.post("/mark-holiday", requireRole("ADMIN"), async (req, res) => {
+router.post("/mark-holiday", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { studentIds, startDate, endDate, reason, type = "PERSONAL", notes } = req.body;
@@ -952,15 +987,15 @@ router.post("/mark-holiday", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/leave/:id — Admin delete / cancel
-router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+router.delete("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    const cancelled = await cancelLeaveRequest(req.params.id, undefined, true);
+    const deleted = await deleteLeaveRequest(req.params.id);
 
     return res.json({
       success: true,
       data: {
-        id: cancelled.id,
-        status: cancelled.status,
+        id: deleted.id,
+        status: "DELETED",
       },
     });
   } catch (error: any) {

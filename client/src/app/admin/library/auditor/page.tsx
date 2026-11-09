@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Clock, ArrowRight, ShieldCheck } from "lucide-react";
+import { Clock, ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──
@@ -204,11 +204,12 @@ export default function AuditorPage() {
       {/* ── Library Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Library & Circulation"
-        hubDescription="Book catalog, smart color-coded shelves, circulation desk, and overdue tracking."
+        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
         tabs={[
           { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
           { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
-          { label: "Quick Checkout", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
         ]}

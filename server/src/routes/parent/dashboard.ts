@@ -44,7 +44,6 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
               include: {
                 user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
                 classEnrollments: {
-                  where: { class: { academicYear: "1448 H", grade: { in: ["1", "2", "3", "4"] } } },
                   include: {
                     class: {
                       include: {
@@ -106,6 +105,7 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
         );
 
         const [
+          allClasses,
           todayAttendanceRecords,
           todayAttendanceRegistries,
           weeklyAttendanceRecords,
@@ -117,6 +117,16 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
           allBookLoans,
           scanWindows,
         ] = await Promise.all([
+          // 0. All classes with their assigned Masools
+          prisma.class.findMany({
+            include: {
+              masool: {
+                include: {
+                  user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+                },
+              },
+            },
+          }),
           // 1. Today's class attendance records
           prisma.attendanceRecord.findMany({
             where: {
@@ -198,7 +208,7 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
           prisma.bookLoan.findMany({
             where: { studentId: { in: allStudentLoanIds } },
             orderBy: { borrowedAt: "desc" },
-            take: studentProfileIds.length * 10,
+            take: studentProfileIds.length * 50,
             include: { book: true },
           }),
           // 8. Scheduled scan windows
@@ -274,6 +284,34 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
           const isCheckedIn = !!checkInTime || (registry?.status === "PRESENT" || attendance?.status === "PRESENT");
           const attendanceStatus = registry?.status || attendance?.status || (isCheckedIn ? "PRESENT" : "ABSENT");
 
+          // Resolve Academic Class & Masool (with robust fallback)
+          const enrollmentClass = student.classEnrollments?.[0]?.class;
+          let activeClass = enrollmentClass;
+          if (!activeClass || !activeClass.masool) {
+            const gNum = (student.grade || "1").replace(/[^0-9]/g, "");
+            const sSec = (student.section || "A").trim().toUpperCase();
+            activeClass =
+              allClasses.find(
+                (c) =>
+                  (c.grade === gNum || c.name.toLowerCase().includes((student.grade || "").toLowerCase())) &&
+                  (!sSec || c.section?.toUpperCase() === sSec || c.name.toUpperCase().includes(sSec))
+              ) ||
+              activeClass ||
+              allClasses.find((c) => c.masool) ||
+              null;
+          }
+
+          const masoolUser = activeClass?.masool?.user;
+          const masoolName = masoolUser
+            ? `${masoolUser.firstName} ${masoolUser.lastName}`.trim()
+            : activeClass?.masool
+            ? "Faculty Masool"
+            : null;
+          const masoolAvatar = masoolUser?.avatarUrl || null;
+          const masoolIts = activeClass?.masool?.its || null;
+          const className = activeClass?.name || `${student.grade} ${student.section}`.trim();
+          const roomNumber = activeClass?.roomNumber || `Room ${activeClass?.name || ""}`;
+
           return {
             id: student.userId,
             studentProfileId: student.id,
@@ -286,6 +324,11 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
             trNo: student.trNo || "",
             grade: student.grade || "Rabea",
             section: student.section || "",
+            className,
+            roomNumber,
+            masoolName,
+            masoolAvatar,
+            masoolIts,
             currentPoints: student.currentPoints || 0,
             tier: student.tier || "BRONZE",
             streakDays: student.streakDays || 0,
@@ -297,18 +340,17 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
             relationship: link.relationship || parentProfile.relationType || "Parent",
 
             // Academic Class & Masool
-            academicClass: student.classEnrollments?.[0]?.class
+            academicClass: activeClass
               ? {
-                  id: student.classEnrollments[0].class.id,
-                  name: student.classEnrollments[0].class.name,
-                  grade: student.classEnrollments[0].class.grade,
-                  section: student.classEnrollments[0].class.section,
-                  masoolName: student.classEnrollments[0].class.masool?.user
-                    ? `${student.classEnrollments[0].class.masool.user.firstName} ${student.classEnrollments[0].class.masool.user.lastName}`
-                    : null,
-                  masoolIts: student.classEnrollments[0].class.masool?.its || null,
-                  masoolEmail: student.classEnrollments[0].class.masool?.user?.email || null,
-                  masoolAvatar: student.classEnrollments[0].class.masool?.user?.avatarUrl || null,
+                  id: activeClass.id,
+                  name: activeClass.name,
+                  grade: activeClass.grade,
+                  section: activeClass.section,
+                  roomNumber,
+                  masoolName,
+                  masoolIts,
+                  masoolEmail: masoolUser?.email || null,
+                  masoolAvatar,
                 }
               : null,
 
@@ -362,7 +404,7 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
 
             // Points
             pointsToday,
-            recentActivity: (() => {
+            ...(() => {
               const studentLoans = allBookLoans.filter(
                 (l) =>
                   l.studentId === student.id ||
@@ -371,6 +413,39 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
                   l.studentId === student.its ||
                   l.studentId === student.trNo
               );
+
+              const nowMs = Date.now();
+              const formattedLoans = studentLoans.map((loan) => {
+                const isOverdue = loan.status === "ACTIVE" && new Date(loan.dueAt).getTime() < nowMs;
+                const dueMs = new Date(loan.dueAt).getTime();
+                const diffDays = Math.ceil((dueMs - nowMs) / (1000 * 60 * 60 * 24));
+
+                return {
+                  id: loan.id,
+                  bookId: loan.bookId,
+                  title: loan.bookTitle || loan.book?.title || "Library Book",
+                  author: loan.book?.author || "Darse Burhani Maktabat",
+                  category: loan.book?.category || "General",
+                  barcode: loan.bookBarcode || loan.book?.barcode || "—",
+                  coverImage: loan.book?.coverImage || null,
+                  rackNumber: loan.book?.rackNumber || null,
+                  shelfNumber: loan.book?.shelfNumber || null,
+                  locationColor: loan.book?.locationColor || null,
+                  location: `${loan.book?.rackNumber || ""}${loan.book?.shelfNumber ? `-${loan.book?.shelfNumber}` : ""}`.trim() || null,
+                  borrowedAt: loan.borrowedAt,
+                  dueAt: loan.dueAt,
+                  returnedAt: loan.returnedAt,
+                  status: isOverdue ? "OVERDUE" : loan.status,
+                  rawStatus: loan.status,
+                  isOverdue,
+                  daysRemaining: diffDays,
+                  notes: loan.notes,
+                };
+              });
+
+              const activeLoans = formattedLoans.filter((l) => l.rawStatus === "ACTIVE");
+              const returnedLoans = formattedLoans.filter((l) => l.rawStatus === "RETURNED");
+              const overdueCount = formattedLoans.filter((l) => l.isOverdue).length;
 
               const studentAtt = weeklyRecords.slice(0, 10);
 
@@ -428,9 +503,16 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
                 }),
               ];
 
-              return combined
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .slice(0, 10);
+              return {
+                libraryLoans: formattedLoans,
+                issuedBooks: activeLoans,
+                returnedBooks: returnedLoans,
+                activeLoansCount: activeLoans.length,
+                overdueLoansCount: overdueCount,
+                recentActivity: combined
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .slice(0, 10),
+              };
             })(),
 
             // Badges
@@ -480,7 +562,7 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
       },
       {
         ttl: 5_000, // 5s cache for real-time live attendance updates
-        tags: ["dashboard", "studentprofile", "pointlog", "attendancerecord", "hifzweeklyslip"],
+        tags: ["dashboard", "studentprofile", "pointlog", "attendancerecord", "hifzweeklyslip", "bookloan", "parent:dashboard"],
       },
     );
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
-import { Loader2, Pencil, BookOpen, User, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Pencil, BookOpen, User, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
 
 interface TakhteetAssignmentsProps {
   classes: any[];
@@ -19,6 +19,26 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+
+    const [autoAllocating, setAutoAllocating] = useState(false);
+
+  const handleAutoAllocate = async () => {
+    setAutoAllocating(true);
+    try {
+      const res = await fetch("/api/admin/takhteet/auto-allocate", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast({ variant: "success", title: "Allocated", description: data.message });
+        onChanged();
+      } else {
+        toast({ variant: "destructive", title: "Failed", description: data.error });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setAutoAllocating(false);
+    }
+  };
 
   const openEdit = (cls: any) => {
     setEditing(cls);
@@ -89,9 +109,26 @@ export default function TakhteetAssignments({ classes, teachers, onChanged }: Ta
             <span className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-[#b8541e]" /> Class & Subject Teacher Assignments
             </span>
-            <Badge variant="secondary" className="text-xs">
-              {classes.length} Total Classes
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleAutoAllocate}
+                disabled={autoAllocating}
+                className="bg-purple-50 text-purple-900 border-purple-300 hover:bg-purple-100 text-xs font-bold gap-1.5 rounded-xl cursor-pointer"
+                title="Automatically allocates all Takhteet syllabus portions to teachers based on current timetable subject assignments"
+              >
+                {autoAllocating ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-700" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-purple-700" />
+                )}
+                <span>Auto-Allocate Portions</span>
+              </Button>
+              <Badge variant="secondary" className="text-xs">
+                {classes.length} Total Classes
+              </Badge>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">

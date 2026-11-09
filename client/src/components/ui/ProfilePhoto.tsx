@@ -15,11 +15,16 @@ interface ProfilePhotoProps {
   draggable?: boolean;
   previewable?: boolean;
   subtitle?: string;
+  /**
+   * "cover" (default) ensures the photo fits tightly and wraps cleanly inside circles or cards.
+   * "contain" retains the blurred-backdrop letterbox mode for widescreen banners or landscape previews.
+   */
+  fit?: "cover" | "contain";
 }
 
 /**
- * ProfilePhoto — quick-loading, full portrait image inside any frame
- * with seamless blurred-background fill and interactive full-resolution lightbox viewer.
+ * ProfilePhoto — quick-loading, responsive portrait image inside any circular or shaped frame
+ * with seamless wrapped display and interactive full-resolution lightbox viewer.
  */
 export function ProfilePhoto({
   src,
@@ -32,6 +37,7 @@ export function ProfilePhoto({
   draggable = false,
   previewable = true,
   subtitle,
+  fit = "cover",
 }: ProfilePhotoProps) {
   const [hasError, setHasError] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -61,19 +67,21 @@ export function ProfilePhoto({
         }}
         title={previewable ? "Click to view full photo" : alt}
       >
-        {/* Blurred background fill for seamless borderless display */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 scale-110 pointer-events-none"
-          style={{
-            backgroundImage: `url("${cleanSrc}")`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(12px) brightness(0.85)",
-          }}
-        />
+        {/* Blurred background fill for seamless display when in contain mode */}
+        {fit === "contain" && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 scale-110 pointer-events-none"
+            style={{
+              backgroundImage: `url("${cleanSrc}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(12px) brightness(0.85)",
+            }}
+          />
+        )}
 
-        {/* Foreground full image — zero cropping */}
+        {/* Foreground image — smoothly wrapped within frame with object-cover or object-contain */}
         <img
           src={cleanSrc}
           alt={alt}
@@ -85,7 +93,8 @@ export function ProfilePhoto({
             onError?.();
           }}
           className={cn(
-            "relative z-10 w-full h-full object-contain object-center transition-transform duration-300",
+            "relative z-10 w-full h-full object-center transition-transform duration-300",
+            fit === "cover" ? "object-cover" : "object-contain",
             previewable && "group-hover:scale-105",
             imgClassName
           )}

@@ -31,12 +31,16 @@
     "seed:demo": "tsx scripts/seed-demo-credentials.ts",
     "db:backup": "tsx scripts/backup-supabase-to-local.ts",
     "db:restore": "tsx scripts/restore-local-db.ts",
-    "db:sync-timetable": "tsx scripts/sync-supabase-timetable.ts"
+    "db:sync-timetable": "tsx scripts/sync-supabase-timetable.ts",
+    "audit:system": "tsx scripts/audit-system.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/qrcode": "^1.5.6",
+    "@whiskeysockets/baileys": "6.7.18",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
+    "qrcode": "^1.5.4",
     "xlsx": "^0.18.5"
   },
   "prisma": {

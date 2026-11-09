@@ -50,6 +50,12 @@ interface StudentInfo {
   trNo: string | null;
   firstName: string;
   lastName: string;
+  name?: string;
+  photo?: string | null;
+  avatarUrl?: string | null;
+  role?: "STUDENT" | "FACULTY";
+  roleLabel?: string;
+  department?: string | null;
   grade: string;
   section: string;
   className: string | null;
@@ -58,6 +64,7 @@ interface StudentInfo {
 
 interface BookScanModalProps {
   open: boolean;
+  initialBarcode?: string;
   onOpenChange: (open: boolean) => void;
   onBookIssued: () => void;
 }
@@ -71,7 +78,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 };
 
 // ── Main Component ──
-export default function BookScanModal({ open, onOpenChange, onBookIssued }: BookScanModalProps) {
+export default function BookScanModal({ open, initialBarcode, onOpenChange, onBookIssued }: BookScanModalProps) {
   const [step, setStep] = useState<"scan" | "details" | "issue" | "receipt">("scan");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [searching, setSearching] = useState(false);
@@ -103,38 +110,23 @@ export default function BookScanModal({ open, onOpenChange, onBookIssued }: Book
   const barcodeRef = useRef<HTMLInputElement>(null);
   const studentSearchRef = useRef<HTMLInputElement>(null);
 
-  // Reset when modal opens
-  useEffect(() => {
-    if (open) {
-      setStep("scan");
-      setBarcodeInput("");
-      setBook(null);
-      setNotFound(false);
-      setSelectedStudent(null);
-      setStudentQuery("");
-      setStudentResults([]);
-      setIssueData(null);
-      setTimeout(() => barcodeRef.current?.focus(), 100);
-    }
-  }, [open]);
-
-  // Auto-focus on step change
-  useEffect(() => {
-    if (step === "scan") barcodeRef.current?.focus();
-    if (step === "issue") setTimeout(() => studentSearchRef.current?.focus(), 200);
-  }, [step]);
-
   // ── Lookup Book by Barcode ──
   const lookUpBook = async (barcode: string) => {
     if (!barcode.trim()) return;
     setSearching(true);
     setNotFound(false);
     try {
-      const res = await fetch(`/api/admin/library?search=${encodeURIComponent(barcode)}&pageSize=1`);
+      const res = await fetch(`/api/admin/library?search=${encodeURIComponent(barcode.trim())}&pageSize=1`);
       const data = await res.json();
       if (data.success && data.data.length > 0) {
-        setBook(data.data[0]);
-        setStep("details");
+        const foundBook = data.data[0];
+        setBook(foundBook);
+        // Automatically advance straight to Issue page if available!
+        if (foundBook.status === "AVAILABLE" && foundBook.availableCopies > 0) {
+          setStep("issue");
+        } else {
+          setStep("details");
+        }
       } else {
         setNotFound(true);
         toast({ title: "Book Not Found", description: `No book found with barcode: ${barcode}`, variant: "destructive" });
@@ -145,6 +137,37 @@ export default function BookScanModal({ open, onOpenChange, onBookIssued }: Book
       setSearching(false);
     }
   };
+
+  // Reset or initialize when modal opens
+  useEffect(() => {
+    if (open) {
+      if (initialBarcode && initialBarcode.trim()) {
+        const code = initialBarcode.trim();
+        setBarcodeInput(code);
+        setSelectedStudent(null);
+        setStudentQuery("");
+        setStudentResults([]);
+        setIssueData(null);
+        lookUpBook(code);
+      } else {
+        setStep("scan");
+        setBarcodeInput("");
+        setBook(null);
+        setNotFound(false);
+        setSelectedStudent(null);
+        setStudentQuery("");
+        setStudentResults([]);
+        setIssueData(null);
+        setTimeout(() => barcodeRef.current?.focus(), 100);
+      }
+    }
+  }, [open, initialBarcode]);
+
+  // Auto-focus on step change
+  useEffect(() => {
+    if (step === "scan") barcodeRef.current?.focus();
+    if (step === "issue") setTimeout(() => studentSearchRef.current?.focus(), 200);
+  }, [step]);
 
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,43 +544,84 @@ export default function BookScanModal({ open, onOpenChange, onBookIssued }: Book
           <Badge variant="success">Issuing</Badge>
         </div>
 
-        {/* Talabat Selection */}
+        {/* Talabat & Faculty Selection */}
         <fieldset className="border-0 p-0 m-0">
-          <legend className="block text-sm font-medium text-gray-700 mb-1.5">
-            <User className="w-4 h-4 inline mr-1" />
-            Select Talabat
+          <legend className="block text-sm font-semibold text-slate-800 mb-2">
+            <User className="w-4 h-4 inline mr-1 text-emerald-700" />
+            Borrower Profile (Talabat / Faculty)
           </legend>
           {selectedStudent ? (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50 border border-indigo-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
-                  {selectedStudent.firstName[0]}{selectedStudent.lastName[0]}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{selectedStudent.firstName} {selectedStudent.lastName}</p>
-                  <p className="text-xs text-gray-500">
-                    {selectedStudent.className || `Grade ${selectedStudent.grade}-${selectedStudent.section}`} · TR No.: {selectedStudent.trNo || selectedStudent.its || selectedStudent.studentId}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/80 border-2 border-emerald-300 shadow-xs">
+              <div className="flex items-center gap-3.5">
+                {selectedStudent.photo || selectedStudent.avatarUrl ? (
+                  <img
+                    src={selectedStudent.photo || selectedStudent.avatarUrl!}
+                    alt={`${selectedStudent.firstName} ${selectedStudent.lastName}`}
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500 shadow-sm shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white text-base font-extrabold shadow-sm shrink-0">
+                    {selectedStudent.firstName[0]}
+                    {selectedStudent.lastName[0]}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-900 truncate">
+                      {selectedStudent.firstName} {selectedStudent.lastName}
+                    </p>
+                    <span
+                      className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                        selectedStudent.role === "FACULTY"
+                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                          : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      }`}
+                    >
+                      {selectedStudent.role === "FACULTY" ? "Faculty" : "Talabat"}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700 mt-0.5">
+                    {selectedStudent.role === "FACULTY"
+                      ? selectedStudent.department || selectedStudent.className || "Faculty Department"
+                      : selectedStudent.className || `Grade ${selectedStudent.grade}-${selectedStudent.section}`}
+                  </p>
+                  <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                    TR: {selectedStudent.trNo || "—"} &middot; ITS: {selectedStudent.its || selectedStudent.studentId}
                   </p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => { setSelectedStudent(null); setStudentQuery(""); }} className="text-red-500">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedStudent(null);
+                  setStudentQuery("");
+                }}
+                className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
+              >
                 <X className="w-4 h-4" />
               </Button>
             </div>
           ) : (
             <div className="space-y-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <label htmlFor="student-search" className="sr-only">Search student</label>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <label htmlFor="student-search" className="sr-only">Search borrower</label>
                 <input
                   ref={studentSearchRef}
                   type="text"
                   id="student-search"
                   name="student-search"
                   value={studentQuery}
-                  onChange={(e) => { setStudentQuery(e.target.value); searchStudent(e.target.value); }}
-                  placeholder="Search by name or TR No..."
-                  className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  onChange={(e) => {
+                    setStudentQuery(e.target.value);
+                    searchStudent(e.target.value);
+                  }}
+                  placeholder="Scan member barcode or search by name, TR No, ITS..."
+                  className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/60"
                 />
               </div>
 
@@ -567,23 +631,54 @@ export default function BookScanModal({ open, onOpenChange, onBookIssued }: Book
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="border border-gray-200 rounded-xl overflow-hidden shadow-sm max-h-48 overflow-y-auto"
+                    className="border border-slate-200 bg-white rounded-xl overflow-hidden shadow-lg max-h-56 overflow-y-auto"
                   >
                     {studentResults.map((s) => (
                       <button
                         key={s.id}
+                        type="button"
                         onClick={() => selectStudent(s)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-emerald-50/80 transition-colors text-left border-b border-slate-100 last:border-b-0 cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                          {s.firstName[0]}{s.lastName[0]}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{s.firstName} {s.lastName}</p>
-                          <p className="text-xs text-gray-500">{s.className || `Grade ${s.grade}-${s.section}`}</p>
+                        {s.photo || s.avatarUrl ? (
+                          <img
+                            src={s.photo || s.avatarUrl!}
+                            alt={s.firstName}
+                            className="w-9 h-9 rounded-xl object-cover border border-emerald-300 shadow-2xs shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            {s.firstName[0]}
+                            {s.lastName[0]}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-slate-900 truncate">
+                              {s.firstName} {s.lastName}
+                            </span>
+                            <span
+                              className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded ${
+                                s.role === "FACULTY"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {s.role === "FACULTY" ? "Faculty" : "Talabat"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {s.role === "FACULTY"
+                              ? s.department || s.className || "Faculty"
+                              : s.className || `Grade ${s.grade}-${s.section}`}{" "}
+                            &middot; TR: {s.trNo || s.its || s.studentId}
+                          </p>
                         </div>
                         <Badge variant={s.activeLoans > 0 ? "warning" : "secondary"} className="text-[10px]">
-                          {s.activeLoans} loans
+                          {s.activeLoans} loan{s.activeLoans !== 1 ? "s" : ""}
                         </Badge>
                       </button>
                     ))}

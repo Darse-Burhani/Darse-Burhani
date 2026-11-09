@@ -23,7 +23,7 @@ export function InstitutionalFooter({
           <div className="flex items-center gap-5 text-xs font-semibold text-slate-600 dark:text-slate-400">
             <Link href="/privacy" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Terms of Service</Link>
-            <a href="mailto:support.darseburhani.galiakot@gmail.com" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Support</a>
+            <a href="mailto:support@darseburhani-galiakot.org" className="hover:text-emerald-800 dark:hover:text-emerald-400 hover:underline transition-colors">Support</a>
           </div>
         </div>
       </footer>
@@ -85,7 +85,7 @@ export function InstitutionalFooter({
             </h4>
             <div className="text-xs text-[#b8b2a5] space-y-1">
               <p className="text-[#fbf8f2] font-medium">Administration Desk, Mahad al Zahra</p>
-              <p>Email: <a href="mailto:admin.galiakot@darseburhani.org" className="text-[#c59b27] hover:underline font-semibold">admin.galiakot@darseburhani.org</a></p>
+              <p>Email: <a href="mailto:admin.galiakot@darseburhani-galiakot.org" className="text-[#c59b27] hover:underline font-semibold">admin.galiakot@darseburhani-galiakot.org</a></p>
               <p>Tel: <a href="tel:+912964282222" className="text-[#c59b27] hover:underline font-semibold">+91 2964 282222</a></p>
               <p>Assistance hours: Monday to Saturday, 08:00 – 16:30 IST</p>
               <div className="pt-2 flex items-center gap-3 text-[#c59b27]">

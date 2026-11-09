@@ -116,7 +116,16 @@ export function usePWA() {
   );
   const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return sessionStorage.getItem("db-pwa-dismissed") === "true";
+    try {
+      const isDismissedSession = sessionStorage.getItem("db-pwa-dismissed") === "true";
+      const dismissedUntil = localStorage.getItem("db-pwa-dismissed-until");
+      if (dismissedUntil && Number(dismissedUntil) > Date.now()) {
+        return true;
+      }
+      return isDismissedSession;
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
@@ -182,12 +191,17 @@ export function usePWA() {
   const dismissInstall = useCallback(() => {
     setDismissed(true);
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("db-pwa-dismissed", "true");
+      try {
+        sessionStorage.setItem("db-pwa-dismissed", "true");
+        // Dismiss for 7 days so user is not repeatedly prompted on every page load
+        localStorage.setItem("db-pwa-dismissed-until", String(Date.now() + 7 * 86400000));
+      } catch {}
     }
   }, []);
 
   return {
     canInstall: canInstall && !dismissed && !isInstalled,
+    dismissed,
     isInstalled,
     isOnline,
     installPWA,

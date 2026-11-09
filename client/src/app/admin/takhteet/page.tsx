@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   ClipboardList,
@@ -37,10 +37,13 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose }
 import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 import { monthName, statusMeta } from "@/lib/takhteet";
-import TakhteetAnalytics from "@/components/admin/TakhteetAnalytics";
 import TakhteetMonthlyView from "@/components/admin/TakhteetMonthlyView";
-import TakhteetAssignments from "@/components/admin/TakhteetAssignments";
+// Analytics pulls the full recharts vendor (~380KB) — lazy-load them so the
+// main takhteet page chunk stays lean and charts load only when rendered.
+const TakhteetAnalytics = lazy(() => import("@/components/admin/TakhteetAnalytics"));
+const TakhteetAssignments = lazy(() => import("@/components/admin/TakhteetAssignments"));
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
+import { WaitingInterface } from "@/components/WaitingInterface";
 
 const emptyForm = {
   teacherId: "",
@@ -79,6 +82,8 @@ export default function AdminTakhteetPage() {
   const [showPrint, setShowPrint] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [syncingTafseel, setSyncingTafseel] = useState(false);
+  const [autoAllocating, setAutoAllocating] = useState(false);
+  const [subjectMappings, setSubjectMappings] = useState<Record<string, Record<string, any>>>({});
   const [planPage, setPlanPage] = useState(1);
   const PLAN_PAGE_SIZE = 40;
 
@@ -91,6 +96,10 @@ export default function AdminTakhteetPage() {
         setTeachers(data.data.teachers || []);
         setClasses(data.data.classes || []);
         setPlans(data.data.plans || []);
+        fetch("/api/admin/takhteet/subject-mappings")
+          .then((r) => r.json())
+          .then((m) => { if (m.success) setSubjectMappings(m.data || {}); })
+          .catch(() => {});
         if (isManualRefresh) {
           toast({ variant: "success", title: "Data Refreshed", description: "Takhteet plans updated successfully." });
         }
@@ -166,6 +175,16 @@ export default function AdminTakhteetPage() {
 
   const availableClassesForTeacher = (teacherId: string) =>
     classes.filter((c) => c.teacherUserId === teacherId);
+
+  const selectedClassObj = useMemo(() => classes.find((c) => c.id === form.classId), [classes, form.classId]);
+  const mappedSubjectTeacher = useMemo(() => {
+    if (!selectedClassObj || !form.subject) return null;
+    const cMap = subjectMappings[selectedClassObj.name] || {};
+    const exact = cMap[form.subject];
+    if (exact) return exact;
+    const found = Object.entries(cMap).find(([k]) => k.toLowerCase() === form.subject.toLowerCase());
+    return found ? found[1] : null;
+  }, [selectedClassObj, form.subject, subjectMappings]);
 
   const openCreateModal = (teacherId?: string) => {
     const defaultTeacher = teacherId || (teachers.length > 0 ? teachers[0].id : "");
@@ -293,6 +312,32 @@ export default function AdminTakhteetPage() {
     }
   };
 
+  const handleAutoAllocate = async () => {
+    setAutoAllocating(true);
+    try {
+      const res = await fetch("/api/admin/takhteet/auto-allocate", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          variant: "success",
+          title: "✨ Takhteet Allocation Complete",
+          description: data.message || "Successfully mapped Takhteet portions to assigned subject teachers.",
+        });
+        await fetchData(true);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Allocation Failed",
+          description: data.error || "Could not auto-allocate portions.",
+        });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network Error", description: "Could not connect to server." });
+    } finally {
+      setAutoAllocating(false);
+    }
+  };
+
   const handleSyncTafseel = async () => {
     if (!window.confirm("Ingest & Synchronize Tafseel 1-4 Excel files from public for Darajah 1, 2, 3, 4? This will update 6,500+ syllabus portions across all classes.")) return;
     setSyncingTafseel(true);
@@ -380,7 +425,7 @@ export default function AdminTakhteetPage() {
                 size="sm"
                 className="bg-amber-400 text-slate-950 font-bold border-amber-300 hover:bg-amber-300 shadow-sm"
                 onClick={handleSyncTafseel}
-                disabled={syncingTafseel}
+                disabled={syncingTafseel || autoAllocating}
               >
                 {syncingTafseel ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
@@ -388,6 +433,21 @@ export default function AdminTakhteetPage() {
                   <RefreshCw className="w-4 h-4 mr-1.5" />
                 )}
                 Sync Tafseel (1–4)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-purple-900 text-purple-100 font-bold border-purple-400/40 hover:bg-purple-800 shadow-sm"
+                onClick={handleAutoAllocate}
+                disabled={autoAllocating || syncingTafseel}
+                title="Automatically allocates all Takhteet syllabus portions to teachers based on current timetable subject assignments"
+              >
+                {autoAllocating ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1.5 text-purple-300" />
+                ) : (
+                  <Sparkles className="w-4 h-4 mr-1.5 text-amber-300" />
+                )}
+                Auto-Allocate by Subject
               </Button>
               <Button
                 variant="outline"
@@ -944,13 +1004,21 @@ export default function AdminTakhteetPage() {
       )}
 
       {/* Tab 2: Analytics Tab */}
-      {tab === "analytics" && <TakhteetAnalytics plans={plans} teachers={teachers} />}
+      {tab === "analytics" && (
+        <Suspense fallback={<WaitingInterface variant="inline" message="Loading Analytics…" />}>
+          <TakhteetAnalytics plans={plans} teachers={teachers} />
+        </Suspense>
+      )}
 
       {/* Tab 3: Monthly Grid */}
       {tab === "monthly" && <TakhteetMonthlyView plans={plans} />}
 
       {/* Tab 4: Class Assignments */}
-      {tab === "assignments" && <TakhteetAssignments classes={classes} teachers={teachers} onChanged={() => fetchData(true)} />}
+      {tab === "assignments" && (
+        <Suspense fallback={<WaitingInterface variant="inline" message="Loading Assignments…" />}>
+          <TakhteetAssignments classes={classes} teachers={teachers} onChanged={() => fetchData(true)} />
+        </Suspense>
+      )}
 
       {/* Create Plan Modal */}
       <Modal open={showCreateModal} onOpenChange={setShowCreateModal}>
@@ -1056,6 +1124,33 @@ export default function AdminTakhteetPage() {
                 </select>
               </div>
             </div>
+
+            {mappedSubjectTeacher && (
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-50 via-white to-amber-50 border border-purple-200 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-purple-700" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-purple-950">
+                      Scheduled Subject Faculty: {mappedSubjectTeacher.teacherName}
+                    </div>
+                    <div className="text-[10.5px] text-purple-800 font-medium">
+                      Assigned in official timetable for Class {selectedClassObj?.name} ({form.subject})
+                    </div>
+                  </div>
+                </div>
+                {form.teacherId !== mappedSubjectTeacher.teacherId && (
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, teacherId: mappedSubjectTeacher.teacherId })}
+                    className="px-3 py-1 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shrink-0 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Auto-Assign Ustaz
+                  </button>
+                )}
+              </div>
+            )}
 
             <div>
               <label htmlFor="tk-title" className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-1">

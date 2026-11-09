@@ -69,11 +69,12 @@ router.get("/schedules", requireAuth, async (req, res) => {
       };
     });
 
-    // Filter strictly for manual events only (no HIKVISION hardware events)
-    const manualOnly = scheduledWindows.filter(
-      (w) => w.windowType === "MANUAL" || (!w.windowType && w.id.startsWith("manual_"))
+    // Include all active institutional schedule windows (Tilawat al Dua, Fajr, Zohar/Asar, Maghrib/Isha)
+    // so manual attendance can be marked or adjusted for any scheduled prayer or dua session
+    const availableWindows = scheduledWindows.filter(
+      (w) => w.enabled !== false && !w.id.startsWith("hik_test")
     );
-    const finalScheduledWindows = manualOnly;
+    const finalScheduledWindows = availableWindows.length > 0 ? availableWindows : scheduledWindows;
 
     const grades = Array.from(new Set(classes.map((c) => c.grade).filter(Boolean))).sort();
     const sections = Array.from(new Set(classes.map((c) => c.section).filter(Boolean))).sort();
@@ -267,12 +268,18 @@ router.get("/roster", requireAuth, async (req, res) => {
           remarks = s.leaveRequests?.[0]?.reason || reg?.remarks || rec?.justification || "Approved Official Leave (Holiday)";
         }
 
-        const studentFullName = `${s.user?.firstName || ""} ${s.user?.lastName || ""}`.trim();
+        const fn = s.user?.firstName?.trim() || "";
+        const ln = s.user?.lastName?.trim() || "";
+        const studentFullName = `${fn} ${ln}`.trim();
+        const displayName = studentFullName || s.nameAr || (s.its ? `ITS ${s.its}` : s.studentId);
 
         roster.push({
           id: s.id,
           profileId: s.id,
-          name: studentFullName || s.its || s.studentId || "Student",
+          firstName: fn,
+          lastName: ln,
+          name: displayName,
+          nameAr: s.nameAr || null,
           email: s.user?.email,
           identifier: s.studentId,
           its: s.its || s.studentId,
@@ -467,7 +474,7 @@ router.post("/", requireAuth, async (req, res) => {
             id: true,
             userId: true,
             user: { select: { firstName: true, lastName: true } },
-            parents: { select: { parent: { select: { userId: true } } } },
+            parentLinks: { select: { parent: { select: { userId: true } } } },
           },
         }),
       ]);
@@ -603,7 +610,7 @@ router.post("/", requireAuth, async (req, res) => {
             studentPushTargets.push({ userId: prof.userId, title: notifTitle, body: notifBody });
           }
 
-          for (const pl of prof.parents) {
+          for (const pl of (prof.parentLinks || [])) {
             if (pl.parent?.userId) {
               notifData.push({
                 userId: pl.parent.userId,

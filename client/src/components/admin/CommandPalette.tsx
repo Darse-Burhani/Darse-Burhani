@@ -32,6 +32,8 @@ import {
   Barcode,
   KeyRound,
   FileSpreadsheet,
+  Cake,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -113,6 +115,14 @@ const COMMANDS: NavCommand[] = [
     keywords: ["logs", "audit", "verification", "daily roster", "records"],
   },
   {
+    id: "maktabat-attendance",
+    title: "Maktabat Library Attendance Desk (Fast Scan & Session Tracking)",
+    category: "Attendance",
+    href: "/admin/library/attendance",
+    icon: UserCheck,
+    keywords: ["library", "maktabat", "reading", "study hall", "circulation", "visit", "student scan", "kalam", "books"],
+  },
+  {
     id: "google-sheets",
     title: "Google Sheets Cloud Sync (Daily & Monthly Registers)",
     category: "Attendance",
@@ -175,6 +185,15 @@ const COMMANDS: NavCommand[] = [
     icon: GraduationCap,
     shortcut: "G T",
     keywords: ["students", "talabat", "its", "roster", "blood group", "registration"],
+  },
+  {
+    id: "waras-mubarak",
+    title: "Waras Mubarak (Salgirah) Greetings Hub",
+    category: "People",
+    href: "/admin/waras-mubarak",
+    icon: Cake,
+    shortcut: "G B",
+    keywords: ["birthday", "salgirah", "waras", "mubarak", "greeting", "milestone", "email", "parents", "kalam"],
   },
   {
     id: "parents",
@@ -249,6 +268,15 @@ const COMMANDS: NavCommand[] = [
     icon: Grid3X3,
     shortcut: "G M",
     keywords: ["points", "rewards", "conduct", "badges", "tiers", "matrix"],
+  },
+  {
+    id: "whatsapp",
+    title: "24/7 Cloud WhatsApp Gateway",
+    category: "Navigation",
+    href: "/admin/whatsapp",
+    icon: MessageSquare,
+    shortcut: "G Q",
+    keywords: ["whatsapp", "baileys", "qr", "cloud", "notify", "messages", "gateway", "dispatch", "leaves", "badal"],
   },
 ];
 

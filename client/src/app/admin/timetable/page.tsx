@@ -18,6 +18,7 @@ import {
   ArrowRightLeft,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   ShieldCheck,
   Users,
   Check,
@@ -37,10 +38,19 @@ import {
   Send,
   CalendarRange,
   UserCheck,
+  MessageSquare,
+  Phone,
+  Settings,
+  ExternalLink,
+  Key,
+  Smartphone,
+  Ban,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { usePortalAccess } from "@/context/PortalAccessContext";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Modal,
@@ -262,6 +272,38 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
   };
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+  // Viewing vs Management Mode Switcher
+  const [headerToolsOpen, setHeaderToolsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"management" | "normal">(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("admin_timetable_view_mode") : null;
+      if (saved === "normal" || saved === "management") return saved;
+    } catch {}
+    return "management";
+  });
+
+  const handleSetViewMode = (mode: "management" | "normal") => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("admin_timetable_view_mode", mode);
+    } catch {}
+    toast({
+      title: mode === "management" ? "⚡ Management & Assigning Mode" : "👁️ Normal Reading & Presentation View",
+      description:
+        mode === "management"
+          ? "Full administrative controls active: 1-click slot assigning, conflict indicators, and proxy controls."
+          : "Clean presentation layout: administrative clutter hidden, click any slot for full lesson overview.",
+      variant: "default",
+    });
+  };
+
+  // Normal View Slot Inspection Modal
+  const [inspectSlot, setInspectSlot] = useState<any | null>(null);
+
+  // Smart Faculty Assignment Picker State for Slot Modal
+  const [slotTeacherFilter, setSlotTeacherFilter] = useState<"ALL" | "FREE" | "SUBJECT">("FREE");
+  const [slotTeacherSearch, setSlotTeacherSearch] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncingMaster, setSyncingMaster] = useState(false);
@@ -301,13 +343,55 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
   // Badal Management State & Filters
   const [badalDate, setBadalDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [badalDateMode, setBadalDateMode] = useState<"today" | "tomorrow" | "week" | "all" | "custom">("today");
-  const [badalStatusFilter, setBadalStatusFilter] = useState<"ALL" | "FULFILLED" | "PENDING">("ALL");
+  const [badalStatusFilter, setBadalStatusFilter] = useState<"ALL" | "FULFILLED" | "PENDING" | "CANCELLED">("ALL");
   const [badalSearch, setBadalSearch] = useState("");
   const [badals, setBadals] = useState<any[]>([]);
   const [badalLoading, setBadalLoading] = useState(false);
 
+  // Edit Badal Modal State
+  const [showEditBadalModal, setShowEditBadalModal] = useState(false);
+  const [editingBadal, setEditingBadal] = useState<any | null>(null);
+  const [savingEditBadal, setSavingEditBadal] = useState(false);
+  const [editBadalForm, setEditBadalForm] = useState<any>({
+    id: "",
+    date: "",
+    className: "",
+    period: 1,
+    startTime: "",
+    endTime: "",
+    subject: "",
+    originalTeacherName: "",
+    originalTeacherId: "",
+    badalTeacherId: "",
+    badalTeacherName: "",
+    badalTeacherAvatar: "",
+    reason: "",
+    instructions: "",
+    notes: "",
+    status: "ASSIGNED",
+    isFulfilled: false,
+    reNotify: false,
+    sendEmailNotification: true,
+    sendWhatsAppNotification: true,
+  });
+
+  // Dissolve Badal Confirmation State
+  const [showDissolveBadalModal, setShowDissolveBadalModal] = useState(false);
+  const [badalToDissolve, setBadalToDissolve] = useState<any | null>(null);
+  const [dissolveReason, setDissolveReason] = useState("Original teacher reported back / Schedule restored");
+  const [dissolveNotifyEmail, setDissolveNotifyEmail] = useState(true);
+  const [dissolveNotifyWhatsApp, setDissolveNotifyWhatsApp] = useState(true);
+  const [dissolvingBadal, setDissolvingBadal] = useState(false);
+
+  // Delete Badal Confirmation State
+  const [showDeleteBadalModal, setShowDeleteBadalModal] = useState(false);
+  const [badalToDelete, setBadalToDelete] = useState<any | null>(null);
+  const [deletingBadal, setDeletingBadal] = useState(false);
+
   // Badal Modal / Assistant State
   const [showBadalModal, setShowBadalModal] = useState(false);
+  const [unavailableTeachers, setUnavailableTeachers] = useState<any[]>([]);
+  const [showUnavailableFacultyModal, setShowUnavailableFacultyModal] = useState(false);
   const [selectedSlotForBadal, setSelectedSlotForBadal] = useState<any>(null);
   const [availableTeachers, setAvailableTeachers] = useState<any[]>([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
@@ -329,19 +413,49 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     reason: "Medical / Sick Leave",
     instructions: "",
     notes: "",
-    // Email dispatch fields
+    // Email & WhatsApp dispatch fields
     senderEmail: "support.darseburhanigaliakot@gmail.com",
     receiverEmail: "",
     customEmailSubject: "",
     customEmailBody: "",
     sendEmailNotification: true,
+    sendWhatsAppNotification: true,
+    customPhone: "",
   });
   const [savingBadal, setSavingBadal] = useState(false);
   const [badalTeacherFilterMode, setBadalTeacherFilterMode] = useState<"ALL" | "FREE" | "SAME_SUBJECT">("SAME_SUBJECT");
   const [badalTeacherSearchQuery, setBadalTeacherSearchQuery] = useState("");
 
+  // Badal Dedicated Email (SMTP) & WhatsApp Configuration State
+  const [badalSmtpStatus, setBadalSmtpStatus] = useState<any>(null);
+  const [showBadalConfigModal, setShowBadalConfigModal] = useState(false);
+  const [showBadalWhatsAppPreview, setShowBadalWhatsAppPreview] = useState(false);
+  const [badalConfigForm, setBadalConfigForm] = useState({
+    email: "",
+    name: "Darse Burhani — Badal Desk",
+    pass: "",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+  });
+  const [showConfigPass, setShowConfigPass] = useState(false);
+  const [savingBadalConfig, setSavingBadalConfig] = useState(false);
+  const [testingBadalConfig, setTestingBadalConfig] = useState(false);
+  const [testBadalEmailRecipient, setTestBadalEmailRecipient] = useState("");
+  const [renotifyingBadalId, setRenotifyingBadalId] = useState<string | null>(null);
+
+  const activeBadalSubject = showEditBadalModal ? editBadalForm.subject : badalForm.subject;
   const filteredAvailableTeachers = useMemo(() => {
     return (availableTeachers || []).filter((t: any) => {
+      // Strictly show ONLY faculty who are assigned this subject (other faculty don't show)
+      if (
+        activeBadalSubject &&
+        activeBadalSubject.trim() &&
+        activeBadalSubject.toLowerCase() !== "lesson" &&
+        activeBadalSubject.toLowerCase() !== "general"
+      ) {
+        if (!t.teachesSubject) return false;
+      }
       if (badalTeacherFilterMode === "FREE" && !t.isFree) return false;
       if (badalTeacherFilterMode === "SAME_SUBJECT" && !t.teachesSubject) return false;
       if (badalTeacherSearchQuery.trim()) {
@@ -352,7 +466,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       }
       return true;
     });
-  }, [availableTeachers, badalTeacherFilterMode, badalTeacherSearchQuery]);
+  }, [availableTeachers, badalTeacherFilterMode, badalTeacherSearchQuery, activeBadalSubject]);
 
   // Quick Leave Modal State (allows admins to mark faculty/student on leave directly from timetable)
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -428,6 +542,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
         setSlots(Array.isArray(dataT.data.slots) ? dataT.data.slots : []);
         setClasses(Array.isArray(dataT.data.classes) ? dataT.data.classes : []);
         setTodayBadals(Array.isArray(dataT.data.todayBadals) ? dataT.data.todayBadals : []);
+        setUnavailableTeachers(Array.isArray(dataT.data.unavailableTeachers) ? dataT.data.unavailableTeachers : []);
         const teacherList = Array.isArray(dataT.data.teachers) ? dataT.data.teachers : [];
         setTeachers(teacherList);
         if (!selectedTeacherId && teacherList.length > 0) {
@@ -535,6 +650,29 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     }
   }, [badalDate, badalDateMode, badalStatusFilter, badalSearch]);
 
+  const fetchBadalSmtpConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/timetable/badal/config");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setBadalSmtpStatus(json.data);
+        setBadalConfigForm((prev) => ({
+          ...prev,
+          email: json.data.activeMailbox || prev.email,
+          name: json.data.senderName || prev.name,
+          host: json.data.host || prev.host,
+          port: json.data.port || prev.port,
+        }));
+        setBadalForm((prev) => ({
+          ...prev,
+          senderEmail: json.data.activeMailbox || prev.senderEmail,
+        }));
+      }
+    } catch {
+      // silent fallback
+    }
+  }, []);
+
   useEffect(() => {
     fetchTimetableData();
     // Live dynamic synchronization: auto-refreshes every 20 seconds so faculty changes appear in real-time
@@ -547,8 +685,9 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
   useEffect(() => {
     if (activeTab === "badal") {
       fetchBadals();
+      fetchBadalSmtpConfig();
     }
-  }, [activeTab, fetchBadals]);
+  }, [activeTab, fetchBadals, fetchBadalSmtpConfig]);
 
   // Read URL query params on mount
   useEffect(() => {
@@ -767,6 +906,38 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     }
   };
 
+    const [autoAllocatingTakhteet, setAutoAllocatingTakhteet] = useState(false);
+
+  const handleAutoAllocateTakhteet = async () => {
+    setAutoAllocatingTakhteet(true);
+    try {
+      const res = await fetch("/api/admin/takhteet/auto-allocate", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          variant: "success",
+          title: "✨ Takhteet Allocation Complete",
+          description: data.message || "Successfully mapped Takhteet portions to assigned subject faculty.",
+        });
+        await fetchTimetableData(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Allocation Failed",
+          description: data.error || "Could not auto-allocate Takhteet.",
+        });
+      }
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Network Error",
+        description: "Failed to connect to server.",
+      });
+    } finally {
+      setAutoAllocatingTakhteet(false);
+    }
+  };
+
   const handleSyncTafseel = async () => {
     if (!window.confirm("Synchronize & Ingest Tafseel 1, 2, 3, 4 Excel files from public for Darajah 1, 2, 3, 4? This will update 6,500+ lesson portions across all 8 classes.")) return;
     setSyncingTafseel(true);
@@ -908,6 +1079,8 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       customEmailSubject: emailTpl.subject,
       customEmailBody: emailTpl.body,
       sendEmailNotification: true,
+      sendWhatsAppNotification: true,
+      customPhone: "",
     });
 
     setBadalTeacherFilterMode("SAME_SUBJECT");
@@ -950,11 +1123,25 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       });
       const data = await res.json();
       if (data.success) {
+        const notif = data.notifications;
+        const em = notif?.email;
+        const wa = notif?.whatsapp;
+        let desc = `${badalForm.badalTeacherName} assigned for ${badalForm.subject} (Class ${badalForm.className}).`;
+        if (em?.sent) desc += ` ✉️ Email sent via ${em.mailbox || "Badal Desk"}.`;
+        if (wa?.sent) desc += ` 📱 WhatsApp dispatched to ${wa.phone}.`;
+        else if (wa?.waLink) desc += ` 📱 WhatsApp link ready.`;
+
         toast({
           variant: "success",
           title: "Badal Assigned & Dispatched",
-          description: `${badalForm.badalTeacherName} assigned for ${badalForm.subject} (Class ${badalForm.className}). ${badalForm.sendEmailNotification ? `Email sent to ${badalForm.receiverEmail || "substitute"}.` : ""}`,
+          description: desc,
         });
+
+        // Automatically launch WhatsApp if link is ready and user enabled WhatsApp
+        if (wa?.waLink && badalForm.sendWhatsAppNotification) {
+          window.open(wa.waLink, "_blank");
+        }
+
         setShowBadalModal(false);
         fetchBadals();
         fetchTimetableData(false);
@@ -965,6 +1152,95 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
     } finally {
       setSavingBadal(false);
+    }
+  };
+
+  const handleSaveBadalConfig = async () => {
+    if (!badalConfigForm.email || !badalConfigForm.email.includes("@")) {
+      toast({ variant: "warning", title: "Invalid Email", description: "Please enter a valid sender email address." });
+      return;
+    }
+    setSavingBadalConfig(true);
+    try {
+      const res = await fetch("/api/admin/timetable/badal/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(badalConfigForm),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setBadalSmtpStatus(json.data);
+        toast({
+          variant: "success",
+          title: "Badal Email Saved",
+          description: json.message || `Badal notification sender updated to ${badalConfigForm.email}`,
+        });
+        setShowBadalConfigModal(false);
+        setBadalForm((prev) => ({ ...prev, senderEmail: badalConfigForm.email }));
+      } else {
+        toast({ variant: "destructive", title: "Save Failed", description: json.error || "Could not save configuration." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setSavingBadalConfig(false);
+    }
+  };
+
+  const handleTestBadalConfig = async () => {
+    setTestingBadalConfig(true);
+    try {
+      const res = await fetch("/api/admin/timetable/badal/config/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testEmail: testBadalEmailRecipient || badalConfigForm.email }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Connection Verified",
+          description: json.message || `Connected successfully to SMTP as ${json.mailbox}`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Connection Failed",
+          description: json.error || "SMTP authentication failed. Check email & password.",
+        });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to reach server." });
+    } finally {
+      setTestingBadalConfig(false);
+    }
+  };
+
+  const handleResendBadalNotification = async (badalId: string, channel: "EMAIL" | "WHATSAPP" | "BOTH") => {
+    setRenotifyingBadalId(badalId);
+    try {
+      const res = await fetch(`/api/admin/timetable/badal/${badalId}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Notification Dispatched",
+          description: json.message || "Notification sent to substitute teacher.",
+        });
+        if (json.data?.whatsapp?.waLink) {
+          window.open(json.data.whatsapp.waLink, "_blank");
+        }
+      } else {
+        toast({ variant: "destructive", title: "Failed", description: json.error || "Could not dispatch notification." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to connect to server." });
+    } finally {
+      setRenotifyingBadalId(null);
     }
   };
 
@@ -1075,17 +1351,161 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     }
   };
 
-  const handleDeleteBadal = async (badalId: string) => {
-    if (!confirm("Are you sure you want to remove this badal substitution?")) return;
+  const openEditBadalModal = (badal: any) => {
+    setEditingBadal(badal);
+    const dStr = badal.date ? badal.date.split("T")[0] : new Date().toISOString().split("T")[0];
+    const dt = new Date(dStr);
+    const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+
+    setEditBadalForm({
+      id: badal.id,
+      date: dStr,
+      className: badal.className,
+      period: badal.period,
+      startTime: badal.startTime,
+      endTime: badal.endTime,
+      subject: badal.subject,
+      originalTeacherName: badal.originalTeacherName,
+      originalTeacherId: badal.originalTeacherId,
+      badalTeacherId: badal.badalTeacherId || "",
+      badalTeacherName: badal.badalTeacherName || "",
+      badalTeacherAvatar: badal.badalTeacherAvatar || "",
+      reason: badal.reason || "Official Absence / Leave",
+      instructions: badal.instructions || "",
+      notes: badal.notes || "",
+      status: badal.status || "ASSIGNED",
+      isFulfilled: Boolean(badal.isFulfilled),
+      reNotify: false,
+      sendEmailNotification: true,
+      sendWhatsAppNotification: true,
+    });
+
+    fetchAvailableTeachersForSlot(dow, badal.period, dStr, badal.subject, badal.originalTeacherId);
+    setShowEditBadalModal(true);
+  };
+
+  const handleSaveEditBadal = async () => {
+    if (!editBadalForm.id) return;
+    setSavingEditBadal(true);
     try {
-      const res = await fetch(`/api/admin/timetable/badal/${badalId}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/timetable/badal/${editBadalForm.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editBadalForm),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Badal Updated",
+          description: json.message || "Badal assignment details saved successfully.",
+        });
+        setShowEditBadalModal(false);
+        setEditingBadal(null);
+        fetchBadals();
+        fetchTimetableData(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: json.error || "Could not update Badal assignment.",
+        });
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err?.message || "Failed to save Badal edit." });
+    } finally {
+      setSavingEditBadal(false);
+    }
+  };
+
+  const openDissolveBadalModal = (badal: any) => {
+    setBadalToDissolve(badal);
+    setDissolveReason("Original teacher reported back / Schedule restored");
+    setDissolveNotifyEmail(true);
+    setDissolveNotifyWhatsApp(true);
+    setShowDissolveBadalModal(true);
+  };
+
+  const handleConfirmDissolveBadal = async () => {
+    if (!badalToDissolve?.id) return;
+    setDissolvingBadal(true);
+    try {
+      const res = await fetch(`/api/admin/timetable/badal/${badalToDissolve.id}/dissolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: dissolveReason,
+          sendEmail: dissolveNotifyEmail,
+          sendWhatsApp: dissolveNotifyWhatsApp,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Badal Dissolved",
+          description: json.message || "Badal substitution cancelled & timetable restored.",
+        });
+        setShowDissolveBadalModal(false);
+        if (showEditBadalModal && editingBadal?.id === badalToDissolve.id) {
+          setShowEditBadalModal(false);
+          setEditingBadal(null);
+        }
+        setBadalToDissolve(null);
+        fetchBadals();
+        fetchTimetableData(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Dissolve Failed",
+          description: json.error || "Could not dissolve Badal.",
+        });
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err?.message || "Failed to dissolve Badal." });
+    } finally {
+      setDissolvingBadal(false);
+    }
+  };
+
+  const openDeleteBadalModal = (badal: any) => {
+    setBadalToDelete(badal);
+    setShowDeleteBadalModal(true);
+  };
+
+  const handleConfirmDeleteBadal = async () => {
+    if (!badalToDelete?.id) return;
+    setDeletingBadal(true);
+    try {
+      const res = await fetch(`/api/admin/timetable/badal/${badalToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        setBadals((prev) => prev.filter((b) => b.id !== badalId));
-        toast({ variant: "success", title: "Removed", description: "Badal assignment deleted." });
+        setBadals((prev) => prev.filter((b) => b.id !== badalToDelete.id));
+        toast({ variant: "success", title: "Removed", description: "Badal assignment deleted permanently." });
+        setShowDeleteBadalModal(false);
+        if (showEditBadalModal && editingBadal?.id === badalToDelete.id) {
+          setShowEditBadalModal(false);
+          setEditingBadal(null);
+        }
+        setBadalToDelete(null);
+        fetchBadals();
+        fetchTimetableData(false);
+      } else {
+        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to delete badal." });
       }
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to delete badal." });
+    } finally {
+      setDeletingBadal(false);
+    }
+  };
+
+  const handleDeleteBadal = async (badalId: string) => {
+    const found = badals.find((b) => b.id === badalId);
+    if (found) {
+      openDeleteBadalModal(found);
+    } else {
+      openDeleteBadalModal({ id: badalId });
     }
   };
 
@@ -1182,6 +1602,72 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     return null;
   }, [slots, slotFormData]);
 
+  // Smart Faculty Availability Roster for Slot Assignment
+  const slotTeacherAvailabilityList = useMemo(() => {
+    const currentDay = slotFormData.dayOfWeek;
+    const currentPeriod = slotFormData.period;
+    const currentSlotId = slotFormData.id;
+    const currentSubj = (slotFormData.subject || "").toLowerCase().trim();
+
+    return (teachers || []).map((t: any) => {
+      const tId = t.id || t.user?.id;
+      const tName = t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || "Ustaz";
+      const tIts = t.its || t.user?.its || "";
+      const tAvatar = t.avatarUrl || t.user?.avatarUrl || "";
+
+      // Check if on leave
+      const isOnLeave = Boolean(t.isUnavailable);
+      const leaveReason = t.leaveReason || "On Leave";
+
+      // Check if scheduled in another class at currentDay & currentPeriod
+      const clash = (slots || []).find(
+        (s) =>
+          s &&
+          s.teacherId === tId &&
+          s.dayOfWeek === currentDay &&
+          s.period === currentPeriod &&
+          s.id !== currentSlotId
+      );
+
+      // Check subject affinity
+      const teachesSubject = currentSubj
+        ? (Array.isArray(t.subjects) && t.subjects.some((s: string) => s.toLowerCase().includes(currentSubj))) ||
+          (t.specialization && t.specialization.toLowerCase().includes(currentSubj))
+        : true;
+
+      return {
+        id: tId,
+        name: tName,
+        its: tIts,
+        avatarUrl: tAvatar,
+        isOnLeave,
+        leaveReason,
+        isClashing: Boolean(clash),
+        clashClassName: clash?.className || "",
+        clashSubject: clash?.subject || "",
+        teachesSubject,
+        isFree: !clash && !isOnLeave,
+        subjects: Array.isArray(t.subjects) ? t.subjects : [],
+      };
+    });
+  }, [teachers, slots, slotFormData.dayOfWeek, slotFormData.period, slotFormData.id, slotFormData.subject]);
+
+  const filteredSlotTeachers = useMemo(() => {
+    return slotTeacherAvailabilityList.filter((t) => {
+      if (slotTeacherFilter === "FREE" && !t.isFree) return false;
+      if (slotTeacherFilter === "SUBJECT" && !t.teachesSubject) return false;
+      if (slotTeacherSearch.trim()) {
+        const q = slotTeacherSearch.toLowerCase().trim();
+        const matchName = t.name.toLowerCase().includes(q);
+        const matchIts = t.its.toLowerCase().includes(q);
+        const matchSubj = t.subjects.some((s: string) => s.toLowerCase().includes(q));
+        if (!matchName && !matchIts && !matchSubj) return false;
+      }
+      return true;
+    });
+  }, [slotTeacherAvailabilityList, slotTeacherFilter, slotTeacherSearch]);
+
+
   const filteredTakhteet = useMemo(() => {
     const list = Array.isArray(takhteetList) ? takhteetList : [];
     const q = takhteetSearch.toLowerCase().trim();
@@ -1231,88 +1717,185 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl"
+        className="relative overflow-hidden rounded-3xl p-5 sm:p-7 text-white shadow-xl"
         style={{ background: "linear-gradient(135deg, #0d0d0d 0%, #1c1c1c 50%, #0d0d0d 100%)" }}
       >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-4">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start sm:items-center gap-3.5">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-amber-400/40"
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-amber-400/40"
               style={{ background: "linear-gradient(135deg, #d4af37, #b8860b)" }}
             >
-              <CalendarDays className="w-8 h-8 text-slate-950" />
+              <CalendarDays className="w-7 h-7 text-slate-950" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shadow-xs">
                   Official Academic Timetable Master
                 </span>
                 <span className="text-xs text-emerald-200 font-mono">1448 H • Term I</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1 text-white">
                 Darajah &amp; Faculty Timetable Hub
               </h1>
-              <p className="text-xs sm:text-sm text-emerald-100/90 mt-1 max-w-2xl">
-                Multi-dimensional scheduling: Asatezah profile tracking, dynamic Darajah navigation, 1-click Badal (Proxy) assistant, and master slot creation.
+              <p className="text-xs text-emerald-100/80 mt-0.5 max-w-xl">
+                Multi-dimensional scheduling: Asatezah tracking, dynamic Darajah navigation, 1-click Badal assistant, and slot creation.
               </p>
             </div>
           </div>
 
-          {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2.5 self-start lg:self-center flex-wrap">
-            <Button
-              onClick={() => openLeaveModal("TEACHER")}
-              className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-400/50 text-xs font-black gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
-              title="Mark Faculty or Talabat on Leave (date range) — automatically marks UNAVAILABLE across timetable and proxy engine"
-            >
-              <UserMinus className="w-3.5 h-3.5 text-rose-300" />
-              Mark Leave (Unavailable)
-            </Button>
-            <Button
-              onClick={() => setShowTabSettingsModal(true)}
-              className="bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/50 text-xs font-black gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
-              title="Configure which timetable tabs are displayed or hidden"
-            >
-              <Eye className="w-3.5 h-3.5 text-amber-300" />
-              Hide / Display Tabs
-            </Button>
-            <Button
-              onClick={() => setAiFillModalOpen(true)}
-              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              ✨ AI Smart-Fill Slots
-            </Button>
-            <Button
-              onClick={() => openNewSlotModal(selectedClassName)}
-              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs gap-1.5 shadow-md px-3.5 py-2 rounded-xl cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-slate-950" />
-              New Lesson Slot
-            </Button>
-            <Button
-              onClick={() => openBadalForCurrentSelection(badalDate)}
-              className="bg-emerald-900/80 hover:bg-emerald-800 text-amber-300 border border-amber-400/30 font-bold text-xs gap-1.5 px-3 py-2 rounded-xl"
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" />
-              Assign Badal
-            </Button>
-            <Button
+          {/* Unified Minimal Header Action Bar */}
+          <div className="flex items-center gap-2 self-start lg:self-center flex-wrap">
+            {/* Minimal Segmented View Switcher */}
+            <div className="flex items-center p-0.5 bg-black/60 rounded-xl border border-white/10 shrink-0 shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleSetViewMode("normal")}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  viewMode === "normal"
+                    ? "bg-emerald-400 text-slate-950 font-black shadow-xs"
+                    : "text-slate-300 hover:text-white"
+                }`}
+                title="Switch to Presentation View"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Normal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetViewMode("management")}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  viewMode === "management"
+                    ? "bg-amber-400 text-slate-950 font-black shadow-xs"
+                    : "text-slate-300 hover:text-white"
+                }`}
+                title="Switch to Management Mode"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Management</span>
+              </button>
+            </div>
+
+            {viewMode === "normal" ? (
+              <Button
+                onClick={() => window.print()}
+                variant="outline"
+                className="bg-white/10 hover:bg-white/15 text-white border-white/20 text-xs font-semibold gap-1.5 px-3 h-9 rounded-xl cursor-pointer"
+                title="Print clean timetable schedule"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-300" />
+                <span>Print</span>
+              </Button>
+            ) : (
+              <>
+                {/* 1. Primary Action */}
+                <Button
+                  onClick={() => openNewSlotModal(selectedClassName)}
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs gap-1.5 px-3.5 h-9 rounded-xl shadow-md cursor-pointer transition-all"
+                >
+                  <Plus className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                  <span>New Slot</span>
+                </Button>
+
+                {/* 2. Key Action: Assign Badal */}
+                <Button
+                  onClick={() => openBadalForCurrentSelection(badalDate)}
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/15 text-white border-white/20 text-xs font-semibold gap-1.5 px-3 h-9 rounded-xl cursor-pointer transition-all"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Assign Badal</span>
+                </Button>
+
+                {/* 3. AI Smart-Fill */}
+                <Button
+                  onClick={() => setAiFillModalOpen(true)}
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/15 text-amber-300 border-amber-400/30 text-xs font-semibold gap-1.5 px-3 h-9 rounded-xl cursor-pointer transition-all"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span className="hidden sm:inline">AI Smart-Fill</span>
+                </Button>
+
+                {/* 4. Consolidated Tools Popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setHeaderToolsOpen(!headerToolsOpen)}
+                    className="bg-white/10 hover:bg-white/15 text-white/90 border border-white/20 text-xs font-semibold gap-1.5 px-2.5 h-9 rounded-xl inline-flex items-center cursor-pointer transition-colors"
+                    title="Additional management tools"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Tools</span>
+                    <ChevronDown className="w-3 h-3 text-white/60 ml-0.5" />
+                  </button>
+
+                  {headerToolsOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setHeaderToolsOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-60 bg-stone-900 border border-amber-400/30 rounded-2xl shadow-2xl p-1.5 z-50 animate-fade-in text-white space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderToolsOpen(false);
+                            openLeaveModal("TEACHER");
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 text-rose-300 transition-colors text-left cursor-pointer"
+                        >
+                          <UserMinus className="w-4 h-4 text-rose-400" />
+                          <span>Mark Leave (Unavailable)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderToolsOpen(false);
+                            setShowTabSettingsModal(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 text-amber-200 transition-colors text-left cursor-pointer"
+                        >
+                          <Eye className="w-4 h-4 text-amber-300" />
+                          <span>Display / Hide Tabs</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderToolsOpen(false);
+                            handleSyncMasterTimetable();
+                          }}
+                          disabled={loading || syncingMaster}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 text-white/90 transition-colors text-left cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4 text-amber-400" />
+                          <span>{syncingMaster ? "Syncing Master..." : "Sync Master Timetable"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderToolsOpen(false);
+                            window.print();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 text-white/70 transition-colors text-left cursor-pointer"
+                        >
+                          <Printer className="w-4 h-4 text-white/60" />
+                          <span>Print Timetable</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Refresh Icon Button */}
+            <button
+              type="button"
               onClick={() => fetchTimetableData(true)}
               disabled={loading || refreshing || syncingMaster}
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold gap-2 backdrop-blur-sm px-3 py-2 rounded-xl"
+              className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 flex items-center justify-center transition-all cursor-pointer"
+              title="Refresh Timetable"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              onClick={handleSyncMasterTimetable}
-              disabled={loading || syncingMaster}
-              className="bg-white/10 hover:bg-white/20 text-white border border-amber-400/40 text-xs font-black gap-1.5 px-3 py-2 rounded-xl"
-            >
-              <Sparkles className={`w-3.5 h-3.5 ${syncingMaster ? "animate-spin text-amber-300" : "text-amber-300"}`} />
-              {syncingMaster ? "Syncing..." : "Sync Master"}
-            </Button>
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-amber-300" : "text-white/80"}`} />
+            </button>
           </div>
         </div>
 
@@ -1358,24 +1941,35 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
             </div>
           </div>
 
-          <div className={`rounded-2xl p-3 flex items-center gap-3 border ${
-            teachers.some((t) => t.isUnavailable)
-              ? "bg-rose-500/25 border-rose-400/60 text-rose-200 animate-pulse"
-              : "bg-white/5 border-white/10 text-emerald-200"
-          }`}>
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-              teachers.some((t) => t.isUnavailable) ? "bg-rose-500/30 text-rose-200" : "bg-emerald-400/20 text-emerald-300"
-            }`}>
-              <UserMinus className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-black text-white">
-                {teachers.filter((t) => t.isUnavailable).length} On Leave
+          <div
+            onClick={() => setShowUnavailableFacultyModal(true)}
+            className={`rounded-2xl p-3 flex items-center justify-between gap-3 border transition-all cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] group ${
+              teachers.some((t) => t.isUnavailable)
+                ? "bg-rose-500/25 border-rose-400/60 text-rose-200 animate-pulse hover:bg-rose-500/35"
+                : "bg-white/5 border-white/10 text-emerald-200 hover:bg-white/10"
+            }`}
+            title="Click to view full Leave Management details, photos & leave till dates"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                teachers.some((t) => t.isUnavailable) ? "bg-rose-500/30 text-rose-200" : "bg-emerald-400/20 text-emerald-300"
+              }`}>
+                <UserMinus className="w-4 h-4" />
               </div>
-              <div className="text-[10px] uppercase tracking-wider font-semibold opacity-80">
-                {teachers.some((t) => t.isUnavailable) ? "Unavailable Faculty" : "All Faculty Active"}
+              <div>
+                <div className="text-base sm:text-lg font-black text-white flex items-center gap-1.5">
+                  <span>{teachers.filter((t) => t.isUnavailable).length} On Leave</span>
+                  <span className="text-[10px] font-mono text-amber-300 bg-amber-400/20 px-1.5 py-0.2 rounded-full border border-amber-400/30">
+                    Live Sync
+                  </span>
+                </div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold opacity-90 flex items-center gap-1">
+                  <span>{teachers.some((t) => t.isUnavailable) ? "Unavailable Faculty" : "All Faculty Active"}</span>
+                  <span className="text-[9px] text-amber-300 group-hover:underline">· View Details</span>
+                </div>
               </div>
             </div>
+            <ChevronRight className="w-4 h-4 text-white/60 group-hover:text-amber-300 transition-colors" />
           </div>
         </div>
 
@@ -1845,28 +2439,37 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                           <td key={p.period} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
                             {slot ? (
                               slot.isBreak ? (
-                                <div className="p-2.5 rounded-2xl bg-amber-50/80 border border-dashed border-amber-300 hover:shadow-md transition-all shadow-2xs group relative flex flex-col justify-between min-h-[114px]">
+                                <div
+                                  onClick={() => viewMode === "normal" && setInspectSlot({ ...slot, className: selectedClassName })}
+                                  className={`p-2.5 rounded-2xl bg-amber-50/80 border border-dashed border-amber-300 hover:shadow-md transition-all shadow-2xs group relative flex flex-col justify-between min-h-[114px] ${
+                                    viewMode === "normal" ? "cursor-pointer hover:border-amber-400" : ""
+                                  }`}
+                                >
                                   <div>
                                     <div className="flex items-start justify-between gap-1">
                                       <span className="text-[10px] font-black px-2 py-0.5 rounded-md leading-tight text-left bg-amber-200/90 text-amber-950 border border-amber-300">
                                         ☕ {slot.breakName || "Free / Receiving"}
                                       </span>
-                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
-                                        <button
-                                          onClick={() => openEditSlotModal(slot)}
-                                          className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
-                                          title="Edit slot details"
-                                        >
-                                          <Pencil className="w-2.5 h-2.5" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteSlot(slot.id)}
-                                          className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
-                                          title="Delete slot"
-                                        >
-                                          <Trash2 className="w-2.5 h-2.5" />
-                                        </button>
-                                      </div>
+                                      {viewMode === "management" && (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); openEditSlotModal(slot); }}
+                                            className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
+                                            title="Edit slot details"
+                                          >
+                                            <Pencil className="w-2.5 h-2.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteSlot(slot.id); }}
+                                            className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
+                                            title="Delete slot"
+                                          >
+                                            <Trash2 className="w-2.5 h-2.5" />
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="text-[11px] font-bold text-amber-900 mt-2">
                                       {slot.teacherName ? `${slot.teacherName} (Receiving)` : "Free Period"}
@@ -1878,8 +2481,11 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                 </div>
                               ) : theme ? (
                                 <div
+                                  onClick={() => viewMode === "normal" && setInspectSlot({ ...slot, className: selectedClassName, todayBadal })}
                                   style={{ borderLeftColor: theme.accent, borderLeftWidth: "4px" }}
                                   className={`p-2.5 rounded-2xl bg-gradient-to-br ${theme.bgGradient} border ${theme.border} hover:shadow-md transition-all shadow-2xs group relative flex flex-col justify-between min-h-[114px] ${
+                                    viewMode === "normal" ? "cursor-pointer hover:border-emerald-500" : ""
+                                  } ${
                                     !isMatch ? "opacity-30 grayscale-[40%] scale-98" : spotlightSubject ? "ring-2 ring-amber-400 shadow-md scale-[1.02]" : ""
                                   }`}
                                 >
@@ -1887,30 +2493,38 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                     {/* Subject Badge */}
                                     <div className="flex items-start justify-between gap-1">
                                       <button
-                                        onClick={() => toggleSpotlight(slot.subject)}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleSpotlight(slot.subject);
+                                        }}
                                         title="Click to spotlight this subject"
                                         className={`text-[10.5px] font-extrabold px-2 py-0.5 rounded-md leading-tight text-left cursor-pointer transition-transform hover:scale-105 ${theme.badge}`}
                                       >
                                         {slot.subject}
                                       </button>
 
-                                      {/* Action buttons on hover */}
-                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
-                                        <button
-                                          onClick={() => openEditSlotModal(slot)}
-                                          className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
-                                          title="Edit lesson details"
-                                        >
-                                          <Pencil className="w-2.5 h-2.5" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteSlot(slot.id)}
-                                          className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
-                                          title="Delete slot"
-                                        >
-                                          <Trash2 className="w-2.5 h-2.5" />
-                                        </button>
-                                      </div>
+                                      {/* Action buttons on hover (Management Mode Only) */}
+                                      {viewMode === "management" && (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 bg-white/90 p-0.5 rounded-md shadow-2xs">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); openEditSlotModal(slot); }}
+                                            className="p-1 rounded hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 cursor-pointer"
+                                            title="Edit lesson details"
+                                          >
+                                            <Pencil className="w-2.5 h-2.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteSlot(slot.id); }}
+                                            className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 cursor-pointer"
+                                            title="Delete slot"
+                                          >
+                                            <Trash2 className="w-2.5 h-2.5" />
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
 
                                     {/* Asatezah Profile Picture & Name */}
@@ -1958,34 +2572,77 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
 
                                     {/* Active Badal Alert Tag if substituted today */}
                                     {todayBadal && (
-                                      <div className="mt-1.5 p-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[9.5px] font-bold text-amber-950 flex items-center gap-1">
-                                        <ArrowRightLeft className="w-3 h-3 text-amber-700 shrink-0" />
-                                        <span className="truncate">Badal: {todayBadal.badalTeacherName}</span>
+                                      <div className="mt-1.5 p-1.5 rounded-xl bg-amber-100/90 border border-amber-300 text-[9.5px] font-bold text-amber-950 flex flex-col gap-1 shadow-2xs">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <div className="flex items-center gap-1 min-w-0">
+                                            <ArrowRightLeft className="w-3 h-3 text-amber-700 shrink-0" />
+                                            <span className="truncate">Badal: {todayBadal.badalTeacherName}</span>
+                                          </div>
+                                          {viewMode === "management" && (
+                                            <div className="flex items-center gap-1 shrink-0">
+                                              <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); openEditBadalModal(todayBadal); }}
+                                                className="p-1 rounded bg-white hover:bg-emerald-100 text-emerald-800 shadow-2xs transition-all cursor-pointer"
+                                                title="Edit Badal substitute"
+                                              >
+                                                <Pencil className="w-2.5 h-2.5" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); openDissolveBadalModal(todayBadal); }}
+                                                className="p-1 rounded bg-white hover:bg-rose-100 text-rose-700 shadow-2xs transition-all cursor-pointer"
+                                                title="Dissolve Badal proxy"
+                                              >
+                                                <Ban className="w-2.5 h-2.5" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>
 
-                                  {/* Bottom bar: Room & "Get Help in Badal" Button */}
+                                  {/* Bottom bar */}
                                   <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
                                     <span className="text-[9px] font-mono text-slate-500 font-medium">
                                       {slot.roomNumber || `Room ${slot.className}`}
                                     </span>
-                                    <button
-                                      onClick={() => openBadalModalForSlot(slot)}
-                                      className={`px-2 py-0.5 rounded-lg text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer ${
-                                        slot.isUnavailable
-                                          ? "bg-rose-500 hover:bg-rose-600 text-white animate-pulse"
-                                          : "bg-amber-400 hover:bg-amber-300 text-slate-950"
-                                      }`}
-                                      title={slot.isUnavailable ? "Teacher is on leave! Click to assign Badal substitute" : "Get Badal help or assign substitute for this lesson"}
-                                    >
-                                      <ArrowRightLeft className="w-2.5 h-2.5" />
-                                      <span>{slot.isUnavailable ? "🚨 Assign Badal" : "Badal Help"}</span>
-                                    </button>
+                                    {viewMode === "management" ? (
+                                      todayBadal ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); openEditBadalModal(todayBadal); }}
+                                          className="px-2 py-0.5 rounded-lg text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors bg-amber-300 hover:bg-amber-400 text-slate-950 cursor-pointer"
+                                          title="Manage, edit or dissolve this Badal substitution"
+                                        >
+                                          <Pencil className="w-2.5 h-2.5" />
+                                          <span>Edit Badal</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); openBadalModalForSlot(slot); }}
+                                          className={`px-2 py-0.5 rounded-lg text-[9.5px] font-black shrink-0 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer ${
+                                            slot.isUnavailable
+                                              ? "bg-rose-500 hover:bg-rose-600 text-white animate-pulse"
+                                              : "bg-amber-400 hover:bg-amber-300 text-slate-950"
+                                          }`}
+                                          title={slot.isUnavailable ? "Teacher is on leave! Click to assign Badal substitute" : "Get Badal help or assign substitute for this lesson"}
+                                        >
+                                          <ArrowRightLeft className="w-2.5 h-2.5" />
+                                          <span>{slot.isUnavailable ? "🚨 Assign Badal" : "Badal Help"}</span>
+                                        </button>
+                                      )
+                                    ) : (
+                                      <span className="text-[9px] text-slate-400 font-mono">
+                                        {p.time}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               ) : null
-                            ) : (
+                            ) : viewMode === "management" ? (
                               <button
                                 onClick={() => openNewSlotModal(selectedClassName, d.day, p.period)}
                                 className="w-full h-24 rounded-2xl border border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-all flex flex-col items-center justify-center text-slate-300 hover:text-emerald-700 group cursor-pointer"
@@ -1996,6 +2653,10 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                   + Add Slot
                                 </span>
                               </button>
+                            ) : (
+                              <div className="w-full h-24 rounded-2xl border border-slate-100 bg-slate-50/30 flex items-center justify-center text-slate-300 text-xs font-mono select-none">
+                                —
+                              </div>
                             )}
                           </td>
                         );
@@ -2092,10 +2753,18 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                           <td key={cls.id} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
                             {slot && theme ? (
                               <div
+                                onClick={() => {
+                                  if (viewMode === "normal") {
+                                    setInspectSlot({ ...slot, className: cls.name });
+                                  } else {
+                                    openEditSlotModal(slot);
+                                  }
+                                }}
                                 style={{ borderLeftColor: theme.accent, borderLeftWidth: "3px" }}
-                                className={`p-2.5 rounded-xl border transition-all shadow-2xs ${theme.bgLight} ${theme.border} hover:shadow-md ${
+                                className={`p-2.5 rounded-xl border transition-all shadow-2xs cursor-pointer ${theme.bgLight} ${theme.border} hover:shadow-md ${
                                   !isMatch ? "opacity-30 grayscale-[40%]" : spotlightSubject ? "ring-2 ring-amber-400 shadow-md scale-[1.02]" : ""
                                 }`}
+                                title={viewMode === "normal" ? "Click to view lesson overview" : "Click to edit slot in management"}
                               >
                                 <div className={`text-xs font-black truncate leading-tight ${theme.text}`}>
                                   {slot.subject}
@@ -2112,6 +2781,15 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                   </span>
                                 </div>
                               </div>
+                            ) : viewMode === "management" ? (
+                              <button
+                                type="button"
+                                onClick={() => openNewSlotModal(cls.name, overviewDay, p.period)}
+                                className="h-14 w-full rounded-xl border border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 flex items-center justify-center text-slate-300 hover:text-emerald-700 transition-all cursor-pointer text-xs"
+                                title="Click to schedule slot"
+                              >
+                                +
+                              </button>
                             ) : (
                               <div className="h-14 flex items-center justify-center text-[10px] text-slate-300 font-mono">
                                 —
@@ -2492,22 +3170,41 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                 </div>
               </div>
 
-              {/* Action Button */}
-              <Button
-                onClick={() => {
-                  const initialDate =
-                    badalDateMode === "custom"
-                      ? badalDate
-                      : badalDateMode === "tomorrow"
-                        ? new Date(Date.now() + 86400000).toISOString().split("T")[0]
-                        : new Date().toISOString().split("T")[0];
-                  openBadalForCurrentSelection(initialDate);
-                }}
-                className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5 shadow-sm rounded-xl px-4 py-2 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Assign Badal
-              </Button>
+              {/* Desk Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {viewMode === "management" && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBadalConfigModal(true)}
+                  className="border-slate-200 hover:border-amber-400 hover:bg-amber-50 text-slate-700 font-bold text-xs gap-1.5 rounded-xl px-3.5 py-2 cursor-pointer shadow-2xs"
+                  title="Configure sender email address and SMTP settings for Badal notifications"
+                >
+                  <Settings className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Configure Badal Email</span>
+                  {badalSmtpStatus?.configured ? (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title={`Connected: ${badalSmtpStatus.activeMailbox}`} />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-amber-400" title="Using primary sender" />
+                  )}
+                </Button>
+                )}
+
+                <Button
+                  onClick={() => {
+                    const initialDate =
+                      badalDateMode === "custom"
+                        ? badalDate
+                        : badalDateMode === "tomorrow"
+                          ? new Date(Date.now() + 86400000).toISOString().split("T")[0]
+                          : new Date().toISOString().split("T")[0];
+                    openBadalForCurrentSelection(initialDate);
+                  }}
+                  className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5 shadow-sm rounded-xl px-4 py-2 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Assign Badal
+                </Button>
+              </div>
             </div>
 
             {/* Date Quick Filter Pills + Custom Picker + Status Filter + Search */}
@@ -2590,8 +3287,9 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                   className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-700 outline-none cursor-pointer"
                 >
                   <option value="ALL">All Statuses</option>
-                  <option value="PENDING">Pending (Assigned)</option>
+                  <option value="PENDING">Active / Pending</option>
                   <option value="FULFILLED">Fulfilled (Completed)</option>
+                  <option value="CANCELLED">Dissolved (Cancelled)</option>
                 </select>
 
                 {/* Search Input */}
@@ -2625,11 +3323,15 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
               </span>
               <span>•</span>
               <span className="text-emerald-700 font-bold">
-                {badals.filter((b) => b.isFulfilled).length} Completed
+                {badals.filter((b) => b.isFulfilled || b.status === "COMPLETED").length} Completed
               </span>
               <span>•</span>
               <span className="text-amber-700 font-bold">
-                {badals.filter((b) => !b.isFulfilled).length} Pending
+                {badals.filter((b) => !b.isFulfilled && b.status !== "CANCELLED").length} Active
+              </span>
+              <span>•</span>
+              <span className="text-rose-700 font-bold">
+                {badals.filter((b) => b.status === "CANCELLED").length} Dissolved
               </span>
             </div>
           </div>
@@ -2694,14 +3396,29 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="w-7 h-7 ring-1 ring-emerald-600 shrink-0">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="w-8 h-8 ring-1 ring-emerald-600 shrink-0">
                               {b.badalTeacherAvatar && <AvatarImage src={b.badalTeacherAvatar} alt={b.badalTeacherName} />}
                               <AvatarFallback className="bg-emerald-950 text-amber-300 text-[10px] font-bold">
                                 {getInitials(b.badalTeacherName)}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="font-bold text-emerald-950">{b.badalTeacherName}</span>
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-slate-900 block truncate">{b.badalTeacherName}</span>
+                              <div className="flex items-center gap-2 flex-wrap text-[10.5px] mt-0.5 text-slate-500">
+                                {b.badalTeacherMobile && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-bold">
+                                    <Phone className="w-2.5 h-2.5" />
+                                    {b.badalTeacherMobile}
+                                  </span>
+                                )}
+                                {b.badalTeacherEmail && (
+                                  <span className="text-[10px] text-slate-400 truncate max-w-[130px]" title={b.badalTeacherEmail}>
+                                    {b.badalTeacherEmail}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className="p-4 max-w-xs">
@@ -2715,28 +3432,96 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                           )}
                         </td>
                         <td className="p-4">
-                          <button
-                            onClick={() => handleToggleBadalFulfillment(b.id, b.isFulfilled)}
-                            className={`px-3 py-1 rounded-full text-[11px] font-black transition-all flex items-center gap-1.5 ${
-                              b.isFulfilled
-                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                : "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                            }`}
-                          >
-                            {b.isFulfilled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Clock className="w-3.5 h-3.5 text-amber-600" />}
-                            <span>{b.isFulfilled ? "Fulfilled" : "Assigned (Pending)"}</span>
-                          </button>
+                          {b.status === "CANCELLED" ? (
+                            <span className="px-3 py-1 rounded-full text-[11px] font-black inline-flex items-center gap-1.5 bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs">
+                              <Ban className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Dissolved</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleBadalFulfillment(b.id, b.isFulfilled)}
+                              className={`px-3 py-1 rounded-full text-[11px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                                b.isFulfilled
+                                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                  : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                              }`}
+                            >
+                              {b.isFulfilled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Clock className="w-3.5 h-3.5 text-amber-600" />}
+                              <span>{b.isFulfilled ? "Fulfilled" : "Assigned (Pending)"}</span>
+                            </button>
+                          )}
                         </td>
                         <td className="p-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteBadal(b.id)}
-                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 p-1.5 h-auto rounded-lg"
-                            title="Remove Badal"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {/* Edit Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditBadalModal(b)}
+                              className="text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5 h-auto rounded-xl cursor-pointer font-bold text-[11px] gap-1 border border-slate-200/80 shadow-2xs"
+                              title="Edit Badal details & substitute teacher"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="hidden sm:inline">Edit</span>
+                            </Button>
+
+                            {/* Dissolve Button (visible if not already cancelled) */}
+                            {b.status !== "CANCELLED" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDissolveBadalModal(b)}
+                                className="text-amber-800 hover:text-amber-950 hover:bg-amber-100/90 px-2.5 py-1.5 h-auto rounded-xl cursor-pointer font-bold text-[11px] gap-1 border border-amber-300/80 shadow-2xs"
+                                title="Dissolve Badal & restore normal timetable schedule"
+                              >
+                                <Ban className="w-3.5 h-3.5 text-amber-700" />
+                                <span className="hidden sm:inline">Dissolve</span>
+                              </Button>
+                            )}
+
+                            {/* Delete Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteBadalModal(b)}
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 p-1.5 h-auto rounded-xl border border-slate-200/60 shadow-2xs cursor-pointer"
+                              title="Permanently remove Badal assignment record"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+
+                            {/* WhatsApp link */}
+                            {b.status !== "CANCELLED" && b.whatsAppUrl && (
+                              <a
+                                href={b.whatsAppUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-all hover:scale-105 cursor-pointer"
+                                title="Open WhatsApp chat with substitute teacher"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">WhatsApp</span>
+                              </a>
+                            )}
+
+                            {/* Re-notify */}
+                            {b.status !== "CANCELLED" && (
+                              <button
+                                type="button"
+                                onClick={() => handleResendBadalNotification(b.id, "BOTH")}
+                                disabled={renotifyingBadalId === b.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200/60 shadow-2xs transition-all cursor-pointer"
+                                title="Resend Email & WhatsApp notification to substitute teacher"
+                              >
+                                {renotifyingBadalId === b.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                                ) : (
+                                  <Send className="w-3.5 h-3.5 text-slate-600" />
+                                )}
+                                <span className="hidden md:inline">Re-notify</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -2831,6 +3616,20 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                   <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
                 )}
                 <span>Sync Tafseel (Darajah 1–4)</span>
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAutoAllocateTakhteet}
+                disabled={autoAllocatingTakhteet || syncingTafseel}
+                className="bg-purple-900 hover:bg-purple-800 text-purple-100 border border-purple-400/40 text-xs font-black gap-1.5 rounded-xl cursor-pointer shadow-xs shrink-0"
+                title="Automatically allocates all Takhteet syllabus portions to teachers based on current timetable subject assignments"
+              >
+                {autoAllocatingTakhteet ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-300" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                )}
+                <span>Auto-Allocate by Subject</span>
               </Button>
             </div>
           </div>
@@ -3067,251 +3866,286 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          BADAL ASSISTANT MODAL (INTELLIGENT FREE TEACHER FINDER)
+          REDESIGNED SIMPLE & PROPER BADAL MODAL (EMAIL + WHATSAPP)
          ───────────────────────────────────────────────────────────── */}
       {showBadalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-2xl p-4 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[94vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shadow-2xs">
-                  <ArrowRightLeft className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 bg-black/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-3xl p-5 sm:p-7 shadow-2xl border border-slate-200 space-y-5 max-h-[94vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-amber-500/20">
+                  <ArrowRightLeft className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Badal Period Assignment &amp; Class Timetable</h3>
-                  <p className="text-[11px] text-slate-500">Assign proxy teachers, inspect class periods &amp; notify faculty.</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 tracking-tight">Assign Proxy Teacher (Badal)</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                      Class {badalForm.className}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Select the period to cover, pick a free teacher, and notify them via Email &amp; WhatsApp.
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setShowBadalModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-                <X className="w-5 h-5" />
+              <button
+                type="button"
+                onClick={() => setShowBadalModal(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-4 text-xs">
-              {/* 1. Class & Date Selection Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/90">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                    1. Select Darajah / Class
-                  </label>
-                  <select
-                    value={badalForm.className}
-                    onChange={(e) => {
-                      const newClassName = e.target.value;
-                      const classObj = classes.find((c) => c.name === newClassName);
-                      const dt = new Date(badalForm.date || new Date().toISOString().split("T")[0]);
-                      const dow = dt.getDay() === 0 ? 1 : dt.getDay();
-                      const slotForClass = slots.find(
-                        (s) => s.className === newClassName && s.dayOfWeek === dow && s.period === badalForm.period
-                      );
-                      const pDef = PERIOD_DEFS.find((p) => p.period === badalForm.period);
-                      const pTimeParts = pDef?.time?.split(" - ") || ["10:30", "11:00"];
+              {/* ──────────────── STEP 1: CLASS, DATE & INTERACTIVE SCHEDULE STRIP ──────────────── */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  {/* Darajah / Class Quick Buttons */}
+                  <div>
+                    <label className="block text-[10.5px] font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                      1. Select Darajah / Class
+                    </label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {classes.map((c) => {
+                        const isChosen = badalForm.className === c.name;
+                        return (
+                          <button
+                            key={c.id || c.name}
+                            type="button"
+                            onClick={() => {
+                              const newClassName = c.name;
+                              const dt = new Date(badalForm.date || new Date().toISOString().split("T")[0]);
+                              const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                              const slotForClass = slots.find(
+                                (s) => s.className === newClassName && s.dayOfWeek === dow && s.period === badalForm.period
+                              );
+                              const pDef = PERIOD_DEFS.find((p) => p.period === badalForm.period);
+                              const pTimeParts = pDef?.time?.split(" - ") || ["10:30", "11:00"];
 
-                      const newSubj = slotForClass?.subject || "Lesson";
-                      const newOrigId = slotForClass?.teacherId || "";
-                      const newOrigName = slotForClass?.teacherName || "";
-                      const newOrigAvatar = slotForClass?.teacherAvatar || "";
-                      const newStart = slotForClass?.startTime || pTimeParts[0];
-                      const newEnd = slotForClass?.endTime || pTimeParts[1];
+                              const newSubj = slotForClass?.subject || "Lesson";
+                              const newOrigId = slotForClass?.teacherId || "";
+                              const newOrigName = slotForClass?.teacherName || "";
+                              const newOrigAvatar = slotForClass?.teacherAvatar || "";
+                              const newStart = slotForClass?.startTime || pTimeParts[0];
+                              const newEnd = slotForClass?.endTime || pTimeParts[1];
 
-                      setBadalForm((prev) => ({
-                        ...prev,
-                        className: newClassName,
-                        classId: classObj?.id || prev.classId,
-                        slotId: slotForClass?.id || "",
-                        subject: newSubj,
-                        startTime: newStart,
-                        endTime: newEnd,
-                        originalTeacherId: newOrigId,
-                        originalTeacherName: newOrigName,
-                        originalTeacherAvatar: newOrigAvatar,
-                      }));
+                              setBadalForm((prev) => ({
+                                ...prev,
+                                className: newClassName,
+                                classId: c.id || prev.classId,
+                                slotId: slotForClass?.id || "",
+                                subject: newSubj,
+                                startTime: newStart,
+                                endTime: newEnd,
+                                originalTeacherId: newOrigId,
+                                originalTeacherName: newOrigName,
+                                originalTeacherAvatar: newOrigAvatar,
+                              }));
 
-                      fetchAvailableTeachersForSlot(dow, badalForm.period, badalForm.date, newSubj, newOrigId);
-                    }}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-900 outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id || c.name} value={c.name}>
-                        Class {c.name} {c.masool ? `— Masool: ${c.masool.name}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                    2. Substitution Date
-                  </label>
-                  <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-amber-500">
-                    <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                    <input
-                      type="date"
-                      value={badalForm.date}
-                      onChange={(e) => {
-                        const newD = e.target.value;
-                        const dt = new Date(newD);
-                        const dow = dt.getDay() === 0 ? 1 : dt.getDay();
-                        const slotForClass = slots.find(
-                          (s) => s.className === badalForm.className && s.dayOfWeek === dow && s.period === badalForm.period
+                              fetchAvailableTeachersForSlot(dow, badalForm.period, badalForm.date, newSubj, newOrigId);
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                              isChosen
+                                ? "bg-slate-900 text-amber-300 ring-2 ring-amber-400 shadow-sm"
+                                : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            Class {c.name}
+                          </button>
                         );
-                        const pDef = PERIOD_DEFS.find((p) => p.period === badalForm.period);
-                        const pTimeParts = pDef?.time?.split(" - ") || ["10:30", "11:00"];
-
-                        const newSubj = slotForClass?.subject || badalForm.subject || "Lesson";
-                        const newOrigId = slotForClass?.teacherId || badalForm.originalTeacherId;
-                        const newOrigName = slotForClass?.teacherName || badalForm.originalTeacherName;
-                        const newOrigAvatar = slotForClass?.teacherAvatar || badalForm.originalTeacherAvatar;
-
-                        setBadalForm((prev) => ({
-                          ...prev,
-                          date: newD,
-                          slotId: slotForClass?.id || prev.slotId,
-                          subject: newSubj,
-                          originalTeacherId: newOrigId,
-                          originalTeacherName: newOrigName,
-                          originalTeacherAvatar: newOrigAvatar,
-                          startTime: slotForClass?.startTime || pTimeParts[0],
-                          endTime: slotForClass?.endTime || pTimeParts[1],
-                        }));
-
-                        fetchAvailableTeachersForSlot(dow, badalForm.period, newD, newSubj, newOrigId);
-                      }}
-                      className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
-                    />
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* 2. Interactive Class Timetable Strip for Selected Day */}
-              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Class {badalForm.className} Schedule for {new Date(badalForm.date || new Date().toISOString().split("T")[0]).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</span>
-                  </span>
-                  <span className="text-[10px] text-amber-800 font-bold bg-amber-100/80 px-2 py-0.5 rounded-full">
-                    Tap a period to assign Badal
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 overflow-x-auto touch-auto [-webkit-overflow-scrolling:touch]">
-                  {PERIOD_DEFS.map((p) => {
-                    const dt = new Date(badalForm.date || new Date().toISOString().split("T")[0]);
-                    const dow = dt.getDay() === 0 ? 1 : dt.getDay();
-                    const pSlot = slots.find(
-                      (s) => s.className === badalForm.className && s.dayOfWeek === dow && s.period === p.period
-                    );
-                    const isSelected = badalForm.period === p.period;
-                    const existingBadal = badals.find(
-                      (b) => b.className === badalForm.className && b.date?.startsWith(badalForm.date) && b.period === p.period
-                    );
-
-                    return (
+                  {/* Date Quick Selector */}
+                  <div className="shrink-0">
+                    <label className="block text-[10.5px] font-black uppercase tracking-wider text-slate-600 mb-1.5">
+                      Target Substitution Date
+                    </label>
+                    <div className="flex items-center gap-1.5">
                       <button
-                        key={p.period}
                         type="button"
                         onClick={() => {
-                          const pTimeParts = p.time.split(" - ");
-                          const newStart = pSlot?.startTime || pTimeParts[0];
-                          const newEnd = pSlot?.endTime || pTimeParts[1];
-                          const newSubj = pSlot?.subject || "Lesson";
-                          const newOrigId = pSlot?.teacherId || "";
-                          const newOrigName = pSlot?.teacherName || "";
-                          const newOrigAvatar = pSlot?.teacherAvatar || "";
-
-                          const tpl = generateBadalEmailTemplate({
-                            substituteName: badalForm.badalTeacherName || "Faculty Member",
-                            originalTeacherName: newOrigName,
-                            className: badalForm.className,
-                            period: p.period,
-                            startTime: newStart,
-                            endTime: newEnd,
-                            subject: newSubj,
-                            date: badalForm.date,
-                            reason: badalForm.reason,
-                            instructions: badalForm.instructions,
-                          });
-
-                          setBadalForm((prev) => ({
-                            ...prev,
-                            period: p.period,
-                            startTime: newStart,
-                            endTime: newEnd,
-                            subject: newSubj,
-                            slotId: pSlot?.id || "",
-                            originalTeacherId: newOrigId,
-                            originalTeacherName: newOrigName,
-                            originalTeacherAvatar: newOrigAvatar,
-                            customEmailSubject: tpl.subject,
-                            customEmailBody: tpl.body,
-                          }));
-
-                          fetchAvailableTeachersForSlot(dow, p.period, badalForm.date, newSubj, newOrigId);
+                          const todayStr = new Date().toISOString().split("T")[0];
+                          const dt = new Date(todayStr);
+                          const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                          setBadalForm((prev) => ({ ...prev, date: todayStr }));
+                          fetchAvailableTeachersForSlot(dow, badalForm.period, todayStr, badalForm.subject, badalForm.originalTeacherId);
                         }}
-                        className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
-                          isSelected
-                            ? "bg-amber-400 text-slate-950 border-amber-500 shadow-md ring-2 ring-amber-300"
-                            : existingBadal
-                            ? "bg-amber-50 border-amber-300 text-slate-800 hover:bg-amber-100"
-                            : pSlot
-                            ? "bg-white border-slate-200 text-slate-800 hover:border-slate-300 hover:bg-slate-50"
-                            : "bg-slate-100/70 border-slate-200/70 text-slate-400"
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          badalForm.date === new Date().toISOString().split("T")[0]
+                            ? "bg-amber-400 text-slate-950 font-black shadow-2xs"
+                            : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
                         }`}
                       >
-                        <div className="flex items-center justify-between text-[10px] font-black">
-                          <span>Period {p.period}</span>
-                          <span className="font-mono text-[9px] opacity-80">{p.time}</span>
-                        </div>
-                        <div className="mt-1 font-black text-xs truncate">
-                          {pSlot?.subject || "No Lesson"}
-                        </div>
-                        <div className="text-[10px] truncate mt-0.5 font-medium">
-                          {existingBadal ? `⚡ Badal: ${existingBadal.badalTeacherName}` : pSlot?.teacherName || "Unassigned"}
-                        </div>
+                        Today
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 3. Period, Timing & Scheduled Teacher Context Banner */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50/70 border border-amber-200 rounded-2xl p-3">
-                <div>
-                  <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
-                    Selected Period &amp; Time
-                  </span>
-                  <div className="font-black text-slate-900 text-sm mt-0.5 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-amber-700" />
-                    <span>Period {badalForm.period} ({badalForm.startTime} – {badalForm.endTime})</span>
-                  </div>
-                  <div className="text-[11px] text-amber-800 font-bold mt-0.5">
-                    Subject: <span className="text-slate-900">{badalForm.subject || "Lesson"}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
-                    Scheduled Teacher (Absent / Needs Cover)
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    {badalForm.originalTeacherAvatar ? (
-                      <Avatar className="w-7 h-7 ring-1 ring-amber-400 shrink-0">
-                        <AvatarImage src={badalForm.originalTeacherAvatar} alt={badalForm.originalTeacherName} />
-                      </Avatar>
-                    ) : null}
-                    <div className="font-bold text-slate-900 text-xs truncate">
-                      {badalForm.originalTeacherName || "No Scheduled Teacher"}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+                          const dt = new Date(tomorrowStr);
+                          const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                          setBadalForm((prev) => ({ ...prev, date: tomorrowStr }));
+                          fetchAvailableTeachersForSlot(dow, badalForm.period, tomorrowStr, badalForm.subject, badalForm.originalTeacherId);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          badalForm.date === new Date(Date.now() + 86400000).toISOString().split("T")[0]
+                            ? "bg-amber-400 text-slate-950 font-black shadow-2xs"
+                            : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        Tomorrow
+                      </button>
+                      <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <input
+                          type="date"
+                          value={badalForm.date}
+                          onChange={(e) => {
+                            const newD = e.target.value;
+                            const dt = new Date(newD);
+                            const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                            setBadalForm((prev) => ({ ...prev, date: newD }));
+                            fetchAvailableTeachersForSlot(dow, badalForm.period, newD, badalForm.subject, badalForm.originalTeacherId);
+                          }}
+                          className="bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Interactive 8-Period Day Strip for Class */}
+                <div className="pt-2 border-t border-slate-200/70">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Class {badalForm.className} Schedule for {new Date(badalForm.date || new Date().toISOString().split("T")[0]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
+                    </span>
+                    <span className="text-[10px] text-amber-800 font-bold bg-amber-100/90 px-2 py-0.5 rounded-full">
+                      Click a period to cover
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5">
+                    {PERIOD_DEFS.map((p) => {
+                      const dt = new Date(badalForm.date || new Date().toISOString().split("T")[0]);
+                      const dow = dt.getDay() === 0 ? 1 : dt.getDay();
+                      const pSlot = slots.find(
+                        (s) => s.className === badalForm.className && s.dayOfWeek === dow && s.period === p.period
+                      );
+                      const isSelected = badalForm.period === p.period;
+                      const existingBadal = badals.find(
+                        (b) => b.className === badalForm.className && b.date?.startsWith(badalForm.date) && b.period === p.period
+                      );
+
+                      return (
+                        <button
+                          key={p.period}
+                          type="button"
+                          onClick={() => {
+                            const pTimeParts = p.time.split(" - ");
+                            const newStart = pSlot?.startTime || pTimeParts[0];
+                            const newEnd = pSlot?.endTime || pTimeParts[1];
+                            const newSubj = pSlot?.subject || "Lesson";
+                            const newOrigId = pSlot?.teacherId || "";
+                            const newOrigName = pSlot?.teacherName || "";
+                            const newOrigAvatar = pSlot?.teacherAvatar || "";
+
+                            const tpl = generateBadalEmailTemplate({
+                              substituteName: badalForm.badalTeacherName || "Faculty Member",
+                              originalTeacherName: newOrigName,
+                              className: badalForm.className,
+                              period: p.period,
+                              startTime: newStart,
+                              endTime: newEnd,
+                              subject: newSubj,
+                              date: badalForm.date,
+                              reason: badalForm.reason,
+                              instructions: badalForm.instructions,
+                            });
+
+                            setBadalForm((prev) => ({
+                              ...prev,
+                              period: p.period,
+                              startTime: newStart,
+                              endTime: newEnd,
+                              subject: newSubj,
+                              slotId: pSlot?.id || "",
+                              originalTeacherId: newOrigId,
+                              originalTeacherName: newOrigName,
+                              originalTeacherAvatar: newOrigAvatar,
+                              customEmailSubject: tpl.subject,
+                              customEmailBody: tpl.body,
+                            }));
+
+                            fetchAvailableTeachersForSlot(dow, p.period, badalForm.date, newSubj, newOrigId);
+                          }}
+                          className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? "bg-amber-400 text-slate-950 border-amber-500 shadow-md ring-2 ring-amber-300 scale-102"
+                              : existingBadal
+                              ? "bg-amber-50 border-amber-300 text-slate-800 hover:bg-amber-100"
+                              : pSlot
+                              ? "bg-white border-slate-200 text-slate-800 hover:border-slate-300 hover:bg-slate-50"
+                              : "bg-slate-100/70 border-slate-200/70 text-slate-400"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-black">
+                            <span>P{p.period}</span>
+                            <span className="font-mono text-[9px] opacity-80">{p.time.split(" - ")[0]}</span>
+                          </div>
+                          <div className="mt-1 font-black text-xs truncate">
+                            {pSlot?.subject || "No Lesson"}
+                          </div>
+                          <div className="text-[10px] truncate mt-0.5 font-medium">
+                            {existingBadal ? `⚡ ${existingBadal.badalTeacherName}` : pSlot?.teacherName ? pSlot.teacherName.split(" ")[0] : "Free"}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Session Context Banner */}
+                <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-200/90 text-amber-950 flex items-center justify-center font-black text-xs">
+                      P{badalForm.period}
+                    </div>
+                    <div>
+                      <div className="font-black text-slate-900 text-xs">
+                        Class {badalForm.className} • Period {badalForm.period} ({badalForm.startTime} – {badalForm.endTime})
+                      </div>
+                      <div className="text-[11px] text-amber-900 font-bold">
+                        Subject: <span className="text-slate-950">{badalForm.subject || "Lesson"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-amber-200 pt-1.5 sm:pt-0 sm:pl-3">
+                    <span className="text-[10px] font-bold text-amber-900 uppercase">Covering:</span>
+                    {badalForm.originalTeacherAvatar && (
+                      <Avatar className="w-5 h-5 ring-1 ring-amber-400 shrink-0">
+                        <AvatarImage src={badalForm.originalTeacherAvatar} alt={badalForm.originalTeacherName} />
+                      </Avatar>
+                    )}
+                    <span className="font-bold text-slate-900 text-xs truncate max-w-[180px]">
+                      {badalForm.originalTeacherName || "No scheduled teacher"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* 4. Substitute Teachers List (DISPLAYING ALL TEACHERS WITH ASSIGNED SUBJECTS) */}
-              <div className="space-y-2">
+              {/* ──────────────── STEP 2: SMART SUBSTITUTE TEACHER SELECTION ──────────────── */}
+              <div className="space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700">
-                    4. Select Substitute Teacher (Assigned Subject Specialists Only)
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>2. Select Substitute Teacher</span>
                   </label>
                   <div className="flex items-center gap-1 flex-wrap">
                     <button
@@ -3323,41 +4157,30 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      ★ Assigned Subject Only ({availableTeachers.filter((t) => t.teachesSubject).length})
+                      ★ {badalForm.subject || "Assigned"} Specialists Only ({availableTeachers.filter((t) => t.teachesSubject).length})
                     </button>
                     <button
                       type="button"
                       onClick={() => setBadalTeacherFilterMode("FREE")}
                       className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
                         badalTeacherFilterMode === "FREE"
-                          ? "bg-slate-900 text-amber-300"
+                          ? "bg-slate-900 text-amber-300 ring-2 ring-amber-400/40"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      Free Only ({availableTeachers.filter((t) => t.isFree).length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBadalTeacherFilterMode("ALL")}
-                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition-colors ${
-                        badalTeacherFilterMode === "ALL"
-                          ? "bg-slate-900 text-amber-300"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      All Teachers ({availableTeachers.length})
+                      🟢 Free in Period {badalForm.period} ({availableTeachers.filter((t) => t.teachesSubject && t.isFree).length})
                     </button>
                   </div>
                 </div>
 
-                {/* Search bar inside teacher picker */}
+                {/* Search Bar inside teacher picker */}
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-amber-500">
                   <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <input
                     type="text"
                     value={badalTeacherSearchQuery}
                     onChange={(e) => setBadalTeacherSearchQuery(e.target.value)}
-                    placeholder="Filter by teacher name or assigned subjects (e.g. Quran, Arabic, English)..."
+                    placeholder={`Search within ${badalForm.subject || "assigned subject"} faculty...`}
                     className="w-full bg-transparent text-xs text-slate-800 outline-none"
                   />
                   {badalTeacherSearchQuery && (
@@ -3372,26 +4195,18 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                 </div>
 
                 {loadingAvailable ? (
-                  <div className="p-4 text-center bg-slate-50 rounded-2xl border border-slate-200">
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-600 mx-auto" />
-                    <span className="text-[11px] text-slate-500 mt-1 block">Loading faculty roster &amp; assigned subjects...</span>
+                  <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
+                    <Loader2 className="w-5 h-5 animate-spin text-amber-600 mx-auto" />
+                    <span className="text-[11px] text-slate-500 mt-1.5 block font-medium">Checking faculty availability &amp; timetable periods...</span>
                   </div>
                 ) : filteredAvailableTeachers.length === 0 ? (
-                  <div className="p-4 text-center bg-amber-50 text-amber-900 rounded-2xl border border-amber-200 text-xs space-y-2">
-                    <p className="font-semibold">
-                      {badalTeacherFilterMode === "SAME_SUBJECT"
-                        ? `No other faculty teaches "${badalForm.subject}" in this schedule.`
-                        : "No faculty found matching the selected filter."}
+                  <div className="p-5 text-center bg-amber-50 text-amber-950 rounded-2xl border border-amber-200 text-xs space-y-2">
+                    <p className="font-bold text-amber-900">
+                      No available substitute faculty found assigned to &quot;{badalForm.subject || "this subject"}&quot;.
                     </p>
-                    {badalTeacherFilterMode === "SAME_SUBJECT" && (
-                      <button
-                        type="button"
-                        onClick={() => setBadalTeacherFilterMode("ALL")}
-                        className="px-3 py-1 bg-slate-900 text-amber-300 rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        Show All Faculty Members ({availableTeachers.length})
-                      </button>
-                    )}
+                    <p className="text-[11px] text-amber-800/80">
+                      Per academic policy, only faculty with &quot;{badalForm.subject}&quot; assigned in their department/timetable are shown for Badal coverage.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
@@ -3428,24 +4243,26 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                               badalTeacherName: t.name,
                               badalTeacherAvatar: t.avatarUrl || "",
                               receiverEmail: t.email || "",
+                              customPhone: t.mobile || prev.customPhone || "",
                               customEmailSubject: tpl.subject,
                               customEmailBody: tpl.body,
                             }));
                           }}
-                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                          className={`p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
                             isChosen
-                              ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-500/40"
+                              ? "bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-500/30 shadow-xs"
                               : isUnavailable
-                              ? "bg-slate-50 border-slate-200 opacity-60"
+                              ? "bg-slate-50/70 border-slate-200 opacity-60"
                               : "bg-white hover:bg-slate-50 border-slate-200"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            {t.avatarUrl ? (
-                              <Avatar className="w-8 h-8 ring-1 ring-slate-300 shrink-0">
-                                <AvatarImage src={t.avatarUrl} alt={t.name} />
-                              </Avatar>
-                            ) : null}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <Avatar className="w-9 h-9 ring-1 ring-slate-300 shrink-0">
+                              {t.avatarUrl ? <AvatarImage src={t.avatarUrl} alt={t.name} /> : null}
+                              <AvatarFallback className="bg-slate-900 text-amber-300 font-bold text-xs">
+                                {getInitials(t.name)}
+                              </AvatarFallback>
+                            </Avatar>
                             <div className="min-w-0 flex-1">
                               <div className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
                                 <span>{t.name}</span>
@@ -3469,28 +4286,26 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                 )}
                               </div>
 
-                              {/* Display all assigned subjects of this teacher */}
-                              <div className="flex items-center gap-1 flex-wrap mt-1">
-                                <span className="text-[10px] text-slate-400 font-semibold">Assigned Subjects:</span>
-                                {t.subjects && t.subjects.length > 0 ? (
-                                  t.subjects.slice(0, 4).map((sName: string) => (
-                                    <span key={sName} className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-slate-100 text-slate-700">
-                                      {sName}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-[9.5px] text-slate-400">None assigned</span>
+                              {/* Contact info row */}
+                              <div className="flex items-center gap-2.5 mt-0.5 text-[10.5px] text-slate-500 flex-wrap">
+                                {t.mobile && (
+                                  <span className="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                                    <Phone className="w-2.5 h-2.5" />
+                                    {t.mobile}
+                                  </span>
                                 )}
-                                {(t.subjects?.length || 0) > 4 && (
-                                  <span className="text-[9px] text-slate-500 font-bold">+{t.subjects.length - 4} more</span>
+                                {t.email && (
+                                  <span className="text-slate-400 truncate max-w-[170px]" title={t.email}>
+                                    ✉️ {t.email}
+                                  </span>
                                 )}
-                                <span className="text-[10px] text-slate-400 ml-1">• {t.badalCount || 0} Badals taken</span>
+                                <span className="text-slate-400">• {t.badalCount || 0} Badals taken</span>
                               </div>
 
-                              {/* Interactive Daily 8-Period Schedule Bar */}
+                              {/* Daily 8-Period Schedule Bar */}
                               {t.daySchedule && (
-                                <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-bold text-slate-400 mr-0.5 uppercase tracking-wider">Schedule:</span>
+                                <div className="mt-1.5 pt-1 border-t border-slate-100 flex items-center gap-1 flex-wrap">
+                                  <span className="text-[8.5px] font-bold text-slate-400 mr-0.5 uppercase tracking-wider">Schedule:</span>
                                   {[1, 2, 3, 4, 5, 6, 7, 8].map((pNum) => {
                                     const teaching = t.daySchedule?.[pNum];
                                     const isTargetPeriod = pNum === badalForm.period;
@@ -3516,7 +4331,11 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                               )}
                             </div>
                           </div>
-                          {isChosen && <Check className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />}
+                          {isChosen && (
+                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 ml-2 shadow-xs">
+                              <Check className="w-3.5 h-3.5" />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -3524,151 +4343,374 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                 )}
               </div>
 
-              {/* 5. Reason for Badal */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">5. Reason for Badal</label>
-                <select
-                  value={badalForm.reason}
-                  onChange={(e) => setBadalForm((prev) => ({ ...prev, reason: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none"
-                >
-                  <option value="Medical / Sick Leave">Medical / Sick Leave</option>
-                  <option value="Official Institutional Khidmat">Official Institutional Khidmat</option>
-                  <option value="Approved Personal Leave">Approved Personal Leave</option>
-                  <option value="Late / Traffic Delay">Late / Traffic Delay</option>
-                  <option value="Other">Other Duty</option>
-                </select>
-              </div>
-
-              {/* 6. Instructions for Sabaq */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  6. Sabaq &amp; Homework Instructions for Substitute
-                </label>
-                <textarea
-                  rows={2}
-                  value={badalForm.instructions}
-                  onChange={(e) => setBadalForm((prev) => ({ ...prev, instructions: e.target.value }))}
-                  placeholder="Instructions for the substitute teacher during this session..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none"
-                />
-              </div>
-
-              {/* 7. Email Notification Section */}
-              <div className="bg-amber-50/80 border border-amber-300/80 rounded-2xl p-3.5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-amber-800" />
-                    <span className="font-extrabold text-slate-900 text-xs">Official Email Notification to Substitute</span>
+              {/* ──────────────── STEP 3: DUAL NOTIFICATION DESK (EMAIL + WHATSAPP) ──────────────── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* 1. Official Email Dispatch Box */}
+                <div className="bg-sky-50/70 border border-sky-200 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={badalForm.sendEmailNotification}
+                        onChange={(e) => setBadalForm((prev) => ({ ...prev, sendEmailNotification: e.target.checked }))}
+                        className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-sky-700" />
+                        <span>Send Email Notification</span>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowBadalConfigModal(true)}
+                      className="text-[10.5px] font-bold text-sky-800 hover:text-sky-950 flex items-center gap-1 underline cursor-pointer"
+                    >
+                      <Settings className="w-3 h-3" />
+                      <span>Configure Sender</span>
+                    </button>
                   </div>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={badalForm.sendEmailNotification}
-                      onChange={(e) => setBadalForm((prev) => ({ ...prev, sendEmailNotification: e.target.checked }))}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>Send Email</span>
-                  </label>
-                </div>
 
-                {badalForm.sendEmailNotification && (
-                  <div className="space-y-2.5 pt-1 border-t border-amber-200/70">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {badalForm.sendEmailNotification && (
+                    <div className="space-y-2 pt-1 border-t border-sky-100">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
-                          Sender Email (From)
-                        </label>
-                        <input
-                          type="email"
-                          value={badalForm.senderEmail}
-                          onChange={(e) => setBadalForm((prev) => ({ ...prev, senderEmail: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500"
-                          placeholder="support.darseburhanigaliakot@gmail.com"
-                        />
+                        <span className="text-[10px] text-slate-500 font-bold block mb-0.5 uppercase tracking-wider">
+                          Sender Address:
+                        </span>
+                        <div className="text-[11px] font-mono text-slate-700 bg-white px-2 py-1 rounded-lg border border-sky-200 truncate">
+                          {badalSmtpStatus?.senderName || "Darse Burhani — Badal Desk"} &lt;{badalSmtpStatus?.activeMailbox || "support.darseburhanigaliakot@gmail.com"}&gt;
+                        </div>
                       </div>
+
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
-                          Recipient Email (To Substitute)
+                        <label className="text-[10px] text-slate-500 font-bold block mb-0.5 uppercase tracking-wider">
+                          Substitute Email (To):
                         </label>
                         <input
                           type="email"
                           value={badalForm.receiverEmail}
                           onChange={(e) => setBadalForm((prev) => ({ ...prev, receiverEmail: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500"
-                          placeholder="substitute@example.com"
+                          placeholder="substitute.teacher@example.com"
+                          className="w-full px-2.5 py-1.5 bg-white border border-sky-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-sky-500"
                         />
                       </div>
                     </div>
+                  )}
+                </div>
 
-                    <div>
-                      <div className="flex items-center justify-between mb-0.5">
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase">
-                          Email Subject
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const tpl = generateBadalEmailTemplate({
-                              substituteName: badalForm.badalTeacherName,
-                              originalTeacherName: badalForm.originalTeacherName,
-                              className: badalForm.className,
-                              period: badalForm.period,
-                              startTime: badalForm.startTime,
-                              endTime: badalForm.endTime,
-                              subject: badalForm.subject,
-                              date: badalForm.date,
-                              reason: badalForm.reason,
-                              instructions: badalForm.instructions,
-                            });
-                            setBadalForm((prev) => ({
-                              ...prev,
-                              customEmailSubject: tpl.subject,
-                              customEmailBody: tpl.body,
-                            }));
-                            toast({ variant: "default", title: "Template Regenerated", description: "Email subject and body updated." });
-                          }}
-                          className="text-[10px] font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer"
-                        >
-                          Regenerate Template
-                        </button>
-                      </div>
+                {/* 2. Official WhatsApp Dispatch Box */}
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
-                        type="text"
-                        value={badalForm.customEmailSubject}
-                        onChange={(e) => setBadalForm((prev) => ({ ...prev, customEmailSubject: e.target.value }))}
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-amber-500"
+                        type="checkbox"
+                        checked={badalForm.sendWhatsAppNotification}
+                        onChange={(e) => setBadalForm((prev) => ({ ...prev, sendWhatsAppNotification: e.target.checked }))}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
-                        Editable Generated Message
-                      </label>
-                      <textarea
-                        rows={5}
-                        value={badalForm.customEmailBody}
-                        onChange={(e) => setBadalForm((prev) => ({ ...prev, customEmailBody: e.target.value }))}
-                        className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800 outline-none focus:border-amber-500 leading-relaxed"
-                        placeholder="Official message body..."
-                      />
-                    </div>
+                      <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Send WhatsApp Notice</span>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowBadalWhatsAppPreview(!showBadalWhatsAppPreview)}
+                      className="text-[10.5px] font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 underline cursor-pointer"
+                    >
+                      <Eye className="w-3 h-3" />
+                      <span>{showBadalWhatsAppPreview ? "Hide Preview" : "Preview Msg"}</span>
+                    </button>
                   </div>
-                )}
+
+                  {badalForm.sendWhatsAppNotification && (
+                    <div className="space-y-2 pt-1 border-t border-emerald-100">
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold block mb-0.5 uppercase tracking-wider">
+                          Teacher Mobile / WhatsApp:
+                        </label>
+                        <div className="flex items-center gap-1 bg-white border border-emerald-200 rounded-lg px-2.5 py-1.5">
+                          <span className="text-xs font-mono font-bold text-slate-400">IN</span>
+                          <input
+                            type="tel"
+                            value={badalForm.customPhone}
+                            onChange={(e) => setBadalForm((prev) => ({ ...prev, customPhone: e.target.value }))}
+                            placeholder="e.g. 9879452274 or 919879452274"
+                            className="w-full bg-transparent text-xs font-mono font-bold text-slate-800 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {showBadalWhatsAppPreview && (
+                        <div className="p-3 bg-white rounded-xl border border-emerald-200 text-[10.5px] font-mono leading-relaxed text-slate-700 space-y-1.5">
+                          <div className="font-bold text-emerald-950">
+                            *DARSE BURHANI • MAHAD AL-ZAHRA*<br />
+                            <span className="italic font-normal">_Maktab Taalim • Galiakot_</span>
+                          </div>
+                          <div className="font-bold text-rose-700">🚨 *(URGENT) - BADAL PERIOD INTIMATION*</div>
+                          <div>Afzalus Salam Janab *{badalForm.badalTeacherName || "Faculty Member"}*,</div>
+                          <div>You have been officially assigned by the Matkab Taalim as a substitute teacher (*Badal*) for the following session:</div>
+                          <div className="font-bold pt-1">📋 *Class &amp; Period Details:*</div>
+                          <div>• Date: 📅 *{badalForm.date}*</div>
+                          <div>• Period &amp; Time: ⏰ *Period {badalForm.period} ({badalForm.startTime} – {badalForm.endTime})*</div>
+                          <div>• Darajah / Class: 🏫 *Class {badalForm.className.replace(/^class\s*/i, "")}*</div>
+                          <div>• On behalf of : 👤 *{badalForm.originalTeacherName || "Faculty Member"}*</div>
+                          <div>• Instructions: 📝 *{badalForm.instructions || "Will be written by Maktab Taalim"}*</div>
+                          <div className="font-bold text-emerald-900 pt-1">*Kindly ensure your prompt arrival at the classroom for the above session.*</div>
+                          <div className="text-[9.5px] text-slate-400 border-t border-slate-100 pt-1.5">
+                            ----------------------------------------<br />
+                            _⚠️ NOTICE: Automated institutional notice from Maktab Taalim • Darse Burhani_.<br />
+                            _For any Queries, please contact Maktab Taalim_
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ──────────────── STEP 4: REASON & SABAQ INSTRUCTIONS ──────────────── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Reason for Substitution
+                  </label>
+                  <select
+                    value={badalForm.reason}
+                    onChange={(e) => setBadalForm((prev) => ({ ...prev, reason: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none cursor-pointer text-xs"
+                  >
+                    <option value="Medical / Sick Leave">Medical / Sick Leave</option>
+                    <option value="Official Institutional Khidmat">Official Institutional Khidmat</option>
+                    <option value="Approved Personal Leave">Approved Personal Leave</option>
+                    <option value="Late / Traffic Delay">Late / Traffic Delay</option>
+                    <option value="Emergency Duty">Emergency Duty</option>
+                    <option value="Other">Other Reason</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Sabaq &amp; Portion Instructions
+                  </label>
+                  <input
+                    type="text"
+                    value={badalForm.instructions}
+                    onChange={(e) => setBadalForm((prev) => ({ ...prev, instructions: e.target.value }))}
+                    placeholder="e.g. Conduct Surah al-Baqarah revision and take attendance..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none"
+                  />
+                </div>
               </div>
             </div>
 
+            {/* Modal Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+              <div className="text-xs text-slate-500 font-medium">
+                {badalForm.badalTeacherName ? (
+                  <span>
+                    Ready to assign <strong className="text-slate-900">{badalForm.badalTeacherName}</strong> for <strong className="text-slate-900">Class {badalForm.className}</strong> (P{badalForm.period}).
+                  </span>
+                ) : (
+                  <span className="text-amber-700 font-bold">Please click a free teacher above to proceed.</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBadalModal(false)}
+                  className="rounded-xl flex-1 sm:flex-none cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveBadal}
+                  disabled={savingBadal || !badalForm.badalTeacherId}
+                  className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-2 rounded-xl px-4 py-2.5 shadow-md flex-1 sm:flex-none cursor-pointer"
+                >
+                  {savingBadal ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Confirm &amp; Notify (Email + WhatsApp)</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          DEDICATED BADAL EMAIL (SMTP) CONFIGURATION MODAL
+         ───────────────────────────────────────────────────────────── */}
+      {showBadalConfigModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-xl p-5 sm:p-7 shadow-2xl border border-slate-200 space-y-5 my-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight">Configure Badal Sender Email</h3>
+                  <p className="text-xs text-slate-500">Dedicated institutional mailbox for substitute teacher notifications.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBadalConfigModal(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Active Status Banner */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/90 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current Mailbox:</span>
+                  <span className="font-mono font-bold text-slate-800 text-xs">
+                    {badalSmtpStatus?.activeMailbox || "Not configured (using system fallback)"}
+                  </span>
+                </div>
+                {badalSmtpStatus?.configured ? (
+                  <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    🟢 Active &amp; Ready
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                    ⚠️ Default Fallback
+                  </span>
+                )}
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Sender Email Address (Gmail / Google Workspace) *
+                  </label>
+                  <input
+                    type="email"
+                    value={badalConfigForm.email}
+                    onChange={(e) => setBadalConfigForm((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="e.g. badal.galiakot@darseburhani.org or your-email@gmail.com"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none focus:border-sky-500"
+                  />
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">
+                    Substitute teachers will receive duty alert emails from this address.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Sender Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={badalConfigForm.name}
+                    onChange={(e) => setBadalConfigForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. Darse Burhani — Badal Desk"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-sky-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Google 16-Character App Password *
+                  </label>
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:border-sky-500">
+                    <Key className="w-4 h-4 text-slate-400 shrink-0" />
+                    <input
+                      type={showConfigPass ? "text" : "password"}
+                      value={badalConfigForm.pass}
+                      onChange={(e) => setBadalConfigForm((prev) => ({ ...prev, pass: e.target.value }))}
+                      placeholder={badalSmtpStatus?.hasPassword ? "•••••••••••••••• (Leave blank to keep existing)" : "16-character app password (e.g. abcd efgh ijkl mnop)"}
+                      className="w-full bg-transparent text-xs font-mono text-slate-900 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfigPass(!showConfigPass)}
+                      className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer p-0.5"
+                    >
+                      {showConfigPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 mt-1 block">
+                    Generate this from Google Account → Security → 2-Step Verification → App Passwords.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Host</label>
+                    <input
+                      type="text"
+                      value={badalConfigForm.host}
+                      onChange={(e) => setBadalConfigForm((prev) => ({ ...prev, host: e.target.value }))}
+                      placeholder="smtp.gmail.com"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Port</label>
+                    <input
+                      type="number"
+                      value={badalConfigForm.port}
+                      onChange={(e) => setBadalConfigForm((prev) => ({ ...prev, port: parseInt(e.target.value, 10) || 587 }))}
+                      placeholder="587"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Test Connection Box */}
+                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+                  <span className="text-[10.5px] font-bold text-amber-950 uppercase tracking-wider block">
+                    Verify Connection &amp; Delivery:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="email"
+                      value={testBadalEmailRecipient}
+                      onChange={(e) => setTestBadalEmailRecipient(e.target.value)}
+                      placeholder="Enter recipient email to test dispatch..."
+                      className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-mono text-slate-800 outline-none"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestBadalConfig}
+                      disabled={testingBadalConfig}
+                      className="shrink-0 bg-white border-amber-300 text-amber-950 hover:bg-amber-100 font-bold text-xs gap-1.5 rounded-xl cursor-pointer"
+                    >
+                      {testingBadalConfig ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      <span>Test Email</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-              <Button variant="ghost" size="sm" onClick={() => setShowBadalModal(false)}>
+              <Button variant="ghost" size="sm" onClick={() => setShowBadalConfigModal(false)} className="rounded-xl cursor-pointer">
                 Cancel
               </Button>
               <Button
-                onClick={handleSaveBadal}
-                disabled={savingBadal || !badalForm.badalTeacherId}
-                className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5"
+                onClick={handleSaveBadalConfig}
+                disabled={savingBadalConfig}
+                className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-1.5 rounded-xl px-4 py-2 cursor-pointer shadow-md"
               >
-                {savingBadal ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                Confirm Badal Assignment
+                {savingBadalConfig ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Save Configuration</span>
               </Button>
             </div>
           </div>
@@ -3676,8 +4718,493 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          NEW TIMETABLE CREATING / EDITING FORM FROM MASTER
+          EDIT BADAL SUBSTITUTION MODAL
          ───────────────────────────────────────────────────────────── */}
+      {showEditBadalModal && editBadalForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-2xl p-5 sm:p-7 shadow-2xl border border-slate-200 space-y-5 max-h-[94vh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] my-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-amber-500/20">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 tracking-tight">Edit Badal Assignment</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                      Class {editBadalForm.className} • P{editBadalForm.period}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Modify the substitute teacher, Sabaq instructions, or status of this proxy session.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowEditBadalModal(false); setEditingBadal(null); }}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Session Context Banner */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono text-[11px] font-bold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                    📅 {editBadalForm.date}
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                    ⏰ {editBadalForm.startTime} – {editBadalForm.endTime}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-600 font-medium">
+                  Original: <strong className="text-slate-900">{editBadalForm.originalTeacherName || "Faculty"}</strong>
+                </div>
+              </div>
+
+              {/* Subject & Timing */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Subject / Sabaq
+                  </label>
+                  <input
+                    type="text"
+                    value={editBadalForm.subject}
+                    onChange={(e) => setEditBadalForm((prev: any) => ({ ...prev, subject: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none"
+                    placeholder="e.g. Al-Quran, Fiqh, Lisan..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Fulfillment &amp; Status
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={editBadalForm.status}
+                      onChange={(e) => setEditBadalForm((prev: any) => ({
+                        ...prev,
+                        status: e.target.value,
+                        isFulfilled: e.target.value === "COMPLETED" ? true : prev.isFulfilled,
+                      }))}
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none cursor-pointer text-xs"
+                    >
+                      <option value="ASSIGNED">ASSIGNED (Active)</option>
+                      <option value="CONFIRMED">CONFIRMED</option>
+                      <option value="COMPLETED">COMPLETED (Fulfilled)</option>
+                      <option value="CANCELLED">CANCELLED (Dissolved)</option>
+                    </select>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-slate-700 bg-slate-50 px-2.5 py-2 rounded-xl border border-slate-200 shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={editBadalForm.isFulfilled}
+                        onChange={(e) => setEditBadalForm((prev: any) => ({
+                          ...prev,
+                          isFulfilled: e.target.checked,
+                          status: e.target.checked ? "COMPLETED" : (prev.status === "COMPLETED" ? "ASSIGNED" : prev.status),
+                        }))}
+                        className="rounded accent-emerald-600"
+                      />
+                      <span>Fulfilled</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Substitute Teacher Selection Card */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10.5px] font-black uppercase tracking-wider text-slate-600">
+                    Substitute Teacher (Badal)
+                  </label>
+                  {editBadalForm.badalTeacherName && (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      Current: {editBadalForm.badalTeacherName}
+                    </span>
+                  )}
+                </div>
+
+                {/* Teacher Selector Pills & Quick Switch */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setBadalTeacherFilterMode("SAME_SUBJECT")}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                          badalTeacherFilterMode === "SAME_SUBJECT"
+                            ? "bg-[#1c1c1c] text-amber-300"
+                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        }`}
+                      >
+                        ★ {editBadalForm.subject || "Subject"} Specialists
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBadalTeacherFilterMode("FREE")}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                          badalTeacherFilterMode === "FREE"
+                            ? "bg-[#1c1c1c] text-amber-300"
+                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        }`}
+                      >
+                        🟢 Free in Period {editBadalForm.period}
+                      </button>
+                    </div>
+
+                    <div className="relative w-40 sm:w-52">
+                      <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search specialist..."
+                        value={badalTeacherSearchQuery}
+                        onChange={(e) => setBadalTeacherSearchQuery(e.target.value)}
+                        className="w-full pl-6 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-[10.5px] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Free Teacher Specialist Roster */}
+                  <div className="max-h-40 overflow-y-auto divide-y divide-slate-100 bg-white rounded-xl border border-slate-200">
+                    {loadingAvailable ? (
+                      <div className="p-4 text-center text-slate-400">
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-amber-500" />
+                        <span>Finding specialists...</span>
+                      </div>
+                    ) : filteredAvailableTeachers.length === 0 ? (
+                      <div className="p-4 text-center text-slate-400 text-xs">
+                        No matching specialist teachers available for Period {editBadalForm.period}.
+                      </div>
+                    ) : (
+                      filteredAvailableTeachers.map((t: any) => {
+                        const isSelected = editBadalForm.badalTeacherId === t.id;
+                        return (
+                          <div
+                            key={t.id}
+                            onClick={() => {
+                              setEditBadalForm((prev: any) => ({
+                                ...prev,
+                                badalTeacherId: t.id,
+                                badalTeacherName: t.name,
+                                badalTeacherAvatar: t.avatarUrl || "",
+                              }));
+                            }}
+                            className={`p-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                              isSelected
+                                ? "bg-amber-50 border-l-4 border-amber-500"
+                                : "hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Avatar className="w-6 h-6 shrink-0 ring-1 ring-slate-200">
+                                {t.avatarUrl && <AvatarImage src={t.avatarUrl} alt={t.name} />}
+                                <AvatarFallback className="text-[9px] font-bold bg-emerald-950 text-amber-300">
+                                  {getInitials(t.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <div className="font-bold text-slate-900 text-xs truncate flex items-center gap-1.5">
+                                  <span>{t.name}</span>
+                                  {isSelected && (
+                                    <span className="text-[9.5px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">
+                                      SELECTED
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-slate-500 truncate">
+                                  {Array.isArray(t.subjects) ? t.subjects.join(", ") : "Specialist"}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] shrink-0">
+                              {t.isFree ? (
+                                <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                                  Free P{editBadalForm.period}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-medium">{t.busyReason || "Busy"}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Reason & Instructions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Reason
+                  </label>
+                  <select
+                    value={editBadalForm.reason}
+                    onChange={(e) => setEditBadalForm((prev: any) => ({ ...prev, reason: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none cursor-pointer text-xs"
+                  >
+                    <option value="Medical / Sick Leave">Medical / Sick Leave</option>
+                    <option value="Official Institutional Khidmat">Official Institutional Khidmat</option>
+                    <option value="Approved Personal Leave">Approved Personal Leave</option>
+                    <option value="Late / Traffic Delay">Late / Traffic Delay</option>
+                    <option value="Emergency Duty">Emergency Duty</option>
+                    <option value="Other">Other Reason</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Sabaq &amp; Portion Instructions
+                  </label>
+                  <input
+                    type="text"
+                    value={editBadalForm.instructions}
+                    onChange={(e) => setEditBadalForm((prev: any) => ({ ...prev, instructions: e.target.value }))}
+                    placeholder="Portion instructions for substitute..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Notification Dispatch Options */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 flex items-center justify-between flex-wrap gap-2">
+                <span className="text-[11px] font-bold text-slate-700">Re-dispatch Updates:</span>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editBadalForm.sendEmailNotification}
+                      onChange={(e) => setEditBadalForm((prev: any) => ({ ...prev, sendEmailNotification: e.target.checked }))}
+                      className="rounded accent-emerald-600"
+                    />
+                    <span>Email</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editBadalForm.sendWhatsAppNotification}
+                      onChange={(e) => setEditBadalForm((prev: any) => ({ ...prev, sendWhatsAppNotification: e.target.checked }))}
+                      className="rounded accent-emerald-600"
+                    />
+                    <span>WhatsApp</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer with Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 border-t border-slate-100">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Delete Shortcut */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openDeleteBadalModal(editBadalForm)}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl px-2.5 py-1.5 text-xs font-bold gap-1 cursor-pointer"
+                  title="Delete this Badal record permanently"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </Button>
+
+                {/* Dissolve Shortcut (if not already cancelled) */}
+                {editBadalForm.status !== "CANCELLED" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openDissolveBadalModal(editBadalForm)}
+                    className="text-amber-800 hover:text-amber-950 hover:bg-amber-100 rounded-xl px-2.5 py-1.5 text-xs font-bold gap-1 cursor-pointer border border-amber-300"
+                    title="Dissolve this Badal substitution"
+                  >
+                    <Ban className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Dissolve Badal</span>
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setShowEditBadalModal(false); setEditingBadal(null); }}
+                  className="rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEditBadal}
+                  disabled={savingEditBadal}
+                  className="bg-[#1c1c1c] hover:bg-[#1c1c1c] text-amber-300 font-bold text-xs gap-2 rounded-xl px-4 py-2.5 shadow-md cursor-pointer"
+                >
+                  {savingEditBadal ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          DISSOLVE BADAL CONFIRMATION MODAL
+         ───────────────────────────────────────────────────────────── */}
+      {showDissolveBadalModal && badalToDissolve && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-lg p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 my-auto">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shrink-0">
+                <Ban className="w-5 h-5 text-amber-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 tracking-tight">Dissolve Badal Substitution</h3>
+                <p className="text-xs text-slate-500">Relieve the substitute teacher and restore the regular schedule.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300/80 space-y-2 text-amber-950">
+                <div className="flex items-center justify-between font-black text-xs">
+                  <span>Class {badalToDissolve.className} • Period {badalToDissolve.period}</span>
+                  <span>{badalToDissolve.subject}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-amber-900 pt-1 border-t border-amber-200/80">
+                  <span>Substitute: <strong>{badalToDissolve.badalTeacherName}</strong></span>
+                  <span>Covering: <strong>{badalToDissolve.originalTeacherName}</strong></span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Reason for Dissolving / Relieving Proxy:
+                </label>
+                <input
+                  type="text"
+                  value={dissolveReason}
+                  onChange={(e) => setDissolveReason(e.target.value)}
+                  placeholder="e.g. Original teacher reported back / Schedule restored"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 outline-none text-xs"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="block text-[10.5px] font-black uppercase text-slate-500 tracking-wider">
+                  Notify Substitute Teacher of Duty Cancellation:
+                </span>
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={dissolveNotifyEmail}
+                      onChange={(e) => setDissolveNotifyEmail(e.target.checked)}
+                      className="rounded accent-emerald-600"
+                    />
+                    <span>Send Email Notice</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={dissolveNotifyWhatsApp}
+                      onChange={(e) => setDissolveNotifyWhatsApp(e.target.checked)}
+                      className="rounded accent-emerald-600"
+                    />
+                    <span>Send WhatsApp Notice</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setShowDissolveBadalModal(false); setBadalToDissolve(null); }}
+                className="rounded-xl cursor-pointer"
+              >
+                Keep Active
+              </Button>
+              <Button
+                onClick={handleConfirmDissolveBadal}
+                disabled={dissolvingBadal}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-1.5 rounded-xl px-4 py-2 cursor-pointer shadow-md"
+              >
+                {dissolvingBadal ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                ) : (
+                  <Ban className="w-3.5 h-3.5" />
+                )}
+                <span>Confirm Dissolve</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          DELETE BADAL CONFIRMATION MODAL
+         ───────────────────────────────────────────────────────────── */}
+      {showDeleteBadalModal && badalToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-[calc(100vw-1.25rem)] sm:max-w-md p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 my-auto">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center font-bold shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 tracking-tight">Delete Badal Substitution</h3>
+                <p className="text-xs text-slate-500">Permanently remove this record from the database.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-950 space-y-1">
+              <div className="font-bold">
+                Class {badalToDelete.className} (Period {badalToDelete.period}) • {badalToDelete.subject}
+              </div>
+              <div className="text-[11px] text-rose-800">
+                Substitute: {badalToDelete.badalTeacherName}
+              </div>
+              <p className="text-[10.5px] text-rose-600 pt-1">
+                ⚠️ This will permanently delete the Badal substitution record and restore the slot schedule.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setShowDeleteBadalModal(false); setBadalToDelete(null); }}
+                className="rounded-xl cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmDeleteBadal}
+                disabled={deletingBadal}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs gap-1.5 rounded-xl px-4 py-2 cursor-pointer shadow-md"
+              >
+                {deletingBadal ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete Permanently</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <Modal open={slotModalOpen} onOpenChange={setSlotModalOpen}>
         <ModalContent className="max-w-xl">
           <ModalHeader>
@@ -3854,50 +5381,174 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
               </div>
             )}
 
-            {/* 5. Assign Faculty Member / Teacher */}
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700">5. Assigned Faculty Member (أستاذ)</label>
+            {/* 5. Smart Faculty Assignment Desk (Real-Time Availability & Clashes) */}
+            <div className="pt-2 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>5. Assigned Faculty Member (أستاذ)</span>
+                </label>
                 {slotFormData.teacherId && (
                   <button
                     type="button"
                     onClick={() => setSlotFormData({ ...slotFormData, teacherId: "", teacherName: "" })}
-                    className="text-[10px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                    className="text-[10.5px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    Clear Assignment
+                    <X className="w-3 h-3" />
+                    <span>Clear Assignment</span>
                   </button>
                 )}
               </div>
-              <select
-                value={slotFormData.teacherId}
-                onChange={(e) => {
-                  const tId = e.target.value;
-                  const found = teachers.find((t) => t.id === tId || t.user?.id === tId);
-                  const tName = found ? (found.name || `${found.user?.firstName || ""} ${found.user?.lastName || ""}`.trim()) : "";
-                  setSlotFormData({
-                    ...slotFormData,
-                    teacherId: tId,
-                    teacherName: tName,
-                  });
-                }}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-600"
-              >
-                <option value="">-- No Faculty Assigned (Unassigned) --</option>
-                {teachers.map((t) => {
-                  const name = t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim();
-                  const itsLabel = t.its ? `ITS: ${t.its}` : (t.employeeId ? `Emp: ${t.employeeId}` : "");
-                  return (
-                    <option key={t.id} value={t.id}>
-                      {name} {itsLabel ? `(${itsLabel})` : ""}
-                    </option>
-                  );
-                })}
-              </select>
-              {slotFormData.teacherName && (
-                <p className="text-[10px] text-emerald-800 font-bold mt-1">
-                  Assigned to: <span className="font-extrabold">{slotFormData.teacherName}</span>
-                </p>
+
+              {/* Selected Teacher Status Card */}
+              {slotFormData.teacherId ? (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-white to-amber-50 border border-emerald-300 shadow-2xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="w-10 h-10 ring-2 ring-emerald-600 shrink-0">
+                      <AvatarFallback className="bg-emerald-950 text-amber-300 text-xs font-black">
+                        {getInitials(slotFormData.teacherName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="text-xs font-black text-slate-900 truncate">{slotFormData.teacherName}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        Assigned to Period {slotFormData.period} ({DAYS.find((d) => d.day === slotFormData.dayOfWeek)?.name})
+                      </div>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-2xs shrink-0">
+                    Assigned
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-2xl bg-amber-50/80 border border-dashed border-amber-300 text-amber-900 text-xs font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>No faculty member assigned yet. Select from free teachers below.</span>
+                </div>
               )}
+
+              {/* Filter Tabs & Search Bar */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setSlotTeacherFilter("FREE")}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                        slotTeacherFilter === "FREE"
+                          ? "bg-white text-emerald-900 shadow-2xs font-black"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      ✅ Free in Period {slotFormData.period} ({slotTeacherAvailabilityList.filter((t) => t.isFree).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSlotTeacherFilter("SUBJECT")}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                        slotTeacherFilter === "SUBJECT"
+                          ? "bg-white text-amber-900 shadow-2xs font-black"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      ⭐ Subject Specialists ({slotTeacherAvailabilityList.filter((t) => t.teachesSubject).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSlotTeacherFilter("ALL")}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                        slotTeacherFilter === "ALL"
+                          ? "bg-white text-slate-950 shadow-2xs font-black"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      All ({slotTeacherAvailabilityList.length})
+                    </button>
+                  </div>
+
+                  <div className="relative flex-1 min-w-[130px]">
+                    <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search faculty..."
+                      value={slotTeacherSearch}
+                      onChange={(e) => setSlotTeacherSearch(e.target.value)}
+                      className="w-full pl-7 pr-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10.5px] outline-none focus:border-emerald-600 font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Faculty Card Grid (Scrollable) */}
+                <div className="max-h-52 overflow-y-auto overscroll-contain divide-y divide-slate-100 border border-slate-200 rounded-2xl bg-white shadow-2xs">
+                  {filteredSlotTeachers.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-500">
+                      No faculty members match the filter &ldquo;{slotTeacherSearch || slotTeacherFilter}&rdquo;.
+                    </div>
+                  ) : (
+                    filteredSlotTeachers.map((t) => {
+                      const isSelected = slotFormData.teacherId === t.id;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => {
+                            setSlotFormData({
+                              ...slotFormData,
+                              teacherId: t.id,
+                              teacherName: t.name,
+                            });
+                          }}
+                          className={`p-2.5 flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-emerald-50/90 border-l-4 border-l-emerald-600"
+                              : "hover:bg-slate-50/80"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Avatar className="w-8 h-8 ring-1 ring-slate-200 shrink-0">
+                              {t.avatarUrl && <AvatarImage src={t.avatarUrl} alt={t.name} />}
+                              <AvatarFallback className="bg-emerald-950 text-amber-300 text-[10px] font-bold">
+                                {getInitials(t.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-xs text-slate-900 truncate flex items-center gap-1.5">
+                                <span>{t.name}</span>
+                                {t.its && <span className="text-[9.5px] font-mono text-slate-400 font-normal">ITS: {t.its}</span>}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                                {t.isFree ? (
+                                  <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                    ✅ Free in Period {slotFormData.period}
+                                  </span>
+                                ) : t.isOnLeave ? (
+                                  <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                                    ❌ On Leave ({t.leaveReason})
+                                  </span>
+                                ) : (
+                                  <span className="font-bold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                                    ⚠️ Teaching Class {t.clashClassName} ({t.clashSubject || "Lesson"})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 transition-all ${
+                              isSelected
+                                ? "bg-emerald-600 text-white shadow-2xs"
+                                : "bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900"
+                            }`}
+                          >
+                            {isSelected ? "Selected" : "Assign"}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4733,6 +6384,175 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
               {savingLeave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserMinus className="w-3.5 h-3.5" />}
               Record Leave &amp; Mark Unavailable
             </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* ─────────────────────────────────────────────────────────────
+          UNAVAILABLE FACULTY MODAL (LEAVE MANAGEMENT LIVE ROSTER)
+          Displays faculty names, profile pictures, and "On Leave Till" dates
+         ───────────────────────────────────────────────────────────── */}
+      <Modal open={showUnavailableFacultyModal} onOpenChange={setShowUnavailableFacultyModal}>
+        <ModalContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white rounded-3xl p-6 border border-slate-200 shadow-2xl">
+          <ModalHeader className="pb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center font-bold shadow-xs">
+                  <UserMinus className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ModalTitle className="text-base font-extrabold text-slate-900">
+                      Unavailable Faculty &amp; Leave Roster
+                    </ModalTitle>
+                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-300 font-bold">
+                      Synced from Leave Management
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Live roster of faculty members with approved leaves, duration, reason, and scheduled return dates.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </ModalHeader>
+
+          <div className="py-4 overflow-y-auto space-y-3.5 pr-1 flex-1">
+            {unavailableTeachers.length === 0 ? (
+              <div className="p-8 text-center bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto font-bold">
+                  <Check className="w-6 h-6 stroke-[3]" />
+                </div>
+                <h4 className="text-sm font-extrabold text-emerald-950">All Asateza are Active on Campus</h4>
+                <p className="text-xs text-emerald-800/80 max-w-md mx-auto">
+                  No faculty leaves are currently active or pending in Leave Management. All teachers are available for their assigned periods.
+                </p>
+                <div className="pt-2 flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setShowUnavailableFacultyModal(false);
+                      openLeaveModal("TEACHER");
+                    }}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl"
+                  >
+                    + Record Faculty Leave
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {unavailableTeachers.map((t: any) => {
+                  const isToday = t.isOnLeaveToday;
+                  return (
+                    <div
+                      key={t.teacherId}
+                      className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                        isToday
+                          ? "bg-rose-50/40 border-rose-200 ring-1 ring-rose-300/40 shadow-xs"
+                          : "bg-slate-50/80 border-slate-200 hover:bg-white"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <Avatar className="w-12 h-12 rounded-2xl border-2 border-white shadow-md shrink-0">
+                            {t.avatarUrl ? (
+                              <AvatarImage src={t.avatarUrl} alt={t.name} />
+                            ) : null}
+                            <AvatarFallback className="rounded-2xl bg-slate-900 text-amber-300 font-bold text-sm">
+                              {getInitials(t.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-extrabold text-slate-900 truncate">{t.name}</h4>
+                              <Badge
+                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                  isToday
+                                    ? "bg-rose-600 text-white shadow-2xs"
+                                    : "bg-amber-100 text-amber-900 border border-amber-300"
+                                }`}
+                              >
+                                {isToday ? "On Leave Today" : "Leave in Period"}
+                              </Badge>
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-medium flex items-center gap-2 mt-0.5 flex-wrap">
+                              {t.its && (
+                                <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                  ITS: {t.its}
+                                </span>
+                              )}
+                              <span>{t.department || "Faculty Member"}</span>
+                              <span className="text-slate-300">·</span>
+                              <span className="font-semibold text-slate-700">{t.type}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Leave Till Prominent Pill */}
+                        <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs shrink-0 self-start sm:self-center text-right">
+                          <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500">
+                            Leave Duration
+                          </div>
+                          <div className="text-xs font-black text-rose-700 mt-0.5 flex items-center justify-end gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-rose-600" />
+                            <span>{t.leaveTill || `Till ${t.endDate}`}</span>
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-500">
+                            {t.startDate} to {t.endDate}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reason & Action Row */}
+                      <div className="pt-2 border-t border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="text-xs text-slate-700 flex items-center gap-1.5 min-w-0">
+                          <span className="font-bold text-slate-600 shrink-0">Reason:</span>
+                          <span className="italic text-slate-800 truncate" title={t.reason}>{t.reason}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <Link
+                            href="/admin/leave"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                          >
+                            <span>Leave Desk</span>
+                            <ExternalLink className="w-3 h-3 text-slate-400" />
+                          </Link>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setShowUnavailableFacultyModal(false);
+                              const candidateSlot = slots.find((s) => s.teacherId === t.teacherId);
+                              if (candidateSlot) {
+                                openBadalModalForSlot(candidateSlot);
+                              } else {
+                                openBadalForCurrentSelection();
+                              }
+                            }}
+                            className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] px-3 py-1.5 rounded-xl shadow-xs"
+                          >
+                            <ArrowRightLeft className="w-3 h-3" />
+                            <span>Assign Badal</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <ModalFooter className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <span className="text-xs text-slate-500">
+              {unavailableTeachers.length} faculty record{unavailableTeachers.length === 1 ? "" : "s"} indexed from Leave Management.
+            </span>
+            <ModalClose asChild>
+              <Button variant="outline" size="sm" className="rounded-xl font-bold text-xs">
+                Close
+              </Button>
+            </ModalClose>
           </ModalFooter>
         </ModalContent>
       </Modal>

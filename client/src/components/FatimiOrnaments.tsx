@@ -250,3 +250,223 @@ export function FatimiPattern({
     </div>
   );
 }
+
+
+// ── 8. Authentic Fatimi 12-Point Star Rosette (Photorealistic Girih Medallion) ──
+export function FatimiGirihRosette12({
+  size = 120,
+  stroke = "url(#fatimiBronzeGoldGradient)",
+  opacity = 1,
+  className = "",
+}: {
+  size?: number;
+  stroke?: string;
+  opacity?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 200 200"
+      width={size}
+      height={size}
+      className={className}
+      style={{ opacity }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id="fatimiBronzeGoldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fff2cc" />
+          <stop offset="25%" stopColor="#fcd468" />
+          <stop offset="50%" stopColor="#f3b833" />
+          <stop offset="75%" stopColor="#c59b27" />
+          <stop offset="100%" stopColor="#8c5828" />
+        </linearGradient>
+        <radialGradient id="fatimiRosetteCoreGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fcd468" stopOpacity="0.45" />
+          <stop offset="70%" stopColor="#c59b27" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="#1e1208" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Recessed Ground Glow */}
+      <circle cx="100" cy="100" r="94" fill="url(#fatimiRosetteCoreGlow)" />
+
+      {/* Outer 12-gon boundary ring */}
+      <polygon
+        points="
+          100,6 147,19 181,53 194,100 181,147 147,181
+          100,194 53,181 19,147 6,100 19,53 53,19
+        "
+        fill="none"
+        stroke={stroke}
+        strokeWidth="1.2"
+        opacity="0.5"
+      />
+
+      {/* Primary 12-pointed star ribbons (3 interlaced squares & octagons) */}
+      {/* Square 1 (0 deg) */}
+      <rect x="25" y="25" width="150" height="150" fill="none" stroke={stroke} strokeWidth="1.4" opacity="0.65" />
+      {/* Square 2 (30 deg) */}
+      <rect x="25" y="25" width="150" height="150" fill="none" stroke={stroke} strokeWidth="1.4" opacity="0.65" transform="rotate(30 100 100)" />
+      {/* Square 3 (60 deg) */}
+      <rect x="25" y="25" width="150" height="150" fill="none" stroke={stroke} strokeWidth="1.4" opacity="0.65" transform="rotate(60 100 100)" />
+
+      {/* Interlaced Girih Strapwork Petals (12 radiating kites) */}
+      <g stroke={stroke} strokeWidth="1.2" fill="none" opacity="0.9">
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(30 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(60 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(90 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(120 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(150 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(180 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(210 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(240 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(270 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(300 100 100)" />
+        <path d="M100 16 L112 60 L100 82 L88 60 Z" transform="rotate(330 100 100)" />
+      </g>
+
+      {/* Mid circular interlacing ring */}
+      <circle cx="100" cy="100" r="42" fill="none" stroke={stroke} strokeWidth="1" opacity="0.75" />
+      <circle cx="100" cy="100" r="26" fill="none" stroke={stroke} strokeWidth="0.8" opacity="0.6" />
+
+      {/* Central 12-petaled daisy rosette (Floral Core) */}
+      <g fill={stroke} opacity="0.85">
+        <circle cx="100" cy="80" r="3.5" />
+        <circle cx="110" cy="83" r="3.5" />
+        <circle cx="117" cy="90" r="3.5" />
+        <circle cx="120" cy="100" r="3.5" />
+        <circle cx="117" cy="110" r="3.5" />
+        <circle cx="110" cy="117" r="3.5" />
+        <circle cx="100" cy="120" r="3.5" />
+        <circle cx="90" cy="117" r="3.5" />
+        <circle cx="83" cy="110" r="3.5" />
+        <circle cx="80" cy="100" r="3.5" />
+        <circle cx="83" cy="90" r="3.5" />
+        <circle cx="90" cy="83" r="3.5" />
+        {/* Core Center Dot */}
+        <circle cx="100" cy="100" r="7" />
+      </g>
+    </svg>
+  );
+}
+
+// ── 9. Seamless Fatimi Girih Vector Jali Pattern ──
+export function FatimiGirihJaliPattern({
+  className = "",
+  stroke = "#f3b833",
+  opacity = 0.08,
+}: {
+  className?: string;
+  stroke?: string;
+  opacity?: number;
+}) {
+  return (
+    <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`} style={{ opacity }}>
+      <svg className="w-full h-full" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="fatimiGirihTile" width="120" height="120" patternUnits="userSpaceOnUse">
+            {/* Center 12-pointed star */}
+            <g transform="translate(60, 60)" stroke={stroke} strokeWidth="0.85" fill="none">
+              <rect x="-30" y="-30" width="60" height="60" />
+              <rect x="-30" y="-30" width="60" height="60" transform="rotate(30)" />
+              <rect x="-30" y="-30" width="60" height="60" transform="rotate(60)" />
+              <circle cx="0" cy="0" r="16" strokeWidth="0.6" />
+              <circle cx="0" cy="0" r="3.5" fill={stroke} opacity="0.75" />
+            </g>
+
+            {/* Corner Quadrants */}
+            <g transform="translate(0, 0)" stroke={stroke} strokeWidth="0.85" fill="none">
+              <rect x="-24" y="-24" width="48" height="48" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(30)" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(60)" />
+              <circle cx="0" cy="0" r="12" strokeWidth="0.6" />
+            </g>
+            <g transform="translate(120, 0)" stroke={stroke} strokeWidth="0.85" fill="none">
+              <rect x="-24" y="-24" width="48" height="48" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(30)" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(60)" />
+              <circle cx="0" cy="0" r="12" strokeWidth="0.6" />
+            </g>
+            <g transform="translate(0, 120)" stroke={stroke} strokeWidth="0.85" fill="none">
+              <rect x="-24" y="-24" width="48" height="48" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(30)" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(60)" />
+              <circle cx="0" cy="0" r="12" strokeWidth="0.6" />
+            </g>
+            <g transform="translate(120, 120)" stroke={stroke} strokeWidth="0.85" fill="none">
+              <rect x="-24" y="-24" width="48" height="48" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(30)" />
+              <rect x="-24" y="-24" width="48" height="48" transform="rotate(60)" />
+              <circle cx="0" cy="0" r="12" strokeWidth="0.6" />
+            </g>
+
+            {/* Connecting Strapwork Lines */}
+            <line x1="60" y1="0" x2="60" y2="120" stroke={stroke} strokeWidth="0.5" opacity="0.4" />
+            <line x1="0" y1="60" x2="120" y2="60" stroke={stroke} strokeWidth="0.5" opacity="0.4" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#fatimiGirihTile)" />
+      </svg>
+    </div>
+  );
+}
+
+// ── 10. Turnkey Fatimi Bronze Card Component ──
+export function FatimiBronzeCard({
+  children,
+  className = "",
+  variant = "bronze",
+  withGlow = true,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  variant?: "bronze" | "subtle" | "bezel" | "watermark";
+  withGlow?: boolean;
+}) {
+  const variantClass = {
+    bronze: "fatimi-girih-bronze",
+    subtle: "fatimi-girih-subtle",
+    bezel: "fatimi-girih-bezel bg-[#160d05] text-[#fdf8ed]",
+    watermark: "fatimi-girih-watermark bg-white border border-[#e7e0d0] text-[#221c12]",
+  }[variant];
+
+  return (
+    <div
+      className={`relative rounded-2xl transition-all duration-300 ${variantClass} ${
+        withGlow ? "shadow-fatimi-bronze" : ""
+      } ${className}`}
+    >
+      {/* Top golden hairline highlight */}
+      <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ffd885]/80 to-transparent pointer-events-none" />
+      <div className="relative z-10">{children}</div>
+    </div>
+  );
+}
+
+// ── 11. Fatimi 12-Star Ornamental Section Divider ──
+export function FatimiGirihDivider({
+  className = "",
+  maxWidth = "w-64",
+  label,
+}: {
+  className?: string;
+  maxWidth?: string;
+  label?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-3 mx-auto ${maxWidth} ${className}`}>
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#c59b27]/60 to-[#f3b833]/80" />
+      <div className="flex items-center gap-1.5 shrink-0">
+        <FatimiGirihRosette12 size={22} opacity={0.9} />
+        {label && (
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#ffd885] px-1 font-heading">
+            {label}
+          </span>
+        )}
+      </div>
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#c59b27]/60 to-[#f3b833]/80" />
+    </div>
+  );
+}

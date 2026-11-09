@@ -153,7 +153,8 @@ router.post("/bulk", requireRole("TEACHER"), async (req, res) => {
     const hasManualAttendanceAssignment = await prisma.teacherPortalAssignment.findFirst({
       where: {
         teacherId: teacher.id,
-        portal: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs"] },
+        portalType: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs", "ALL"] },
+        isActive: true,
       },
     });
 
@@ -440,7 +441,8 @@ router.get("/", requireAuth, async (req, res) => {
       const hasManualAttendanceAssignment = await prisma.teacherPortalAssignment.findFirst({
         where: {
           teacherId: teacher.id,
-          portal: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs"] },
+          portalType: { in: ["manual-attendance", "attendance-manual", "attendance", "attendance-logs", "ALL"] },
+          isActive: true,
         },
       });
 

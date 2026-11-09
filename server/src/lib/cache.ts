@@ -138,6 +138,17 @@ class MemoryCache {
   }
 
   /**
+   * Invalidate all keys matching a prefix.
+   */
+  invalidatePrefix(prefix: string): void {
+    for (const key of Array.from(this.store.keys())) {
+      if (key.startsWith(prefix)) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  /**
    * Clear the entire cache.
    */
   clear(): void {

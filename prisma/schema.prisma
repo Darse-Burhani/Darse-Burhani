@@ -1137,6 +1137,37 @@ model BookLoan {
   @@map("book_loans")
 }
 
+model LibraryAttendance {
+  id           String    @id @default(cuid())
+  studentId    String    @map("student_id")
+  studentName  String    @map("student_name")
+  darjah       String?
+  date         DateTime  @default(now())
+  checkInTime  DateTime? @default(now()) @map("check_in_time")
+  checkOutTime DateTime? @map("check_out_time")
+  sessionType  String    @default("READING") @map("session_type") // READING | RESEARCH | BOOK_EXCHANGE | STUDY_HALL
+  status       String    @default("PRESENT") // PRESENT | COMPLETED
+  notes        String?
+  recordedById String?   @map("recorded_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([studentId])
+  @@index([date])
+  @@map("library_attendances")
+}
+
+// ====== Cloud WhatsApp Multi-Device 24/7 Session ======
+
+model WhatsAppSession {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  data      String   @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("whatsapp_sessions")
+}
+
 // ====== Biometric (Hikvision / fingerprint) ======
 
 model BiometricDevice {

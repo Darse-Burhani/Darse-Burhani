@@ -35,6 +35,11 @@ import {
   ArrowRight,
   ShieldCheck,
   QrCode,
+  Copy,
+  LayoutGrid,
+  Tag,
+  Sparkles,
+  UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -217,6 +222,30 @@ function AddBookModal({ open, onOpenChange, onCreated, existingCategories }: {
     author: string;
     category: string;
   } | null>(null);
+
+  // Dynamic related book title suggestions for proper naming
+  const [titleSuggestions, setTitleSuggestions] = useState<any[]>([]);
+  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
+
+  useEffect(() => {
+    const q = form.title.trim();
+    if (!q || q.length < 2) {
+      setTitleSuggestions([]);
+      setShowTitleSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/library/checkout/search-books?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setTitleSuggestions(data.data);
+          setShowTitleSuggestions(data.data.length > 0);
+        }
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [form.title]);
 
   const processFile = (file: File) => {
     // Validate file type
@@ -632,21 +661,93 @@ function AddBookModal({ open, onOpenChange, onCreated, existingCategories }: {
             <p className="text-[10px] text-gray-400 mt-1">Drag & drop or click · Max 5MB</p>
           </div>
 
-          {/* Book Name / Title */}
-          <div>
-            <label htmlFor="add-title" className="block text-sm font-medium text-gray-700 mb-1">
-              Name of the Book <span className="text-red-500">*</span>
-            </label>
+          {/* Book Name / Title with Dynamic Drop Bar */}
+          <div className="relative">
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="add-title" className="block text-sm font-medium text-gray-700">
+                Name of the Book <span className="text-red-500">*</span>
+              </label>
+              {showTitleSuggestions && titleSuggestions.length > 0 && (
+                <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full">
+                  {titleSuggestions.length} matching in catalog
+                </span>
+              )}
+            </div>
             <input
               type="text"
               id="add-title"
               name="addTitle"
               value={form.title}
               onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-              placeholder="Enter book title"
+              onFocus={() => {
+                if (titleSuggestions.length > 0) setShowTitleSuggestions(true);
+              }}
+              placeholder="Enter book title (e.g. Nahjul Balagha, Kalam Sharif...)"
               required
               className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
             />
+
+            {/* Dynamic Dropdown of Related Books */}
+            <AnimatePresence>
+              {showTitleSuggestions && titleSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  className="absolute top-full left-0 right-0 z-50 mt-1 bg-white rounded-xl shadow-2xl border-2 border-emerald-300/80 overflow-hidden max-h-56 overflow-y-auto"
+                >
+                  <div className="p-2 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between text-xs font-bold text-emerald-950">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      Matching Existing Books in Catalog
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTitleSuggestions(false)}
+                      className="text-[10.5px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {titleSuggestions.map((b) => (
+                      <div
+                        key={b.id}
+                        onClick={() => {
+                          setForm((p) => ({
+                            ...p,
+                            title: b.title,
+                            author: b.author || p.author,
+                            category: b.category || p.category,
+                            rackNumber: b.rackNumber || p.rackNumber,
+                          }));
+                          setShowTitleSuggestions(false);
+                          toast({
+                            title: "Proper Title Adopted 📖",
+                            description: `Standardized as "${b.title}"`,
+                            variant: "default",
+                          });
+                        }}
+                        className="p-2.5 hover:bg-emerald-50/70 cursor-pointer transition-colors flex items-center justify-between gap-2 text-left"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-slate-900 truncate">{b.title}</p>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {b.author ? `By ${b.author}` : "Author unlisted"} &middot; {b.category || "General"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            Barcode: {b.barcode || "N/A"} {b.rackNumber ? `· Rack: ${b.rackNumber}` : ""}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                          {b.availableCopies > 0 ? `${b.availableCopies} available` : "Checked out"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Author */}
@@ -1478,6 +1579,267 @@ function DeleteBookModal({ book, open, onOpenChange, onDeleted }: {
   );
 }
 
+function getGenreGradient(category: string): string {
+  switch (category) {
+    case "Manshoraat":
+    case "Asfar":
+      return "from-purple-500/15 via-purple-500/5 to-transparent";
+    case "Science":
+    case "Math":
+    case "Space":
+    case "Geography":
+      return "from-blue-500/15 via-blue-500/5 to-transparent";
+    case "Fiction":
+    case "Linguistic":
+      return "from-emerald-500/15 via-emerald-500/5 to-transparent";
+    case "Biography":
+    case "History":
+    case "Psychology":
+      return "from-amber-500/15 via-amber-500/5 to-transparent";
+    case "Commerce":
+    case "Management":
+    case "Self help":
+      return "from-orange-500/15 via-orange-500/5 to-transparent";
+    case "GK":
+    case "Quiz":
+    case "PT":
+      return "from-sky-500/15 via-sky-500/5 to-transparent";
+    default:
+      return "from-slate-500/10 via-slate-500/5 to-transparent";
+  }
+}
+
+// ── Single Book Printable Barcode Sticker Modal ──
+function SingleBarcodeStickerModal({
+  book,
+  open,
+  onOpenChange,
+}: {
+  book: LibraryBook | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  if (!book) return null;
+  const barcodeVal = book.barcode || book.id.slice(0, 8).toUpperCase();
+  const loc = [book.rackNumber, book.shelfNumber].filter(Boolean).join(" · ") || "Library Shelf";
+
+  const handlePrintSingle = () => {
+    const printWindow = window.open("", "_blank", "width=600,height=500");
+    if (!printWindow) {
+      toast({ title: "Pop-up blocked", description: "Please allow pop-ups to print barcode stickers", variant: "destructive" });
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Barcode Sticker - ${escapeHtml(book.title)}</title>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.3/dist/JsBarcode.all.min.js"><\/script>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page {
+            size: 50mm 30mm;
+            margin: 0;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #fff;
+            padding: 10px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          /* Standard 2.5in x 1.2in / 50mm x 30mm barcode sticker label */
+          .sticker {
+            width: 2.5in;
+            height: 1.2in;
+            max-height: 1.2in;
+            border: 1px dashed #065f46;
+            border-radius: 4px;
+            padding: 0.06in 0.08in;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            box-sizing: border-box;
+            overflow: hidden;
+          }
+          .hdr {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1.5px;
+            margin-bottom: 1px;
+          }
+          .genre {
+            font-size: 7.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #065f46;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60%;
+          }
+          .loc {
+            font-size: 6.5px;
+            font-weight: 700;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 1px 3px;
+            border-radius: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 38%;
+          }
+          .barcode-box {
+            margin: 1px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 28px;
+            overflow: hidden;
+          }
+          .code-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            line-height: 1;
+          }
+          .code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 9px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: 0.8px;
+          }
+          .title {
+            width: 100%;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #0f172a;
+            text-align: center;
+            line-height: 1.2;
+            max-height: 23px;
+            overflow: hidden;
+            direction: auto;
+          }
+          @media print {
+            body { background: transparent; padding: 0; }
+            .sticker { border: 1px solid #94a3b8; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="sticker">
+          <div class="hdr">
+            <span class="genre">${escapeHtml(book.category || "General")}</span>
+            <span class="loc">${escapeHtml(loc)}</span>
+          </div>
+          <div class="barcode-box">
+            <svg id="singleBarcode"></svg>
+          </div>
+          <div class="code-row">
+            <span class="code">${barcodeVal}</span>
+          </div>
+          <div class="title">${escapeHtml(book.title)}</div>
+        </div>
+        <script>
+          JsBarcode("#singleBarcode", "${barcodeVal}", {
+            format: "CODE128",
+            width: 1.25,
+            height: 26,
+            displayValue: false,
+            margin: 0,
+            background: "#ffffff"
+          });
+          setTimeout(() => { window.print(); window.close(); }, 350);
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  return (
+    <Modal open={open} onOpenChange={onOpenChange}>
+      <ModalContent className="max-w-md rounded-3xl p-6">
+        <ModalHeader>
+          <ModalTitle className="flex items-center gap-2">
+            <Barcode className="w-5 h-5 text-emerald-700" />
+            Standard Barcode Sticker
+          </ModalTitle>
+          <ModalDescription>
+            Official 2.5&quot; &times; 1.2&quot; standard sticker label for library book
+          </ModalDescription>
+        </ModalHeader>
+
+        <div className="py-4 flex flex-col items-center">
+          <div className="w-full max-w-xs rounded-2xl border-2 border-emerald-600/60 bg-white p-3.5 shadow-md flex flex-col items-center relative overflow-hidden">
+            <div className="w-full flex items-center justify-between border-b border-emerald-100 pb-1.5 mb-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {book.category}
+              </span>
+              <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 truncate max-w-[150px]">
+                {loc}
+              </span>
+            </div>
+
+            <div className="my-1.5 w-full flex justify-center overflow-hidden">
+              <BarcodeDisplay value={barcodeVal} scale="md" showText={false} />
+            </div>
+
+            <div className="flex items-center gap-2 mt-0.5 mb-1.5">
+              <span className="font-mono text-xs font-extrabold text-slate-900 tracking-wider">
+                {barcodeVal}
+              </span>
+            </div>
+
+            <p className="font-bold text-xs text-slate-800 text-center line-clamp-2">
+              {book.title}
+            </p>
+          </div>
+        </div>
+
+        <ModalFooter className="flex items-center justify-between gap-2 sm:justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard.writeText(barcodeVal);
+              toast({ title: "Copied!", description: `Barcode ${barcodeVal} copied to clipboard`, variant: "success" });
+            }}
+            className="rounded-xl"
+          >
+            <Copy className="w-3.5 h-3.5 mr-1.5" />
+            Copy Code
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handlePrintSingle}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl shadow-xs"
+          >
+            <Printer className="w-3.5 h-3.5 mr-1.5" />
+            Print Sticker
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
+
 interface InitialData {
   books: LibraryBook[];
   categories: Category[];
@@ -1490,6 +1852,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
   const [categories, setCategories] = useState<Category[]>(initialData?.categories || []);
   const [loading, setLoading] = useState(!initialData);
   const [stats, setStats] = useState(initialData?.stats || { total: 0, available: 0, borrowed: 0, restock: 0 });
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   
   // Search & filters
   const [search, setSearch] = useState("");
@@ -1501,8 +1864,10 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [scanModalBarcode, setScanModalBarcode] = useState<string>("");
   const [showPrintLabelsModal, setShowPrintLabelsModal] = useState(false);
   const [selectedBook, setSelectedBook] = useState<LibraryBook | null>(null);
+  const [singleBarcodeBook, setSingleBarcodeBook] = useState<LibraryBook | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -1692,6 +2057,52 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [fetchBooks, selectMode, bulkSelected.size]);
 
+  // ── Global Hardware Barcode Gun Scanner Catch on Library Tab ──
+  useEffect(() => {
+    let scanBuffer = "";
+    let lastKeyTime = 0;
+
+    const handleGlobalBarcodeScan = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isInputFocused =
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable);
+
+      const now = Date.now();
+      const timeDiff = now - lastKeyTime;
+      lastKeyTime = now;
+
+      if (e.key === "Enter") {
+        const barcode = scanBuffer.trim();
+        if (barcode.length >= 3) {
+          if (!isInputFocused || barcode.startsWith("DB-") || barcode.includes("-") || /^[A-Z0-9]{5,}$/i.test(barcode)) {
+            e.preventDefault();
+            e.stopPropagation();
+            setScanModalBarcode(barcode);
+            setShowScanModal(true);
+            scanBuffer = "";
+            return;
+          }
+        }
+        scanBuffer = "";
+        return;
+      }
+
+      if (timeDiff > 140 && scanBuffer.length > 0) {
+        scanBuffer = "";
+      }
+
+      if (e.key.length === 1) {
+        scanBuffer += e.key;
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalBarcodeScan, true);
+    return () => window.removeEventListener("keydown", handleGlobalBarcodeScan, true);
+  }, []);
+
   // ── Get location label ──
   const getLocationLabel = (book: LibraryBook) => {
     const parts = [];
@@ -1705,11 +2116,12 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
       {/* ── Library Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Library & Circulation"
-        hubDescription="Book catalog, smart color-coded shelves, circulation desk, and overdue tracking."
+        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
         tabs={[
           { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
           { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
-          { label: "Quick Checkout", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
         ]}
@@ -1740,6 +2152,11 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                   <ArrowRight className="w-4 h-4 mr-1.5" /> Checkout / Return
                 </Button>
               </Link>
+              <Link href="/admin/library/attendance">
+                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold shadow-md active:scale-95">
+                  <UserCheck className="w-4 h-4 mr-1.5 text-amber-300" /> Maktabat Attendance
+                </Button>
+              </Link>
               <Link href="/admin/library/auditor">
                 <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95">
                   <Scan className="w-4 h-4 mr-1.5" /> Shelf Auditor
@@ -1750,7 +2167,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                 className="bg-emerald-800/80 hover:bg-emerald-700/80 text-white border border-emerald-400/40 font-semibold shadow-xs backdrop-blur-sm active:scale-95"
                 onClick={() => setShowPrintLabelsModal(true)}
               >
-                <QrCode className="w-4 h-4 mr-1.5 text-amber-300" /> QR &amp; Barcode Studio
+                <Barcode className="w-4 h-4 mr-1.5 text-amber-300" /> Barcode Print &amp; Excel Export
               </Button>
               <button
                 type="button"
@@ -1848,6 +2265,36 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                 <RefreshCw className="w-4 h-4 mr-1.5" />
                 Refresh
               </Button>
+
+              {/* View Mode Switcher */}
+              <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100/90 p-1 shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cards")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === "cards"
+                      ? "bg-white text-emerald-800 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Bento visual book cards with scannable barcodes"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Visual Bento</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === "table"
+                      ? "bg-white text-emerald-800 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  title="Compact inventory master grid"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Master Grid</span>
+                </button>
+              </div>
             </div>
 
             {/* Expandable Filter Panel */}
@@ -1896,157 +2343,529 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
         </Card>
       </motion.div>
 
-      {/* Master Grid with Section Header */}
-      <div className="mb-2">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-          <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
-          <span>Book Catalog Master Grid</span>
-        </h2>
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Card className="fatimi-card">
-          <div className="fatimi-card-header" />
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-emerald-100/60 bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-12">Cover</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Barcode</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Title &amp; Author</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Category</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Location</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Borrower</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                  {Array.from({ length: 8 }).map((_, j) => (
-                    <td key={j} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" style={{ width: `${60 + Math.random() * 30}%` }} /></td>
-                  ))}
-                    </tr>
-                  ))
-                ) : books.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <BookOpen className="w-12 h-12 text-gray-400" />
-                        <p className="text-gray-500 font-medium">No books found</p>
-                        <p className="text-sm text-gray-400">
-                          {search || categoryFilter || statusFilter ? "Try adjusting your search or filters" : "Start by adding your first book to the library"}
-                        </p>
-                        {!search && !categoryFilter && !statusFilter && (
-                          <Button onClick={() => setShowAddModal(true)} variant="admin" size="sm">
-                            <Plus className="w-4 h-4 mr-1" /> Add Your First Book
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  books.map((book, index) => {
-                    const statusInfo = statusConfig[book.status] || statusConfig.AVAILABLE;
-                    const StatusIcon = statusInfo.icon;
-                    return (
-                      <motion.tr
-                        key={book.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03 }}
-                        className="group hover:bg-emerald-50/30 transition-colors cursor-pointer"
-                        onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
-                      >
-                        {/* Cover Image Thumbnail */}
-                        <td className="px-4 py-3">
-                          <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
-                            {book.coverImage ? (
-                              <img
-                                src={book.coverImage}
-                                alt={`Cover of ${book.title}`}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                                decoding="async"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book.title)}&background=6366f1&color=fff&size=80`;
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <BookOpen className="w-5 h-5 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {book.barcode ? (
-                            <div className="flex flex-col items-start gap-0.5">
-                              <BarcodeDisplay value={book.barcode} scale="sm" showText={false} className="-ml-1" />
-                              <span className="font-mono text-[9px] text-gray-500 font-semibold tracking-wider">
-                                {book.barcode}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="font-mono text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
-                              {book.id.slice(0, 8)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {book.locationColor && (
-                              <div className={`w-3 h-8 rounded-sm shrink-0 ${colorConfig[book.locationColor] || "bg-gray-200"}`} title={`Color: ${book.locationColor}`} />
-                            )}
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 line-clamp-1">{book.title}</p>
-                              <p className="text-xs text-gray-500">{book.author || "—"}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-gray-600">{book.category}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs font-mono text-gray-600">{getLocationLabel(book)}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${statusInfo.bg} ${statusInfo.color}`}>
-                            <StatusIcon className="w-3 h-3" />
-                            {statusInfo.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-gray-600">{book.currentBorrower || "—"}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => { setSelectedBook(book); setShowEditModal(true); }}
-                              className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-                              title="Edit"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => { setSelectedBook(book); setShowDeleteModal(true); }}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+      {/* Bulk Selection Floating Action Bar */}
+      <AnimatePresence>
+        {(selectMode || bulkSelected.size > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 15 }}
+            className="mb-6 rounded-2xl border-2 border-amber-500/40 bg-amber-50/90 p-3.5 backdrop-blur-md shadow-lg flex flex-wrap items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-xl bg-amber-500 text-amber-950 font-black text-xs flex items-center justify-center">
+                {bulkSelected.size}
+              </span>
+              <div>
+                <p className="text-xs font-extrabold text-amber-950">
+                  {bulkSelected.size === 0 ? "Select books to apply batch operations" : `${bulkSelected.size} books selected`}
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  Batch barcode printing, category updates, or bulk deletion
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleSelectAll}
+                className="text-xs rounded-xl border-amber-300 bg-white hover:bg-amber-100 text-amber-900 font-bold"
+              >
+                {bulkSelected.size === books.length ? "Deselect All" : `Select All (${books.length})`}
+              </Button>
+              {bulkSelected.size > 0 && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => handleBulkStatusChange("AVAILABLE")}
+                    className="text-xs rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+                  >
+                    Set On Shelf
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleBulkStatusChange("RESTOCK_QUEUE")}
+                    className="text-xs rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold"
+                  >
+                    Set Sorting
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    className="text-xs rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    Delete ({bulkSelected.size})
+                  </Button>
+                </>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearBulkSelection}
+                className="text-xs text-amber-900 hover:text-amber-950"
+              >
+                Cancel
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Interactive Genre & Category Explorer Ribbon */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mb-6">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-emerald-700" />
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+              Browse by Genre &amp; Discipline ({categories.length} Disciplines)
+            </h3>
           </div>
-        </Card>
+          {categoryFilter && (
+            <button
+              onClick={() => handleFilterChange("category", "")}
+              className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset Genre Filter
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+          <button
+            onClick={() => handleFilterChange("category", "")}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border flex items-center gap-2 ${
+              !categoryFilter
+                ? "bg-emerald-800 text-white border-emerald-900 shadow-sm"
+                : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-slate-50"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>All Collection</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+              !categoryFilter ? "bg-emerald-900 text-white" : "bg-slate-100 text-slate-700"
+            }`}>
+              {stats.total}
+            </span>
+          </button>
+
+          {categories.map((cat) => {
+            const isSelected = categoryFilter === cat.name;
+            return (
+              <button
+                key={cat.name}
+                onClick={() => handleFilterChange("category", isSelected ? "" : cat.name)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border flex items-center gap-2 ${
+                  isSelected
+                    ? "bg-amber-600 text-white border-amber-700 shadow-sm"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-amber-300 hover:bg-amber-50/40"
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${isSelected ? "bg-white" : "bg-amber-500"}`} />
+                <span>{cat.name}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                  isSelected ? "bg-amber-700 text-white" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {cat.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </motion.div>
+
+      {/* Catalog Display Section Header */}
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+          <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
+          <span>
+            {categoryFilter ? `${categoryFilter} Collection` : "Master Library Catalog"} &middot; {books.length} Books
+          </span>
+        </h2>
+        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+          Showing {books.length} of {stats.total} total items
+        </span>
+      </div>
+
+      {/* Dynamic View: Bento Visual Cards vs Master Table */}
+      {viewMode === "cards" ? (
+        /* ── Bento Visual Cards View ── */
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-72 rounded-2xl bg-white border border-slate-200 p-4 animate-pulse flex flex-col justify-between">
+                  <div className="h-4 bg-slate-100 rounded w-1/3 mb-2" />
+                  <div className="h-6 bg-slate-100 rounded w-3/4 mb-1" />
+                  <div className="h-4 bg-slate-100 rounded w-1/2 mb-4" />
+                  <div className="h-16 bg-slate-100 rounded w-full mb-3" />
+                  <div className="h-8 bg-slate-100 rounded w-full" />
+                </div>
+              ))}
+            </div>
+          ) : books.length === 0 ? (
+            <Card className="fatimi-card p-12 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <BookOpen className="w-12 h-12 text-gray-400" />
+                <p className="text-gray-600 font-bold">No books found</p>
+                <p className="text-sm text-gray-400">
+                  {search || categoryFilter || statusFilter ? "Try adjusting your search or category filter" : "Start by adding your first book to the library"}
+                </p>
+                {(search || categoryFilter || statusFilter) && (
+                  <Button onClick={clearFilters} variant="outline" size="sm">
+                    <RotateCcw className="w-4 h-4 mr-1.5" /> Reset Filters
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {books.map((book, index) => {
+                const statusInfo = statusConfig[book.status] || statusConfig.AVAILABLE;
+                const StatusIcon = statusInfo.icon;
+                const barcodeVal = book.barcode || book.id.slice(0, 8).toUpperCase();
+                const isSelected = bulkSelected.has(book.id);
+                const locLabel = getLocationLabel(book);
+
+                return (
+                  <motion.div
+                    key={book.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(index * 0.02, 0.4) }}
+                    className={`group relative rounded-2xl border transition-all duration-200 bg-white flex flex-col justify-between overflow-hidden ${
+                      isSelected
+                        ? "border-amber-500 shadow-md ring-2 ring-amber-400/30"
+                        : "border-slate-200 hover:border-emerald-300 hover:shadow-lg"
+                    }`}
+                  >
+                    {/* Top Gradient Banner */}
+                    <div className={`h-2.5 w-full bg-gradient-to-r ${getGenreGradient(book.category)}`} />
+
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      {/* Top Header: Genre Tag & Location */}
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            {book.category}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            {locLabel && (
+                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                                {locLabel}
+                              </span>
+                            )}
+                            {selectMode && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleBulkSelect(book.id)}
+                                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Title & Author */}
+                        <h4
+                          onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                          className="font-bold text-sm text-slate-900 group-hover:text-emerald-800 transition-colors line-clamp-2 cursor-pointer leading-snug mb-1"
+                          title={book.title}
+                        >
+                          {book.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 mb-3 truncate">
+                          {book.author || "Author unrecorded"}
+                        </p>
+                      </div>
+
+                      {/* Barcode & Genre Display Container */}
+                      <div
+                        onClick={() => setSingleBarcodeBook(book)}
+                        className="my-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5 flex flex-col items-center hover:bg-amber-50/40 hover:border-amber-300 transition-all cursor-pointer group/barcode"
+                        title="Click to view & print barcode sticker"
+                      >
+                        <div className="w-full flex items-center justify-center overflow-hidden py-1">
+                          <BarcodeDisplay
+                            value={barcodeVal}
+                            genre={book.category}
+                            scale="sm"
+                            showText={false}
+                          />
+                        </div>
+                        <div className="w-full flex items-center justify-between gap-1 mt-1.5 pt-1.5 border-t border-slate-200/60">
+                          <span className="font-mono text-[11px] font-extrabold text-slate-900 tracking-wider">
+                            {barcodeVal}
+                          </span>
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-900 text-white shrink-0">
+                            {book.category}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bottom Footer: Status & Actions */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between mt-auto">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusInfo.bg} ${statusInfo.color}`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {statusInfo.label}
+                        </span>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setSingleBarcodeBook(book)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                            title="Print Barcode Sticker"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedBook(book); setShowEditModal(true); }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            title="Edit Book Details"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedBook(book); setShowDeleteModal(true); }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete Book"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        /* ── Master Table View ── */
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card className="fatimi-card">
+            <div className="fatimi-card-header" />
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-emerald-100/60 bg-slate-50/50">
+                    {selectMode && (
+                      <th className="px-4 py-3 text-left w-8">
+                        <input
+                          type="checkbox"
+                          checked={bulkSelected.size === books.length && books.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
+                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-12">Cover</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Barcode &amp; Genre</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Title &amp; Author</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Category</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Location</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Borrower</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {loading ? (
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        {Array.from({ length: 8 }).map((_, j) => (
+                          <td key={j} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" style={{ width: `${60 + Math.random() * 30}%` }} /></td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : books.length === 0 ? (
+                    <tr>
+                      <td colSpan={selectMode ? 9 : 8} className="px-4 py-16 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <BookOpen className="w-12 h-12 text-gray-400" />
+                          <p className="text-gray-500 font-medium">No books found</p>
+                          <p className="text-sm text-gray-400">
+                            {search || categoryFilter || statusFilter ? "Try adjusting your search or filters" : "Start by adding your first book to the library"}
+                          </p>
+                          {!search && !categoryFilter && !statusFilter && (
+                            <Button onClick={() => setShowAddModal(true)} variant="admin" size="sm">
+                              <Plus className="w-4 h-4 mr-1" /> Add Your First Book
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    books.map((book, index) => {
+                      const statusInfo = statusConfig[book.status] || statusConfig.AVAILABLE;
+                      const StatusIcon = statusInfo.icon;
+                      const barcodeVal = book.barcode || book.id.slice(0, 8).toUpperCase();
+                      const isSelected = bulkSelected.has(book.id);
+
+                      return (
+                        <motion.tr
+                          key={book.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(index * 0.02, 0.4) }}
+                          className={`group hover:bg-emerald-50/30 transition-colors cursor-pointer ${
+                            isSelected ? "bg-amber-50/50" : ""
+                          }`}
+                          onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                        >
+                          {selectMode && (
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleBulkSelect(book.id)}
+                                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                              />
+                            </td>
+                          )}
+
+                          {/* Cover Image Thumbnail */}
+                          <td className="px-4 py-3">
+                            <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                              {book.coverImage ? (
+                                <img
+                                  src={book.coverImage}
+                                  alt={`Cover of ${book.title}`}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book.title)}&background=6366f1&color=fff&size=80`;
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <BookOpen className="w-5 h-5 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Barcode & Genre Column */}
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                onClick={() => setSingleBarcodeBook(book)}
+                                className="flex flex-col items-start gap-1 p-1.5 rounded-lg border border-slate-200/80 bg-slate-50/70 hover:bg-amber-50 hover:border-amber-300 transition-colors cursor-pointer"
+                                title="Click to view & print barcode sticker"
+                              >
+                                <BarcodeDisplay
+                                  value={barcodeVal}
+                                  genre={book.category}
+                                  scale="sm"
+                                  showText={false}
+                                  className="-ml-1"
+                                />
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-[10px] font-extrabold text-slate-900 tracking-wider">
+                                    {barcodeVal}
+                                  </span>
+                                  <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-slate-900 text-white">
+                                    {book.category}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setSingleBarcodeBook(book)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                title="Print Barcode Sticker"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Title & Author */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {book.locationColor && (
+                                <div className={`w-2.5 h-8 rounded-sm shrink-0 ${colorConfig[book.locationColor] || "bg-gray-200"}`} title={`Color: ${book.locationColor}`} />
+                              )}
+                              <div>
+                                <p className="text-sm font-bold text-gray-900 line-clamp-1">{book.title}</p>
+                                <p className="text-xs text-gray-500">{book.author || "—"}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Category Badge */}
+                          <td className="px-4 py-3">
+                            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                              {book.category}
+                            </span>
+                          </td>
+
+                          {/* Location */}
+                          <td className="px-4 py-3">
+                            <span className="text-xs font-mono text-gray-600 bg-slate-100 px-2 py-0.5 rounded">
+                              {getLocationLabel(book)}
+                            </span>
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${statusInfo.bg} ${statusInfo.color}`}>
+                              <StatusIcon className="w-3 h-3" />
+                              {statusInfo.label}
+                            </span>
+                          </td>
+
+                          {/* Borrower */}
+                          <td className="px-4 py-3">
+                            <span className="text-xs text-gray-600">{book.currentBorrower || "—"}</span>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => setSingleBarcodeBook(book)}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-700 transition-colors"
+                                title="Print Sticker"
+                              >
+                                <Printer className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => { setSelectedBook(book); setShowEditModal(true); }}
+                                className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                                title="Edit"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => { setSelectedBook(book); setShowDeleteModal(true); }}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Modals */}
       <AddBookModal open={showAddModal} onOpenChange={setShowAddModal} onCreated={() => fetchBooks()} existingCategories={categories.map(c => c.name)} />
@@ -2054,10 +2873,23 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
       <BookDetailModal book={selectedBook} open={showDetailModal} onOpenChange={setShowDetailModal} />
       <DeleteBookModal book={selectedBook} open={showDeleteModal} onOpenChange={setShowDeleteModal} onDeleted={() => fetchBooks()} />
       
-      {/* Scan Barcode Modal */}
+      {/* Single Barcode Sticker Modal */}
+      <SingleBarcodeStickerModal
+        book={singleBarcodeBook}
+        open={!!singleBarcodeBook}
+        onOpenChange={(open) => {
+          if (!open) setSingleBarcodeBook(null);
+        }}
+      />
+
+      {/* Scan Barcode Modal with Fast Hardware Scanner Catch */}
       <BookScanModal
         open={showScanModal}
-        onOpenChange={setShowScanModal}
+        initialBarcode={scanModalBarcode}
+        onOpenChange={(isOpen) => {
+          setShowScanModal(isOpen);
+          if (!isOpen) setScanModalBarcode("");
+        }}
         onBookIssued={() => fetchBooks()}
       />
 

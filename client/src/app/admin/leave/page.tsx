@@ -15,12 +15,8 @@ import {
   Palmtree,
   Sparkles,
   PauseCircle,
-  Mail,
-  AlertTriangle,
-  Send,
   X,
   ExternalLink,
-  Key,
   Check,
 } from "lucide-react";
 import {
@@ -34,12 +30,9 @@ import {
   getAdminLeaveMembers,
   assignAdminLeave,
   unassignAdminLeave,
-  getAdminLeaveSmtpStatus,
-  testAdminLeaveEmail,
   LeaveRequestItem,
   AdminLeaveStats,
   PortalLeaveMember,
-  LeaveSmtpStatus,
 } from "@/lib/api";
 import { PendingLeaveTable } from "@/components/leave/PendingLeaveTable";
 import { ManualLeaveModal } from "@/components/leave/ManualLeaveModal";
@@ -65,50 +58,6 @@ export default function AdminLeavePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [smtpStatus, setSmtpStatus] = useState<LeaveSmtpStatus | null>(null);
-  const [smtpModalOpen, setSmtpModalOpen] = useState(false);
-  const [testingSmtp, setTestingSmtp] = useState(false);
-  const [testTargetEmail, setTestTargetEmail] = useState("");
-  const [smtpFeedback, setSmtpFeedback] = useState<{ success: boolean; message: string; details?: string } | null>(null);
-
-  const loadSmtpStatus = useCallback(async (force = false) => {
-    try {
-      const data = await getAdminLeaveSmtpStatus(force);
-      setSmtpStatus(data);
-      if (!testTargetEmail && data?.config?.adminMailbox) {
-        setTestTargetEmail(data.config.adminMailbox);
-      }
-    } catch (e) {
-      console.warn("Could not load SMTP status:", e);
-    }
-  }, [testTargetEmail]);
-
-  useEffect(() => {
-    loadSmtpStatus(false);
-  }, [loadSmtpStatus]);
-
-  const handleTestEmail = async () => {
-    setTestingSmtp(true);
-    setSmtpFeedback(null);
-    try {
-      const target = testTargetEmail.trim() || undefined;
-      const res = await testAdminLeaveEmail(target);
-      setSmtpFeedback({
-        success: true,
-        message: res.message || "Test email sent successfully! Please check the inbox and spam folder.",
-      });
-      await loadSmtpStatus(true);
-    } catch (err: any) {
-      setSmtpFeedback({
-        success: false,
-        message: err.message || "Email delivery failed",
-        details: err?.data?.error || err?.error,
-      });
-    } finally {
-      setTestingSmtp(false);
-    }
-  };
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -202,8 +151,16 @@ export default function AdminLeavePage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to permanently delete this leave request?")) return;
-    await deleteAdminLeave(id);
-    await fetchData(true);
+    // Optimistically remove from state immediately so it goes away without waiting
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+    try {
+      await deleteAdminLeave(id);
+      await fetchData(true);
+    } catch (err: any) {
+      console.error("Failed to delete leave:", err);
+      alert("Failed to delete leave request: " + (err.message || "Unknown error"));
+      await fetchData(true);
+    }
   };
 
   const distinctGrades = Array.from(new Set(gradesSections.map((g) => g.grade))).sort();
@@ -239,73 +196,6 @@ export default function AdminLeavePage() {
           </button>
         </div>
       </div>
-
-      {/* ── Email Notification Status Banner ── */}
-      {smtpStatus && (
-        <div
-          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border transition-all ${
-            smtpStatus.live.ok
-              ? "bg-emerald-50/70 border-emerald-200/80 text-emerald-950"
-              : "bg-amber-50/90 border-amber-300/80 text-amber-950"
-          }`}
-        >
-          <div className="flex items-start sm:items-center gap-3">
-            <div
-              className={`p-2 rounded-xl shrink-0 mt-0.5 sm:mt-0 ${
-                smtpStatus.live.ok
-                  ? "bg-emerald-500/15 text-emerald-700"
-                  : "bg-amber-500/20 text-amber-700"
-              }`}
-            >
-              {smtpStatus.live.ok ? <Mail className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-            </div>
-            <div>
-              <div className="font-bold text-xs sm:text-sm flex items-center gap-2">
-                <span>Admin Leave Notifications</span>
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase ${
-                    smtpStatus.live.ok
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-amber-200 text-amber-900"
-                  }`}
-                >
-                  {smtpStatus.live.ok ? "Active" : "SMTP Password Missing"}
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-gray-600 mt-0.5">
-                {smtpStatus.live.ok ? (
-                  <>
-                    Automated leave notifications are delivering to{" "}
-                    <strong className="font-semibold text-emerald-900">{smtpStatus.config.adminMailbox}</strong> via{" "}
-                    {smtpStatus.live.transportType === "dedicated_leave" ? "Google Workspace" : "Primary SMTP"}.
-                  </>
-                ) : (
-                  <>
-                    Emails to <strong className="font-semibold text-amber-950">{smtpStatus.config.adminMailbox}</strong>{" "}
-                    require <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px] text-amber-900">LEAVE_SMTP_PASS</code> in Render.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setSmtpFeedback(null);
-              setSmtpModalOpen(true);
-            }}
-            className={`px-3.5 py-1.5 rounded-xl font-bold text-xs shrink-0 shadow-sm transition-all flex items-center gap-1.5 ${
-              smtpStatus.live.ok
-                ? "bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300"
-                : "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
-            }`}
-          >
-            <Key className="w-3.5 h-3.5" />
-            <span>{smtpStatus.live.ok ? "Test Delivery" : "Setup Guide & Test"}</span>
-          </button>
-        </div>
-      )}
 
       {/* ── Metric Summary Cards Stack ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -527,179 +417,6 @@ export default function AdminLeavePage() {
         isAdmin={true}
       />
 
-      {/* ── SMTP Diagnostics & Setup Modal ── */}
-      {smtpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div
-            className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto space-y-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-700">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 leading-tight">
-                    Leave Email Notifications
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    SMTP dispatch status & delivery verification
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSmtpModalOpen(false)}
-                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Current Status Cards */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Target Mailbox</div>
-                <div className="font-bold text-gray-900 mt-1 break-all">
-                  {smtpStatus?.config.adminMailbox || "admin.galiakot@darseburhani.org"}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Connection Status</div>
-                <div className="mt-1 flex items-center gap-1.5 font-bold">
-                  {smtpStatus?.live.ok ? (
-                    <span className="text-emerald-700 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" />
-                      Connected OK
-                    </span>
-                  ) : (
-                    <span className="text-amber-700 flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Offline / Auth Needed
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Live Error Display (if any) */}
-            {smtpStatus && !smtpStatus.live.ok && (
-              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs space-y-1">
-                <div className="font-bold flex items-center gap-1.5 text-red-800">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  SMTP Connection Failure
-                </div>
-                <div className="font-mono text-[11px] text-red-700 bg-white/60 p-2 rounded-xl break-all">
-                  {smtpStatus.live.error || "No password configured for SMTP authentication"}
-                </div>
-              </div>
-            )}
-
-            {/* Test Email Dispatch Form */}
-            <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-3">
-              <div className="text-xs font-bold text-emerald-950 flex items-center justify-between">
-                <span>Send Live Test Notification</span>
-                <span className="text-[11px] font-normal text-emerald-700">Verifies actual inbox arrival</span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={testTargetEmail}
-                  onChange={(e) => setTestTargetEmail(e.target.value)}
-                  placeholder="admin.galiakot@darseburhani.org"
-                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleTestEmail}
-                  disabled={testingSmtp}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5 shrink-0"
-                >
-                  {testingSmtp ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Sending...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send Test</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {smtpFeedback && (
-                <div
-                  className={`p-3 rounded-xl text-xs font-medium ${
-                    smtpFeedback.success
-                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                      : "bg-red-100 text-red-900 border border-red-300"
-                  }`}
-                >
-                  <div>{smtpFeedback.message}</div>
-                  {smtpFeedback.details && (
-                    <div className="font-mono text-[10px] mt-1 opacity-80 break-all">{smtpFeedback.details}</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Step-by-Step Setup Instructions */}
-            <div className="border-t border-gray-100 pt-4 space-y-2.5">
-              <div className="text-xs font-bold text-gray-900">
-                How to Enable Leave Notification Emails (Google Workspace)
-              </div>
-              <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside leading-relaxed">
-                <li>
-                  Sign in to Google Account as{" "}
-                  <strong className="text-gray-900 font-semibold">admin.galiakot@darseburhani.org</strong>
-                </li>
-                <li>
-                  Go to <strong className="text-gray-900 font-semibold">Security</strong> → ensure{" "}
-                  <strong className="text-emerald-700 font-semibold">2-Step Verification</strong> is ON
-                </li>
-                <li>
-                  Search for <strong className="text-gray-900 font-semibold">App passwords</strong> (or visit{" "}
-                  <a
-                    href="https://myaccount.google.com/apppasswords"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-emerald-600 underline font-semibold"
-                  >
-                    myaccount.google.com/apppasswords
-                  </a>
-                  ) and create an app password named <strong className="text-gray-900 font-semibold">Darse Burhani Leave</strong>
-                </li>
-                <li>
-                  Copy the generated <strong className="text-gray-900 font-semibold">16-character code</strong>
-                </li>
-                <li>
-                  In your <strong className="text-gray-900 font-semibold">Render Dashboard</strong> (or local{" "}
-                  <code className="bg-gray-100 px-1 py-0.5 rounded font-mono text-[10px]">.env</code>), add the variable:
-                  <div className="mt-1 bg-gray-900 text-amber-300 p-2 rounded-xl font-mono text-[11px] select-all">
-                    LEAVE_SMTP_PASS=your-16-character-code
-                  </div>
-                </li>
-              </ol>
-            </div>
-
-            {/* Footer */}
-            <div className="border-t border-gray-100 pt-3 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setSmtpModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

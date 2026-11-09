@@ -2,8 +2,10 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { cache } from "../../lib/cache";
-import { notifyTimetableChange, getRecentTimetableChanges, isSlotRecentlyChanged, notifyBadalAssignment } from "../../lib/timetable-notify";
+import { notifyTimetableChange, getRecentTimetableChanges, isSlotRecentlyChanged, notifyBadalAssignment, notifyBadalDissolution } from "../../lib/timetable-notify";
 import { canonicalizeTeacherDisplay, canonicalizeTeacherName } from "../../lib/timetable-master-sync";
+import { getBadalSmtpStatus, saveBadalSmtpConfig, testBadalSmtpConnection } from "../../lib/badal-email";
+import { generateWhatsAppLink, formatBadalWhatsAppMessage } from "../../lib/whatsapp";
 
 const router = Router();
 
@@ -129,6 +131,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           prisma.timetableBadal.findMany({
             where: {
               date: { gte: startOfToday, lt: endOfToday },
+              status: { not: "CANCELLED" },
             },
             include: {
               originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
@@ -142,12 +145,18 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
               date: { gte: windowStart, lt: windowEnd },
               status: { in: ["ON_LEAVE", "MEDICAL"] },
             },
-            select: {
-              teacherId: true,
-              date: true,
-              status: true,
-              notes: true,
+            include: {
+              teacher: {
+                select: {
+                  id: true,
+                  its: true,
+                  department: true,
+                  photoUrl: true,
+                  user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+                },
+              },
             },
+            orderBy: [{ date: "asc" }],
           }),
           // 6. Medical exemptions for teachers
           prisma.medicalExemption.findMany({
@@ -156,12 +165,18 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
               isActive: true,
               date: { gte: windowStart, lt: windowEnd },
             },
-            select: {
-              teacherId: true,
-              date: true,
-              eventName: true,
-              reason: true,
+            include: {
+              teacher: {
+                select: {
+                  id: true,
+                  its: true,
+                  department: true,
+                  photoUrl: true,
+                  user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+                },
+              },
             },
+            orderBy: [{ date: "asc" }],
           }),
           // 7. Approved Student Leaves
           prisma.leaveRequest.findMany({
@@ -197,34 +212,103 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           }),
         ]);
 
-        // Aggregate teacher leave details
+        // Aggregate teacher leave details (caught live from Leave Management)
         const teacherLeavesMap = new Map<string, {
           teacherId: string;
+          name: string;
+          avatarUrl: string | null;
+          its: string | null;
+          department: string | null;
           reason: string;
           type: string;
           datesSummary: string;
+          startDate: string;
+          endDate: string;
+          leaveTill: string;
+          isOnLeaveToday: boolean;
+          dates: string[];
+          status: "ON_LEAVE_TODAY" | "UPCOMING_LEAVE" | "RECENT_LEAVE";
         }>();
 
+        const formatLeaveDateString = (d: Date): string => {
+          return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", weekday: "short" });
+        };
+
         for (const l of teacherAttendanceLeaves) {
+          const isToday = l.date >= startOfToday && l.date < endOfToday;
           const prev = teacherLeavesMap.get(l.teacherId);
           const typeStr = l.status === "MEDICAL" ? "Medical Leave" : "Authorized Leave";
           const reasonStr = l.notes || typeStr;
+          const dateStr = l.date.toISOString().split("T")[0];
+          const allDates = prev ? [...prev.dates, dateStr].sort() : [dateStr];
+          const startDate = allDates[0];
+          const endDate = allDates[allDates.length - 1];
+          const endDateObj = new Date(endDate);
+          const isCurrentlyToday = Boolean(prev?.isOnLeaveToday || isToday);
+          const status = isCurrentlyToday
+            ? "ON_LEAVE_TODAY"
+            : endDateObj < startOfToday
+            ? "RECENT_LEAVE"
+            : "UPCOMING_LEAVE";
+
+          const teacherUser = l.teacher?.user;
+          const rawName = teacherUser ? `${teacherUser.firstName || ""} ${teacherUser.lastName || ""}`.trim() : "Teacher";
+          const display = canonicalizeTeacherDisplay(rawName, teacherUser?.avatarUrl || l.teacher?.photoUrl || null);
+
           teacherLeavesMap.set(l.teacherId, {
             teacherId: l.teacherId,
+            name: display.name || rawName || "Teacher",
+            avatarUrl: display.avatarUrl ?? null,
+            its: l.teacher?.its || null,
+            department: l.teacher?.department || "Faculty",
             reason: reasonStr,
             type: typeStr,
-            datesSummary: prev ? `${prev.datesSummary}, ${l.date.toISOString().split("T")[0]}` : l.date.toISOString().split("T")[0],
+            datesSummary: allDates.join(", "),
+            startDate,
+            endDate,
+            leaveTill: `Till ${formatLeaveDateString(endDateObj)}`,
+            isOnLeaveToday: isCurrentlyToday,
+            dates: allDates,
+            status,
           });
         }
 
         for (const m of teacherMedicalExemptions) {
           if (!m.teacherId) continue;
+          const isToday = m.date >= startOfToday && m.date < endOfToday;
           const prev = teacherLeavesMap.get(m.teacherId);
+          const reasonStr = m.reason || m.eventName || "Medical Exemption";
+          const dateStr = m.date.toISOString().split("T")[0];
+          const allDates = prev ? [...prev.dates, dateStr].sort() : [dateStr];
+          const startDate = allDates[0];
+          const endDate = allDates[allDates.length - 1];
+          const endDateObj = new Date(endDate);
+          const isCurrentlyToday = Boolean(prev?.isOnLeaveToday || isToday);
+          const status = isCurrentlyToday
+            ? "ON_LEAVE_TODAY"
+            : endDateObj < startOfToday
+            ? "RECENT_LEAVE"
+            : "UPCOMING_LEAVE";
+
+          const teacherUser = m.teacher?.user;
+          const rawName = teacherUser ? `${teacherUser.firstName || ""} ${teacherUser.lastName || ""}`.trim() : "Teacher";
+          const display = canonicalizeTeacherDisplay(rawName, teacherUser?.avatarUrl || m.teacher?.photoUrl || null);
+
           teacherLeavesMap.set(m.teacherId, {
             teacherId: m.teacherId,
-            reason: m.reason || m.eventName || "Medical Exemption",
+            name: prev?.name || display.name || rawName || "Teacher",
+            avatarUrl: prev?.avatarUrl ?? display.avatarUrl ?? null,
+            its: prev?.its || m.teacher?.its || null,
+            department: prev?.department || m.teacher?.department || "Faculty",
+            reason: reasonStr,
             type: "Medical Exemption",
-            datesSummary: prev ? `${prev.datesSummary}, ${m.date.toISOString().split("T")[0]}` : m.date.toISOString().split("T")[0],
+            datesSummary: allDates.join(", "),
+            startDate,
+            endDate,
+            leaveTill: `Till ${formatLeaveDateString(endDateObj)}`,
+            isOnLeaveToday: isCurrentlyToday,
+            dates: allDates,
+            status,
           });
         }
 
@@ -317,6 +401,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
             );
             const tLeave = teacherLeavesMap.get(t.id);
             const isMustafaSir = Boolean(display.name && /mustafa\s*sir/i.test(display.name));
+            const isUnavailable = Boolean(tLeave?.isOnLeaveToday);
             return {
               id: t.id,
               name: display.name,
@@ -324,13 +409,13 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
               its: isMustafaSir ? null : t.its,
               avatarUrl: isMustafaSir ? null : display.avatarUrl,
               weeklyPeriods: t._count.timetableSlots,
-              isUnavailable: Boolean(tLeave),
-              leaveReason: tLeave?.reason || null,
-              leaveType: tLeave?.type || null,
-              leaveDates: tLeave?.datesSummary || null,
+              isUnavailable,
+              leaveReason: isUnavailable ? tLeave?.reason || null : null,
+              leaveType: isUnavailable ? tLeave?.type || null : null,
+              leaveDates: isUnavailable ? tLeave?.datesSummary || null : null,
             };
           }),
-          unavailableTeachers: Array.from(teacherLeavesMap.values()),
+          unavailableTeachers: Array.from(teacherLeavesMap.values()).filter((t) => t.isOnLeaveToday),
           todayBadals: todayBadals.map((b) => {
             const originalDisplay = canonicalizeTeacherDisplay(
               b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}` : "TBA"),
@@ -374,7 +459,7 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 });
 
 // POST /api/admin/timetable/sync-master - Synchronize 8 Darajah classes and generate 240 timetable slots
-router.post("/sync-master", requireRole("ADMIN"), async (req, res) => {
+router.post("/sync-master", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { syncMasterTimetableAndClasses } = await import("../../lib/timetable-master-sync");
     const force = req.query.force === "true" || req.body?.force === true;
@@ -449,11 +534,11 @@ function formatSlotResponse(slot: any, teacherLeavesMap?: Map<string, any>) {
     updatedAt: slot.updatedAt,
     isRecentlyChanged: isRecent,
     changeDescription: changeInfo?.changeDescription || (isRecent ? `Recently updated: ${slot.subject} (${canonicalizeTeacherName(slot.teacherName) || "Assigned Teacher"})` : null),
-    // Leave / Availability metadata
-    isUnavailable: Boolean(teacherLeave),
-    leaveReason: teacherLeave?.reason || null,
-    leaveType: teacherLeave?.type || null,
-    leaveDates: teacherLeave?.datesSummary || null,
+    // Leave / Availability metadata (only marked unavailable if on leave today)
+    isUnavailable: Boolean(teacherLeave?.isOnLeaveToday),
+    leaveReason: teacherLeave?.isOnLeaveToday ? teacherLeave.reason : null,
+    leaveType: teacherLeave?.isOnLeaveToday ? teacherLeave.type : null,
+    leaveDates: teacherLeave?.isOnLeaveToday ? teacherLeave.datesSummary : null,
   };
 }
 
@@ -763,7 +848,7 @@ router.delete("/:id?", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 });
 
 // POST /api/admin/timetable/assign-faculty - Assign or re-assign a faculty teacher to a specific timetable slot
-router.post("/assign-faculty", requireRole("ADMIN"), async (req, res) => {
+router.post("/assign-faculty", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { slotId, teacherId } = req.body;
     if (!slotId) {
@@ -811,7 +896,7 @@ router.post("/assign-faculty", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/timetable/assign-masool - Assign or change Class Masool / Class Teacher
-router.post("/assign-masool", requireRole("ADMIN"), async (req, res) => {
+router.post("/assign-masool", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { classId, teacherId } = req.body;
     if (!classId || !teacherId) {
@@ -892,6 +977,8 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       } else if (status === "PENDING") {
         where.isFulfilled = false;
         where.status = { not: "CANCELLED" };
+      } else if (status === "DISSOLVED" || status === "CANCELLED") {
+        where.status = "CANCELLED";
       } else {
         where.status = status;
       }
@@ -916,45 +1003,77 @@ router.get("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           where,
           include: {
             originalTeacher: {
-              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } },
             },
             badalTeacher: {
-              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } },
             },
             slot: true,
           },
           orderBy: [{ date: "desc" }, { period: "asc" }],
         });
 
-        return badals.map((b) => ({
-          id: b.id,
-          date: b.date.toISOString().split("T")[0],
-          slotId: b.slotId,
-          classId: b.classId,
-          className: b.className,
-          period: b.period,
-          startTime: b.startTime,
-          endTime: b.endTime,
-          subject: b.subject,
-          originalTeacherId: b.originalTeacherId,
-          ...(() => {
-            const od = canonicalizeTeacherDisplay(b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"), b.originalTeacher?.user?.avatarUrl || null);
-            const bd = canonicalizeTeacherDisplay(b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"), b.badalTeacher?.user?.avatarUrl || null);
-            return {
-              originalTeacherName: od.name,
-              originalTeacherAvatar: od.avatarUrl,
-              badalTeacherId: b.badalTeacherId,
-              badalTeacherName: bd.name,
-              badalTeacherAvatar: bd.avatarUrl,
-            };
-          })(),
-          reason: b.reason,
-          status: b.status,
-          instructions: b.instructions,
-          isFulfilled: b.isFulfilled,
-          notes: b.notes,
-          createdAt: b.createdAt,
-        }));
+        return badals.map((b) => {
+          const od = canonicalizeTeacherDisplay(b.originalTeacherName || (b.originalTeacher?.user ? `${b.originalTeacher.user.firstName || ""} ${b.originalTeacher.user.lastName || ""}`.trim() : "Original Teacher"), b.originalTeacher?.user?.avatarUrl || null);
+          const bd = canonicalizeTeacherDisplay(b.badalTeacherName || (b.badalTeacher?.user ? `${b.badalTeacher.user.firstName || ""} ${b.badalTeacher.user.lastName || ""}`.trim() : "Pending Assignment"), b.badalTeacher?.user?.avatarUrl || null);
+          const phone = b.badalTeacher?.mobile || null;
+          
+          const isMustafaSir = Boolean(
+            (bd.name && /(mustafa.*sir|mustafa.*tailor|manpur)/i.test(bd.name)) ||
+            (b.badalTeacher?.user?.email && /mustafa.*sir/i.test(b.badalTeacher.user.email))
+          );
+          const email = isMustafaSir
+            ? "mustafa.sir@darseburhani.com"
+            : (b.badalTeacher?.user?.email && b.badalTeacher.user.email.includes("@mahadalzahra.com")
+                ? b.badalTeacher.user.email
+                : b.badalTeacher?.user?.email || b.badalTeacher?.tEmail || null);
+
+          const dateStr = b.date.toISOString().split("T")[0];
+
+          let waLink: string | null = null;
+          if (phone) {
+            const waMsg = formatBadalWhatsAppMessage({
+              substituteTeacherName: bd.name || "Faculty Member",
+              originalTeacherName: od.name || null,
+              className: b.className,
+              period: b.period,
+              startTime: b.startTime,
+              endTime: b.endTime,
+              subject: b.subject,
+              date: dateStr,
+              reason: b.reason,
+              instructions: b.instructions,
+            });
+            waLink = generateWhatsAppLink(phone, waMsg);
+          }
+
+          return {
+            id: b.id,
+            date: dateStr,
+            slotId: b.slotId,
+            classId: b.classId,
+            className: b.className,
+            period: b.period,
+            startTime: b.startTime,
+            endTime: b.endTime,
+            subject: b.subject,
+            originalTeacherId: b.originalTeacherId,
+            originalTeacherName: od.name,
+            originalTeacherAvatar: od.avatarUrl,
+            badalTeacherId: b.badalTeacherId,
+            badalTeacherName: bd.name,
+            badalTeacherAvatar: bd.avatarUrl,
+            badalTeacherMobile: phone,
+            badalTeacherEmail: email,
+            whatsAppUrl: waLink,
+            reason: b.reason,
+            status: b.status,
+            instructions: b.instructions,
+            isFulfilled: b.isFulfilled,
+            notes: b.notes,
+            createdAt: b.createdAt,
+          };
+        });
       },
       { ttl: 15_000, tags: ["timetablebadal", "timetable"] }
     );
@@ -1093,6 +1212,8 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         its: true,
         department: true,
         subjects: true,
+        mobile: true,
+        tEmail: true,
         timetableSlots: {
           select: { subject: true },
           distinct: ["subject"],
@@ -1142,10 +1263,22 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           periodSchedule[periodNum] = teacherSchedule?.get(periodNum) || null;
         }
 
+        const isMustafaSir = Boolean(
+          (substituteDisplay.name && /(mustafa.*sir|mustafa.*tailor|manpur)/i.test(substituteDisplay.name)) ||
+          (t.user?.email && /mustafa.*sir/i.test(t.user.email)) ||
+          (t.tEmail && /mustafa.*sir/i.test(t.tEmail))
+        );
+        const resolvedEmail = isMustafaSir
+          ? "mustafa.sir@darseburhani.com"
+          : (t.user?.email && t.user.email.includes("@mahadalzahra.com")
+              ? t.user.email
+              : t.user?.email || t.tEmail || "");
+
         return {
           id: t.id,
           name: substituteDisplay.name || "Teacher",
-          email: t.user?.email || "",
+          email: resolvedEmail,
+          mobile: t.mobile || "",
           its: t.its,
           department: t.department || "Faculty",
           subjects: assignedSubjects.length > 0 ? assignedSubjects : (t.subjects || []),
@@ -1158,8 +1291,18 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
           teachesSubject,
           daySchedule: periodSchedule,
         };
-      })
-      .sort((a, b) => {
+      });
+
+    // Deduplicate teachers by canonical name so duplicates (e.g. multiple Mustafa Sir profiles) only appear once
+    const seenTeacherKeys = new Set<string>();
+    const deduplicatedTeachers = mappedTeachers.filter((t) => {
+      const key = t.name.trim().toLowerCase();
+      if (seenTeacherKeys.has(key)) return false;
+      seenTeacherKeys.add(key);
+      return true;
+    });
+
+    const sortedTeachers = deduplicatedTeachers.sort((a, b) => {
         // Priority 1: Free and teaches same subject
         const aScore = (a.isFree ? 100 : 0) + (a.teachesSubject ? 50 : 0) - (a.isOnLeave ? 200 : 0);
         const bScore = (b.isFree ? 100 : 0) + (b.teachesSubject ? 50 : 0) - (b.isOnLeave ? 200 : 0);
@@ -1169,17 +1312,22 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
         return a.name.localeCompare(b.name);
       });
 
+    // When assigning Badal for a specific subject, strictly return ONLY teachers who teach this subject!
+    const subjectSpecificTeachers = (normalizedSubjectKey && normalizedSubjectKey !== "lesson" && normalizedSubjectKey !== "general")
+      ? sortedTeachers.filter((t) => t.teachesSubject)
+      : sortedTeachers;
+
     return res.json({
       success: true,
-      data: (onlyAssignedSubject === "true" || sameSubjectOnly === "true") ? mappedTeachers.filter((t) => t.teachesSubject) : mappedTeachers,
+      data: subjectSpecificTeachers,
       meta: {
         subject: normalizedSubject || null,
         period: p,
         date: startOfDay.toISOString().split("T")[0],
-        totalCount: mappedTeachers.length,
-        freeCount: mappedTeachers.filter((t) => t.isFree).length,
-        sameSubjectCount: mappedTeachers.filter((t) => t.teachesSubject).length,
-        isFilteredBySubject: onlyAssignedSubject === "true" || sameSubjectOnly === "true",
+        totalCount: subjectSpecificTeachers.length,
+        freeCount: subjectSpecificTeachers.filter((t) => t.isFree).length,
+        sameSubjectCount: subjectSpecificTeachers.length,
+        isFilteredBySubject: Boolean(normalizedSubjectKey && normalizedSubjectKey !== "lesson"),
       },
     });
   } catch (error) {
@@ -1198,7 +1346,8 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       const assignment = await prisma.teacherPortalAssignment.findFirst({
         where: {
           teacher: { userId: session.user.id },
-          assignedPages: { hasSome: ["badal-management", "timetable-management", "timetable", "ALL", "*"] },
+          portalType: { in: ["badal-management", "timetable-management", "timetable", "ALL", "*"] },
+          isActive: true,
         },
       });
       if (!assignment) {
@@ -1229,6 +1378,8 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       senderEmail,
       receiverEmail,
       sendEmailNotification,
+      sendWhatsAppNotification,
+      customPhone,
     } = req.body;
 
     if (!date || !className || period === undefined || !subject) {
@@ -1358,39 +1509,114 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     cache.invalidateTag("timetablebadal");
     cache.invalidateTag("timetable");
 
+    let notifyResult: any = null;
     if (badal.badalTeacherId) {
-      notifyBadalAssignment(badal, session.user.firstName || "Administration", {
-        customSubject: customEmailSubject,
-        customBody: customEmailBody,
-        customTo: receiverEmail,
-        customFrom: senderEmail,
-        sendEmailNotification: sendEmailNotification !== false,
-      }).catch((err) =>
-        console.error("[timetable] Failed to send badal notification:", err)
-      );
+      try {
+        notifyResult = await notifyBadalAssignment(badal, session.user.firstName || "Administration", {
+          customSubject: customEmailSubject,
+          customBody: customEmailBody,
+          customTo: receiverEmail,
+          customFrom: senderEmail,
+          sendEmailNotification: sendEmailNotification !== false,
+          sendWhatsAppNotification: sendWhatsAppNotification !== false,
+          customPhone,
+        });
+      } catch (err) {
+        console.error("[timetable] Failed to send badal notification:", err);
+      }
     }
 
-    return res.json({ success: true, data: badal });
+    return res.json({ success: true, data: badal, notifications: notifyResult });
   } catch (error) {
     console.error("Create badal error:", error);
     return res.status(500).json({ success: false, error: "Failed to create badal assignment" });
   }
 });
 
-// PUT /api/admin/timetable/badal/:id - Update badal status / fulfillment
+// PUT /api/admin/timetable/badal/:id - Update badal assignment / details / status
 router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
     const { id } = req.params;
-    const { status, isFulfilled, badalTeacherId, badalTeacherName, instructions, notes } = req.body;
+    const {
+      status,
+      isFulfilled,
+      badalTeacherId,
+      badalTeacherName,
+      subject,
+      period,
+      startTime,
+      endTime,
+      date,
+      reason,
+      instructions,
+      notes,
+      reNotify,
+      customEmailSubject,
+      customEmailBody,
+      customPhone,
+      sendEmailNotification,
+      sendWhatsAppNotification,
+    } = req.body;
+
+    const existing = await prisma.timetableBadal.findUnique({
+      where: { id },
+      include: {
+        badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Badal record not found" });
+    }
 
     const data: any = {};
     if (status !== undefined) data.status = status;
     if (isFulfilled !== undefined) data.isFulfilled = isFulfilled;
-    if (badalTeacherId !== undefined) data.badalTeacherId = badalTeacherId;
-    if (badalTeacherName !== undefined) data.badalTeacherName = badalTeacherName;
+    if (subject !== undefined) data.subject = subject.trim();
+    if (period !== undefined) data.period = Number(period);
+    if (startTime !== undefined) data.startTime = startTime.trim();
+    if (endTime !== undefined) data.endTime = endTime.trim();
+    if (reason !== undefined) data.reason = reason.trim();
     if (instructions !== undefined) data.instructions = instructions;
     if (notes !== undefined) data.notes = notes;
+
+    if (date !== undefined) {
+      const parsedDate = new Date(`${date}T00:00:00.000Z`);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        data.date = parsedDate;
+      }
+    }
+
+    // Teacher reassignment handling
+    let teacherChanged = false;
+    if (badalTeacherId !== undefined && badalTeacherId !== existing.badalTeacherId) {
+      teacherChanged = true;
+      if (!badalTeacherId) {
+        data.badalTeacherId = null;
+        data.badalTeacherName = badalTeacherName || "Pending Assignment";
+      } else {
+        const teacherProfile = await prisma.teacherProfile.findFirst({
+          where: {
+            OR: [{ id: badalTeacherId }, { userId: badalTeacherId }],
+            user: { isActive: true, deletedAt: null },
+          },
+          select: {
+            id: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        });
+        if (teacherProfile) {
+          data.badalTeacherId = teacherProfile.id;
+          data.badalTeacherName = badalTeacherName || `${teacherProfile.user.firstName} ${teacherProfile.user.lastName}`.trim();
+        } else {
+          data.badalTeacherId = badalTeacherId;
+          if (badalTeacherName) data.badalTeacherName = badalTeacherName;
+        }
+      }
+    } else if (badalTeacherName !== undefined) {
+      data.badalTeacherName = badalTeacherName;
+    }
 
     const updated = await prisma.timetableBadal.update({
       where: { id },
@@ -1402,21 +1628,95 @@ router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     });
 
     cache.invalidateTag("timetablebadal");
+    cache.invalidateTag("timetableslot");
     cache.invalidateTag("timetable");
 
-    if (badalTeacherId || (data.status && data.status === "ASSIGNED")) {
-      notifyBadalAssignment(updated, session.user.firstName || "Administration").catch((err) =>
-        console.error("[timetable] Failed to send badal update notification:", err)
-      );
+    // If status became CANCELLED, trigger dissolution notification
+    if (status === "CANCELLED" && existing.status !== "CANCELLED") {
+      notifyBadalDissolution(updated, session.user.firstName || "Administration", {
+        dissolutionReason: notes || reason || "Substitution cancelled by administration",
+        sendEmail: sendEmailNotification !== false,
+        sendWhatsApp: sendWhatsAppNotification !== false,
+      }).catch((err) => console.error("[timetable] Failed to send dissolution alert on update:", err));
+    }
+    // Else if reassigning teacher, or explicit reNotify requested, or status updated to ASSIGNED/CONFIRMED
+    else if (
+      (teacherChanged && updated.badalTeacherId) ||
+      reNotify ||
+      (data.status && (data.status === "ASSIGNED" || data.status === "CONFIRMED"))
+    ) {
+      notifyBadalAssignment(updated, session.user.firstName || "Administration", {
+        customSubject: customEmailSubject,
+        customBody: customEmailBody,
+        customPhone,
+        sendEmailNotification: sendEmailNotification !== false,
+        sendWhatsAppNotification: sendWhatsAppNotification !== false,
+      }).catch((err) => console.error("[timetable] Failed to send badal update notification:", err));
     }
 
-    return res.json({ success: true, data: updated });
+    return res.json({ success: true, data: updated, message: "Badal assignment updated successfully" });
   } catch (error) {
     console.error("Update badal error:", error);
     return res.status(500).json({ success: false, error: "Failed to update badal assignment" });
   }
 });
 
+// POST /api/admin/timetable/badal/:id/dissolve - Dissolve/Cancel badal substitution & release substitute
+router.post("/badal/:id/dissolve", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { id } = req.params;
+    const { reason, sendEmail, sendWhatsApp } = req.body;
+
+    const existing = await prisma.timetableBadal.findUnique({
+      where: { id },
+      include: {
+        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+        badalTeacher: { include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Badal record not found" });
+    }
+
+    const dissolveNote = `[Dissolved on ${new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }).format(new Date())} by ${session.user.firstName || "Admin"}${reason ? `: ${reason}` : ""}]`;
+    const updatedNotes = existing.notes ? `${existing.notes}\n${dissolveNote}` : dissolveNote;
+
+    const updated = await prisma.timetableBadal.update({
+      where: { id },
+      data: {
+        status: "CANCELLED",
+        isFulfilled: false,
+        notes: updatedNotes,
+      },
+      include: {
+        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+        badalTeacher: { include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+      },
+    });
+
+    cache.invalidateTag("timetablebadal");
+    cache.invalidateTag("timetableslot");
+    cache.invalidateTag("timetable");
+
+    // Dispatch dissolution notifications to relieve substitute teacher
+    notifyBadalDissolution(updated, session.user.firstName || "Administration", {
+      dissolutionReason: reason || "Substitution dissolved / original schedule restored",
+      sendEmail: sendEmail !== false,
+      sendWhatsApp: sendWhatsApp !== false,
+    }).catch((err) => console.error("[timetable] Failed to dispatch dissolution notification:", err));
+
+    return res.json({
+      success: true,
+      message: `Badal substitution for Class ${updated.className} (Period ${updated.period}) dissolved successfully.`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Dissolve badal error:", error);
+    return res.status(500).json({ success: false, error: "Failed to dissolve badal assignment" });
+  }
+});
 
 // DELETE /api/admin/timetable/badal/:id - Cancel/remove badal assignment
 router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
@@ -1424,6 +1724,7 @@ router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) =>
     const { id } = req.params;
     await prisma.timetableBadal.delete({ where: { id } });
     cache.invalidateTag("timetablebadal");
+    cache.invalidateTag("timetableslot");
     cache.invalidateTag("timetable");
     return res.json({ success: true, message: "Badal assignment deleted successfully" });
   } catch (error) {
@@ -1432,8 +1733,113 @@ router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) =>
   }
 });
 
+// GET /api/admin/timetable/badal/config - Get active Badal SMTP configuration status
+router.get("/badal/config", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const status = await getBadalSmtpStatus();
+    return res.json({ success: true, data: status });
+  } catch (error: any) {
+    console.error("[timetable] Failed to get badal SMTP status:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to check Badal email status" });
+  }
+});
+
+// POST /api/admin/timetable/badal/config - Save/Update Badal SMTP configuration
+router.post("/badal/config", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { email, name, pass, host, port, secure } = req.body;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ success: false, error: "Valid sender email address is required" });
+    }
+
+    await saveBadalSmtpConfig({
+      email,
+      name: name || "Darse Burhani — Badal Desk",
+      pass,
+      host: host || "smtp.gmail.com",
+      port: Number(port) || 587,
+      secure: Boolean(secure),
+    });
+
+    const updatedStatus = await getBadalSmtpStatus();
+    return res.json({
+      success: true,
+      message: `Badal notification sender updated to ${email}`,
+      data: updatedStatus,
+    });
+  } catch (error: any) {
+    console.error("[timetable] Failed to save badal SMTP config:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to save Badal email config" });
+  }
+});
+
+// POST /api/admin/timetable/badal/config/test - Test Badal SMTP connection and send verification email
+router.post("/badal/config/test", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { testEmail } = req.body;
+    const testResult = await testBadalSmtpConnection(testEmail);
+    if (!testResult.ok) {
+      return res.status(400).json({ success: false, error: testResult.error, mailbox: testResult.mailbox });
+    }
+    return res.json({
+      success: true,
+      message: testResult.message || `Connected successfully to SMTP as ${testResult.mailbox}`,
+      mailbox: testResult.mailbox,
+    });
+  } catch (error: any) {
+    console.error("[timetable] Test badal SMTP error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Test connection failed" });
+  }
+});
+
+// POST /api/admin/timetable/badal/:id/notify - On-demand resend notification for existing Badal
+router.post("/badal/:id/notify", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    const { id } = req.params;
+    const { channel = "BOTH", customTo, customPhone, customSubject, customBody } = req.body;
+
+    const badal = await prisma.timetableBadal.findUnique({
+      where: { id },
+      include: {
+        originalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+        badalTeacher: { include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } } } },
+      },
+    });
+
+    if (!badal) {
+      return res.status(404).json({ success: false, error: "Badal record not found" });
+    }
+
+    if (!badal.badalTeacherId) {
+      return res.status(400).json({ success: false, error: "No substitute teacher assigned to this Badal record" });
+    }
+
+    const sendEmail = channel === "EMAIL" || channel === "BOTH";
+    const sendWhatsApp = channel === "WHATSAPP" || channel === "BOTH";
+
+    const notifyResult = await notifyBadalAssignment(badal, session.user.firstName || "Administration", {
+      customSubject,
+      customBody,
+      customTo,
+      customPhone,
+      sendEmailNotification: sendEmail,
+      sendWhatsAppNotification: sendWhatsApp,
+    });
+
+    return res.json({
+      success: true,
+      message: `Notification dispatched to ${badal.badalTeacherName || "substitute teacher"}`,
+      data: notifyResult,
+    });
+  } catch (error: any) {
+    console.error("[timetable] Failed to re-notify badal:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to dispatch notification" });
+  }
+});
+
 // POST /api/admin/timetable/ai-fill - AI auto-fill slots assigned to teachers, respecting Free Time
-router.post("/ai-fill", requireRole("ADMIN"), async (req, res) => {
+router.post("/ai-fill", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const {
       classId,

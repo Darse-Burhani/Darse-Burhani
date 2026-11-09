@@ -12,7 +12,7 @@ const MONTH_NAMES = [
 ];
 
 // GET /api/admin/takhteet/export?format=csv|json - Export all plans
-router.get("/export", requireRole("ADMIN"), async (req, res) => {
+router.get("/export", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const format = (req.query.format as string) || "csv";
 
@@ -77,7 +77,7 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/admin/takhteet - Teachers with their classes + all plans (cached in-memory)
-router.get("/", requireRole("ADMIN"), async (req, res) => {
+router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const data = await cache.getOrSet(
       "admin:takhteet",
@@ -396,7 +396,7 @@ router.post("/bulk-assign", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/takhteet/sync-tafseel - Ingest & apply Tafseel 1-4 Excel files from public
-router.post("/sync-tafseel", requireRole("ADMIN"), async (req, res) => {
+router.post("/sync-tafseel", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { importTafseelCurriculum } = await import("../../lib/takhteet-tafseel-sync");
     const result = await importTafseelCurriculum();
@@ -408,6 +408,30 @@ router.post("/sync-tafseel", requireRole("ADMIN"), async (req, res) => {
   } catch (error: any) {
     console.error("Takhteet sync-tafseel error:", error);
     return res.status(500).json({ success: false, error: error?.message || "Failed to sync Tafseel curriculum" });
+  }
+});
+
+// POST /api/admin/takhteet/auto-allocate - Re-evaluate & allocate all Takhteet based on timetable subject assignments
+router.post("/auto-allocate", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { autoAllocateTakhteetBySubjects } = await import("../../lib/takhteet-tafseel-sync");
+    const result = await autoAllocateTakhteetBySubjects();
+    return res.json(result);
+  } catch (error: any) {
+    console.error("Takhteet auto-allocate error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to auto-allocate Takhteet" });
+  }
+});
+
+// GET /api/admin/takhteet/subject-mappings - Returns class + subject to teacher assignments
+router.get("/subject-mappings", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { getSubjectTeacherMappings } = await import("../../lib/takhteet-tafseel-sync");
+    const mappings = await getSubjectTeacherMappings();
+    return res.json({ success: true, data: mappings });
+  } catch (error: any) {
+    console.error("Takhteet subject-mappings error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch subject teacher mappings" });
   }
 });
 

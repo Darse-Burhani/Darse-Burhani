@@ -17,8 +17,8 @@ const DEFAULT_TITLE = "Darse Burhani — Mahad al-Zahra Academic Portal & Nisab"
 const TITLE_TEMPLATE = "%s | Darse Burhani";
 const DEFAULT_DESCRIPTION =
   "Unified academic portal, biometric attendance telemetry, Takhteet lesson plans, and student learning console for Mahad al-Zahra.";
-const DEFAULT_OG_IMAGE = "https://darseburhani.edu/og-image.svg";
-const BASE_URL = "https://darseburhani.edu";
+const DEFAULT_OG_IMAGE = "https://www.darseburhani-galiakot.org/logo.png";
+const BASE_URL = "https://www.darseburhani-galiakot.org";
 
 /**
  * Route-to-metadata dictionary for standard routes.
@@ -61,6 +61,21 @@ export const ROUTE_METADATA: Record<string, { title: string; description: string
   "/admin": {
     title: "Administrative Control Center",
     description: "Comprehensive administration dashboard for student rosters, biometric terminals, and attendance telemetry.",
+    noIndex: true,
+  },
+  "/admin/library/attendance": {
+    title: "Maktabat Attendance Registry — Library Portal",
+    description: "Fast-click and barcode-enabled library study hall attendance recording for Talabat.",
+    noIndex: true,
+  },
+  "/admin/waras-mubarak": {
+    title: "Waras Mubarak Celebration Hub",
+    description: "Waras Mubarak birthday dispatch console and celebrations directory for Talabat and Parents.",
+    noIndex: true,
+  },
+  "/admin/whatsapp": {
+    title: "24/7 Cloud WhatsApp Gateway",
+    description: "Self-hosted multi-device WhatsApp notification engine for parent and faculty communications.",
     noIndex: true,
   },
   "/teacher": {

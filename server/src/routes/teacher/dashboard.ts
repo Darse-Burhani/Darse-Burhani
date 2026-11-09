@@ -76,6 +76,19 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           }),
         ]);
 
+        const teacherIds = [teacherProfile.id, teacherProfile.userId].filter(Boolean);
+        const pastTwoDays = new Date(Date.now() - 2 * 86400000);
+        const todayBadalDuties = await prisma.timetableBadal.findMany({
+          where: {
+            OR: teacherIds.map((tid) => ({ badalTeacherId: tid })),
+            date: { gte: pastTwoDays },
+          },
+          include: {
+            originalTeacher: { include: { user: { select: { firstName: true, lastName: true } } } },
+          },
+          orderBy: [{ date: "asc" }, { period: "asc" }],
+        });
+
         const uniqueStudentProfileIds = Array.from(new Set(enrollments.map((e) => e.studentId)));
 
         // Fetch student profiles and today's attendance for those students
@@ -172,6 +185,19 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
               lastCheckIn: att?.checkInTime || null,
             };
           }),
+          todayBadals: todayBadalDuties.map((b) => ({
+            id: b.id,
+            date: b.date.toISOString().split("T")[0],
+            className: b.className,
+            period: b.period,
+            startTime: b.startTime,
+            endTime: b.endTime,
+            subject: b.subject,
+            originalTeacher: b.originalTeacher ? `${b.originalTeacher.user.firstName} ${b.originalTeacher.user.lastName}`.trim() : b.originalTeacherName,
+            reason: b.reason,
+            instructions: b.instructions,
+            isFulfilled: b.isFulfilled,
+          })),
           recentActivity: recentPointLogs.map((p) => ({
             id: p.id,
             category: p.category,
@@ -185,7 +211,7 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       },
       {
         ttl: 10_000, // 10 seconds cache
-        tags: ["dashboard", "class", "studentprofile", "pointlog", "attendancerecord"],
+        tags: ["dashboard", "class", "studentprofile", "pointlog", "attendancerecord", "timetablebadal"],
       },
     );
 

@@ -43,9 +43,9 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Teacher profile not found" });
     }
 
-    const today = new Date();
-    const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
-    const nextWeek = new Date(startOfDay.getTime() + 7 * 86400000);
+    const pastTwoDays = new Date(Date.now() - 2 * 86400000);
+    const startOfDay = pastTwoDays;
+    const nextWeek = new Date(Date.now() + 30 * 86400000);
 
     const cacheKey = `teacher:timetable:personal:${teacherProfile.id}`;
     const data = await cache.getOrSet(
@@ -54,7 +54,7 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
         const [mySlots, myBadalDuties, badalsForMe, allClasses] = await Promise.all([
           // 1. Regular weekly timetable slots
           prisma.timetableSlot.findMany({
-            where: { teacherId: teacherProfile.id },
+            where: { OR: [{ teacherId: teacherProfile.id }, { teacherId: teacherProfile.userId }] },
             include: {
               class: {
                 select: {
@@ -78,8 +78,8 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           // 2. Badal assignments where THIS teacher is the substitute
           prisma.timetableBadal.findMany({
             where: {
-              badalTeacherId: teacherProfile.id,
-              date: { gte: startOfDay, lt: nextWeek },
+              OR: [{ badalTeacherId: teacherProfile.id }, { badalTeacherId: teacherProfile.userId }],
+              date: { gte: startOfDay, lt: nextWeek }, status: { not: 'CANCELLED' },
             },
             include: {
               originalTeacher: { include: { user: { select: { firstName: true, lastName: true } } } },
@@ -90,8 +90,8 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           // 3. Badal assignments where someone else is covering for THIS teacher
           prisma.timetableBadal.findMany({
             where: {
-              originalTeacherId: teacherProfile.id,
-              date: { gte: startOfDay, lt: nextWeek },
+              OR: [{ originalTeacherId: teacherProfile.id }, { originalTeacherId: teacherProfile.userId }],
+              date: { gte: startOfDay, lt: nextWeek }, status: { not: 'CANCELLED' },
             },
             include: {
               badalTeacher: { include: { user: { select: { firstName: true, lastName: true } } } },
@@ -512,7 +512,7 @@ router.get("/masool-class/:id", requireRole("TEACHER", "ADMIN"), async (req, res
     const endOfDay = new Date(startOfDay.getTime() + 86400000);
 
     const badals = await prisma.timetableBadal.findMany({
-      where: { classId: id, date: { gte: startOfDay, lt: endOfDay } },
+      where: { classId: id, date: { gte: startOfDay, lt: endOfDay }, status: { not: 'CANCELLED' } },
       include: { badalTeacher: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } } },
     });
 

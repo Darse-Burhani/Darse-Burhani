@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,37 @@ export default function ParentSettingsPage() {
     }
   };
 
+  const [deletingAvatar, setDeletingAvatar] = useState(false);
+
+  const handleDeleteAvatar = async () => {
+    if (!confirm("Are you sure you want to remove your profile photo / pending upload?")) return;
+    setDeletingAvatar(true);
+    try {
+      const res = await fetch("/api/parent/avatar", { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                avatarUrl: null,
+                pendingAvatarUrl: null,
+                avatarStatus: null,
+                avatarRejectionReason: null,
+              }
+            : null
+        );
+        toast({ variant: "default", title: "Photo Removed", description: "Your profile photo has been cleared." });
+      } else {
+        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to remove photo." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Network error removing photo." });
+    } finally {
+      setDeletingAvatar(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.firstName.trim() || !form.lastName.trim()) {
@@ -355,18 +387,40 @@ export default function ParentSettingsPage() {
                   {profile?.email || user?.email}
                 </p>
 
-                <div className="flex items-center gap-3 mt-3">
+                <div className="flex items-center gap-2.5 mt-3 flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                    className="text-xs h-8 gap-1.5 border-rose-200 text-rose-800 hover:bg-rose-50"
+                    disabled={uploadingAvatar || deletingAvatar}
+                    className="text-xs h-8 gap-1.5 border-amber-300 bg-amber-50/50 text-amber-900 hover:bg-amber-100 font-bold rounded-xl"
                   >
-                    <Camera className="w-4 h-4" />
-                    {uploadingAvatar ? "Uploading..." : "Upload Profile Photo"}
+                    {uploadingAvatar ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Camera className="w-3.5 h-3.5" />
+                    )}
+                    {uploadingAvatar ? "Uploading..." : profile?.pendingAvatarUrl || profile?.avatarUrl ? "Change Photo" : "Upload Photo"}
                   </Button>
+
+                  {(profile?.pendingAvatarUrl || profile?.avatarUrl) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDeleteAvatar}
+                      disabled={uploadingAvatar || deletingAvatar}
+                      className="text-xs h-8 gap-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold rounded-xl"
+                    >
+                      {deletingAvatar ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                      {profile?.pendingAvatarUrl ? "Cancel Submission" : "Remove"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

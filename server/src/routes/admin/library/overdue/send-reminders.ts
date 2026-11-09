@@ -3,7 +3,12 @@ import prisma from "../../../../lib/prisma";
 import { requireRole } from "../../../../middleware";
 import { sendEmail } from "../../../../lib/email";
 import { sendSms } from "../../../../lib/sms";
-import { overdueReminderEmail, overdueReminderSms } from "../../../../lib/email-templates";
+import { overdueReminderEmail, overdueReminderSms, maktabatReturnReminderPlainText } from "../../../../lib/email-templates";
+import {
+  formatLibraryReminderWhatsAppMessage,
+  dispatchWhatsAppNotification,
+  generateWhatsAppLink,
+} from "../../../../lib/whatsapp";
 
 const router = Router();
 
@@ -12,6 +17,7 @@ interface OverdueGroup {
   studentId: string;
   studentName: string;
   studentUserId: string;
+  className?: string | null;
   parentName: string;
   parentEmail: string | null;
   parentPhone: string | null;
@@ -22,6 +28,7 @@ interface OverdueGroup {
     borrowedAt: Date;
     dueAt: Date;
     daysOverdue: number;
+    dueDiffLabel?: string;
   }[];
   maxDaysOverdue: number;
 }
@@ -91,6 +98,11 @@ async function fetchStudentProfiles(studentIds: string[]) {
     where: { userId: { in: studentIds } },
     include: {
       user: { select: { firstName: true, lastName: true, email: true } },
+      classEnrollments: {
+        where: { isActive: true },
+        include: { class: { select: { name: true, grade: true, section: true } } },
+        take: 1,
+      },
       parentLinks: {
         include: {
           parent: {
@@ -111,11 +123,10 @@ async function fetchStudentProfiles(studentIds: string[]) {
 }
 
 // POST /api/admin/library/overdue/send-reminders - Send overdue reminders
-router.post("/", requireRole("ADMIN"), async (req, res) => {
+router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    
     const body = req.body as Record<string, any>;
-    const { studentIds, channels = ["email"] } = body;
+    const { studentIds, channels = ["email", "whatsapp"] } = body;
 
     // Fetch all overdue active loans
     const overdueLoans = await prisma.bookLoan.findMany({
@@ -147,9 +158,10 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     const studentGroups = new Map<string, OverdueGroup>();
 
     for (const loan of overdueLoans) {
-      const daysOverdue = Math.floor(
-        (new Date().getTime() - new Date(loan.dueAt).getTime()) / (1000 * 60 * 60 * 24)
-      );
+      const nowMs = new Date().getTime();
+      const dueMs = new Date(loan.dueAt).getTime();
+      const daysOverdue = Math.max(1, Math.floor((nowMs - dueMs) / (1000 * 60 * 60 * 24)));
+      const dueDiffLabel = `Overdue by ${daysOverdue} days`;
 
       if (!studentGroups.has(loan.studentId)) {
         const studentProfile = studentProfileMap.get(loan.studentId);
@@ -157,11 +169,14 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 
         const parentLink = studentProfile.parentLinks[0];
         const parent = parentLink?.parent;
+        const enrolledClass = studentProfile.classEnrollments?.[0]?.class;
+        const className = enrolledClass ? (enrolledClass.name || `Class ${enrolledClass.grade} ${enrolledClass.section}`).trim() : null;
 
         studentGroups.set(loan.studentId, {
           studentId: loan.studentId,
           studentName: `${studentProfile.user.firstName} ${studentProfile.user.lastName}`,
           studentUserId: loan.studentId,
+          className,
           parentName: parent
             ? `${parent.user.firstName} ${parent.user.lastName}`
             : `${studentProfile.user.firstName} ${studentProfile.user.lastName}`,
@@ -180,6 +195,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
         borrowedAt: loan.borrowedAt,
         dueAt: loan.dueAt,
         daysOverdue,
+        dueDiffLabel,
       });
       if (daysOverdue > group.maxDaysOverdue) group.maxDaysOverdue = daysOverdue;
     }
@@ -187,36 +203,61 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     // Send reminders
     let sentCount = 0;
     let failedCount = 0;
-    const results: { studentName: string; emailSent: boolean; smsSent: boolean; error?: string }[] = [];
+    const results: { studentName: string; emailSent: boolean; whatsappSent: boolean; smsSent: boolean; whatsAppUrl?: string | null; error?: string }[] = [];
 
     const promises = Array.from(studentGroups).map(async ([, group]) => {
       const shouldSendEmail = channels.includes("email") && !!group.parentEmail;
+      const shouldSendWhatsApp = channels.includes("whatsapp") && !!group.parentPhone;
       const shouldSendSms = channels.includes("sms") && !!group.parentPhone;
+
+      const firstBook = group.books[0];
+      const dueFormatted = firstBook.dueAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); // "10-Nov-2026"
 
       const dataForTemplate = {
         studentName: group.studentName,
+        className: group.className,
         parentName: group.parentName,
-        books: group.books.map((b: OverdueGroup['books'][0]) => ({
+        books: group.books.map((b) => ({
           title: b.title,
           barcode: b.barcode,
-          borrowedAt: b.borrowedAt.toLocaleDateString(),
-          dueAt: b.dueAt.toLocaleDateString(),
+          borrowedAt: b.borrowedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+          dueAt: b.dueAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+          dueDiffLabel: b.dueDiffLabel,
           daysOverdue: b.daysOverdue,
+          isOverdue: true,
         })),
         totalDaysOverdue: group.maxDaysOverdue,
       };
 
+      const waMessage = formatLibraryReminderWhatsAppMessage({
+        borrowerName: group.studentName,
+        className: group.className,
+        bookTitle: firstBook.title,
+        barcode: firstBook.barcode,
+        dueDate: dueFormatted,
+        dueDiffLabel: firstBook.dueDiffLabel,
+        isOverdue: true,
+        daysOverdue: group.maxDaysOverdue,
+      });
+
       let emailSent = false;
+      let whatsappSent = false;
       let smsSent = false;
       let lastError: string | undefined;
+      let whatsAppUrl: string | null = null;
+
+      if (group.parentPhone) {
+        whatsAppUrl = generateWhatsAppLink(group.parentPhone, waMessage);
+      }
 
       // Send Email
       if (shouldSendEmail) {
         const html = overdueReminderEmail(dataForTemplate);
         const success = await sendEmail({
           to: group.parentEmail!,
-          subject: `📚 Overdue Book Notice - ${group.studentName} (${group.books.length} book${group.books.length !== 1 ? "s" : ""})`,
+          subject: `📚 Maktabat Darse Burhani • Book Return Reminder - ${group.studentName}`,
           html,
+          text: maktabatReturnReminderPlainText(dataForTemplate),
         });
         if (success) {
           emailSent = true;
@@ -227,8 +268,26 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
         }
       }
 
+      // Send WhatsApp
+      if (shouldSendWhatsApp && group.parentPhone) {
+        try {
+          const waRes = await dispatchWhatsAppNotification({
+            phone: group.parentPhone,
+            message: waMessage,
+          });
+          if (waRes.success) {
+            whatsappSent = true;
+            sentCount++;
+          } else {
+            lastError = waRes.error || "WhatsApp send failed";
+          }
+        } catch (e: any) {
+          lastError = e?.message || "WhatsApp dispatch error";
+        }
+      }
+
       // Send SMS
-      if (shouldSendSms) {
+      if (shouldSendSms && !whatsappSent) {
         const smsText = overdueReminderSms(dataForTemplate);
         const success = await sendSms({
           to: group.parentPhone!,
@@ -239,18 +298,18 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
           sentCount++;
         } else {
           lastError = lastError || "SMS send failed";
-          if (!shouldSendEmail) failedCount++;
+          if (!shouldSendEmail && !whatsappSent) failedCount++;
         }
       }
 
       // Create in-app notification for the student
-      if (emailSent || smsSent) {
+      if (emailSent || whatsappSent || smsSent) {
         try {
           await prisma.notification.create({
             data: {
               userId: group.studentUserId,
               title: "Overdue Book Reminder",
-              body: `You have ${group.books.length} overdue book(s). Please return them to the library as soon as possible.`,
+              body: `You have ${group.books.length} overdue book(s). Please return them to the Maktabat before due date.`,
               type: "LIBRARY_OVERDUE",
               link: "/admin/library",
             },
@@ -260,14 +319,14 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
         }
       }
 
-      results.push({ studentName: group.studentName, emailSent, smsSent, error: lastError });
+      results.push({ studentName: group.studentName, emailSent, whatsappSent, smsSent, whatsAppUrl, error: lastError });
     });
 
     await Promise.all(promises);
 
     return res.json({
       success: true,
-      message: `Reminders sent: ${sentCount} succeeded, ${failedCount} failed`,
+      message: `Reminders sent: ${sentCount} notifications dispatched, ${failedCount} failed`,
       sent: sentCount,
       failed: failedCount,
       totalStudents: studentGroups.size,

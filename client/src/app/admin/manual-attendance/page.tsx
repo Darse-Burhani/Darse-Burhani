@@ -222,19 +222,16 @@ export default function AdminManualAttendancePage() {
       });
       const data = await res.json();
       if (data.success && data.data) {
-        // Strictly allow only manual schedule events; never show HIKVISION hardware events
-        const manualWindows = ((data.data.scheduledWindows || []) as ScheduledWindow[]).filter(
-          (w) =>
-            (w.windowType === "MANUAL" || (!w.windowType && w.id.startsWith("manual_"))) &&
-            !w.id.startsWith("hik_") &&
-            w.id !== "default"
+        // Load all active institutional timetable schedule windows (Tilawat al Dua, Fajr, Zohar/Asar, Maghrib/Isha)
+        const wins = ((data.data.scheduledWindows || []) as ScheduledWindow[]).filter(
+          (w) => w.enabled !== false && !w.id.startsWith("hik_test")
         );
-        setScheduledWindows(manualWindows);
+        setScheduledWindows(wins);
         setClasses(data.data.classes || []);
         setGrades(data.data.grades || []);
         setSections(data.data.sections || []);
-        if (manualWindows.length > 0 && !selectedScheduleId) {
-          setSelectedScheduleId("");
+        if (wins.length > 0 && !selectedScheduleId) {
+          setSelectedScheduleId(wins[0].id);
         }
       }
     } catch (err) {
@@ -556,7 +553,7 @@ export default function AdminManualAttendancePage() {
         hubDescription="Dedicated separate workspaces for Automated Hardware Scanning and Manual Roll-Call Registers."
         tabs={[
           { label: "Hikvision Scans", href: "/admin/attendance-hik", icon: Fingerprint, badge: "Hardware" },
-          { label: "Manual Logs", href: "/admin/attendance-manual", icon: ClipboardCheck, badge: "Register" },
+          { label: "Manual Logs", href: "/admin/manual-attendance", icon: ClipboardCheck, badge: "Register" },
           { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
           { label: "Device Hub", href: "/admin/biometric", icon: Activity },
           { label: "Google Sheets", href: "/admin/google-sheets", icon: FileSpreadsheet, badge: "Sync" },
@@ -564,10 +561,10 @@ export default function AdminManualAttendancePage() {
         ]}
       />
 
-      {/* ── Dynamic Hero Cockpit (Fatimi Luxury Emerald Theme) ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#064e3b] via-[#043327] to-[#022c22] p-6 sm:p-8 shadow-[0_16px_40px_rgba(2,44,34,0.35)] text-white">
+      {/* ── Dynamic Hero Cockpit (Fatimi Luxury Gold & Midnight Charcoal Theme) ── */}
+      <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#12161f] via-[#1a202c] to-[#12161f] p-6 sm:p-8 shadow-[0_16px_40px_rgba(20,24,33,0.35)] text-white">
         <div className="pointer-events-none absolute -right-16 -bottom-16 w-96 h-96 rounded-full bg-[#d4af37]/15 blur-3xl" />
-        <div className="pointer-events-none absolute -left-12 -top-12 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-12 -top-12 w-80 h-80 rounded-full bg-[#f3b833]/10 blur-3xl" />
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
           style={{
@@ -584,14 +581,14 @@ export default function AdminManualAttendancePage() {
             </div>
 
             <div className="flex items-center gap-3.5">
-              <span className="inline-flex w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 items-center justify-center shadow-inner">
-                <ClipboardCheck className="w-7 h-7 text-emerald-300 stroke-[2.2]" />
+              <span className="inline-flex w-14 h-14 rounded-2xl bg-[#d4af37]/20 border border-[#d4af37]/50 items-center justify-center shadow-inner">
+                <ClipboardCheck className="w-7 h-7 text-[#f3b833] stroke-[2.2]" />
               </span>
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-display">
                   Manual Classroom Attendance — {targetType === "TEACHER" ? "Faculty Staff" : "Talabat"}
                 </h1>
-                <p className="text-xs sm:text-sm text-emerald-100/90 font-medium mt-1">
+                <p className="text-xs sm:text-sm text-[#e7dec8] font-medium mt-1">
                   High-speed roll call and attendance overrides for {targetType === "TEACHER" ? "Faculty teachers and staff members" : "Talabat students"} with instant one-touch marking (Present, Late, Absent, Leave) and cloud sync.
                 </p>
               </div>
@@ -599,18 +596,18 @@ export default function AdminManualAttendancePage() {
 
             {/* Context Telemetry Badges */}
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md">
-                <CalendarDays className="w-3.5 h-3.5 text-emerald-300" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-[#f3b833] border border-white/15 backdrop-blur-md">
+                <CalendarDays className="w-3.5 h-3.5 text-[#f3b833]" />
                 Date: <strong>{date}</strong>
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-200 border border-white/15 backdrop-blur-md">
-                <CheckSquare className="w-3.5 h-3.5 text-emerald-300" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-300 border border-white/15 backdrop-blur-md">
+                <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
                 Marked: <strong>{stats.marked} / {stats.total}</strong> ({stats.completionRate}%)
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-400/20 text-emerald-200 border border-emerald-400/40 backdrop-blur-md">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#d4af37]/20 text-[#fff4be] border border-[#d4af37]/40 backdrop-blur-md">
+                <span className="w-2 h-2 rounded-full bg-[#fde047] animate-pulse" />
                 Window Active for Marking
               </span>
 
@@ -645,7 +642,7 @@ export default function AdminManualAttendancePage() {
                 title="Bento Card Grid"
                 className={cn(
                   "p-1.5 rounded-lg text-xs font-bold transition-all",
-                  viewLayout === "grid" ? "bg-[#d4af37] text-slate-950 shadow-sm" : "text-emerald-100 hover:text-white"
+                  viewLayout === "grid" ? "bg-[#d4af37] text-slate-950 shadow-sm" : "text-[#e7dec8] hover:text-white"
                 )}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -656,7 +653,7 @@ export default function AdminManualAttendancePage() {
                 title="Rapid Roll-Call Table"
                 className={cn(
                   "p-1.5 rounded-lg text-xs font-bold transition-all",
-                  viewLayout === "table" ? "bg-[#d4af37] text-slate-950 shadow-sm" : "text-emerald-100 hover:text-white"
+                  viewLayout === "table" ? "bg-[#d4af37] text-slate-950 shadow-sm" : "text-[#e7dec8] hover:text-white"
                 )}
               >
                 <TableIcon className="w-4 h-4" />
@@ -808,10 +805,129 @@ export default function AdminManualAttendancePage() {
         )}
       </div>
 
-      {/* ── Filter Matrix Control Strip ── */}
+      {/* ── Interactive Timetable Schedule Sessions Bar (Universal for All Talabat) ── */}
+      <div className="rounded-3xl border border-[#d4af37]/40 bg-gradient-to-r from-[#141922] via-[#1c2331] to-[#141922] p-4 sm:p-5 text-white shadow-lg space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-[#f3b833]">
+              <Clock className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-[#f3b833]">Timetable Schedule Sessions</p>
+              <h3 className="text-sm sm:text-base font-black text-white">
+                {activeWindow?.name || "All Sessions"} · Universal Timetable Roll-Call
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono font-bold text-[#f3b833] bg-white/10 px-2.5 py-1 rounded-lg border border-[#d4af37]/30">
+              Session Timing: {activeWindow ? `${activeWindow.startTime} - ${activeWindow.lateEndTime || activeWindow.endTime} IST` : "All Day"}
+            </span>
+          </div>
+        </div>
+
+        {/* 1-Click Schedule Window Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+          {scheduledWindows.map((win) => {
+            const isSelected = selectedScheduleId === win.id;
+            return (
+              <button
+                key={win.id}
+                type="button"
+                onClick={() => setSelectedScheduleId(win.id)}
+                className={cn(
+                  "p-3 rounded-2xl text-left border transition-all duration-150 relative overflow-hidden flex flex-col justify-between gap-1",
+                  isSelected
+                    ? "bg-gradient-to-br from-[#d4af37] to-[#b8860b] text-slate-950 border-[#fde047] shadow-md ring-2 ring-amber-300"
+                    : "bg-white/5 border-white/10 text-emerald-100 hover:bg-white/10"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black truncate">{win.name}</span>
+                  {isSelected && (
+                    <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping" />
+                  )}
+                </div>
+                <span className={cn("text-[10px] font-mono font-bold", isSelected ? "text-slate-900" : "text-emerald-300/80")}>
+                  {win.startTime} - {win.endTime} IST
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Division Quick-Pills (Switch between All School and Specific Classes in 1 Click) ── */}
+      <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+            <GraduationCap className="w-4 h-4 text-emerald-600" />
+            Class / Division Selection:
+          </span>
+          <span className="text-xs text-gray-400 font-medium">
+            1-Click instant switch
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* All School */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedClassId("ALL");
+              setSelectedGrade("ALL");
+              setSelectedSection("ALL");
+            }}
+            className={cn(
+              "px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border shadow-2xs",
+              selectedClassId === "ALL" && selectedGrade === "ALL"
+                ? "bg-emerald-700 text-white border-emerald-700 ring-2 ring-emerald-400/40 shadow-xs"
+                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:text-emerald-800"
+            )}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            All Talabat (Full Strength)
+          </button>
+
+          {/* Individual Divisions */}
+          {classes.map((cls) => {
+            const isSelected = selectedClassId === cls.id;
+            return (
+              <button
+                key={cls.id}
+                type="button"
+                onClick={() => {
+                  setSelectedClassId(cls.id);
+                  setSelectedGrade(cls.grade);
+                  setSelectedSection(cls.section);
+                }}
+                className={cn(
+                  "px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border",
+                  isSelected
+                    ? "bg-slate-900 text-white border-slate-900 ring-2 ring-slate-400 shadow-xs font-black"
+                    : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                )}
+              >
+                <span>Grade {cls.grade}-{cls.section}</span>
+                {cls.studentCount !== undefined && (
+                  <span className={cn(
+                    "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                    isSelected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"
+                  )}>
+                    {cls.studentCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Filter Matrix Control Strip (Date & Quick Search) ── */}
       <Card className="rounded-3xl border-gray-200/90 shadow-xs bg-white overflow-hidden">
-        <CardContent className="p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Date Selector */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
@@ -828,62 +944,16 @@ export default function AdminManualAttendancePage() {
               </div>
             </div>
 
-            {/* Schedule Window Selector with Timing Sync Display */}
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Schedule Window Timing
-              </label>
-              <div className="relative">
-                <Clock className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <select
-                  value={selectedScheduleId}
-                  onChange={(e) => setSelectedScheduleId(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none shadow-2xs"
-                >
-                  <option value="">
-                    {scheduledWindows.length > 0 ? "All Schedule Windows (Full Strength)" : "Default Window (07:00 - 12:30 IST)"}
-                  </option>
-                  {scheduledWindows.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.startTime} - {w.lateEndTime || w.endTime} IST)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Class Selector (Students) */}
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Class / Section
-              </label>
-              <div className="relative">
-                <BookOpen className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <select
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                >
-                  <option value="ALL">All Classes &amp; Sections</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} (Grade {c.grade}-{c.section})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             {/* Instant Search Input */}
             <div>
               <label className="block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5">
-                Quick Search
+                Instant Talabat Search (Name or ITS)
               </label>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search student name, ITS, grade..."
+                  placeholder="Type student name or ITS to instantly find them..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-10 pl-9 pr-8 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-medium text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"

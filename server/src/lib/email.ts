@@ -39,7 +39,7 @@ function cleanSecret(val?: string | null): string {
   return s.replace(/\s+/g, "");
 }
 
-function cleanEmail(val?: string | null): string {
+export function cleanEmail(val?: string | null): string {
   if (!val) return "";
   let s = String(val).trim();
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
@@ -78,6 +78,38 @@ export function isDeliverableEmail(email?: string | null): boolean {
     return false;
   }
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+/**
+ * Checks whether an address belongs to a public consumer webmail service (Gmail, Yahoo, etc.).
+ * Used to enforce student privacy and prevent leakage outside the internal Mailflare network.
+ */
+export function isPublicConsumerEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const s = email.trim().toLowerCase();
+  const domain = s.split("@")[1] || "";
+  const publicProviders = [
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "yahoo.co.in",
+    "ymail.com",
+    "hotmail.com",
+    "outlook.com",
+    "live.com",
+    "msn.com",
+    "icloud.com",
+    "me.com",
+    "mac.com",
+    "aol.com",
+    "zoho.com",
+    "proton.me",
+    "protonmail.com",
+    "rediffmail.com",
+    "gmx.com",
+    "mail.com",
+  ];
+  return publicProviders.includes(domain);
 }
 
 export const LEAVE_FROM =
@@ -201,7 +233,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     return false;
   }
 
-  const primary = getPrimaryTransporter();
+  // Enforce Talabat closed network guardrail: prevent student mail from leaking to external public services
+  if (options.from && options.from.includes("@darseburhani.galiakot") && isPublicConsumerEmail(options.to)) {
+    console.warn(`[email] Blocked student mail to external provider (${options.to}) under Mailflare closed network policy.`);
+    return false;
+  }
+
+  const primary = getPrimaryTransporter() || getLeaveTransporter();
   const fallback = getFallbackTransporter();
 
   if (!primary && !fallback) {
@@ -209,8 +247,14 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     return false;
   }
 
-  const fromEmail = cleanEmail(process.env.SMTP_USER) || "support.darseburhani.galiakot@gmail.com";
-  const from = options.from || process.env.SMTP_FROM || `Darse Burhani <${fromEmail}>`;
+  const primaryUser = cleanEmail(process.env.SMTP_USER);
+  const primaryPass = cleanSecret(process.env.SMTP_PASS);
+  const hasDedicatedPrimary = Boolean(primaryUser && primaryPass && !isPlaceholderSecret(primaryPass));
+
+  const fromEmail = hasDedicatedPrimary
+    ? primaryUser
+    : cleanEmail(process.env.LEAVE_SMTP_USER || process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org";
+  const from = options.from || process.env.SMTP_FROM || process.env.LEAVE_SMTP_FROM || `Darse Burhani <${fromEmail}>`;
   const mailOptions = buildMailOptions(options, from, fromEmail);
 
   if (primary) {

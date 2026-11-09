@@ -128,18 +128,26 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
       }
     }
 
+    // Include assigned teacher details so teacher and subject mappings are always visible
     const cacheKey = `teacher-takhteet-${targetTeacherId || "admin"}-${viewAll || isShowingAll ? "all" : "targeted"}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
         const plans = await prisma.takhteetPlan.findMany({
           where: whereClause,
-          take: 1500,
+          take: 3000,
           include: {
             class: { select: { id: true, name: true, grade: true, section: true, subject: true } },
+            teacher: {
+              select: {
+                id: true,
+                employeeId: true,
+                user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+              },
+            },
             progressLogs: {
               orderBy: { createdAt: "desc" },
-              take: 3,
+              take: 5,
               select: {
                 id: true,
                 note: true,
@@ -157,6 +165,9 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           id: p.id,
           classId: p.classId,
           className: `${p.class.name} (${p.class.grade}${p.class.section})`,
+          rawClassName: p.class.name,
+          grade: p.class.grade,
+          section: p.class.section,
           subject: p.subject,
           title: p.title,
           description: p.description,
@@ -167,6 +178,9 @@ router.get("/", requireRole("TEACHER"), async (req, res) => {
           completedAt: p.completedAt,
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
+          teacherId: p.teacherId,
+          teacherName: p.teacher?.user ? `${p.teacher.user.firstName} ${p.teacher.user.lastName}` : null,
+          teacherAvatar: p.teacher?.user?.avatarUrl || null,
           logs: p.progressLogs,
         }));
       },

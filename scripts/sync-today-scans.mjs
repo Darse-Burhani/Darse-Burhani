@@ -279,6 +279,7 @@ function canonicalizeEmployeeNo(rawId, name) {
   if (id === '40444603' || nameStr === '40444603') return '40444603';
   if (id === '30489490' || nameStr === '30489490') return '30489490';
   if (id === '30150861' || nameStr === '30150861') return '30150861';
+  if (id === '3038798' || nameStr === '3038798' || /jamali/i.test(combined)) return '30387984';
 
   if (/manpur/i.test(combined) || /mustafa\s*tailor/i.test(combined)) return '40444603';
   if (/shk\s*abbas.*hamid|shaikh\s*abbas.*hamid|m.*murtaza.*sh.*abbas/i.test(combined)) return '30489490';
@@ -318,6 +319,10 @@ async function processScan(empNo, scanDate, host, verifyMode) {
     // date misfiles 00:00–05:29 IST scans into the previous day.
     const todayUTC = getIstCalendarDayUTC(scanDate);
 
+    // Calculate on-time vs late (student threshold 07:50 AM IST)
+    const stuMinutes = (scanDate.getUTCHours() * 60 + scanDate.getUTCMinutes() + 330) % 1440;
+    const stuStatus = stuMinutes <= (7 * 60 + 50) ? "PRESENT" : "LATE";
+
     // Find class enrollment
     const activeEnrollment = student.classEnrollments.find(e => e.isActive) || student.classEnrollments[0];
     let classId = activeEnrollment?.classId;
@@ -327,8 +332,13 @@ async function processScan(empNo, scanDate, host, verifyMode) {
     }
 
     if (classId) {
-      // First scan of the day wins check-in (server DUPLICATE-guard parity);
-      // later scans only advance check-out. Re-polls are idempotent.
+      const existingRec = await prisma.attendanceRecord.findUnique({
+        where: { studentId_classId_date: { studentId: student.id, classId, date: todayUTC } }
+      });
+      const firstCheckIn = existingRec?.checkInTime && existingRec.checkInTime < scanDate ? existingRec.checkInTime : scanDate;
+      const lastCheckOut = existingRec?.checkOutTime && existingRec.checkOutTime > scanDate ? existingRec.checkOutTime : scanDate;
+      const finalStatus = existingRec && existingRec.status === "PRESENT" ? "PRESENT" : stuStatus;
+
       const rec = await prisma.attendanceRecord.upsert({
         where: {
           studentId_classId_date: {
@@ -341,35 +351,50 @@ async function processScan(empNo, scanDate, host, verifyMode) {
           studentId: student.id,
           classId,
           date: todayUTC,
-          status: "PRESENT",
-          checkInTime: scanDate,
-          checkOutTime: scanDate,
+          status: finalStatus,
+          checkInTime: firstCheckIn,
+          checkOutTime: lastCheckOut,
           verificationMethod: "BIOMETRIC",
           biometricMethod: "FACIAL",
           biometricHash: empNo,
           recordedById: student.userId,
         },
         update: {
-          checkOutTime: scanDate,
+          status: finalStatus,
+          checkInTime: firstCheckIn,
+          checkOutTime: lastCheckOut,
+          verificationMethod: "BIOMETRIC",
+          biometricMethod: "FACIAL",
+          biometricHash: empNo,
         }
       });
-      console.log(`     ✅ Attendance record saved: ID=${rec.id}, Status=PRESENT`);
+      console.log(`     ✅ Attendance record saved: ID=${rec.id}, Status=${finalStatus}`);
     }
 
     // Registry
+    const existingReg = await prisma.attendanceRegistry.findUnique({
+      where: { studentId_date: { studentId: student.id, date: todayUTC } }
+    });
+    const regCheckIn = existingReg?.checkInTime && existingReg.checkInTime < scanDate ? existingReg.checkInTime : scanDate;
+    const regCheckOut = existingReg?.checkOutTime && existingReg.checkOutTime > scanDate ? existingReg.checkOutTime : scanDate;
+    const finalRegStatus = existingReg && existingReg.status === "PRESENT" ? "PRESENT" : stuStatus;
+
     await prisma.attendanceRegistry.upsert({
       where: { studentId_date: { studentId: student.id, date: todayUTC } },
       create: {
         studentId: student.id,
         date: todayUTC,
-        status: "PRESENT",
+        status: finalRegStatus,
         source: "BIOMETRIC",
-        checkInTime: scanDate,
-        checkOutTime: scanDate,
+        checkInTime: regCheckIn,
+        checkOutTime: regCheckOut,
         recordedById: student.userId,
       },
       update: {
-        checkOutTime: scanDate,
+        status: finalRegStatus,
+        source: "BIOMETRIC",
+        checkInTime: regCheckIn,
+        checkOutTime: regCheckOut,
       }
     });
 
@@ -392,20 +417,40 @@ async function processScan(empNo, scanDate, host, verifyMode) {
     const name = `${teacher.user.firstName} ${teacher.user.lastName}`.trim();
     console.log(`  👨‍🏫 MATCHED FACULTY: ${name} (EmployeeId: ${empNo}) at ${timeStr}`);
     const todayUTC = getIstCalendarDayUTC(scanDate);
+    const existingTeacherRecord = await prisma.teacherAttendanceRecord.findUnique({
+      where: { teacherId_date: { teacherId: teacher.id, date: todayUTC } },
+    });
+
+    const firstCheckIn = existingTeacherRecord?.checkInTime && existingTeacherRecord.checkInTime < scanDate ? existingTeacherRecord.checkInTime : scanDate;
+    const lastCheckOut = existingTeacherRecord?.checkOutTime && existingTeacherRecord.checkOutTime > scanDate ? existingTeacherRecord.checkOutTime : scanDate;
+    const d = new Date(firstCheckIn);
+    const totalMinutes = (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
+    const teacherStatus = totalMinutes <= (8 * 60 + 3) ? "PRESENT" : "LATE";
+    const finalStatus = existingTeacherRecord && existingTeacherRecord.status === "PRESENT" ? "PRESENT" : teacherStatus;
+    const timeFormatted = firstCheckIn.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
+    const hasMultipleScans = lastCheckOut.getTime() - firstCheckIn.getTime() > 60000;
+
     await prisma.teacherAttendanceRecord.upsert({
       where: { teacherId_date: { teacherId: teacher.id, date: todayUTC } },
       create: {
         teacherId: teacher.id,
         date: todayUTC,
-        status: "PRESENT",
-        checkInTime: scanDate,
-        checkOutTime: scanDate,
+        status: finalStatus,
+        checkInTime: firstCheckIn,
+        checkOutTime: hasMultipleScans ? lastCheckOut : null,
         verificationMethod: "BIOMETRIC",
         biometricMethod: "FACIAL",
         biometricHash: empNo,
+        notes: `Premises check-in scan (${timeFormatted} IST via FACIAL)`,
       },
       update: {
-        checkOutTime: scanDate,
+        status: finalStatus,
+        checkInTime: firstCheckIn,
+        checkOutTime: hasMultipleScans ? lastCheckOut : null,
+        verificationMethod: "BIOMETRIC",
+        biometricMethod: "FACIAL",
+        biometricHash: empNo,
+        notes: `Premises check-in scan (${timeFormatted} IST via FACIAL)`,
       },
     });
 

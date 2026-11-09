@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { PageHeader } from "@/components/student/PageHeader";
+import { formatTalabatEmail } from "@/lib/student-email";
 
 export default function TalabatSettingsPage() {
   const { data: session } = useSession();
@@ -81,15 +82,27 @@ export default function TalabatSettingsPage() {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{user?.firstName} {user?.lastName}</h2>
-                <p className="text-sm text-gray-500">{user?.email}</p>
-                <Badge variant="outline" className="mt-1 text-xs bg-emerald-50 text-[#b8541e] border-emerald-200">Talabat</Badge>
+                <p className="text-sm font-mono text-emerald-800 font-bold">{formatTalabatEmail(user?.firstName, user?.lastName, user?.email)}</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Badge variant="outline" className="text-xs bg-emerald-50 text-[#b8541e] border-emerald-200">Talabat</Badge>
+                  <span className="text-[10px] text-slate-400 font-medium">Mailflare (No Middle Name)</span>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><label htmlFor="firstName" className="text-sm font-medium text-gray-700">First Name</label><input id="firstName" name="firstName" className="fatimi-input mt-1" value={user?.firstName || ""} readOnly /></div>
-              <div><label htmlFor="lastName" className="text-sm font-medium text-gray-700">Last Name</label><input id="lastName" name="lastName" className="fatimi-input mt-1" value={user?.lastName || ""} readOnly /></div>
+              <div><label htmlFor="lastName" className="text-sm font-medium text-gray-700">Last Name (Surname)</label><input id="lastName" name="lastName" className="fatimi-input mt-1" value={user?.lastName || ""} readOnly /></div>
             </div>
-            <div className="mt-4"><label htmlFor="email" className="text-sm font-medium text-gray-700">Email</label><input id="email" name="email" className="fatimi-input mt-1" value={user?.email || ""} readOnly /></div>
+            <div className="mt-4">
+              <label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center justify-between">
+                <span>Institutional Mailflare Email</span>
+                <span className="text-[10px] text-emerald-700 font-bold">Closed Network</span>
+              </label>
+              <input id="email" name="email" className="fatimi-input mt-1 font-mono text-emerald-900 font-bold" value={formatTalabatEmail(user?.firstName, user?.lastName, user?.email)} readOnly />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Official institutional email for campus notifications and internal support. External services (Gmail, Yahoo) are blocked.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

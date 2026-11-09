@@ -5,7 +5,7 @@ import { getVapidPublicKey, isPushConfigured } from "../lib/push";
 
 const router = Router();
 
-router.get("/", async (req, res) => {
+router.get("/", requireAuth, async (req, res) => {
   try {
     const session = req.auth;
     if (!session?.user?.id) {

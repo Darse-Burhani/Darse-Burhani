@@ -400,24 +400,24 @@ export default function TeacherTakhteetPage() {
                   <ClipboardList className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold uppercase tracking-wider mb-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950/80 text-amber-300 border border-amber-400/40 text-xs font-bold uppercase tracking-wider mb-1">
                     <Sparkles className="w-3 h-3" />
                     Faculty Syllabus Telemetry
                   </div>
                   <h1 className="font-display text-2xl sm:text-3xl font-bold text-white tracking-tight">
                     My Takhteet & Tafseel
                   </h1>
-                  <p className="text-emerald-100/90 text-sm mt-0.5">
+                  <p className="text-emerald-100 text-sm mt-0.5 font-medium">
                     Portions assigned to your subjects — update student coverage, log notes, and track milestones.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 self-start md:self-auto">
-                <Badge className="bg-white/15 text-white border-white/20 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm">
+                <Badge className="bg-slate-950/80 text-white border border-slate-700 px-3 py-1.5 text-xs font-bold">
                   {stats.total} Assigned Portions
                 </Badge>
-                <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm">
+                <Badge className="bg-emerald-900/90 text-emerald-100 border border-emerald-500/50 px-3 py-1.5 text-xs font-bold">
                   {stats.avg}% Average Progress
                 </Badge>
               </div>
@@ -460,11 +460,11 @@ export default function TeacherTakhteetPage() {
         {loading ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="fatimi-card animate-pulse">
+              <Card key={i} className="fatimi-card animate-pulse bg-white border border-slate-200">
                 <CardContent className="p-4 sm:p-5">
-                  <div className="w-10 h-10 bg-gray-200 rounded-xl mb-3" />
-                  <div className="w-16 h-4 bg-gray-200 rounded mb-2" />
-                  <div className="w-10 h-7 bg-gray-200 rounded" />
+                  <div className="w-10 h-10 bg-slate-200 rounded-xl mb-3" />
+                  <div className="w-16 h-4 bg-slate-200 rounded mb-2" />
+                  <div className="w-10 h-7 bg-slate-200 rounded" />
                 </CardContent>
               </Card>
             ))}
@@ -476,18 +476,18 @@ export default function TeacherTakhteetPage() {
             className="grid grid-cols-2 lg:grid-cols-4 gap-4"
           >
             {[
-              { title: "Total Portions", value: stats.total, color: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 border-indigo-200" },
-              { title: "Due This Month", value: currentPlans.length, color: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 border-amber-200" },
-              { title: "In Progress", value: stats.inProgress, color: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 border-blue-200" },
-              { title: "Completed", value: stats.completed, color: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 border-emerald-200" },
+              { title: "Total Portions", value: stats.total, color: "bg-indigo-100 text-indigo-950 border-indigo-300", iconColor: "text-indigo-700", ring: "hover:border-indigo-400" },
+              { title: "Due This Month", value: currentPlans.length, color: "bg-amber-100 text-amber-950 border-amber-300", iconColor: "text-amber-700", ring: "hover:border-amber-400" },
+              { title: "In Progress", value: stats.inProgress, color: "bg-sky-100 text-sky-950 border-sky-300", iconColor: "text-sky-700", ring: "hover:border-sky-400" },
+              { title: "Completed", value: stats.completed, color: "bg-emerald-100 text-emerald-950 border-emerald-300", iconColor: "text-emerald-700", ring: "hover:border-emerald-400" },
             ].map((stat) => (
-              <Card key={stat.title} className="fatimi-card border hover:shadow-md transition">
+              <Card key={stat.title} className={`bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all ${stat.ring}`}>
                 <CardContent className="p-5">
-                  <div className={`p-2.5 rounded-xl w-fit ${stat.color} mb-3 border`}>
-                    <ClipboardList className="w-4 h-4" />
+                  <div className={`p-2.5 rounded-xl w-fit ${stat.color} mb-3 border shadow-2xs`}>
+                    <ClipboardList className={`w-4 h-4 ${stat.iconColor}`} />
                   </div>
-                  <p className="text-xs text-gray-500 font-medium">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider">{stat.title}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1">{stat.value}</p>
                 </CardContent>
               </Card>
             ))}
@@ -495,39 +495,39 @@ export default function TeacherTakhteetPage() {
         )}
 
         {/* ── Assigned Portions Info Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="flex items-center gap-2 px-1 flex-wrap">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-gray-900 dark:text-white">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+            <span className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
               Assigned Curriculum Portions ({plans.length})
             </span>
             {syllabusMeta.totalCount > 0 && syllabusMeta.totalCount !== plans.length && (
-              <Badge variant="outline" className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 border-emerald-200">
+              <Badge variant="outline" className="text-xs font-bold text-emerald-900 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-200 border-emerald-300">
                 {syllabusMeta.assignedCount} of {syllabusMeta.totalCount} School Portions
               </Badge>
             )}
           </div>
-          <div className="text-xs text-gray-500 font-medium px-1">
+          <div className="text-xs text-slate-700 dark:text-slate-300 font-semibold px-1">
             Displaying only curriculum portions officially assigned to your subjects and classes.
           </div>
         </div>
 
         {/* ── Interactive Class & Subject Quick Filter Chips ── */}
         {!loading && (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {/* Class Chips */}
             {uniqueClasses.length > 1 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 shrink-0 uppercase tracking-wider mr-1 flex items-center gap-1">
-                  <BookOpen className="w-3.5 h-3.5 text-emerald-600" /> Class:
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                <span className="text-xs font-black text-slate-900 dark:text-slate-100 shrink-0 uppercase tracking-wider mr-1 flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Class:
                 </span>
                 <button
                   type="button"
                   onClick={() => setFilterClass("")}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer border ${
                     !filterClass
-                      ? "bg-slate-900 text-amber-300 shadow-sm"
-                      : "bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50"
+                      ? "bg-slate-900 text-amber-300 border-slate-900 shadow-sm"
+                      : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   All Classes ({plans.length})
@@ -537,18 +537,18 @@ export default function TeacherTakhteetPage() {
                     key={c}
                     type="button"
                     onClick={() => setFilterClass(filterClass === c ? "" : c)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer flex items-center gap-2 border ${
                       filterClass === c
-                        ? "bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-400/50"
-                        : "bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 hover:bg-emerald-50/50"
+                        ? "bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-400/50"
+                        : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700 hover:bg-emerald-50 hover:border-emerald-300"
                     }`}
                   >
                     <span>{c}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
                         filterClass === c
                           ? "bg-white/20 text-white"
-                          : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300"
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                       }`}
                     >
                       {classCounts.get(c) || 0}
@@ -560,17 +560,17 @@ export default function TeacherTakhteetPage() {
 
             {/* Subject Chips */}
             {uniqueSubjects.length > 1 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 shrink-0 uppercase tracking-wider mr-1 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Subject:
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                <span className="text-xs font-black text-slate-900 dark:text-slate-100 shrink-0 uppercase tracking-wider mr-1 flex items-center gap-1.5 bg-amber-200 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700 px-2 py-1 rounded-lg">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" /> Subject:
                 </span>
                 <button
                   type="button"
                   onClick={() => setFilterSubject("")}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer border ${
                     !filterSubject
-                      ? "bg-slate-900 text-amber-300 shadow-sm"
-                      : "bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50"
+                      ? "bg-slate-900 text-amber-300 border-slate-900 shadow-sm"
+                      : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   All Subjects ({uniqueSubjects.length})
@@ -580,18 +580,18 @@ export default function TeacherTakhteetPage() {
                     key={s}
                     type="button"
                     onClick={() => setFilterSubject(filterSubject === s ? "" : s)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer flex items-center gap-2 border ${
                       filterSubject === s
-                        ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-300/50"
-                        : "bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 hover:bg-amber-50/50"
+                        ? "bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-300/50"
+                        : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700 hover:bg-amber-50 hover:border-amber-300"
                     }`}
                   >
                     <span>{s}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
                         filterSubject === s
                           ? "bg-white/20 text-white"
-                          : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300"
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                       }`}
                     >
                       {subjectCounts.get(s) || 0}
@@ -604,19 +604,19 @@ export default function TeacherTakhteetPage() {
         )}
 
         {/* ── Search & Filter Controls Bar ── */}
-        <Card className="fatimi-card border border-emerald-100 dark:border-emerald-900/40 shadow-sm p-4 sm:p-5">
+        <Card className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5">
           <div className="space-y-4">
             {/* Row 1: Search & Dropdown Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Search */}
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="text"
                   placeholder="Search portion, chapter, book..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="fatimi-input pl-9 pr-8 text-xs sm:text-sm w-full h-10 rounded-xl"
+                  className="w-full h-10 pl-9 pr-8 text-xs sm:text-sm font-semibold rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                 />
                 {search && (
                   <button
@@ -631,9 +631,10 @@ export default function TeacherTakhteetPage() {
               {/* Subject Dropdown */}
               <div>
                 <select
+                  aria-label="Filter portions by Subject"
                   value={filterSubject}
                   onChange={(e) => setFilterSubject(e.target.value)}
-                  className="fatimi-input text-xs sm:text-sm w-full h-10 rounded-xl"
+                  className="w-full h-10 px-3 text-xs sm:text-sm font-semibold rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                 >
                   <option value="">All Subjects ({uniqueSubjects.length})</option>
                   {uniqueSubjects.map((s) => (
@@ -647,9 +648,10 @@ export default function TeacherTakhteetPage() {
               {/* Class Dropdown */}
               <div>
                 <select
+                  aria-label="Filter portions by Class"
                   value={filterClass}
                   onChange={(e) => setFilterClass(e.target.value)}
-                  className="fatimi-input text-xs sm:text-sm w-full h-10 rounded-xl"
+                  className="w-full h-10 px-3 text-xs sm:text-sm font-semibold rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                 >
                   <option value="">All Classes ({uniqueClasses.length})</option>
                   {uniqueClasses.map((c) => (
@@ -663,9 +665,10 @@ export default function TeacherTakhteetPage() {
               {/* Month Dropdown */}
               <div>
                 <select
+                  aria-label="Filter portions by Target Month"
                   value={filterMonth}
                   onChange={(e) => setFilterMonth(e.target.value)}
-                  className="fatimi-input text-xs sm:text-sm w-full h-10 rounded-xl"
+                  className="w-full h-10 px-3 text-xs sm:text-sm font-semibold rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                 >
                   <option value="">All Target Months</option>
                   {uniqueMonths.map((m) => (
@@ -678,7 +681,7 @@ export default function TeacherTakhteetPage() {
             </div>
 
             {/* Row 2: Status Pills & Reset */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t-2 border-slate-200 dark:border-slate-800">
               <div className="flex flex-wrap items-center gap-2">
                 {[
                   { id: "", label: "All", count: stats.total },
@@ -690,10 +693,10 @@ export default function TeacherTakhteetPage() {
                     key={s.id}
                     variant={filterStatus === s.id ? "default" : "outline"}
                     size="sm"
-                    className={`h-8 text-xs font-semibold rounded-lg px-3 ${
+                    className={`h-8 text-xs font-black rounded-xl px-3 transition-all ${
                       filterStatus === s.id
-                        ? "fatimi-emerald-gradient text-white shadow-sm"
-                        : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50"
+                        ? "bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-400/50"
+                        : "border-2 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100"
                     }`}
                     onClick={() => setFilterStatus(s.id)}
                   >
@@ -703,8 +706,8 @@ export default function TeacherTakhteetPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 font-medium">
-                  Showing <b>{filteredPlans.length}</b> of <b>{plans.length}</b> portions
+                <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">
+                  Showing <b className="text-slate-950 dark:text-white">{filteredPlans.length}</b> of <b className="text-slate-950 dark:text-slate-100 font-black">{plans.length}</b> portions
                 </span>
 
                 {hasActiveFilters && (
@@ -712,7 +715,7 @@ export default function TeacherTakhteetPage() {
                     variant="ghost"
                     size="sm"
                     onClick={resetAllFilters}
-                    className="h-8 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg px-2.5"
+                    className="h-8 text-xs font-bold text-rose-700 hover:text-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl px-2.5"
                   >
                     <RotateCcw className="w-3.5 h-3.5 mr-1" />
                     Reset
@@ -722,17 +725,17 @@ export default function TeacherTakhteetPage() {
             </div>
 
             {/* Row 3: Interactive View Mode Switcher & Multi-Select Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t-2 border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 {/* View Mode Toggle */}
-                <div className="flex items-center bg-gray-100 dark:bg-slate-800 p-0.5 rounded-xl border border-gray-200 dark:border-slate-700">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border-2 border-slate-300 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => setViewMode("CARDS")}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                       viewMode === "CARDS"
-                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                        ? "bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-950 dark:text-slate-300"
                     }`}
                   >
                     <LayoutGrid className="w-3.5 h-3.5 text-emerald-600" />
@@ -741,10 +744,10 @@ export default function TeacherTakhteetPage() {
                   <button
                     type="button"
                     onClick={() => setViewMode("ROADMAP")}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                       viewMode === "ROADMAP"
-                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                        ? "bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-950 dark:text-slate-300"
                     }`}
                   >
                     <Calendar className="w-3.5 h-3.5 text-amber-600" />
@@ -798,6 +801,7 @@ export default function TeacherTakhteetPage() {
           </div>
         ) : filteredPlans.length > 0 ? (
           <div className="space-y-4">
+            <h2 className="sr-only">Curriculum Portions List</h2>
             {/* ── Helper Plan Card Component ── */}
             {(() => {
               const renderPlanCard = (p: any, i: number) => {
@@ -816,12 +820,12 @@ export default function TeacherTakhteetPage() {
                     transition={{ delay: Math.min(0.2, i * 0.02) }}
                   >
                     <Card
-                      className={`fatimi-card border transition-all ${
+                      className={`border-2 transition-all ${
                         isSelected
-                          ? "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-50/20"
+                          ? "border-emerald-600 ring-2 ring-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/20"
                           : overdue
-                          ? "border-red-300 dark:border-red-900/60 bg-red-50/10"
-                          : "border-gray-200 dark:border-slate-800 hover:shadow-md"
+                          ? "border-rose-400 bg-rose-50/30 dark:border-rose-800 dark:bg-rose-950/20"
+                          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md hover:border-slate-300"
                       }`}
                     >
                       <CardContent className="p-4 sm:p-5">
@@ -835,52 +839,60 @@ export default function TeacherTakhteetPage() {
                               {isSelected ? (
                                 <CheckSquare className="w-5 h-5 text-emerald-600" />
                               ) : (
-                                <Square className="w-5 h-5 text-gray-300 hover:text-gray-500" />
+                                <Square className="w-5 h-5 text-slate-400 hover:text-slate-600" />
                               )}
                             </div>
                           )}
 
                           {/* Left: Title, Badges, Class, Description */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                              <h3 className="font-bold text-gray-900 dark:text-white text-base leading-snug">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <h3 className="font-extrabold text-slate-950 dark:text-white text-base sm:text-lg leading-snug">
                                 {p.title}
                               </h3>
-                              <Badge variant="outline" className="text-xs font-semibold bg-emerald-50 text-emerald-800 border-emerald-200">
+                              <Badge variant="outline" className="text-xs font-black bg-emerald-100 text-emerald-950 border-emerald-300">
                                 {p.subject}
                               </Badge>
                               <Badge className={`text-xs border ${statusInfo.badge}`}>
                                 {statusInfo.label}
                               </Badge>
                               {overdue && (
-                                <Badge variant="destructive" className="text-xs flex items-center gap-1 font-semibold">
-                                  <AlertTriangle className="w-3 h-3" /> Overdue
+                                <Badge variant="destructive" className="text-xs flex items-center gap-1 font-black bg-rose-600 text-white shadow-2xs">
+                                  <AlertTriangle className="w-3.5 h-3.5" /> Overdue
                                 </Badge>
                               )}
                               {due && (
-                                <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200 flex items-center gap-1 font-semibold">
-                                  <CalendarDays className="w-3 h-3" /> Due this month
+                                <Badge className="text-xs bg-sky-100 text-sky-950 border-sky-300 flex items-center gap-1 font-black shadow-2xs">
+                                  <CalendarDays className="w-3.5 h-3.5 text-sky-700" /> Due this month
                                 </Badge>
                               )}
                             </div>
 
-                            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-                              {p.className}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-slate-800 dark:text-slate-200">
+                              <span className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 px-2.5 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800">
+                                <BookOpen className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                                {p.className}
+                              </span>
+                              {p.teacherName && (
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                                  <span className="text-slate-400 font-normal">Assigned:</span>
+                                  <span className="text-slate-900 dark:text-slate-100 font-extrabold">{p.teacherName}</span>
+                                </span>
+                              )}
+                            </div>
 
                             {p.description && (
-                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed bg-gray-50/80 dark:bg-slate-800/60 p-2 rounded-lg border border-gray-100 dark:border-slate-800">
+                              <p className="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-200 mt-2 leading-relaxed bg-slate-100/90 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
                                 {p.description}
                               </p>
                             )}
 
-                            <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-500 font-medium">
+                            <div className="flex items-center gap-4 mt-2.5 text-xs text-slate-600 dark:text-slate-400 font-bold">
                               <span className="flex items-center gap-1">
-                                <CalendarDays className="w-3.5 h-3.5 text-gray-400" /> {p.academicYear}
+                                <CalendarDays className="w-3.5 h-3.5 text-slate-500" /> Academic Year: <span className="text-slate-900 dark:text-white font-extrabold">{p.academicYear}</span>
                               </span>
                               <span className="flex items-center gap-1">
-                                <CalendarDays className="w-3.5 h-3.5 text-gray-400" /> {monthName(p.month)}
+                                <CalendarDays className="w-3.5 h-3.5 text-slate-500" /> Month: <span className="text-slate-900 dark:text-white font-extrabold">{monthName(p.month)}</span>
                               </span>
                               {!p.month && <span>Full year</span>}
                             </div>
@@ -889,12 +901,12 @@ export default function TeacherTakhteetPage() {
                           {/* Center: Interactive Scrubber Progress Bar & Quick Steppers */}
                           <div className="lg:w-80 shrink-0 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span className="text-xs text-slate-800 dark:text-slate-200 font-black uppercase tracking-wider flex items-center gap-1">
                                 <span>Coverage Track</span>
-                                <span className="text-[10px] text-gray-400 font-normal hidden sm:inline">(Click to jump)</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-300 font-bold hidden sm:inline">(Click to jump)</span>
                               </span>
                               <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-extrabold text-gray-900 dark:text-white">
+                                <span className="text-base font-black text-slate-950 dark:text-white">
                                   {p.progress}%
                                 </span>
                                 {p.progress >= 100 && (
@@ -905,7 +917,7 @@ export default function TeacherTakhteetPage() {
 
                             {/* Interactive Clickable & Hover Progress Track */}
                             <div
-                              className="relative h-4 rounded-full bg-emerald-100/60 dark:bg-slate-800 overflow-hidden border border-emerald-200/50 cursor-pointer group select-none transition-all hover:ring-2 hover:ring-amber-400/40"
+                              className="relative h-4.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden border-2 border-slate-300 dark:border-slate-700 cursor-pointer group select-none transition-all hover:ring-2 hover:ring-amber-400/50"
                               onClick={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 const clickX = e.clientX - rect.left;
@@ -926,10 +938,10 @@ export default function TeacherTakhteetPage() {
                                 style={{ width: `${p.progress}%` }}
                               />
                               {/* Milestone tick marks at 25%, 50%, 75% */}
-                              <div className="absolute inset-0 flex justify-between pointer-events-none px-2 items-center opacity-30 group-hover:opacity-75 transition-opacity">
-                                <span className="w-0.5 h-1.5 bg-slate-500 rounded" />
-                                <span className="w-0.5 h-1.5 bg-slate-500 rounded" />
-                                <span className="w-0.5 h-1.5 bg-slate-500 rounded" />
+                              <div className="absolute inset-0 flex justify-between pointer-events-none px-2 items-center opacity-40 group-hover:opacity-90 transition-opacity">
+                                <span className="w-0.5 h-2 bg-slate-700 dark:bg-slate-300 rounded" />
+                                <span className="w-0.5 h-2 bg-slate-700 dark:bg-slate-300 rounded" />
+                                <span className="w-0.5 h-2 bg-slate-700 dark:bg-slate-300 rounded" />
                               </div>
                               {/* Live hover cursor and percentage tooltip */}
                               {hoverSlider && hoverSlider.planId === p.id && (
@@ -937,7 +949,7 @@ export default function TeacherTakhteetPage() {
                                   className="absolute top-0 bottom-0 w-0.5 bg-amber-500 pointer-events-none"
                                   style={{ left: `${hoverSlider.percent}%` }}
                                 >
-                                  <span className="absolute -top-6 -translate-x-1/2 bg-slate-900 text-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded shadow pointer-events-none z-10 whitespace-nowrap">
+                                  <span className="absolute -top-6 -translate-x-1/2 bg-slate-950 text-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded shadow pointer-events-none z-10 whitespace-nowrap">
                                     {hoverSlider.percent}%
                                   </span>
                                 </div>
@@ -945,15 +957,16 @@ export default function TeacherTakhteetPage() {
                             </div>
 
                             {/* Tactile Quick Increment & Stepper buttons */}
-                            <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                            <div className="flex items-center flex-wrap gap-1.5 pt-0.5">
                               {p.progress > 0 && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   disabled={isQuickBusy}
                                   onClick={() => handleQuickProgress(p, -5)}
-                                  className="h-6 px-1.5 text-[11px] font-bold border-gray-200 hover:bg-gray-100 text-gray-700 dark:border-slate-700 dark:text-gray-300 rounded-md cursor-pointer"
+                                  className="h-7 px-2 text-xs font-black border-2 border-slate-300 hover:bg-slate-200 text-slate-800 dark:border-slate-700 dark:text-slate-100 rounded-lg cursor-pointer"
                                   title="Reduce -5%"
+                                  aria-label={`Reduce 5% progress from ${p.title}`}
                                 >
                                   -5%
                                 </Button>
@@ -963,8 +976,9 @@ export default function TeacherTakhteetPage() {
                                 size="sm"
                                 disabled={isQuickBusy || p.progress >= 100}
                                 onClick={() => handleQuickProgress(p, 5)}
-                                className="h-6 px-1.5 text-[11px] font-bold border-emerald-200 hover:bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:text-emerald-300 rounded-md cursor-pointer"
+                                className="h-7 px-2 text-xs font-black border-2 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 rounded-lg cursor-pointer"
                                 title="Add +5%"
+                                aria-label={`Add 5% progress to ${p.title}`}
                               >
                                 +5%
                               </Button>
@@ -973,8 +987,9 @@ export default function TeacherTakhteetPage() {
                                 size="sm"
                                 disabled={isQuickBusy || p.progress >= 100}
                                 onClick={() => handleQuickProgress(p, 10)}
-                                className="h-6 px-2 text-[11px] font-bold border-gray-200 hover:bg-emerald-50 text-emerald-800 dark:border-slate-700 dark:text-emerald-400 rounded-md cursor-pointer"
+                                className="h-7 px-2 text-xs font-black border-2 border-slate-300 hover:bg-slate-100 text-slate-900 dark:border-slate-700 dark:text-slate-100 rounded-lg cursor-pointer"
                                 title="Add +10%"
+                                aria-label={`Add 10% progress to ${p.title}`}
                               >
                                 +10%
                               </Button>
@@ -983,8 +998,9 @@ export default function TeacherTakhteetPage() {
                                 size="sm"
                                 disabled={isQuickBusy || p.progress >= 100}
                                 onClick={() => handleQuickProgress(p, 25)}
-                                className="h-6 px-2 text-[11px] font-bold border-gray-200 hover:bg-emerald-50 text-emerald-800 dark:border-slate-700 dark:text-emerald-400 rounded-md cursor-pointer"
+                                className="h-7 px-2 text-xs font-black border-2 border-slate-300 hover:bg-slate-100 text-slate-900 dark:border-slate-700 dark:text-slate-100 rounded-lg cursor-pointer"
                                 title="Add +25%"
+                                aria-label={`Add 25% progress to ${p.title}`}
                               >
                                 +25%
                               </Button>
@@ -994,10 +1010,11 @@ export default function TeacherTakhteetPage() {
                                   size="sm"
                                   disabled={isQuickBusy}
                                   onClick={() => handleQuickProgress(p, "COMPLETED")}
-                                  className="h-6 px-2 text-[11px] font-bold border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-300 rounded-md cursor-pointer"
+                                  className="h-7 px-2.5 text-xs font-black border-2 border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg cursor-pointer shadow-2xs"
                                   title="Mark 100% Complete"
+                                  aria-label={`Mark ${p.title} 100% complete`}
                                 >
-                                  <CheckCircle2 className="w-3 h-3 mr-0.5 text-emerald-600 dark:text-emerald-400" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-white" />
                                   100%
                                 </Button>
                               )}
@@ -1010,22 +1027,23 @@ export default function TeacherTakhteetPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-xs h-9 px-2.5 rounded-xl border-gray-200 hover:bg-gray-50 flex items-center gap-1 cursor-pointer"
+                                className="text-xs h-9 px-3 rounded-xl border-2 border-slate-300 dark:border-slate-700 hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer font-bold text-slate-800 dark:text-slate-200"
                                 onClick={() => toggleExpandLog(p.id)}
                                 title="Toggle Notes Drawer"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
-                                <span className="font-semibold">{p.logs.length}</span>
-                                {isNotesExpanded ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                                <span className="font-extrabold">{p.logs.length}</span>
+                                {isNotesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
                               </Button>
                             )}
                             <Button
                               variant="default"
                               size="sm"
-                              className="fatimi-emerald-gradient text-white font-semibold text-xs h-9 px-3.5 rounded-xl shadow-sm w-full lg:w-auto justify-center flex items-center cursor-pointer"
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 px-4 rounded-xl shadow-sm w-full lg:w-auto justify-center flex items-center cursor-pointer transition-all active:scale-95"
+                              aria-label={`Open progress update modal for ${p.title}`}
                               onClick={() => openUpdateModal(p)}
                             >
-                              <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                              <Pencil className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
                               Update Progress
                             </Button>
                           </div>
@@ -1037,23 +1055,23 @@ export default function TeacherTakhteetPage() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800 space-y-1.5"
+                            className="mt-4 pt-3 border-t-2 border-slate-200 dark:border-slate-800 space-y-2"
                           >
-                            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-                              <History className="w-3 h-3 text-amber-600" />
+                            <p className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                              <History className="w-3.5 h-3.5 text-amber-600" />
                               Curriculum Log History
                             </p>
-                            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                               {p.logs.map((log: any) => (
-                                <div key={log.id} className="p-2 rounded-lg bg-gray-50 dark:bg-slate-800 text-xs flex flex-wrap items-center justify-between gap-2 border border-gray-100 dark:border-slate-700">
-                                  <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                <div key={log.id} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs flex flex-wrap items-center justify-between gap-2 border border-slate-200 dark:border-slate-700">
+                                  <span className="font-extrabold text-slate-900 dark:text-white">
                                     {log.progressBefore}% → {log.progressAfter}% ({log.status})
                                   </span>
-                                  <span className="text-[11px] text-gray-400">
+                                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                                     {new Date(log.createdAt).toLocaleDateString()}
                                   </span>
                                   {log.note && (
-                                    <p className="w-full text-xs text-gray-600 dark:text-gray-300 italic">
+                                    <p className="w-full text-xs font-semibold text-slate-800 dark:text-slate-200 italic bg-white/70 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
                                       &ldquo;{log.note}&rdquo;
                                     </p>
                                   )}
@@ -1080,44 +1098,44 @@ export default function TeacherTakhteetPage() {
                         const isCurrent = monthNum === currentMonth;
 
                         return (
-                          <div key={monthNum} className="border border-gray-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+                          <div key={monthNum} className="border-2 border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
                             {/* Month Header Banner */}
                             <div
                               onClick={() => toggleExpandMonth(monthNum)}
-                              className="p-4 bg-slate-50/80 dark:bg-slate-800/60 hover:bg-slate-100/80 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                              className="p-4 bg-slate-100/90 dark:bg-slate-800 hover:bg-slate-200/70 flex items-center justify-between gap-3 cursor-pointer transition-colors"
                             >
                               <div className="flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shadow-2xs ${
-                                  isCurrent ? "bg-amber-400 text-amber-950 ring-2 ring-amber-300/60" : "bg-emerald-100 text-emerald-800"
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-2xs border ${
+                                  isCurrent ? "bg-amber-400 text-amber-950 border-amber-500 ring-2 ring-amber-300/80" : "bg-emerald-100 text-emerald-950 border-emerald-300"
                                 }`}>
                                   {monthNum === 0 ? "All" : `M${monthNum}`}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                                    <h4 className="font-black text-slate-950 dark:text-white text-sm sm:text-base">
                                       {monthNum === 0 ? "Full Academic Year / General" : `Month ${monthNum} (${monthName(monthNum)})`}
                                     </h4>
                                     {isCurrent && (
-                                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
+                                      <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full shadow-2xs">
                                         Active Current Month
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                    {mCompleted} of {mPlans.length} portions completed • {mAvg}% covered
+                                  <p className="text-xs text-slate-700 dark:text-slate-300 font-bold mt-0.5">
+                                    {mCompleted} of {mPlans.length} portions completed • <span className="text-emerald-700 dark:text-emerald-400 font-black">{mAvg}% covered</span>
                                   </p>
                                 </div>
                               </div>
 
                               <div className="flex items-center gap-3">
-                                <div className="hidden sm:block w-32 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                <div className="hidden sm:block w-36 h-3 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden border border-slate-400/40">
                                   <div
-                                    className={`h-full rounded-full ${mAvg >= 100 ? "bg-emerald-500" : "bg-amber-500"}`}
+                                    className={`h-full rounded-full ${mAvg >= 100 ? "bg-emerald-600" : "bg-amber-500"}`}
                                     style={{ width: `${mAvg}%` }}
                                   />
                                 </div>
-                                <span className="font-extrabold text-xs text-slate-700 dark:text-slate-300">{mAvg}%</span>
-                                <div className="p-1 rounded-lg bg-white dark:bg-slate-700 text-slate-400">
+                                <span className="font-black text-sm text-slate-900 dark:text-white">{mAvg}%</span>
+                                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 shadow-2xs">
                                   {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                 </div>
                               </div>
@@ -1125,7 +1143,7 @@ export default function TeacherTakhteetPage() {
 
                             {/* Month Portions List */}
                             {isExpanded && (
-                              <div className="p-4 space-y-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                              <div className="p-4 space-y-3.5 bg-slate-50/50 dark:bg-slate-950/40 border-t-2 border-slate-200 dark:border-slate-800">
                                 {mPlans.map((p, idx) => renderPlanCard(p, idx))}
                               </div>
                             )}
@@ -1145,10 +1163,10 @@ export default function TeacherTakhteetPage() {
 
             {/* ── Pagination Controls ── */}
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200 dark:border-slate-800">
-                <p className="text-xs text-gray-500">
-                  Showing <b>{(currentPage - 1) * pageSize + 1}</b> to{" "}
-                  <b>{Math.min(currentPage * pageSize, filteredPlans.length)}</b> of <b>{filteredPlans.length}</b> portions
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t-2 border-slate-200 dark:border-slate-800">
+                <p className="text-xs text-slate-700 dark:text-slate-300 font-bold">
+                  Showing <b className="text-slate-950 dark:text-white">{(currentPage - 1) * pageSize + 1}</b> to{" "}
+                  <b className="text-slate-950 dark:text-white">{Math.min(currentPage * pageSize, filteredPlans.length)}</b> of <b className="text-slate-950 dark:text-slate-100 font-black">{filteredPlans.length}</b> portions
                 </p>
 
                 <div className="flex items-center gap-2">
@@ -1156,14 +1174,15 @@ export default function TeacherTakhteetPage() {
                     variant="outline"
                     size="sm"
                     disabled={currentPage <= 1}
+                    aria-label="Go to previous page"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="h-8 px-3 text-xs rounded-lg"
+                    className="h-8 px-3 text-xs font-black rounded-lg border-2 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100"
                   >
                     <ChevronLeft className="w-3.5 h-3.5 mr-1" />
                     Previous
                   </Button>
 
-                  <span className="text-xs font-semibold px-3 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300">
+                  <span className="text-xs font-black px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-950 dark:text-white border border-slate-300 dark:border-slate-700">
                     Page {currentPage} of {totalPages}
                   </span>
 
@@ -1171,8 +1190,9 @@ export default function TeacherTakhteetPage() {
                     variant="outline"
                     size="sm"
                     disabled={currentPage >= totalPages}
+                    aria-label="Go to next page"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="h-8 px-3 text-xs rounded-lg"
+                    className="h-8 px-3 text-xs font-black rounded-lg border-2 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100"
                   >
                     Next
                     <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -1182,12 +1202,12 @@ export default function TeacherTakhteetPage() {
             )}
           </div>
         ) : (
-          <Card className="p-12 text-center fatimi-card border border-gray-200">
-            <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">
+          <Card className="p-12 text-center bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
+            <ClipboardList className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <h3 className="text-lg font-black text-slate-950 dark:text-white">
               {hasActiveFilters ? "No matching Takhteet portions found" : "No Takhteet portions assigned"}
             </h3>
-            <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mt-1 max-w-md mx-auto leading-relaxed">
               {hasActiveFilters
                 ? "Try adjusting your search query, class, subject, or status filter."
                 : "Curriculum portions are displayed only to teachers assigned to the respective subjects and classes. If you teach Darajah subjects, please contact the Academic Administrator to assign your syllabus portions."}

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth, requireRole } from "../../middleware";
+import { dispatchWhatsAppNotification } from "../../lib/whatsapp";
 
 const router = Router();
 
@@ -238,10 +239,63 @@ router.post("/broadcast", async (req, res) => {
       })),
     });
 
+    // Optional / Automatic WhatsApp Broadcast Dispatch
+    let whatsAppSentCount = 0;
+    if (req.body.sendWhatsApp !== false) {
+      try {
+        const [teachers, parents, students] = await Promise.all([
+          prisma.teacherProfile.findMany({
+            where: { userId: { in: uniqueUserIds }, mobile: { not: null } },
+            select: { mobile: true },
+          }),
+          prisma.parentProfile.findMany({
+            where: { userId: { in: uniqueUserIds }, phone: { not: null } },
+            select: { phone: true, secondaryPhone: true },
+          }),
+          prisma.studentProfile.findMany({
+            where: { userId: { in: uniqueUserIds } },
+            select: { mobileNumber: true, fatherPhone: true, motherPhone: true },
+          }),
+        ]);
+
+        const waPhones = new Set<string>();
+        for (const t of teachers) if (t.mobile) waPhones.add(t.mobile);
+        for (const p of parents) {
+          if (p.phone) waPhones.add(p.phone);
+          if (p.secondaryPhone) waPhones.add(p.secondaryPhone);
+        }
+        for (const s of students) {
+          if (s.mobileNumber) waPhones.add(s.mobileNumber);
+          if (s.fatherPhone) waPhones.add(s.fatherPhone);
+          if (s.motherPhone) waPhones.add(s.motherPhone);
+        }
+
+        const waMsg = `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
+_Academic Administration Desk • Announcement_
+
+📢 *${title.trim()}*
+
+${body.trim()}
+
+----------------------------------------
+_Darse Burhani Academic Desk • Galiakot_`;
+
+        for (const phone of waPhones) {
+          dispatchWhatsAppNotification({ phone, message: waMsg }).catch((err) =>
+            console.warn(`[broadcast] WhatsApp dispatch failed for ${phone}:`, err)
+          );
+        }
+        whatsAppSentCount = waPhones.size;
+      } catch (waErr) {
+        console.warn("[broadcast] WhatsApp notification broadcast error:", waErr);
+      }
+    }
+
     return res.json({
       success: true,
       data: {
         sentCount: uniqueUserIds.length,
+        whatsAppSentCount,
         title,
         type: type || "ANNOUNCEMENT",
       },

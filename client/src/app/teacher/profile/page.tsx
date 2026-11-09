@@ -392,13 +392,14 @@ export default function TeacherProfilePage() {
               <CardContent className="pt-2 pb-6">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div className="relative group shrink-0">
-                    <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl ring-4 ring-[#d4af37]/40 shadow-xl overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:ring-[#d4af37]/70">
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full aspect-square ring-4 ring-[#d4af37]/40 shadow-xl overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:ring-[#d4af37]/70 bg-emerald-950 flex items-center justify-center">
                       {form.photoUrl && !imgError ? (
                         <ProfilePhoto
                           src={form.photoUrl}
                           alt={form.name || "Teacher Photo"}
                           loading="lazy"
                           decoding="async"
+                          fit="cover"
                           onError={() => setImgError(true)}
                         />
                       ) : (
@@ -408,7 +409,7 @@ export default function TeacherProfilePage() {
                       )}
                     </div>
                     {uploadingPhoto && (
-                      <div className="absolute inset-0 bg-black/60 rounded-2xl flex flex-col items-center justify-center gap-1 backdrop-blur-xs">
+                      <div className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center gap-1 backdrop-blur-xs">
                         <Loader2 className="w-6 h-6 text-white animate-spin" />
                         <span className="text-[10px] text-white font-medium">Uploading…</span>
                       </div>

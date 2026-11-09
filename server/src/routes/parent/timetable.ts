@@ -103,6 +103,38 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
           },
         },
       });
+
+      if (!activeClass) {
+        activeClass = await prisma.class.findFirst({
+          where: {
+            grade: gradeNum,
+            section: secLetter,
+          },
+          include: {
+            masool: {
+              include: {
+                user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+              },
+            },
+          },
+        });
+      }
+    }
+
+    if (activeClass && !activeClass.masool) {
+      const classWithMasool = await prisma.class.findFirst({
+        where: { grade: activeClass.grade, masoolId: { not: null } },
+        include: {
+          masool: {
+            include: {
+              user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+            },
+          },
+        },
+      });
+      if (classWithMasool?.masool) {
+        activeClass.masool = classWithMasool.masool;
+      }
     }
 
     // Fetch timetable slots for this class
@@ -189,6 +221,18 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
               subject: activeClass.subject,
               roomNumber: activeClass.roomNumber || `Room ${activeClass.name}`,
               academicYear: activeClass.academicYear,
+              masool: activeClass?.masool
+                ? {
+                    id: activeClass.masool.id,
+                    name: activeClass.masool.user
+                      ? `${activeClass.masool.user.firstName} ${activeClass.masool.user.lastName}`
+                      : "Faculty Masool",
+                    email: activeClass.masool.user?.email || null,
+                    avatarUrl: activeClass.masool.user?.avatarUrl || null,
+                    its: activeClass.masool.its || null,
+                    department: activeClass.masool.department || "Attalimiyah",
+                  }
+                : null,
             }
           : null,
         masool: activeClass?.masool
@@ -196,7 +240,7 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
               id: activeClass.masool.id,
               name: activeClass.masool.user
                 ? `${activeClass.masool.user.firstName} ${activeClass.masool.user.lastName}`
-                : "Masool",
+                : "Faculty Masool",
               email: activeClass.masool.user?.email || null,
               avatarUrl: activeClass.masool.user?.avatarUrl || null,
               its: activeClass.masool.its || null,

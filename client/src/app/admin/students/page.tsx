@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound } from "lucide-react";
+import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound, Cake } from "lucide-react";
+import Link from "next/link";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -287,6 +288,7 @@ export default function AdminStudentsPage() {
           { label: "All Accounts", href: "/admin/users", icon: Users },
           { label: "User Passwords Vault", href: "/admin/passwords", icon: KeyRound },
           { label: "Talabat (Students)", href: "/admin/students", icon: GraduationCap },
+          { label: "Waras Mubarak (Salgirah)", href: "/admin/waras-mubarak", icon: Cake },
           { label: "Parents Directory", href: "/admin/parents", icon: Heart },
           { label: "Portal Roles & Permissions", href: "/admin/portal-assignments", icon: UserCheck },
         ]}
@@ -312,6 +314,11 @@ export default function AdminStudentsPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Link href="/admin/waras-mubarak">
+                <Button size="sm" className="bg-[#a91d22] hover:bg-[#8e171b] text-white font-bold text-xs shadow-md">
+                  <Cake className="w-4 h-4 mr-1.5" /> Waras Mubarak Hub
+                </Button>
+              </Link>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400/25 text-amber-100 border border-amber-300/40 shadow-sm backdrop-blur-sm">
                 <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
                 {hafizCount} Hafiz

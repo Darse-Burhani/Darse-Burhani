@@ -18,6 +18,125 @@ router.get("/", requireAuth, async (req, res) => {
     const searchQuery = req.query.search as string;
     const recommend = (req.query.recommend as string) === "true";
     const includeUnavailable = (req.query.all as string) === "true";
+    const myLoans = (req.query.myLoans as string) === "true";
+
+    // ── My Loans, Garamat & Maktabat Attendance History ──
+    if (myLoans) {
+      const session = req.auth!;
+      const userId = session.user.id;
+
+      // Find student profile to get all identifiers
+      const studentProfile = await prisma.studentProfile.findFirst({
+        where: { userId },
+      });
+
+      const searchIds = Array.from(
+        new Set([
+          userId,
+          studentProfile?.id,
+          studentProfile?.studentId,
+          studentProfile?.its,
+          studentProfile?.trNo,
+        ].filter(Boolean) as string[])
+      );
+
+      // Fetch Book Loans
+      const loans = await prisma.bookLoan.findMany({
+        where: { studentId: { in: searchIds } },
+        include: {
+          book: true,
+        },
+        orderBy: { borrowedAt: "desc" },
+      });
+
+      const now = Date.now();
+      let totalPendingGaramat = 0;
+      let totalPaidGaramat = 0;
+
+      const formattedLoans = loans.map((loan) => {
+        const isOverdue = loan.status === "ACTIVE" && new Date(loan.dueAt).getTime() < now;
+        const dueMs = new Date(loan.dueAt).getTime();
+        const diffDays = Math.ceil((dueMs - now) / (1000 * 60 * 60 * 24));
+        const daysOverdue = isOverdue ? Math.max(1, Math.ceil((now - dueMs) / (1000 * 60 * 60 * 24))) : 0;
+
+        let garamat: any = null;
+        try {
+          if (loan.notes && loan.notes.startsWith("{")) {
+            const parsed = JSON.parse(loan.notes);
+            garamat = parsed.garamat;
+          }
+        } catch {
+          // Ignore
+        }
+
+        // If currently overdue and not yet returned, compute live garamat @ ₹10/day
+        if (isOverdue && !garamat) {
+          garamat = {
+            isLate: true,
+            daysLate: daysOverdue,
+            ratePerDay: 10,
+            calculatedAmount: daysOverdue * 10,
+            status: "PENDING",
+            paidAmount: 0,
+            notes: "Active overdue loan",
+          };
+        }
+
+        if (garamat) {
+          if (garamat.status === "COLLECTED" || garamat.status === "PAID") {
+            totalPaidGaramat += garamat.paidAmount || garamat.calculatedAmount || 0;
+          } else if (garamat.status === "PENDING") {
+            totalPendingGaramat += garamat.calculatedAmount || 0;
+          }
+        }
+
+        return {
+          id: loan.id,
+          bookId: loan.bookId,
+          title: loan.bookTitle || loan.book?.title,
+          barcode: loan.bookBarcode || loan.book?.barcode,
+          author: loan.book?.author,
+          category: loan.book?.category || "General",
+          coverImage: loan.book?.coverImage,
+          borrowedAt: loan.borrowedAt,
+          dueAt: loan.dueAt,
+          returnedAt: loan.returnedAt,
+          status: isOverdue ? "OVERDUE" : loan.status,
+          rawStatus: loan.status,
+          isOverdue,
+          daysRemaining: diffDays,
+          daysOverdue,
+          garamat,
+        };
+      });
+
+      // Fetch Maktabat Attendance Visits
+      const attendances = await (prisma as any).libraryAttendance.findMany({
+        where: {
+          studentId: { in: searchIds },
+        },
+        orderBy: { checkInTime: "desc" },
+        take: 50,
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          activeLoans: formattedLoans.filter((l) => l.rawStatus === "ACTIVE"),
+          returnedLoans: formattedLoans.filter((l) => l.rawStatus === "RETURNED"),
+          allLoans: formattedLoans,
+          stats: {
+            totalActive: formattedLoans.filter((l) => l.rawStatus === "ACTIVE").length,
+            totalOverdue: formattedLoans.filter((l) => l.isOverdue).length,
+            totalReturned: formattedLoans.filter((l) => l.rawStatus === "RETURNED").length,
+            totalPendingGaramat,
+            totalPaidGaramat,
+            totalLibraryVisits: attendances.length,
+          },
+          attendances,
+        },
+      });
+    }
 
     // ── Shelf Overview (default) ──
     if (!shelfParam && !searchQuery && !recommend) {

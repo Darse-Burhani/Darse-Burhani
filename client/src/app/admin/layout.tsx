@@ -26,6 +26,8 @@ import {
   Sparkles,
   SlidersHorizontal,
   FileSpreadsheet,
+  Cake,
+  MessageSquare,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
@@ -57,6 +59,13 @@ const navItems: PortalNavItem[] = [
     label: "Manual Logs",
     href: "/admin/attendance-manual",
     icon: ClipboardCheck,
+    category: "Operations",
+  },
+  {
+    label: "Maktabat Attendance",
+    href: "/admin/library/attendance",
+    icon: UserCheck,
+    badge: "Library",
     category: "Operations",
   },
   {
@@ -144,6 +153,13 @@ const navItems: PortalNavItem[] = [
     category: "Community",
   },
   {
+    label: "Waras Mubarak (Salgirah)",
+    href: "/admin/waras-mubarak",
+    icon: Cake,
+    badge: "Official",
+    category: "Community",
+  },
+  {
     label: "Parents Directory",
     href: "/admin/parents",
     icon: Heart,
@@ -197,6 +213,20 @@ const navItems: PortalNavItem[] = [
     label: "Broadcast Studio",
     href: "/admin/notifications",
     icon: Megaphone,
+    category: "Systems",
+  },
+  {
+    label: "Cloud WhatsApp",
+    href: "/admin/whatsapp",
+    icon: MessageSquare,
+    badge: "24/7",
+    category: "Systems",
+  },
+  {
+    label: "Mailflare Webmail",
+    href: "/admin/mailflare",
+    icon: Mail,
+    badge: "support@",
     category: "Systems",
   },
   {

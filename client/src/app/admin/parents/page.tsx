@@ -826,6 +826,113 @@ export default function AdminParentsPage() {
         </div>
       </div>
 
+      {/* ── Pending Parent Photo Approvals Action Center ── */}
+      {pendingApprovalCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 p-5 sm:p-6 shadow-md space-y-4"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/80">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-sm shrink-0">
+                <Camera className="w-5 h-5" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 font-display">
+                    Pending Profile Photo Approvals ({pendingApprovalCount})
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950 animate-pulse">
+                    Action Required
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 font-medium">
+                  Parents uploaded new formal photos. Review and click Approve to publish or Reject with a reason.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCategoryFilter(categoryFilter === "PENDING_APPROVAL" ? "ALL" : "PENDING_APPROVAL")}
+              className="text-xs font-bold border-amber-300 text-amber-900 bg-white hover:bg-amber-100"
+            >
+              {categoryFilter === "PENDING_APPROVAL" ? "Show All Parents" : "Filter Directory to Pending Only"}
+            </Button>
+          </div>
+
+          {/* Quick-Action Photo Review Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+            {parents
+              .filter((p) => p.avatarStatus === "PENDING" || !!p.pendingAvatarUrl)
+              .map((p) => (
+                <div
+                  key={p.userId}
+                  className="p-4 rounded-2xl bg-white border border-amber-200/90 shadow-sm flex flex-col justify-between gap-3"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* New Proposed Photo */}
+                    <div className="relative shrink-0">
+                      <Avatar className="w-14 h-14 rounded-2xl border-2 border-amber-400 shadow-md">
+                        <AvatarImage src={p.pendingAvatarUrl || p.avatarUrl || ""} alt={p.firstName} className="object-cover" />
+                        <AvatarFallback className="bg-amber-100 text-amber-900 font-bold text-xs">
+                          {getInitials(`${p.firstName} ${p.lastName}`)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white">
+                        NEW
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-black text-slate-900 truncate">
+                        {p.firstName} {p.lastName}
+                      </h4>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        ITS: {p.its || "—"} • {p.relationType || "Parent"}
+                      </p>
+                      {p.children && p.children.length > 0 && (
+                        <p className="text-[11px] text-emerald-800 font-bold truncate mt-0.5">
+                          Child: {p.children.map((c) => c.studentName).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 1-Click Approve / Reject Buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-amber-100">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApproveAvatar(p.userId)}
+                      disabled={actionLoadingId === p.userId}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs h-8 rounded-xl shadow-xs gap-1"
+                    >
+                      {actionLoadingId === p.userId ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      )}
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRejectingParent(p)}
+                      disabled={actionLoadingId === p.userId}
+                      className="flex-1 border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs h-8 rounded-xl gap-1"
+                    >
+                      <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* Search & Quick Filter Controls */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center">
         <div className="relative w-full lg:w-80">

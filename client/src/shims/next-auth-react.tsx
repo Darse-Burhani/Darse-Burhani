@@ -1,3 +1,4 @@
+import { clearAllFastCache } from "@/lib/fast-cache";
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 
 export interface SessionUser {
@@ -110,8 +111,34 @@ export function SessionProvider({
   refetchInterval?: number;
   refetchOnWindowFocus?: boolean;
 }) {
-  const [data, setData] = useState<Session | null>(null);
-  const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+  const [data, setData] = useState<Session | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("sis_session_user");
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user?.id && user?.role) {
+            return { user };
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
+  const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("sis_session_user");
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user?.id && user?.role) {
+            return "authenticated";
+          }
+        }
+      } catch {}
+    }
+    return "loading";
+  });
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (): Promise<Session | null> => {
@@ -264,13 +291,14 @@ export async function signOut(options?: { callbackUrl?: string; redirect?: boole
       try {
         localStorage.removeItem("sis_session_user");
         localStorage.removeItem("sis_jwt_token");
+        clearAllFastCache();
       } catch {}
     }
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    // Fire logout endpoint in background
+    fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
   } catch {
-    // ignore network errors on logout
+    // ignore errors on logout
   }
-  if (refreshHandler) await refreshHandler();
   if (typeof window !== "undefined") {
     const url = options?.callbackUrl || "/login";
     window.location.href = url;

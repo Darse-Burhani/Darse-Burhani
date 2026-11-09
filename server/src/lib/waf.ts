@@ -41,11 +41,23 @@ export interface WafStats {
   blockedByCategory: Record<ThreatCategory, number>;
   activeBannedIpsCount: number;
   recentAttacks: BlockedAttackEvent[];
+  isEmergencyLockdown?: boolean;
 }
 
 // ── In-Memory Threat Tracking & State ──
 const MAX_ATTACK_LOGS = 500;
 const attackLogs: BlockedAttackEvent[] = [];
+
+// Emergency Perimeter Lockdown state
+let isEmergencyLockdown = false;
+
+export function getEmergencyLockdown(): boolean {
+  return isEmergencyLockdown;
+}
+
+export function setEmergencyLockdown(enabled: boolean): void {
+  isEmergencyLockdown = !!enabled;
+}
 
 // Map of IP -> { score: number, violations: number, lastSeen: number }
 const ipThreatScores = new Map<string, { score: number; violations: number; lastSeen: number }>();
@@ -298,6 +310,28 @@ function inspectString(
     };
   }
 
+  // 6. Check SSRF / Cloud Metadata Service Probes
+  if (/(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|latest\/meta-data|instance-identity)/i.test(str)) {
+    return {
+      detected: true,
+      category: "SUSPICIOUS_PAYLOAD",
+      rule: `SSRF_METADATA_PROBE in ${location}`,
+      matchedValue: str.substring(0, 80),
+      score: 100,
+    };
+  }
+
+  // 7. Check NoSQL / In-memory Operator Injection
+  if (/(\$where|\$regex|\$gt|\$ne|\$in|\$nin|\$expr)\s*:/i.test(str)) {
+    return {
+      detected: true,
+      category: "SUSPICIOUS_PAYLOAD",
+      rule: `NOSQL_OPERATOR_INJECTION in ${location}`,
+      matchedValue: str.substring(0, 80),
+      score: 85,
+    };
+  }
+
   return null;
 }
 
@@ -494,6 +528,7 @@ export function getWafStats(): WafStats {
     blockedByCategory: { ...blockedByCategory },
     activeBannedIpsCount: bannedIps.size,
     recentAttacks: attackLogs.slice(0, 50),
+    isEmergencyLockdown,
   };
 }
 
@@ -519,6 +554,21 @@ export function webApplicationFirewallMiddleware(): RequestHandler {
     try {
       totalRequestsChecked++;
       const ip = getClientIp(req);
+
+      // 0. Emergency Perimeter Lockdown Check
+      if (isEmergencyLockdown) {
+        const isSafeIp = manualWhitelist.has(ip) || isPrivateOrLocalIp(ip);
+        const path = req.path || (req.originalUrl || "").split("?")[0] || "";
+        const isAuthRoute = path === "/api/auth/login" || path === "/api/auth/session" || path === "/api/health";
+        if (!isSafeIp && !isAuthRoute && (req.method !== "GET" || path.startsWith("/api/admin"))) {
+          res.status(423).json({
+            success: false,
+            error: "Security Wall: Emergency Perimeter Lockdown active. Access restricted.",
+            lockdown: true,
+          });
+          return;
+        }
+      }
 
       // 1. IP Ban Enforcement
       if (isIpBanned(ip)) {

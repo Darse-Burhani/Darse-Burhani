@@ -7,6 +7,7 @@ import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { completelyDeleteUser } from "../../lib/user-deletion";
 import { cache } from "../../lib/cache";
+import { sendPushToUser } from "../../lib/push";
 
 const { hash } = bcrypt;
 const router = Router();
@@ -779,12 +780,17 @@ router.put("/:userId/avatar-approval", requireRole("ADMIN", "TEACHER"), async (r
           data: {
             userId,
             title: "Profile Photo Approved",
-            message: "Your profile picture has been reviewed and approved by the administration.",
+            body: "Your profile picture has been reviewed and approved by the administration.",
             type: "PROFILE",
             link: "/parent/settings",
-            metadata: { avatarUrl: activeUrl, status: "APPROVED" },
+            priority: "HIGH",
           },
         });
+        sendPushToUser(userId, {
+          title: "Profile Photo Approved",
+          body: "Your profile picture has been reviewed and approved by the administration.",
+          url: "/parent/settings",
+        }).catch(() => {});
       } catch (notifErr) {
         console.warn("[avatar-approval] Notification warning:", notifErr);
       }
@@ -816,12 +822,17 @@ router.put("/:userId/avatar-approval", requireRole("ADMIN", "TEACHER"), async (r
           data: {
             userId,
             title: "Profile Photo Rejected",
-            message: "Your uploaded profile picture was rejected: " + reason + ". Please upload a new formal photo from Settings.",
+            body: "Your uploaded profile picture was rejected: " + reason + ". Please upload a new formal photo from Settings.",
             type: "PROFILE",
             link: "/parent/settings",
-            metadata: { reason, status: "REJECTED" },
+            priority: "HIGH",
           },
         });
+        sendPushToUser(userId, {
+          title: "Profile Photo Rejected",
+          body: `Your uploaded profile picture was rejected: ${reason}`,
+          url: "/parent/settings",
+        }).catch(() => {});
       } catch (notifErr) {
         console.warn("[avatar-approval] Notification warning:", notifErr);
       }

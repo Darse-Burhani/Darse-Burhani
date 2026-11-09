@@ -40,29 +40,71 @@ export function formatWhatsAppPhone(rawPhone?: string | null): string | null {
   return digits;
 }
 
+import { getBaileysStatus, sendBaileysMessage } from "./whatsapp-baileys";
+
+function formatLeaveDisplayDate(raw: string | Date): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw);
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const mon = monthNames[d.getUTCMonth()];
+  const yr = d.getUTCFullYear();
+  return `${day}-${mon}-${yr}`;
+}
+
+function formatLeaveCategory(type: string): string {
+  const clean = (type || "").toUpperCase().trim();
+  if (clean === "PERSONAL") return "Personal Leave";
+  if (clean === "MEDICAL") return "Medical Leave";
+  if (clean === "ACADEMIC") return "Academic / Educational Leave";
+  if (clean === "FAMILY_EMERGENCY") return "Family Emergency Leave";
+  if (clean === "HAJ_ZIYARAT" || clean === "ZIYARAT") return "Ziyarat Leave";
+  if (clean === "OFFICIAL") return "Official Duty Leave";
+  return clean.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) + " Leave";
+}
+
 /**
  * Generate official, one-way administrative leave notice text
  */
 export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string {
   const pName = params.parentName?.trim() || "Respected Parent";
   const sName = params.studentName.trim();
-  const cName = params.className ? ` (Class ${params.className})` : "";
+  const cName = params.className
+    ? ` (${params.className.toLowerCase().startsWith("class") ? params.className : `Class ${params.className}`})`
+    : "";
   const isPending = params.status === "PENDING";
-  const statusLabel =
-    params.status === "APPROVED"
-      ? "✅ APPROVED"
-      : params.status === "APPROVED_REDUCED"
-      ? "⚠️ APPROVED (REDUCED DAYS)"
-      : params.status === "HOLD"
-      ? "⏸️ ON HOLD / PENDING CLARIFICATION"
-      : params.status === "PENDING"
-      ? "⏳ UNDER REVIEW (PENDING)"
-      : "❌ REJECTED";
+  const isApproved = params.status === "APPROVED" || params.status === "APPROVED_REDUCED";
+  const isHold = params.status === "HOLD";
+  const isRejected = params.status === "REJECTED";
 
-  const periodStr =
-    params.startDate === params.endDate
-      ? params.startDate
-      : `${params.startDate} to ${params.endDate}`;
+  const statusWord = isApproved
+    ? params.status === "APPROVED_REDUCED"
+      ? "APPROVED (REDUCED DAYS)"
+      : "APPROVED"
+    : isHold
+    ? "PLACED ON HOLD"
+    : isPending
+    ? "UNDER REVIEW"
+    : "REJECTED";
+
+  const statusEmoji = isApproved
+    ? params.status === "APPROVED_REDUCED"
+      ? "⚠️"
+      : "✅"
+    : isHold
+    ? "⏸️"
+    : isPending
+    ? "⏳"
+    : "❌";
+
+  const statusLabel = `* ${statusEmoji} *${statusWord}*`;
+
+  const startFormatted = formatLeaveDisplayDate(params.startDate);
+  const endFormatted = formatLeaveDisplayDate(params.endDate);
+  const periodStr = startFormatted === endFormatted
+    ? startFormatted
+    : `${startFormatted} to ${endFormatted}`;
 
   const daysStr =
     params.approvedDays !== undefined
@@ -73,75 +115,261 @@ export function formatLeaveWhatsAppMessage(params: LeaveWhatsAppParams): string 
 
   const remarks =
     params.reviewerNotes?.trim() ||
-    (params.status === "HOLD"
+    (isHold
       ? "Placed on hold pending administrative review / verification."
-      : params.status === "REJECTED"
+      : isRejected
       ? "Decision recorded by administration."
-      : params.status === "PENDING"
+      : isPending
       ? "Application received and queued for administrative review."
       : "Approved by administration.");
-  const authority = params.reviewerName?.trim() || "Administration Desk";
+
+  const authority = params.reviewerName?.trim() || "Maktab Tanzeem • Galiakot";
+  const categoryStr = formatLeaveCategory(params.leaveType);
 
   if (isPending) {
-    return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
-_Academic Administration Desk • Galiakot_
+    return `*DARSE BURHANI • MAHAD AL-ZAHRA*
+_Maktab Tanzeem • Galiakot_
 
-Afzalus Salam Janab ${pName},
+Afzalus Salam Janab *${pName}*,
 
-The leave application for talib *${sName}*${cName} has been *SUBMITTED & IS UNDER REVIEW*.
-
-📋 *Leave Application Details:*
-• *Application Status:* ${statusLabel}
-• *Leave Category:* ${params.leaveType}
-• *Requested Period:* ${periodStr}
-• *Requested Days:* ${daysStr}
-• *Reason / Remarks:* ${remarks}
-
-You will receive an automated one-way update via WhatsApp and Email once the administration decides on this request.
-
-----------------------------------------
-_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored. WhatsApp Helpline: +91 8955199220._`;
-  }
-
-  if (params.status === "HOLD") {
-    return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
-_Academic Administration Desk • Galiakot_
-
-Afzalus Salam Janab ${pName},
-
-The leave application for talib *${sName}*${cName} has been placed *⏸️ ON HOLD / PENDING CLARIFICATION*.
-
-📋 *Leave Application Details:*
-• *Application Status:* ⏸️ ON HOLD / PENDING CLARIFICATION
-• *Leave Category:* ${params.leaveType}
-• *Requested Period:* ${periodStr} (${daysStr})
-• *Administrative Remarks:* 📝 ${remarks}
-• *Reviewed By:* ${authority}
-
-📌 *Action Required for Parents:*
-Please review the administrative remarks above on the Parent Portal. If clarification, travel details, or medical documentation were requested, kindly update on the portal or contact the administration desk at *+91 8955199220*.
-
-----------------------------------------
-_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
-  }
-
-  return `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
-_Academic Administration Desk • Galiakot_
-
-Afzalus Salam Janab ${pName},
-
-The leave application for talib *${sName}*${cName} has been *${statusLabel}*.
+The leave application for talib *${sName}*${cName} has been *UNDER REVIEW* ⏳.
 
 📋 *Leave Decision Details:*
-• *Application Status:* ${statusLabel}
-• *Leave Category:* ${params.leaveType}
-• *Sanctioned Period:* ${periodStr}
-• *Granted Days:* ${daysStr}
-• *Administrative Remarks:* ${remarks}
-• *Sanctioned By:* ${authority}
+• Application Status: ${statusLabel}
+
+• Leave Category: *${categoryStr}*
+
+• Requested Period: *${periodStr}*
+
+• Requested Days: *${daysStr}*
+
+• Administrative Remarks: *${remarks}*
+
+• Sanctioned By: *${authority}*
 
 ----------------------------------------
 _⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
+  }
+
+  if (isHold) {
+    return `*DARSE BURHANI • MAHAD AL-ZAHRA*
+_Maktab Tanzeem • Galiakot_
+
+Afzalus Salam Janab *${pName}*,
+
+The leave application for talib *${sName}*${cName} has been *PLACED ON HOLD* ⏸️.
+
+📋 *Leave Decision Details:*
+• Application Status: ${statusLabel}
+
+• Leave Category: *${categoryStr}*
+
+• Requested Period: *${periodStr}*
+
+• Requested Days: *${daysStr}*
+
+• Administrative Remarks: *${remarks}*
+
+• Sanctioned By: *${authority}*
+
+📌 *Action Required for Parents:*
+_Please review the administrative remarks above on the Parent Portal. If clarification, travel details, or medical documentation were requested, kindly update on the portal or contact the administration desk at +91 8955199220._
+
+----------------------------------------
+_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
+  }
+
+  if (isRejected) {
+    return `*DARSE BURHANI • MAHAD AL-ZAHRA*
+_Maktab Tanzeem • Galiakot_
+
+Afzalus Salam Janab *${pName}*,
+
+The leave application for talib *${sName}*${cName} has been *REJECTED* ❌.
+
+📋 *Leave Decision Details:*
+• Application Status: * ❌ *REJECTED*
+
+• Leave Category: *${categoryStr}*
+
+• Requested Dates: *${periodStr}*
+
+• Granted Days: *None*
+
+• Administrative Remarks: *${remarks}*
+
+----------------------------------------
+_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
+  }
+
+  return `*DARSE BURHANI • MAHAD AL-ZAHRA*
+_Maktab Tanzeem • Galiakot_
+
+Afzalus Salam Janab *${pName}*,
+
+The leave application for talib *${sName}*${cName} has been *${statusWord}* ${statusEmoji}.
+
+📋 *Leave Decision Details:*
+• Application Status: ${statusLabel}
+
+• Leave Category: *${categoryStr}*
+
+• Sanctioned Period: *${periodStr}*
+
+• Granted Days: *${daysStr}*
+
+• Administrative Remarks: *${remarks}*
+
+• Sanctioned By: *${authority}*
+
+----------------------------------------
+_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
+}
+
+export interface BadalWhatsAppParams {
+  substituteTeacherName: string;
+  originalTeacherName?: string | null;
+  className: string;
+  period: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  date: string;
+  reason?: string | null;
+  instructions?: string | null;
+  assignedBy?: string | null;
+  portalUrl?: string;
+}
+
+/**
+ * Generate official, one-way administrative Badal (proxy duty) WhatsApp notice
+ */
+export function formatBadalWhatsAppMessage(params: BadalWhatsAppParams): string {
+  const subName = params.substituteTeacherName.trim();
+  const origName = params.originalTeacherName?.trim() || "Faculty Member";
+  const instructionsText = params.instructions?.trim() || "Will be written by Maktab Taalim";
+  const cleanClassName = /^class/i.test(params.className.trim())
+    ? params.className.trim()
+    : `Class ${params.className.trim()}`;
+
+  let dateFormatted = params.date;
+  try {
+    const d = new Date(params.date);
+    if (!isNaN(d.getTime())) {
+      dateFormatted = new Intl.DateTimeFormat("en-IN", {
+        timeZone: "Asia/Kolkata",
+        weekday: "long",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(d);
+    }
+  } catch {}
+
+  return `*DARSE BURHANI • MAHAD AL-ZAHRA*
+_Maktab Taalim • Galiakot_
+
+🚨 *(URGENT) - BADAL PERIOD INTIMATION*
+
+Afzalus Salam Janab *${subName}*,
+
+You have been officially assigned by the Matkab Taalim as a substitute teacher (*Badal*) for the following session:
+
+📋 *Class & Period Details:*
+
+• Date: 📅 *${dateFormatted}*
+
+• Period & Time: ⏰ *Period ${params.period} (${params.startTime} – ${params.endTime})*
+
+• Darajah / Class: 🏫 *${cleanClassName}*
+
+• On behalf of : 👤 *${origName}*
+
+• Instructions: 📝 *${instructionsText}*
+
+*Kindly ensure your prompt arrival at the classroom for the above session.*
+
+----------------------------------------
+_⚠️ NOTICE: Automated institutional notice from Maktab Taalim • Darse Burhani_. 
+_For any Queries, please contact Maktab Taalim_`;
+}
+
+export interface LibraryReminderWhatsAppParams {
+  borrowerName: string;
+  className?: string | null;
+  bookTitle: string;
+  barcode?: string | null;
+  dueDate: string;
+  dueHijri?: string | null;
+  dueDiffLabel?: string | null;
+  isOverdue?: boolean;
+  daysOverdue?: number;
+}
+
+/**
+ * Generate official, one-way Maktabat Book Return Reminder WhatsApp notice
+ */
+export function formatLibraryReminderWhatsAppMessage(params: LibraryReminderWhatsAppParams): string {
+  const bName = params.borrowerName.trim();
+  const cName = params.className ? ` (${params.className})` : "";
+  const isOverdue = Boolean(params.isOverdue || (params.daysOverdue && params.daysOverdue > 0));
+
+  const header = isOverdue
+    ? `🚨 *MAKTABAT DARSE BURHANI • OVERDUE BOOK NOTICE*`
+    : `📚 *MAKTABAT DARSE BURHANI • BOOK RETURN REMINDER*`;
+
+  const statusText = isOverdue
+    ? `*OVERDUE (${params.daysOverdue || 1} days late)* ⚠️`
+    : `*RETURN DUE SOON* ⏰`;
+
+  // Compute clean relative due label (e.g. "10-Nov-2026 (Due in 2 days)")
+  let relativeTag = params.dueDiffLabel || "";
+  if (!relativeTag && params.dueDate) {
+    try {
+      const dueParsed = new Date(params.dueDate);
+      if (!Number.isNaN(dueParsed.getTime())) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDay = new Date(dueParsed);
+        dueDay.setHours(0, 0, 0, 0);
+        const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) relativeTag = "Due today";
+        else if (diffDays === 1) relativeTag = "Due tomorrow";
+        else if (diffDays > 1) relativeTag = `Due in ${diffDays} days`;
+        else relativeTag = `Overdue by ${Math.abs(diffDays)} days`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const dueLabel = relativeTag
+    ? `${params.dueDate} (${relativeTag})`
+    : params.dueHijri
+    ? `${params.dueDate} (${params.dueHijri})`
+    : params.dueDate;
+
+  return `*IDARSE BURHANI • MAHAD AL-ZAHRA*
+Maktabat• Galiakot
+
+${header}
+
+Afzalus Salam,
+
+Kindly note the library book details issued to *${bName}*${cName}:
+
+📋 *Book Checkout Details:*
+• *Book Title:* *${params.bookTitle}*
+• *Accession / Barcode:* *${params.barcode || "N/A"}*
+• *Issued To:* *${bName}*${cName}
+• *Return Due Date:* *${dueLabel}*
+• *Status:* ${statusText}
+
+📌 *Important Maktabat Instruction:*
+*Please return or renew this book in the Maktabat  before the due date to avoid overdue notices.*
+
+----------------------------------------
+_⚠️ NOTICE: Automated institutional notice from Maktabat• Galiakot._`;
 }
 
 /**
@@ -170,7 +398,17 @@ export async function dispatchWhatsAppNotification(options: {
 
   const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(options.message)}`;
 
-  // 1. Meta WhatsApp Cloud API
+  // 1. Built-in Self-Hosted Baileys Cloud WhatsApp Service (100% Free, 24/7)
+  const baileysStatus = getBaileysStatus();
+  if (baileysStatus.isConnected) {
+    const res = await sendBaileysMessage(cleanPhone, options.message);
+    if (res.success) {
+      return { success: true, waLink };
+    }
+    console.warn("[whatsapp] Baileys dispatch failed, falling back:", res.error);
+  }
+
+  // 2. Meta WhatsApp Cloud API
   const metaToken = process.env.META_WHATSAPP_TOKEN;
   const metaPhoneId = process.env.META_WHATSAPP_PHONE_ID;
 
@@ -216,6 +454,7 @@ export async function dispatchWhatsAppNotification(options: {
           ...(genericToken ? { Authorization: `Bearer ${genericToken}` } : {}),
         },
         body: JSON.stringify({
+          token: genericToken,
           to: cleanPhone,
           phone: cleanPhone,
           body: options.message,

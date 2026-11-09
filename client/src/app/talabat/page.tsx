@@ -28,6 +28,8 @@ import {
   Tv,
   BellRing,
   Zap,
+  Mail,
+  LifeBuoy,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +40,7 @@ import { getInitials, timeAgo } from "@/lib/utils";
 import { PremiumTalabatCard } from "@/components/student/PremiumTalabatCard";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";
 import { usePortalAccess } from "@/context/PortalAccessContext";
+import { getCachedData, setCachedData } from "@/lib/fast-cache";
 
 const skillCategories = [
   { key: "criticalThinking", label: "Critical Thinking", icon: Brain },
@@ -54,6 +57,7 @@ const portalOptions = [
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays, description: "View the Fatimi academic calendar", chip: "Schedule" },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen, description: "Explore every rack, shelf & book", chip: "Books" },
   { key: "tilawatDua", label: "Tilawat Dua", href: "/talabat/tilawat-dua", icon: BookOpen, description: "Daily recitation & classroom projector display", chip: "Daily" },
+  { key: null, label: "IT Support & Email", href: "/talabat/support", icon: Mail, description: "Send & receive support tickets, campus mail", chip: "Helpdesk" },
   { key: "badges", label: "Badges", href: "/talabat/badges", icon: Medal, description: "Collect achievements & milestones", chip: "Awards" },
   { key: "skillTree", label: "Skill Tree", href: "/talabat/skill-tree", icon: GitBranch, description: "Track 4C attribute development", chip: "Growth" },
   { key: "profile", label: "Profile", href: "/talabat/profile", icon: User, description: "Manage your personal information", chip: "Profile" },
@@ -63,9 +67,25 @@ const portalOptions = [
 export default function TalabatDashboard() {
   const { theme } = useFatimiTheme();
   const { isModuleVisible } = usePortalAccess();
-  const [data, setData] = useState<any>(null);
-  const [timetableData, setTimetableData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedTalabat = getCachedData<any>("talabat_dashboard");
+  const [data, setData] = useState<any>(cachedTalabat || null);
+  const [timetableData, setTimetableData] = useState<any>(() => getCachedData<any>("talabat_timetable") || null);
+  const [todayDua, setTodayDua] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [loading, setLoading] = useState(!cachedTalabat);
+
+  const fetchNotifs = () => {
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data?.notifications) {
+          setNotifications(res.data.notifications.slice(0, 4));
+          setUnreadNotifCount(res.data.unreadCount || 0);
+        }
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     fetch("/api/talabat/dashboard")
@@ -73,6 +93,7 @@ export default function TalabatDashboard() {
       .then((res) => {
         if (res.success) {
           setData(res.data);
+          setCachedData("talabat_dashboard", res.data);
         }
         setLoading(false);
       })
@@ -83,6 +104,7 @@ export default function TalabatDashboard() {
       .then((res) => {
         if (res.success && res.data) {
           setTimetableData(res.data);
+          setCachedData("talabat_timetable", res.data);
         }
       })
       .catch(() => {});
@@ -101,22 +123,6 @@ export default function TalabatDashboard() {
     const interval = setInterval(fetchNotifs, 15000);
     return () => clearInterval(interval);
   }, []);
-
-  const [todayDua, setTodayDua] = useState<any>(null);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-
-  const fetchNotifs = () => {
-    fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.success && res.data?.notifications) {
-          setNotifications(res.data.notifications.slice(0, 4));
-          setUnreadNotifCount(res.data.unreadCount || 0);
-        }
-      })
-      .catch(() => {});
-  };
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -151,12 +157,12 @@ export default function TalabatDashboard() {
         <>
           {/* ═══════════ Welcome Header Banner ═══════════ */}
           <motion.div {...fadeUp} transition={{ duration: 0.45, ease: "easeOut" }}>
-            <div className="p-1 sm:p-1.5 rounded-3xl bg-emerald-950/5 ring-1 ring-emerald-900/15 shadow-sm">
+            <div className="p-1 sm:p-1.5 rounded-3xl bg-gradient-to-br from-amber-400/35 via-stone-800/25 to-amber-400/20 ring-1 ring-amber-400/30 shadow-xl">
               <div
-                className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white"
+                className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-white border border-amber-400/20"
                 style={{
-                  background: theme.cardHeroGradient,
-                  boxShadow: `0 20px 50px ${theme.accentGlow}`,
+                  background: "linear-gradient(135deg, #0d0d0d 0%, #151515 50%, #1c1813 100%)",
+                  boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 20px 45px -12px rgba(0, 0, 0, 0.6)",
                 }}
               >
                 {/* Subtle top hairline */}
@@ -266,8 +272,7 @@ export default function TalabatDashboard() {
             <motion.div {...fadeUp} transition={{ duration: 0.45, delay: 0.05, ease: "easeOut" }}>
               <div className="p-1 rounded-3xl bg-amber-950/5 ring-1 ring-black/[0.06] overflow-hidden shadow-xs">
                 <div
-                  className="p-5 sm:p-6 text-white rounded-[calc(1.5rem-2px)] flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden"
-                  style={{ background: "linear-gradient(135deg, #0d0d0d 0%, #161616 50%, #1c1813 100%)" }}
+                  className="p-5 sm:p-6 text-white rounded-[calc(1.5rem-2px)] bg-stone-950 border border-stone-800 flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80" />
                   <div className="flex items-center gap-4">
@@ -279,13 +284,13 @@ export default function TalabatDashboard() {
                         <Badge className="bg-amber-400 text-stone-950 text-[10px] font-black uppercase shadow-2xs">
                           Class {timetableData.class?.name}
                         </Badge>
-                        <span className="text-xs text-amber-200/90 font-mono">1448 H Academic Matrix</span>
+                        <span className="text-xs text-amber-300 font-mono font-bold">1448 H Academic Matrix</span>
                       </div>
                       <h3 className="text-lg font-extrabold text-white mt-1 font-display">
                         {timetableData.masool ? `Class Teacher: ${timetableData.masool.name}` : "Official Class Schedule"}
                       </h3>
                       {timetableData.masool?.its && (
-                        <p className="text-xs text-stone-300">
+                        <p className="text-xs text-stone-200 font-medium">
                           Masool al-Fasl (ITS: {timetableData.masool.its})
                         </p>
                       )}
@@ -294,7 +299,7 @@ export default function TalabatDashboard() {
 
                   <Link
                     href="/talabat/timetable"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all self-start md:self-center backdrop-blur-xs active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white border border-stone-700 transition-all self-start md:self-center font-bold active:scale-[0.98]"
                   >
                     <span>View Full Timetable</span>
                     <ChevronRight className="w-4 h-4 text-amber-300" strokeWidth={1.75} />
@@ -308,7 +313,7 @@ export default function TalabatDashboard() {
                       <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
                         Today&apos;s Periods ({timetableData.todaySlots.length} sessions)
                       </span>
-                      <span className="text-[11px] text-slate-500">Term I • 1448 H</span>
+                      <span className="text-xs text-slate-700 font-semibold">Term I • 1448 H</span>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                       {timetableData.todaySlots.map((s: any) => (
@@ -316,12 +321,12 @@ export default function TalabatDashboard() {
                           key={s.id}
                           className="p-2.5 rounded-xl border border-slate-200/90 bg-white shadow-2xs text-xs"
                         >
-                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <div className="flex items-center justify-between text-[11px] font-mono text-slate-600 font-semibold">
                             <span className="font-bold text-slate-700">P{s.period}</span>
                             <span>{s.startTime}</span>
                           </div>
                           <div className="font-black text-slate-900 truncate mt-0.5">{s.subject}</div>
-                          <div className="text-[10.5px] text-emerald-800 font-semibold truncate mt-0.5">
+                          <div className="text-xs text-emerald-950 font-bold truncate mt-0.5">
                             {s.badal ? (
                               <span className="text-amber-800 font-bold flex items-center gap-1">
                                 <ArrowRightLeft className="w-2.5 h-2.5 shrink-0" />
@@ -353,7 +358,7 @@ export default function TalabatDashboard() {
                       <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
                         <span>Live Notices, Attendance & Remarks Feed</span>
                         {unreadNotifCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white animate-pulse">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-700 text-white font-black">
                             {unreadNotifCount} unread
                           </span>
                         )}
@@ -364,13 +369,23 @@ export default function TalabatDashboard() {
                     </div>
                   </div>
 
-                  <Link
-                    href="/talabat/attendance"
-                    className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 self-start sm:self-center"
-                  >
-                    <span>View Attendance History</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="flex items-center gap-3 self-start sm:self-center">
+                    <Link
+                      href="/talabat/support"
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                    >
+                      <LifeBuoy className="w-3.5 h-3.5" />
+                      <span>IT Support</span>
+                    </Link>
+                    <span className="text-slate-300">|</span>
+                    <Link
+                      href="/talabat/attendance"
+                      className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1"
+                    >
+                      <span>Attendance History</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
 
                 {notifications.length === 0 ? (
@@ -428,7 +443,7 @@ export default function TalabatDashboard() {
                               <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-900 truncate">
                                 {notif.title}
                               </h4>
-                              <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                              <span className="text-xs text-slate-600 shrink-0 font-mono font-semibold">
                                 {timeAgo(notif.createdAt)}
                               </span>
                             </div>
@@ -557,7 +572,7 @@ export default function TalabatDashboard() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full font-bold group rounded-xl text-emerald-800 hover:text-emerald-950"
+                            className="w-full font-bold group rounded-xl text-emerald-950 hover:bg-emerald-50 border border-emerald-300"
                           >
                             View All Badges <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-0.5" />
                           </Button>
@@ -588,7 +603,7 @@ export default function TalabatDashboard() {
                           <BarChart3 className="w-5 h-5 text-emerald-700" /> 4C Attribute Skill Development
                         </CardTitle>
                         <Link href="/talabat/skill-tree">
-                          <Button variant="ghost" size="sm" className="font-bold rounded-xl text-xs text-emerald-800 hover:text-emerald-950">
+                          <Button variant="ghost" size="sm" className="font-bold rounded-xl text-xs text-emerald-950 hover:bg-emerald-50 border border-emerald-300">
                             Details <ArrowRight className="w-4 h-4 ml-1" />
                           </Button>
                         </Link>

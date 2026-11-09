@@ -45,6 +45,7 @@ interface LibraryShelf360Props {
   onEdit: (shelf: Shelf360Data) => void;
   onMove: (shelf: Shelf360Data) => void;
   onClear: (shelf: Shelf360Data) => void;
+  onPrint?: (shelf: Shelf360Data) => void;
 }
 
 // ── Visual constants ──
@@ -685,6 +686,7 @@ function InfoPanel({
   onEdit,
   onMove,
   onClear,
+  onPrint,
   onClose,
 }: {
   shelf: Shelf360Data;
@@ -692,6 +694,7 @@ function InfoPanel({
   onEdit: (s: Shelf360Data) => void;
   onMove: (s: Shelf360Data) => void;
   onClear: (s: Shelf360Data) => void;
+  onPrint?: (s: Shelf360Data) => void;
   onClose: () => void;
 }) {
   const hex = shelfHex(shelf);
@@ -767,25 +770,34 @@ function InfoPanel({
         </div>
       )}
 
-      <div className="flex items-center gap-1.5 border-t border-gray-100 pt-2.5">
+      <div className="flex items-center gap-1.5 border-t border-gray-100 pt-2.5 flex-wrap">
         <button
           onClick={() => onEdit(shelf)}
-          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
         >
           <Edit3 className="h-3.5 w-3.5" /> Edit
         </button>
         <button
           onClick={() => onMove(shelf)}
-          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
         >
           <Move className="h-3.5 w-3.5" /> Move
         </button>
         <button
           onClick={() => onClear(shelf)}
-          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700"
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700"
         >
           <Trash2 className="h-3.5 w-3.5" /> Clear
         </button>
+        {onPrint && (
+          <button
+            onClick={() => onPrint(shelf)}
+            className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 transition-colors hover:bg-emerald-100 ml-auto"
+            title="Print standard barcode stickers for this shelf"
+          >
+            <Barcode className="h-3.5 w-3.5 text-emerald-700" /> Stickers
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -797,6 +809,7 @@ export default function LibraryShelf360({
   onEdit,
   onMove,
   onClear,
+  onPrint,
 }: LibraryShelf360Props) {
   const [selected, setSelected] = useState<Shelf360Data | null>(null);
   const [selectedBook, setSelectedBook] = useState<Shelf360Book | null>(null);
@@ -1102,6 +1115,7 @@ export default function LibraryShelf360({
             onEdit={onEdit}
             onMove={onMove}
             onClear={onClear}
+            onPrint={onPrint}
             onClose={clearSelection}
           />
         ) : (

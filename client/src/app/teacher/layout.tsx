@@ -81,11 +81,14 @@ const rawNavItems = [
 ];
 
 export default function TeacherLayout() {
-  const { isPageAssigned } = usePortalAccess();
+  const { isPageAssigned, isMasterAdmin } = usePortalAccess();
 
   const filteredNavItems = useMemo(() => {
-    // Takhteet portion displays to assigned teachers only (via portal assignments)
-    return rawNavItems.filter((item) => isPageAssigned(item.key));
+    return rawNavItems.filter((item) => {
+      // Tilawat Dua is readable and viewable by ALL teachers
+      if (item.key === "tilawat-dua") return true;
+      return isPageAssigned(item.key);
+    });
   }, [isPageAssigned]);
 
   const showProfile = isPageAssigned("profile");
@@ -93,9 +96,9 @@ export default function TeacherLayout() {
   return (
     <PortalShell
       role="TEACHER"
-      portalName="Teacher Portal"
-      subtitle="Teacher Dashboard"
-      roleLabel="Teacher"
+      portalName={isMasterAdmin ? "Teacher Portal (Master Administrator)" : "Teacher Portal"}
+      subtitle={isMasterAdmin ? "Full Administrative Authority · All Modules Visible" : "Teacher Dashboard"}
+      roleLabel={isMasterAdmin ? "Master Administrator" : "Teacher"}
       navItems={filteredNavItems}
       profileLinks={showProfile ? [{ label: "My Profile", href: "/teacher/profile", icon: User }] : []}
     />

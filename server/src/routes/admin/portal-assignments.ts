@@ -12,6 +12,7 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
   { id: "talabat-profiles", label: "Yearly Profile (1447 H)", category: "Community", description: "Talabat yearly profile, remarks & 1447 H records", path: "/teacher/talabat-profiles", icon: "GraduationCap" },
   { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
+  { id: "badal", label: "Badal & Substitution Desk", category: "Academics", description: "Manage faculty substitution, proxy assignments & notification dispatches", path: "/teacher/timetable", icon: "ArrowRightLeft" },
   { id: "takhteet", label: "Takhteet (Curriculum Portion)", category: "Academics", description: "Curriculum pacing & syllabus tracking (Restricted to specific assigned faculty)", path: "/teacher/takhteet", icon: "Layers" },
   { id: "manual-attendance", label: "Manual Attendance", category: "Attendance", description: "Take manual attendance for classes, windows & registry", path: "/teacher/attendance", icon: "ClipboardCheck" },
   { id: "attendance-logs", label: "Hikvision Scans & Logs", category: "Attendance", description: "Live Hikvision scans, manual logs, exports & audit timeline", path: "/teacher/attendance-hik", icon: "Fingerprint" },
@@ -74,7 +75,8 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "tracking" || clean === "analytics") return ["tracking"];
   if (clean === "classes" || clean === "class") return ["classes"];
   if (clean === "talabat-profiles" || clean === "talabat_profiles" || clean === "talabat-profile" || clean === "yearly-profile" || clean === "profile-1447" || clean === "profile1447") return ["talabat-profiles"];
-  if (clean === "timetable") return ["timetable"];
+  if (clean === "timetable" || clean === "timetable-matrix" || clean === "schedule-matrix" || clean === "timetable-management" || clean === "matrix-management") return ["timetable"];
+  if (clean === "badal" || clean === "badal-management" || clean === "substitution" || clean === "substitute") return ["badal", "timetable"];
   if (clean === "takhteet") return ["takhteet"];
   if (clean === "leave" || clean === "leaves") return ["leave"];
   if (clean === "procurement") return ["procurement"];
@@ -142,7 +144,7 @@ export function toAssignedPageIds(portalTypes: string[]): string[] {
   for (const t of portalTypes) {
     const ids = normalizeCanonicalPageId(t);
     for (const id of ids) {
-      if (id === "ALL") {
+      if (id === "ALL" || id === "portal-assignments") {
         return TEACHER_AVAILABLE_PAGES.map((p) => p.id);
       }
       if (PAGE_IDS.has(id)) {
@@ -248,7 +250,13 @@ router.get("/", requireAuth, async (req, res) => {
       }
 
       const activeAssignments = currentTeacherProfile.portalAssignments.filter((a: any) => a.isActive);
-      const isAll = activeAssignments.some((a: any) => a.portalType === "ALL");
+      const isAll = activeAssignments.some(
+        (a: any) =>
+          a.portalType === "ALL" ||
+          a.portalType === "PAGE:portal-assignments" ||
+          a.portalType === "portal-assignments" ||
+          a.portalType === "PORTAL-ASSIGNMENTS"
+      );
 
       // Verify whether teacher has assigned subjects and classes (teaching faculty)
       const hasAssignedTeaching = Boolean(
@@ -285,12 +293,34 @@ router.get("/", requireAuth, async (req, res) => {
         });
       }
 
+      const explicitPageIds = Array.from(
+        new Set(activeAssignments.flatMap((a: any) => normalizeCanonicalPageId(a.portalType)))
+      );
+      const isExplicitTimetable =
+        isAll ||
+        explicitPageIds.includes("timetable") ||
+        explicitPageIds.includes("badal") ||
+        activeAssignments.some((a: any) => {
+          const norm = (a.portalType || "").toLowerCase().replace(/^page:/, "").trim();
+          return (
+            norm === "timetable" ||
+            norm === "timetable-matrix" ||
+            norm === "matrix-management" ||
+            norm === "timetable-management" ||
+            norm === "badal" ||
+            norm === "badal-management"
+          );
+        });
+
       return res.json({
         success: true,
         data: {
           teacherId: currentTeacherProfile.id,
           hasAssignedTeaching,
           assignedPages: Array.from(new Set(assignedPageIds)),
+          explicitPages: explicitPageIds,
+          rawAssignments: activeAssignments.map((a: any) => a.portalType),
+          canManageTimetable: isExplicitTimetable,
           allPages: TEACHER_AVAILABLE_PAGES,
         },
       });
@@ -345,7 +375,13 @@ router.get("/", requireAuth, async (req, res) => {
         })),
         teachers: teachers.map((t) => {
           const raw = t.portalAssignments.filter((a) => a.isActive);
-          const hasAll = raw.some((a) => a.portalType === "ALL");
+          const hasAll = raw.some(
+            (a) =>
+              a.portalType === "ALL" ||
+              a.portalType === "PAGE:portal-assignments" ||
+              a.portalType === "portal-assignments" ||
+              a.portalType === "PORTAL-ASSIGNMENTS"
+          );
           const hasAssignedTeaching = Boolean(
             (t.classes && t.classes.length > 0) ||
             (t.masoolClasses && t.masoolClasses.length > 0) ||
@@ -502,9 +538,13 @@ router.post("/batch", requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: "No matching teacher profiles found" });
     }
 
-    const fullGrant = grantAll || (pages || []).length >= TEACHER_AVAILABLE_PAGES.length;
+    const fullGrant =
+      grantAll ||
+      (pages || []).length >= TEACHER_AVAILABLE_PAGES.length ||
+      (pages || []).includes("ALL") ||
+      (pages || []).includes("portal-assignments");
     const pageKeys = fullGrant
-      ? ["ALL"]
+      ? ["ALL", "PAGE:portal-assignments"]
       : Array.from(
           new Set(
             (pages || [])

@@ -26,7 +26,7 @@ export interface SessionUser {
 }
 
 export const COOKIE_NAME = "sis_session";
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days (seconds)
+const SESSION_MAX_AGE = 90 * 24 * 60 * 60; // 90 days (seconds)
 const FULL_TIME_SESSION_MAX_AGE = 365 * 24 * 60 * 60; // 365 days / 1 year (full-time persistent login)
 
 const INSECURE_SECRET_PATTERNS = ["secret", "password", "default", "changeme", "123456", "admin", "jwtsecret"];
@@ -106,11 +106,13 @@ export function getSessionUser(req: Request): SessionUser | null {
 }
 
 export function setSessionCookie(res: Response, token: string, maxAgeSeconds: number = SESSION_MAX_AGE): void {
+  const expiresDate = new Date(Date.now() + maxAgeSeconds * 1000);
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: maxAgeSeconds * 1000,
+    expires: expiresDate,
     path: "/",
   });
 }
@@ -153,6 +155,80 @@ function normalizeName(s: string): string {
     .trim();
 }
 
+
+interface FailedLoginAttempt {
+  count: number;
+  firstAttempt: number;
+  lockedUntil: number | null;
+}
+
+const failedAttempts = new Map<string, FailedLoginAttempt>();
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;   // 15 minutes rolling window
+
+// Periodic cleanup of expired lockout records every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of failedAttempts.entries()) {
+    if (val.lockedUntil && val.lockedUntil < now) {
+      failedAttempts.delete(key);
+    } else if (!val.lockedUntil && now - val.firstAttempt > ATTEMPT_WINDOW_MS) {
+      failedAttempts.delete(key);
+    }
+  }
+}, 10 * 60 * 1000).unref?.();
+
+function getLockKey(identifier: string, ip: string): string {
+  return `${identifier.toLowerCase().trim()}#${ip}`;
+}
+
+function checkLockout(key: string): { isLocked: boolean; remainingMinutes: number } {
+  const entry = failedAttempts.get(key);
+  if (!entry || !entry.lockedUntil) return { isLocked: false, remainingMinutes: 0 };
+  const now = Date.now();
+  if (now >= entry.lockedUntil) {
+    failedAttempts.delete(key);
+    return { isLocked: false, remainingMinutes: 0 };
+  }
+  const remainingMinutes = Math.ceil((entry.lockedUntil - now) / (60 * 1000));
+  return { isLocked: true, remainingMinutes };
+}
+
+function recordFailedAttempt(key: string, identifier: string, ip: string): { isNowLocked: boolean; remainingAttempts: number } {
+  const now = Date.now();
+  const entry = failedAttempts.get(key) || { count: 0, firstAttempt: now, lockedUntil: null };
+
+  if (now - entry.firstAttempt > ATTEMPT_WINDOW_MS) {
+    entry.count = 1;
+    entry.firstAttempt = now;
+    entry.lockedUntil = null;
+  } else {
+    entry.count += 1;
+  }
+
+  if (entry.count >= MAX_FAILED_ATTEMPTS) {
+    entry.lockedUntil = now + LOCKOUT_DURATION_MS;
+    failedAttempts.set(key, entry);
+    logAuditEvent({
+      action: "ACCOUNT_LOCKED_BRUTEFORCE",
+      category: "SECURITY",
+      severity: "CRITICAL",
+      status: "BLOCKED",
+      ipAddress: ip,
+      details: { identifier, attempts: entry.count, lockDurationMs: LOCKOUT_DURATION_MS },
+    });
+    return { isNowLocked: true, remainingAttempts: 0 };
+  }
+
+  failedAttempts.set(key, entry);
+  return { isNowLocked: false, remainingAttempts: Math.max(0, MAX_FAILED_ATTEMPTS - entry.count) };
+}
+
+function clearFailedAttempts(key: string): void {
+  failedAttempts.delete(key);
+}
+
 async function loginHandlerInner(req: Request, res: Response): Promise<void> {
   const { email, identifier, username, password, portalRole } = (req.body ?? {}) as {
     email?: string;
@@ -164,6 +240,26 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
   const loginId = (email ?? identifier ?? username ?? "").trim();
   if (!loginId || !password) {
     res.status(400).json({ success: false, error: "Name / ITS number / email and password are required" });
+    return;
+  }
+
+  const clientIp = getClientIp(req);
+  const lockKey = getLockKey(loginId, clientIp);
+  const { isLocked, remainingMinutes } = checkLockout(lockKey);
+  if (isLocked) {
+    logAuditEvent({
+      action: "LOGIN_LOCKED_BLOCKED",
+      category: "SECURITY",
+      severity: "CRITICAL",
+      status: "BLOCKED",
+      ipAddress: clientIp,
+      userAgent: req.headers["user-agent"],
+      details: { identifier: loginId, remainingMinutes, reason: "Account locked due to consecutive failed attempts" },
+    });
+    res.status(429).json({
+      success: false,
+      error: `Too many failed login attempts. For your security, this account is temporarily locked. Please try again in ${remainingMinutes} minute${remainingMinutes === 1 ? "" : "s"}.`,
+    });
     return;
   }
 
@@ -387,9 +483,12 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
     const trimmed = password.trim();
 
     if (user.role === "ADMIN") {
-      const adminAllowedPasswords = ["mahad123", "admin123", "Admin@123", "Password@123", "faculty5253"];
-      if (adminAllowedPasswords.includes(trimmed)) {
-        isPasswordValid = true;
+      const isProduction = process.env.NODE_ENV === "production" && process.env.ALLOW_DEFAULT_PASSWORDS !== "true";
+      if (!isProduction) {
+        const adminAllowedPasswords = ["mahad123", "admin123", "Admin@123", "Password@123", "faculty5253"];
+        if (adminAllowedPasswords.includes(trimmed)) {
+          isPasswordValid = true;
+        }
       }
     } else if (user.role === "STUDENT") {
       const studentAllowedPasswords = ["student123", "515253", "Password@123"];
@@ -427,6 +526,7 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
     }
   }
   if (!isPasswordValid) {
+    const { isNowLocked, remainingAttempts } = recordFailedAttempt(lockKey, loginId, clientIp);
     const isAdminAccount = user.role === "ADMIN" || portalRole === "ADMIN";
     logAuditEvent({
       userId: user.id,
@@ -437,13 +537,23 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
       category: "AUTH",
       severity: isAdminAccount ? "CRITICAL" : "WARN",
       status: "FAILED",
-      ipAddress: getClientIp(req),
+      ipAddress: clientIp,
       userAgent: req.headers["user-agent"],
-      details: { reason: "Incorrect password", portalRole },
+      details: { reason: "Incorrect password", portalRole, remainingAttempts },
     });
+    if (isNowLocked) {
+      res.status(429).json({
+        success: false,
+        error: "Too many failed login attempts. Account temporarily locked for 15 minutes.",
+      });
+      return;
+    }
     res.status(401).json({ success: false, error: "Invalid credentials" });
     return;
   }
+
+  // Clear failed attempt tracking upon successful authentication
+  clearFailedAttempts(lockKey);
 
   const sessionUser: SessionUser = {
     id: user.id,
@@ -626,6 +736,15 @@ export async function sessionHandler(req: Request, res: Response): Promise<void>
     if (!sessionUser) {
       res.json({ success: true, data: null });
       return;
+    }
+
+    // Slide/refresh session cookie expiration window so active users never experience unexpected timeouts
+    let activeToken = req.cookies?.[COOKIE_NAME];
+    if (!activeToken && typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer ")) {
+      activeToken = req.headers.authorization.slice(7).trim();
+    }
+    if (activeToken) {
+      setSessionCookie(res, activeToken, FULL_TIME_SESSION_MAX_AGE);
     }
 
     try {

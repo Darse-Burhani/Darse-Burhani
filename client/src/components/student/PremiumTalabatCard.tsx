@@ -94,7 +94,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
             {/* Name & Academic Meta */}
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-200 bg-emerald-950/70 border border-amber-400/30">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-300 bg-stone-950 border border-amber-400/50">
                   <GraduationCap className="w-3.5 h-3.5 text-amber-300" />
                   Grade {grade}{section}
                 </span>
@@ -106,7 +106,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
 
                 {data.status && (
                   data.status === "HAFIZ" ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-100 bg-amber-500/20 border border-amber-300/40">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-100 bg-stone-950 border border-amber-400/50">
                       <Award className="w-3.5 h-3.5 text-amber-300" />
                       Hafiz {data.hafizYear ? `(${data.hafizYear})` : ""}
                     </span>
@@ -123,7 +123,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
               </h2>
 
               {nameAr && (
-                <p className="text-base sm:text-lg text-emerald-100/90 font-medium" dir="rtl" lang="ar">
+                <p className="text-base sm:text-lg text-emerald-100 font-semibold" dir="rtl" lang="ar">
                   {nameAr}
                 </p>
               )}
@@ -137,9 +137,9 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
                 <div key={d.label} className="min-w-0">
                   <div className="flex items-center gap-1.5 mb-1">
                     <d.icon className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                    <span className="text-[11px] font-semibold text-emerald-100 truncate">{d.label}</span>
+                    <span className="text-xs font-bold text-emerald-200 truncate">{d.label}</span>
                   </div>
-                  <p className="text-sm font-semibold text-white truncate" title={String(d.value)}>
+                  <p className="text-sm font-bold text-white truncate" title={String(d.value)}>
                     {String(d.value)}
                   </p>
                 </div>

@@ -13,7 +13,7 @@ const buttonVariants = cva(
         destructive:
           "bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 text-white border border-rose-500/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_rgba(225,29,72,0.25)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(225,29,72,0.4)]",
         outline:
-          "border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:bg-slate-50 hover:border-emerald-500/60 hover:text-emerald-950 hover:shadow-[0_8px_20px_-2px_rgba(4,120,87,0.15)] hover:-translate-y-0.5",
+          "border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-emerald-500/60 hover:text-emerald-950 dark:hover:text-white hover:-translate-y-0.5",
         secondary:
           "bg-slate-100/95 hover:bg-slate-200/90 text-slate-800 border border-slate-200/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.04)] hover:-translate-y-0.5",
         ghost:
@@ -73,10 +73,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         className={cn(
-          buttonVariants({ variant, size, className }),
-          "group",
-          // Light shimmer sweep animation on hover
-          "before:absolute before:inset-0 before:-translate-x-full before:hover:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/15 before:to-transparent before:transition-transform before:duration-700 before:pointer-events-none"
+          buttonVariants({ variant, size, className })
         )}
         ref={ref}
         disabled={disabled || loading}

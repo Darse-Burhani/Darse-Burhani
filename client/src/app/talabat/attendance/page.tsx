@@ -20,11 +20,14 @@ import {
   FileCheck2,
   FileX2,
   BookOpen,
+  UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/student/PageHeader";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
+import { useSession } from "next-auth/react";
 import {
   isAnyWindowOpen,
   isFinalAttendanceEvent,
@@ -114,6 +117,7 @@ const monthNames = [
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function TalabatAttendancePage() {
+  const { data: session } = useSession();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -719,6 +723,81 @@ export default function TalabatAttendancePage() {
               </Card>
             </motion.div>
           </div>
+
+          {/* Maktabat Arrivals & Attendance Records */}
+          {data?.maktabatAttendances && data.maktabatAttendances.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="mt-8"
+            >
+              <Card className="fatimi-card">
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                      <UserCheck className="w-4 h-4 text-emerald-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base font-bold text-slate-800">
+                        Maktabat Arrivals &amp; Attendance
+                      </CardTitle>
+                      <p className="text-xs text-slate-500">
+                        Official library arrivals with exact marking time and date
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-800 border-emerald-300 font-bold">
+                    {data.maktabatAttendances.length} Recorded Visits
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {data.maktabatAttendances.map((m: any) => (
+                      <div
+                        key={m.id}
+                        className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-xs flex items-center justify-between gap-3 hover:border-emerald-300 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border-2 border-emerald-500 ring-2 ring-emerald-100 shadow-2xs">
+                            <ProfilePhoto
+                              src={session?.user?.avatarUrl}
+                              alt={session?.user?.firstName || "Talabat"}
+                              className="w-full h-full"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-slate-900 truncate">
+                              {new Date(m.date).toLocaleDateString("en-US", {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </p>
+                            <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                              Marked Time:{" "}
+                              <strong className="text-emerald-800 font-bold">
+                                {new Date(m.checkInTime).toLocaleTimeString("en-US", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                })}
+                              </strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+                          ✓ Arrived
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
         </>
       ) : (
         <Card className="fatimi-card">

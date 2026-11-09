@@ -197,7 +197,7 @@ export async function generateFacultyExcel(): Promise<string> {
         status = dbRec.status || 'PRESENT';
         outcome = 'DB_RECORD';
         device = 'Main Terminal (192.168.0.4)';
-        remarks = dbRec.remarks || 'Recorded in Faculty Attendance Register';
+        remarks = dbRec.notes || 'Recorded in Faculty Attendance Register';
       }
 
       if (status === 'PRESENT' && checkInIST === '—' && checkInTime) {

@@ -7,6 +7,17 @@ const router = Router();
 // GET /api/admin/library/overview - Aggregated "360-degree" view of the library
 router.get("/", requireRole("ADMIN"), async (req, res) => {
   try {
+    const scope = ((req.query.scope as string) || "").toLowerCase();
+    const makhzanCategories = ["Stationery", "Curriculum", "Kit", "Uniform", "Makhzan", "Equipment", "Depot", "Assets", "Faculty Kit"];
+    const makhzanOrConditions = [
+      { notes: { contains: "MAKHZAN", mode: "insensitive" } },
+      { rackNumber: { contains: "Makhzan", mode: "insensitive" } },
+      { category: { in: makhzanCategories } },
+    ];
+    const whereBook: any = scope === "makhzan"
+      ? { OR: makhzanOrConditions }
+      : { NOT: { OR: makhzanOrConditions } };
+
     const [
       bookCounts,
       bookTotals,
@@ -19,8 +30,9 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       topBorrowers,
       popularBooks,
     ] = await Promise.all([
-      prisma.libraryBook.groupBy({ by: ["status"], _count: true }),
+      prisma.libraryBook.groupBy({ by: ["status"], where: whereBook, _count: true }),
       prisma.libraryBook.aggregate({
+        where: whereBook,
         _count: { _all: true },
         _sum: { totalCopies: true, availableCopies: true },
       }),
@@ -29,6 +41,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       prisma.bookLoan.count({ where: { status: "RETURNED" } }),
       prisma.libraryBook.groupBy({
         by: ["category"],
+        where: whereBook,
         _count: true,
         orderBy: { _count: { category: "desc" } },
       }),
@@ -47,6 +60,7 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         },
       }),
       prisma.libraryBook.findMany({
+        where: whereBook,
         orderBy: { createdAt: "desc" },
         take: 6,
         select: {

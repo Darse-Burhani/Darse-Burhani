@@ -4,12 +4,22 @@ import path from "path";
 import fs from "fs";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { parentsUploadsDir, clientPublicParentsDir, clientDistParentsDir } from "../../lib/paths";
+import { cache } from "../../lib/cache";
+import { sendPushToUser } from "../../lib/push";
 
 const router = Router();
 
-import { parentsUploadsDir, clientPublicParentsDir, clientDistParentsDir } from "../../lib/paths";
-import { cache } from "../../lib/cache";
-
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+]);
 
 const avatarUpload = multer({
   storage: multer.diskStorage({
@@ -24,7 +34,8 @@ const avatarUpload = multer({
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"].includes(file.mimetype)) {
+    const mime = (file.mimetype || "").toLowerCase();
+    if (ALLOWED_MIME_TYPES.has(mime)) {
       cb(null, true);
       return;
     }
@@ -32,90 +43,195 @@ const avatarUpload = multer({
   },
 });
 
-// GET /api/parent/profile - Current parent profile
-router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
-  try {
-    const session = req.auth!;
-    let userId = session.user.id;
-
-    const includeClause = {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          avatarUrl: true,
-          pendingAvatarUrl: true,
-          avatarStatus: true,
-          avatarRejectionReason: true,
-        },
-      },
-      studentLinks: {
+const PROFILE_INCLUDE = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      avatarUrl: true,
+      pendingAvatarUrl: true,
+      avatarStatus: true,
+      avatarRejectionReason: true,
+    },
+  },
+  studentLinks: {
+    include: {
+      student: {
         include: {
-          student: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              avatarUrl: true,
+            },
+          },
+          classEnrollments: {
             include: {
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  avatarUrl: true,
+              class: {
+                include: {
+                  masool: {
+                    include: {
+                      user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+                    },
+                  },
                 },
               },
             },
           },
         },
       },
-    };
+    },
+  },
+} as const;
+
+/**
+ * Normalizes parent profile and linked student representations into a consistent JSON shape
+ */
+function formatParentResponse(parent: any) {
+  return {
+    id: parent.id,
+    userId: parent.userId,
+    email: parent.user?.email || "",
+    firstName: parent.user?.firstName || "",
+    lastName: parent.user?.lastName || "",
+    avatarUrl: parent.user?.avatarUrl || null,
+    pendingAvatarUrl: parent.user?.pendingAvatarUrl || null,
+    avatarStatus: parent.user?.avatarStatus || (parent.user?.pendingAvatarUrl ? "PENDING" : parent.user?.avatarUrl ? "APPROVED" : null),
+    avatarRejectionReason: parent.user?.avatarRejectionReason || null,
+    phone: parent.phone,
+    secondaryPhone: parent.secondaryPhone,
+    occupation: parent.occupation,
+    address: parent.address,
+    city: parent.city,
+    watan: parent.watan,
+    bloodGroup: parent.bloodGroup,
+    its: parent.its,
+    relationType: parent.relationType,
+    notes: parent.notes,
+    children: (parent.studentLinks || []).map((link: any) => {
+      const s = link.student;
+      const u = s?.user;
+      const enrollmentClass = s?.classEnrollments?.[0]?.class;
+      const masoolUser = enrollmentClass?.masool?.user;
+      const masoolName = masoolUser
+        ? `${masoolUser.firstName} ${masoolUser.lastName}`.trim()
+        : enrollmentClass?.masool
+        ? "Faculty Masool"
+        : null;
+
+      return {
+        linkId: link.id,
+        studentId: link.studentId,
+        studentProfileId: s?.id || link.studentId,
+        studentName: `${u?.firstName || ""} ${u?.lastName || ""}`.trim() || s?.studentId || "Student",
+        firstName: u?.firstName || "",
+        lastName: u?.lastName || "",
+        grade: s?.grade || "",
+        section: s?.section || "",
+        its: s?.its || null,
+        avatarUrl: u?.avatarUrl || null,
+        relationship: link.relationship || parent.relationType || "Parent",
+        className: enrollmentClass?.name || `${s?.grade || ""} ${s?.section || ""}`.trim(),
+        masoolName,
+        masoolAvatar: masoolUser?.avatarUrl || null,
+        masoolIts: enrollmentClass?.masool?.its || null,
+      };
+    }),
+  };
+}
+
+// GET /api/parent/profile - Current parent profile
+router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    let userId = session.user.id;
 
     let parent = await prisma.parentProfile.findUnique({
       where: { userId },
-      include: includeClause,
+      include: PROFILE_INCLUDE,
     });
 
     if (!parent && (session.user.role === "ADMIN" || session.user.role === "TEACHER")) {
-      const targetParentId = (req.query.parentId as string) || (req.query.parent as string);
-      parent = await prisma.parentProfile.findFirst({
-        where: targetParentId ? { OR: [{ id: targetParentId }, { userId: targetParentId }] } : undefined,
-        include: includeClause,
-      });
+      const targetParentId = (req.query.parentId as string) || (req.query.parent as string) || (req.query.userId as string);
+      if (targetParentId) {
+        parent = await prisma.parentProfile.findFirst({
+          where: { OR: [{ id: targetParentId }, { userId: targetParentId }] },
+          include: PROFILE_INCLUDE,
+        });
+      }
+    }
+
+    // Auto-create stub profile for PARENT role if it doesn't exist yet
+    if (!parent && session.user.role === "PARENT") {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user) {
+        parent = await prisma.parentProfile.create({
+          data: {
+            userId,
+          },
+          include: PROFILE_INCLUDE,
+        });
+      }
     }
 
     if (!parent) {
       return res.status(404).json({ success: false, error: "Parent profile not found" });
     }
 
+    // Auto-heal student links if empty: link by phone or email
+    if (parent.studentLinks.length === 0) {
+      const matchOrConditions: any[] = [];
+      if (parent.phone) {
+        matchOrConditions.push({ fatherPhone: parent.phone }, { motherPhone: parent.phone });
+      }
+      if (parent.secondaryPhone) {
+        matchOrConditions.push({ fatherPhone: parent.secondaryPhone }, { motherPhone: parent.secondaryPhone });
+      }
+      if (parent.user?.email) {
+        matchOrConditions.push({ fatherEmail: parent.user.email }, { motherEmail: parent.user.email });
+      }
+      if (parent.its) {
+        matchOrConditions.push({ its: parent.its });
+      }
+
+      if (matchOrConditions.length > 0) {
+        try {
+          const matchedStudents = await prisma.studentProfile.findMany({
+            where: { OR: matchOrConditions },
+            select: { id: true },
+          });
+
+          if (matchedStudents.length > 0) {
+            for (const s of matchedStudents) {
+              await prisma.parentStudentLink.upsert({
+                where: { parentId_studentId: { parentId: parent.id, studentId: s.id } },
+                create: {
+                  parentId: parent.id,
+                  studentId: s.id,
+                  relationship: parent.relationType || "Parent",
+                },
+                update: {},
+              });
+            }
+
+            // Reload parent profile with newly linked children
+            const reloaded = await prisma.parentProfile.findUnique({
+              where: { id: parent.id },
+              include: PROFILE_INCLUDE,
+            });
+            if (reloaded) parent = reloaded;
+          }
+        } catch (linkErr) {
+          console.warn("[parent:profile] Auto-link notice:", linkErr);
+        }
+      }
+    }
+
     return res.json({
       success: true,
-      data: {
-        id: parent.id,
-        userId: parent.userId,
-        email: parent.user.email,
-        firstName: parent.user.firstName,
-        lastName: parent.user.lastName,
-        avatarUrl: parent.user.avatarUrl,
-        pendingAvatarUrl: parent.user.pendingAvatarUrl,
-        avatarStatus: parent.user.avatarStatus || (parent.user.pendingAvatarUrl ? "PENDING" : "APPROVED"),
-        avatarRejectionReason: parent.user.avatarRejectionReason,
-        phone: parent.phone,
-        secondaryPhone: parent.secondaryPhone,
-        occupation: parent.occupation,
-        address: parent.address,
-        city: parent.city,
-        watan: parent.watan,
-        bloodGroup: parent.bloodGroup,
-        its: parent.its,
-        relationType: parent.relationType,
-        notes: parent.notes,
-        children: parent.studentLinks.map((link) => ({
-          studentId: link.studentId,
-          studentName: `${link.student.user.firstName} ${link.student.user.lastName}`,
-          grade: link.student.grade,
-          section: link.student.section,
-          avatarUrl: link.student.user.avatarUrl,
-          relationship: link.relationship,
-        })),
-      },
+      data: formatParentResponse(parent),
     });
   } catch (error) {
     console.error("Parent profile fetch error:", error);
@@ -124,10 +240,21 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
 });
 
 // PUT /api/parent/profile - Update current parent profile
-router.put("/", requireRole("PARENT"), async (req, res) => {
+router.put("/", requireRole("PARENT", "ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
-    const userId = session.user.id;
+    let userId = session.user.id;
+
+    if (session.user.role === "ADMIN" && (req.query.parentId || req.query.userId)) {
+      const targetId = ((req.query.parentId || req.query.userId) as string).trim();
+      const p = await prisma.parentProfile.findFirst({
+        where: { OR: [{ id: targetId }, { userId: targetId }] },
+        select: { userId: true },
+      });
+      if (p) userId = p.userId;
+      else userId = targetId;
+    }
+
     const body = req.body as Record<string, any>;
     const {
       firstName,
@@ -145,20 +272,24 @@ router.put("/", requireRole("PARENT"), async (req, res) => {
     } = body;
 
     const userData: Record<string, any> = {};
-    if (firstName !== undefined) userData.firstName = firstName.trim();
-    if (lastName !== undefined) userData.lastName = lastName.trim();
+    if (firstName !== undefined && firstName !== null && String(firstName).trim()) {
+      userData.firstName = String(firstName).trim();
+    }
+    if (lastName !== undefined && lastName !== null && String(lastName).trim()) {
+      userData.lastName = String(lastName).trim();
+    }
 
     const profileData: Record<string, any> = {};
-    if (phone !== undefined) profileData.phone = phone?.trim() || null;
-    if (secondaryPhone !== undefined) profileData.secondaryPhone = secondaryPhone?.trim() || null;
-    if (occupation !== undefined) profileData.occupation = occupation?.trim() || null;
-    if (address !== undefined) profileData.address = address?.trim() || null;
-    if (city !== undefined) profileData.city = city?.trim() || null;
-    if (watan !== undefined) profileData.watan = watan?.trim() || null;
-    if (bloodGroup !== undefined) profileData.bloodGroup = bloodGroup?.trim() || null;
-    if (its !== undefined) profileData.its = its?.trim() || null;
-    if (relationType !== undefined) profileData.relationType = relationType?.trim() || null;
-    if (notes !== undefined) profileData.notes = notes?.trim() || null;
+    if (phone !== undefined) profileData.phone = phone ? String(phone).trim() : null;
+    if (secondaryPhone !== undefined) profileData.secondaryPhone = secondaryPhone ? String(secondaryPhone).trim() : null;
+    if (occupation !== undefined) profileData.occupation = occupation ? String(occupation).trim() : null;
+    if (address !== undefined) profileData.address = address ? String(address).trim() : null;
+    if (city !== undefined) profileData.city = city ? String(city).trim() : null;
+    if (watan !== undefined) profileData.watan = watan ? String(watan).trim() : null;
+    if (bloodGroup !== undefined) profileData.bloodGroup = bloodGroup ? String(bloodGroup).trim() : null;
+    if (its !== undefined) profileData.its = its ? String(its).trim() : null;
+    if (relationType !== undefined) profileData.relationType = relationType ? String(relationType).trim() : null;
+    if (notes !== undefined) profileData.notes = notes ? String(notes).trim() : null;
 
     if (Object.keys(userData).length > 0) {
       await prisma.user.update({
@@ -184,12 +315,55 @@ router.put("/", requireRole("PARENT"), async (req, res) => {
       },
     });
 
+    // If parent has no linked children, try auto-linking with phone / email / ITS
+    let effectiveStudentLinks = savedParent.studentLinks || [];
+    if (effectiveStudentLinks.length === 0) {
+      const matchOrConditions: any[] = [];
+      const parentPhone = profileData.phone || savedParent.phone;
+      const parentSecondary = profileData.secondaryPhone || savedParent.secondaryPhone;
+      const parentIts = profileData.its || savedParent.its;
+      const parentEmail = session.user.email;
+
+      if (parentPhone) matchOrConditions.push({ fatherPhone: parentPhone }, { motherPhone: parentPhone });
+      if (parentSecondary) matchOrConditions.push({ fatherPhone: parentSecondary }, { motherPhone: parentSecondary });
+      if (parentEmail) matchOrConditions.push({ fatherEmail: parentEmail }, { motherEmail: parentEmail });
+      if (parentIts) matchOrConditions.push({ its: parentIts });
+
+      if (matchOrConditions.length > 0) {
+        try {
+          const matchedStudents = await prisma.studentProfile.findMany({
+            where: { OR: matchOrConditions },
+            select: { id: true },
+          });
+          for (const s of matchedStudents) {
+            await prisma.parentStudentLink.upsert({
+              where: { parentId_studentId: { parentId: savedParent.id, studentId: s.id } },
+              create: {
+                parentId: savedParent.id,
+                studentId: s.id,
+                relationship: savedParent.relationType || "Parent",
+              },
+              update: {},
+            });
+          }
+          if (matchedStudents.length > 0) {
+            effectiveStudentLinks = matchedStudents.map((s) => ({
+              studentId: s.id,
+              relationship: savedParent.relationType || "Parent",
+            }));
+          }
+        } catch (autoLinkErr) {
+          console.warn("[parent:profile:put] Auto-link notice:", autoLinkErr);
+        }
+      }
+    }
+
     // Synchronize parent's contact/location info to linked StudentProfiles & TalabatProfile1447
-    if (savedParent.studentLinks && savedParent.studentLinks.length > 0) {
+    if (effectiveStudentLinks && effectiveStudentLinks.length > 0) {
       const activeRel = (relationType || savedParent.relationType || "").toLowerCase();
       const isMother = activeRel.includes("mother");
 
-      for (const link of savedParent.studentLinks) {
+      for (const link of effectiveStudentLinks) {
         try {
           const studentUpdate: Record<string, any> = {};
           if (address !== undefined && address?.trim()) studentUpdate.address = address.trim();
@@ -198,7 +372,6 @@ router.put("/", requireRole("PARENT"), async (req, res) => {
 
           if (isMother) {
             if (phone !== undefined && phone?.trim()) studentUpdate.motherPhone = phone.trim();
-            if (occupation !== undefined && occupation?.trim()) studentUpdate.motherOccupation = occupation.trim();
           } else {
             if (phone !== undefined && phone?.trim()) studentUpdate.fatherPhone = phone.trim();
             if (occupation !== undefined && occupation?.trim()) studentUpdate.fatherOccupation = occupation.trim();
@@ -211,20 +384,14 @@ router.put("/", requireRole("PARENT"), async (req, res) => {
             });
           }
 
-          // Also synchronize to Talabat yearly profile (1447)
+          // Synchronize to yearly talabat profile (1447) with schema-safe attributes
           const yearlyUpdate: Record<string, any> = {};
-          if (address !== undefined && address?.trim()) yearlyUpdate.address = address.trim();
-          if (city !== undefined && city?.trim()) yearlyUpdate.residentCity = city.trim();
-          if (watan !== undefined && watan?.trim()) yearlyUpdate.watan = watan.trim();
+          if (watan !== undefined && watan?.trim()) yearlyUpdate.vatan = watan.trim();
 
           if (isMother) {
-            if (phone !== undefined && phone?.trim()) yearlyUpdate.motherMobile = phone.trim();
             if (occupation !== undefined && occupation?.trim()) yearlyUpdate.motherOccupation = occupation.trim();
-            if (its !== undefined && its?.trim()) yearlyUpdate.motherIts = its.trim();
           } else {
-            if (phone !== undefined && phone?.trim()) yearlyUpdate.fatherMobile = phone.trim();
             if (occupation !== undefined && occupation?.trim()) yearlyUpdate.fatherOccupation = occupation.trim();
-            if (its !== undefined && its?.trim()) yearlyUpdate.fatherIts = its.trim();
           }
 
           if (Object.keys(yearlyUpdate).length > 0) {
@@ -248,38 +415,55 @@ router.put("/", requireRole("PARENT"), async (req, res) => {
 
     // In-portal notification to Administration
     try {
-      const parentName = `${userData.firstName || session.user.name || "Parent"} ${userData.lastName || ""}`.trim();
+      const parentName = `${userData.firstName || (session.user as any).name || (session.user as any).firstName || "Parent"} ${userData.lastName || ""}`.trim();
       const admins = await prisma.user.findMany({
         where: { role: "ADMIN", isActive: true, deletedAt: null },
         select: { id: true },
       });
-      for (const adm of admins) {
-        await prisma.notification.create({
-          data: {
+
+      if (admins.length > 0) {
+        await prisma.notification.createMany({
+          data: admins.map((adm) => ({
             userId: adm.id,
             title: "Parent Profile Updated",
-            message: `${parentName} updated their family profile details and synced them to institutional records.`,
+            body: `${parentName} updated their family profile details and synced them to institutional records.`,
             type: "PROFILE",
             link: "/admin/parents",
-            metadata: { parentUserId: userId },
-          },
+          })),
         });
+
+        for (const adm of admins) {
+          sendPushToUser(adm.id, {
+            title: "Parent Profile Updated",
+            body: `${parentName} updated their family profile details.`,
+            url: "/admin/parents",
+          }).catch(() => {});
+        }
       }
     } catch (notifErr) {
       console.warn("[parent:profile] Notification dispatch warning:", notifErr);
     }
 
-    return res.json({ success: true, message: "Profile updated successfully and synced with student records" });
+    // Fetch freshly refreshed parent object
+    const updatedParent = await prisma.parentProfile.findUnique({
+      where: { userId },
+      include: PROFILE_INCLUDE,
+    });
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully and synced with student records",
+      data: updatedParent ? formatParentResponse(updatedParent) : null,
+    });
   } catch (error) {
     console.error("Parent profile update error:", error);
     return res.status(500).json({ success: false, error: "Failed to update profile" });
   }
 });
 
-// POST /api/parent/avatar - Upload profile picture with admin approval workflow
-router.post("/avatar", requireRole("PARENT"), (req, res) => {
+// POST /api/parent/avatar or /api/parent/profile/avatar - Upload profile picture with admin approval workflow
+router.post(["/avatar", "/avatar/upload", "/"], requireRole("PARENT", "ADMIN"), (req, res) => {
   const session = req.auth!;
-  const userId = session.user.id;
 
   avatarUpload.single("file")(req, res, async (err: unknown) => {
     if (err) {
@@ -298,75 +482,172 @@ router.post("/avatar", requireRole("PARENT"), (req, res) => {
     }
 
     try {
+      let targetUserId = session.user.id;
+      if (session.user.role === "ADMIN" && (req.query.parentId || req.query.userId)) {
+        const targetId = ((req.query.parentId || req.query.userId) as string).trim();
+        const p = await prisma.parentProfile.findFirst({
+          where: { OR: [{ id: targetId }, { userId: targetId }] },
+          select: { userId: true },
+        });
+        if (p) targetUserId = p.userId;
+        else targetUserId = targetId;
+      }
+
       const filePath = path.join(parentsUploadsDir, req.file.filename);
 
       // Replicate image to client public & dist upload folders for immediate preview
       try {
-        if (fs.existsSync(clientPublicParentsDir)) {
-          fs.copyFileSync(filePath, path.join(clientPublicParentsDir, req.file.filename));
-        }
-        if (fs.existsSync(clientDistParentsDir)) {
-          fs.copyFileSync(filePath, path.join(clientDistParentsDir, req.file.filename));
-        }
+        fs.mkdirSync(clientPublicParentsDir, { recursive: true });
+        fs.copyFileSync(filePath, path.join(clientPublicParentsDir, req.file.filename));
       } catch (copyErr) {
         console.warn("[parent:avatar] Replication copy notice:", copyErr);
       }
 
-      const url = `/uploads/parents/${req.file.filename}`;
+      try {
+        fs.mkdirSync(clientDistParentsDir, { recursive: true });
+        fs.copyFileSync(filePath, path.join(clientDistParentsDir, req.file.filename));
+      } catch (distCopyErr) {
+        console.warn("[parent:avatar] Dist copy notice:", distCopyErr);
+      }
 
-      // Save as pending approval so administrators can review and approve/reject
+      const url = `/uploads/parents/${req.file.filename}`;
+      const isAdminUpload = session.user.role === "ADMIN";
+
+      // If uploaded by admin, automatically approve; if by parent, stage as PENDING for admin review
       await prisma.user.update({
-        where: { id: userId },
-        data: {
-          pendingAvatarUrl: url,
-          avatarStatus: "PENDING",
-          avatarRejectionReason: null,
-        },
+        where: { id: targetUserId },
+        data: isAdminUpload
+          ? {
+              avatarUrl: url,
+              pendingAvatarUrl: null,
+              avatarStatus: "APPROVED",
+              avatarRejectionReason: null,
+            }
+          : {
+              pendingAvatarUrl: url,
+              avatarStatus: "PENDING",
+              avatarRejectionReason: null,
+            },
       });
 
       cache.invalidateTag("user");
       cache.invalidateTag("parentprofile");
       cache.invalidateTag("dashboard");
 
-      // Dispatch alert to Administrators
-      try {
-        const parentUser = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { firstName: true, lastName: true },
-        });
-        const parentName = `${parentUser?.firstName || "Parent"} ${parentUser?.lastName || ""}`.trim();
-        const admins = await prisma.user.findMany({
-          where: { role: "ADMIN", isActive: true, deletedAt: null },
-          select: { id: true },
-        });
-        for (const adm of admins) {
-          await prisma.notification.create({
-            data: {
-              userId: adm.id,
-              title: "New Parent Photo For Approval",
-              message: `${parentName} uploaded a new profile photo awaiting review.`,
-              type: "PROFILE",
-              link: "/admin/parents",
-              metadata: { parentUserId: userId, pendingAvatarUrl: url },
-            },
+      // Dispatch alert to Administrators if submitted by parent
+      if (!isAdminUpload) {
+        try {
+          const parentUser = await prisma.user.findUnique({
+            where: { id: targetUserId },
+            select: { firstName: true, lastName: true },
           });
+          const parentName = `${parentUser?.firstName || "Parent"} ${parentUser?.lastName || ""}`.trim();
+          const admins = await prisma.user.findMany({
+            where: { role: "ADMIN", isActive: true, deletedAt: null },
+            select: { id: true },
+          });
+
+          if (admins.length > 0) {
+            await prisma.notification.createMany({
+              data: admins.map((adm) => ({
+                userId: adm.id,
+                title: "New Parent Photo For Approval",
+                body: `${parentName} uploaded a new profile photo awaiting review.`,
+                type: "PROFILE",
+                link: "/admin/parents",
+              })),
+            });
+
+            for (const adm of admins) {
+              sendPushToUser(adm.id, {
+                title: "New Parent Photo For Approval",
+                body: `${parentName} uploaded a new profile photo awaiting review.`,
+                url: "/admin/parents",
+              }).catch(() => {});
+            }
+          }
+        } catch (notifErr) {
+          console.warn("[parent:avatar] Notification warning:", notifErr);
         }
-      } catch (notifErr) {
-        console.warn("[parent:avatar] Notification warning:", notifErr);
       }
 
       return res.json({
         success: true,
         url,
-        pending: true,
-        avatarStatus: "PENDING",
-        message: "Profile photo uploaded and submitted for administrator approval.",
+        pending: !isAdminUpload,
+        avatarStatus: isAdminUpload ? "APPROVED" : "PENDING",
+        message: isAdminUpload
+          ? "Profile photo updated successfully."
+          : "Profile photo uploaded and submitted for administrator approval.",
       });
     } catch (error) {
       console.error("Parent avatar upload error:", error);
       return res.status(500).json({ success: false, error: "Failed to upload avatar" });
     }
   });
+});
+
+// DELETE /api/parent/avatar or /api/parent/profile/avatar - Remove avatar or cancel pending approval
+router.delete(["/avatar", "/"], requireRole("PARENT", "ADMIN"), async (req, res) => {
+  try {
+    const session = req.auth!;
+    let targetUserId = session.user.id;
+
+    if (session.user.role === "ADMIN" && (req.query.parentId || req.query.userId)) {
+      const targetId = ((req.query.parentId || req.query.userId) as string).trim();
+      const p = await prisma.parentProfile.findFirst({
+        where: { OR: [{ id: targetId }, { userId: targetId }] },
+        select: { userId: true },
+      });
+      if (p) targetUserId = p.userId;
+      else targetUserId = targetId;
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { avatarUrl: true, pendingAvatarUrl: true },
+    });
+
+    // Clean up physical file on disk if it was an uploaded parent file
+    try {
+      const fileUrl = existingUser?.pendingAvatarUrl || existingUser?.avatarUrl;
+      if (fileUrl && fileUrl.includes("/uploads/parents/")) {
+        const filename = path.basename(fileUrl);
+        if (filename && filename.startsWith("parent-")) {
+          const p1 = path.join(parentsUploadsDir, filename);
+          const p2 = path.join(clientPublicParentsDir, filename);
+          const p3 = path.join(clientDistParentsDir, filename);
+          if (fs.existsSync(p1)) fs.unlinkSync(p1);
+          if (fs.existsSync(p2)) fs.unlinkSync(p2);
+          if (fs.existsSync(p3)) fs.unlinkSync(p3);
+        }
+      }
+    } catch (fileErr) {
+      console.warn("[parent:avatar] File unlink notice:", fileErr);
+    }
+
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        avatarUrl: null,
+        pendingAvatarUrl: null,
+        avatarStatus: null,
+        avatarRejectionReason: null,
+      },
+    });
+
+    cache.invalidateTag("user");
+    cache.invalidateTag("parentprofile");
+    cache.invalidateTag("dashboard");
+
+    return res.json({
+      success: true,
+      message: "Profile photo removed successfully.",
+    });
+  } catch (error) {
+    console.error("Parent avatar delete error:", error);
+    return res.status(500).json({ success: false, error: "Failed to remove avatar" });
+  }
 });
 
 export default router;

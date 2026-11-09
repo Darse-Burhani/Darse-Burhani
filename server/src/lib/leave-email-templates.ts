@@ -29,7 +29,7 @@ export interface LeaveDecisionEmailData {
   studentName: string;
   parentName?: string | null;
   type: string;
-  status: "APPROVED" | "REJECTED" | "HOLD";
+  status: "APPROVED" | "REJECTED" | "HOLD" | "PENDING" | string;
   requestedStart: string;
   requestedEnd: string;
   requestedDays: number;
@@ -72,7 +72,8 @@ function shell(title: string, accent: string, body: string): string {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8e5;box-shadow:0 8px 24px rgba(15,61,46,0.06);">
             <tr>
               <td style="background:linear-gradient(135deg,#065f46 0%,#0f766e 100%);padding:26px 28px;">
-                <div style="font-size:11px;letter-spacing:2.2px;text-transform:uppercase;color:#a7f3d0;font-weight:700;">Darse Burhani · Galiakot</div>
+                <div style="font-size:11px;letter-spacing:2.2px;text-transform:uppercase;color:#a7f3d0;font-weight:700;">DARSE BURHANI • MAHAD AL-ZAHRA</div>
+                <div style="margin-top:4px;font-size:13px;letter-spacing:1px;color:#d1fae5;font-weight:700;">Maktab Tanzeem • Galiakot</div>
                 <div style="margin-top:8px;font-size:21px;line-height:1.25;font-weight:800;color:#ffffff;">${escapeHtml(title)}</div>
               </td>
             </tr>
@@ -85,8 +86,8 @@ function shell(title: string, accent: string, body: string): string {
             <tr>
               <td style="padding:18px 28px 26px;">
                 <div style="border-top:1px solid #e5e7eb;padding-top:16px;font-size:11px;line-height:1.7;color:#6b7280;">
-                  This is an official automated notification from Darse Burhani Galiakot.<br />
-                  For inquiries or assistance, write directly to <a href="mailto:admin.galiakot@darseburhani.org" style="color:#0f766e;text-decoration:none;font-weight:600;">admin.galiakot@darseburhani.org</a>.
+                  This is an official automated notification from Maktab Tanzeem • Galiakot, Darse Burhani.<br />
+                  For inquiries or assistance, write directly to <a href="mailto:support.darseburhanigaliakot@gmail.com" style="color:#0f766e;text-decoration:none;font-weight:600;">support.darseburhanigaliakot@gmail.com</a> | WhatsApp Desk: +91 8955199220.
                 </div>
               </td>
             </tr>
@@ -150,7 +151,7 @@ export function leaveApplicationAdminEmail(data: LeaveApplicationEmailData): str
       ${infoRow("Leave Type", escapeHtml(labelType(data.type)))}
       ${infoRow("Requested Dates", `${escapeHtml(data.startDate)} → ${escapeHtml(data.endDate)}`)}
       ${infoRow("Requested Duration", `${data.days} ${data.days === 1 ? "day" : "days"}`)}
-      ${data.assignedMemberName ? infoRow("Assigned Member", escapeHtml(data.assignedMemberName)) : ""}
+      ${data.assignedMemberName ? infoRow("Darajah Mas'ool (Assigned Member)", escapeHtml(data.assignedMemberName)) : ""}
       ${infoRow("Submitted At", escapeHtml(data.submittedAt))}
     </table>
 
@@ -229,7 +230,7 @@ export function leaveDecisionParentEmail(data: LeaveDecisionEmailData): string {
       ${infoRow("Leave Type", escapeHtml(labelType(data.type)))}
       ${infoRow("Requested Dates", `${escapeHtml(data.requestedStart)} → ${escapeHtml(data.requestedEnd)} (${data.requestedDays} ${data.requestedDays === 1 ? "day" : "days"})`)}
       ${infoRow("Application Status", onHold ? "Placed On Hold" : approved ? (reduced ? "Approved (Reduced Days)" : "Approved in Full") : "Not Approved")}
-      ${data.reviewerName ? infoRow("Reviewed By", escapeHtml(data.reviewerName)) : ""}
+      ${infoRow("Sanctioned By", escapeHtml(data.reviewerName || "Maktab Tanzeem • Galiakot"))}
     </table>
 
     ${

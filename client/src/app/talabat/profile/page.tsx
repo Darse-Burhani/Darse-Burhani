@@ -27,6 +27,7 @@ import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/components/student/PageHeader";
+import { formatTalabatEmail } from "@/lib/student-email";
 
 interface TalabatProfileData {
   age: string;
@@ -331,18 +332,19 @@ export default function TalabatProfilePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-center gap-5">
-                  <div className="relative group">
-                    {/* Circular frame with blur-fill photo */}
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden ring-4 ring-[#d4af37]/30 shadow-md">
+                  <div className="relative group shrink-0">
+                    {/* Perfectly wrapped circular avatar frame */}
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full aspect-square overflow-hidden ring-4 ring-[#d4af37]/40 shadow-lg bg-emerald-950 flex items-center justify-center">
                       {avatarUrl ? (
                         <ProfilePhoto
                           src={avatarUrl}
                           alt={user?.firstName || "Student"}
                           loading="eager"
                           decoding="async"
+                          fit="cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1e1b4b] to-[#1e3a8a] text-xl font-bold text-white">
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1e1b4b] to-[#1e3a8a] text-xl sm:text-2xl font-bold text-white">
                           {getInitials(user?.firstName || "T", user?.lastName || "A")}
                         </div>
                       )}
@@ -438,16 +440,22 @@ export default function TalabatProfilePage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email
+                  <label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center justify-between">
+                    <span>Institutional Mailflare Email</span>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      No Middle Name
+                    </span>
                   </label>
                   <input
                     id="email"
                     name="email"
-                    className="fatimi-input mt-1 bg-gray-50/70"
-                    value={user?.email || ""}
+                    className="fatimi-input mt-1 bg-gray-50/70 font-mono text-emerald-900 font-bold"
+                    value={formatTalabatEmail(user?.firstName, user?.lastName, user?.email)}
                     readOnly
                   />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Internal student address: <code>firstname.lastname@darseburhani.galiakot</code> (Walled garden network).
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="age" className="text-sm font-medium text-gray-700">

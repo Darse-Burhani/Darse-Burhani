@@ -8,6 +8,7 @@ interface SecurityContextType {
   lockNow: () => void;
   unlock: () => void;
   idleMinutes: number;
+  isSecurityWallActive: boolean;
 }
 
 const SecurityContext = createContext<SecurityContextType>({
@@ -15,6 +16,7 @@ const SecurityContext = createContext<SecurityContextType>({
   lockNow: () => {},
   unlock: () => {},
   idleMinutes: 120,
+  isSecurityWallActive: true,
 });
 
 export const useSecurity = () => useContext(SecurityContext);
@@ -36,6 +38,20 @@ export function SecurityGuardLayout({
 
   const lastActivityRef = useRef<number>(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Anti-Clickjacking Frame-Busting Guard
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && window.self !== window.top) {
+        console.warn("[Security Wall] Unauthorized framing detected. Defending parent viewport.");
+        if (window.top) {
+          window.top.location.href = window.self.location.href;
+        }
+      }
+    } catch {
+      // Cross-origin sandbox
+    }
+  }, []);
 
   const resetActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
@@ -92,7 +108,7 @@ export function SecurityGuardLayout({
   };
 
   return (
-    <SecurityContext.Provider value={{ isLocked, lockNow, unlock, idleMinutes: idleTimeoutMinutes }}>
+    <SecurityContext.Provider value={{ isLocked, lockNow, unlock, idleMinutes: idleTimeoutMinutes, isSecurityWallActive: true }}>
       <div className={isLocked ? "select-none filter blur-sm transition-all duration-300" : "transition-all duration-300"}>
         {children}
       </div>

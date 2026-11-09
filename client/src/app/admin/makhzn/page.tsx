@@ -226,8 +226,8 @@ export default function MakhzanDirectPage() {
       }
 
       const [resBooks, resOverview] = await Promise.all([
-        fetch("/api/admin/library?pageSize=300"),
-        fetch("/api/admin/library/overview"),
+        fetch("/api/admin/library?scope=makhzan&pageSize=500"),
+        fetch("/api/admin/library/overview?scope=makhzan"),
       ]);
 
       if (resBooks.ok) {
@@ -276,7 +276,7 @@ export default function MakhzanDirectPage() {
     try {
       setLoading(true);
       const [resBooks, resMembers] = await Promise.all([
-        fetch("/api/admin/library?pageSize=500"),
+        fetch("/api/admin/library?scope=makhzan&pageSize=500"),
         fetch("/api/admin/library/students?q="),
       ]);
 
@@ -809,9 +809,9 @@ export default function MakhzanDirectPage() {
           publisher: newPublisher.trim() || undefined,
           category: newCategory,
           barcode: barcodeToUse,
-          rackNumber: newRack.trim() || undefined,
+          rackNumber: newRack.trim() || "Makhzan Depot",
           shelfNumber: newShelf.trim() || undefined,
-          notes: newNotes.trim() || undefined,
+          notes: newNotes.trim() ? `[MAKHZAN] ${newNotes.trim()}` : "[MAKHZAN]",
           totalCopies: 1,
         }),
       });
@@ -918,8 +918,9 @@ export default function MakhzanDirectPage() {
         author: author || undefined,
         category,
         barcode: barcode || undefined,
-        rackNumber: rack || undefined,
+        rackNumber: rack || "Makhzan Depot",
         shelfNumber: shelf || undefined,
+        notes: "[MAKHZAN]",
         totalCopies: 1,
       };
     });

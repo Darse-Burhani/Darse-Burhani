@@ -8,7 +8,7 @@ import { cache } from "./cache";
  * Normalizes text by removing Arabic diacritics, macrons, punctuation, and converting to lowercase alphanumeric.
  * Handles 'Al-Tamrīn' -> 'altamrin', 'Kitāb al-Ṭahārāt' -> 'kitabaltaharat', 'Dirāsat ʿUlūm al-Quran' -> 'dirasatulumalquran', etc.
  */
-function norm(s: string | null | undefined): string {
+export function norm(s: string | null | undefined): string {
   return (s || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -19,7 +19,7 @@ function norm(s: string | null | undefined): string {
 /**
  * Mapping aliases from normalized Excel Book Names to normalized Timetable Slot Subject Names
  */
-const BOOK_TO_SLOT_ALIASES: Record<string, string[]> = {
+export const BOOK_TO_SLOT_ALIASES: Record<string, string[]> = {
   altamrin: ["tamreen"],
   dirasatulumalquran: ["dirasatuloomilquran", "quran"],
   english: ["english"],
@@ -53,7 +53,7 @@ const BOOK_TO_SLOT_ALIASES: Record<string, string[]> = {
 /**
  * Fallback mapping for broad subjects to specific timetable slot subjects per Darajah
  */
-const BROAD_SUBJECT_TO_SLOTS: Record<string, string[]> = {
+export const BROAD_SUBJECT_TO_SLOTS: Record<string, string[]> = {
   fiqh: ["kitabaltaharat", "mukhtasaralasar", "daimalislam", "kitabaliqtisar"],
   akhbaar: ["sharhalakhbar", "muntazaalakhbar"],
   adab: ["qasaid", "insha", "raudathidayat", "risalaha"],
@@ -209,4 +209,148 @@ export async function importTafseelCurriculum() {
     classCounts,
     teacherCounts,
   };
+}
+
+/**
+ * Re-evaluates and automatically allocates all Takhteet portions based on current timetable subject assignments.
+ * Matches Class Name + Subject Name/Aliases to the teacher currently assigned to teach that subject in that Darajah.
+ */
+export async function autoAllocateTakhteetBySubjects() {
+  console.log("[takhteet-tafseel-sync] Starting auto-allocation of Takhteet plans based on timetable subject assignments...");
+
+  // 1. Fetch all classes
+  const classes = await prisma.class.findMany({
+    include: { teacher: { include: { user: true } } },
+  });
+  const classMap = new Map<string, any>();
+  classes.forEach((c) => {
+    classMap.set(c.id, c);
+    classMap.set(c.name, c);
+    classMap.set(norm(c.name), c);
+  });
+
+  // 2. Fetch all active timetable slots with assigned teachers
+  const slots = await prisma.timetableSlot.findMany({
+    where: { isBreak: false, teacherId: { not: null } },
+    select: { className: true, subject: true, teacherId: true, teacherName: true },
+  });
+
+  // Map `${norm(className)}::${norm(subject)}` -> teacherId
+  const slotTeacherMap = new Map<string, string>();
+  slots.forEach((s) => {
+    if (s.teacherId && s.subject && s.className) {
+      const key = `${norm(s.className)}::${norm(s.subject)}`;
+      if (!slotTeacherMap.has(key)) {
+        slotTeacherMap.set(key, s.teacherId);
+      }
+    }
+  });
+
+  // 3. Fetch all Takhteet plans
+  const plans = await prisma.takhteetPlan.findMany({
+    include: {
+      class: { select: { id: true, name: true, teacherId: true } },
+    },
+  });
+
+  let updatedCount = 0;
+  const updates: Array<{ id: string; teacherId: string }> = [];
+
+  for (const plan of plans) {
+    const className = plan.class?.name || "";
+    const cNorm = norm(className);
+    const subjNorm = norm(plan.subject);
+    const titleNorm = norm(plan.title);
+
+    const candidates = [
+      subjNorm,
+      ...(BOOK_TO_SLOT_ALIASES[subjNorm] || []),
+      titleNorm,
+      ...(BOOK_TO_SLOT_ALIASES[titleNorm] || []),
+      ...(BROAD_SUBJECT_TO_SLOTS[subjNorm] || []),
+    ];
+
+    let matchedTeacherId: string | null = null;
+    for (const cand of candidates) {
+      if (!cand) continue;
+      const tId = slotTeacherMap.get(`${cNorm}::${cand}`);
+      if (tId) {
+        matchedTeacherId = tId;
+        break;
+      }
+    }
+
+    // Fallback: If not found in slots, check if class has a teacher assigned
+    if (!matchedTeacherId && plan.class?.teacherId) {
+      matchedTeacherId = plan.class.teacherId;
+    }
+
+    if (matchedTeacherId && matchedTeacherId !== plan.teacherId) {
+      updates.push({ id: plan.id, teacherId: matchedTeacherId });
+    }
+  }
+
+  // Batch update
+  for (const u of updates) {
+    await prisma.takhteetPlan.update({
+      where: { id: u.id },
+      data: { teacherId: u.teacherId },
+    });
+    updatedCount++;
+  }
+
+  cache.invalidateTag("takhteet");
+  cache.invalidateTag("teacher");
+
+  console.log(`[takhteet-tafseel-sync] Auto-allocated ${updatedCount} portions out of ${plans.length} total plans.`);
+
+  return {
+    success: true,
+    totalPlans: plans.length,
+    updatedCount,
+    message: `Successfully allocated ${updatedCount} Takhteet portion${updatedCount === 1 ? "" : "s"} to assigned subject teachers!`,
+  };
+}
+
+/**
+ * Returns a dictionary mapping class names and subjects to their assigned faculty teacher from Timetable slots.
+ */
+export async function getSubjectTeacherMappings() {
+  const slots = await prisma.timetableSlot.findMany({
+    where: { isBreak: false, teacherId: { not: null } },
+    select: { className: true, subject: true, teacherId: true, teacherName: true },
+  });
+
+  const teachers = await prisma.teacherProfile.findMany({
+    select: {
+      id: true,
+      userId: true,
+      employeeId: true,
+      user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+    },
+  });
+  const teacherMap = new Map<string, any>();
+  teachers.forEach((t) => {
+    teacherMap.set(t.id, t);
+    if (t.userId) teacherMap.set(t.userId, t);
+  });
+
+  const mappings: Record<string, Record<string, { teacherId: string; teacherName: string; avatarUrl?: string; its?: string }>> = {};
+
+  slots.forEach((s) => {
+    if (!s.className || !s.subject || !s.teacherId) return;
+    const cName = s.className.trim();
+    const sub = s.subject.trim();
+    if (!mappings[cName]) mappings[cName] = {};
+
+    const tp = teacherMap.get(s.teacherId);
+    mappings[cName][sub] = {
+      teacherId: tp?.id || s.teacherId,
+      teacherName: s.teacherName || (tp?.user ? `${tp.user.firstName} ${tp.user.lastName}` : "Faculty Ustaz"),
+      avatarUrl: tp?.user?.avatarUrl || undefined,
+      its: tp?.employeeId || undefined,
+    };
+  });
+
+  return mappings;
 }

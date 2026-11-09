@@ -198,6 +198,10 @@ export default function TeacherAttendancePage() {
 
   const activeWindow = useMemo(() => {
     if (scheduledWindows.length === 0) return null;
+    if (selectedScheduleId && selectedScheduleId !== "ALL") {
+      const match = scheduledWindows.find((w) => w.id === selectedScheduleId);
+      if (match) return match;
+    }
     const nowIst = new Date().toLocaleTimeString("en-GB", {
       timeZone: "Asia/Kolkata",
       hour: "2-digit",
@@ -209,7 +213,7 @@ export default function TeacherAttendancePage() {
         (w) => w.enabled && nowIst >= w.startTime && nowIst <= (w.lateEndTime || w.endTime)
       ) || scheduledWindows[0] || null
     );
-  }, [scheduledWindows, currentTimeIst]);
+  }, [scheduledWindows, selectedScheduleId, currentTimeIst]);
 
   const handleSendClassEmails = async () => {
     if (!classId || roster.length === 0) return;
@@ -332,7 +336,7 @@ export default function TeacherAttendancePage() {
 
           const rawName = s.name?.trim();
           const constructedName = `${s.firstName || ""} ${s.lastName || ""}`.trim();
-          const studentName = rawName || constructedName || s.studentNumber || s.its || "Talib";
+          const studentName = rawName || constructedName || (s.its ? `ITS ${s.its}` : s.studentNumber) || "Student";
           const currentStatus: AttendanceStatus = (record?.status as AttendanceStatus) || (record?.checkInTime ? "PRESENT" : "ABSENT");
 
           return {
@@ -614,14 +618,14 @@ export default function TeacherAttendancePage() {
   const presentPct = roster.length > 0 ? Math.round((summary.PRESENT / roster.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] space-y-5 pb-24">
+    <div className="min-h-screen bg-[#faf7f0] space-y-5 pb-24">
       {/* ── Hub Tabs ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <AdminHubTabs
           hubTitle="Attendance & Biometric Center"
           hubDescription="Quick classroom roll-call, timetable schedules, and high-speed multi-terminal sync."
           tabs={[
-            { label: "Manual Logs", href: "/admin/attendance-manual", icon: ClipboardCheck, badge: "Register" },
+            { label: "Manual Logs", href: "/admin/manual-attendance", icon: ClipboardCheck, badge: "Register" },
             { label: "Hikvision Scans", href: "/admin/attendance-hik", icon: Fingerprint, badge: "Hardware" },
             { label: "Timing & Schedule", href: "/admin/attendance-schedule", icon: Clock },
             { label: "Device Hub", href: "/admin/biometric", icon: Activity },
@@ -629,25 +633,25 @@ export default function TeacherAttendancePage() {
         />
       </div>
 
-      {/* ── Schedule Timetable Master Header Banner ── */}
+      {/* ── Schedule Timetable Master Header Banner (Fatimi Gold & Charcoal) ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#064e3b] via-[#043327] to-[#022c22] p-6 sm:p-7 shadow-[0_16px_36px_rgba(2,44,34,0.3)] text-white">
+        <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#12161f] via-[#1a202c] to-[#12161f] p-6 sm:p-7 shadow-[0_16px_36px_rgba(20,24,33,0.3)] text-white">
           <div className="pointer-events-none absolute -right-12 -bottom-12 w-80 h-80 rounded-full bg-[#d4af37]/15 blur-3xl" />
-          <div className="pointer-events-none absolute -left-12 -top-12 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -left-12 -top-12 w-72 h-72 rounded-full bg-[#f3b833]/10 blur-3xl" />
 
           {/* Top Timetable & Clock Row */}
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <span className="inline-flex w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 items-center justify-center shadow-inner">
-                <Clock className="w-6 h-6 text-emerald-300 stroke-[2.2]" />
+              <span className="inline-flex w-12 h-12 rounded-2xl bg-[#d4af37]/20 border border-[#d4af37]/40 items-center justify-center shadow-inner">
+                <Clock className="w-6 h-6 text-[#f3b833] stroke-[2.2]" />
               </span>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-black uppercase tracking-wider text-[#fde047]">
                     Timetable Schedule Window
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-200 border border-emerald-400/40">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#d4af37]/20 text-[#fff4be] border border-[#d4af37]/40">
+                    <span className="w-2 h-2 rounded-full bg-[#fde047] animate-pulse" />
                     LIVE IST: {currentTimeIst || "Syncing..."}
                   </span>
                 </div>
@@ -678,35 +682,38 @@ export default function TeacherAttendancePage() {
             </div>
           </div>
 
-          {/* Quick Schedule Timetable Slots Strip */}
+          {/* Interactive Schedule Timetable Sessions Strip */}
           {scheduledWindows.length > 0 && (
             <div className="relative z-10 pt-4 flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-black uppercase tracking-wider text-emerald-200/80 mr-1 flex items-center gap-1">
                 <Zap className="w-3.5 h-3.5 text-[#fde047]" />
-                Today's Slots:
+                Timetable Sessions:
               </span>
               {scheduledWindows.map((win) => {
-                const isActive = activeWindow?.id === win.id;
+                const isSelected = (selectedScheduleId === win.id) || (!selectedScheduleId && activeWindow?.id === win.id);
                 return (
-                  <div
+                  <button
                     key={win.id}
+                    type="button"
+                    onClick={() => setSelectedScheduleId(win.id)}
                     className={cn(
-                      "px-3 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-2",
-                      isActive
-                        ? "bg-[#d4af37]/20 border-[#d4af37] text-white ring-1 ring-[#d4af37]/50 shadow-md"
-                        : "bg-white/5 border-white/10 text-emerald-100/80"
+                      "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 active:scale-95",
+                      isSelected
+                        ? "bg-[#d4af37] text-slate-950 border-[#fde047] ring-2 ring-amber-300 font-black shadow-md"
+                        : "bg-white/10 hover:bg-white/20 border-white/15 text-emerald-100"
                     )}
                   >
                     <span>{win.name}</span>
-                    <span className="font-mono text-[11px] opacity-80 bg-black/30 px-1.5 py-0.2 rounded">
+                    <span className={cn(
+                      "font-mono text-[11px] px-1.5 py-0.2 rounded font-bold",
+                      isSelected ? "bg-black/20 text-slate-950" : "bg-black/30 text-emerald-200"
+                    )}>
                       {win.startTime} - {win.endTime}
                     </span>
-                    {isActive && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-400 text-slate-950 uppercase">
-                        Current
-                      </span>
+                    {isSelected && (
+                      <span className="w-2 h-2 rounded-full bg-slate-950 animate-pulse" />
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -807,6 +814,58 @@ export default function TeacherAttendancePage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── 1-Click Division Quick Switcher Strip ── */}
+        <div className="rounded-2xl bg-white border border-gray-200/90 shadow-2xs p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <GraduationCap className="w-4 h-4 text-emerald-600" />
+              1-Click Division Selector:
+            </span>
+            <span className="text-xs text-gray-400 font-medium">
+              Switch classes with zero dropdowns
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {classes.map((cls) => {
+              const isSelected = classId === cls.id;
+              const isAll = cls.grade === "All" || cls.name.toLowerCase().includes("general");
+              return (
+                <button
+                  key={cls.id}
+                  type="button"
+                  onClick={() => setClassId(cls.id)}
+                  className={cn(
+                    "px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border active:scale-95 shadow-2xs",
+                    isSelected
+                      ? isAll
+                        ? "bg-emerald-700 text-white border-emerald-700 ring-2 ring-emerald-400 font-black shadow-xs"
+                        : "bg-slate-900 text-white border-slate-900 ring-2 ring-slate-400 font-black shadow-xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:text-emerald-800"
+                  )}
+                >
+                  {isAll ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>All Talabat (School)</span>
+                    </>
+                  ) : (
+                    <span>Grade {cls.grade}-{cls.section}</span>
+                  )}
+                  {cls.studentCount !== undefined && (
+                    <span className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                      isSelected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"
+                    )}>
+                      {cls.studentCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── Controls & Class Switcher Card ── */}
         <div className="rounded-2xl bg-white border border-gray-200/90 shadow-xs p-4 sm:p-5">
@@ -1319,6 +1378,83 @@ export default function TeacherAttendancePage() {
         initialDate={date}
         onSuccess={() => loadRoster()}
       />
+
+      {/* ── Sticky Live Floating Sync Bar ── */}
+      <AnimatePresence>
+        {roster.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-[700px] p-3.5 sm:p-4 rounded-3xl bg-slate-950/95 backdrop-blur-xl border border-emerald-500/40 shadow-2xl text-white flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span className={cn(
+                "w-3 h-3 rounded-full shrink-0",
+                hasChanges ? "bg-amber-400 animate-pulse shadow-[0_0_12px_#f59e0b]" : "bg-emerald-400"
+              )} />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-black text-white">
+                    {summary.PRESENT} Present
+                  </span>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-xs font-bold text-amber-400">
+                    {summary.LATE} Late
+                  </span>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-xs font-bold text-rose-400">
+                    {summary.ABSENT} Absent
+                  </span>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-xs font-bold text-purple-300">
+                    {summary.ON_LEAVE} Leave
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-300/80 truncate">
+                  {selectedClass ? selectedClass.name : "Class"} · {activeWindow ? `${activeWindow.name} · ` : ""}{roster.length} students enrolled
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {hasChanges && (
+                <button
+                  type="button"
+                  onClick={resetAll}
+                  className="text-xs text-gray-300 hover:text-white hover:bg-white/10 rounded-xl h-9 px-3 transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                onClick={save}
+                disabled={saving}
+                className={cn(
+                  "font-black text-xs rounded-2xl h-10 px-5 shadow-lg flex items-center gap-1.5 active:scale-95 transition-all",
+                  hasChanges
+                    ? "bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 text-slate-950 ring-2 ring-emerald-300 animate-pulse scale-105"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                )}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    {hasChanges ? "Save Attendance (Ctrl+S)" : "Saved"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

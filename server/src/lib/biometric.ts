@@ -157,13 +157,21 @@ export type AttendanceWindowType = "HIKVISION" | "MANUAL" | "BOTH";
 
 export function getWindowType(w: ScanWindowRowLike): AttendanceWindowType {
   const exempt = w.exemptStudentIds || [];
-  if (exempt.includes("TYPE_MANUAL") || w.id.startsWith("manual_") || /\[manual\]/i.test(w.name)) {
-    return "MANUAL";
-  }
+  // 1. Explicitly configured windowType tag takes precedence
   if (exempt.includes("TYPE_BOTH") || /\[both\]/i.test(w.name)) {
     return "BOTH";
   }
-  if (exempt.includes("TYPE_HIKVISION") || w.id.startsWith("hik_") || w.id === "default" || /\[hikvision\]|\[hik\]/i.test(w.name)) {
+  if (exempt.includes("TYPE_HIKVISION") || /\[hikvision\]|\[hik\]/i.test(w.name)) {
+    return "HIKVISION";
+  }
+  if (exempt.includes("TYPE_MANUAL") || /\[manual\]/i.test(w.name)) {
+    return "MANUAL";
+  }
+  // 2. Legacy fallback to ID prefix
+  if (w.id.startsWith("manual_")) {
+    return "MANUAL";
+  }
+  if (w.id.startsWith("hik_") || w.id === "default") {
     return "HIKVISION";
   }
   return "HIKVISION";
@@ -1022,16 +1030,27 @@ export async function processBiometricScan(
               existingTeacherRecord.status === "ON_LEAVE")
           ) {
             const firstCheckIn = existingTeacherRecord.checkInTime;
-            const timeStr = firstCheckIn
-              ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
-              : timeFormatted12;
-
-            if (firstCheckIn && when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
+            if (!firstCheckIn) {
+              await prisma.teacherAttendanceRecord.update({
+                where: { teacherId_date: { teacherId: teacher.id, date } },
+                data: {
+                  checkInTime: when,
+                  verificationMethod: "BIOMETRIC",
+                  biometricMethod: method === "BIOMETRIC" ? null : method,
+                  biometricHash: fingerprint,
+                  notes: `Premises check-in scan (${timeFormatted12} IST via ${method})`,
+                },
+              });
+            } else if (when.getTime() - new Date(firstCheckIn).getTime() > 5 * 60 * 1000) {
               await prisma.teacherAttendanceRecord.update({
                 where: { teacherId_date: { teacherId: teacher.id, date } },
                 data: { checkOutTime: when },
               });
             }
+
+            const timeStr = firstCheckIn
+              ? getISTDetails(new Date(firstCheckIn)).timeFormatted12
+              : timeFormatted12;
 
             return pushEvent({
               type: "DUPLICATE",
@@ -1660,48 +1679,71 @@ export async function processBiometricScan(
   // Auto-sync daily attendance log to Google Sheet
   queueAutoSheetSync(when);
 
-  // ── Dispatch notifications to student and linked parents ──
+  // ── Dispatch notifications to student and linked parents (STRICT: ONE TIME ONLY & DURING ACTIVE WINDOW ONLY) ──
+  const isOffHours = !studentWindowStatus.isOpen && !studentWindowStatus.isUpcoming;
   try {
-    const parentLinks = await prisma.parentStudentLink.findMany({
-      where: { studentId: student.id },
-      select: { parent: { select: { userId: true } } },
-    });
-
-    const recipientUserIds = new Set<string>();
-    if (student.userId) recipientUserIds.add(student.userId);
-    for (const pl of parentLinks) {
-      if (pl.parent?.userId) recipientUserIds.add(pl.parent.userId);
-    }
-
-    const notifTitle = `⚡ Attendance Scanned: ${studentInfo.name}`;
-    const notifMsg = `${studentInfo.name} has checked in (${status}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`;
-
-    if (recipientUserIds.size > 0) {
-      await prisma.notification.createMany({
-        data: Array.from(recipientUserIds).map((userId) => ({
-          userId,
-          title: notifTitle,
-          body: notifMsg,
-          type: "ATTENDANCE" as any,
-          link: userId === student.userId ? "/talabat/attendance" : "/parent/activity",
-        })),
+    // 1. Only send parent check-in notifications if the scan is during an active schedule window
+    if (isOffHours) {
+      console.log(`[biometric] Scan for ${studentInfo.name} occurred outside active window (${timeFormatted12} IST) — suppressing parent notification.`);
+    } else {
+      const parentLinks = await prisma.parentStudentLink.findMany({
+        where: { studentId: student.id },
+        select: { parent: { select: { userId: true } } },
       });
 
-      // Send targeted push notifications with correct portal links
-      if (student.userId) {
-        sendPushToUser(student.userId, {
-          title: notifTitle,
-          body: notifMsg,
-          url: "/talabat/attendance",
-        }).catch(() => {});
+      const recipientUserIds = new Set<string>();
+      if (student.userId) recipientUserIds.add(student.userId);
+      for (const pl of parentLinks) {
+        if (pl.parent?.userId) recipientUserIds.add(pl.parent.userId);
       }
-      const parentUserIdsOnly = Array.from(recipientUserIds).filter((id) => id !== student.userId);
-      if (parentUserIdsOnly.length > 0) {
-        sendPushToUsers(parentUserIdsOnly, {
-          title: notifTitle,
-          body: notifMsg,
-          url: "/parent/activity",
-        }).catch(() => {});
+
+      if (recipientUserIds.size > 0) {
+        // 2. Strict Deduplication: Check if notification was ALREADY sent today for this child to prevent notification flooding
+        const dayStart = calendarDayUTC;
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+        const alreadyNotified = await prisma.notification.findFirst({
+          where: {
+            userId: { in: Array.from(recipientUserIds) },
+            type: "ATTENDANCE" as any,
+            createdAt: { gte: dayStart, lt: dayEnd },
+            title: { contains: studentInfo.name, mode: "insensitive" },
+          },
+        });
+
+        if (alreadyNotified) {
+          console.log(`[biometric] Parent notification already sent today for ${studentInfo.name} — suppressing duplicate.`);
+        } else {
+          const notifTitle = `⚡ Attendance Scanned: ${studentInfo.name}`;
+          const notifMsg = `${studentInfo.name} has checked in (${status}) at ${timeFormatted12} IST via ${method || "Biometric Scan"}.`;
+
+          await prisma.notification.createMany({
+            data: Array.from(recipientUserIds).map((userId) => ({
+              userId,
+              title: notifTitle,
+              body: notifMsg,
+              type: "ATTENDANCE" as any,
+              link: userId === student.userId ? "/talabat/attendance" : `/parent/activity?childId=${student.id}`,
+            })),
+          });
+
+          // Send targeted push notifications with correct portal links (ONE TIME ONLY)
+          if (student.userId) {
+            sendPushToUser(student.userId, {
+              title: notifTitle,
+              body: notifMsg,
+              url: "/talabat/attendance",
+            }).catch(() => {});
+          }
+          const parentUserIdsOnly = Array.from(recipientUserIds).filter((id) => id !== student.userId);
+          if (parentUserIdsOnly.length > 0) {
+            sendPushToUsers(parentUserIdsOnly, {
+              title: notifTitle,
+              body: notifMsg,
+              url: `/parent/activity?childId=${student.id}`,
+            }).catch(() => {});
+          }
+        }
       }
     }
   } catch (notifErr) {
@@ -1716,9 +1758,11 @@ export async function processBiometricScan(
     student: studentInfo,
     classes: classMatches,
     verifyMode: method,
-    message: `Attendance marked ${status} for ${studentInfo.name}`,
+    message: isOffHours
+      ? `Off-hours check-in recorded for ${studentInfo.name}`
+      : `Attendance marked ${status} for ${studentInfo.name}`,
     scanWindow: windowPayload(studentWindow),
-  }, when);
+  }, when, isOffHours);
 }
 
 // ── Event store / SSE ──

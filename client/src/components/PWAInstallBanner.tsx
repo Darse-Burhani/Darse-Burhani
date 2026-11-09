@@ -6,7 +6,8 @@ import { usePWA } from "@/lib/pwa";
 import { FatimiLogo } from "@/components/FatimiLogo";
 
 export function PWAInstallBanner() {
-  const { canInstall, installPWA, dismissInstall } = usePWA();
+  const { canInstall, dismissed, installPWA, dismissInstall } = usePWA();
+  const [localDismissed, setLocalDismissed] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
@@ -21,6 +22,7 @@ export function PWAInstallBanner() {
     }
   }, []);
 
+  if (localDismissed || dismissed) return null;
   if (!canInstall && !isIOS) return null;
 
   const handleInstallClick = async () => {
@@ -31,10 +33,19 @@ export function PWAInstallBanner() {
     }
   };
 
+  const handleDismiss = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setLocalDismissed(true);
+    dismissInstall();
+  };
+
   return (
     <>
       {/* Floating Installation Ribbon */}
-      <div className="fixed bottom-20 lg:bottom-5 right-3 left-3 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-spring-up select-none">
+      <div className="fixed bottom-24 lg:bottom-5 right-3 left-3 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-spring-up select-none">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] p-3 sm:p-3.5 border border-amber-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.55)] text-white backdrop-blur-xl">
           <div className="pointer-events-none absolute -right-8 -top-8 w-32 h-32 rounded-full bg-amber-400/10 blur-xl" />
 
@@ -67,11 +78,12 @@ export function PWAInstallBanner() {
 
               <button
                 type="button"
-                onClick={dismissInstall}
-                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white/60 hover:text-white flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
-                title="Dismiss"
+                onClick={handleDismiss}
+                className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all active:scale-90 cursor-pointer shadow-xs border border-white/10 shrink-0 touch-manipulation"
+                title="Dismiss app install banner"
+                aria-label="Dismiss app install banner"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
           </div>
@@ -82,6 +94,17 @@ export function PWAInstallBanner() {
       {showIOSGuide && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
           <div className="bg-slate-950 border border-amber-400/40 rounded-3xl p-6 max-w-sm w-full text-white shadow-2xl relative">
+            {/* Top-Right Close Button for iOS Guide Modal */}
+            <button
+              type="button"
+              onClick={() => setShowIOSGuide(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white/70 hover:text-white flex items-center justify-center transition-all active:scale-90 cursor-pointer touch-manipulation"
+              aria-label="Close guide"
+              title="Close guide"
+            >
+              <X className="w-4 h-4 stroke-[2.5]" />
+            </button>
+
             <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center mb-4 mx-auto text-amber-300">
               <Smartphone className="w-6 h-6" />
             </div>

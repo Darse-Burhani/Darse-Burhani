@@ -39,7 +39,7 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/talabat-profile")) return ["talabat-profiles", "students", "profile"];
   if (url.includes("/api/admin/parents") || url.includes("/api/admin/parent-student-links") || url.includes("/api/parents")) return ["parents", "parents-assign"];
   if (url.includes("/api/admin/classes") || url.includes("/api/teacher/classes") || url.includes("/api/classes")) return ["classes", "timetable", "takhteet", "tilawat-dua"];
-  if (url.includes("/api/admin/timetable") || url.includes("/api/timetable")) return ["timetable"];
+  if (url.includes("/api/admin/timetable") || url.includes("/api/timetable")) return ["timetable", "badal"];
   if (url.includes("/api/admin/point-rules") || url.includes("/api/points")) return ["point-matrix"];
   if (url.includes("/api/admin/notifications") || url.includes("/api/notifications")) return ["notifications"];
   if (url.includes("/api/admin/portal-assignments")) return ["portal-assignments"];
@@ -75,6 +75,7 @@ export function getRouteRequiredPages(req: Request): string[] {
   if (url.includes("/api/hobbies")) return ["hobbies"];
   if (url.includes("/api/skills")) return ["talabat-skills"];
   if (url.includes("/api/tilawat-dua") || url.includes("/api/admin/tilawat-dua")) return ["tilawat-dua"];
+  if (url.includes("/api/admin/waras-mubarak")) return ["waras-mubarak", "students"];
 
   return [];
 }
@@ -98,7 +99,15 @@ export async function hasTeacherPageAuthority(userId: string, reqOrPages: Reques
     );
 
     if (!cachedAssignments || cachedAssignments.length === 0) return false;
-    if (cachedAssignments.includes("ALL") || cachedAssignments.includes("*")) return true;
+    if (
+      cachedAssignments.includes("ALL") ||
+      cachedAssignments.includes("*") ||
+      cachedAssignments.includes("portal-assignments") ||
+      cachedAssignments.includes("PAGE:portal-assignments") ||
+      cachedAssignments.includes("PORTAL-ASSIGNMENTS")
+    ) {
+      return true;
+    }
 
     const assignedPages = new Set(toAssignedPageIds(cachedAssignments));
 

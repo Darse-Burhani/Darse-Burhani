@@ -40,17 +40,35 @@ const routeRegistry: Record<string, RouteImporter> = {
   "/talabat/assignments": () => import("@/app/talabat/assignments/page"),
   "/talabat/hobbies": () => import("@/app/talabat/hobbies/page"),
   "/talabat/skill-tree": () => import("@/app/talabat/skill-tree/page"),
+  "/talabat/support": () => import("@/app/talabat/support/page"),
+  "/talabat/timetable": () => import("@/app/talabat/timetable/page"),
+  "/talabat/tilawat-dua": () => import("@/app/talabat/tilawat-dua/page"),
   "/admin/assignments": () => import("@/app/admin/assignments/page"),
   "/admin/hobbies": () => import("@/app/admin/hobbies/page"),
   "/admin/skills": () => import("@/app/admin/skills/page"),
+  "/admin/portal-assignments": () => import("@/app/admin/portal-assignments/page"),
+  "/admin/whatsapp": () => import("@/app/admin/whatsapp/page"),
+  "/admin/takhteet": () => import("@/app/admin/takhteet/page"),
+  "/admin/point-matrix": () => import("@/app/admin/point-matrix/page"),
+  "/admin/tilawat-dua": () => import("@/app/admin/tilawat-dua/page"),
 
   // Teacher / Faculty
   "/teacher": () => import("@/app/teacher/page"),
   "/teacher/attendance": () => import("@/app/teacher/attendance/page"),
   "/teacher/classes": () => import("@/app/teacher/classes/page"),
+  "/teacher/assignments": () => import("@/app/teacher/assignments/page"),
+  "/teacher/takhteet": () => import("@/app/teacher/takhteet/page"),
+  "/teacher/timetable": () => import("@/app/teacher/timetable/page"),
+  "/teacher/procurement": () => import("@/app/teacher/procurement/page"),
+  "/teacher/tilawat-dua": () => import("@/app/teacher/tilawat-dua/page"),
   "/teacher/leave": () => import("@/app/teacher/leave/page"),
   "/teacher/profile": () => import("@/app/teacher/profile/page"),
   "/teacher/settings": () => import("@/app/teacher/settings/page"),
+
+  // Parent Portal
+  "/parent": () => import("@/app/parent/page"),
+  "/parent/activity": () => import("@/app/parent/activity/page"),
+  "/parent/settings": () => import("@/app/parent/settings/page"),
 };
 
 const prefetchedSet = new Set<string>();

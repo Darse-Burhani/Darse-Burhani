@@ -302,16 +302,16 @@ export default function AdminAttendanceSchedulePage() {
       list = list.filter(
         (w) =>
           w.windowType === "HIKVISION" ||
+          w.windowType === "BOTH" ||
           w.id === "default" ||
-          w.id.startsWith("hik_") ||
-          (w.windowType === "BOTH" && !w.id.startsWith("manual_"))
+          w.id.startsWith("hik_")
       );
     } else {
       list = list.filter(
         (w) =>
           w.windowType === "MANUAL" ||
-          w.id.startsWith("manual_") ||
-          (w.windowType === "BOTH" && w.id !== "default" && !w.id.startsWith("hik_"))
+          w.windowType === "BOTH" ||
+          w.id.startsWith("manual_")
       );
     }
 

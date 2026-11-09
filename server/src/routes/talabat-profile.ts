@@ -16,7 +16,7 @@ async function notifyStudentAndParents(
       where: { id: studentProfileId },
       select: {
         userId: true,
-        parents: { select: { parent: { select: { userId: true } } } },
+        parentLinks: { select: { parent: { select: { userId: true } } } },
       },
     });
     if (!student) return;
@@ -43,7 +43,7 @@ async function notifyStudentAndParents(
       recipientUserIds.push(student.userId);
     }
 
-    for (const pl of student.parents) {
+    for (const pl of student.parentLinks) {
       if (pl.parent?.userId && !recipientUserIds.includes(pl.parent.userId)) {
         notifData.push({
           userId: pl.parent.userId,
@@ -470,14 +470,28 @@ router.put("/me", requireAuth, async (req, res) => {
     if (!motherPhotoUrl && !body.motherPhotoUrl) missingFields.push("Mother Passport Photo");
     if (!body.name?.trim()) missingFields.push("Student Full Name");
     if (!body.itsNo?.trim()) missingFields.push("Student ITS Number");
+    if (!body.idNo?.trim()) missingFields.push("Student ID Number");
     if (!body.jamaat?.trim()) missingFields.push("Jamaat / Mauze");
     if (!body.vatan?.trim()) missingFields.push("Vatan / Native Town");
+    if (!body.nationality?.trim()) missingFields.push("Nationality");
     if (!body.dob?.trim()) missingFields.push("Date of Birth");
     if (!body.age) missingFields.push("Age");
     if (!body.fatherName?.trim()) missingFields.push("Father Name");
     if (!body.fatherOccupation?.trim()) missingFields.push("Father Occupation");
     if (!body.motherName?.trim()) missingFields.push("Mother Name");
     if (!body.motherOccupation?.trim()) missingFields.push("Mother Occupation");
+    if (!body.result1444?.trim()) missingFields.push("1444 Result");
+    if (!body.result1445?.trim()) missingFields.push("1445 Result");
+    if (!body.result1446?.trim()) missingFields.push("1446 Result");
+    if (!body.result1447?.trim()) missingFields.push("1447 Result");
+    if (!body.hifzYear?.trim()) missingFields.push("Hifz Completion");
+    if (!body.hifzTabaqa?.trim()) missingFields.push("Hifz Tabaqa");
+    if (!body.course1?.trim()) missingFields.push("Course 1");
+    if (!body.course2?.trim()) missingFields.push("Course 2");
+    if (!body.course3?.trim()) missingFields.push("Course 3");
+    if (!body.course4?.trim()) missingFields.push("Course 4");
+    if (!body.activities?.trim()) missingFields.push("Program Participation");
+    if (!body.otherExams?.trim()) missingFields.push("Other Exams");
     if (!strengths || strengths.length < 3) missingFields.push("At least 3 Strengths");
     if (!weaknesses || weaknesses.length < 3) missingFields.push("At least 3 Areas for Improvement");
     if (!body.aboutMyself?.trim() || body.aboutMyself.trim().length < 15) {

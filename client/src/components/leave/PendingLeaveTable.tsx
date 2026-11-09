@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "@/components/ui/toast";
 import { getInitials } from "@/lib/utils";
 import {
   notifyParentAdminLeave,
@@ -146,6 +147,17 @@ export function PendingLeaveTable({
   const [editDays, setEditDays] = useState(1);
   const [editNotes, setEditNotes] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteClick = async (id: string) => {
+    if (!onDelete) return;
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleOpenEditDates = (item: LeaveRequestItem) => {
     const s = formatDateString(item.grantedStartDate || item.startDate);
@@ -161,7 +173,11 @@ export function PendingLeaveTable({
   const handleSaveEditDates = async () => {
     if (!editDatesTarget || !onUpdateDates) return;
     if (!editStartDate || !editEndDate) {
-      alert("Both start date and end date are required");
+      toast({
+        title: "Dates Required",
+        description: "Both start date and end date are required.",
+        variant: "destructive",
+      });
       return;
     }
     setEditSaving(true);
@@ -172,9 +188,18 @@ export function PendingLeaveTable({
         editEndDate,
         editNotes.trim() || undefined
       );
+      toast({
+        title: "✓ Dates Updated",
+        description: "Leave dates and duration updated successfully.",
+        variant: "success",
+      });
       setEditDatesTarget(null);
     } catch (err: any) {
-      alert(err.message || "Failed to update leave dates");
+      toast({
+        title: "Update Failed",
+        description: err.message || "Failed to update leave dates",
+        variant: "destructive",
+      });
     } finally {
       setEditSaving(false);
     }
@@ -205,10 +230,18 @@ export function PendingLeaveTable({
           setNotifySuccessMsg(null);
         }, 2200);
       } else {
-        alert("Failed to send parent notification");
+        toast({
+          title: "Dispatch Failed",
+          description: "Failed to send parent notification",
+          variant: "destructive",
+        });
       }
     } catch (err: any) {
-      alert(err.message || "Failed to notify parent");
+      toast({
+        title: "Notification Error",
+        description: err.message || "Failed to notify parent",
+        variant: "destructive",
+      });
     } finally {
       setNotifySending(false);
     }
@@ -275,7 +308,11 @@ export function PendingLeaveTable({
       setActiveAction(null);
       setActionNotes("");
     } catch (err: any) {
-      alert(err.message || "Failed to process action");
+      toast({
+        title: "Action Failed",
+        description: err.message || "Failed to process leave action",
+        variant: "destructive",
+      });
     } finally {
       setProcessing(false);
     }
@@ -286,8 +323,17 @@ export function PendingLeaveTable({
     setAssigningId(id);
     try {
       await onAssign(id, memberId);
+      toast({
+        title: "✓ Assignment Updated",
+        description: memberId ? "Leave application assigned to faculty member" : "Leave assignment removed",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert(err.message || "Failed to assign leave application");
+      toast({
+        title: "Assignment Failed",
+        description: err.message || "Failed to assign leave application",
+        variant: "destructive",
+      });
     } finally {
       setAssigningId(null);
     }
@@ -301,9 +347,18 @@ export function PendingLeaveTable({
     setBatchProcessing(true);
     try {
       await onBatchApprove(ids, "Batch approved on Holiday / Leave");
+      toast({
+        title: "✓ Batch Approved",
+        description: `Successfully approved ${ids.length} leave application(s). Attendance and Google Sheets synced.`,
+        variant: "success",
+      });
       setSelectedIds(new Set());
     } catch (err: any) {
-      alert(err.message || "Failed to batch approve leave requests");
+      toast({
+        title: "Batch Action Failed",
+        description: err.message || "Failed to batch approve leave requests",
+        variant: "destructive",
+      });
     } finally {
       setBatchProcessing(false);
     }
@@ -455,6 +510,24 @@ export function PendingLeaveTable({
                     <span className="text-[10px] text-amber-800 font-semibold">{diffDays} {diffDays === 1 ? "day" : "days"} requested</span>
                   </div>
                 </div>
+
+                {/* Darajah Mas'ool & Assigned Member Badges */}
+                {(item.darajahMasoolName || item.assignedTo) && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {item.darajahMasoolName && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-300/70 text-[10px] font-bold text-amber-900 shadow-2xs">
+                        <span className="text-amber-700">Darajah Mas'ool:</span>
+                        <span className="font-extrabold">{item.darajahMasoolName}</span>
+                      </span>
+                    )}
+                    {item.assignedTo && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-800 shadow-2xs">
+                        <span className="text-sky-600">Assigned:</span>
+                        <span className="font-extrabold">{item.assignedTo.name}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Parent Contact Info Box */}
                 {(item.parentPhone || item.parentEmail || item.parentName) && (
@@ -781,6 +854,16 @@ export function PendingLeaveTable({
                           <span>WhatsApp</span>
                         </a>
                       )}
+                      {isAdmin && onDelete && (
+                        <button
+                          type="button"
+                          disabled={deletingId === item.id}
+                          onClick={() => handleDeleteClick(item.id)}
+                          className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline inline-block disabled:opacity-50 cursor-pointer ml-1"
+                        >
+                          {deletingId === item.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -900,6 +983,12 @@ export function PendingLeaveTable({
                   <td className="py-3.5 px-3">
                     <div className="font-semibold text-gray-800">{item.className || `Grade ${item.grade}-${item.section}`}</div>
                     <div className="text-[10px] text-gray-500">Grade {item.grade} • Sec {item.section}</div>
+                    {item.darajahMasoolName && (
+                      <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-300/70 text-[10px] font-bold text-amber-900 shadow-2xs" title="Assigned Darajah Mas'ool (Class In-Charge)">
+                        <span className="text-amber-700">Mas'ool:</span>
+                        <span className="font-extrabold">{item.darajahMasoolName}</span>
+                      </div>
+                    )}
                   </td>
 
                   {/* Leave Type */}
@@ -1330,10 +1419,11 @@ export function PendingLeaveTable({
                         {isAdmin && onDelete && (
                           <button
                             type="button"
-                            onClick={() => onDelete(item.id)}
-                            className="text-[10px] text-rose-600 hover:underline inline-block"
+                            disabled={deletingId === item.id}
+                            onClick={() => handleDeleteClick(item.id)}
+                            className="text-[10px] text-rose-600 hover:underline inline-block disabled:opacity-50 cursor-pointer"
                           >
-                            Delete
+                            {deletingId === item.id ? "Deleting..." : "Delete"}
                           </button>
                         )}
                       </div>
@@ -1369,14 +1459,14 @@ export function PendingLeaveTable({
               {activeAction.type === "approve"
                 ? `Approve ${activeAction.studentName}'s leave. Choose how many days to grant — attendance and the Google Sheet will reflect only the granted dates.`
                 : activeAction.type === "hold"
-                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. Remarks will be dispatched to the parent via Email, In-app Alert & WhatsApp (+91 8955199220).`
+                ? `Place ${activeAction.studentName}'s leave application on hold pending inquiry or clarification. Remarks will be dispatched directly to the student's parents via Email, In-app Alert & WhatsApp.`
                 : `Specify why the leave for ${activeAction.studentName} is being rejected.`}
             </p>
 
             <div className="mb-4">
               <label htmlFor="action-notes" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Reviewer Remarks / School Notes
-                <span className="normal-case font-normal text-slate-500 ml-1.5">(Dispatched via Email, In-app Alert & WhatsApp: +91 8955199220)</span>
+                <span className="normal-case font-normal text-slate-500 ml-1.5">(Dispatched to Parent via Email, In-app Alert &amp; WhatsApp)</span>
               </label>
               <textarea
                 id="action-notes"
@@ -1862,8 +1952,8 @@ export function PendingLeaveTable({
                 <span className="font-medium text-slate-600">WhatsApp Notice:</span>
                 <span className="font-mono font-semibold text-slate-900 truncate">
                   {actionSuccessNotice.parentPhone
-                    ? `+${actionSuccessNotice.parentPhone.replace(/^\+/, "")} & +91 8955199220`
-                    : "+91 8955199220"}
+                    ? `+${actionSuccessNotice.parentPhone.replace(/^\+/, "")}`
+                    : "Student Parent WhatsApp"}
                 </span>
               </div>
             </div>

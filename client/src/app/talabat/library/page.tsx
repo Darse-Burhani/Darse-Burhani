@@ -18,12 +18,20 @@ import {
   Loader2,
   BookMarked,
   Star,
+  UserCheck,
+  CalendarDays,
+  RotateCcw,
+  DollarSign,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalContent } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
+import { useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 
 // ── Types ──
 interface ShelfInfo {
@@ -474,6 +482,7 @@ function ShelfUnit({
 
 // ── Main Page ──
 export default function TalabatLibraryPage() {
+  const { data: session } = useSession();
   const [shelves, setShelves] = useState<ShelfInfo[]>([]);
   const [categoryMap, setCategoryMap] = useState<Record<string, string[]>>({});
   const [stats, setStats] = useState({ totalShelves: 0, totalBooks: 0, totalAvailable: 0 });
@@ -497,6 +506,52 @@ export default function TalabatLibraryPage() {
   // Book Detail Modal
   const [selectedBook, setSelectedBook] = useState<(BookInfo | BookPick) | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // ── Portal Tabs: Catalog / My Loans & Garamat / Maktabat Attendance ──
+  const [mainTab, setMainTab] = useState<"catalog" | "my-loans" | "attendance">("catalog");
+  const [myLoansData, setMyLoansData] = useState<{
+    activeLoans: any[];
+    returnedLoans: any[];
+    allLoans: any[];
+    stats: {
+      totalActive: number;
+      totalOverdue: number;
+      totalReturned: number;
+      totalPendingGaramat: number;
+      totalPaidGaramat: number;
+      totalLibraryVisits: number;
+    };
+    attendances: Array<{
+      id: string;
+      studentName: string;
+      darjah: string;
+      date: string;
+      checkInTime: string;
+      sessionType: string;
+      status: string;
+      notes: string | null;
+    }>;
+  } | null>(null);
+  const [loadingMyLoans, setLoadingMyLoans] = useState(false);
+
+  const fetchMyLoansAndAttendance = useCallback(async () => {
+    setLoadingMyLoans(true);
+    try {
+      const res = await fetch("/api/talabat/library?myLoans=true");
+      const data = await res.json();
+      if (data.success) {
+        setMyLoansData(data.data);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setLoadingMyLoans(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMyLoansAndAttendance();
+  }, [fetchMyLoansAndAttendance]);
 
   // ── Load Overview ──
   const loadOverview = useCallback(async () => {
@@ -666,6 +721,64 @@ export default function TalabatLibraryPage() {
         </div>
       </motion.div>
 
+      {/* ── Library Portal Tabs: Explorer / My Borrowed Books & Garamat / Maktabat Visits ── */}
+      <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl mb-6">
+        <button
+          type="button"
+          onClick={() => setMainTab("catalog")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer",
+            mainTab === "catalog"
+              ? "bg-white text-emerald-950 shadow-xs border border-emerald-300"
+              : "text-slate-600 hover:text-slate-900"
+          )}
+        >
+          <Compass className="w-4 h-4 text-emerald-700" />
+          <span>Explore Catalog &amp; Shelves</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMainTab("my-loans");
+            fetchMyLoansAndAttendance();
+          }}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer",
+            mainTab === "my-loans"
+              ? "bg-white text-emerald-950 shadow-xs border border-emerald-300"
+              : "text-slate-600 hover:text-slate-900"
+          )}
+        >
+          <BookMarked className="w-4 h-4 text-emerald-700" />
+          <span>My Borrowed Books &amp; Garamat</span>
+          {myLoansData?.stats?.totalPendingGaramat ? (
+            <span className="bg-rose-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+              ₹{myLoansData.stats.totalPendingGaramat} Fine
+            </span>
+          ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMainTab("attendance");
+            fetchMyLoansAndAttendance();
+          }}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer",
+            mainTab === "attendance"
+              ? "bg-white text-emerald-950 shadow-xs border border-emerald-300"
+              : "text-slate-600 hover:text-slate-900"
+          )}
+        >
+          <UserCheck className="w-4 h-4 text-emerald-700" />
+          <span>Maktabat Visits ({myLoansData?.stats?.totalLibraryVisits ?? 0})</span>
+        </button>
+      </div>
+
+      {mainTab === "catalog" && (
+        <>
       {/* ── Search Bar ── */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="mb-6">
         <div className="relative">
@@ -940,6 +1053,225 @@ export default function TalabatLibraryPage() {
           </AnimatePresence>
         </motion.div>
       </div>
+      </>
+      )}
+
+      {/* ── TAB 2: MY BORROWED BOOKS & GARAMAT FINES ── */}
+      {mainTab === "my-loans" && (
+        <div className="space-y-6">
+          {/* Summary Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="fatimi-card p-4">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Active Books</span>
+              <p className="text-2xl font-black text-slate-900 mt-1">{myLoansData?.stats?.totalActive ?? 0}</p>
+              <span className="text-[10px] text-slate-400">Currently in your possession</span>
+            </Card>
+
+            <Card className="fatimi-card p-4">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Overdue Items</span>
+              <p className="text-2xl font-black text-rose-700 mt-1">{myLoansData?.stats?.totalOverdue ?? 0}</p>
+              <span className="text-[10px] text-rose-600">Past return deadline</span>
+            </Card>
+
+            <Card className="fatimi-card p-4">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Total Returned</span>
+              <p className="text-2xl font-black text-emerald-700 mt-1">{myLoansData?.stats?.totalReturned ?? 0}</p>
+              <span className="text-[10px] text-emerald-600">Past reading history</span>
+            </Card>
+
+            <Card className="fatimi-card p-4 border-amber-300 bg-amber-50/50">
+              <span className="text-[10px] font-bold text-amber-800 uppercase">Pending Garamat</span>
+              <p className="text-2xl font-black text-amber-950 mt-1">₹{myLoansData?.stats?.totalPendingGaramat ?? 0}</p>
+              <span className="text-[10px] text-amber-700">Calculated @ ₹10/day</span>
+            </Card>
+          </div>
+
+          {/* Garamat Alert Card if any fine pending */}
+          {myLoansData && myLoansData.stats.totalPendingGaramat > 0 && (
+            <div className="rounded-2xl border-2 border-rose-500 bg-rose-50 p-5 shadow-sm space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-extrabold text-sm text-rose-950">
+                    Overdue Garamat Notice &middot; Total Fine: ₹{myLoansData.stats.totalPendingGaramat}
+                  </h3>
+                  <p className="text-xs text-rose-800 mt-1">
+                    According to Maktabat policy, overdue books incur a late garamat fine of{" "}
+                    <strong>₹10 per day</strong> past the return due date. Please visit the library circulation desk to return the volume and clear pending dues.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Loans Section */}
+          <Card className="fatimi-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-emerald-700" />
+                <span>Currently Issued Books ({myLoansData?.activeLoans?.length ?? 0})</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingMyLoans ? (
+                <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600" /></div>
+              ) : !myLoansData?.activeLoans?.length ? (
+                <p className="text-center py-8 text-xs text-slate-400">You currently have no borrowed books.</p>
+              ) : (
+                <div className="space-y-3">
+                  {myLoansData.activeLoans.map((loan) => (
+                    <div
+                      key={loan.id}
+                      className={cn(
+                        "p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3",
+                        loan.isOverdue ? "border-rose-300 bg-rose-50/60" : "border-slate-200 bg-white"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn(
+                          "w-12 h-14 rounded-lg flex items-center justify-center font-bold text-xs shrink-0",
+                          loan.isOverdue ? "bg-rose-200 text-rose-800" : "bg-emerald-100 text-emerald-800"
+                        )}>
+                          📖
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-slate-900 truncate">{loan.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {loan.author ? `By ${loan.author}` : "Author unlisted"} · Barcode:{" "}
+                            <span className="font-mono font-bold text-slate-700">{loan.barcode || "N/A"}</span>
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Borrowed: {new Date(loan.borrowedAt).toLocaleDateString("en-US")} · Due:{" "}
+                            <strong className={loan.isOverdue ? "text-rose-700" : "text-slate-800"}>
+                              {new Date(loan.dueAt).toLocaleDateString("en-US")}
+                            </strong>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {loan.isOverdue ? (
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-rose-700 bg-rose-100 px-2.5 py-1 rounded-full inline-block">
+                              ⚠️ Overdue by {loan.daysOverdue} Day(s)
+                            </span>
+                            <p className="text-xs font-black text-rose-900 mt-1">
+                              Garamat: ₹{loan.garamat?.calculatedAmount ?? loan.daysOverdue * 10} (@ ₹10/day)
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full">
+                            Due in {loan.daysRemaining} Day(s)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Past Returned Books */}
+          <Card className="fatimi-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-emerald-700" />
+                <span>Returned Books History ({myLoansData?.returnedLoans?.length ?? 0})</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!myLoansData?.returnedLoans?.length ? (
+                <p className="text-center py-6 text-xs text-slate-400">No returned books recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {myLoansData.returnedLoans.map((loan) => (
+                    <div
+                      key={loan.id}
+                      className="p-3 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <p className="font-bold text-slate-900">{loan.title}</p>
+                        <p className="text-[11px] text-slate-500">
+                          Barcode: {loan.barcode || "N/A"} · Returned:{" "}
+                          {loan.returnedAt ? new Date(loan.returnedAt).toLocaleDateString("en-US") : "Returned"}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                        Returned
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── TAB 3: MAKTABAT ATTENDANCE & ARRIVAL HISTORY ── */}
+      {mainTab === "attendance" && (
+        <div className="space-y-6">
+          <Card className="fatimi-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-emerald-700" />
+                  <span>My Maktabat Attendance &amp; Arrival Records ({myLoansData?.attendances?.length ?? 0})</span>
+                </CardTitle>
+                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-800 border-emerald-300 font-bold">
+                  Verified Records
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingMyLoans ? (
+                <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-600" /></div>
+              ) : !myLoansData?.attendances?.length ? (
+                <div className="text-center py-10 text-slate-400 space-y-2">
+                  <UserCheck className="w-8 h-8 mx-auto text-slate-300" />
+                  <p className="text-xs font-semibold">No Maktabat arrival records found yet.</p>
+                  <p className="text-[11px]">When you arrive at Maktabat Darse Burhani, your arrival time and date are logged here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myLoansData.attendances.map((att) => (
+                    <div
+                      key={att.id}
+                      className="p-3.5 rounded-2xl border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-xs hover:border-emerald-300 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 border-2 border-emerald-500 ring-2 ring-emerald-100">
+                          <ProfilePhoto
+                            src={session?.user?.avatarUrl}
+                            alt={att.studentName || session?.user?.firstName || "Talabat"}
+                            className="w-full h-full"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-slate-900">
+                            {new Date(att.date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                            Marking Time: <strong className="text-emerald-800 font-bold">{new Date(att.checkInTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-[10.5px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full inline-flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 text-emerald-700" />
+                          Arrived / Present
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── Book Detail Modal ── */}
       <BookDetailModal

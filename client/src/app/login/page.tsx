@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { signIn, getSession, signOut } from "next-auth/react";
+import { signIn, getSession, signOut, useSession } from "next-auth/react";
 import {
   Eye,
   EyeOff,
@@ -126,6 +126,22 @@ function playScanSuccessChime() {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { data: session, status: authStatus } = useSession();
+
+  // If already authenticated with an active session, automatically redirect straight to the assigned portal
+  useEffect(() => {
+    if (authStatus === "authenticated" && session?.user?.role) {
+      const rolePaths: Record<string, string> = {
+        ADMIN: "/admin",
+        TEACHER: "/teacher",
+        STUDENT: "/talabat",
+        PARENT: "/parent",
+      };
+      const dest = rolePaths[session.user.role] || "/admin";
+      navigate(dest, { replace: true });
+    }
+  }, [authStatus, session, navigate]);
+
   const [selectedRole, setSelectedRole] = useState<"ADMIN" | "TEACHER" | "STUDENT" | "PARENT">("ADMIN");
   const portal = portals.find((p) => p.role === selectedRole) || portals[0];
 
@@ -247,7 +263,7 @@ export default function LoginPage() {
     }
     lines.push("", "Please reset my password at your earliest convenience.", "", "Jazak Allah,");
     if (forgotProfile) lines.push(forgotProfile.displayName);
-    return `mailto:support.darseburhanigaliakot@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+    return `mailto:support@darseburhani-galiakot.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
   }, [forgotProfile, forgotIdentifier]);
 
   // ââ Backdrop Parallax ââ
@@ -763,8 +779,8 @@ export default function LoginPage() {
                 </div>
                 <p style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.65)", textAlign: "center", margin: 0 }}>
                   Direct Support:{" "}
-                  <a href="mailto:support.darseburhanigaliakot@gmail.com" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
-                    support.darseburhanigaliakot@gmail.com
+                  <a href="mailto:support@darseburhani-galiakot.org" style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}>
+                    support@darseburhani-galiakot.org
                   </a>
                 </p>
               </div>
@@ -1026,6 +1042,8 @@ export default function LoginPage() {
                     style={{ fontSize: 12.5, color: "rgba(255,255,255,0.85)" }}
                   >
                     <input
+                      id="login-remember-me-desktop"
+                      name="rememberMe"
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => handleRememberMeChange(e.target.checked)}
@@ -1152,7 +1170,7 @@ export default function LoginPage() {
                 <span>
                   Need help?{" "}
                   <a
-                    href="mailto:support.darseburhanigaliakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                    href="mailto:support@darseburhani-galiakot.org?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
                     style={{ color: "#fcd468", fontWeight: 700, textDecoration: "none" }}
                     onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
@@ -1465,6 +1483,8 @@ export default function LoginPage() {
                 <div className="flex items-center justify-between text-xs pt-0.5">
                   <label className="flex items-center gap-1.5 cursor-pointer text-white/80">
                     <input
+                      id="login-remember-me-mobile"
+                      name="rememberMe"
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => handleRememberMeChange(e.target.checked)}
@@ -1543,7 +1563,7 @@ export default function LoginPage() {
                 style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}
               >
                 <a
-                  href="mailto:support.darseburhanigaliakot@gmail.com?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
+                  href="mailto:support@darseburhani-galiakot.org?subject=Darse%20Burhani%20(Nisab)%20%E2%80%94%20Support%20Request"
                   style={{ color: "#fcd468", textDecoration: "none", fontWeight: 600 }}
                 >
                   Help
@@ -1813,7 +1833,7 @@ export default function LoginPage() {
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ef9a33"; e.currentTarget.style.background = "#fff8e7"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.background = "#f8fafc"; }}
               >
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                <input id="its-card-photo-input" name="itsCardPhoto" ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: "#fef3c7", border: "1px solid #fde68a", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Upload size={22} color="#92400e" />
                 </div>
@@ -1901,8 +1921,8 @@ export default function LoginPage() {
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", display: "block", marginBottom: 4 }}>Mahad al Zahra Administration Desk</span>
                 <p style={{ color: "#334155" }}>
                   Direct Support Email:{" "}
-                  <a href="mailto:support.darseburhanigaliakot@gmail.com" style={{ color: "#8a3e14", fontWeight: 700 }}>
-                    support.darseburhanigaliakot@gmail.com
+                  <a href="mailto:support@darseburhani-galiakot.org" style={{ color: "#8a3e14", fontWeight: 700 }}>
+                    support@darseburhani-galiakot.org
                   </a>
                 </p>
                 <p style={{ color: "#64748b", marginTop: 4 }}>For password resets, credential assistance, and queries, email our support desk directly.</p>

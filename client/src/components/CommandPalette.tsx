@@ -26,6 +26,7 @@ import {
   X,
   PlusCircle,
   ClipboardCheck,
+  MessageSquare,
 } from "lucide-react";
 import { prefetchRouteChunk } from "@/lib/prefetch";
 
@@ -135,6 +136,16 @@ export function CommandPalette() {
         icon: Calendar,
         href: "/fatimi-calendar",
         keywords: ["calendar", "hijri", "fatimi", "miqaat", "date"],
+      },
+      {
+        id: "act-whatsapp-gateway",
+        title: "24/7 Cloud WhatsApp Gateway",
+        subtitle: "Manage WhatsApp connection, profile name, and notifications",
+        category: "Tools",
+        icon: MessageSquare,
+        href: "/admin/whatsapp",
+        keywords: ["whatsapp", "gateway", "notifications", "qr", "hotline", "messages"],
+        badge: "Cloud",
       },
 
       // Navigation
@@ -284,6 +295,9 @@ export function CommandPalette() {
           <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
             <Search className="w-5 h-5 text-amber-400 shrink-0" />
             <input
+              id="command-palette-search"
+              name="commandPaletteQuery"
+              aria-label="Search modules and commands"
               ref={inputRef}
               type="text"
               value={query}
@@ -302,7 +316,8 @@ export function CommandPalette() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+                className="w-8 h-8 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center touch-target-44"
+                aria-label="Close search"
               >
                 <X className="w-4 h-4" />
               </button>

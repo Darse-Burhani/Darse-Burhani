@@ -76,26 +76,25 @@ const ALL_DARAJAH_CLASSES = ["1 A", "1 B", "2 A", "2 B", "3 A", "3 B", "4 A", "4
 
 export default function TeacherTimetablePage() {
   const { data: session } = useSession();
-  const { isPageAssigned, assignedPages } = usePortalAccess();
-  // Badal & Timetable management is restricted strictly to Admin and teachers explicitly assigned by Admin
-  const canManageTimetable =
-    session?.user?.role === "ADMIN" ||
-    (Array.isArray(assignedPages) &&
-      assignedPages.some((p) => {
-        const lower = String(p).toLowerCase().trim();
-        return (
-          lower === "badal-management" ||
-          lower === "timetable-management" ||
-          lower === "matrix-management" ||
-          lower === "all" ||
-          lower === "*"
-        );
-      }));
+  const { isPageAssigned, assignedPages, canManageTimetable } = usePortalAccess();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [viewTab, setViewTab] = useState<"my-schedule" | "masool-class" | "classes" | "matrix-management">("my-schedule");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get("tab");
+      if (
+        (tabParam === "matrix-management" || tabParam === "badal" || tabParam === "manage") &&
+        canManageTimetable
+      ) {
+        setViewTab("matrix-management");
+      }
+    }
+  }, [canManageTimetable]);
+
 
   // Masool Class Selection
   const [selectedMasoolIndex, setSelectedMasoolIndex] = useState(0);

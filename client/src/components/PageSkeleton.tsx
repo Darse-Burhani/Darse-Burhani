@@ -24,7 +24,7 @@ export function SkeletonBlock({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-md bg-slate-200/70 dark:bg-[#1c1c1c] animate-pulse",
+        "rounded-xl bg-gradient-to-r from-amber-950/5 via-amber-400/15 to-amber-950/5 bg-[length:200%_100%] animate-[skeleton-loading_1.6s_infinite] border border-amber-200/20",
         className,
       )}
     />
@@ -33,7 +33,7 @@ export function SkeletonBlock({ className }: { className?: string }) {
 
 export function StatsCardSkeleton() {
   return (
-    <div className="p-5 rounded-2xl bg-white dark:bg-[#0d0d0d]/80 border border-gray-100 dark:border-white/10 shadow-sm space-y-3">
+    <div className="p-4 sm:p-5 rounded-2xl bg-white/95 border border-slate-200/80 shadow-2xs space-y-3 relative overflow-hidden">
       <div className="flex items-center justify-between">
         <SkeletonBlock className="h-4 w-28" />
         <SkeletonBlock className="h-9 w-9 rounded-xl" />

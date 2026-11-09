@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn, timeAgo } from "@/lib/utils";
-import { sendDesktopNotification } from "@/lib/notification-sound";
+import { sendDesktopNotification, updatePwaBadge } from "@/lib/notification-sound";
 
 interface NotificationItem {
   id: string;
@@ -32,6 +32,28 @@ interface NotificationItem {
   link?: string | null;
   isRead: boolean;
   createdAt: string;
+}
+
+const VIEWED_NOTIF_STORAGE_KEY = "darse_viewed_notifications_v1";
+
+function getViewedIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(VIEWED_NOTIF_STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function recordNotificationViewed(id: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const set = getViewedIds();
+    set.add(id);
+    const arr = Array.from(set).slice(-300);
+    localStorage.setItem(VIEWED_NOTIF_STORAGE_KEY, JSON.stringify(arr));
+  } catch {}
 }
 
 const typeIconMap: Record<string, React.ElementType> = {
@@ -97,6 +119,11 @@ export function NotificationBell() {
     return () => window.removeEventListener("click", handleFirstInteraction);
   }, []);
 
+  // Synchronize PWA Badging API with live unread notification count
+  useEffect(() => {
+    updatePwaBadge(unreadCount);
+  }, [unreadCount]);
+
   const fetchNotifications = useCallback(async () => {
     if (status !== "authenticated" || !session?.user) return;
     try {
@@ -109,36 +136,34 @@ export function NotificationBell() {
         setUnreadCount(json.data.unreadCount ?? 0);
 
         if (isInitialLoadRef.current) {
-          // Initialize known IDs
-          freshList.forEach((n) => knownIdsRef.current.add(n.id));
+          // On initial page load: all existing notifications are registered as known and viewed.
+          // This guarantees notifications NEVER pop up repeatedly or play sounds on refresh/navigation!
+          const viewedSet = getViewedIds();
+          freshList.forEach((n) => {
+            knownIdsRef.current.add(n.id);
+            viewedSet.add(n.id);
+          });
+          try {
+            const arr = Array.from(viewedSet).slice(-300);
+            localStorage.setItem(VIEWED_NOTIF_STORAGE_KEY, JSON.stringify(arr));
+          } catch {}
           isInitialLoadRef.current = false;
-
-          // If there is a very recent unread notification from the last 10 minutes, show it immediately
-          const recentUnread = freshList.find(
-            (n) => !n.isRead && (Date.now() - new Date(n.createdAt).getTime() < 10 * 60 * 1000)
-          );
-          if (recentUnread) {
-            setBannerNotification(recentUnread);
-            sendDesktopNotification({
-              title: recentUnread.title,
-              body: recentUnread.body,
-              link: recentUnread.link || undefined,
-              soundType: recentUnread.type === "ALERT" ? "alert" : "arrival",
-              tag: recentUnread.id,
-            });
-          }
         } else {
-          // Find any new unread notification that arrived
-          const brandNew = freshList.filter((n) => !n.isRead && !knownIdsRef.current.has(n.id));
+          // Find only brand-new notifications that arrived live during the active session
+          const viewedSet = getViewedIds();
+          const brandNew = freshList.filter((n) => !n.isRead && !knownIdsRef.current.has(n.id) && !viewedSet.has(n.id));
 
           if (brandNew.length > 0) {
             const latest = brandNew[0];
-            brandNew.forEach((n) => knownIdsRef.current.add(n.id));
+            brandNew.forEach((n) => {
+              knownIdsRef.current.add(n.id);
+              recordNotificationViewed(n.id);
+            });
 
             // 1. Show in-app floating notification bar
             setBannerNotification(latest);
 
-            // 2. Play smooth harmonic chime and dispatch OS/Desktop System Notification
+            // 2. Play smooth subtle Fatimi harmonic chime and dispatch OS/Desktop System Notification
             sendDesktopNotification({
               title: latest.title,
               body: latest.body,
@@ -166,12 +191,23 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, [status, session, fetchNotifications]);
 
-  // Auto-dismiss top banner notification after 9 seconds
+  // Auto-dismiss top banner notification after 8 seconds and mark as viewed so it never appears again
   useEffect(() => {
     if (bannerNotification) {
+      recordNotificationViewed(bannerNotification.id);
       const timer = setTimeout(() => {
+        // Mark as read in backend so it won't appear next time
+        fetch("/api/notifications", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationIds: [bannerNotification.id] }),
+        }).catch(() => {});
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === bannerNotification.id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((c) => Math.max(0, c - 1));
         setBannerNotification(null);
-      }, 9000);
+      }, 8000);
       return () => clearTimeout(timer);
     }
   }, [bannerNotification]);
@@ -251,6 +287,16 @@ export function NotificationBell() {
                 <button
                   onClick={() => {
                     const link = bannerNotification.link!;
+                    recordNotificationViewed(bannerNotification.id);
+                    fetch("/api/notifications", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ notificationIds: [bannerNotification.id] }),
+                    }).catch(() => {});
+                    setNotifications((prev) =>
+                      prev.map((n) => (n.id === bannerNotification.id ? { ...n, isRead: true } : n))
+                    );
+                    setUnreadCount((c) => Math.max(0, c - 1));
                     setBannerNotification(null);
                     router.push(link);
                   }}
@@ -268,7 +314,19 @@ export function NotificationBell() {
               )}
             </div>
             <button
-              onClick={() => setBannerNotification(null)}
+              onClick={() => {
+                recordNotificationViewed(bannerNotification.id);
+                fetch("/api/notifications", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ notificationIds: [bannerNotification.id] }),
+                }).catch(() => {});
+                setNotifications((prev) =>
+                  prev.map((n) => (n.id === bannerNotification.id ? { ...n, isRead: true } : n))
+                );
+                setUnreadCount((c) => Math.max(0, c - 1));
+                setBannerNotification(null);
+              }}
               className="text-white/75 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
               aria-label="Dismiss notification bar"
             >
@@ -282,9 +340,13 @@ export function NotificationBell() {
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => {
-            setOpen((prev) => !prev);
-            if (!open) {
+            const nextOpen = !open;
+            setOpen(nextOpen);
+            if (nextOpen) {
               fetchNotifications();
+              if (unreadCount > 0) {
+                markAllRead();
+              }
               // Request desktop permission if still default
               if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission().catch(() => {});

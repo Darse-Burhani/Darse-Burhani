@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import {
   Activity,
   Clock,
+  CalendarCheck,
   CalendarDays,
   BookMarked,
   BookOpen,
@@ -13,6 +14,7 @@ import {
   ClipboardList,
   Palette,
   GraduationCap,
+  Mail,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -21,7 +23,7 @@ const rawNavItems = [
   { key: "dashboard", label: "Dashboard", href: "/talabat", icon: Activity },
   { key: "timetable", label: "Class Timetable", href: "/talabat/timetable", icon: CalendarDays },
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock },
-  { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarDays },
+  { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarCheck },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
   { key: "yearly-profile", label: "Yearly Profile", href: "/talabat/yearly-profile", icon: GraduationCap },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen },
@@ -30,6 +32,7 @@ const rawNavItems = [
   { key: "skillTree", label: "Skill Tree", href: "/talabat/skill-tree", icon: BarChart3 },
   { key: "badges", label: "Badges", href: "/talabat/badges", icon: Shield },
   { key: "tilawatDua", label: "Tilawat Dua", href: "/talabat/tilawat-dua", icon: BookOpen },
+  { key: "support", label: "IT Support & Email", href: "/talabat/support", icon: Mail },
   { key: "profile", label: "My Profile", href: "/talabat/profile", icon: User },
 ];
 
@@ -80,6 +83,12 @@ export default function TalabatLayout() {
         return false;
       }
       if (item.key === "yearly-profile") {
+        return true;
+      }
+      if (item.key === "support") {
+        return true;
+      }
+      if (item.key === "tilawatDua") {
         return true;
       }
       return isModuleVisible(item.key, "STUDENT");

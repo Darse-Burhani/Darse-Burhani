@@ -24,6 +24,8 @@ import {
   BookOpen,
   Clock,
   ShieldCheck,
+  UserCheck,
+  Barcode,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
@@ -31,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import Link from "next/link";
+import PrintBarcodeLabels, { LibraryBook } from "@/components/admin/PrintBarcodeLabels";
 
 const LibraryShelf360 = lazy(() => import("@/components/admin/LibraryShelf360"));
 
@@ -102,11 +105,13 @@ function ShelfCard({
   onEdit,
   onDelete,
   onMove,
+  onPrintStickers,
 }: {
   shelf: ShelfData;
   onEdit: () => void;
   onDelete: () => void;
   onMove: () => void;
+  onPrintStickers?: () => void;
 }) {
   const availabilityPct = shelf.totalBooks > 0 ? (shelf.availableBooks / shelf.totalBooks) * 100 : 0;
 
@@ -191,7 +196,7 @@ function ShelfCard({
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-1.5 pt-2 border-t border-gray-100">
+        <div className="flex items-center gap-1.5 pt-2 border-t border-gray-100 flex-wrap">
           <button
             onClick={onEdit}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
@@ -213,6 +218,16 @@ function ShelfCard({
             <Trash2 className="w-3.5 h-3.5" />
             Clear
           </button>
+          {onPrintStickers && (
+            <button
+              onClick={onPrintStickers}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 transition-colors ml-auto cursor-pointer"
+              title="Print standard barcode stickers for this shelf"
+            >
+              <Barcode className="w-3.5 h-3.5 text-emerald-700" />
+              Stickers
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -510,6 +525,29 @@ export default function AdminShelvesPage() {
   const [tvModalOpen, setTvModalOpen] = useState(false);
   const [tvCopied, setTvCopied] = useState(false);
 
+  // Barcode stickers modal
+  const [printLabelsOpen, setPrintLabelsOpen] = useState(false);
+  const [printRack, setPrintRack] = useState<string>("ALL");
+  const [printShelf, setPrintShelf] = useState<string>("ALL");
+  const [allLibraryBooks, setAllLibraryBooks] = useState<LibraryBook[]>([]);
+
+  const handlePrintShelfStickers = async (shelf: { rackNumber: string | null; shelfNumber: string | null }) => {
+    setPrintRack(shelf.rackNumber || "ALL");
+    setPrintShelf(shelf.shelfNumber || "ALL");
+    if (allLibraryBooks.length === 0) {
+      try {
+        const res = await fetch("/api/admin/library?limit=10000");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setAllLibraryBooks(data.data);
+        }
+      } catch {
+        toast({ title: "Error", description: "Failed to load library books for printing", variant: "destructive" });
+      }
+    }
+    setPrintLabelsOpen(true);
+  };
+
   // ── Load Shelves ──
   const loadShelves = useCallback(async () => {
     setLoading(true);
@@ -583,11 +621,12 @@ export default function AdminShelvesPage() {
       {/* ── Library Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Library & Circulation"
-        hubDescription="Book catalog, smart color-coded shelves, circulation desk, and overdue tracking."
+        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
         tabs={[
           { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
           { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
-          { label: "Quick Checkout", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
         ]}
@@ -636,6 +675,14 @@ export default function AdminShelvesPage() {
             <Button variant="outline" onClick={loadShelves} disabled={loading} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handlePrintShelfStickers({ rackNumber: "ALL", shelfNumber: "ALL" })}
+              className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-bold"
+            >
+              <Barcode className="w-4 h-4 text-emerald-600" />
+              Barcode Stickers
             </Button>
             <Button variant="admin" onClick={() => setTvModalOpen(true)} className="gap-2">
               <Monitor className="w-4 h-4" />
@@ -703,6 +750,7 @@ export default function AdminShelvesPage() {
               onEdit={(shelf: any) => { setEditingShelf(shelf); setEditModalOpen(true); }}
               onMove={(shelf: any) => { setMovingShelf(shelf); setMoveModalOpen(true); }}
               onClear={(shelf: any) => setConfirmDelete(shelf)}
+              onPrint={(shelf: any) => handlePrintShelfStickers(shelf)}
             />
           </Suspense>
         )
@@ -754,6 +802,7 @@ export default function AdminShelvesPage() {
                     onEdit={() => { setEditingShelf(shelf); setEditModalOpen(true); }}
                     onDelete={() => setConfirmDelete(shelf)}
                     onMove={() => { setMovingShelf(shelf); setMoveModalOpen(true); }}
+                    onPrintStickers={() => handlePrintShelfStickers(shelf)}
                   />
                 ))}
               </div>
@@ -894,6 +943,15 @@ export default function AdminShelvesPage() {
         </span>
       </motion.div>
       )}
+
+      {/* Barcode Sticker Center Modal */}
+      <PrintBarcodeLabels
+        open={printLabelsOpen}
+        onOpenChange={setPrintLabelsOpen}
+        books={allLibraryBooks}
+        initialRack={printRack}
+        initialShelf={printShelf}
+      />
     </div>
   );
 }

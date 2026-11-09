@@ -178,10 +178,21 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Skip waiting on direct message trigger from app
+// Skip waiting or update PWA badge on direct message trigger from app
 self.addEventListener("message", (event) => {
-  if (event.data && (event.data.type === "SKIP_WAITING" || event.data === "skipWaiting")) {
+  if (!event.data) return;
+  if (event.data.type === "SKIP_WAITING" || event.data === "skipWaiting") {
     console.log("[PWA SW] Received SKIP_WAITING signal, claiming clients.");
     self.skipWaiting();
+  }
+  if (event.data.type === "UPDATE_BADGE") {
+    const count = Number(event.data.badgeCount || 0);
+    if ("setAppBadge" in self.navigator) {
+      if (count > 0) {
+        self.navigator.setAppBadge(count).catch(() => {});
+      } else {
+        self.navigator.clearAppBadge().catch(() => {});
+      }
+    }
   }
 });

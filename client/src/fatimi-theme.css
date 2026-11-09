@@ -91,6 +91,19 @@
   --db-c-teal-950: 13 13 13;
   --db-c-fatimi-obsidian: 13 13 13;       /* obsidian charcoal */
   --db-c-student-vibrant: 252 212 104;    /* gold vibrant */
+
+  /* ── Authentic Fatimi Bronze Girih Lattice System (12-Star Metalwork) ── */
+  --fatimi-bronze-specular: #fff2cc;
+  --fatimi-bronze-highlight: #ffd885;
+  --fatimi-bronze-gold: #f3b833;
+  --fatimi-bronze-burnished: #c59b27;
+  --fatimi-bronze-amber: #e69a19;
+  --fatimi-bronze-mid: #8c5828;
+  --fatimi-bronze-deep: #5c3b12;
+  --fatimi-bronze-shadow: #2a1708;
+  --fatimi-bronze-ground: #160d05;
+  --fatimi-bronze-border: rgba(243, 184, 51, 0.35);
+  --fatimi-bronze-glow: rgba(243, 184, 51, 0.22);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -127,10 +140,17 @@
   overflow: hidden;
   border-radius: 1.25rem;
   padding: 1.75rem 2.25rem;
-  background: var(--fatimi-banner-bg) !important;
+  background-color: #120c06 !important;
+  background-image:
+    radial-gradient(ellipse at 85% 15%, rgba(252, 212, 104, 0.22) 0%, transparent 60%),
+    linear-gradient(135deg, rgba(22, 15, 8, 0.88) 0%, rgba(15, 10, 5, 0.94) 55%, rgba(10, 6, 3, 0.98) 100%),
+    url("/fatimi-bronze-lattice.jpg") !important;
+  background-size: auto, auto, 380px auto !important;
+  background-repeat: no-repeat, no-repeat, repeat !important;
+  background-blend-mode: screen, normal, overlay !important;
   color: #f5f0e8 !important;
-  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(252, 212, 104, 0.15);
-  border: 1px solid rgba(252, 212, 104, 0.15);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.65), 0 4px 14px -2px rgba(243, 184, 51, 0.2);
+  border: 1px solid rgba(252, 212, 104, 0.25);
 }
 
 .fatimi-header-banner::before {
@@ -471,4 +491,160 @@
 
 .shadow-fatimi-gold {
   box-shadow: 0 0 20px -5px rgba(252, 212, 104, 0.3), 0 0 40px -10px rgba(252, 212, 104, 0.1);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   AUTHENTIC FATIMI BRONZE GIRIH LATTICE (JALI) DESIGN SYSTEM
+   Directly derived from the authentic Fatimi 12-point star rosette
+   antique bronze / burnished gold door and window lattice screen.
+   ───────────────────────────────────────────────────────────── */
+
+/* 1. Photorealistic Antique Bronze Panel / Card */
+.fatimi-girih-bronze {
+  position: relative;
+  overflow: hidden;
+  background-color: #160d05 !important;
+  background-image:
+    radial-gradient(ellipse at 50% -15%, rgba(252, 212, 104, 0.3) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(28, 16, 7, 0.72) 0%, rgba(18, 10, 4, 0.92) 100%),
+    url("/fatimi-bronze-lattice.jpg") !important;
+  background-size: auto, auto, 360px auto !important;
+  background-repeat: no-repeat, no-repeat, repeat !important;
+  background-blend-mode: normal, normal, overlay !important;
+  color: #fdf8ed !important;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(243, 184, 51, 0.35) !important;
+  box-shadow:
+    0 16px 40px -10px rgba(0, 0, 0, 0.7),
+    0 4px 16px -2px rgba(243, 184, 51, 0.22),
+    inset 0 1px 1px rgba(255, 235, 170, 0.35),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6) !important;
+}
+
+.fatimi-girih-bronze::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #fcd468 30%, #f3b833 50%, #c59b27 70%, transparent 100%);
+  pointer-events: none;
+}
+
+/* 2. Subtle Dark Girih Background */
+.fatimi-girih-subtle {
+  position: relative;
+  overflow: hidden;
+  background-color: #120b04 !important;
+  background-image:
+    linear-gradient(180deg, rgba(18, 11, 4, 0.88) 0%, rgba(10, 6, 2, 0.96) 100%),
+    url("/fatimi-bronze-lattice.jpg") !important;
+  background-size: auto, 340px auto !important;
+  background-repeat: no-repeat, repeat !important;
+  background-blend-mode: normal, overlay !important;
+  border: 1px solid rgba(243, 184, 51, 0.2) !important;
+  color: #f8f4eb !important;
+}
+
+/* 3. Subtle Watermark for 70% Warm Cream / Light Cards */
+.fatimi-girih-watermark {
+  position: relative;
+}
+
+.fatimi-girih-watermark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/fatimi-bronze-lattice.jpg");
+  background-size: 340px auto;
+  background-repeat: repeat;
+  opacity: 0.045;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+/* 4. 3D Beveled Cast Bronze Bezel Border */
+.fatimi-girih-bezel {
+  position: relative;
+  border-radius: 1.25rem;
+  border: 2px solid #8c5828 !important;
+  outline: 1px solid rgba(252, 212, 104, 0.45);
+  outline-offset: -5px;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 230, 160, 0.5),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.75),
+    0 12px 32px -6px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 5. Pure Lattice Texture Background Utility */
+.fatimi-girih-texture {
+  background-image: url("/fatimi-bronze-lattice.jpg") !important;
+  background-size: 360px auto !important;
+  background-repeat: repeat !important;
+}
+
+/* 6. Burnished Metallic Bronze-to-Gold Heading Text */
+.fatimi-girih-metallic-text {
+  background: linear-gradient(135deg, #fff4d4 0%, #fcd468 25%, #f3b833 50%, #c59b27 75%, #8c5828 100%);
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+/* 7. Burnished Bronze Tactile Button */
+.fatimi-girih-button {
+  background: linear-gradient(180deg, #fcd468 0%, #f3b833 35%, #c59b27 70%, #8c5828 100%) !important;
+  color: #160d05 !important;
+  font-weight: 700 !important;
+  border: 1px solid #ffe299 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.35) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.fatimi-girih-button:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #fcd468 35%, #f3b833 70%, #a37222 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 6px 20px rgba(243, 184, 51, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.fatimi-girih-button:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 8. Metallic Cast Badge */
+.fatimi-girih-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #ffd885;
+  background: rgba(22, 13, 5, 0.85);
+  border: 1px solid rgba(243, 184, 51, 0.4);
+  border-radius: 9999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+/* 9. Glow utilities for Girih ornaments */
+.shadow-fatimi-bronze {
+  box-shadow:
+    0 16px 36px -8px rgba(0, 0, 0, 0.65),
+    0 0 24px -4px rgba(243, 184, 51, 0.25) !important;
 }

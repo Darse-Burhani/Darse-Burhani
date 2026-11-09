@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 
 import { toast } from "@/components/ui/toast";
 import { timeAgo } from "@/lib/utils";
-import { sendDesktopNotification } from "@/lib/notification-sound";
+import { sendDesktopNotification, updatePwaBadge } from "@/lib/notification-sound";
 
 export interface ParentNotification {
   id: string;
@@ -112,25 +112,36 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
         try {
           const ev = JSON.parse(e.data);
           if (ev.type === "MATCHED" || ev.type === "DUPLICATE") {
-            const studentId = ev.studentId || ev.personId;
-            const studentName = ev.personName || ev.studentName || "Your child";
+            const studentId = ev.studentId || ev.personId || ev.student?.id;
+            const studentIts = ev.student?.its || ev.its;
 
-            // Check if this student belongs to this parent
+            // Strict child verification: Only process if childrenList has loaded and matches
+            if (!childrenList || childrenList.length === 0) return;
+
             const matchedChild = childrenList.find(
-              (c) => c.studentProfileId === studentId || c.id === studentId || c.its === ev.its
+              (c) =>
+                (studentId && (c.studentProfileId === studentId || c.id === studentId)) ||
+                (studentIts && (c.its === studentIts || c.studentIts === studentIts))
             );
 
-            const displayChildName = matchedChild
-              ? `${matchedChild.firstName} ${matchedChild.lastName}`
-              : studentName;
+            // CRITICAL: Strictly ignore scans for other children / faculty
+            if (!matchedChild) return;
+
+            // Strict deduplication: Do NOT alert repeatedly for duplicate taps
+            if (ev.type === "DUPLICATE" || ev.isDuplicate) return;
+
+            // Suppress alerts if scan is outside active authorized scanning window
+            if (ev.scanWindow && !ev.scanWindow.isOpen && !ev.scanWindow.isUpcoming) return;
+
+            const displayChildName = `${matchedChild.firstName || ""} ${matchedChild.lastName || ""}`.trim() || matchedChild.name || "Your child";
 
             // Trigger real-time visual and audio notification (In-app + OS Desktop Push outside browser)
             sendDesktopNotification({
               title: `🎓 Campus Arrival: ${displayChildName}`,
               body: `${displayChildName} has scanned in at ${ev.gate || "Main Entrance MinMoe"} (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}).`,
-              link: "/parent/activity",
+              link: `/parent/activity?childId=${matchedChild.studentProfileId || matchedChild.id}`,
               soundType: "arrival",
-              tag: `arrival-${studentId}-${Date.now()}`,
+              tag: `arrival-${matchedChild.id}-${new Date().toISOString().slice(0, 10)}`,
               silent: !soundEnabled,
             });
 
@@ -140,7 +151,7 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
               title: "Campus Scan Verified",
               body: `${displayChildName} has scanned in at ${ev.gate || "Darse Burhani Main Gate"}.`,
               childName: displayChildName,
-              childId: matchedChild?.id,
+              childId: matchedChild.id,
               createdAt: new Date().toISOString(),
               isRead: false,
               meta: ev,
@@ -171,6 +182,11 @@ export function ParentNotificationCenter({ childrenList = [], onChildSelect, onR
   const unreadCount = useMemo(() => {
     return notifications.filter((n) => !n.isRead).length;
   }, [notifications]);
+
+  // Synchronize PWA Badging API for Parents
+  useEffect(() => {
+    updatePwaBadge(unreadCount);
+  }, [unreadCount]);
 
   const filteredNotifications = useMemo(() => {
     if (filter === "ALL") return notifications;

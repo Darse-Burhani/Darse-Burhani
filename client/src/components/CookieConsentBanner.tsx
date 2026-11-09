@@ -80,7 +80,7 @@ export function CookieConsentBanner() {
   if (!isOpen) return null;
 
   return (
-    <aside aria-label="Cookie Preferences" className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-5 flex justify-center">
+    <aside aria-label="Cookie Preferences" className="fixed inset-x-0 bottom-24 lg:bottom-0 z-50 p-3 sm:p-5 flex justify-center safe-area-bottom">
       <div className="w-full max-w-2xl rounded-lg bg-[#0d0d0d] border border-[#2a2a2a] p-4 sm:p-5 text-[#f5f3ef] shadow-lg">
         {!showPreferences ? (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

@@ -38,6 +38,18 @@ export interface SkillTopicMeta {
 
 export const AGE_GROUPS: AgeGroupMeta[] = [
   {
+    id: "junior",
+    label: "Junior",
+    ageRange: "Age 7 – 10",
+    grades: "Classes 1 – 4 (Foundational)",
+    tagline: "Curiosity, Everyday Empathy & Good Habits",
+    description: "Foundational problem solving, classroom sharing, respectful communication, and early perseverance.",
+    color: "text-emerald-700",
+    bgColor: "bg-emerald-50",
+    borderColor: "border-emerald-300",
+    badgeBg: "bg-emerald-100 text-emerald-800",
+  },
+  {
     id: "middle",
     label: "Middle",
     ageRange: "Age 11 – 14",
@@ -1110,4 +1122,69 @@ export function getAllQuestionsForAgeGroup(ageGroup: AgeGroupId = "senior"): Arr
     topicMeta: SKILL_TOPICS[topicKey],
     questions: group[topicKey] || [],
   }));
+}
+
+/**
+ * Automatically determine the student's age tier and formatted grade display (gdisplay)
+ * based on their enrolled Darajah / Grade and optional age.
+ */
+export function resolveAgeTierFromGradeOrAge(
+  grade?: string | null,
+  age?: number | null,
+  section?: string | null
+): { tier: AgeGroupId; gradeDisplay: string; computedAge: number; explanation: string } {
+  let computedAge = typeof age === "number" && !isNaN(age) ? age : 0;
+  const rawGrade = (grade || "").trim();
+  const rawSection = (section || "").trim();
+  
+  // Format gdisplay cleanly
+  let gradeDisplay = rawGrade || "Darajah / Grade";
+  if (rawGrade && rawSection && !rawGrade.includes(rawSection)) {
+    gradeDisplay = `${rawGrade}-${rawSection}`;
+  }
+
+  // Extract number from grade string (e.g. "Grade 7", "Darajah 4", "10", "Class 5 B")
+  const match = rawGrade.match(/(\d+)/);
+  const num = match ? parseInt(match[1], 10) : 0;
+
+  if (computedAge === 0 && num > 0) {
+    // Estimating student age: Grade 1 = 6-7 yrs ... Grade 12 = 17-18 yrs
+    computedAge = num <= 12 ? num + 5 : num;
+  }
+
+  // 1. Junior Tier: Class 1–4, Darajah 1–4, or age <= 10
+  if (
+    (computedAge > 0 && computedAge <= 10) ||
+    (num >= 1 && num <= 4) ||
+    /primary|junior|foundational|awwal|thani|thalith|rabi/i.test(rawGrade)
+  ) {
+    return {
+      tier: "junior",
+      gradeDisplay: gradeDisplay.startsWith("Grade") || gradeDisplay.startsWith("Class") || gradeDisplay.startsWith("Darajah") ? gradeDisplay : `Class ${gradeDisplay}`,
+      computedAge: computedAge || 9,
+      explanation: "Junior Curriculum (Ages 7–10 / Classes 1–4): Curiosity, Everyday Empathy & Good Habits",
+    };
+  }
+
+  // 2. Senior Tier: Class 9–12+, Darajah 9–12, or age >= 15
+  if (
+    computedAge >= 15 ||
+    num >= 9 ||
+    /senior|advanced|al-marhalah|tasi|aashir|hadi|thani-ashar|higher/i.test(rawGrade)
+  ) {
+    return {
+      tier: "senior",
+      gradeDisplay: gradeDisplay.startsWith("Grade") || gradeDisplay.startsWith("Class") || gradeDisplay.startsWith("Darajah") ? gradeDisplay : `Class ${gradeDisplay}`,
+      computedAge: computedAge || 16,
+      explanation: "Senior Curriculum (Ages 15–18+ / Classes 9–12+): Scholarly Rigor, Leadership Ethics & Resilience",
+    };
+  }
+
+  // 3. Middle Tier: Class 5–8, Darajah 5–8, or age 11–14
+  return {
+    tier: "middle",
+    gradeDisplay: gradeDisplay.startsWith("Grade") || gradeDisplay.startsWith("Class") || gradeDisplay.startsWith("Darajah") ? gradeDisplay : `Class ${gradeDisplay}`,
+    computedAge: computedAge || 13,
+    explanation: "Middle Curriculum (Ages 11–14 / Classes 5–8): Applied Problem Solving & Peer Realities",
+  };
 }

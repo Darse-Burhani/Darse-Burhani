@@ -190,6 +190,15 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           checkDate.setDate(checkDate.getDate() - 1);
         }
 
+        // Fetch Maktabat Attendance Arrivals
+        const maktabatAttendances = await (prisma as any).libraryAttendance.findMany({
+          where: {
+            studentId: { in: [session.user.id, studentProfile.id] },
+          },
+          orderBy: { checkInTime: "desc" },
+          take: 25,
+        });
+
         return {
           stats: {
             month: {
@@ -237,6 +246,13 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
             justifiedAt: r.justifiedAt?.toISOString() || null,
           })),
           month: { index: month, name: monthStart.toLocaleString("default", { month: "long" }), year },
+          maktabatAttendances: maktabatAttendances.map((m: any) => ({
+            id: m.id,
+            date: m.date?.toISOString() || null,
+            checkInTime: m.checkInTime?.toISOString() || null,
+            status: m.status || "PRESENT",
+            sessionType: m.sessionType || "PRESENT",
+          })),
         };
       },
       { ttl: 15_000, tags: ["attendanceRecord", "dashboard"] },

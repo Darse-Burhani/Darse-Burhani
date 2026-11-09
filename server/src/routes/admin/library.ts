@@ -61,19 +61,42 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     const search = (req.query.search as string) || "";
     const category = (req.query.category as string) || "";
     const status = (req.query.status as string) || "";
+    const scope = ((req.query.scope as string) || "").toLowerCase(); // "makhzan" | "library" | ""
     const page = parseInt((req.query.page as string) || "1");
     const pageSize = parseInt((req.query.pageSize as string) || "50");
     const skip = (page - 1) * pageSize;
 
     const where: any = {};
+    const andConditions: any[] = [];
+
+    // Distinct separation: Makhzan Depot vs Maktabat Library
+    const makhzanCategories = ["Stationery", "Curriculum", "Kit", "Uniform", "Makhzan", "Equipment", "Depot", "Assets", "Faculty Kit"];
+    const makhzanOrConditions = [
+      { notes: { contains: "MAKHZAN", mode: "insensitive" } },
+      { rackNumber: { contains: "Makhzan", mode: "insensitive" } },
+      { category: { in: makhzanCategories } },
+    ];
+
+    if (scope === "makhzan") {
+      andConditions.push({ OR: makhzanOrConditions });
+    } else {
+      // Library view: strictly filter out all Makhzan items
+      andConditions.push({
+        NOT: {
+          OR: makhzanOrConditions,
+        },
+      });
+    }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { author: { contains: search, mode: "insensitive" } },
-        { barcode: { contains: search, mode: "insensitive" } },
-        { rackNumber: { contains: search, mode: "insensitive" } },
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { author: { contains: search, mode: "insensitive" } },
+          { barcode: { contains: search, mode: "insensitive" } },
+          { rackNumber: { contains: search, mode: "insensitive" } },
+        ],
+      });
     }
 
     if (category) {
@@ -82,6 +105,10 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
     if (status) {
       where.status = status;
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const [books, total] = await Promise.all([
@@ -108,7 +135,8 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
 
     const categories = await prisma.libraryBook.groupBy({
       by: ["category"],
-      _count: true,
+      where,
+      _count: { id: true },
       orderBy: { _count: { category: "desc" } },
     });
 

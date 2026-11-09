@@ -202,7 +202,7 @@ router.get("/today", requireAuth, async (req: Request, res: Response) => {
         } else if (user.role === "TEACHER") {
           audienceFilter = {
             isActive: true,
-            OR: [{ targetAudience: "ALL" }, { targetAudience: "FACULTY" }],
+            OR: [{ targetAudience: "ALL" }, { targetAudience: "FACULTY" }, { targetAudience: "TALABAT" }],
           };
         }
 
@@ -307,7 +307,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
             : []),
         ];
       } else if (user.role === "TEACHER") {
-        where.OR = [{ targetAudience: "ALL" }, { targetAudience: "FACULTY" }];
+        where.OR = [{ targetAudience: "ALL" }, { targetAudience: "FACULTY" }, { targetAudience: "TALABAT" }];
       }
     }
 

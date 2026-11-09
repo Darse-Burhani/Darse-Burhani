@@ -5,6 +5,7 @@ import {
   runAutoMarkAbsentJob,
   runAutoMarkFacultyAbsentJob,
   getExpectedFacultyForDay,
+  handleScheduleWindowChanged,
 } from "../../lib/attendance-scheduler";
 import {
   eventRangeForRole,
@@ -61,7 +62,7 @@ function matchRosterEvent(
 // ── 1. ALL STUDENTS: General Attendance Windows ──
 
 // GET /api/admin/attendance/schedule/windows - List all attendance windows (Students & Faculty)
-router.get("/windows", requireRole("ADMIN"), async (req, res) => {
+router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const audienceFilter = (req.query.audience as string)?.toUpperCase(); // "ALL_STUDENTS" | "FACULTY" | "ALL"
     const windowTypeFilter = (req.query.windowType as string)?.toUpperCase(); // "HIKVISION" | "MANUAL" | "ALL"
@@ -276,7 +277,7 @@ router.get("/windows", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/attendance/schedule/windows - Create new schedule event (ONE event, BOTH Talabat + faculty timers)
-router.post("/windows", requireRole("ADMIN"), async (req, res) => {
+router.post("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { name, startTime, endTime, lateEndTime, graceMinutes = 10, enabled = true,
       applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
@@ -376,6 +377,9 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
       },
     });
 
+    // Automatically trigger instant pull if active, or calibrate dormany sleep
+    handleScheduleWindowChanged(created.id).catch(() => {});
+
     return res.status(201).json({ success: true, data: { ...created, windowType: normType } });
   } catch (error) {
     console.error("Create attendance window error:", error);
@@ -384,7 +388,7 @@ router.post("/windows", requireRole("ADMIN"), async (req, res) => {
 });
 
 // PUT /api/admin/attendance/schedule/windows/:id - Update an attendance window
-router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
+router.put("/windows/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -545,6 +549,9 @@ router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
       data: updateData,
     });
 
+    // Automatically trigger instant pull if the updated window is active now, or calibrate dormant sleep
+    handleScheduleWindowChanged(updated.id).catch(() => {});
+
     return res.json({ success: true, data: { ...updated, windowType: getWindowType(updated) } });
   } catch (error) {
     console.error("Update attendance window error:", error);
@@ -553,7 +560,7 @@ router.put("/windows/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // DELETE /api/admin/attendance/schedule/windows/:id - Delete attendance window
-router.delete("/windows/:id", requireRole("ADMIN"), async (req, res) => {
+router.delete("/windows/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -573,7 +580,7 @@ router.delete("/windows/:id", requireRole("ADMIN"), async (req, res) => {
 // ── 2. CLASSES: Class-wise Timetable Attendance Schedules ──
 
 // GET /api/admin/attendance/schedule/classes - List class attendance timetable slots
-router.get("/classes", requireRole("ADMIN"), async (_req, res) => {
+router.get("/classes", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   try {
     const slots = await prisma.timetableSlot.findMany({
       include: {
@@ -648,7 +655,7 @@ router.get("/classes", requireRole("ADMIN"), async (_req, res) => {
 });
 
 // GET /api/admin/attendance/schedule/teachers - List all active faculty/teachers
-router.get("/teachers", requireRole("ADMIN"), async (req, res) => {
+router.get("/teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const teachers = await prisma.teacherProfile.findMany({
       include: {
@@ -674,7 +681,7 @@ router.get("/teachers", requireRole("ADMIN"), async (req, res) => {
 // ── 3. EXCEL / CSV DOWNLOAD ──
 
 // GET /api/admin/attendance/schedule/export - Download schedule as Excel sheet
-router.get("/export", requireRole("ADMIN"), async (req, res) => {
+router.get("/export", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const type = (req.query.type as string) || "ALL_STUDENTS"; // "ALL_STUDENTS" | "CLASSES" | "ROSTER"
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -898,7 +905,7 @@ router.get("/export", requireRole("ADMIN"), async (req, res) => {
 // ── 3. AUTOMATED ABSENT MARKING ──
 
 // GET /api/admin/attendance/schedule/auto-absent-preview - Preview unscanned students for today
-router.get("/auto-absent-preview", requireRole("ADMIN"), async (req, res) => {
+router.get("/auto-absent-preview", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -945,7 +952,7 @@ router.get("/auto-absent-preview", requireRole("ADMIN"), async (req, res) => {
 });
 
 // POST /api/admin/attendance/schedule/auto-mark-absent - On-demand trigger to mark unscanned students as absent
-router.post("/auto-mark-absent", requireRole("ADMIN"), async (req, res) => {
+router.post("/auto-mark-absent", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { date } = req.body as { date?: string };
     const targetDate = date ? new Date(date) : new Date();
@@ -969,7 +976,7 @@ router.post("/auto-mark-absent", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/admin/attendance/schedule/faculty-absent-preview - Preview expected vs unscanned faculty for today
-router.get("/faculty-absent-preview", requireRole("ADMIN"), async (req, res) => {
+router.get("/faculty-absent-preview", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const dayStart = getStartOfDayIST(req.query.date as string || new Date());
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -1014,7 +1021,7 @@ router.get("/faculty-absent-preview", requireRole("ADMIN"), async (req, res) => 
 });
 
 // POST /api/admin/attendance/schedule/auto-mark-faculty-absent - Mark unscanned expected faculty as absent
-router.post("/auto-mark-faculty-absent", requireRole("ADMIN"), async (req, res) => {
+router.post("/auto-mark-faculty-absent", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { date } = req.body as { date?: string };
     const targetDate = date ? new Date(date) : undefined;

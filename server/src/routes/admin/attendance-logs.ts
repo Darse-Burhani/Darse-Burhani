@@ -432,7 +432,7 @@ router.get("/", requireAuth, async (req, res) => {
             effectiveSource = "SCAN";
           } else if ((registry.source as string) === "AUTO_SYSTEM") {
             effectiveSource = "AUTO_ABSENT";
-          } else if (registry.status === "MEDICAL") {
+          } else if ((registry.status as string) === "MEDICAL") {
             effectiveSource = "MEDICAL_LEAVE";
           } else if (registry.status === "ON_LEAVE" || registry.leave) {
             effectiveSource = "LEAVE_APPROVED";
@@ -460,7 +460,7 @@ router.get("/", requireAuth, async (req, res) => {
             effectiveSource = "SCAN";
           } else if (record.verificationMethod === "AUTO_SYSTEM") {
             effectiveSource = "AUTO_ABSENT";
-          } else if (record.status === "MEDICAL") {
+          } else if ((record.status as string) === "MEDICAL") {
             effectiveSource = "MEDICAL_LEAVE";
           } else if (record.status === "ON_LEAVE") {
             effectiveSource = "LEAVE_APPROVED";
