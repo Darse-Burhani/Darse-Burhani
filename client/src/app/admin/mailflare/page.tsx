@@ -113,7 +113,9 @@ export default function AdminMailflarePage() {
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await fetch("/api/admin/mailflare");
+      const res = await fetch("/api/admin/mailflare", {
+        credentials: "include",
+      });
       const json = await res.json();
       if (json.success && json.data) {
         setData(json.data);
@@ -161,6 +163,7 @@ export default function AdminMailflarePage() {
     try {
       const res = await fetch("/api/admin/mailflare/reply", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticketId: selectedTicket.id,
@@ -194,6 +197,7 @@ export default function AdminMailflarePage() {
     try {
       const res = await fetch("/api/admin/mailflare/status", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticketId: selectedTicket.id, status }),
       });
@@ -218,6 +222,7 @@ export default function AdminMailflarePage() {
     try {
       const res = await fetch("/api/admin/mailflare/compose", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: composeTo.trim(),
