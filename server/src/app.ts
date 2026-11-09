@@ -48,6 +48,8 @@ import adminLibraryExportRoutes from "./routes/admin/library/export";
 import adminLibraryCheckoutRoutes from "./routes/admin/library/checkout";
 import adminLibraryBulkRoutes from "./routes/admin/library/bulk";
 import adminLibraryAuditorRoutes from "./routes/admin/library/auditor";
+import adminLibraryStackingRecordsRoutes from "./routes/admin/library/stacking-records";
+import adminLibraryAttendanceRoutes from "./routes/admin/library/attendance";
 import adminAttendanceEmailsRoutes from "./routes/admin/attendance-emails";
 import adminAttendanceScheduleRoutes from "./routes/admin/attendance-schedule";
 import adminProfilePermissionsRoutes from "./routes/admin/profile-permissions";
@@ -56,6 +58,10 @@ import adminSecurityRoutes from "./routes/admin/security";
 import adminLeaveRoutes from "./routes/admin/leave";
 import adminAttendanceRegistryRoutes from "./routes/admin/attendance-registry";
 import adminAttendanceLogsRoutes from "./routes/admin/attendance-logs";
+import adminWarasMubarakRoutes from "./routes/admin/waras-mubarak";
+import adminWhatsAppRoutes from "./routes/admin/whatsapp";
+import adminMailflareRoutes from "./routes/admin/mailflare";
+import publicMailflareInboundRoutes from "./routes/public/mailflare-inbound";
 import manualAttendanceRoutes from "./routes/manual-attendance";
 import medicalRoutes from "./routes/medical";
 import {
@@ -92,6 +98,7 @@ import talabatDashboardRoutes from "./routes/talabat/dashboard";
 import talabatLeaveRoutes from "./routes/talabat/leave";
 import talabatProfile1447Routes from "./routes/talabat-profile";
 import talabatTimetableRoutes from "./routes/talabat/timetable";
+import talabatSupportRoutes from "./routes/talabat/support";
 import assignmentsRoutes from "./routes/assignments";
 import hobbiesRoutes from "./routes/hobbies";
 import skillsRoutes from "./routes/skills";
@@ -102,6 +109,7 @@ import parentActivityRoutes from "./routes/parent/activity";
 import parentProfileRoutes from "./routes/parent/profile";
 import parentLeaveRoutes from "./routes/parent/leave";
 import parentTimetableRoutes from "./routes/parent/timetable";
+import parentLibraryRoutes from "./routes/parent/library";
 
 import prisma from "./lib/prisma";
 import {
@@ -246,10 +254,70 @@ export function createApp() {
 
   // General uploads
   app.use("/uploads", express.static(uploadsDir, uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(uploadsDir, "parents"), uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(uploadsDir, "talabat"), uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(uploadsDir, "Talabat"), uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(uploadsDir, "teachers"), uploadStaticOptions));
+  app.use("/uploads", express.static(path.join(uploadsDir, "Teachers"), uploadStaticOptions));
   app.use("/uploads", express.static(clientPublicUploadsDir, uploadStaticOptions));
   app.use("/uploads", express.static(clientDistUploadsDir, uploadStaticOptions));
   app.use("/uploads", express.static(path.join(repoRoot, "public", "uploads"), uploadStaticOptions));
   app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads"), uploadStaticOptions));
+
+  // Fallback for /uploads/*: If file was uploaded on Render cloud, proxy and cache it locally
+  app.get("/uploads/*", async (req, res, next) => {
+    const rawSubpath = (req.params as any)[0];
+    if (!rawSubpath) return next();
+
+    // Check if file exists in any subfolder locally (e.g. parents, talabat, teachers)
+    const possibleSubdirs = ["parents", "talabat", "Talabat", "teachers", "Teachers", "tilawat-dua"];
+    for (const sub of possibleSubdirs) {
+      const candidatePath = path.join(uploadsDir, sub, rawSubpath);
+      if (fs.existsSync(candidatePath)) {
+        return res.sendFile(candidatePath, uploadStaticOptions);
+      }
+    }
+
+    const cloudBase = (process.env.RENDER_URL || "https://darse-burhani.onrender.com").replace(/\/+$/, "");
+    if (!cloudBase.includes("localhost") && !cloudBase.includes("127.0.0.1")) {
+      try {
+        const cloudUrl = `${cloudBase}/uploads/${rawSubpath}`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const cloudRes = await fetch(cloudUrl, { signal: controller.signal });
+        clearTimeout(timer);
+
+        if (cloudRes.ok) {
+          const contentType = cloudRes.headers.get("content-type") || "image/jpeg";
+          const buffer = Buffer.from(await cloudRes.arrayBuffer());
+
+          // Cache on local disk so subsequent requests are served instantly from disk
+          try {
+            const destPath = path.join(uploadsDir, rawSubpath);
+            fs.mkdirSync(path.dirname(destPath), { recursive: true });
+            fs.writeFileSync(destPath, buffer);
+          } catch {}
+
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=43200");
+          return res.send(buffer);
+        }
+      } catch {}
+    }
+
+    // Graceful fallback for missing images: return a clean 1x1 transparent PNG instead of a 404 console error
+    if (/\.(jpe?g|png|webp|gif|svg|avif)$/i.test(rawSubpath)) {
+      const transparentPixel = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+        "base64"
+      );
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "public, max-age=300");
+      return res.status(200).send(transparentPixel);
+    }
+
+    next();
+  });
 
   // Serve cmaps and standard_fonts for PDF.js directly from public/dist
   app.use("/cmaps", express.static(path.join(clientPublicDir, "cmaps")));
@@ -389,7 +457,6 @@ export function createApp() {
   app.use("/api/admin/activity", adminActivityRoutes);
   app.use("/api/admin/analytics", adminAnalyticsRoutes);
   app.use("/api/admin/library/overview", adminLibraryOverviewRoutes);
-  app.use("/api/admin/library", adminLibraryRoutes);
   app.use("/api/admin/library/students", adminLibraryStudentsRoutes);
   app.use("/api/admin/library/shelves", adminLibraryShelvesRoutes);
   app.use("/api/admin/library/return", adminLibraryReturnRoutes);
@@ -400,10 +467,17 @@ export function createApp() {
   app.use("/api/admin/library/checkout", adminLibraryCheckoutRoutes);
   app.use("/api/admin/library/bulk", adminLibraryBulkRoutes);
   app.use("/api/admin/library/auditor", adminLibraryAuditorRoutes);
+  app.use("/api/admin/library/stacking-records", adminLibraryStackingRecordsRoutes);
+  app.use("/api/admin/library/attendance", adminLibraryAttendanceRoutes);
+  app.use("/api/admin/library", adminLibraryRoutes);
   app.use("/api/admin/security", adminSecurityRoutes);
   app.use("/api/admin/leave", adminLeaveRoutes);
   app.use("/api/admin/attendance-registry", adminAttendanceRegistryRoutes);
   app.use("/api/admin/attendance-logs", adminAttendanceLogsRoutes);
+  app.use("/api/admin/waras-mubarak", adminWarasMubarakRoutes);
+  app.use("/api/admin/whatsapp", adminWhatsAppRoutes);
+  app.use("/api/admin/mailflare", adminMailflareRoutes);
+  app.use("/api/public/mailflare", publicMailflareInboundRoutes);
 
   // ── Teacher routes ──
   app.use("/api/teacher/students", teacherStudentsRoutes);
@@ -428,6 +502,7 @@ export function createApp() {
   app.use("/api/talabat/dashboard", talabatDashboardRoutes);
   app.use("/api/talabat/leave", talabatLeaveRoutes);
   app.use("/api/talabat/timetable", talabatTimetableRoutes);
+  app.use("/api/talabat/support", talabatSupportRoutes);
   app.use("/api/assignments", assignmentsRoutes);
   app.use("/api/hobbies", hobbiesRoutes);
   app.use("/api/skills", skillsRoutes);
@@ -436,8 +511,10 @@ export function createApp() {
   app.use("/api/parent/dashboard", parentDashboardRoutes);
   app.use("/api/parent/activity", parentActivityRoutes);
   app.use("/api/parent/profile", parentProfileRoutes);
+  app.use("/api/parent/avatar", parentProfileRoutes);
   app.use("/api/parent/leave", parentLeaveRoutes);
   app.use("/api/parent/timetable", parentTimetableRoutes);
+  app.use("/api/parent/library", parentLibraryRoutes);
 
   // ── Serve the built SPA (production) with immutable asset caching ──
   const clientDist = path.join(repoRoot, "client", "dist");

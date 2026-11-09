@@ -588,7 +588,7 @@ export default function FacultyAttendancePage() {
                                 key={cfg.key}
                                 type="button"
                                 onClick={() => setStatus(s.profileId, cfg.key)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] flex items-center gap-1.5 border active:scale-[0.96] cursor-pointer ${
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 ease-smooth flex items-center gap-1.5 border active:scale-[0.96] cursor-pointer ${
                                   active
                                     ? cfg.active
                                     : cfg.idle

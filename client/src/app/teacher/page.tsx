@@ -40,6 +40,8 @@ import {
   CalendarDays,
   User,
   Activity,
+  ArrowRightLeft,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -48,152 +50,29 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, formatPoints, formatSmartTime } from "@/lib/utils";
 import PortfolioView from "@/components/teacher/PortfolioView";
-
 import { usePortalAccess } from "@/context/PortalAccessContext";
-
-interface QuickActionPreset {
-  id: string;
-  label: string;
-  category: string;
-  points: number;
-  type: "POSITIVE" | "NEGATIVE";
-  color: string;
-  badgeColor: string;
-  icon: any;
-  description: string;
-}
-
-const quickActionPresets: QuickActionPreset[] = [
-  {
-    id: "excellence",
-    label: "Academic Excellence",
-    category: "Academic Excellence",
-    points: 15,
-    type: "POSITIVE",
-    color: "bg-emerald-50/80 text-emerald-950 border-emerald-200/90 hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-sm",
-    badgeColor: "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold",
-    icon: GraduationCap,
-    description: "Exceptional mastery or test scores",
-  },
-  {
-    id: "hifz",
-    label: "Hifz & Daur Revision",
-    category: "Hifz & Daur Revision",
-    points: 20,
-    type: "POSITIVE",
-    color: "bg-amber-50/80 text-amber-950 border-amber-200/90 hover:bg-amber-100 hover:border-amber-400 hover:shadow-sm",
-    badgeColor: "bg-amber-100 text-amber-900 border-amber-300 font-bold",
-    icon: BookCheck,
-    description: "Outstanding Quran recitation & sabaq",
-  },
-  {
-    id: "akhlaq",
-    label: "Akhlaq & Adab",
-    category: "Akhlaq & Adab",
-    points: 15,
-    type: "POSITIVE",
-    color: "bg-teal-50/80 text-teal-950 border-teal-200/90 hover:bg-teal-100 hover:border-teal-400 hover:shadow-sm",
-    badgeColor: "bg-teal-100 text-teal-900 border-teal-300 font-bold",
-    icon: Heart,
-    description: "Polite demeanor, respect & punctuality",
-  },
-  {
-    id: "teamwork",
-    label: "Ta'awun & Teamwork",
-    category: "Ta'awun & Teamwork",
-    points: 10,
-    type: "POSITIVE",
-    color: "bg-blue-50/80 text-blue-950 border-blue-200/90 hover:bg-blue-100 hover:border-blue-400 hover:shadow-sm",
-    badgeColor: "bg-blue-100 text-blue-900 border-blue-300 font-bold",
-    icon: Users,
-    description: "Collaborative spirit and assisting peers",
-  },
-  {
-    id: "leadership",
-    label: "Khidmat & Leadership",
-    category: "Khidmat & Leadership",
-    points: 25,
-    type: "POSITIVE",
-    color: "bg-indigo-50/80 text-indigo-950 border-indigo-200/90 hover:bg-indigo-100 hover:border-indigo-400 hover:shadow-sm",
-    badgeColor: "bg-indigo-100 text-indigo-900 border-indigo-300 font-bold",
-    icon: Award,
-    description: "Voluntary class khidmat and initiative",
-  },
-  {
-    id: "critical",
-    label: "Insightful Question",
-    category: "Critical Thinking",
-    points: 10,
-    type: "POSITIVE",
-    color: "bg-purple-50/80 text-purple-950 border-purple-200/90 hover:bg-purple-100 hover:border-purple-400 hover:shadow-sm",
-    badgeColor: "bg-purple-100 text-purple-900 border-purple-300 font-bold",
-    icon: Sparkles,
-    description: "Inquisitive thinking and thoughtful questions",
-  },
-  {
-    id: "late",
-    label: "Late Arrival",
-    category: "Late / Tardy",
-    points: -5,
-    type: "NEGATIVE",
-    color: "bg-amber-50/50 text-amber-950 border-amber-200 hover:bg-amber-100/70 hover:border-amber-300",
-    badgeColor: "bg-amber-100 text-amber-900 border-amber-300 font-bold",
-    icon: Clock,
-    description: "Unexcused delay entering sabaq",
-  },
-  {
-    id: "incomplete",
-    label: "Incomplete Sabaq",
-    category: "Incomplete Sabaq",
-    points: -5,
-    type: "NEGATIVE",
-    color: "bg-rose-50/60 text-rose-950 border-rose-200 hover:bg-rose-100/70 hover:border-rose-300",
-    badgeColor: "bg-rose-100 text-rose-900 border-rose-300 font-bold",
-    icon: AlertTriangle,
-    description: "Unprepared assignment or missing task",
-  },
-  {
-    id: "distracting",
-    label: "Distracting Peer",
-    category: "Distracting Peer",
-    points: -5,
-    type: "NEGATIVE",
-    color: "bg-red-50/70 text-red-950 border-red-200 hover:bg-red-100/80 hover:border-red-300",
-    badgeColor: "bg-red-100 text-red-900 border-red-300 font-bold",
-    icon: X,
-    description: "Disrupting classroom focus",
-  },
-  {
-    id: "offtask",
-    label: "Off-Task Activity",
-    category: "Off-Task",
-    points: -3,
-    type: "NEGATIVE",
-    color: "bg-orange-50/60 text-orange-950 border-orange-200 hover:bg-orange-100/70 hover:border-orange-300",
-    badgeColor: "bg-orange-100 text-orange-900 border-orange-300 font-bold",
-    icon: ShieldAlert,
-    description: "Engaging in unrelated activities",
-  },
-];
-
+import { getCachedData, setCachedData } from "@/lib/fast-cache";
 
 export default function ExpertTeacherDashboard() {
-  const { isModuleVisible, isPageAssigned } = usePortalAccess();
+  const { isModuleVisible, isPageAssigned, canManageTimetable } = usePortalAccess();
   // Takhteet portion displays to assigned teachers only (respects module visibility & page assignment)
   const can = (key: string) => isModuleVisible(key, "TEACHER") && isPageAssigned(key);
 
   // Check if point matrix is restricted to specific faculty
   const isPointMatrixRestricted = (key: string) => key === "point-matrix" && (!isModuleVisible(key, "TEACHER") || !isPageAssigned(key));
 
-  // Data state
-  const [teacher, setTeacher] = useState<any>(null);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [takhteet, setTakhteet] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [takhteetLoading, setTakhteetLoading] = useState(true);
+  // Data state with instant Zero-Spinner Fast Cache
+  const cachedDash = getCachedData<any>("teacher_dashboard");
+  const [teacher, setTeacher] = useState<any>(cachedDash?.teacher || null);
+  const [todayBadals, setTodayBadals] = useState<any[]>(cachedDash?.todayBadals || []);
+  const [classes, setClasses] = useState<any[]>(cachedDash?.classes || []);
+  const [students, setStudents] = useState<any[]>(cachedDash?.students || []);
+  const [stats, setStats] = useState<any>(cachedDash?.stats || null);
+  const [recentActivity, setRecentActivity] = useState<any[]>(cachedDash?.recentActivity || []);
+  const [takhteet, setTakhteet] = useState<any[]>(() => getCachedData<any[]>("teacher_takhteet") || []);
+  const [loading, setLoading] = useState(!cachedDash);
+  const [takhteetLoading, setTakhteetLoading] = useState(!getCachedData("teacher_takhteet"));
+  const [todayDua, setTodayDua] = useState<any>(null);
 
   // Filters & Selection
   const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
@@ -202,10 +81,9 @@ export default function ExpertTeacherDashboard() {
   const [sortBy, setSortBy] = useState<"name" | "points_desc" | "points_asc" | "attendance">("name");
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
-  // Quick-Point action state
-  const [activeTab, setActiveTab] = useState<"presets" | "custom">("presets");
-  const [customPointsVal, setCustomPointsVal] = useState<number>(10);
-  const [customCategoryVal, setCustomCategoryVal] = useState<string>("Exemplary Khidmat");
+  // Custom Point action state (empty by default - teacher enters category and number)
+  const [customPointsVal, setCustomPointsVal] = useState<string>("");
+  const [customCategoryVal, setCustomCategoryVal] = useState<string>("");
   const [customActionType, setCustomActionType] = useState<"POSITIVE" | "NEGATIVE">("POSITIVE");
   const [customNote, setCustomNote] = useState<string>("");
   const [awarding, setAwarding] = useState(false);
@@ -227,6 +105,8 @@ export default function ExpertTeacherDashboard() {
         setStudents(json.data.students || []);
         setStats(json.data.stats || null);
         setRecentActivity(json.data.recentActivity || []);
+        if (Array.isArray(json.data.todayBadals)) setTodayBadals(json.data.todayBadals);
+        setCachedData("teacher_dashboard", json.data);
       }
     } catch (err) {
       console.error("Failed to load dashboard:", err);
@@ -243,9 +123,12 @@ export default function ExpertTeacherDashboard() {
       .then((res) => {
         if (res.success && Array.isArray(res.data)) {
           setTakhteet(res.data);
+          setCachedData("teacher_takhteet", res.data);
         }
         setTakhteetLoading(false);
       })
+      .catch(() => setTakhteetLoading(false));
+
     fetch("/api/tilawat-dua/today")
       .then((r) => r.json())
       .then((res) => {
@@ -255,8 +138,6 @@ export default function ExpertTeacherDashboard() {
       })
       .catch(() => {});
   }, [loadDashboardData]);
-
-  const [todayDua, setTodayDua] = useState<any>(null);
 
   // Filter and sort students
   const filteredStudents = useMemo(() => {
@@ -315,39 +196,6 @@ export default function ExpertTeacherDashboard() {
     setSelectedStudents(new Set());
   };
 
-  // Fast single-student instant reward (+10 Merit)
-  const handleQuickAwardSingle = async (e: React.MouseEvent, studentId: string) => {
-    e.stopPropagation();
-    if (awarding) return;
-    setAwarding(true);
-
-    try {
-      const res = await fetch("/api/points", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentIds: [studentId],
-          actionType: "POSITIVE",
-          category: "Exemplary Sabaq & Adab",
-          pointsChanged: 10,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setLastLogIds(data.data.map((l: any) => l.id));
-        setLastAction(`+10 pts awarded for "Exemplary Sabaq & Adab"`);
-        setShowUndo(true);
-        setTimeout(() => setShowUndo(false), 9000);
-        await loadDashboardData();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setAwarding(false);
-    }
-  };
-
   // Award Points execution
   const executeAward = async (payload: {
     category: string;
@@ -388,6 +236,8 @@ export default function ExpertTeacherDashboard() {
         await loadDashboardData();
         clearSelection();
         setCustomNote("");
+        setCustomCategoryVal("");
+        setCustomPointsVal("");
       } else {
         alert(data.error || "Failed to award points");
       }
@@ -430,28 +280,26 @@ export default function ExpertTeacherDashboard() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="p-1 sm:p-2 rounded-3xl sm:rounded-[2.5rem] bg-emerald-950/20 ring-1 ring-emerald-900/30 shadow-2xl"
+        className="p-1 sm:p-2 rounded-3xl sm:rounded-[2.5rem] bg-gradient-to-br from-amber-400/40 via-stone-800/30 to-amber-400/20 ring-1 ring-amber-400/35 shadow-2xl"
       >
         <div
-          className="relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.2rem] p-4 sm:p-9 text-white"
+          className="relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.2rem] p-4 sm:p-9 text-white border border-amber-400/30"
           style={{
             background: "linear-gradient(135deg, #0d0d0d 0%, #151515 50%, #1c1813 100%)",
-            boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 20px 40px -15px rgba(0, 0, 0, 0.5)",
+            boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 20px 45px -12px rgba(0, 0, 0, 0.7)",
           }}
         >
           {/* Subtle Ambient Radial Lighting */}
           <div
             className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#ffe082]/10 blur-3xl pointer-events-none"
           />
-          <div
-            className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none"
-          />
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0"><div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-amber-400/10 blur-3xl" /></div>
 
           <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             {/* Faculty Identity Profile Tile */}
             <div className="flex items-center gap-4 sm:gap-6">
               <div className="relative shrink-0">
-                <div className="p-1 rounded-full bg-gradient-to-br from-[#ffe082] via-emerald-400 to-[#ffe082]/40 shadow-xl">
+                <div className="p-1 rounded-full bg-gradient-to-br from-[#ffe082] via-amber-400 to-[#ffe082]/40 shadow-xl">
                   <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-2 ring-emerald-950 bg-emerald-950">
                     {teacher?.avatarUrl && (
                       <AvatarImage
@@ -475,17 +323,17 @@ export default function ExpertTeacherDashboard() {
 
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] px-3 py-0.5 rounded-full bg-emerald-900/90 text-[#ffe082] border border-[#ffe082]/40 flex items-center gap-1.5 shadow-xs">
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] px-3 py-0.5 rounded-full bg-emerald-950 text-amber-300 border border-amber-400/60 font-black flex items-center gap-1.5 shadow-xs">
                     <Sparkles className="w-3 h-3 text-[#ffe082]" />
                     Faculty Command Console
                   </span>
                   {teacher?.its && (
-                    <span className="text-[10.5px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-950/70 text-emerald-200 border border-emerald-600/40">
+                    <span className="text-[10.5px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-200 border border-emerald-500/60 font-mono font-bold">
                       ITS: {teacher.its}
                     </span>
                   )}
                   {teacher?.khidmatMauze && (
-                    <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-amber-950/60 text-amber-200 border border-amber-500/40">
+                    <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-200 border border-amber-500/60 font-bold">
                       {teacher.khidmatMauze}
                     </span>
                   )}
@@ -495,10 +343,10 @@ export default function ExpertTeacherDashboard() {
                   {teacher ? `${teacher.firstName} ${teacher.lastName}` : "Teacher Dashboard"}
                 </h1>
 
-                <p className="text-xs sm:text-sm text-emerald-100/90 mt-1 flex items-center gap-2.5 font-medium">
+                <p className="text-xs sm:text-sm text-emerald-100 font-semibold mt-1 flex items-center gap-2.5 font-medium">
                   <span>{teacher?.department || "Darse Burhani Academic Faculty"}</span>
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  <span className="text-amber-200/95 font-semibold">
+                  <span className="text-amber-200 font-bold">
                     {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 </p>
@@ -508,7 +356,7 @@ export default function ExpertTeacherDashboard() {
             {/* Action Island: Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
               <Link href="/teacher/tilawat-dua" className="group">
-                <button className="h-11 px-4 rounded-full bg-amber-500/25 hover:bg-amber-500/35 text-amber-200 border border-amber-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98] shadow-md shadow-amber-500/10">
+                <button className="h-11 px-4 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black border border-amber-300 text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98] shadow-md shadow-amber-500/10">
                   <span>Tilawat Dua Projector</span>
                   <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                     <Tv className="w-3.5 h-3.5" />
@@ -527,8 +375,17 @@ export default function ExpertTeacherDashboard() {
                 </Link>
               )}
 
+              <Link href="/teacher/assignments" className="group">
+                <button className="h-11 px-4 rounded-full bg-emerald-950 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/60 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98] shadow-sm">
+                  <span>Class Assignments</span>
+                  <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                    <FileText className="w-3.5 h-3.5 text-amber-300" />
+                  </span>
+                </button>
+              </Link>
+
               <Link href="/teacher/procurement" className="group">
-                <button className="h-11 px-4 rounded-full bg-emerald-950/60 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
+                <button className="h-11 px-4 rounded-full bg-emerald-950 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/60 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
                   <span>Desk Requisition</span>
                   <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                     <ShoppingBag className="w-3.5 h-3.5 text-teal-300" />
@@ -538,7 +395,7 @@ export default function ExpertTeacherDashboard() {
 
               {can("takhteet") && (
                 <Link href="/teacher/takhteet" className="group">
-                  <button className="h-11 px-4 rounded-full bg-emerald-950/60 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
+                  <button className="h-11 px-4 rounded-full bg-emerald-950 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/60 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
                     <span>Takhteet Plan</span>
                     <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                       <ClipboardList className="w-3.5 h-3.5 text-amber-300" />
@@ -549,10 +406,21 @@ export default function ExpertTeacherDashboard() {
 
               {can("timetable") && (
                 <Link href="/teacher/timetable" className="group">
-                  <button className="h-11 px-4 rounded-full bg-emerald-950/60 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/40 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
+                  <button className="h-11 px-4 rounded-full bg-emerald-950 hover:bg-emerald-900 text-emerald-100 border border-emerald-500/60 font-bold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98]">
                     <span>Timetable Matrix</span>
                     <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                       <CalendarDays className="w-3.5 h-3.5 text-blue-300" />
+                    </span>
+                  </button>
+                </Link>
+              )}
+
+              {canManageTimetable && (
+                <Link href="/teacher/timetable?tab=matrix-management" className="group">
+                  <button className="h-11 px-4 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-300 font-extrabold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98] shadow-md">
+                    <span>⚡ Timetable &amp; Badal Desk</span>
+                    <span className="w-6 h-6 rounded-full bg-slate-950/15 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-slate-950" />
                     </span>
                   </button>
                 </Link>
@@ -562,7 +430,75 @@ export default function ExpertTeacherDashboard() {
         </div>
       </motion.div>
 
-      {/* ─────────────────────────────────────────────────────────────
+      {/* ── Today's Assigned Badal Substitute Duties Banner ── */}
+      {todayBadals.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-3xl border-2 border-amber-400 bg-gradient-to-r from-amber-500/20 via-yellow-400/15 to-amber-500/25 p-5 sm:p-6 shadow-xl shadow-amber-500/10 space-y-4 text-slate-950"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-md ring-4 ring-amber-300/60 animate-pulse">
+                <Zap className="w-6 h-6 fill-current" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded-full shadow-xs animate-bounce">
+                    🚨 URGENT SUBSTITUTE DUTY
+                  </span>
+                  <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                    Badal Assigned to You Today ({todayBadals.length})
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900 font-semibold mt-1 max-w-2xl">
+                  You have been assigned substitute teaching duty. An official notice has been recorded. Please review your class and period assignments below.
+                </p>
+              </div>
+            </div>
+
+            <Link href="/teacher/timetable">
+              <Button className="bg-amber-400 text-slate-950 font-black hover:bg-amber-300 rounded-2xl px-5 shadow-md">
+                Open Timetable &amp; Sabaq Notes →
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {todayBadals.map((b: any) => (
+              <div
+                key={b.id}
+                className="p-4 rounded-2xl bg-white border-2 border-amber-400 shadow-md space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-300">
+                    {b.subject}
+                  </Badge>
+                  <span className="text-[11px] font-black text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                    Period {b.period}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-sm font-black text-slate-950">
+                    Class {b.className} • ⏱️ {b.startTime} – {b.endTime}
+                  </div>
+                  <div className="text-xs text-slate-600 mt-1 flex items-center gap-1.5 font-bold">
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                    <span>Covering for: {b.originalTeacher}</span>
+                  </div>
+                  {b.instructions && (
+                    <div className="text-[11px] text-amber-900 bg-amber-50 rounded-lg p-2 border border-amber-200/60 mt-1.5 italic font-medium">
+                      &ldquo;{b.instructions}&rdquo;
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+            {/* ─────────────────────────────────────────────────────────────
           DAILY TILAWAT DUA CLASSROOM BANNER
          ───────────────────────────────────────────────────────────── */}
       {todayDua && (
@@ -627,7 +563,7 @@ export default function ExpertTeacherDashboard() {
                   {can("classes") ? <Users className="w-6 h-6" strokeWidth={1.75} /> : <User className="w-6 h-6" strokeWidth={1.75} />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">
+                  <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.16em]">
                     {can("classes") ? "Total Enrolled" : "Faculty Profile"}
                   </p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
@@ -636,7 +572,7 @@ export default function ExpertTeacherDashboard() {
                     </span>
                     {can("classes") && <span className="text-xs text-gray-600 font-bold">Talabat</span>}
                   </div>
-                  <p className="text-[10.5px] text-emerald-700 font-bold truncate mt-0.5">
+                  <p className="text-xs text-emerald-950 dark:text-emerald-300 font-extrabold truncate mt-0.5">
                     {can("classes") ? `Across ${classes.length} active classes` : (teacher?.user ? `${teacher.user.firstName} ${teacher.user.lastName}` : "Darse Burhani")}
                   </p>
                 </div>
@@ -655,7 +591,7 @@ export default function ExpertTeacherDashboard() {
                   <UserCheck className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Today&apos;s Presence</p>
+                  <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.16em]">Today&apos;s Presence</p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <span className="text-2xl sm:text-3xl font-black text-emerald-800 num-tabular tracking-tight">
                       {loading ? "..." : stats?.presentToday || 0}
@@ -666,7 +602,7 @@ export default function ExpertTeacherDashboard() {
                   </div>
                   <div className="w-full bg-emerald-100/80 h-1.5 rounded-full mt-1.5 overflow-hidden">
                     <div
-                      className="bg-emerald-600 h-full rounded-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                      className="bg-emerald-600 h-full rounded-full transition-all duration-700 ease-spring"
                       style={{ width: `${attendancePercent}%` }}
                     />
                   </div>
@@ -686,7 +622,7 @@ export default function ExpertTeacherDashboard() {
                   <Zap className="w-6 h-6 fill-amber-500 text-amber-500" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Merit Points Today</p>
+                  <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.16em]">Merit Points Today</p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <span className="text-2xl sm:text-3xl font-black text-amber-800 num-tabular tracking-tight">
                       +{loading ? "..." : stats?.pointsToday || 0}
@@ -715,7 +651,7 @@ export default function ExpertTeacherDashboard() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Takhteet Portions</p>
+                        <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.16em]">Takhteet Portions</p>
                         <ArrowUpRight className="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition-colors" />
                       </div>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
@@ -744,7 +680,7 @@ export default function ExpertTeacherDashboard() {
                       <Award className="w-6 h-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Assigned Classes</p>
+                      <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.16em]">Assigned Classes</p>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="text-2xl sm:text-3xl font-black text-blue-900 num-tabular tracking-tight">
                           {classes.length}
@@ -771,7 +707,7 @@ export default function ExpertTeacherDashboard() {
                       <Activity className="w-6 h-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.16em]">Faculty Service</p>
+                      <p className="text-[11px] font-black text-slate-800 uppercase tracking-[0.16em]">Faculty Service</p>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="text-xl sm:text-2xl font-black text-emerald-900 num-tabular tracking-tight">
                           My Attendance
@@ -842,6 +778,18 @@ export default function ExpertTeacherDashboard() {
                     </button>
                   );
                 })}
+
+                <div className="ml-auto shrink-0 pl-2">
+                  <Link href="/teacher/assignments">
+                    <button
+                      className="px-3.5 py-1.5 rounded-full text-xs font-black transition-all shrink-0 flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-300 shadow-sm active:scale-95"
+                      title="Create or manage class assignments"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-950" />
+                      <span>+ Assignment for Class</span>
+                    </button>
+                  </Link>
+                </div>
               </div>
 
               {/* Instant Search Bar & Filter Toolset */}
@@ -851,6 +799,8 @@ export default function ExpertTeacherDashboard() {
                   <div className="relative min-w-[240px] flex-1 sm:flex-initial">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
+                      id="teacher-student-search"
+                      name="studentSearch"
                       type="text"
                       placeholder="Search by name, ITS, grade..."
                       aria-label="Search students by name, ITS, grade"
@@ -906,6 +856,8 @@ export default function ExpertTeacherDashboard() {
 
                   {/* Sort Order */}
                   <select
+                    id="teacher-student-sort"
+                    name="studentSortOrder"
                     value={sortBy}
                     aria-label="Sort students by"
                     onChange={(e) => setSortBy(e.target.value as any)}
@@ -959,7 +911,7 @@ export default function ExpertTeacherDashboard() {
                   <Users className="w-8 h-8 text-amber-700" strokeWidth={1.75} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl sm:text-2xl font-black text-gray-900 font-display">No Talabat Enrolled</h3>
+                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 font-display">No Talabat Enrolled</h2>
                   <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
                     {classes.length > 0
                       ? `You are assigned to ${classes.length} section${classes.length > 1 ? "s" : ""} (${classes.map((c) => c.name).join(", ")}), but no students are currently enrolled in your roster.`
@@ -1045,8 +997,8 @@ export default function ExpertTeacherDashboard() {
                         onClick={() => toggleStudent(student.id)}
                         className={`group relative cursor-pointer rounded-3xl p-4 transition-all duration-300 flex flex-col items-center text-center select-none border-2 ${
                           isSelected
-                            ? "border-emerald-600 bg-emerald-50/80 shadow-lg ring-4 ring-emerald-500/20"
-                            : "border-gray-200/90 bg-white hover:border-emerald-300 hover:shadow-md"
+                            ? "border-emerald-600 border-t-4 border-t-amber-400 bg-gradient-to-b from-emerald-50/90 via-emerald-50/40 to-white shadow-xl ring-4 ring-emerald-500/20"
+                            : "border-stone-200/90 bg-white hover:border-amber-400 hover:border-t-4 hover:border-t-amber-400 hover:shadow-lg shadow-xs"
                         }`}
                       >
                         {/* Selected Check Indicator */}
@@ -1124,22 +1076,12 @@ export default function ExpertTeacherDashboard() {
                         </div>
 
                         {/* Points Display */}
-                        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100 w-full justify-center">
-                          <span className="text-xs font-black text-emerald-950 font-mono">
-                            {formatPoints(student.currentPoints)} <span className="text-[9px] font-bold text-gray-500">PTS</span>
+                        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-stone-100 w-full justify-center">
+                          <span className="text-xs font-black text-amber-950 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200/90 font-mono shadow-xs flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                            {formatPoints(student.currentPoints)} <span className="text-[9px] font-bold text-amber-700">PTS</span>
                           </span>
                         </div>
-
-                        {/* Instant 1-Click +10 Quick Reward (Hover trigger) */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAwardSingle(e, student.id)}
-                          title="Quick +10 Points"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-2 text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 flex items-center gap-1 shadow-xs"
-                        >
-                          <Plus className="w-3 h-3" />
-                          +10 Quick Merit
-                        </button>
                       </motion.div>
                     );
                   })}
@@ -1172,10 +1114,10 @@ export default function ExpertTeacherDashboard() {
             {/* Right Col: Gamified Quick-Point Modifier Console (4 cols) */}
             <div className="lg:col-span-4 space-y-6">
               {/* Double-Bezel Modifier Deck */}
-              <div className="p-1 rounded-[2.2rem] bg-emerald-950/10 ring-1 ring-emerald-900/20 shadow-xl sticky top-24">
+              <div className="p-1 rounded-[2.2rem] bg-gradient-to-br from-amber-400/40 via-emerald-900/30 to-amber-400/20 ring-1 ring-amber-400/35 shadow-2xl sticky top-24">
                 <div className="rounded-[calc(2.2rem-0.25rem)] bg-white overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)]">
                   {/* Console Header Crown */}
-                  <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white p-5">
+                  <div className="bg-gradient-to-r from-[#1c1813] via-[#151515] to-[#0d0d0d] text-white p-5">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-black flex items-center gap-2">
                         <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
@@ -1193,32 +1135,6 @@ export default function ExpertTeacherDashboard() {
                   </div>
 
                   <div className="p-5 space-y-4">
-                    {/* Console Tabs: Fast Presets vs Custom Modifier */}
-                    <div className="flex items-center rounded-2xl bg-gray-100 p-1 text-xs font-black">
-                      <button
-                        onClick={() => setActiveTab("presets")}
-                        className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                          activeTab === "presets"
-                            ? "bg-white text-emerald-950 shadow-sm"
-                            : "text-gray-500 hover:text-gray-900"
-                        }`}
-                      >
-                        <Sparkle className="w-3.5 h-3.5 text-amber-500" />
-                        Fast Presets
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("custom")}
-                        className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                          activeTab === "custom"
-                            ? "bg-white text-emerald-950 shadow-sm"
-                            : "text-gray-500 hover:text-gray-900"
-                        }`}
-                      >
-                        <Plus className="w-3.5 h-3.5 text-teal-600" />
-                        Custom Award
-                      </button>
-                    </div>
-
                     {/* Award Feedback Toast */}
                     <AnimatePresence>
                       {awardFeedback && (
@@ -1234,128 +1150,63 @@ export default function ExpertTeacherDashboard() {
                       )}
                     </AnimatePresence>
 
-                    {/* TAB 1: FAST PRESETS */}
-                    {activeTab === "presets" && (
-                      <div className="space-y-4">
-                        {/* Positive Presets */}
-                        <div>
-                          <span className="text-[10px] font-black text-emerald-900 uppercase tracking-[0.16em] flex items-center gap-1.5 mb-2">
-                            <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
-                            Merit & Akhlaq Awards
-                          </span>
-                          <div className="grid grid-cols-1 gap-2">
-                            {quickActionPresets
-                              .filter((a) => a.type === "POSITIVE")
-                              .map((preset) => {
-                                const Icon = preset.icon;
-                                const disabled = selectedStudents.size === 0 || awarding;
-                                return (
-                                  <motion.button
-                                    key={preset.id}
-                                    whileHover={!disabled ? { x: 3 } : {}}
-                                    whileTap={!disabled ? { scale: 0.98 } : {}}
-                                    disabled={disabled}
-                                    onClick={() =>
-                                      executeAward({
-                                        category: preset.category,
-                                        pointsChanged: preset.points,
-                                        actionType: "POSITIVE",
-                                      })
-                                    }
-                                    className={`w-full text-left p-2.5 rounded-2xl border transition-all flex items-center justify-between ${
-                                      disabled
-                                        ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
-                                        : preset.color
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="w-8 h-8 rounded-xl bg-white shadow-xs flex items-center justify-center shrink-0">
-                                        <Icon className="w-4 h-4 text-emerald-800" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-black leading-tight">{preset.label}</p>
-                                        <p className="text-[10px] opacity-80">{preset.description}</p>
-                                      </div>
-                                    </div>
-                                    <span
-                                      className={`text-xs font-black px-2.5 py-0.5 rounded-xl border shrink-0 ${preset.badgeColor}`}
-                                    >
-                                      +{preset.points}
-                                    </span>
-                                  </motion.button>
-                                );
-                              })}
-                          </div>
+                    {selectedStudents.size === 0 ? (
+                      /* Fully Empty State on Zero Selection */
+                      <div className="py-10 px-4 text-center space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 mx-auto flex items-center justify-center text-amber-700 shadow-xs">
+                          <Award className="w-7 h-7" />
                         </div>
-
-                        {/* Constructive / Negative Presets */}
-                        <div className="pt-2 border-t border-gray-100">
-                          <span className="text-[10px] font-black text-rose-900 uppercase tracking-[0.16em] mb-2 block flex items-center gap-1.5">
-                            <AlertTriangle className="w-3 h-3 text-rose-600" />
-                            Classroom Focus Corrections
-                          </span>
-                          <div className="grid grid-cols-1 gap-2">
-                            {quickActionPresets
-                              .filter((a) => a.type === "NEGATIVE")
-                              .map((preset) => {
-                                const Icon = preset.icon;
-                                const disabled = selectedStudents.size === 0 || awarding;
-                                return (
-                                  <motion.button
-                                    key={preset.id}
-                                    whileHover={!disabled ? { x: 3 } : {}}
-                                    whileTap={!disabled ? { scale: 0.98 } : {}}
-                                    disabled={disabled}
-                                    onClick={() =>
-                                      executeAward({
-                                        category: preset.category,
-                                        pointsChanged: Math.abs(preset.points),
-                                        actionType: "NEGATIVE",
-                                      })
-                                    }
-                                    className={`w-full text-left p-2.5 rounded-2xl border transition-all flex items-center justify-between ${
-                                      disabled
-                                        ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
-                                        : preset.color
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="w-8 h-8 rounded-xl bg-white shadow-xs flex items-center justify-center shrink-0">
-                                        <Icon className="w-4 h-4 text-rose-800" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-black leading-tight">{preset.label}</p>
-                                        <p className="text-[10px] opacity-80">{preset.description}</p>
-                                      </div>
-                                    </div>
-                                    <span
-                                      className={`text-xs font-black px-2.5 py-0.5 rounded-xl border shrink-0 ${preset.badgeColor}`}
-                                    >
-                                      {preset.points}
-                                    </span>
-                                  </motion.button>
-                                );
-                              })}
-                          </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-gray-800">No Talabat Selected</p>
+                          <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
+                            Select talabat from the roster on the left to enter point name and how many points to award or deduct.
+                          </p>
                         </div>
+                        {filteredStudents.length > 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={selectAllFiltered}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-black transition-all inline-flex items-center gap-1.5 active:scale-95 shadow-xs"
+                            >
+                              <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
+                              Select All ({filteredStudents.length})
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-
-                    {/* TAB 2: CUSTOM MODIFIER */}
-                    {activeTab === "custom" && (
+                    ) : (
+                      /* Active Form on Selection - Completely Clean & Empty By Default */
                       <div className="space-y-4">
+                        {/* Selected Count & Quick Clear */}
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                          <span className="text-[11px] font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            Target: {selectedStudents.size} Talabat
+                          </span>
+                          <button
+                            type="button"
+                            onClick={clearSelection}
+                            className="text-[11px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-rose-50 transition-colors"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Clear
+                          </button>
+                        </div>
+
+                        {/* Award Type: Positive (+) vs Negative (-) */}
                         <div>
-                          <label className="text-xs font-black text-gray-800 block mb-1.5">
-                            Award Type & Point Value
+                          <label className="text-[11px] font-black uppercase tracking-wider text-gray-500 block mb-1.5">
+                            Points Type
                           </label>
-                          <div className="grid grid-cols-2 gap-2 mb-2.5">
+                          <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
                               onClick={() => setCustomActionType("POSITIVE")}
                               className={`p-2.5 rounded-2xl text-xs font-black border transition-all flex items-center justify-center gap-1.5 ${
                                 customActionType === "POSITIVE"
                                   ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                  : "bg-gray-50 text-gray-600 border-gray-200"
+                                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
                               }`}
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -1367,74 +1218,91 @@ export default function ExpertTeacherDashboard() {
                               className={`p-2.5 rounded-2xl text-xs font-black border transition-all flex items-center justify-center gap-1.5 ${
                                 customActionType === "NEGATIVE"
                                   ? "bg-rose-600 text-white border-rose-600 shadow-sm"
-                                  : "bg-gray-50 text-gray-600 border-gray-200"
+                                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
                               }`}
                             >
                               <Minus className="w-3.5 h-3.5" />
                               Demerit (-)
                             </button>
                           </div>
+                        </div>
 
-                          {/* Numeric Stepper */}
-                          <div className="flex items-center justify-between border border-gray-200 rounded-2xl p-2.5 bg-gray-50/80">
-                            <button
-                              type="button"
-                              onClick={() => setCustomPointsVal((v) => Math.max(1, v - 5))}
-                              className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center font-black text-gray-700 hover:bg-gray-100 active:scale-95 shadow-xs"
-                            >
-                              -5
-                            </button>
-                            <div className="text-center">
-                              <span className="text-2xl font-black text-gray-900 font-mono tracking-tight">
-                                {customActionType === "POSITIVE" ? "+" : "-"}
-                                {customPointsVal}
-                              </span>
-                              <span className="text-[9.5px] font-black text-gray-500 uppercase block tracking-wider">POINTS</span>
+                        {/* Point Number (How Much Number) Input */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label htmlFor="quick-point-value" className="text-[11px] font-black uppercase tracking-wider text-gray-700">
+                              Points Number / Value <span className="text-rose-500">*</span>
+                            </label>
+                            <span className="text-[10px] text-gray-400 font-semibold">How much number</span>
+                          </div>
+                          <div className="relative">
+                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-black text-sm text-gray-500">
+                              {customActionType === "POSITIVE" ? "+" : "-"}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setCustomPointsVal((v) => v + 5)}
-                              className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center font-black text-gray-700 hover:bg-gray-100 active:scale-95 shadow-xs"
-                            >
-                              +5
-                            </button>
+                            <input
+                              id="quick-point-value"
+                              name="pointsNumberValue"
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={customPointsVal}
+                              onChange={(e) => setCustomPointsVal(e.target.value)}
+                              placeholder="Enter points number (e.g. 5, 10, 25)..."
+                              className="w-full pl-8 pr-4 py-2.5 text-xs font-bold rounded-2xl border border-gray-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all placeholder:font-normal placeholder:text-gray-400"
+                            />
                           </div>
                         </div>
 
+                        {/* Point Name / Category / Reason Input */}
                         <div>
-                          <label className="text-xs font-black text-gray-800 block mb-1">
-                            Category / Reason
-                          </label>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label htmlFor="quick-point-reason" className="text-[11px] font-black uppercase tracking-wider text-gray-700">
+                              Points Name / Reason <span className="text-rose-500">*</span>
+                            </label>
+                            <span className="text-[10px] text-gray-400 font-semibold">Custom name</span>
+                          </div>
                           <input
+                            id="quick-point-reason"
+                            name="pointsCategoryReason"
                             type="text"
                             value={customCategoryVal}
                             onChange={(e) => setCustomCategoryVal(e.target.value)}
-                            placeholder="e.g. Takhteet Milestone Completed"
-                            className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-2xl border border-gray-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none"
+                            placeholder="Enter point name / reason (e.g. Sabaq, Homework, Takhteet)..."
+                            className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-2xl border border-gray-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all placeholder:text-gray-400"
                           />
                         </div>
 
+                        {/* Optional Teacher Note */}
                         <div>
-                          <label className="text-xs font-black text-gray-800 block mb-1">
-                            Teacher Note (Optional)
+                          <label htmlFor="quick-point-note" className="text-[11px] font-black uppercase tracking-wider text-gray-500 block mb-1.5">
+                            Teacher Note <span className="text-gray-400 font-normal lowercase">(optional)</span>
                           </label>
                           <textarea
+                            id="quick-point-note"
+                            name="teacherRemarkNote"
                             rows={2}
                             value={customNote}
                             onChange={(e) => setCustomNote(e.target.value)}
                             placeholder="Add a remark visible in student's timeline..."
-                            className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-2xl border border-gray-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none resize-none"
+                            className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-2xl border border-gray-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none resize-none transition-all placeholder:text-gray-400"
                           />
                         </div>
 
+                        {/* Submit Button */}
                         <Button
-                          disabled={selectedStudents.size === 0 || awarding || !customCategoryVal.trim()}
+                          disabled={
+                            selectedStudents.size === 0 ||
+                            awarding ||
+                            !customCategoryVal.trim() ||
+                            !customPointsVal ||
+                            Number(customPointsVal) <= 0
+                          }
                           onClick={() =>
                             executeAward({
-                              category: customCategoryVal,
-                              pointsChanged: customPointsVal,
+                              category: customCategoryVal.trim(),
+                              pointsChanged: Number(customPointsVal),
                               actionType: customActionType,
-                              optionalNote: customNote,
+                              optionalNote: customNote.trim() || undefined,
                             })
                           }
                           className={`w-full py-3 rounded-2xl font-black text-xs shadow-lg transition-all active:scale-[0.98] ${
@@ -1448,7 +1316,7 @@ export default function ExpertTeacherDashboard() {
                           ) : (
                             <span className="flex items-center justify-center gap-2">
                               <Send className="w-3.5 h-3.5" />
-                              Apply to {selectedStudents.size} Talabat
+                              Apply {customActionType === "POSITIVE" ? "+" : "-"}{customPointsVal || 0} Points to {selectedStudents.size} Talabat
                             </span>
                           )}
                         </Button>
@@ -1566,7 +1434,7 @@ export default function ExpertTeacherDashboard() {
                         <h3 className="font-display font-black text-gray-900 text-lg sm:text-xl">
                           Takhteet Progress & Portions Overview
                         </h3>
-                        <p className="text-xs text-gray-600 max-w-xl mt-0.5">
+                        <p className="text-xs text-slate-700 font-medium max-w-xl mt-0.5">
                           Monitor syllabus units, upcoming monthly milestones, and completed portions across your classes.
                         </p>
                       </div>
@@ -1578,24 +1446,24 @@ export default function ExpertTeacherDashboard() {
                       <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 w-full sm:w-auto shrink-0">
                         <div className="grid grid-cols-3 gap-3 sm:gap-4 text-center w-full sm:w-auto">
                           <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Portions</p>
+                            <p className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Portions</p>
                             <p className="text-base font-black text-gray-900 num-tabular">{takhteet.length}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Due Month</p>
-                            <p className="text-base font-black text-amber-700 num-tabular">
+                            <p className="text-[11px] font-black text-amber-950 uppercase tracking-wider">Due Month</p>
+                            <p className="text-base font-black text-amber-900 num-tabular">
                               {takhteet.filter((p) => p.month === new Date().getMonth() + 1 && p.status !== "COMPLETED").length}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Completed</p>
-                            <p className="text-base font-black text-emerald-800 num-tabular">
+                            <p className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">Completed</p>
+                            <p className="text-base font-black text-emerald-950 num-tabular">
                               {takhteet.filter((p) => p.status === "COMPLETED").length}
                             </p>
                           </div>
                         </div>
 
-                        <div className="hidden sm:flex items-center gap-2 text-xs font-black text-amber-800 group-hover:translate-x-1 transition-transform">
+                        <div className="hidden sm:flex items-center gap-2 text-xs font-black text-amber-950 group-hover:translate-x-1 transition-transform">
                           <span>Open Planner</span>
                           <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
                         </div>

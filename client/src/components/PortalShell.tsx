@@ -5,6 +5,7 @@ import { Outlet } from "react-router-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { motion } from "framer-motion";
 import {
   Activity,
   ChevronLeft,
@@ -34,6 +35,7 @@ import {
   Palette,
 } from "lucide-react";
 import { FatimiLogo } from "@/components/FatimiLogo";
+import { FatimiPattern, FatimidRosette } from "@/components/FatimiOrnaments";
 import { NotificationBell } from "@/components/NotificationBell";
 import { InstitutionalFooter } from "@/components/InstitutionalFooter";
 import { useFatimiTheme } from "@/context/FatimiThemeContext";
@@ -41,6 +43,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { usePWA, isPWAStandalone } from "@/lib/pwa";
 import { cn, getInitials } from "@/lib/utils";
+import { formatTalabatEmail } from "@/lib/student-email";
+import { nowISTMinutes } from "@/lib/attendance-window";
+
+function getLivePeriodStatus(now = new Date()): { label: string; timing: string; isPeriod: boolean } {
+  const m = nowISTMinutes(now);
+  if (m >= 450 && m < 630) return { label: "Sabah & Tilawat", timing: "07:30–10:30", isPeriod: true };
+  if (m >= 630 && m < 660) return { label: "Period 1", timing: "10:30–11:00", isPeriod: true };
+  if (m >= 660 && m < 690) return { label: "Period 2", timing: "11:00–11:30", isPeriod: true };
+  if (m >= 690 && m < 720) return { label: "Period 3", timing: "11:30–12:00", isPeriod: true };
+  if (m >= 720 && m < 750) return { label: "Period 4", timing: "12:00–12:30", isPeriod: true };
+  if (m >= 750 && m < 780) return { label: "Period 5", timing: "12:30–01:00", isPeriod: true };
+  if (m >= 780 && m < 855) return { label: "Zuhr & Lunch", timing: "01:00–02:15", isPeriod: false };
+  if (m >= 855 && m < 885) return { label: "Period 6", timing: "02:15–02:45", isPeriod: true };
+  if (m >= 885 && m < 915) return { label: "Period 7", timing: "02:45–03:15", isPeriod: true };
+  if (m >= 915 && m < 945) return { label: "Period 8", timing: "03:15–03:45", isPeriod: true };
+  if (m >= 945 && m < 975) return { label: "Period 9", timing: "03:45–04:15", isPeriod: true };
+  if (m >= 975 && m < 1050) return { label: "Library & Study", timing: "04:15–05:30", isPeriod: false };
+  return { label: "Campus Standby", timing: "Active IST", isPeriod: false };
+}
 
 export interface PortalNavItem {
   label: string;
@@ -90,9 +111,14 @@ export function PortalShell({
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string>("ALL");
   const [istTime, setIstTime] = useState<string>("");
+  const [livePeriod, setLivePeriod] = useState<{ label: string; timing: string; isPeriod: boolean }>({
+    label: "Academic Hours",
+    timing: "IST",
+    isPeriod: false,
+  });
   const { theme: activeFatimiTheme, currentThemeId, setTheme, availableThemes } = useFatimiTheme();
 
-  // Live IST Clock
+  // Live IST Clock & Academic Period Tracker
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -103,6 +129,7 @@ export function PortalShell({
         hour12: true,
       });
       setIstTime(timeString);
+      setLivePeriod(getLivePeriodStatus(now));
     };
     updateTime();
     const timer = setInterval(updateTime, 15000);
@@ -256,6 +283,10 @@ export function PortalShell({
   const avatarFallbackGradient = { background: theme.avatarGradient };
   const settingsHref = `${rootPath}/settings`;
 
+  const displayUserEmail = session?.user?.role === "STUDENT"
+    ? formatTalabatEmail(session?.user?.firstName, session?.user?.lastName, session?.user?.email)
+    : session?.user?.email;
+
   return (
     <>
       <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: theme.content }}>
@@ -264,7 +295,7 @@ export function PortalShell({
            ───────────────────────────────────────────────────────────── */}
         <aside
           className={cn(
-            "hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 transition-all duration-300 shadow-2xl",
+            "hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 transition-all duration-300 shadow-2xl bg-slate-950",
             sidebarCollapsed ? "w-[76px]" : "w-64"
           )}
           style={{ background: theme.sidebar, boxShadow: `0 0 50px ${theme.sidebarGlow}` }}
@@ -273,6 +304,9 @@ export function PortalShell({
             className="h-[2px] w-full shrink-0"
             style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }}
           />
+
+          {/* Fatimi Architectural Watermark */}
+          <FatimiPattern opacity={0.035} />
 
           {/* Desktop Brand Header */}
           <div
@@ -302,7 +336,7 @@ export function PortalShell({
                       Darse Burhani
                     </span>
                   </div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/80 leading-tight mt-1 truncate">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200 leading-tight mt-1 truncate">
                     {subtitle || "Mahad al Zahra"}
                   </p>
                 </div>
@@ -321,7 +355,7 @@ export function PortalShell({
                     <button
                       type="button"
                       onClick={() => toggleCategory(group.category)}
-                      className="w-full pt-2.5 pb-1 px-2.5 flex items-center justify-between gap-2 text-[10px] font-bold tracking-wider uppercase text-white/70 hover:text-white transition-colors cursor-pointer group"
+                      className="w-full pt-2.5 pb-1 px-2.5 flex items-center justify-between gap-2 text-[10px] font-bold tracking-wider uppercase text-slate-200 hover:text-white transition-colors cursor-pointer group"
                       title={`Toggle ${group.category} section`}
                     >
                       <span className="truncate">{group.category}</span>
@@ -345,43 +379,52 @@ export function PortalShell({
                             key={item.href}
                             href={item.href}
                             className={cn(
-                              "group flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200",
+                              "group relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200",
                               active
-                                ? "bg-gradient-to-r from-amber-400/20 via-white/10 to-transparent text-white shadow-sm ring-1 ring-white/15 border-l-2 border-amber-400 font-bold"
+                                ? "text-amber-300 font-extrabold"
                                 : "text-white/80 hover:bg-white/10 hover:text-white",
                               sidebarCollapsed && "justify-center px-2"
                             )}
                             title={sidebarCollapsed ? item.label : undefined}
                           >
-                            <div
-                              className={cn(
-                                "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200",
-                                active
-                                  ? "bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/40"
-                                  : "text-white/70 group-hover:text-white group-hover:scale-105"
-                              )}
-                            >
-                              <item.icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                            </div>
-                            {!sidebarCollapsed && (
-                              <span className="truncate flex-1 min-w-0">{item.label}</span>
-                            )}
-                            {!sidebarCollapsed && item.badge && (
-                              <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-200 border border-amber-400/30 shrink-0">
-                                {item.badge}
-                              </span>
-                            )}
-                            {!sidebarCollapsed && item.shortcut && !item.badge && (
-                              <kbd className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-white border border-white/20 opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
-                                {item.shortcut}
-                              </kbd>
-                            )}
-                            {active && !sidebarCollapsed && !item.shortcut && !item.badge && (
-                              <span
-                                className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
-                                style={{ background: GOLD, boxShadow: `0 0 8px ${GOLD}` }}
+                            {active && (
+                              <motion.div
+                                layoutId="desktopActiveNavIndicator"
+                                className="absolute inset-0 rounded-xl bg-slate-900 ring-1 ring-amber-400/40 shadow-sm"
+                                transition={{ type: "spring", stiffness: 350, damping: 28 }}
                               />
                             )}
+                            <div className="relative z-10 flex items-center gap-2.5 w-full min-w-0">
+                              <div
+                                className={cn(
+                                  "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200",
+                                  active
+                                    ? "bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/40"
+                                    : "text-white/70 group-hover:text-white group-hover:scale-105"
+                                )}
+                              >
+                                <item.icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              </div>
+                              {!sidebarCollapsed && (
+                                <span className="truncate flex-1 min-w-0">{item.label}</span>
+                              )}
+                              {!sidebarCollapsed && item.badge && (
+                                <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-200 border border-amber-400/30 shrink-0">
+                                  {item.badge}
+                                </span>
+                              )}
+                              {!sidebarCollapsed && item.shortcut && !item.badge && (
+                                <kbd className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-white border border-white/20 opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
+                                  {item.shortcut}
+                                </kbd>
+                              )}
+                              {active && !sidebarCollapsed && !item.shortcut && !item.badge && (
+                                <span
+                                  className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ background: GOLD, boxShadow: `0 0 8px ${GOLD}` }}
+                                />
+                              )}
+                            </div>
                           </Link>
                         );
                       })}
@@ -396,7 +439,7 @@ export function PortalShell({
           <div className="shrink-0 p-3 border-t border-white/10 relative z-10 flex items-center justify-between">
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/60 text-xs font-bold transition-colors cursor-pointer"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
@@ -426,8 +469,13 @@ export function PortalShell({
             <div className="h-[2px] w-full" style={{ background: theme.headerLine }} />
 
             {/* ── Desktop Header ── */}
-            <div className="h-16 hidden lg:flex items-center justify-between px-6">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="h-16 hidden lg:flex items-center justify-between px-6 relative">
+              {/* Subtle Fatimi Architectural Heritage Watermark */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <FatimidRosette size={140} opacity={0.03} stroke="#d4af37" className="absolute right-48 top-0 pointer-events-none" />
+              </div>
+
+              <div className="flex items-center gap-4 flex-1 min-w-0 relative z-10">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-1 rounded-2xl bg-amber-400/10 ring-1 ring-amber-400/25 shrink-0">
                     <div
@@ -448,6 +496,15 @@ export function PortalShell({
                       </h2>
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-[0.16em] uppercase bg-amber-50 text-amber-950 border border-amber-300/80 shadow-2xs shrink-0">
                         {roleLabel}
+                      </span>
+                      {/* Live Academic Slot / Period Indicator on Desktop */}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-950 border border-amber-300/70 text-[10px] font-bold shadow-2xs shrink-0">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-600"></span>
+                        </span>
+                        <span>{livePeriod.label}</span>
+                        <span className="text-[9.5px] text-amber-700 font-mono font-medium">({livePeriod.timing})</span>
                       </span>
                     </div>
                   </div>
@@ -475,7 +532,7 @@ export function PortalShell({
               </div>
 
               {/* Right Utilities */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 relative z-10">
                 {/* PWA Install Button for Desktop */}
                 {canInstall && (
                   <button
@@ -491,10 +548,10 @@ export function PortalShell({
 
                 {/* Live IST Clock */}
                 {istTime && (
-                  <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200/70 text-xs font-mono font-medium">
+                  <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200/70 text-xs font-mono font-medium shadow-2xs">
                     <Clock className="w-3.5 h-3.5 text-emerald-600" />
                     <span>{istTime}</span>
-                    <span className="text-[10px] text-slate-400 font-sans uppercase font-bold">IST</span>
+                    <span className="text-[10px] text-slate-500 font-sans uppercase font-extrabold">IST</span>
                   </div>
                 )}
 
@@ -529,16 +586,16 @@ export function PortalShell({
                   {profileMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
-                      <div className={cn("absolute right-0 mt-2 w-64 bg-white rounded-2xl border shadow-xl z-50 py-1.5 animate-fade-in overflow-hidden", theme.border)}>
+                      <div className={cn("absolute right-0 mt-2 w-64 bg-white rounded-2xl border shadow-xl z-50 py-1.5 animate-fade-in overflow-hidden flex flex-col", theme.border)}>
                         <div className="h-[2px] w-full" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
                         <div className={cn("px-4 py-3 border-b bg-slate-50/50", theme.border)}>
                           <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5 truncate">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                             {session?.user?.firstName} {session?.user?.lastName}
                           </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5 truncate">{session?.user?.email}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5 truncate">{displayUserEmail}</p>
                         </div>
-                        <div className="px-2 py-1.5 space-y-0.5 max-h-[70vh] overflow-y-auto">
+                        <div className="px-2 py-1.5 space-y-0.5 max-h-[50vh] overflow-y-auto">
                           {profileLinks.map((link) => (
                             <Link
                               key={link.href}
@@ -573,7 +630,7 @@ export function PortalShell({
                                     onClick={() => setTheme(t.id)}
                                     aria-pressed={isActiveTheme}
                                     className={cn(
-                                      "flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold rounded-xl transition-colors cursor-pointer",
+                                      "flex items-center gap-2.5 w-full px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors cursor-pointer",
                                       isActiveTheme
                                         ? "bg-amber-50 text-amber-900 border border-amber-300"
                                         : "text-slate-700 border border-transparent hover:bg-slate-50"
@@ -581,22 +638,30 @@ export function PortalShell({
                                   >
                                     <span
                                       aria-hidden="true"
-                                      className="w-4 h-4 rounded-full shrink-0 border border-black/10"
+                                      className="w-3.5 h-3.5 rounded-full shrink-0 border border-black/10"
                                       style={{ background: t.sidebarGradient, boxShadow: `inset 0 0 0 2px ${t.swatch.gold}` }}
                                     />
-                                    <span className="flex-1 text-left">{t.name}</span>
-                                    {isActiveTheme && <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />}
+                                    <span className="flex-1 text-left text-[11px]">{t.name}</span>
+                                    {isActiveTheme && <CheckCircle2 className="w-3 h-3 text-amber-500" />}
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
+                        </div>
+
+                        {/* Dedicated Fixed Sign Out Footer */}
+                        <div className="p-2 border-t border-slate-100 bg-slate-50/70">
                           <button
-                            onClick={() => signOut({ callbackUrl: "/login" })}
-                            className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 w-full rounded-xl transition-colors cursor-pointer"
+                            type="button"
+                            onClick={() => {
+                              setProfileMenuOpen(false);
+                              signOut({ callbackUrl: "/login" });
+                            }}
+                            className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100/70 w-full rounded-xl transition-colors cursor-pointer"
                           >
-                            <LogOut className="w-4 h-4" />
-                            Sign out
+                            <LogOut className="w-4 h-4 text-rose-600" />
+                            <span>Sign out</span>
                           </button>
                         </div>
                       </div>
@@ -607,16 +672,16 @@ export function PortalShell({
             </div>
 
             {/* ── REDESIGNED MOBILE APP BAR (below lg) ── */}
-            <div className="h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-slate-200/60 safe-area-top shadow-2xs">
+            <div className="h-14 sm:h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-slate-200/70 safe-area-top shadow-2xs">
               {/* Left: Hamburger Drawer Trigger + Brand Logo + Title */}
-              <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(true)}
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-800 bg-slate-100/90 hover:bg-slate-200/90 active:scale-90 transition-all cursor-pointer border border-slate-200/70 shrink-0"
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-800 bg-slate-100 hover:bg-slate-200/80 active:scale-90 transition-all cursor-pointer border border-slate-200/80 shrink-0 touch-target-44"
                   aria-label="Open portal navigation menu"
                 >
-                  <Menu className="w-5 h-5 text-slate-800" strokeWidth={1.75} />
+                  <Menu className="w-5 h-5 text-slate-800" strokeWidth={1.85} />
                 </button>
 
                 <Link
@@ -628,13 +693,21 @@ export function PortalShell({
                   <FatimiLogo size={20} variant="gold" glow={true} />
                 </Link>
 
-                <div className="flex flex-col min-w-0 flex-1 pl-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-black tracking-[0.14em] uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-950 border border-amber-300/80 shrink-0 shadow-2xs">
+                <div className="flex flex-col min-w-0 flex-1 pl-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] font-black tracking-[0.12em] uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-900 border border-amber-300/60 shrink-0 shadow-2xs">
                       {roleLabel}
                     </span>
+                    {/* Live Academic Slot / Period Indicator */}
+                    <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300/70 text-[9px] font-bold shrink-0">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-600"></span>
+                      </span>
+                      <span>{livePeriod.label}</span>
+                    </span>
                     {istTime && (
-                      <span className="hidden xs:flex text-[9px] text-slate-500 font-mono font-semibold items-center gap-1 truncate">
+                      <span className="hidden sm:flex text-[9px] text-slate-500 font-mono font-semibold items-center gap-1 truncate">
                         <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" strokeWidth={1.75} />
                         {istTime}
                       </span>
@@ -646,25 +719,13 @@ export function PortalShell({
                 </div>
               </div>
 
-              {/* Right: Quick PWA Install + Search + Notifications + Profile */}
-              <div className="flex items-center gap-1.5 shrink-0 relative">
-                {/* PWA 1-Tap Install Pill for Mobile */}
-                {canInstall && (
-                  <button
-                    type="button"
-                    onClick={installPWA}
-                    className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[10px] font-black shadow-xs active:scale-95 transition-all"
-                  >
-                    <Download className="w-3 h-3" strokeWidth={2} />
-                    <span>Install</span>
-                  </button>
-                )}
-
-                {/* Live Biometric Pulse Badge */}
+              {/* Right: Quick Search + Notifications + Profile */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Live Biometric Pulse Badge for Tablet */}
                 <button
                   type="button"
                   onClick={() => setQuickCommandOpen(true)}
-                  className="hidden xs:flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-[10px] font-bold active:scale-95 transition-all"
+                  className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-[10px] font-bold active:scale-95 transition-all"
                   title="Live Biometric Terminals"
                 >
                   <span className="relative flex h-2 w-2">
@@ -677,18 +738,20 @@ export function PortalShell({
                 <button
                   type="button"
                   onClick={handleOpenSearch}
-                  className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-90 transition-all cursor-pointer border border-slate-200/60"
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-90 transition-all cursor-pointer border border-slate-200/70 touch-target-44"
                   aria-label="Quick search"
                 >
-                  <Search className="w-4 h-4 text-slate-800" strokeWidth={1.75} />
+                  <Search className="w-4 h-4 text-slate-800" strokeWidth={1.85} />
                 </button>
 
-                <NotificationBell />
+                <div className="relative flex items-center justify-center touch-target-44">
+                  <NotificationBell />
+                </div>
 
                 <button
                   type="button"
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="p-0.5 rounded-2xl active:scale-90 transition-transform cursor-pointer"
+                  onClick={() => setProfileMenuOpen(true)}
+                  className="p-0.5 rounded-2xl active:scale-90 transition-transform cursor-pointer touch-target-44 flex items-center justify-center"
                   aria-label="User profile and appearance"
                 >
                   <Avatar className="w-8 h-8 ring-1 ring-amber-400/60 shadow-xs">
@@ -703,95 +766,12 @@ export function PortalShell({
                     </AvatarFallback>
                   </Avatar>
                 </button>
-
-                {/* Mobile Profile Dropdown Popover */}
-                {profileMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
-                    <div
-                      className={cn(
-                        "fixed top-14 right-2 sm:right-4 w-72 max-w-[calc(100vw-1rem)] bg-white rounded-2xl border shadow-2xl z-50 py-1.5 animate-fade-in overflow-hidden",
-                        theme.border
-                      )}
-                    >
-                      <div className="h-[2px] w-full" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
-                      <div className={cn("px-4 py-3 border-b bg-slate-50/50", theme.border)}>
-                        <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5 truncate">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          {session?.user?.firstName} {session?.user?.lastName}
-                        </p>
-                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{session?.user?.email}</p>
-                      </div>
-                      <div className="px-2 py-1.5 space-y-0.5 max-h-[70vh] overflow-y-auto">
-                        {profileLinks.map((link) => (
-                          <Link
-                            key={link.href}
-                            href={link.href}
-                            className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
-                            onClick={() => setProfileMenuOpen(false)}
-                          >
-                            <link.icon className="w-4 h-4 text-amber-700" strokeWidth={1.75} />
-                            {link.label}
-                          </Link>
-                        ))}
-                        <Link
-                          href={settingsHref}
-                          className={cn("flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 rounded-xl transition-colors", theme.hoverBg)}
-                          onClick={() => setProfileMenuOpen(false)}
-                        >
-                          <Settings className="w-4 h-4 text-amber-700" strokeWidth={1.75} />
-                          Settings
-                        </Link>
-                        <div className="px-2 pt-2 mt-1 border-t border-slate-100">
-                          <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                            <Palette className="w-3 h-3" />
-                            Appearance
-                          </p>
-                          <div className="space-y-0.5">
-                            {availableThemes.map((t) => {
-                              const isActiveTheme = currentThemeId === t.id;
-                              return (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={() => setTheme(t.id)}
-                                  aria-pressed={isActiveTheme}
-                                  className={cn(
-                                    "flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold rounded-xl transition-colors cursor-pointer",
-                                    isActiveTheme
-                                      ? "bg-amber-50 text-amber-900 border border-amber-300"
-                                      : "text-slate-700 border border-transparent hover:bg-slate-50"
-                                  )}
-                                >
-                                  <span
-                                    aria-hidden="true"
-                                    className="w-4 h-4 rounded-full shrink-0 border border-black/10"
-                                    style={{ background: t.sidebarGradient, boxShadow: `inset 0 0 0 2px ${t.swatch.gold}` }}
-                                  />
-                                  <span className="flex-1 text-left">{t.name}</span>
-                                  {isActiveTheme && <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => signOut({ callbackUrl: "/login" })}
-                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 w-full rounded-xl transition-colors cursor-pointer"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Sign out
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
 
             {/* ── REDESIGNED MOBILE HORIZON ACTION RIBBON ── */}
-            <div className="lg:hidden flex items-center gap-2 px-3 py-2 overflow-x-auto bg-slate-50/95 border-t border-slate-200/70 scrollbar-none touch-pan-x">
-              <span className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 shrink-0 mr-0.5">
+            <div className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 overflow-x-auto bg-slate-50/95 border-b border-slate-200/70 scrollbar-none touch-pan-x">
+              <span className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 shrink-0 mr-1">
                 Quick:
               </span>
               {mobileHorizonItems.map((item) => {
@@ -802,16 +782,16 @@ export function PortalShell({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-[11px] font-bold whitespace-nowrap transition-all duration-200 shrink-0 active:scale-95",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all duration-200 shrink-0 active:scale-95",
                       active
-                        ? "depth-3d-btn-dark text-amber-300 ring-1 ring-amber-400/60 border border-slate-800"
-                        : "depth-3d-card text-slate-700 hover:bg-slate-50 border border-slate-200/90"
+                        ? "bg-slate-900 text-amber-300 ring-1 ring-amber-400/50 shadow-xs"
+                        : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80 shadow-2xs"
                     )}
                   >
-                    <Icon className={cn("w-3.5 h-3.5", active ? "text-amber-300" : "text-amber-700")} strokeWidth={1.75} />
+                    <Icon className={cn("w-3.5 h-3.5", active ? "text-amber-300" : "text-amber-600")} strokeWidth={1.85} />
                     <span>{item.label.replace(/\(.*\)/, "").trim()}</span>
                     {item.badge && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-amber-400/20 text-amber-700 border border-amber-300">
+                      <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-amber-400/20 text-amber-800 border border-amber-300/80">
                         {item.badge}
                       </span>
                     )}
@@ -822,233 +802,267 @@ export function PortalShell({
           </header>
 
           {/* ─────────────────────────────────────────────────────────────
-             3. MAIN PAGE CONTENT (Flex-1 stretches naturally to bottom)
+             3. MAIN PAGE CONTENT (Generous bottom clearance for mobile dock)
              ───────────────────────────────────────────────────────────── */}
-          <main className="relative flex-1 pb-16 sm:pb-20 lg:pb-8 pt-2 sm:pt-4 px-2 sm:px-4 lg:px-8 max-w-full">
+          <main className="relative flex-1 pb-28 sm:pb-32 lg:pb-8 pt-2 sm:pt-4 px-2.5 sm:px-4 lg:px-8 max-w-full min-w-0">
             <Outlet />
           </main>
 
           {/* ─────────────────────────────────────────────────────────────
-             4. INSTITUTIONAL FOOTER (Clean Full-Width Sticky Bottom Footer)
+             4. INSTITUTIONAL FOOTER (Sticky Bottom with Mobile Clearance)
              ───────────────────────────────────────────────────────────── */}
-          <div className="relative z-10 mt-auto shrink-0 pb-20 lg:pb-0">
+          <div className="relative z-10 mt-auto shrink-0 pb-24 lg:pb-0">
             <InstitutionalFooter variant="minimal" />
           </div>
 
           {/* ─────────────────────────────────────────────────────────────
-             4. REDESIGNED MOBILE NATIVE BOTTOM APP DOCK (Fixed & Ergonomic)
+             5. ERGONOMIC NATIVE MOBILE ACCESS DOCK (Thumb Reachable)
              ───────────────────────────────────────────────────────────── */}
           <nav
-            className="lg:hidden fixed bottom-0 inset-x-0 z-40 depth-3d-dock safe-area-bottom select-none"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-lg mx-auto px-3 pb-2 safe-area-bottom pointer-events-none"
             aria-label="Mobile Bottom App Bar"
           >
-            <div className="px-3 py-2 flex items-center justify-around gap-1 text-white max-w-md mx-auto">
+            <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_8px_32px_rgba(0,0,0,0.55)] px-2.5 py-1.5 flex items-center justify-around gap-1 mb-1 relative overflow-hidden">
               {/* 1. Home */}
               <Link
                 href={rootPath}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
-                  isActive(rootPath)
-                    ? "text-amber-300 font-bold"
-                    : "text-white/70 hover:text-white"
+                  "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
+                  isActive(rootPath) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
               >
-                <div className="relative">
-                  <Home className="w-5 h-5" strokeWidth={1.75} style={isActive(rootPath) ? { color: GOLD } : undefined} />
-                  {isActive(rootPath) && (
-                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
-                  )}
+                {isActive(rootPath) && (
+                  <motion.div
+                    layoutId="mobileActiveDockPill"
+                    className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                  />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <div className="relative">
+                    <Home className="w-5 h-5" strokeWidth={2} style={isActive(rootPath) ? { color: GOLD } : undefined} />
+                    {isActive(rootPath) && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                    )}
+                  </div>
+                  <span className="text-[10px] tracking-tight mt-0.5 font-bold">Home</span>
                 </div>
-                <span className="text-[10px] tracking-tight mt-1 font-medium">Home</span>
               </Link>
 
-              {/* 2. Attendance / Scans */}
+              {/* 2. Attendance / Primary Module */}
               {attendanceItem && (
                 <Link
                   href={attendanceItem.href}
                   className={cn(
-                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
-                    isActive(attendanceItem.href)
-                      ? "text-amber-300 font-bold"
-                      : "text-white/70 hover:text-white"
+                    "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
+                    isActive(attendanceItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                   )}
                 >
-                  <div className="relative">
-                    <attendanceItem.icon className="w-5 h-5" strokeWidth={1.75} style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
-                    {isActive(attendanceItem.href) && (
-                      <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
-                    )}
+                  {isActive(attendanceItem.href) && (
+                    <motion.div
+                      layoutId="mobileActiveDockPill"
+                      className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
+                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                    />
+                  )}
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <div className="relative">
+                      <attendanceItem.icon className="w-5 h-5" strokeWidth={2} style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
+                      {isActive(attendanceItem.href) && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                      )}
+                    </div>
+                    <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[64px]">
+                      {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
+                    </span>
                   </div>
-                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[62px]">
-                    {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
-                  </span>
                 </Link>
               )}
 
-              {/* 3. Center Glowing Fatimi Command Orb */}
-              <div className="relative -top-4 flex flex-col items-center">
+              {/* 3. Center Easy-Access Quick Command Button */}
+              <div className="relative flex flex-col items-center px-1 z-10">
                 <button
                   type="button"
                   onClick={() => setQuickCommandOpen(!quickCommandOpen)}
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center shrink-0 depth-3d-orb ring-2 ring-amber-400/90 active:scale-90 transition-all cursor-pointer",
+                    "w-12 h-12 -mt-5 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 shadow-[0_6px_20px_rgba(243,184,51,0.45)] border-2 border-white ring-4 ring-slate-950 active:scale-90 transition-all cursor-pointer",
                     quickCommandOpen ? "rotate-45" : ""
                   )}
                   aria-label="Quick Launch Center"
                 >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-stone-950/25 text-white">
-                    {quickCommandOpen ? <X className="w-5 h-5 text-white" strokeWidth={2} /> : <FatimiLogo size={22} variant="gold" />}
-                  </div>
+                  {quickCommandOpen ? (
+                    <X className="w-6 h-6 text-slate-950" strokeWidth={2.5} />
+                  ) : (
+                    <FatimiLogo size={22} variant="gold" />
+                  )}
                 </button>
-                <span className="text-[9px] font-bold text-amber-300 tracking-tight mt-0.5">Actions</span>
+                <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider mt-0.5">Quick</span>
               </div>
 
-              {/* 4. Timetable / Classes */}
+              {/* 4. Timetable / Secondary Module */}
               {timetableItem && (
                 <Link
                   href={timetableItem.href}
                   className={cn(
-                    "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90",
-                    isActive(timetableItem.href)
-                      ? "text-amber-300 font-bold"
-                      : "text-white/70 hover:text-white"
+                    "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
+                    isActive(timetableItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                   )}
                 >
-                  <div className="relative">
-                    <timetableItem.icon className="w-5 h-5" strokeWidth={1.75} style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
-                    {isActive(timetableItem.href) && (
-                      <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
-                    )}
+                  {isActive(timetableItem.href) && (
+                    <motion.div
+                      layoutId="mobileActiveDockPill"
+                      className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
+                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                    />
+                  )}
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <div className="relative">
+                      <timetableItem.icon className="w-5 h-5" strokeWidth={2} style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
+                      {isActive(timetableItem.href) && (
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                      )}
+                    </div>
+                    <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[64px]">
+                      {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
+                    </span>
                   </div>
-                  <span className="text-[10px] tracking-tight mt-1 font-medium truncate max-w-[62px]">
-                    {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
-                  </span>
                 </Link>
               )}
 
-              {/* 5. Modules Menu Drawer */}
+              {/* 5. Modules Drawer Trigger */}
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 active:scale-90 cursor-pointer",
-                  mobileMenuOpen
-                    ? "text-amber-300 font-bold"
-                    : "text-white/70 hover:text-white"
+                  "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90 cursor-pointer",
+                  mobileMenuOpen ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
                 aria-label="Open all modules"
               >
-                <div className="relative">
-                  <Grid3X3 className="w-5 h-5" strokeWidth={1.75} style={mobileMenuOpen ? { color: GOLD } : undefined} />
-                  {mobileMenuOpen && (
-                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
-                  )}
+                {mobileMenuOpen && (
+                  <motion.div
+                    layoutId="mobileActiveDockPill"
+                    className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                  />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <div className="relative">
+                    <Grid3X3 className="w-5 h-5" strokeWidth={2} style={mobileMenuOpen ? { color: GOLD } : undefined} />
+                    {mobileMenuOpen && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                    )}
+                  </div>
+                  <span className="text-[10px] tracking-tight mt-0.5 font-bold">All</span>
                 </div>
-                <span className="text-[10px] tracking-tight mt-1 font-medium">Menu</span>
               </button>
             </div>
           </nav>
 
           {/* ─────────────────────────────────────────────────────────────
-             5. QUICK LAUNCH CENTER BOTTOM SHEET (Center Orb Popover)
+             6. QUICK LAUNCH CENTER BOTTOM SHEET (Spring-Up Native Panel)
              ───────────────────────────────────────────────────────────── */}
           {quickCommandOpen && (
             <>
               <div
-                className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fade-in"
+                className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in"
                 onClick={() => setQuickCommandOpen(false)}
               />
-              <div className="lg:hidden fixed bottom-16 inset-x-3 max-w-sm mx-auto z-50 animate-spring-up safe-area-bottom">
-                <div className="p-4 rounded-3xl bg-slate-950/98 border border-amber-400/40 shadow-[0_24px_70px_rgba(0,0,0,0.8)] text-white backdrop-blur-2xl">
-                  {/* Sheet Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-400/20 text-amber-300">
-                        <Zap className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-white tracking-wide uppercase">Fatimi Launchpad</h3>
-                        <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                          <Radio className="w-3 h-3 animate-pulse" />
-                          <span>Hikvision Terminals Active</span>
-                        </p>
-                      </div>
+              <div className="lg:hidden fixed bottom-0 inset-x-0 max-w-lg mx-auto z-50 rounded-t-3xl bg-slate-950 text-white border-t border-amber-400/40 p-4 safe-area-bottom shadow-[0_-12px_40px_rgba(0,0,0,0.7)] animate-spring-up relative overflow-hidden">
+                {/* Fatimi Architectural Watermark Rosette */}
+                <FatimidRosette size={200} opacity={0.045} stroke="#f3b833" className="absolute -right-12 -bottom-12 pointer-events-none" />
+
+                {/* Drag Handle Indicator */}
+                <div className="w-12 h-1 rounded-full bg-white/25 mx-auto mb-3" />
+
+                {/* Sheet Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      <Zap className="w-4 h-4" />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setQuickCommandOpen(false)}
-                      className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center active:scale-95"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div>
+                      <h3 className="text-xs font-black text-white tracking-wide uppercase">Quick Hub</h3>
+                      <p className="text-[10px] text-amber-300 font-bold flex items-center gap-1">
+                        <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+                        <span>{roleLabel} Quick Actions</span>
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center justify-center active:scale-95 cursor-pointer touch-target-44"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
-                  {/* Quick Action Matrix */}
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <Link
-                      href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : "/talabat/attendance"}
-                      onClick={() => setQuickCommandOpen(false)}
-                      className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-500/20 text-emerald-300 mb-1.5 group-hover:scale-110 transition-transform">
-                        <Fingerprint className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-bold text-white leading-tight">Hikvision Scans</span>
-                      <span className="text-[9px] text-white/60 mt-0.5">Live Timestamps</span>
-                    </Link>
+                {/* Quick Action Matrix */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <Link
+                    href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : "/talabat/attendance"}
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-500/25 text-emerald-300 mb-1.5 group-hover:scale-105 transition-transform">
+                      <Fingerprint className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-black text-white leading-tight">Live Attendance</span>
+                    <span className="text-[9px] font-semibold text-emerald-300 mt-0.5">Biometric Telemetry</span>
+                  </Link>
 
-                    <Link
-                      href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : "/talabat/attendance"}
-                      onClick={() => setQuickCommandOpen(false)}
-                      className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/20 text-amber-300 mb-1.5 group-hover:scale-110 transition-transform">
-                        <ClipboardCheck className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-bold text-white leading-tight">Manual Logs</span>
-                      <span className="text-[9px] text-white/60 mt-0.5">Roster Roll-Call</span>
-                    </Link>
+                  <Link
+                    href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : "/talabat/attendance"}
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/25 text-amber-300 mb-1.5 group-hover:scale-105 transition-transform">
+                      <ClipboardCheck className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-black text-white leading-tight">Manual Register</span>
+                    <span className="text-[9px] font-semibold text-amber-200 mt-0.5">Roll-Call & Leaves</span>
+                  </Link>
 
-                    <Link
-                      href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : "/talabat/timetable"}
-                      onClick={() => setQuickCommandOpen(false)}
-                      className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-cyan-500/20 text-cyan-300 mb-1.5 group-hover:scale-110 transition-transform">
-                        <CalendarDays className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-bold text-white leading-tight">Timetable Matrix</span>
-                      <span className="text-[9px] text-white/60 mt-0.5">AI Period Slots</span>
-                    </Link>
+                  <Link
+                    href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : "/talabat/timetable"}
+                    onClick={() => setQuickCommandOpen(false)}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-sky-500/25 text-sky-300 mb-1.5 group-hover:scale-105 transition-transform">
+                      <CalendarDays className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-black text-white leading-tight">Timetable</span>
+                    <span className="text-[9px] font-semibold text-sky-200 mt-0.5">Periods & Slots</span>
+                  </Link>
 
-                    <button
-                      type="button"
-                      onClick={handleOpenSearch}
-                      className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-center active:scale-95 transition-all group cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/20 text-purple-300 mb-1.5 group-hover:scale-110 transition-transform">
-                        <Search className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-bold text-white leading-tight">Quick Search</span>
-                      <span className="text-[9px] text-white/60 mt-0.5">⌘K Jump Anywhere</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenSearch}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/25 text-purple-300 mb-1.5 group-hover:scale-105 transition-transform">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-black text-white leading-tight">Spotlight Search</span>
+                    <span className="text-[9px] font-semibold text-purple-200 mt-0.5">Jump to Any Page</span>
+                  </button>
+                </div>
 
-                  {/* Terminal Status Footer */}
-                  <div className="px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-between text-[10px]">
-                    <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      MinMoe 192.168.0.4 &amp; 0.5 Connected
-                    </span>
-                    <span className="text-amber-300 font-mono font-bold">IST 05:30</span>
-                  </div>
+                {/* Terminal Status Footer */}
+                <div className="px-3 py-2 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-between text-xs">
+                  <span className="text-emerald-300 font-bold flex items-center gap-1.5 text-[11px]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    All Terminals Active
+                  </span>
+                  <span className="text-amber-300 font-mono font-bold text-[11px]">{istTime || "IST"}</span>
                 </div>
               </div>
             </>
           )}
 
           {/* ─────────────────────────────────────────────────────────────
-             6. FULL MOBILE APP DRAWER (All Modules Categorized)
+             7. FULL MOBILE APP DRAWER (Slide-in from Left)
              ───────────────────────────────────────────────────────────── */}
           {mobileMenuOpen && (
             <div className="lg:hidden fixed inset-0 z-50 flex">
@@ -1057,10 +1071,14 @@ export function PortalShell({
                 onClick={() => setMobileMenuOpen(false)}
               />
 
-              <aside className="relative ml-auto w-full max-w-sm bg-slate-950 text-white h-full shadow-2xl flex flex-col z-10 border-l border-amber-400/30 animate-slide-left safe-area-bottom">
+              <aside className="relative mr-auto w-full max-w-[85vw] sm:max-w-sm bg-slate-950 text-white h-full shadow-2xl flex flex-col z-10 border-r border-amber-400/30 animate-slide-left safe-area-bottom overflow-hidden">
+                {/* Fatimi Background Pattern */}
+                <FatimiPattern opacity={0.035} />
+
                 {/* Drawer Header */}
-                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
-                  <div className="flex items-center gap-2.5">
+                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40 relative overflow-hidden">
+                  <FatimidRosette size={140} opacity={0.045} stroke="#f3b833" className="absolute -right-8 -top-8 pointer-events-none" />
+                  <div className="flex items-center gap-2.5 relative z-10">
                     <div
                       className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md ring-1 ring-amber-400/40"
                       style={{ background: `linear-gradient(135deg, ${theme.goldAccent}, ${theme.primary})` }}
@@ -1069,23 +1087,48 @@ export function PortalShell({
                     </div>
                     <div>
                       <h3 className="font-display font-bold text-sm text-white">Darse Burhani</h3>
-                      <p className="text-[10px] text-amber-300 font-semibold">{portalName}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-[10px] text-amber-300 font-semibold">{portalName}</p>
+                        <span className="text-[9px] text-white/40">•</span>
+                        <span className="text-[9px] text-amber-200/80 font-mono">{livePeriod.label}</span>
+                      </div>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center active:scale-95"
+                    className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center active:scale-95 touch-target-44 relative z-10"
+                    aria-label="Close navigation menu"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Optional PWA Install Action in Drawer */}
+                {canInstall && (
+                  <div className="px-3 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        installPWA();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black shadow-xs active:scale-98 transition-all"
+                    >
+                      <Download className="w-4 h-4" strokeWidth={2} />
+                      <span>Install Darse Burhani App</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Search Bar */}
                 <div className="p-3 border-b border-white/10 bg-black/20">
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/50" />
                     <input
+                      id="mobile-nav-search-input"
+                      name="mobileNavSearch"
+                      aria-label="Search modules & pages"
                       type="text"
                       placeholder="Search modules & pages..."
                       value={mobileSearchQuery}
@@ -1104,14 +1147,14 @@ export function PortalShell({
                   </div>
 
                   {/* Category Pills */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pt-2 scrollbar-none">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pt-2 scrollbar-none touch-pan-x">
                     {categories.map((cat) => (
                       <button
                         key={cat}
                         type="button"
                         onClick={() => setMobileCategoryFilter(cat)}
                         className={cn(
-                          "px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors",
+                          "px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-colors",
                           mobileCategoryFilter === cat
                             ? "bg-amber-400 text-slate-950 shadow-xs"
                             : "bg-white/10 text-white/70 hover:bg-white/15"
@@ -1134,7 +1177,7 @@ export function PortalShell({
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.98]",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-[0.98] min-h-[44px]",
                           active
                             ? "bg-white/20 text-white ring-1 ring-amber-400/40"
                             : "text-white/80 hover:bg-white/10"
@@ -1189,7 +1232,7 @@ export function PortalShell({
                       <Link
                         href={settingsHref}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold text-white/80 bg-white/10 hover:bg-white/15 transition-colors"
+                        className="flex-1 min-h-[40px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white/80 bg-white/10 hover:bg-white/15 transition-colors"
                       >
                         <Settings className="w-3.5 h-3.5" />
                         <span>Settings</span>
@@ -1197,7 +1240,7 @@ export function PortalShell({
                       <button
                         type="button"
                         onClick={() => signOut({ callbackUrl: "/login" })}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-bold text-rose-300 bg-rose-500/20 hover:bg-rose-500/30 transition-colors cursor-pointer"
+                        className="flex-1 min-h-[40px] flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-rose-300 bg-rose-500/20 hover:bg-rose-500/30 transition-colors cursor-pointer"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>Sign out</span>
@@ -1210,7 +1253,7 @@ export function PortalShell({
           )}
 
           {/* ─────────────────────────────────────────────────────────────
-             7. MOBILE PROFILE MODAL
+             8. UNIFIED MOBILE PROFILE BOTTOM SHEET
              ───────────────────────────────────────────────────────────── */}
           {profileMenuOpen && (
             <div className="lg:hidden fixed inset-0 z-50 flex items-end">
@@ -1218,25 +1261,40 @@ export function PortalShell({
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
                 onClick={() => setProfileMenuOpen(false)}
               />
-              <div className="relative w-full max-w-sm mx-auto bg-slate-950 text-white rounded-t-3xl border-t border-amber-400/40 p-4 shadow-2xl z-10 animate-slide-up safe-area-bottom">
+              <div className="relative w-full max-w-sm mx-auto bg-slate-950 text-white rounded-t-3xl border-t border-amber-400/40 p-4 shadow-2xl z-10 animate-spring-up safe-area-bottom overflow-hidden">
+                {/* Fatimi Watermark Rosette */}
+                <FatimidRosette size={180} opacity={0.045} stroke="#f3b833" className="absolute -right-12 -bottom-12 pointer-events-none" />
+
                 <div className="w-10 h-1 rounded-full bg-white/30 mx-auto mb-3" />
                 <div className="flex items-center gap-3 pb-3 border-b border-white/10 mb-3">
-                  <Avatar className="w-12 h-12 ring-2 ring-amber-400/50 shadow-md">
-                    {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
-                      <AvatarImage
-                        src={session.user.avatarUrl || "/logo.png"}
-                        alt={session.user.firstName || "Profile"}
-                      />
-                    )}
-                    <AvatarFallback className="text-white text-sm font-bold" style={avatarFallbackGradient}>
-                      {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div
+                    onClick={(e) => {
+                      if (session?.user?.avatarUrl) {
+                        e.stopPropagation();
+                        setAvatarLightboxOpen(true);
+                        setProfileMenuOpen(false);
+                      }
+                    }}
+                    className={session?.user?.avatarUrl ? "cursor-pointer transition-transform hover:scale-105 active:scale-95" : ""}
+                    title={session?.user?.avatarUrl ? "Click to view full photo" : ""}
+                  >
+                    <Avatar className="w-12 h-12 ring-2 ring-amber-400/50 shadow-md">
+                      {(session?.user?.avatarUrl || session?.user?.role === "ADMIN") && (
+                        <AvatarImage
+                          src={session.user.avatarUrl || "/logo.png"}
+                          alt={session.user.firstName || "Profile"}
+                        />
+                      )}
+                      <AvatarFallback className="text-white text-sm font-bold" style={avatarFallbackGradient}>
+                        {session?.user ? getInitials(session.user.firstName, session.user.lastName) : "DB"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white truncate">
                       {session?.user?.firstName} {session?.user?.lastName}
                     </p>
-                    <p className="text-xs text-white/60 truncate">{session?.user?.email}</p>
+                    <p className="text-xs text-white/60 truncate">{displayUserEmail}</p>
                     <span className="inline-block px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30 mt-1">
                       {roleLabel}
                     </span>
@@ -1244,9 +1302,10 @@ export function PortalShell({
                   <button
                     type="button"
                     onClick={() => setProfileMenuOpen(false)}
-                    className="w-7 h-7 rounded-full bg-white/10 text-white/70 flex items-center justify-center"
+                    className="w-8 h-8 rounded-full bg-white/10 text-white/70 flex items-center justify-center touch-target-44"
+                    aria-label="Close profile menu"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -1256,7 +1315,7 @@ export function PortalShell({
                       key={link.href}
                       href={link.href}
                       onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-white/90 bg-white/5 hover:bg-white/10 transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-white/90 bg-white/5 hover:bg-white/10 transition-colors min-h-[44px]"
                     >
                       <link.icon className="w-4 h-4 text-emerald-400" />
                       <span>{link.label}</span>
@@ -1265,7 +1324,7 @@ export function PortalShell({
                   <Link
                     href={settingsHref}
                     onClick={() => setProfileMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-white/90 bg-white/5 hover:bg-white/10 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-white/90 bg-white/5 hover:bg-white/10 transition-colors min-h-[44px]"
                   >
                     <Settings className="w-4 h-4 text-amber-400" />
                     <span>Portal Settings</span>
@@ -1287,7 +1346,7 @@ export function PortalShell({
                           onClick={() => setTheme(t.id)}
                           aria-pressed={isActiveTheme}
                           className={cn(
-                            "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer",
+                            "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer min-h-[40px]",
                             isActiveTheme
                               ? "bg-amber-400/15 text-amber-300 border border-amber-400/40"
                               : "text-white/90 bg-white/5 hover:bg-white/10 border border-transparent"
@@ -1309,11 +1368,48 @@ export function PortalShell({
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="w-full py-2.5 rounded-xl bg-rose-500/20 text-rose-300 font-bold text-xs flex items-center justify-center gap-2 hover:bg-rose-500/30 active:scale-95 transition-all cursor-pointer mt-3"
+                  className="w-full py-2.5 rounded-xl bg-rose-500/20 text-rose-300 font-bold text-xs flex items-center justify-center gap-2 hover:bg-rose-500/30 active:scale-95 transition-all cursor-pointer mt-3 min-h-[44px]"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign out</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Lightbox Modal for Avatar Viewing */}
+          {avatarLightboxOpen && (
+            <div
+              className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+              onClick={() => setAvatarLightboxOpen(false)}
+            >
+              <div
+                className="relative max-w-sm w-full bg-slate-950 rounded-3xl p-6 border border-amber-400/40 shadow-2xl flex flex-col items-center gap-4 animate-scale-up"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => setAvatarLightboxOpen(false)}
+                  className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-full overflow-hidden ring-4 ring-amber-400/50 shadow-2xl">
+                  <ProfilePhoto
+                    src={session?.user?.avatarUrl || "/logo.png"}
+                    alt={`${session?.user?.firstName || ""} ${session?.user?.lastName || ""}`}
+                    loading="eager"
+                    previewable={false}
+                    fit="cover"
+                  />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-base font-bold text-white tracking-wide">
+                    {session?.user?.firstName} {session?.user?.lastName}
+                  </h3>
+                  <p className="text-xs text-amber-300 font-medium">{displayUserEmail}</p>
+                </div>
               </div>
             </div>
           )}

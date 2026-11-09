@@ -240,8 +240,10 @@ export async function getStudentParentPhones(studentId: string): Promise<Array<{
     addPhone(`Guardian`, student.mobileNumber, "Guardian");
   }
 
-  // Always include designated WhatsApp recipient (+91 8955199220) so parent notifications and holds reach the specified hotline
-  addPhone("Parent / Administration Hotline", DESIGNATED_ADMIN_PARENT_WHATSAPP, "Designated WhatsApp (+91 8955199220)");
+  // If student has no parent or guardian contacts in database, fallback to administration hotline
+  if (results.length === 0) {
+    addPhone("Administration Hotline", DESIGNATED_ADMIN_PARENT_WHATSAPP, "Helpline Fallback");
+  }
 
   return results;
 }
@@ -332,12 +334,7 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
       classEnrollments: {
         where: { isActive: true },
         include: {
-          class: {
-            include: {
-              teacher: { include: { user: true } },
-              masool: { include: { user: true } },
-            },
-          },
+          class: true,
         },
         take: 1,
       },
@@ -387,33 +384,8 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     );
   }
 
-  // Identify assigned portal access member (Class Teacher / Masool / Portal Member)
-  let assignedMemberUser: { id: string; email: string; firstName: string; lastName: string } | null = null;
-  const enrolledClass = student.classEnrollments[0]?.class;
-  const classTeacherUser = enrolledClass?.teacher?.user;
-  const classMasoolUser = enrolledClass?.masool?.user;
-
-  if (classTeacherUser && classTeacherUser.isActive) {
-    assignedMemberUser = classTeacherUser;
-  } else if (classMasoolUser && classMasoolUser.isActive) {
-    assignedMemberUser = classMasoolUser;
-  } else {
-    // Check if any teacher is assigned portal access for LEAVE
-    const leavePortalMember = await prisma.teacherPortalAssignment.findFirst({
-      where: {
-        isActive: true,
-        portalType: { in: ["ALL", "PAGE:leave"] },
-        teacher: { user: { isActive: true } },
-      },
-      include: {
-        teacher: { include: { user: true } },
-      },
-    });
-    if (leavePortalMember?.teacher?.user) {
-      assignedMemberUser = leavePortalMember.teacher.user;
-    }
-  }
-
+  // Strict Institutional Rule: Do NOT assign or dispatch leave applications to Class Masool / Class Teachers.
+  // Leave requests are governed exclusively by Central Administration.
   const leave = await prisma.leaveRequest.create({
     data: {
       studentId: student.id,
@@ -423,8 +395,8 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
       reason: input.reason.trim(),
       attachmentUrl: input.attachmentUrl || null,
       status: LeaveStatus.PENDING,
-      assignedToId: assignedMemberUser?.id || null,
-      assignedAt: assignedMemberUser ? new Date() : null,
+      assignedToId: null,
+      assignedAt: null,
     },
     include: {
       student: {
@@ -468,9 +440,7 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
   );
   const parentContacts = await getParentContacts(student.id);
   const primaryParent = parentContacts[0];
-  const assignedMemberName = assignedMemberUser
-    ? `${assignedMemberUser.firstName} ${assignedMemberUser.lastName}`.trim()
-    : null;
+  const assignedMemberName: string | null = null;
 
   const adminIds = await notifyAdmins(
     "New Leave Application",
@@ -550,58 +520,8 @@ export async function createLeaveRequest(input: CreateLeaveInput) {
     console.error("[leave-service] Admin leave email error:", err);
   }
 
-  // Notify and email the Assigned Portal Access Member (Faculty member)
-  if (assignedMemberUser) {
-    try {
-      await prisma.notification.create({
-        data: {
-          userId: assignedMemberUser.id,
-          title: "New Leave Application Assigned",
-          body: `${studentFullName} applied for ${input.type.toLowerCase().replace(/_/g, " ")} leave (${dateRangeStr}, ${requestedDays} ${requestedDays === 1 ? "day" : "days"}). Add remarks and grant leave days.`,
-          type: "ALERT",
-          link: "/teacher/leave",
-          priority: "HIGH",
-        },
-      });
-
-      await sendPushToUser(assignedMemberUser.id, {
-        title: "Leave Application Assigned",
-        body: `${studentFullName} · ${requestedDays} ${requestedDays === 1 ? "day" : "days"} — review and grant days`,
-        url: "/teacher/leave",
-        tag: `leave-assign-${leave.id}`,
-        requireInteraction: true,
-      });
-
-      if (assignedMemberUser.email) {
-        await sendLeaveEmail({
-          to: assignedMemberUser.email,
-          subject: `Leave Application for Review — ${studentFullName} (${requestedDays} ${requestedDays === 1 ? "day" : "days"})`,
-          html: leaveApplicationAdminEmail({
-            leaveId: leave.id,
-            studentName: studentFullName,
-            its: student.its || student.studentId,
-            grade: student.grade,
-            section: student.section,
-            className: student.classEnrollments[0]?.class?.name || null,
-            parentName: primaryParent?.name || null,
-            parentEmail: primaryParent?.email || null,
-            type: input.type,
-            startDate: formatUtcDate(start),
-            endDate: formatUtcDate(end),
-            days: requestedDays,
-            reason: input.reason.trim(),
-            attachmentUrl: input.attachmentUrl || null,
-            submittedAt: formatDateTime(leave.createdAt),
-            adminUrl: appUrl("/teacher/leave"),
-            isAssignedMember: true,
-            assignedMemberName,
-          }),
-        });
-      }
-    } catch (assigneeErr) {
-      console.error("[leave-service] Failed to notify assigned portal member:", assigneeErr);
-    }
-  }
+  // Institutional Rule: Class Masool / Teachers are never automatically notified or assigned leave applications.
+  // Leave governance is reserved for Central Administration.
 
   // Notify Parent(s) via In-App Alert, Push, Email & WhatsApp Receipt Confirmation
   try {
@@ -1590,6 +1510,49 @@ export async function unassignLeaveRequest(leaveId: string) {
 /**
  * Cancels a leave request (by student if pending, or by admin).
  */
+/**
+ * Permanently deletes a leave request and cleans up associated records.
+ */
+export async function deleteLeaveRequest(leaveId: string) {
+  const leave = await prisma.leaveRequest.findUnique({
+    where: { id: leaveId },
+    include: { student: { include: { user: true } } },
+  });
+
+  if (!leave) {
+    return { id: leaveId, status: "DELETED" };
+  }
+
+  // Remove any associated attendance registry records
+  try {
+    await prisma.attendanceRegistry.deleteMany({
+      where: { leaveId: leave.id },
+    });
+  } catch (err) {
+    console.warn(`[leave-service] Non-fatal error cleaning attendanceRegistry for leave ${leaveId}:`, err);
+  }
+
+  // Permanently delete the leave record
+  await prisma.leaveRequest.delete({
+    where: { id: leaveId },
+  });
+
+  try {
+    cache.invalidateTag("attendanceRecord");
+    cache.invalidateTag("attendanceRegistry");
+    cache.invalidateTag("dashboard");
+    cache.invalidateTag("leave");
+    cache.invalidateTag("stats");
+    if (leave.startDate) {
+      queueAutoSheetSync(leave.startDate);
+    }
+  } catch (err) {
+    console.warn(`[leave-service] Non-fatal cache/sync error after deleting leave ${leaveId}:`, err);
+  }
+
+  return { id: leaveId, status: "DELETED" };
+}
+
 export async function cancelLeaveRequest(leaveId: string, studentId?: string, isAdmin: boolean = false) {
   const leave = await prisma.leaveRequest.findUnique({
     where: { id: leaveId },
@@ -2149,17 +2112,17 @@ export async function notifyParentLeaveAction(params: {
     for (const p of parentPhones) {
       let waMsg: string;
       if (customMessage?.trim()) {
-        waMsg = `*IDARAH DARSE BURHANI • MAHAD AL-ZAHRA*
-_Academic Administration Desk • Galiakot_
+        waMsg = `*DARSE BURHANI • MAHAD AL-ZAHRA*
+_Maktab Tanzeem • Galiakot_
 
-Afzalus Salam Janab ${p.name || "Respected Parent"},
+Afzalus Salam Janab *${p.name || "Respected Parent"}*,
 
 Administrative message regarding talib *${studentName}* (${className}):
 
 ${customMessage.trim()}
 
 ----------------------------------------
-_⚠️ NOTICE: This is an automated one-way administrative notification. Incoming replies to this number are not monitored._`;
+_⚠️ NOTICE: This is an automated one-way administrative notification. Support: support.darseburhanigaliakot@gmail.com | WhatsApp Desk: +91 8955199220._`;
       } else {
         waMsg = formatLeaveWhatsAppMessage({
           parentName: p.name,

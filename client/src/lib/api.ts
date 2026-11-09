@@ -11,6 +11,7 @@ export interface LeaveRequestItem {
   grade?: string;
   section?: string;
   className?: string;
+  darajahMasoolName?: string | null;
   type: "MEDICAL" | "PERSONAL" | "FAMILY_EMERGENCY" | "OTHER";
   startDate: string;
   endDate: string;
@@ -272,12 +273,19 @@ export type MemberAuditHistory = {
 
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("sis_jwt_token") : null;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options?.headers as Record<string, string>) || {}),
+  };
+  if (token && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    credentials: "include",
     ...options,
+    headers,
   });
 
   const json = await res.json().catch(() => ({}));
@@ -504,6 +512,8 @@ export interface HobbyItem {
   id: string;
   studentId?: string;
   studentName?: string;
+  its?: string;
+  avatarUrl?: string | null;
   grade?: string;
   section?: string;
   name: string;
@@ -885,38 +895,6 @@ export async function notifyParentAdminLeave(
   });
 }
 
-export interface LeaveSmtpStatus {
-  config: {
-    configured: boolean;
-    activeMailbox: string;
-    hasDedicatedLeaveCreds: boolean;
-    hasPrimaryCreds: boolean;
-    adminMailbox: string;
-    host: string;
-    port: number;
-  };
-  live: {
-    ok: boolean;
-    mailbox: string;
-    transportType: "dedicated_leave" | "primary" | "outlook" | "none";
-    error?: string;
-    message?: string;
-  };
-}
-
-export async function getAdminLeaveSmtpStatus(force = false): Promise<LeaveSmtpStatus> {
-  const query = force ? "?force=true" : "";
-  const res = await request<{ success: boolean; data: LeaveSmtpStatus }>(`/api/admin/leave/smtp-status${query}`);
-  return res.data;
-}
-
-export async function testAdminLeaveEmail(to?: string): Promise<{ success: boolean; message: string; data: any }> {
-  return request<{ success: boolean; message: string; data: any }>(`/api/admin/leave/test-email`, {
-    method: "POST",
-    body: JSON.stringify({ to }),
-  });
-}
-
 // ── Web Push (browser notifications outside the website) ──
 
 export async function getPushPublicKey(): Promise<{ publicKey: string | null; configured: boolean }> {
@@ -1023,10 +1001,18 @@ export async function pollHikvisionDevicesNow(date?: string): Promise<{
 }> {
   // 1. Try local hardware bridge first (runs on port 8099 on the school PC connected to Hikvision terminals)
   try {
-    const bridgeUrl = `http://127.0.0.1:8099/api/sync${date ? `?date=${encodeURIComponent(date)}` : ""}`;
+    const secret = "DARSEBURHANI5253";
+    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const timestamp = new Date().toISOString();
+    const bridgeUrl = `http://127.0.0.1:8099/api/sync?secret=${encodeURIComponent(secret)}${date ? `&date=${encodeURIComponent(date)}` : ""}`;
     const bridgeRes = await fetch(bridgeUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-biometric-secret": secret,
+        "x-bridge-timestamp": timestamp,
+        "x-bridge-nonce": nonce,
+      },
       signal: AbortSignal.timeout(60000),
     });
     if (bridgeRes.ok) {
@@ -1071,10 +1057,18 @@ export async function pollHikvisionMonthToRender(month?: string): Promise<{
 }> {
   // 1. Try local hardware bridge first (runs on port 8099 on school PC)
   try {
-    const bridgeUrl = `http://127.0.0.1:8099/api/sync-month${month ? `?month=${encodeURIComponent(month)}` : ""}`;
+    const secret = "DARSEBURHANI5253";
+    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const timestamp = new Date().toISOString();
+    const bridgeUrl = `http://127.0.0.1:8099/api/sync-month?secret=${encodeURIComponent(secret)}${month ? `&month=${encodeURIComponent(month)}` : ""}`;
     const bridgeRes = await fetch(bridgeUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-biometric-secret": secret,
+        "x-bridge-timestamp": timestamp,
+        "x-bridge-nonce": nonce,
+      },
       signal: AbortSignal.timeout(180000),
     });
     if (bridgeRes.ok) {

@@ -43,27 +43,34 @@ router.get("/", requireRole("STUDENT", "ADMIN", "TEACHER"), async (req, res) => 
         where: { id: { in: ids } },
         select: {
           id: true,
+          studentId: true,
+          its: true,
           grade: true,
           section: true,
-          user: { select: { firstName: true, lastName: true } },
+          user: { select: { firstName: true, lastName: true, avatarUrl: true } },
         },
       });
       const map = new Map(students.map((s) => [s.id, s]));
       return res.json({
         success: true,
-        data: hobbies.map((h) => ({
-          id: h.id,
-          studentId: h.studentId,
-          studentName: map.has(h.studentId)
-            ? `${map.get(h.studentId)!.user.firstName} ${map.get(h.studentId)!.user.lastName}`.trim()
-            : "Unknown",
-          grade: map.get(h.studentId)?.grade || "",
-          section: map.get(h.studentId)?.section || "",
-          name: h.name,
-          category: h.category,
-          level: h.level,
-          createdAt: h.createdAt.toISOString(),
-        })),
+        data: hobbies.map((h) => {
+          const s = map.get(h.studentId);
+          return {
+            id: h.id,
+            studentId: h.studentId,
+            its: s?.its || s?.studentId || "",
+            studentName: s
+              ? `${s.user.firstName} ${s.user.lastName}`.trim()
+              : "Unknown",
+            avatarUrl: s?.user?.avatarUrl || null,
+            grade: s?.grade || "",
+            section: s?.section || "",
+            name: h.name,
+            category: h.category,
+            level: h.level,
+            createdAt: h.createdAt.toISOString(),
+          };
+        }),
       });
     }
 

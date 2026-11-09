@@ -183,7 +183,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
             <Link
               href={tab.targetHref}
               className={cn(
-                "group relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
+                "group relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-spring whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
                 isActive
                   ? "bg-gradient-to-br from-slate-950 via-slate-900 to-black text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] border-amber-400/40 ring-1 ring-amber-400/50"
                   : "bg-white/90 backdrop-blur-md text-gray-700 hover:text-gray-950 hover:bg-slate-50 border-gray-200/90 hover:border-amber-400/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
