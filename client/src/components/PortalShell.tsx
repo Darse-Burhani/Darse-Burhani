@@ -827,24 +827,52 @@ export function PortalShell({
           <div className="relative z-10 mt-auto shrink-0 pb-24 lg:pb-0">
             <InstitutionalFooter variant="minimal" />
           </div>
+        </div>
 
-          {/* ─────────────────────────────────────────────────────────────
-             5. ERGONOMIC NATIVE MOBILE ACCESS DOCK (Thumb Reachable)
-             ───────────────────────────────────────────────────────────── */}
-          <nav
-            className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-lg mx-auto px-3 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pointer-events-none"
-            aria-label="Mobile Bottom App Bar"
-          >
-            <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_8px_32px_rgba(0,0,0,0.55)] px-2.5 py-1.5 flex items-center justify-around gap-1 mb-1 relative overflow-hidden">
-              {/* 1. Home */}
+        {/* ─────────────────────────────────────────────────────────────
+           5. ERGONOMIC NATIVE MOBILE ACCESS DOCK (Thumb Reachable, True Fixed)
+           ───────────────────────────────────────────────────────────── */}
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-lg mx-auto px-3 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pointer-events-none"
+          aria-label="Mobile Bottom App Bar"
+        >
+          <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_8px_32px_rgba(0,0,0,0.55)] px-2.5 py-1.5 flex items-center justify-around gap-1 mb-1 relative overflow-visible">
+            {/* 1. Home */}
+            <Link
+              href={rootPath}
+              className={cn(
+                "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
+                isActive(rootPath) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
+              )}
+            >
+              {isActive(rootPath) && (
+                <motion.div
+                  layoutId="mobileActiveDockPill"
+                  className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
+                  transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                />
+              )}
+              <div className="relative z-10 flex flex-col items-center justify-center">
+                <div className="relative">
+                  <Home className="w-5 h-5" strokeWidth={2} style={isActive(rootPath) ? { color: GOLD } : undefined} />
+                  {isActive(rootPath) && (
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                  )}
+                </div>
+                <span className="text-[10px] tracking-tight mt-0.5 font-bold">Home</span>
+              </div>
+            </Link>
+
+            {/* 2. Attendance / Primary Module */}
+            {attendanceItem && (
               <Link
-                href={rootPath}
+                href={attendanceItem.href}
                 className={cn(
                   "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
-                  isActive(rootPath) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
+                  isActive(attendanceItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
               >
-                {isActive(rootPath) && (
+                {isActive(attendanceItem.href) && (
                   <motion.div
                     layoutId="mobileActiveDockPill"
                     className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
@@ -853,64 +881,37 @@ export function PortalShell({
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <div className="relative">
-                    <Home className="w-5 h-5" strokeWidth={2} style={isActive(rootPath) ? { color: GOLD } : undefined} />
-                    {isActive(rootPath) && (
+                    <attendanceItem.icon className="w-5 h-5" strokeWidth={2} style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
+                    {isActive(attendanceItem.href) && (
                       <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-0.5 font-bold">Home</span>
+                  <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[64px]">
+                    {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
+                  </span>
                 </div>
               </Link>
+            )}
 
-              {/* 2. Attendance / Primary Module */}
-              {attendanceItem && (
-                <Link
-                  href={attendanceItem.href}
-                  className={cn(
-                    "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
-                    isActive(attendanceItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
-                  )}
-                >
-                  {isActive(attendanceItem.href) && (
-                    <motion.div
-                      layoutId="mobileActiveDockPill"
-                      className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
-                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                    />
-                  )}
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <div className="relative">
-                      <attendanceItem.icon className="w-5 h-5" strokeWidth={2} style={isActive(attendanceItem.href) ? { color: GOLD } : undefined} />
-                      {isActive(attendanceItem.href) && (
-                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
-                      )}
-                    </div>
-                    <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[64px]">
-                      {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
-                    </span>
-                  </div>
-                </Link>
-              )}
-
-              {/* 3. Center Easy-Access Quick Command Button */}
-              <div className="relative flex flex-col items-center px-1 z-10">
-                <button
-                  type="button"
-                  onClick={() => setQuickCommandOpen(!quickCommandOpen)}
-                  className={cn(
-                    "w-12 h-12 -mt-5 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 shadow-[0_6px_20px_rgba(243,184,51,0.45)] border-2 border-white ring-4 ring-slate-950 active:scale-90 transition-all cursor-pointer",
-                    quickCommandOpen ? "rotate-45" : ""
-                  )}
-                  aria-label="Quick Launch Center"
-                >
-                  {quickCommandOpen ? (
-                    <X className="w-6 h-6 text-slate-950" strokeWidth={2.5} />
-                  ) : (
-                    <FatimiLogo size={22} variant="gold" />
-                  )}
-                </button>
-                <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider mt-0.5">Quick</span>
-              </div>
+            {/* 3. Center Easy-Access Quick Command Button */}
+            <div className="relative flex flex-col items-center px-1 z-20 -mt-6">
+              <button
+                type="button"
+                onClick={() => setQuickCommandOpen(!quickCommandOpen)}
+                className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 shadow-[0_4px_18px_rgba(243,184,51,0.65)] border-2 border-white ring-4 ring-slate-950 active:scale-90 transition-all cursor-pointer",
+                  quickCommandOpen ? "rotate-45" : ""
+                )}
+                aria-label="Quick Launch Center"
+              >
+                {quickCommandOpen ? (
+                  <X className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+                ) : (
+                  <Zap className="w-5 h-5 text-slate-950 fill-slate-950 stroke-[2.5]" />
+                )}
+              </button>
+              <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider mt-0.5">QUICK</span>
+            </div>
 
               {/* 4. Timetable / Secondary Module */}
               {timetableItem && (
@@ -981,21 +982,21 @@ export function PortalShell({
                 className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in"
                 onClick={() => setQuickCommandOpen(false)}
               />
-              <div className="lg:hidden fixed bottom-0 inset-x-0 max-w-lg mx-auto z-50 rounded-t-3xl bg-slate-950 text-white border-t border-amber-400/40 p-4 safe-area-bottom shadow-[0_-12px_40px_rgba(0,0,0,0.7)] animate-spring-up relative overflow-hidden">
+              <div className="lg:hidden fixed bottom-0 inset-x-0 max-w-lg mx-auto z-50 rounded-t-3xl bg-slate-950 text-white border-t border-amber-400/40 p-4 pb-[max(env(safe-area-inset-bottom,0px),1rem)] shadow-[0_-12px_40px_rgba(0,0,0,0.7)] animate-spring-up relative overflow-hidden max-h-[90dvh] flex flex-col">
                 {/* Fatimi Architectural Watermark Rosette */}
                 <FatimidRosette size={200} opacity={0.045} stroke="#f3b833" className="absolute -right-12 -bottom-12 pointer-events-none" />
 
                 {/* Drag Handle Indicator */}
-                <div className="w-12 h-1 rounded-full bg-white/25 mx-auto mb-3" />
+                <div className="w-12 h-1 rounded-full bg-white/25 mx-auto mb-3 shrink-0" />
 
                 {/* Sheet Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3 shrink-0">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      <Zap className="w-4 h-4" />
+                      <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-black text-white tracking-wide uppercase">Quick Hub</h3>
+                      <h3 className="text-xs font-black text-white tracking-wide uppercase">Quick Launch Hub</h3>
                       <p className="text-[10px] text-amber-300 font-bold flex items-center gap-1">
                         <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
                         <span>{roleLabel} Quick Actions</span>
@@ -1426,7 +1427,6 @@ export function PortalShell({
               </div>
             </div>
           )}
-        </div>
       </div>
     </>
   );
