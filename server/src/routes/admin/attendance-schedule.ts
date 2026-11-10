@@ -223,6 +223,23 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         const exemptStudentIds: string[] = ((w as any).exemptStudentIds ?? []) as string[];
         const exemptTeacherIds: string[] = ((w as any).exemptTeacherIds ?? []) as string[];
 
+        const applicableDeviceIds: string[] = (((w as any).applicableDeviceIds ?? []) as string[]).length > 0
+          ? ((w as any).applicableDeviceIds as string[])
+          : exemptStudentIds.filter((s: string) => s.startsWith("DEV_")).map((s: string) => s.replace(/^DEV_/, ""));
+
+        let applicableDevices: Array<{ id: string; name: string; host: string; status: string; enabled: boolean }> | undefined;
+        if (applicableDeviceIds.length > 0) {
+          applicableDevices = await prisma.biometricDevice.findMany({
+            where: {
+              OR: [
+                { id: { in: applicableDeviceIds } },
+                { host: { in: applicableDeviceIds } },
+              ],
+            },
+            select: { id: true, name: true, host: true, status: true, enabled: true },
+          });
+        }
+
         const startMin = toMinutes(w.startTime);
         const endMin = toMinutes(w.endTime);
         const lateEndMin = Math.max(endMin, toMinutes((w as any).lateEndTime ?? w.endTime));
@@ -241,8 +258,10 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
           exemptTeacherIds,
           applicableClassIds: appClassIds,
           exemptStudentIds,
+          applicableDeviceIds,
           ...(applicableTeachers ? { applicableTeachers } : {}),
           ...(applicableClasses ? { applicableClasses } : {}),
+          ...(applicableDevices ? { applicableDevices } : {}),
           audience,
           status,
           phase,
@@ -278,6 +297,7 @@ router.post("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const { name, startTime, endTime, lateEndTime, graceMinutes = 10, enabled = true,
       applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
+      applicableDeviceIds,
       facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled = true,
       windowType = "BOTH" } =
       req.body as Record<string, any>;
@@ -333,9 +353,16 @@ router.post("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     const applicableClasses = Array.isArray(applicableClassIds)
       ? applicableClassIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
       : [];
-    let exemptStudents = Array.isArray(exemptStudentIds)
-      ? exemptStudentIds.filter((id) => typeof id === "string" && id.trim() && !id.startsWith("TYPE_")).map((id) => String(id).trim())
+    const applicableDevices = Array.isArray(applicableDeviceIds)
+      ? applicableDeviceIds.filter((id) => typeof id === "string" && id.trim()).map((id) => String(id).trim())
       : [];
+    let exemptStudents = Array.isArray(exemptStudentIds)
+      ? exemptStudentIds.filter((id) => typeof id === "string" && id.trim() && !id.startsWith("TYPE_") && !id.startsWith("DEV_")).map((id) => String(id).trim())
+      : [];
+
+    applicableDevices.forEach((devId) => {
+      exemptStudents.push(`DEV_${devId}`);
+    });
 
     const normType = String(windowType || "BOTH").toUpperCase();
     if (normType === "MANUAL") {
@@ -373,6 +400,7 @@ router.post("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
         exemptTeacherIds: exemptTeachers,
         applicableClassIds: applicableClasses,
         exemptStudentIds: exemptStudents,
+        applicableDeviceIds: applicableDevices,
         ...(facultyTimer
           ? {
               facultyStartTime: facultyTimer.start,
@@ -401,6 +429,7 @@ router.put("/windows/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => 
     const {
       name, startTime, endTime, lateEndTime, graceMinutes, enabled,
       applicableTeacherIds, exemptTeacherIds, applicableClassIds, exemptStudentIds,
+      applicableDeviceIds,
       facultyStartTime, facultyEndTime, facultyLateEndTime, facultyEnabled,
       windowType
     } = req.body as Record<string, any>;
@@ -535,6 +564,21 @@ router.put("/windows/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => 
       updateData.exemptStudentIds = exemptStudentIds
         .filter((v) => typeof v === "string" && (v as string).trim())
         .map((v) => String(v).trim());
+    }
+
+    if (applicableDeviceIds !== undefined) {
+      if (!Array.isArray(applicableDeviceIds)) {
+        return res.status(400).json({ success: false, error: "applicableDeviceIds must be an array of device ids" });
+      }
+      const cleaned = applicableDeviceIds
+        .filter((v) => typeof v === "string" && (v as string).trim())
+        .map((v) => String(v).trim());
+      updateData.applicableDeviceIds = cleaned;
+
+      let currentExempt: string[] = updateData.exemptStudentIds ?? existing.exemptStudentIds ?? [];
+      currentExempt = currentExempt.filter((id: string) => !id.startsWith("DEV_"));
+      cleaned.forEach((d: string) => currentExempt.push(`DEV_${d}`));
+      updateData.exemptStudentIds = currentExempt;
     }
 
     if (windowType !== undefined) {
@@ -697,6 +741,30 @@ router.get("/teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   } catch (error) {
     console.error("Fetch teachers error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch teachers" });
+  }
+});
+
+// GET /api/admin/attendance/schedule/devices - Configured Hikvision biometric devices
+router.get("/devices", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
+  try {
+    const devices = await prisma.biometricDevice.findMany({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        host: true,
+        port: true,
+        model: true,
+        serialNo: true,
+        status: true,
+        enabled: true,
+        lastSeenAt: true,
+      },
+    });
+    return res.json({ success: true, data: devices });
+  } catch (error) {
+    console.error("Fetch schedule devices error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch biometric devices" });
   }
 });
 

@@ -121,6 +121,8 @@ export interface ScanWindowConfig {
   applicableClassIds: string[];
   /** Student exemption roster (studentProfile ids). */
   exemptStudentIds: string[];
+  /** Biometric terminal applicability roster (device ids or hosts). Empty = applies to all terminals. */
+  applicableDeviceIds?: string[];
   /** Which role timer this config was built from. */
   role: "STUDENT" | "TEACHER";
   /** Source schedule event (one unified event carries both timers). */
@@ -147,6 +149,7 @@ export interface ScanWindowRowLike {
   exemptTeacherIds?: string[];
   applicableClassIds?: string[];
   exemptStudentIds?: string[];
+  applicableDeviceIds?: string[];
   facultyStartTime?: string | null;
   facultyEndTime?: string | null;
   facultyLateEndTime?: string | null;
@@ -475,8 +478,24 @@ export async function getScanWindow(
   role?: "STUDENT" | "TEACHER",
   when: Date = new Date(),
   hardwareOnly = false,
+  deviceId?: string,
+  deviceHost?: string,
 ): Promise<ScanWindowConfig | null> {
-  const windows = await getRoleWindows(role ?? "STUDENT", hardwareOnly);
+  let windows = await getRoleWindows(role ?? "STUDENT", hardwareOnly);
+  if (deviceId || deviceHost) {
+    const matching = windows.filter((w) => {
+      if (!w.applicableDeviceIds || w.applicableDeviceIds.length === 0) return true;
+      return (
+        (deviceId && w.applicableDeviceIds.includes(deviceId)) ||
+        (deviceHost && w.applicableDeviceIds.includes(deviceHost))
+      );
+    });
+    if (matching.length > 0) {
+      windows = matching;
+    } else {
+      return null;
+    }
+  }
   if (windows.length === 0) return null;
   const { scanMinutes } = getISTDetails(when);
   return (
@@ -555,6 +574,10 @@ export function toWindowConfig(w: ScanWindowRowLike, role: "STUDENT" | "TEACHER"
     exemptTeacherIds: w.exemptTeacherIds ?? [],
     applicableClassIds: w.applicableClassIds ?? [],
     exemptStudentIds: w.exemptStudentIds ?? [],
+    applicableDeviceIds:
+      (w.applicableDeviceIds && w.applicableDeviceIds.length > 0)
+        ? w.applicableDeviceIds
+        : (w.exemptStudentIds || []).filter((s) => s.startsWith("DEV_")).map((s) => s.replace(/^DEV_/, "")),
     role,
     eventId: w.id,
     eventName: w.name,
@@ -669,6 +692,8 @@ export async function isRoleWindowOpen(
 export async function isAnyHardwareWindowOpen(
   when: Date = new Date(),
   preBufferMinutes = 5,
+  targetDeviceId?: string,
+  targetDeviceHost?: string,
 ): Promise<{ isOpen: boolean; activeWindows: ScanWindowConfig[]; reason: string }> {
   const [studentWindows, teacherWindows] = await Promise.all([
     getRoleWindows("STUDENT", true),
@@ -681,15 +706,25 @@ export async function isAnyHardwareWindowOpen(
   }
 
   const { scanMinutes } = getISTDetails(when);
-  const activeWindows = allWindows.filter(
+  let activeWindows = allWindows.filter(
     (w) => scanMinutes >= Math.max(0, w.startMinutes - preBufferMinutes) && scanMinutes <= w.lateEndMinutes,
   );
+
+  if (targetDeviceId || targetDeviceHost) {
+    activeWindows = activeWindows.filter((w) => {
+      if (!w.applicableDeviceIds || w.applicableDeviceIds.length === 0) return true;
+      return (
+        (targetDeviceId && w.applicableDeviceIds.includes(targetDeviceId)) ||
+        (targetDeviceHost && w.applicableDeviceIds.includes(targetDeviceHost))
+      );
+    });
+  }
 
   if (activeWindows.length > 0) {
     return { isOpen: true, activeWindows, reason: `Active window(s): ${activeWindows.map((w) => w.name).join(", ")}` };
   }
 
-  return { isOpen: false, activeWindows: [], reason: "All hardware scan windows are currently closed for today" };
+  return { isOpen: false, activeWindows: [], reason: "All hardware scan windows are currently closed for today (or terminal is restricted for active window)" };
 }
 
 const STUDENT_SELECT = {
@@ -1014,10 +1049,11 @@ export async function processBiometricScan(
   }
 
   // Strict Biometric Device Restriction: If scan originated from a hardware terminal, verify device is enabled
+  let matchedDevice: { id: string; name: string; host: string; enabled: boolean } | null = null;
   if (deviceId && deviceId !== "simulator" && deviceId !== "admin-simulator" && !deviceId.startsWith("mock")) {
     const rawHost = deviceId.replace(/^hikvision:(push:)?/, "").trim();
     if (rawHost) {
-      const dev = await prisma.biometricDevice.findFirst({
+      matchedDevice = await prisma.biometricDevice.findFirst({
         where: {
           OR: [
             { id: rawHost },
@@ -1027,15 +1063,15 @@ export async function processBiometricScan(
         },
         select: { id: true, name: true, host: true, enabled: true },
       });
-      if (dev && !dev.enabled) {
-        console.warn(`[biometric] Scan rejected from disabled terminal "${dev.name}" (${dev.host}): attendance polling restricted.`);
+      if (matchedDevice && !matchedDevice.enabled) {
+        console.warn(`[biometric] Scan rejected from disabled terminal "${matchedDevice.name}" (${matchedDevice.host}): attendance polling restricted.`);
         return {
           id: `restricted-device-${Date.now()}`,
           type: "SYSTEM",
           fingerprint,
           deviceId,
           timestamp: when.toISOString(),
-          message: `Terminal "${dev.name}" (${dev.host}) is disabled. Attendance polling and scanning are strictly restricted.`,
+          message: `Terminal "${matchedDevice.name}" (${matchedDevice.host}) is disabled. Attendance polling and scanning are strictly restricted.`,
         };
       }
     }
@@ -1152,7 +1188,7 @@ export async function processBiometricScan(
       }
 
       // Fetch the faculty timer from the unified schedule event (hardware biometric devices)
-      const facultyWindow = await getScanWindow("TEACHER", when, true);
+      const facultyWindow = await getScanWindow("TEACHER", when, true, matchedDevice?.id, matchedDevice?.host);
       const facultyWindowStatus = await isRoleWindowOpen("TEACHER", when, true);
 
       // Determine attendance status (PRESENT / LATE) with resilient schedule handling
@@ -1419,7 +1455,7 @@ export async function processBiometricScan(
   };
 
   // Fetch the Talabat timer from the unified schedule event (hardware biometric devices)
-  const studentWindow = await getScanWindow("STUDENT", when, true);
+  const studentWindow = await getScanWindow("STUDENT", when, true, matchedDevice?.id, matchedDevice?.host);
   const studentWindowStatus = await isRoleWindowOpen("STUDENT", when, true);
 
   // Ensure active class enrollment exists

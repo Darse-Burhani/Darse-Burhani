@@ -68,11 +68,25 @@ interface ScanWindow {
   applicableTeacherIds?: string[];
   exemptStudentIds?: string[];
   exemptTeacherIds?: string[];
+  applicableDeviceIds?: string[];
   applicableClasses?: Array<{ id: string; name: string; grade: string; section: string }>;
   applicableTeachers?: Array<{ id: string; name: string }>;
+  applicableDevices?: Array<{ id: string; name: string; host: string; status: string; enabled: boolean }>;
   windowType?: "HIKVISION" | "MANUAL" | "BOTH";
   createdAt: string;
   updatedAt: string;
+}
+
+interface BiometricDeviceItem {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  model?: string | null;
+  serialNo?: string | null;
+  status: string;
+  enabled: boolean;
+  lastSeenAt?: string | null;
 }
 
 interface ClassItem {
@@ -196,6 +210,8 @@ export default function AdminAttendanceSchedulePage() {
   const [windows, setWindows] = useState<ScanWindow[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
+  const [devices, setDevices] = useState<BiometricDeviceItem[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
   const [windowModalOpen, setWindowModalOpen] = useState(false);
   const [editingWindow, setEditingWindow] = useState<ScanWindow | null>(null);
 
@@ -215,11 +231,13 @@ export default function AdminAttendanceSchedulePage() {
     facultyEndTime: "08:03",
     facultyLateEndTime: "08:30",
     applicableTeacherIds: [] as string[],
+    applicableDeviceIds: [] as string[],
   });
 
   const [modalTab, setModalTab] = useState<"basics" | "timing" | "scope">("basics");
   const [classFilterQuery, setClassFilterQuery] = useState("");
   const [teacherFilterQuery, setTeacherFilterQuery] = useState("");
+  const [deviceFilterQuery, setDeviceFilterQuery] = useState("");
 
   const addMinutesToTime = (timeStr: string, minsToAdd: number) => {
     if (!timeStr) return "08:00";
@@ -281,13 +299,31 @@ export default function AdminAttendanceSchedulePage() {
     }
   }, []);
 
+  // Fetch Configured Biometric Devices
+  const fetchDevices = useCallback(async () => {
+    try {
+      setLoadingDevices(true);
+      const res = await fetch("/api/admin/attendance/schedule/devices");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setDevices(json.data);
+        }
+      }
+    } catch {
+      // silent fallback
+    } finally {
+      setLoadingDevices(false);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
-      await Promise.allSettled([fetchWindows(), fetchClassesAndTeachers()]);
+      await Promise.allSettled([fetchWindows(), fetchClassesAndTeachers(), fetchDevices()]);
     } finally {
       setLoading(false);
     }
-  }, [fetchWindows, fetchClassesAndTeachers]);
+  }, [fetchWindows, fetchClassesAndTeachers, fetchDevices]);
 
   useEffect(() => {
     loadData();
@@ -364,6 +400,7 @@ export default function AdminAttendanceSchedulePage() {
         facultyEndTime: w.facultyEndTime || w.endTime,
         facultyLateEndTime: w.facultyLateEndTime || w.lateEndTime || w.endTime,
         applicableTeacherIds: w.applicableTeacherIds || [],
+        applicableDeviceIds: w.applicableDeviceIds || [],
       });
     } else {
       setEditingWindow(null);
@@ -390,11 +427,13 @@ export default function AdminAttendanceSchedulePage() {
         facultyEndTime: "08:03",
         facultyLateEndTime: "08:30",
         applicableTeacherIds: [],
+        applicableDeviceIds: [],
       });
     }
     setModalTab("basics");
     setClassFilterQuery("");
     setTeacherFilterQuery("");
+    setDeviceFilterQuery("");
     setWindowModalOpen(true);
   };
 
@@ -417,6 +456,7 @@ export default function AdminAttendanceSchedulePage() {
       const payload: Record<string, any> = {
         name: windowForm.name.trim(),
         windowType: windowForm.windowType,
+        applicableDeviceIds: windowForm.applicableDeviceIds,
         startTime: windowForm.startTime,
         endTime: windowForm.endTime,
         lateEndTime: isManual ? windowForm.endTime : (windowForm.lateEndTime || windowForm.endTime),
@@ -934,6 +974,56 @@ export default function AdminAttendanceSchedulePage() {
                         ) : (
                           <p className="text-[10px] text-blue-700 font-medium">
                             All active faculty eligible for scanning during this schedule.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Biometric Terminal Polling Scope */}
+                    {(w.windowType === "HIKVISION" || w.windowType === "BOTH" || w.id === "default" || w.id.startsWith("hik_")) && (
+                      <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-purple-950 flex items-center gap-1.5">
+                            <Radio className="w-3.5 h-3.5 text-purple-700" />
+                            Terminal Polling Scope:
+                          </span>
+                          {(!w.applicableDeviceIds || w.applicableDeviceIds.length === 0) ? (
+                            <Badge variant="outline" className="bg-white text-purple-800 border-purple-300 font-bold text-[10px]">
+                              All Terminals Polling
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-purple-700 text-white font-bold text-[10px]">
+                              {w.applicableDeviceIds.length} Eligible Terminal{w.applicableDeviceIds.length > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </div>
+                        {w.applicableDeviceIds && w.applicableDeviceIds.length > 0 ? (
+                          <div className="space-y-1">
+                            <p className="text-[11px] text-purple-900 font-medium leading-tight">
+                              Only selected terminals poll attendance for this schedule. Other terminals are strictly restricted.
+                            </p>
+                            {w.applicableDevices && w.applicableDevices.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {w.applicableDevices.map((d) => (
+                                  <span key={d.id} className="text-[10px] bg-white border border-purple-200 text-purple-900 font-semibold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${d.enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
+                                    {d.name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {w.applicableDeviceIds.map((id) => (
+                                  <span key={id} className="text-[10px] bg-white border border-purple-200 text-purple-900 font-semibold px-2 py-0.5 rounded-md">
+                                    {id}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-purple-700 font-medium">
+                            All enabled biometric terminals poll and accept attendance for this schedule.
                           </p>
                         )}
                       </div>
@@ -1639,26 +1729,142 @@ export default function AdminAttendanceSchedulePage() {
                       exit={{ opacity: 0, x: 8 }}
                       className="space-y-5"
                     >
-                      {/* If HIKVISION: Show Universal Gate Scope Banner for Students */}
-                      {windowForm.windowType === "HIKVISION" && (
-                        <div className="p-5 rounded-3xl bg-gradient-to-br from-purple-50 via-indigo-50/50 to-white border-2 border-purple-200/80 space-y-3 shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-800 shadow-inner shrink-0">
-                              <Radio className="w-5 h-5 text-purple-700" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-black uppercase tracking-wider text-purple-950 font-display">
-                                  Universal Gate Scanning Scope (Talabat)
-                                </h4>
-                                <Badge className="bg-purple-600 text-white text-[10px] font-black uppercase">
-                                  Hikvision Terminal
-                                </Badge>
+                      {/* Biometric Terminal Polling Eligibility Scope (Hikvision Devices) */}
+                      {(windowForm.windowType === "HIKVISION" || windowForm.windowType === "BOTH") && (
+                        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-purple-50/90 via-indigo-50/40 to-white border-2 border-purple-200/90 space-y-3.5 shadow-xs">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-2xl bg-purple-100 border border-purple-300 text-purple-800 flex items-center justify-center shadow-inner shrink-0">
+                                <Radio className="w-4 h-4 text-purple-700" />
                               </div>
-                              <p className="text-xs text-purple-800 font-medium mt-0.5">
-                                All registered Talabat authenticate automatically at MinMoe gates without class restrictions.
+                              <div>
+                                <span className="text-xs font-black uppercase tracking-wider text-purple-950 block">
+                                  Hikvision Terminal Polling Eligibility
+                                </span>
+                                <span className="text-[11px] text-purple-800/80 font-medium block">
+                                  Choose which biometric terminals are eligible to poll &amp; record attendance for this schedule.
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] font-bold bg-white text-purple-900 border-purple-300 shadow-2xs">
+                                {windowForm.applicableDeviceIds.length === 0
+                                  ? "All Terminals Poll (Default)"
+                                  : `${windowForm.applicableDeviceIds.length} Eligible Terminal${windowForm.applicableDeviceIds.length > 1 ? "s" : ""}`}
+                              </Badge>
+
+                              {windowForm.applicableDeviceIds.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:underline"
+                                >
+                                  Clear (All Poll)
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWindowForm({ ...windowForm, applicableDeviceIds: devices.map((d) => d.id) })
+                                  }
+                                  className="text-[10px] font-bold text-purple-700 hover:underline"
+                                >
+                                  Select Specific
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Terminal Selection Cards */}
+                          {devices.length === 0 ? (
+                            <div className="p-3 bg-white rounded-2xl border border-purple-100 text-xs text-purple-700 space-y-1">
+                              <p className="font-bold">No configured biometric terminals detected.</p>
+                              <p className="text-[11px] text-gray-500">
+                                Active Hikvision gates will poll attendance by default. Add terminals in <strong className="text-purple-900">Device Hub</strong>.
                               </p>
                             </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {devices.map((dev) => {
+                                const isSelected = windowForm.applicableDeviceIds.includes(dev.id) || windowForm.applicableDeviceIds.includes(dev.host);
+                                return (
+                                  <label
+                                    key={dev.id}
+                                    className={cn(
+                                      "p-3 rounded-2xl border text-xs cursor-pointer transition-all flex items-start gap-3",
+                                      isSelected
+                                        ? "bg-white border-purple-500 shadow-sm ring-2 ring-purple-400/40"
+                                        : "bg-white/80 border-purple-100 hover:border-purple-300 hover:bg-white text-gray-700"
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setWindowForm({
+                                            ...windowForm,
+                                            applicableDeviceIds: [...windowForm.applicableDeviceIds, dev.id],
+                                          });
+                                        } else {
+                                          setWindowForm({
+                                            ...windowForm,
+                                            applicableDeviceIds: windowForm.applicableDeviceIds.filter(
+                                              (id) => id !== dev.id && id !== dev.host
+                                            ),
+                                          });
+                                        }
+                                      }}
+                                      className="rounded border-purple-400 text-purple-600 focus:ring-purple-500 w-4 h-4 mt-0.5"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <p className="font-bold text-gray-900 truncate text-xs">{dev.name}</p>
+                                        <Badge
+                                          variant="outline"
+                                          className={`text-[9px] font-bold py-0 px-1.5 shrink-0 ${
+                                            dev.status === "ONLINE"
+                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                              : dev.status === "ERROR"
+                                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                                              : "bg-gray-50 text-gray-600 border-gray-200"
+                                          }`}
+                                        >
+                                          {dev.status}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-[10px] text-gray-500 font-mono mt-0.5 truncate">
+                                        {dev.host}:{dev.port} {dev.model ? `• ${dev.model}` : ""}
+                                      </p>
+                                      <div className="mt-1 flex items-center gap-1.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${dev.enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
+                                        <span className={`text-[10px] font-bold ${isSelected ? "text-purple-700" : "text-gray-400"}`}>
+                                          {isSelected ? "Eligible to Poll" : "Restricted for this window"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="p-2.5 rounded-xl bg-white/80 border border-purple-100 flex items-center justify-between text-[11px] text-purple-900">
+                            <span>
+                              {windowForm.applicableDeviceIds.length === 0
+                                ? "Mode: Universal Polling (All active terminals poll attendance)"
+                                : `Mode: Strict Hardware Polling (${windowForm.applicableDeviceIds.length} chosen terminal${windowForm.applicableDeviceIds.length > 1 ? "s" : ""} poll; other terminals restricted)`}
+                            </span>
+                            {windowForm.applicableDeviceIds.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
+                                className="font-bold underline text-purple-700 hover:text-purple-900 text-xs"
+                              >
+                                Reset to All Terminals
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}

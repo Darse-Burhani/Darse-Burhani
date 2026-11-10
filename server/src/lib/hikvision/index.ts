@@ -907,12 +907,12 @@ export async function pollDevice(
 
     // Tilawat al Dua schedule adherence:
     // Terminal polling strictly sticks to active scheduled scan window timing!
-    // Automatic polling is active ONLY when an authorized hardware scanning window is ON.
+    // Automatic polling is active ONLY when an authorized hardware scanning window is ON and this terminal is eligible!
     if (!force) {
       const { isAnyHardwareWindowOpen } = await import("../biometric");
-      const hwStatus = await isAnyHardwareWindowOpen(to, 5).catch(() => ({ isOpen: false }));
+      const hwStatus = await isAnyHardwareWindowOpen(to, 5, device.id, device.host).catch(() => ({ isOpen: false }));
       if (!hwStatus.isOpen) {
-        return { scansFetched: 0, scansProcessed: 0 };
+        return { scansFetched: 0, scansProcessed: 0, restricted: true };
       }
     }
 

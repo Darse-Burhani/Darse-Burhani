@@ -895,6 +895,9 @@ model BiometricScanWindow {
   // Non-empty = only these class ids are expected.
   applicableClassIds   String[] @default([])
   exemptStudentIds     String[] @default([])
+  // Device applicability: empty = applies to all biometric terminals.
+  // Non-empty = only these biometricDevice ids/hosts are eligible to poll & record for this schedule.
+  applicableDeviceIds  String[] @default([])
   // ── Unified-event faculty timer ──
   // ONE schedule event carries BOTH the Talabat timer (startTime/endTime/
   // lateEndTime) and the faculty timer below. Null faculty times = this event
