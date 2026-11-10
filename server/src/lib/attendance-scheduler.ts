@@ -91,8 +91,24 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   markedStudents: Array<{ id: string; name: string; grade: string; section: string }>;
 }> {
   console.log("[attendance-scheduler] Starting automated auto-mark absent job...");
-  const dayStart = getStartOfDayIST(targetDate || new Date());
+  const now = new Date();
+  const istNow = getISTDetails(now);
+  const dayStart = getStartOfDayIST(targetDate || now);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  // Safety guard: Auto-mark absent should NEVER run before morning arrival window ends (09:00 AM IST)
+  // on the current day, preventing premature false absent markings.
+  const isTargetToday = dayStart.getTime() === getStartOfDayIST(now).getTime();
+  if (isTargetToday && istNow.scanMinutes < 540) {
+    console.warn(`[attendance-scheduler] Guard triggered: Skipping auto-mark absent because current time (${istNow.timeFormatted12}) is before 09:00 AM IST morning arrival cutoff.`);
+    return {
+      markedCount: 0,
+      defaultPresentMode: false,
+      alreadyLoggedCount: 0,
+      totalStudents: 0,
+      markedStudents: [],
+    };
+  }
 
   const students = await prisma.studentProfile.findMany({
     where: { user: { isActive: true } },
@@ -104,6 +120,11 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
         take: 1,
       },
       attendanceRecords: {
+        where: {
+          date: { gte: dayStart, lt: dayEnd },
+        },
+      },
+      attendanceRegistries: {
         where: {
           date: { gte: dayStart, lt: dayEnd },
         },
@@ -250,7 +271,10 @@ export async function runAutoMarkAbsentJob(targetDate?: Date): Promise<{
   const defaultPresentMode = false;
 
   for (const s of students) {
-    if (s.attendanceRecords.length > 0) {
+    const hasGatePunch = (s.attendanceRegistries ?? []).some(
+      (r: any) => r.status === "PRESENT" || r.status === "LATE" || r.checkInTime !== null
+    );
+    if (s.attendanceRecords.length > 0 || hasGatePunch) {
       alreadyLoggedCount++;
       continue;
     }
@@ -536,8 +560,24 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
   markedTeachers: Array<{ id: string; name: string }>;
 }> {
   console.log("[attendance-scheduler] Starting faculty auto-mark absent job...");
-  const dayStart = getStartOfDayIST(targetDate || new Date());
+  const now = new Date();
+  const istNow = getISTDetails(now);
+  const dayStart = getStartOfDayIST(targetDate || now);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  // Safety guard: Faculty auto-mark absent should NEVER run before morning arrival window ends (09:00 AM IST)
+  const isTargetToday = dayStart.getTime() === getStartOfDayIST(now).getTime();
+  if (isTargetToday && istNow.scanMinutes < 540) {
+    console.warn(`[attendance-scheduler] Guard triggered: Skipping faculty auto-mark absent before 09:00 AM IST.`);
+    return {
+      markedCount: 0,
+      alreadyLoggedCount: 0,
+      medicalCount: 0,
+      skippedCount: 0,
+      totalExpected: 0,
+      markedTeachers: [],
+    };
+  }
 
   const expected = await getExpectedFacultyForDay();
 
@@ -1086,10 +1126,13 @@ export function startAttendanceScheduler() {
       }
 
       // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC) - skip on Sunday
+      // Note: evaluated in IST minutes so UTC day boundaries never trigger a premature midnight run
+      const autoMarkAbsentISTMinutes = (config.autoMarkAbsentHourUtc * 60 + 330) % 1440; // 14:00 UTC = 19:30 IST = 1170 min
       if (
         config.autoMarkAbsentEnabled &&
         !isSunday &&
-        currentHour >= config.autoMarkAbsentHourUtc &&
+        scanMinutes >= 660 && // At or after 11:00 AM IST (never early morning or midnight!)
+        scanMinutes >= autoMarkAbsentISTMinutes &&
         lastAutoAbsentRunDate?.slice(0, 10) !== todayDateStr
       ) {
         lastAutoAbsentRunDate = todayDateStr;
@@ -1104,20 +1147,22 @@ export function startAttendanceScheduler() {
       }
 
       // D. Automated Weekly Digest (Sunday 09:30 AM IST / 04:00 UTC)
+      const weeklyISTMinutes = (config.weeklyHourUtc * 60 + 330) % 1440;
       if (
         config.autoWeeklyEnabled &&
         currentDayOfWeek === config.weeklyDayOfWeek &&
-        currentHour >= config.weeklyHourUtc &&
+        scanMinutes >= weeklyISTMinutes &&
         lastWeeklyRunDate?.slice(0, 10) !== todayDateStr
       ) {
         await runWeeklyAttendanceReportJob();
       }
 
       // E. Automated Monthly Digest (1st of month 09:30 AM IST / 04:00 UTC)
+      const monthlyISTMinutes = (config.monthlyHourUtc * 60 + 330) % 1440;
       if (
         config.autoMonthlyEnabled &&
         currentDayOfMonth === config.monthlyDayOfMonth &&
-        currentHour >= config.monthlyHourUtc &&
+        scanMinutes >= monthlyISTMinutes &&
         lastMonthlyRunDate?.slice(0, 7) !== todayDateStr.slice(0, 7)
       ) {
         await runMonthlyAttendanceReportJob();

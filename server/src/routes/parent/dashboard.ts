@@ -277,12 +277,16 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
           const studentBadges = badgesByStudentMap.get(student.id) || [];
           const latestSlip = latestSlipByStudentMap.get(student.id) || null;
 
-          const daysPresentLast7 = weeklyRecords.filter((r) => r.checkInTime || r.status === "PRESENT").length;
+          const daysPresentLast7 = weeklyRecords.filter((r) => r.checkInTime || r.status === "PRESENT" || r.status === "LATE").length;
           
-          // Determine active check-in status
+          // Determine active check-in status (prioritizing biometric registry and handling LATE status)
           const checkInTime = registry?.checkInTime || attendance?.checkInTime || null;
-          const isCheckedIn = !!checkInTime || (registry?.status === "PRESENT" || attendance?.status === "PRESENT");
-          const attendanceStatus = registry?.status || attendance?.status || (isCheckedIn ? "PRESENT" : "ABSENT");
+          const isCheckedIn = !!checkInTime || (registry?.status === "PRESENT" || registry?.status === "LATE" || attendance?.status === "PRESENT" || attendance?.status === "LATE");
+          const attendanceStatus = (registry?.status && registry.status !== "ABSENT")
+            ? registry.status
+            : (attendance?.status && attendance.status !== "ABSENT")
+            ? attendance.status
+            : registry?.status || attendance?.status || (isCheckedIn ? "PRESENT" : "ABSENT");
 
           // Resolve Academic Class & Masool (with robust fallback)
           const enrollmentClass = student.classEnrollments?.[0]?.class;

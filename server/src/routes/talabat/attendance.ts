@@ -157,9 +157,14 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
             biometricRecord?.status ||
             (defaultPresentToday && !isRabiDay && dateStr === todayStrIST ? "PRESENT" : null);
 
+          const effectiveStatus =
+            (record?.status && record.status !== "ABSENT")
+              ? record.status
+              : biometricRecord?.status || record?.status || null;
+
           calendar.push({
             day: d,
-            status: record?.status || null,
+            status: effectiveStatus,
             tilawatStatus,
           });
         }
