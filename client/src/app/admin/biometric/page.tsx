@@ -86,6 +86,26 @@ export default function BiometricAdminPage() {
     lastAt?: string | null;
   } | null>(null);
   const [syncingAllClocks, setSyncingAllClocks] = useState(false);
+  const [powerSyncing, setPowerSyncing] = useState(false);
+
+  const handlePowerSyncAll = async () => {
+    setPowerSyncing(true);
+    toast.loading("⚡ Power-syncing all 3 Hikvision terminals (ping, IST clock & punches)...");
+    try {
+      const res = await fetch("/api/biometric/devices/power-sync-all", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "All 3 terminals synchronized with live cloud");
+        refreshAllData();
+      } else {
+        toast.error(data.error || "Power sync failed");
+      }
+    } catch {
+      toast.error("Failed to power sync terminals");
+    } finally {
+      setPowerSyncing(false);
+    }
+  };
 
   // Stats
   const [statsMetrics, setStatsMetrics] = useState({
@@ -550,7 +570,7 @@ export default function BiometricAdminPage() {
             </div>
             <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-              Dual Hardware Connected
+              3 MinMoe Terminals Active
             </div>
           </Card>
 
@@ -641,18 +661,29 @@ export default function BiometricAdminPage() {
               </div>
             </div>
 
-            <div className="lg:w-64 shrink-0 flex flex-col justify-center gap-2">
+            <div className="lg:w-72 shrink-0 flex flex-col justify-center gap-2">
+              <Button
+                type="button"
+                onClick={handlePowerSyncAll}
+                disabled={powerSyncing}
+                className="rounded-xl h-10 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md shadow-emerald-700/20 active:scale-95 transition-all"
+                title="Parallel ping, clock alignment, and punch polling across 192.168.0.4, 192.168.0.5, and 192.168.0.11"
+              >
+                <Zap className={cn("w-3.5 h-3.5 mr-1.5 text-amber-300", powerSyncing && "animate-spin")} />
+                {powerSyncing ? "Syncing 3 Terminals..." : "⚡ Power-Sync All 3 Terminals"}
+              </Button>
               <Button
                 type="button"
                 onClick={handleSyncAllClocks}
                 disabled={syncingAllClocks}
-                className="rounded-xl h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
+                variant="outline"
+                className="rounded-xl h-9 border-emerald-200 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
               >
                 <Clock className={cn("w-3.5 h-3.5 mr-1.5", syncingAllClocks && "animate-spin")} />
                 {syncingAllClocks ? "Syncing Clocks..." : "Sync All Clocks (IST)"}
               </Button>
               <p className="text-[10px] text-gray-500 leading-relaxed">
-                Timestamps are stored in UTC and displayed in Asia/Kolkata. Drift above 45 seconds is auto-corrected by the bridge and on every poll.
+                Parallel ping, clock alignment, and punch polling across 192.168.0.4, 192.168.0.5, and 192.168.0.11.
               </p>
             </div>
           </div>

@@ -1,4 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
+import http from "node:http";
+import https from "node:https";
 
 export interface DigestChallenge {
   realm: string;
@@ -9,6 +11,34 @@ export interface DigestChallenge {
 }
 
 const DIGEST_PARAM = /([a-zA-Z0-9_-]+)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^\s,]+))/g;
+
+/**
+ * Cache challenges per host:port so we send Digest Authorization pre-emptively
+ * on subsequent calls. This eliminates the 401 round-trip and doubles throughput.
+ */
+const challengeCache = new Map<string, DigestChallenge>();
+
+/**
+ * High-performance HTTP Keep-Alive Agent for Hikvision MinMoe terminals.
+ * Keeps TCP sockets open and reuses them across calls, preventing socket exhaustion
+ * and connection drops on MinMoe embedded Linux devices.
+ */
+export const hikHttpAgent = new http.Agent({
+  keepAlive: true,
+  maxSockets: 25,
+  maxFreeSockets: 10,
+  timeout: 15000,
+  keepAliveMsecs: 30000,
+});
+
+export const hikHttpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 25,
+  maxFreeSockets: 10,
+  timeout: 15000,
+  keepAliveMsecs: 30000,
+  rejectUnauthorized: false,
+});
 
 /**
  * Parse a `WWW-Authenticate: Digest ...` header into its challenge params.
@@ -79,13 +109,12 @@ export interface DigestFetchOptions extends RequestInit {
   username: string;
   password: string;
   timeoutMs?: number;
+  retries?: number;
 }
 
 /**
  * Build a human-readable suffix explaining WHY a 401 came back from a
- * Hikvision terminal. Uninitialised terminals report
- * `<isActivated>false</isActivated>` in the 401 body — a much more actionable
- * hint than the generic "bad credentials". Returns "" for non-401 responses.
+ * Hikvision terminal.
  */
 export async function authFailureHint(res: Response): Promise<string> {
   if (res.status !== 401) return "";
@@ -102,44 +131,124 @@ export async function authFailureHint(res: Response): Promise<string> {
 }
 
 /**
- * Fetch that transparently handles Hikvision's MD5 Digest auth: issues the
- * request, reads the 401 challenge, and retries once with the response hash.
+ * Ultra-resilient fetch that transparently handles Hikvision MD5 Digest auth,
+ * pre-emptive challenge caching, connection pooling, and automatic retry on transient drops.
  */
 export async function digestFetch(url: string, options: DigestFetchOptions): Promise<Response> {
-  const { username, password, timeoutMs = 8000, ...init } = options;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const { username, password, timeoutMs = 10000, retries = 2, ...init } = options;
+  const parsed = new URL(url);
+  const hostKey = `${parsed.hostname}:${parsed.port || (parsed.protocol === "https:" ? 443 : 80)}`;
+  const uri = parsed.pathname + parsed.search;
 
-  try {
-    let res = await fetch(url, { ...init, signal: controller.signal });
+  // 1. If payload body is present but no challenge cached yet, probe with a lightweight GET
+  // so the terminal challenges on an empty request without resetting the TCP socket.
+  let challenge = challengeCache.get(hostKey);
+  if (!challenge && init.body) {
+    try {
+      const probeController = new AbortController();
+      const probeTimer = setTimeout(() => probeController.abort(), Math.min(timeoutMs, 3000));
+      const probeRes = await fetch(`${parsed.origin}/ISAPI/System/time`, {
+        method: "GET",
+        signal: probeController.signal,
+        headers: { Connection: "keep-alive" },
+      }).catch(() => null);
+      clearTimeout(probeTimer);
 
-    if (res.status === 401) {
-      const challenge = parseDigestChallenge(res.headers.get("www-authenticate") ?? "");
-      if (challenge) {
-        const parsed = new URL(url);
-        const uri = parsed.pathname + parsed.search;
-        const authorization = buildDigestAuthHeader(
-          (init.method ?? "GET").toUpperCase(),
-          uri,
-          challenge,
-          username,
-          password,
-        );
-        res = await fetch(url, {
-          ...init,
-          headers: { ...(init.headers ?? {}), Authorization: authorization },
-          signal: controller.signal,
-        });
+      if (probeRes && probeRes.status === 401) {
+        const probedChallenge = parseDigestChallenge(probeRes.headers.get("www-authenticate") ?? "");
+        if (probedChallenge) {
+          challenge = probedChallenge;
+          challengeCache.set(hostKey, challenge);
+        }
       }
+    } catch {
+      // Continue normal flow
     }
-
-    return res;
-  } catch (err: any) {
-    if (err?.name === "AbortError" || controller.signal.aborted) {
-      throw new Error(`Connection timed out (${Math.round(timeoutMs / 1000)}s) — device is offline or unreachable`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timer);
   }
+
+  // 2. Request execution with automated retry on transient socket drops
+  let attempt = 0;
+  let lastError: any = null;
+
+  while (attempt <= retries) {
+    attempt++;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const reqHeaders = new Headers(init.headers as any || {});
+      reqHeaders.set("Connection", "keep-alive");
+
+      // Use pre-emptive cached challenge if available
+      if (challenge) {
+        reqHeaders.set(
+          "Authorization",
+          buildDigestAuthHeader((init.method ?? "GET").toUpperCase(), uri, challenge, username, password),
+        );
+      }
+
+      let res = await fetch(url, {
+        ...init,
+        headers: reqHeaders,
+        signal: controller.signal,
+        // @ts-ignore Node.js keepalive extension
+        keepalive: true,
+      });
+
+      // If 401 occurs (either no cached challenge or nonce became stale)
+      if (res.status === 401) {
+        const freshChallenge = parseDigestChallenge(res.headers.get("www-authenticate") ?? "");
+        if (freshChallenge) {
+          challenge = freshChallenge;
+          challengeCache.set(hostKey, challenge);
+
+          reqHeaders.set(
+            "Authorization",
+            buildDigestAuthHeader((init.method ?? "GET").toUpperCase(), uri, challenge, username, password),
+          );
+
+          res = await fetch(url, {
+            ...init,
+            headers: reqHeaders,
+            signal: controller.signal,
+            // @ts-ignore Node.js keepalive extension
+            keepalive: true,
+          });
+        }
+      }
+
+      clearTimeout(timer);
+      return res;
+    } catch (err: any) {
+      clearTimeout(timer);
+      lastError = err;
+
+      const isAbort = err?.name === "AbortError" || controller.signal.aborted;
+      const isTransientDrop =
+        err?.code === "ECONNRESET" ||
+        err?.code === "ETIMEDOUT" ||
+        err?.code === "EPIPE" ||
+        err?.code === "EHOSTUNREACH" ||
+        err?.message?.includes("fetch failed") ||
+        err?.message?.includes("socket hang up");
+
+      if (attempt <= retries && (isTransientDrop || isAbort)) {
+        // Clear cached challenge in case connection dropped due to stale auth
+        challengeCache.delete(hostKey);
+        challenge = undefined;
+        // Fast backoff before retry (200ms, 500ms)
+        await new Promise((r) => setTimeout(r, attempt * 250));
+        continue;
+      }
+
+      if (isAbort) {
+        throw new Error(
+          `Connection timed out (${Math.round(timeoutMs / 1000)}s) to terminal ${parsed.hostname} — device offline or unreachable`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  throw lastError || new Error(`Failed to connect to ${parsed.hostname} after ${retries} attempts`);
 }

@@ -104,9 +104,13 @@ const DEVICES = rawHosts
   .filter(Boolean)
   .map((host, idx) => {
     const [ip, portStr] = host.split(':');
+    let name = 'Main Entrance MinMoe (192.168.0.4)';
+    if (ip.endsWith('.5') || idx === 1) name = 'Secondary Terminal (192.168.0.5)';
+    else if (ip.endsWith('.11') || idx === 2) name = 'Attendance Terminal 3 (192.168.0.11)';
+    else if (idx > 0) name = `Terminal ${idx + 1} (${ip})`;
     return {
       id: `dev-${idx + 1}`,
-      name: idx === 0 ? 'Main Entrance MinMoe' : `Secondary Terminal ${idx + 1}`,
+      name,
       host: ip,
       port: parseInt(portStr || process.env.HIKVISION_PORT || '80', 10),
       username: process.env.HIKVISION_USERNAME || 'admin',
@@ -335,87 +339,96 @@ export async function syncMonthDevicesToRender(monthStr) {
   const allEvents = [];
   const deviceReports = [];
 
-  for (const dev of DEVICES) {
-    let devEvents = [];
-    let position = 0;
-    const pageSize = 30;
-    let hasMore = true;
-    let totalMatches = null;
+  const reports = await Promise.all(
+    DEVICES.map(async (dev) => {
+      let devEvents = [];
+      let position = 0;
+      const pageSize = 30;
+      let hasMore = true;
+      let totalMatches = null;
 
-    console.log(`   ⏳ Querying ${dev.name} (${dev.host}) for entire month ${targetMonth}...`);
+      console.log(`   ⏳ Querying ${dev.name} (${dev.host}) for entire month ${targetMonth}...`);
 
-    while (hasMore) {
-      const payload = JSON.stringify({
-        AcsEventCond: {
-          searchID: `month-${Date.now()}`,
-          searchResultPosition: position,
-          maxResults: pageSize,
-          major: 0,
-          minor: 0,
-          startTime,
-          endTime,
-        },
-      });
-
-      const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
-      try {
-        const res = await digestFetch(url, {
-          method: 'POST',
-          username: dev.username,
-          password: dev.password,
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          timeoutMs: 12000,
+      while (hasMore) {
+        const payload = JSON.stringify({
+          AcsEventCond: {
+            searchID: `month-${Date.now()}-${dev.id}`,
+            searchResultPosition: position,
+            maxResults: pageSize,
+            major: 0,
+            minor: 0,
+            startTime,
+            endTime,
+          },
         });
 
-        if (!res.ok) {
-          console.warn(`      ⚠️ HTTP ${res.status} at position ${position}`);
+        const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
+        try {
+          const res = await digestFetch(url, {
+            method: 'POST',
+            username: dev.username,
+            password: dev.password,
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            timeoutMs: 12000,
+          });
+
+          if (!res.ok) {
+            console.warn(`      ⚠️ HTTP ${res.status} at position ${position}`);
+            break;
+          }
+
+          const data = await res.json();
+          const acs = data?.AcsEvent;
+          if (!acs) break;
+
+          totalMatches = acs.totalMatches ?? totalMatches;
+          const list = acs.InfoList || [];
+          if (list.length === 0) break;
+
+          for (const item of list) {
+            const rawEmp = item.employeeNoString || item.name || item.cardNo;
+            if (!rawEmp) continue;
+            const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
+            const timeStr = normalizeDeviceTime(item.time);
+            const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
+            const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
+            devEvents.push({
+              employeeNo: empNo,
+              name: item.name || '',
+              cardNo: item.cardNo || '',
+              time: timeStr,
+              currentVerifyMode: verifyMode,
+              serialNo: serial,
+              deviceHost: dev.host,
+            });
+          }
+
+          position += list.length;
+          if (totalMatches !== null && position >= totalMatches) break;
+          if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') break;
+        } catch (err) {
+          console.error(`      ❌ Month fetch error for ${dev.name}:`, err.message);
           break;
         }
-
-        const data = await res.json();
-        const acs = data?.AcsEvent;
-        if (!acs) break;
-
-        totalMatches = acs.totalMatches ?? totalMatches;
-        const list = acs.InfoList || [];
-        if (list.length === 0) break;
-
-        for (const item of list) {
-          const rawEmp = item.employeeNoString || item.name || item.cardNo;
-          if (!rawEmp) continue;
-          const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
-          const timeStr = normalizeDeviceTime(item.time);
-          const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
-          const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
-          devEvents.push({
-            employeeNo: empNo,
-            name: item.name || '',
-            cardNo: item.cardNo || '',
-            time: timeStr,
-            currentVerifyMode: verifyMode,
-            serialNo: serial,
-            deviceHost: dev.host,
-          });
-        }
-
-        position += list.length;
-        if (totalMatches !== null && position >= totalMatches) break;
-        if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') break;
-      } catch (err) {
-        console.error(`      ❌ Month fetch error for ${dev.name}:`, err.message);
-        break;
       }
-    }
 
-    console.log(`   ✓ Retrieved ${devEvents.length} events for ${targetMonth} from ${dev.name} (${dev.host})`);
-    deviceReports.push({
-      name: dev.name,
-      host: dev.host,
-      fetched: devEvents.length,
-      success: true,
-    });
-    allEvents.push(...devEvents);
+      console.log(`   ✓ Retrieved ${devEvents.length} events for ${targetMonth} from ${dev.name} (${dev.host})`);
+      return {
+        events: devEvents,
+        report: {
+          name: dev.name,
+          host: dev.host,
+          fetched: devEvents.length,
+          success: true,
+        },
+      };
+    })
+  );
+
+  for (const r of reports) {
+    deviceReports.push(r.report);
+    allEvents.push(...r.events);
   }
 
   // Deduplicate by employeeNo + date/time minute
@@ -507,87 +520,96 @@ export async function syncAllDevicesToRender(targetDateStr) {
   const allEvents = [];
   const deviceReports = [];
 
-  for (const dev of DEVICES) {
-    let devEvents = [];
-    let position = 0;
-    const pageSize = 30;
-    let hasMore = true;
-    let totalMatches = null;
+  const reports = await Promise.all(
+    DEVICES.map(async (dev) => {
+      let devEvents = [];
+      let position = 0;
+      const pageSize = 30;
+      let hasMore = true;
+      let totalMatches = null;
 
-    console.log(`   ⏳ Querying ${dev.name} (${dev.host})...`);
+      console.log(`   ⏳ Querying ${dev.name} (${dev.host})...`);
 
-    while (hasMore) {
-      const payload = JSON.stringify({
-        AcsEventCond: {
-          searchID: `sync-${Date.now()}`,
-          searchResultPosition: position,
-          maxResults: pageSize,
-          major: 0,
-          minor: 0,
-          startTime,
-          endTime,
-        },
-      });
-
-      const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
-      try {
-        const res = await digestFetch(url, {
-          method: 'POST',
-          username: dev.username,
-          password: dev.password,
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          timeoutMs: 8000,
+      while (hasMore) {
+        const payload = JSON.stringify({
+          AcsEventCond: {
+            searchID: `sync-${Date.now()}-${dev.id}`,
+            searchResultPosition: position,
+            maxResults: pageSize,
+            major: 0,
+            minor: 0,
+            startTime,
+            endTime,
+          },
         });
 
-        if (!res.ok) {
-          console.warn(`      ⚠️ HTTP ${res.status} at position ${position}`);
+        const url = `http://${dev.host}:${dev.port}/ISAPI/AccessControl/AcsEvent?format=json`;
+        try {
+          const res = await digestFetch(url, {
+            method: 'POST',
+            username: dev.username,
+            password: dev.password,
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            timeoutMs: 8000,
+          });
+
+          if (!res.ok) {
+            console.warn(`      ⚠️ HTTP ${res.status} at position ${position}`);
+            break;
+          }
+
+          const data = await res.json();
+          const acs = data?.AcsEvent;
+          if (!acs) break;
+
+          totalMatches = acs.totalMatches ?? totalMatches;
+          const list = acs.InfoList || [];
+          if (list.length === 0) break;
+
+          for (const item of list) {
+            const rawEmp = item.employeeNoString || item.name || item.cardNo;
+            if (!rawEmp) continue;
+            const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
+            const timeStr = normalizeDeviceTime(item.time);
+            const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
+            const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
+            devEvents.push({
+              employeeNo: empNo,
+              name: item.name || '',
+              cardNo: item.cardNo || '',
+              time: timeStr,
+              currentVerifyMode: verifyMode,
+              serialNo: serial,
+              deviceHost: dev.host,
+            });
+          }
+
+          position += list.length;
+          if (totalMatches !== null && position >= totalMatches) break;
+          if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') break;
+        } catch (err) {
+          console.error(`      ❌ Fetch error for ${dev.name}:`, err.message);
           break;
         }
-
-        const data = await res.json();
-        const acs = data?.AcsEvent;
-        if (!acs) break;
-
-        totalMatches = acs.totalMatches ?? totalMatches;
-        const list = acs.InfoList || [];
-        if (list.length === 0) break;
-
-        for (const item of list) {
-          const rawEmp = item.employeeNoString || item.name || item.cardNo;
-          if (!rawEmp) continue;
-          const empNo = canonicalizeEmployeeNo(rawEmp, item.name);
-          const timeStr = normalizeDeviceTime(item.time);
-          const serial = item.serialNo || item.serial || `${empNo}-${timeStr}`;
-          const verifyMode = item.currentVerifyMode || (item.minor === 75 ? 'FACIAL' : 'FINGERPRINT');
-          devEvents.push({
-            employeeNo: empNo,
-            name: item.name || '',
-            cardNo: item.cardNo || '',
-            time: timeStr,
-            currentVerifyMode: verifyMode,
-            serialNo: serial,
-            deviceHost: dev.host,
-          });
-        }
-
-        position += list.length;
-        if (totalMatches !== null && position >= totalMatches) break;
-        if (acs.responseStatusStrg && acs.responseStatusStrg !== 'MORE') break;
-      } catch (err) {
-        console.error(`      ❌ Fetch error for ${dev.name}:`, err.message);
-        break;
       }
-    }
 
-    console.log(`   ✓ Retrieved ${devEvents.length} events from ${dev.name} (${dev.host})`);
-    deviceReports.push({
-      name: dev.name,
-      host: dev.host,
-      fetched: devEvents.length,
-      success: true,
-    });
-    allEvents.push(...devEvents);
+      console.log(`   ✓ Retrieved ${devEvents.length} events from ${dev.name} (${dev.host})`);
+      return {
+        events: devEvents,
+        report: {
+          name: dev.name,
+          host: dev.host,
+          fetched: devEvents.length,
+          success: true,
+        },
+      };
+    })
+  );
+
+  for (const r of reports) {
+    deviceReports.push(r.report);
+    allEvents.push(...r.events);
   }
 
   // Deduplicate by employeeNo + date/time minute

@@ -43,6 +43,7 @@ import {
   getExportAttendanceLogsUrl,
   pollHikvisionDevicesNow,
   pollHikvisionMonthToRender,
+  powerSyncHikvisionAll,
   AttendanceLogsResponse,
   ScheduledEventWindow,
   AttendanceLogRecordItem,
@@ -254,6 +255,42 @@ export default function AdminAttendanceHikPage() {
       if (timedOut) window.setTimeout(() => loadAttendance(true), 4000);
     } finally {
       setPollingHardware(false);
+    }
+  };
+
+  // ⚡ Tri-Terminal Power-Sync Handler (Runs connection test, IST clock alignment & scans in parallel across all 3 terminals)
+  const [powerSyncing, setPowerSyncing] = useState(false);
+  const handlePowerSyncAll = async () => {
+    setPowerSyncing(true);
+    toast({
+      variant: "default",
+      title: "⚡ Power-Syncing All 3 Terminals",
+      description: "Testing connection, synchronizing IST clocks, and pulling live punches across 192.168.0.4, 192.168.0.5, and 192.168.0.11...",
+    });
+    try {
+      const res = await powerSyncHikvisionAll();
+      if (res.success) {
+        toast({
+          variant: "success",
+          title: "⚡ Tri-Terminal Power Sync Complete",
+          description: res.message || "All 3 terminals connected and synchronized successfully.",
+        });
+        await loadAttendance(true);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Sync Notice",
+          description: res.message || "Failed to power sync all terminals",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Connection Error",
+        description: err.message || "Failed to communicate with terminals",
+      });
+    } finally {
+      setPowerSyncing(false);
     }
   };
 
@@ -597,6 +634,19 @@ export default function AdminAttendanceHikPage() {
 
           {/* Action Cockpit Buttons */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 pt-1 lg:pt-0">
+            <button
+              type="button"
+              onClick={handlePowerSyncAll}
+              disabled={powerSyncing || pollingHardware || pollingMonth || refreshing}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs shadow-lg shadow-amber-600/25 hover:shadow-amber-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              title="Parallel ping, IST clock alignment & simultaneous punch poll across all 3 Hikvision terminals (192.168.0.4, 192.168.0.5, 192.168.0.11)"
+            >
+              <Zap className={`w-4 h-4 shrink-0 text-amber-200 ${powerSyncing ? "animate-spin" : ""}`} />
+              <span className="truncate">
+                {powerSyncing ? "Power-Syncing 3 Terminals..." : "⚡ Power-Sync All 3"}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={handlePollDevicesNow}

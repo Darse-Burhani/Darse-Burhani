@@ -2044,6 +2044,72 @@ router.post("/devices/bulk/sync-time", requireRole("ADMIN"), async (_req, res) =
   }
 });
 
+// POST /api/biometric/devices/power-sync-all - Ultra-powerful simultaneous sync & connection test for all 3 Hikvision terminals
+router.post("/devices/power-sync-all", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const devices = await prisma.biometricDevice.findMany({ where: { enabled: true }, orderBy: { host: "asc" } });
+    if (devices.length === 0) {
+      return res.json({ success: true, message: "No enabled terminals found.", data: [] });
+    }
+
+    const t0 = Date.now();
+    const reports = await Promise.allSettled(
+      devices.map(async (dev) => {
+        const devT0 = Date.now();
+        // 1. Connection & ping check
+        const testRes = await testDevice(dev.id).catch((e) => ({ ok: false, error: e?.message }));
+        const latencyMs = Date.now() - devT0;
+
+        // 2. Synchronize clock to IST
+        const clockRes = await forceSyncDeviceTime(dev.id).catch(() => null);
+
+        // 3. Poll latest scans
+        const pollRes = await syncDeviceScansNow(dev.id).catch((e) => ({ success: false, scansFetched: 0, scansProcessed: 0, error: e?.message }));
+
+        return {
+          id: dev.id,
+          name: dev.name,
+          host: dev.host,
+          port: dev.port,
+          model: dev.model,
+          latencyMs,
+          connected: Boolean(testRes && (testRes as any).ok),
+          clockSynced: Boolean(clockRes && (clockRes as any).ok),
+          scansFetched: (pollRes as any)?.scansFetched ?? 0,
+          scansProcessed: (pollRes as any)?.scansProcessed ?? 0,
+        };
+      })
+    );
+
+    const totalDurationMs = Date.now() - t0;
+    const formatted = reports.map((r, i) =>
+      r.status === "fulfilled"
+        ? r.value
+        : {
+            id: devices[i].id,
+            name: devices[i].name,
+            host: devices[i].host,
+            connected: false,
+            latencyMs: 0,
+            error: String(r.reason),
+          }
+    );
+
+    const totalScans = formatted.reduce((sum, d: any) => sum + (d.scansFetched || 0), 0);
+
+    return res.json({
+      success: true,
+      message: `Power sync completed in ${totalDurationMs}ms across ${devices.length} terminals (${totalScans} scans synced).`,
+      totalDurationMs,
+      terminalsCount: devices.length,
+      data: formatted,
+    });
+  } catch (error: any) {
+    console.error("Power sync all terminals error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to power sync terminals" });
+  }
+});
+
 // POST /api/biometric/devices/:id/users/deploy - Deploy a student or teacher to terminal
 router.post("/devices/:id/users/deploy", requireRole("ADMIN"), async (req, res) => {
   try {

@@ -192,6 +192,26 @@ export default function IvmsControlStation({
   // Hardware Ping Trigger
   const [devicePinging, setDevicePinging] = useState<Record<string, boolean>>({});
   const [devicePingLatency, setDevicePingLatency] = useState<Record<string, number>>({});
+  const [powerSyncing, setPowerSyncing] = useState(false);
+
+  const handlePowerSyncAll = async () => {
+    setPowerSyncing(true);
+    toast.loading("⚡ Power-syncing all 3 Hikvision terminals (ping, IST clock & punches)...");
+    try {
+      const res = await fetch("/api/biometric/devices/power-sync-all", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "All 3 terminals synchronized with live cloud");
+        if (onRefreshDevices) onRefreshDevices();
+      } else {
+        toast.error(data.error || "Power sync failed");
+      }
+    } catch {
+      toast.error("Failed to power sync terminals");
+    } finally {
+      setPowerSyncing(false);
+    }
+  };
 
   const handlePingDevice = async (dev: BiometricDevice) => {
     setDevicePinging((prev) => ({ ...prev, [dev.id]: true }));
@@ -603,18 +623,30 @@ export default function IvmsControlStation({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-gray-950 tracking-tight flex items-center gap-2">
-                Hikvision Dual Terminal Live Monitors
+                Hikvision Tri-Terminal Live Hardware Monitors (3 Terminals)
                 <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px] font-bold">
                   24/7 Hardware Stream
                 </Badge>
               </h2>
               <p className="text-xs text-gray-500">
-                Live optical view and hardware status of both MinMoe terminals connected on local Wi-Fi &amp; Cloud.
+                Live optical view, ping latency, and hardware status of all three MinMoe terminals (192.168.0.4, 192.168.0.5, 192.168.0.11) on LAN &amp; Cloud.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handlePowerSyncAll}
+              disabled={powerSyncing}
+              className="rounded-2xl text-xs font-black h-9 px-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-700/20 active:scale-95 transition-all"
+              title="Test connection, align IST clock & pull latest punches from all 3 terminals simultaneously"
+            >
+              <Zap className={cn("w-3.5 h-3.5 mr-1.5 text-amber-300", powerSyncing && "animate-spin")} />
+              {powerSyncing ? "Power-Syncing..." : "⚡ Power-Sync All 3 Terminals"}
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -653,7 +685,7 @@ export default function IvmsControlStation({
           </div>
         </div>
 
-        {/* DUAL CAMERA GRID */}
+        {/* TRI-TERMINAL CAMERA GRID */}
         {devices.length === 0 ? (
           <Card className="p-8 sm:p-12 text-center rounded-3xl border-dashed border-gray-200 bg-white">
             <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mx-auto mb-3">
@@ -661,11 +693,11 @@ export default function IvmsControlStation({
             </div>
             <h3 className="text-base font-bold text-gray-900 mb-1">No MinMoe Terminals Registered</h3>
             <p className="text-xs text-gray-500 max-w-md mx-auto mb-4">
-              Add your Hikvision MinMoe terminals (e.g., 192.168.0.4 &amp; 192.168.0.5) to view live camera feeds and monitor real-time verification scans.
+              Add your Hikvision MinMoe terminals (192.168.0.4, 192.168.0.5, 192.168.0.11) to view live camera feeds and monitor real-time verification scans.
             </p>
           </Card>
         ) : (
-          <div className={cn("grid gap-5", devices.length === 1 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+          <div className={cn("grid gap-5", devices.length === 1 ? "grid-cols-1" : devices.length === 2 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3")}>
             {devices.map((dev) => renderDeviceCameraFeed(dev))}
           </div>
         )}

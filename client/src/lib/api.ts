@@ -1125,6 +1125,18 @@ export async function pollHikvisionDevicesNow(date?: string): Promise<{
   });
 }
 
+export async function powerSyncHikvisionAll(): Promise<{
+  success: boolean;
+  message: string;
+  totalDurationMs?: number;
+  terminalsCount?: number;
+  data: any[];
+}> {
+  return request<any>("/api/biometric/devices/power-sync-all", {
+    method: "POST",
+  });
+}
+
 export async function pollHikvisionMonthToRender(month?: string): Promise<{
   success: boolean;
   message: string;
