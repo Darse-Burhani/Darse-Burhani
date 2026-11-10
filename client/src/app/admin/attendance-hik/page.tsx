@@ -35,6 +35,7 @@ import {
   XCircle,
   HelpCircle,
   Edit3,
+  Shield,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -382,6 +383,7 @@ export default function AdminAttendanceHikPage() {
     let leaveCount = 0;
     let notMarkedCount = 0;
     let holidayCount = 0;
+    let exemptCount = 0;
 
     audienceRecords.forEach((r) => {
       if (r.status === "PRESENT") presentCount++;
@@ -390,6 +392,7 @@ export default function AdminAttendanceHikPage() {
       else if (r.status === "MEDICAL") medicalCount++;
       else if (r.status === "ON_LEAVE") leaveCount++;
       else if (r.status === "HOLIDAY") holidayCount++;
+      else if (r.status === "EXEMPT" || (r as any).source === "NOT_APPLICABLE") exemptCount++;
       else notMarkedCount++;
     });
 
@@ -573,6 +576,14 @@ export default function AdminAttendanceHikPage() {
           bg: "bg-slate-100 text-slate-700 border-slate-300",
           dot: "bg-slate-400",
           icon: Calendar,
+        };
+      case "EXEMPT":
+      case "NOT_APPLICABLE":
+        return {
+          label: "EXEMPT · NOT ELIGIBLE",
+          bg: "bg-slate-100 text-slate-600 border-slate-300 font-bold",
+          dot: "bg-slate-400",
+          icon: Shield,
         };
       default:
         return {

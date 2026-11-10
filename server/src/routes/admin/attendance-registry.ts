@@ -318,13 +318,20 @@ router.post("/override", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// GET /api/admin/attendance-registry/student/:studentId — Student audit timeline
+// GET /api/admin/attendance-registry/student/:studentId — Student audit timeline & comprehensive profile overview
 router.get("/student/:studentId", requireRole("ADMIN"), async (req, res) => {
   try {
-    const student = await prisma.studentProfile.findUnique({
-      where: { id: req.params.studentId },
+    const student = await prisma.studentProfile.findFirst({
+      where: {
+        OR: [
+          { id: req.params.studentId },
+          { userId: req.params.studentId },
+          { its: req.params.studentId },
+          { studentId: req.params.studentId },
+        ],
+      },
       include: {
-        user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true } },
+        user: { select: { firstName: true, lastName: true, avatarUrl: true, email: true, isActive: true } },
         attendanceRegistries: {
           take: 30,
           orderBy: { date: "desc" },
@@ -346,12 +353,44 @@ router.get("/student/:studentId", requireRole("ADMIN"), async (req, res) => {
       data: {
         student: {
           id: student.id,
+          userId: student.userId,
           name: `${student.user.firstName} ${student.user.lastName}`.trim(),
+          firstName: student.user.firstName,
+          lastName: student.user.lastName,
+          nameAr: student.nameAr,
           avatarUrl: student.user.avatarUrl,
+          email: student.user.email,
+          studentId: student.studentId,
           its: student.its || student.studentId,
+          trNo: student.trNo,
           grade: student.grade,
           section: student.section,
+          status: student.status,
+          bloodGroup: student.bloodGroup,
+          dobGregorian: student.dobGregorian ? student.dobGregorian.toISOString() : null,
+          dobHijri: student.dobHijri,
+          hafizYear: student.hafizYear,
+          age: student.age,
+          motherName: student.motherName,
+          fatherName: student.fatherName,
+          fatherOccupation: student.fatherOccupation,
+          fatherPhone: student.fatherPhone,
+          fatherEmail: student.fatherEmail,
+          motherPhone: student.motherPhone,
+          motherEmail: student.motherEmail,
+          watan: student.watan,
+          residentCity: student.residentCity,
+          address: student.address,
+          mobileNumber: student.mobileNumber,
+          currentPoints: student.currentPoints,
+          totalPoints: student.totalPoints,
+          tier: student.tier,
           streakDays: student.streakDays,
+          walletBalance: student.walletBalance,
+          admissionYear: student.admissionYear,
+          currentYear: student.currentYear,
+          darsId: student.darsId,
+          externalSchooling: student.externalSchooling,
         },
         registries: student.attendanceRegistries.map((r) => ({
           id: r.id,

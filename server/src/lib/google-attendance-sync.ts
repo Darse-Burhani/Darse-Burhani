@@ -978,9 +978,29 @@ export async function buildDailySheetData(targetDate?: Date): Promise<DailySheet
       source = "HOLIDAY";
       reason = "Sunday Institutional Holiday";
     } else {
-      status = "ABSENT";
-      tA++;
-      source = "UNSCANNED";
+      // Check faculty scanning schedule eligibility
+      const hasFacultyTimer = (w: any) => Boolean(w.facultyStartTime && w.facultyEndTime);
+      const isLegacyFaculty = (w: any) => w.id === "faculty_default" || w.id === "faculty" || /faculty|teacher|staff|asateezah/i.test(w.name);
+      const activeFacultyWindow =
+        scanWindows.find((w: any) => w.id === "default" && hasFacultyTimer(w)) ||
+        scanWindows.find((w: any) => hasFacultyTimer(w) && w.facultyEnabled) ||
+        scanWindows.find((w: any) => isLegacyFaculty(w));
+
+      const applicableFacultyIds: string[] = ((activeFacultyWindow as any)?.applicableTeacherIds as string[]) || [];
+      const exemptFacultyIds: string[] = ((activeFacultyWindow as any)?.exemptTeacherIds as string[]) || [];
+      const hasFacultyFilter = applicableFacultyIds.length > 0;
+      const isEligibleFaculty = !hasFacultyFilter || applicableFacultyIds.includes(t.id);
+      const isExemptFaculty = exemptFacultyIds.includes(t.id);
+
+      if (!isEligibleFaculty || isExemptFaculty) {
+        status = "EXEMPT";
+        source = "NOT_APPLICABLE";
+        reason = "Not eligible for scanning in this schedule (exempt from absentee tracking)";
+      } else {
+        status = "ABSENT";
+        tA++;
+        source = "UNSCANNED";
+      }
     }
 
     const eventName = matchEvent(att?.checkInTime, scanWindows, true, teacherNotes);

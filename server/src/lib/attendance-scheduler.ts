@@ -629,6 +629,18 @@ export async function runAutoMarkFacultyAbsentJob(targetDate?: Date): Promise<{
   });
   const loggedIds = new Set(existing.map((r) => r.teacherId));
 
+  // Purge any stale AUTO_SYSTEM absent records for teachers not eligible for scanning today
+  if (expected.length > 0) {
+    const eligibleIds = expected.map((t) => t.id);
+    await prisma.teacherAttendanceRecord.deleteMany({
+      where: {
+        date: { gte: dayStart, lt: dayEnd },
+        verificationMethod: "AUTO_SYSTEM",
+        teacherId: { notIn: eligibleIds },
+      },
+    });
+  }
+
   const allActiveCount = await prisma.teacherProfile.count({ where: { user: { isActive: true } } });
   const skippedCount = Math.max(0, allActiveCount - expected.length);
 

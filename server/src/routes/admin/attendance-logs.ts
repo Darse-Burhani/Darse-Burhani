@@ -543,6 +543,17 @@ router.get("/", requireAuth, async (req, res) => {
 
       const isSunday = dayStart.getUTCDay() === 0;
 
+      // Resolve faculty scanning window applicability
+      const activeFacultyWindow =
+        selectedWindow && (hasFacultyTimer(selectedWindow as any) || isLegacyFacultyRow(selectedWindow as any))
+          ? selectedWindow
+          : windows.find((w) => hasFacultyTimer(w as any) && (w as any).facultyEnabled) ||
+            windows.find((w) => isLegacyFacultyRow(w as any));
+
+      const applicableFacultyIds: string[] = ((activeFacultyWindow as any)?.applicableTeacherIds as string[]) || [];
+      const exemptFacultyIds: string[] = ((activeFacultyWindow as any)?.exemptTeacherIds as string[]) || [];
+      const hasFacultyFilter = applicableFacultyIds.length > 0;
+
       facultyRecords = teachers.map((t) => {
         const rec = t.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || t.attendanceRecords[0];
         const hasMedical = t.medicalExemptions?.[0];
@@ -572,6 +583,17 @@ router.get("/", requireAuth, async (req, res) => {
           } else {
             source = "MANUAL";
           }
+        }
+
+        // Faculty eligibility check: If schedule has specific eligible faculty,
+        // any teacher NOT in applicableTeacherIds or in exemptTeacherIds is EXEMPT and NOT marked absent.
+        const isEligibleForScan = !hasFacultyFilter || applicableFacultyIds.includes(t.id);
+        const isExemptTeacher = exemptFacultyIds.includes(t.id);
+
+        if ((!isEligibleForScan || isExemptTeacher) && (status === "NOT_MARKED" || (status === "ABSENT" && source === "AUTO_ABSENT"))) {
+          status = "EXEMPT";
+          source = "NOT_APPLICABLE";
+          remarks = remarks || "Not eligible for scanning in this schedule (exempt from absentee tracking)";
         }
 
         if (isSunday && (status === "ABSENT" || status === "NOT_MARKED")) {

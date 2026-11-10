@@ -1641,16 +1641,21 @@ export default function AdminAttendanceSchedulePage() {
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <div className="flex items-center gap-1.5">
                                   <Shield className="w-4 h-4 text-blue-700" />
-                                  <span className="text-xs font-black uppercase tracking-wider text-blue-950">
-                                    Faculty Member Scope
-                                  </span>
+                                  <div>
+                                    <span className="text-xs font-black uppercase tracking-wider text-blue-950 block">
+                                      Faculty Member Scope (Eligible for Scanning)
+                                    </span>
+                                    <span className="text-[11px] text-blue-800/80 font-medium block">
+                                      Select faculty eligible for scanning. Un-eligible faculty will <strong>never be marked absent</strong>.
+                                    </span>
+                                  </div>
                                 </div>
 
                                 <div className="flex items-center gap-2">
                                   <Badge variant="outline" className="text-[10px] font-bold bg-white text-blue-800 border-blue-300">
                                     {windowForm.applicableTeacherIds.length === 0
                                       ? "All Faculty (Default)"
-                                      : `${windowForm.applicableTeacherIds.length} Selected`}
+                                      : `${windowForm.applicableTeacherIds.length} Eligible`}
                                   </Badge>
 
                                   {windowForm.applicableTeacherIds.length > 0 ? (

@@ -48,6 +48,7 @@ import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import BarcodeDisplay from "@/components/admin/BarcodeDisplay";
 import BookScanModal from "@/components/admin/BookScanModal";
 import { getHijriFromDate, HIJRI_MONTHS } from "@/lib/fatimi-calendar";
+import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -957,29 +958,21 @@ export default function CheckoutPage() {
                       <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-50/60 p-4 sm:p-5 shadow-xs w-full min-w-0 max-w-full overflow-hidden">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
                           <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
-                            {member.photo || member.avatarUrl ? (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-emerald-600 shadow-sm shrink-0 bg-white">
-                                <img
-                                  src={member.photo || member.avatarUrl!}
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-emerald-600 shadow-sm shrink-0 bg-white">
+                              {member.photo || member.avatarUrl ? (
+                                <ProfilePhoto
+                                  src={member.photo || member.avatarUrl}
                                   alt={member.name}
-                                  className="w-full h-full object-cover object-center"
-                                  onError={(e) => {
-                                    (e.currentTarget as HTMLElement).style.display = "none";
-                                    const fallback = e.currentTarget.parentElement?.querySelector(".avatar-fallback") as HTMLElement;
-                                    if (fallback) fallback.style.display = "flex";
-                                  }}
+                                  className="w-full h-full rounded-2xl"
+                                  fit="cover"
+                                  previewable={true}
                                 />
-                                <div
-                                  className="avatar-fallback w-full h-full bg-emerald-700 text-white font-extrabold text-lg items-center justify-center hidden"
-                                >
+                              ) : (
+                                <div className="w-full h-full bg-emerald-700 text-white font-extrabold text-xl flex items-center justify-center">
                                   {member.firstName[0]}{member.lastName[0]}
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-emerald-700 text-white font-extrabold text-xl flex items-center justify-center shadow-xs shrink-0">
-                                {member.firstName[0]}{member.lastName[0]}
-                              </div>
-                            )}
+                              )}
+                            </div>
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
