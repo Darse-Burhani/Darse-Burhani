@@ -19,6 +19,7 @@ import {
   ExternalLink,
   UploadCloud,
   MessageCircle,
+  Lock,
 } from "lucide-react";
 import {
   getParentLeaves,
@@ -74,7 +75,13 @@ const statusStyle: Record<string, string> = {
   CANCELLED: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
-export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption[] }) {
+export function ParentLeaveManager({
+  childrenList,
+  canApply = true,
+}: {
+  childrenList: ChildOption[];
+  canApply?: boolean;
+}) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const [selectedChild, setSelectedChild] = useState<string>(childrenList[0]?.studentProfileId || "");
   const [leaves, setLeaves] = useState<ParentLeaveItem[]>([]);
@@ -210,14 +217,21 @@ export function ParentLeaveManager({ childrenList }: { childrenList: ChildOption
           >
             <RefreshCw size={15} className={refreshing ? "animate-spin text-emerald-700" : ""} />
           </button>
-          <button
-            type="button"
-            onClick={() => setFormOpen(true)}
-            disabled={!selectedChild}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-[12.5px] font-bold text-white shadow-sm transition hover:bg-emerald-800 active:scale-[0.98] disabled:opacity-50"
-          >
-            <Plus size={15} /> Apply for leave
-          </button>
+          {canApply ? (
+            <button
+              type="button"
+              onClick={() => setFormOpen(true)}
+              disabled={!selectedChild}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-[12.5px] font-bold text-white shadow-sm transition hover:bg-emerald-800 active:scale-[0.98] disabled:opacity-50"
+            >
+              <Plus size={15} /> Apply for leave
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2 text-[12px] font-bold text-amber-800">
+              <Lock size={14} className="text-amber-600" />
+              <span>Applications Closed</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 
 import { timeAgo } from "@/lib/utils";
 import { isRabiAlAkhirDate } from "@/lib/fatimi-calendar";
+import { ModuleLockGuard } from "@/context/PortalAccessContext";
 
 const activityIcons: Record<string, any> = {
   POINTS: Award,
@@ -85,19 +86,20 @@ export default function ParentActivityPage() {
   }, [activities]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Back Link */}
-      <div>
-        <Link href="/parent">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-emerald-800 hover:bg-emerald-50 text-xs font-semibold gap-1.5 h-8 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to Parent Dashboard
-          </Button>
-        </Link>
-      </div>
+    <ModuleLockGuard moduleKey="activity" role="PARENT" title="Activity Log">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
+        {/* Back Link */}
+        <div>
+          <Link href="/parent">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-emerald-800 hover:bg-emerald-50 text-xs font-semibold gap-1.5 h-8 cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Parent Dashboard
+            </Button>
+          </Link>
+        </div>
 
       {/* Header Banner */}
       <motion.div
@@ -331,5 +333,6 @@ export default function ParentActivityPage() {
         </Card>
       )}
     </div>
+  </ModuleLockGuard>
   );
 }

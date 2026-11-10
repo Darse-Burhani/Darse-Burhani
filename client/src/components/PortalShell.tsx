@@ -1000,7 +1000,7 @@ export function PortalShell({
                 {/* Quick Action Matrix */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <Link
-                    href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : "/talabat/attendance"}
+                    href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : role === "PARENT" ? "/parent" : "/talabat/attendance"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
                   >
@@ -1008,23 +1008,23 @@ export function PortalShell({
                       <Fingerprint className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-black text-white leading-tight">Live Attendance</span>
-                    <span className="text-[9px] font-semibold text-emerald-300 mt-0.5">Biometric Telemetry</span>
+                    <span className="text-[9px] font-semibold text-emerald-300 mt-0.5">{role === "PARENT" ? "Child Telemetry" : "Biometric Telemetry"}</span>
                   </Link>
 
                   <Link
-                    href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : "/talabat/attendance"}
+                    href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : role === "PARENT" ? "/parent" : "/talabat/attendance"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
                   >
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/25 text-amber-300 mb-1.5 group-hover:scale-105 transition-transform">
                       <ClipboardCheck className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-black text-white leading-tight">Manual Register</span>
-                    <span className="text-[9px] font-semibold text-amber-200 mt-0.5">Roll-Call & Leaves</span>
+                    <span className="text-xs font-black text-white leading-tight">{role === "PARENT" ? "Leave Requests" : "Manual Register"}</span>
+                    <span className="text-[9px] font-semibold text-amber-200 mt-0.5">{role === "PARENT" ? "Submit Leave" : "Roll-Call & Leaves"}</span>
                   </Link>
 
                   <Link
-                    href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : "/talabat/timetable"}
+                    href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : role === "PARENT" ? "/parent" : "/talabat/timetable"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
                   >
@@ -1032,7 +1032,7 @@ export function PortalShell({
                       <CalendarDays className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-black text-white leading-tight">Timetable</span>
-                    <span className="text-[9px] font-semibold text-sky-200 mt-0.5">Periods & Slots</span>
+                    <span className="text-[9px] font-semibold text-sky-200 mt-0.5">{role === "PARENT" ? "Class Schedule" : "Periods & Slots"}</span>
                   </Link>
 
                   <button

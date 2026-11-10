@@ -7,6 +7,7 @@ import {
   getStudentLeaveSummary,
 } from "../../lib/leave-service";
 import { LeaveType } from "@prisma/client";
+import { getProfilePermissions } from "../../lib/profile-permissions";
 
 const router = Router();
 
@@ -125,6 +126,19 @@ router.get("/", requireRole("PARENT"), async (req, res) => {
 // POST /api/parent/leave — submit leave for a linked child (no MEDICAL)
 router.post("/", requireRole("PARENT"), async (req, res) => {
   try {
+    const permissions = getProfilePermissions().parent;
+    const modules = getProfilePermissions().modules.parent;
+    if (
+      modules?.leave === false ||
+      permissions?.masterEnabled === false ||
+      permissions?.items?.leaveSubmission?.isOpen === false
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Leave applications are currently locked by administrator",
+      });
+    }
+
     const session = req.auth!;
     const parentId = await getParentProfileId(session.user.id);
     if (!parentId) {

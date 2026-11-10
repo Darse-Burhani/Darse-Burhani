@@ -21,8 +21,16 @@ router.get("/modules", apiCacheMiddleware({ ttlMs: 30_000, tags: ["permissions"]
       data: {
         talabat: permissions.modules.talabat,
         teacher: permissions.modules.teacher,
+        parent: permissions.modules.parent,
       },
-      roleModules: role === "STUDENT" ? permissions.modules.talabat : role === "TEACHER" ? permissions.modules.teacher : permissions.modules,
+      roleModules:
+        role === "STUDENT"
+          ? permissions.modules.talabat
+          : role === "TEACHER"
+          ? permissions.modules.teacher
+          : role === "PARENT"
+          ? permissions.modules.parent
+          : permissions.modules,
     });
   } catch (err) {
     console.error("Error resolving module permissions:", err);

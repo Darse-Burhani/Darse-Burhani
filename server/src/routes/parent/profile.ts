@@ -7,6 +7,7 @@ import { requireRole } from "../../middleware";
 import { parentsUploadsDir, clientPublicParentsDir, clientDistParentsDir } from "../../lib/paths";
 import { cache } from "../../lib/cache";
 import { sendPushToUser } from "../../lib/push";
+import { getProfilePermissions } from "../../lib/profile-permissions";
 
 const router = Router();
 
@@ -142,6 +143,16 @@ function formatParentResponse(parent: any) {
   };
 }
 
+// GET /api/parent/profile/permissions - Get parent profile permissions & module locks
+router.get("/permissions", requireRole("PARENT", "ADMIN"), (_req, res) => {
+  const allPermissions = getProfilePermissions();
+  return res.json({
+    success: true,
+    data: allPermissions.parent,
+    modules: allPermissions.modules.parent,
+  });
+});
+
 // GET /api/parent/profile - Current parent profile
 router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
   try {
@@ -229,9 +240,12 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
       }
     }
 
+    const allPermissions = getProfilePermissions();
     return res.json({
       success: true,
       data: formatParentResponse(parent),
+      permissions: allPermissions.parent,
+      modules: allPermissions.modules.parent,
     });
   } catch (error) {
     console.error("Parent profile fetch error:", error);
@@ -243,6 +257,24 @@ router.get("/", requireRole("PARENT", "ADMIN", "TEACHER"), async (req, res) => {
 router.put("/", requireRole("PARENT", "ADMIN"), async (req, res) => {
   try {
     const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
+    const allPermissions = getProfilePermissions();
+    const permissions = allPermissions.parent;
+
+    if (!isAdmin && permissions?.masterEnabled === false) {
+      return res.status(403).json({
+        success: false,
+        error: "Parent profile editing is currently locked by administrator",
+      });
+    }
+
+    const canEdit = (field: string) => {
+      if (isAdmin) return true;
+      if (permissions?.masterEnabled === false) return false;
+      const itm = permissions?.items?.[field];
+      return itm?.isOpen !== false;
+    };
+
     let userId = session.user.id;
 
     if (session.user.role === "ADMIN" && (req.query.parentId || req.query.userId)) {
@@ -272,24 +304,26 @@ router.put("/", requireRole("PARENT", "ADMIN"), async (req, res) => {
     } = body;
 
     const userData: Record<string, any> = {};
-    if (firstName !== undefined && firstName !== null && String(firstName).trim()) {
-      userData.firstName = String(firstName).trim();
-    }
-    if (lastName !== undefined && lastName !== null && String(lastName).trim()) {
-      userData.lastName = String(lastName).trim();
+    if (canEdit("name")) {
+      if (firstName !== undefined && firstName !== null && String(firstName).trim()) {
+        userData.firstName = String(firstName).trim();
+      }
+      if (lastName !== undefined && lastName !== null && String(lastName).trim()) {
+        userData.lastName = String(lastName).trim();
+      }
     }
 
     const profileData: Record<string, any> = {};
-    if (phone !== undefined) profileData.phone = phone ? String(phone).trim() : null;
-    if (secondaryPhone !== undefined) profileData.secondaryPhone = secondaryPhone ? String(secondaryPhone).trim() : null;
-    if (occupation !== undefined) profileData.occupation = occupation ? String(occupation).trim() : null;
-    if (address !== undefined) profileData.address = address ? String(address).trim() : null;
-    if (city !== undefined) profileData.city = city ? String(city).trim() : null;
-    if (watan !== undefined) profileData.watan = watan ? String(watan).trim() : null;
-    if (bloodGroup !== undefined) profileData.bloodGroup = bloodGroup ? String(bloodGroup).trim() : null;
-    if (its !== undefined) profileData.its = its ? String(its).trim() : null;
-    if (relationType !== undefined) profileData.relationType = relationType ? String(relationType).trim() : null;
-    if (notes !== undefined) profileData.notes = notes ? String(notes).trim() : null;
+    if (canEdit("phone") && phone !== undefined) profileData.phone = phone ? String(phone).trim() : null;
+    if (canEdit("secondaryPhone") && secondaryPhone !== undefined) profileData.secondaryPhone = secondaryPhone ? String(secondaryPhone).trim() : null;
+    if (canEdit("occupation") && occupation !== undefined) profileData.occupation = occupation ? String(occupation).trim() : null;
+    if (canEdit("address") && address !== undefined) profileData.address = address ? String(address).trim() : null;
+    if (canEdit("address") && city !== undefined) profileData.city = city ? String(city).trim() : null;
+    if (canEdit("address") && watan !== undefined) profileData.watan = watan ? String(watan).trim() : null;
+    if (canEdit("bloodGroup") && bloodGroup !== undefined) profileData.bloodGroup = bloodGroup ? String(bloodGroup).trim() : null;
+    if (canEdit("its") && its !== undefined) profileData.its = its ? String(its).trim() : null;
+    if (canEdit("relationType") && relationType !== undefined) profileData.relationType = relationType ? String(relationType).trim() : null;
+    if (canEdit("notes") && notes !== undefined) profileData.notes = notes ? String(notes).trim() : null;
 
     if (Object.keys(userData).length > 0) {
       await prisma.user.update({
@@ -464,6 +498,15 @@ router.put("/", requireRole("PARENT", "ADMIN"), async (req, res) => {
 // POST /api/parent/avatar or /api/parent/profile/avatar - Upload profile picture with admin approval workflow
 router.post(["/avatar", "/avatar/upload", "/"], requireRole("PARENT", "ADMIN"), (req, res) => {
   const session = req.auth!;
+  const isAdmin = session.user.role === "ADMIN";
+  const permissions = getProfilePermissions().parent;
+
+  if (!isAdmin && (permissions?.masterEnabled === false || permissions?.items?.photo?.isOpen === false)) {
+    return res.status(403).json({
+      success: false,
+      error: "Photo uploading is currently locked by administrator",
+    });
+  }
 
   avatarUpload.single("file")(req, res, async (err: unknown) => {
     if (err) {

@@ -40,6 +40,7 @@ import {
   BookMarked,
   AlertTriangle,
   UserCheck,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +53,7 @@ import { getInitials, timeAgo, formatPoints } from "@/lib/utils";
 import { isRabiAlAkhirDate } from "@/lib/fatimi-calendar";
 import { ParentNotificationCenter } from "@/components/parent/ParentNotificationCenter";
 import { ParentLeaveManager } from "@/components/parent/ParentLeaveManager";
+import { usePortalAccess } from "@/context/PortalAccessContext";
 
 type ParentTab = "overview" | "tracking" | "library" | "timetable" | "leave";
 
@@ -76,6 +78,26 @@ export default function ParentDashboard() {
   // Class Timetable & Masool State
   const [timetableData, setTimetableData] = useState<any>(null);
   const [timetableLoading, setTimetableLoading] = useState(false);
+  const [timetableDay, setTimetableDay] = useState<number>(() => {
+    const d = new Date().getDay();
+    return d >= 1 && d <= 6 ? d : 1;
+  });
+  const [timetableLayout, setTimetableLayout] = useState<"day" | "grid">("day");
+
+  const { isModuleVisible } = usePortalAccess();
+
+  const visibleTabs = useMemo(() => {
+    return TABS.filter((tab) => {
+      const modKey = tab.id === "overview" ? "dashboard" : tab.id;
+      return isModuleVisible(modKey, "PARENT");
+    });
+  }, [isModuleVisible]);
+
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, activeTab]);
 
   const fetchDashboard = useCallback(
     async (isManual = false) => {
@@ -493,51 +515,58 @@ export default function ParentDashboard() {
           <div className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md py-2">
             <div className="p-1 rounded-2xl bg-stone-900/5 ring-1 ring-black/[0.06] shadow-xs">
               <div className="flex gap-1.5 overflow-x-auto rounded-[calc(1rem-2px)] bg-white/95 p-1.5 border border-amber-100/60">
-                {TABS.map((t) => {
-                  const active = activeTab === t.id;
-                  const Icon = t.icon;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setActiveTab(t.id)}
-                      className={`group flex flex-1 items-center justify-center gap-2.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all active:scale-[0.98] ${
-                        active
-                          ? "bg-stone-900 text-amber-300 shadow-md ring-1 ring-amber-400/40"
-                          : "text-stone-600 hover:bg-stone-100 hover:text-stone-950"
-                      }`}
-                    >
-                      <div
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-transform ${
+                {visibleTabs.length === 0 ? (
+                  <div className="w-full py-2.5 px-4 text-center text-xs text-amber-900 font-bold flex items-center justify-center gap-2">
+                    <Lock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Portal Modules Managed by Administration</span>
+                  </div>
+                ) : (
+                  visibleTabs.map((t) => {
+                    const active = activeTab === t.id;
+                    const Icon = t.icon;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setActiveTab(t.id)}
+                        className={`group flex flex-1 items-center justify-center gap-2.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all active:scale-[0.98] ${
                           active
-                            ? "bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 group-hover:scale-105"
-                            : "bg-stone-100 text-stone-500 group-hover:text-stone-900"
+                            ? "bg-stone-900 text-amber-300 shadow-md ring-1 ring-amber-400/40"
+                            : "text-stone-600 hover:bg-stone-100 hover:text-stone-950"
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
-                      </div>
-                      <div className="flex flex-col text-left leading-none">
-                        <span className="flex items-center gap-1.5">
-                          {t.label}
-                          {t.id === "library" && (activeLoansCount > 0) && (
-                            <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                              overdueLoansCount > 0
-                                ? "bg-rose-600 text-white animate-pulse"
-                                : active
-                                ? "bg-amber-400 text-stone-950"
-                                : "bg-emerald-600 text-white"
-                            }`}>
-                              {activeLoansCount}
-                            </span>
-                          )}
-                        </span>
-                        <span className={`text-[10px] mt-0.5 font-semibold ${active ? "text-amber-300" : "text-stone-600"}`}>
-                          {t.labelAr}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-transform ${
+                            active
+                              ? "bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 group-hover:scale-105"
+                              : "bg-stone-100 text-stone-500 group-hover:text-stone-900"
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+                        </div>
+                        <div className="flex flex-col text-left leading-none">
+                          <span className="flex items-center gap-1.5">
+                            {t.label}
+                            {t.id === "library" && (activeLoansCount > 0) && (
+                              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                                overdueLoansCount > 0
+                                  ? "bg-rose-600 text-white animate-pulse"
+                                  : active
+                                  ? "bg-amber-400 text-stone-950"
+                                  : "bg-emerald-600 text-white"
+                              }`}>
+                                {activeLoansCount}
+                              </span>
+                            )}
+                          </span>
+                          <span className={`text-[10px] mt-0.5 font-semibold ${active ? "text-amber-300" : "text-stone-600"}`}>
+                            {t.labelAr}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -1474,6 +1503,7 @@ export default function ParentDashboard() {
                   <div className="space-y-4">
                     <ParentLeaveManager
                       childrenList={leaveChildren}
+                      canApply={isModuleVisible("leave", "PARENT")}
                     />
                   </div>
                 )}
@@ -1572,101 +1602,233 @@ export default function ParentDashboard() {
                           </div>
                         )}
 
-                        {/* Full Weekly Timetable Grid */}
+                        {/* Timetable Container with Day View & Grid View */}
                         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-                          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+                          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                             <div>
                               <h4 className="text-sm font-black text-slate-900">
                                 Weekly Lesson Schedule — Class {timetableData.class.name}
                               </h4>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-slate-500 mt-0.5">
                                 6 Days (Monday to Saturday) • 9 Academic Periods Daily
                               </p>
                             </div>
-                            <Badge variant="outline" className="text-xs font-mono border-emerald-300 text-emerald-800 bg-emerald-50">
-                              30 Weekly Periods
-                            </Badge>
+                            <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
+                              <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/60">
+                                <button
+                                  type="button"
+                                  onClick={() => setTimetableLayout("day")}
+                                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                    timetableLayout === "day"
+                                      ? "bg-stone-900 text-amber-300 shadow-xs"
+                                      : "text-slate-600 hover:text-slate-900"
+                                  }`}
+                                >
+                                  Day View
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTimetableLayout("grid")}
+                                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                    timetableLayout === "grid"
+                                      ? "bg-stone-900 text-amber-300 shadow-xs"
+                                      : "text-slate-600 hover:text-slate-900"
+                                  }`}
+                                >
+                                  Full Grid
+                                </button>
+                              </div>
+                              <Badge variant="outline" className="text-xs font-mono border-emerald-300 text-emerald-800 bg-emerald-50 hidden md:inline-flex">
+                                30 Weekly Periods
+                              </Badge>
+                            </div>
                           </div>
 
-                          {/* Mobile Swipe Hint */}
-                          <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              <span className="animate-pulse">👉</span> Swipe horizontally to view all periods
-                            </span>
-                            <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
-                              Mon – Sat
-                            </span>
-                          </div>
-
-                          <div className="overflow-x-auto touch-pan-x scrollbar-thin">
-                            <table className="w-full border-collapse min-w-[900px]">
-                              <thead>
-                                <tr className="bg-[#1c1c1c] text-white">
-                                  <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
-                                    Day / Period
-                                  </th>
-                                  {[
-                                    { period: 1, time: "10:30 – 11:00", label: "P1" },
-                                    { period: 2, time: "11:00 – 11:30", label: "P2" },
-                                    { period: 3, time: "11:30 – 12:00", label: "P3" },
-                                    { period: 4, time: "12:00 – 12:30", label: "P4" },
-                                    { period: 5, time: "12:30 – 13:00", label: "P5" },
-                                    { period: 6, time: "14:15 – 14:45", label: "P6" },
-                                    { period: 7, time: "14:45 – 15:15", label: "P7" },
-                                    { period: 8, time: "15:15 – 15:45", label: "P8" },
-                                    { period: 9, time: "15:45 – 16:15", label: "P9" },
-                                  ].map((p) => (
-                                    <th key={p.period} className="p-2.5 text-center border-r border-emerald-900/60 last:border-r-0 min-w-[110px]">
-                                      <div className="text-xs font-black text-amber-300">{p.label}</div>
-                                      <div className="text-[10px] font-mono opacity-80 mt-0.5">{p.time}</div>
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
+                          {/* Day View Mode (Default & Mobile-Optimized) */}
+                          {timetableLayout === "day" ? (
+                            <div>
+                              {/* Day Selector Pills */}
+                              <div className="p-2 sm:p-3 bg-stone-50/80 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
                                 {[
-                                  { day: 1, name: "Monday" },
-                                  { day: 2, name: "Tuesday" },
-                                  { day: 3, name: "Wednesday" },
-                                  { day: 4, name: "Thursday" },
-                                  { day: 5, name: "Friday" },
-                                  { day: 6, name: "Saturday" },
-                                ].map((d) => (
-                                  <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
-                                    <td className="p-3 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/80">
-                                      {d.name}
-                                    </td>
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((pNum) => {
-                                      const slot = (timetableData.slots || []).find(
-                                        (s: any) => s.dayOfWeek === d.day && s.period === pNum
-                                      );
-                                      return (
-                                        <td key={pNum} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
-                                          {slot ? (
-                                            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-50/70 to-slate-50 border border-emerald-200/70 shadow-2xs">
-                                              <div className="text-xs font-black text-slate-900 leading-tight">
-                                                {slot.subject}
-                                              </div>
-                                              <div className="text-[11px] text-emerald-800 font-semibold mt-1 truncate" title={slot.teacherName}>
-                                                {slot.teacherName}
-                                              </div>
-                                              <div className="text-[9px] font-mono text-slate-400 mt-1">
+                                  { day: 1, name: "Monday", short: "Mon", ar: "الإثنين" },
+                                  { day: 2, name: "Tuesday", short: "Tue", ar: "الثلاثاء" },
+                                  { day: 3, name: "Wednesday", short: "Wed", ar: "الأربعاء" },
+                                  { day: 4, name: "Thursday", short: "Thu", ar: "الخميس" },
+                                  { day: 5, name: "Friday", short: "Fri", ar: "الجمعة" },
+                                  { day: 6, name: "Saturday", short: "Sat", ar: "السبت" },
+                                ].map((d) => {
+                                  const isSelected = timetableDay === d.day;
+                                  return (
+                                    <button
+                                      key={d.day}
+                                      type="button"
+                                      onClick={() => setTimetableDay(d.day)}
+                                      className={`flex-1 min-w-[58px] sm:min-w-[85px] py-2 px-2 rounded-xl text-center transition-all flex flex-col items-center justify-center ${
+                                        isSelected
+                                          ? "bg-stone-900 text-amber-300 shadow-sm ring-1 ring-amber-400/50"
+                                          : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80"
+                                      }`}
+                                    >
+                                      <span className="text-xs font-black">{d.short}</span>
+                                      <span className={`text-[9.5px] mt-0.5 ${isSelected ? "text-amber-200/80" : "text-slate-400"}`}>
+                                        {d.ar}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Daily Period Cards */}
+                              <div className="p-3.5 sm:p-5 space-y-2.5">
+                                {[
+                                  { period: 1, time: "10:30 – 11:00", label: "P1" },
+                                  { period: 2, time: "11:00 – 11:30", label: "P2" },
+                                  { period: 3, time: "11:30 – 12:00", label: "P3" },
+                                  { period: 4, time: "12:00 – 12:30", label: "P4" },
+                                  { period: 5, time: "12:30 – 13:00", label: "P5" },
+                                  { period: 6, time: "14:15 – 14:45", label: "P6" },
+                                  { period: 7, time: "14:45 – 15:15", label: "P7" },
+                                  { period: 8, time: "15:15 – 15:45", label: "P8" },
+                                  { period: 9, time: "15:45 – 16:15", label: "P9" },
+                                ].map((p) => {
+                                  const slot = (timetableData.slots || []).find(
+                                    (s: any) => s.dayOfWeek === timetableDay && s.period === p.period
+                                  );
+                                  return (
+                                    <div
+                                      key={p.period}
+                                      className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                        slot
+                                          ? "bg-gradient-to-r from-emerald-50/40 via-white to-amber-50/30 border-emerald-200/90 shadow-2xs"
+                                          : "bg-slate-50/50 border-slate-200/70 text-slate-400"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-3.5">
+                                        <div
+                                          className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 font-mono shadow-xs ${
+                                            slot
+                                              ? "bg-stone-900 text-amber-300 ring-1 ring-amber-400/40"
+                                              : "bg-slate-200 text-slate-500"
+                                          }`}
+                                        >
+                                          <span className="text-xs font-black leading-none">{p.label}</span>
+                                          <span className="text-[9px] font-semibold opacity-70 mt-0.5">#{p.period}</span>
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                              {p.time}
+                                            </span>
+                                            {slot && (
+                                              <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                                                 {slot.roomNumber || `Room ${timetableData.class.name}`}
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div className="h-14 flex items-center justify-center text-[10px] text-slate-300 font-medium">
-                                              —
-                                            </div>
-                                          )}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <h5 className="text-sm sm:text-base font-black text-slate-900 mt-1">
+                                            {slot ? slot.subject : "Independent Study / Free Period"}
+                                          </h5>
+                                        </div>
+                                      </div>
+
+                                      {slot ? (
+                                        <div className="flex items-center gap-2 self-start sm:self-center pl-14 sm:pl-0">
+                                          <span className="text-xs text-stone-800 font-bold bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-xl">
+                                            👨‍🏫 {slot.teacherName || "Assigned Faculty"}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-slate-400 font-medium pl-14 sm:pl-0">No instruction scheduled</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            /* Full Weekly Grid Mode */
+                            <div>
+                              {/* Mobile Swipe Hint */}
+                              <div className="lg:hidden px-3.5 py-2 bg-amber-50/90 border-b border-amber-200/70 text-[11px] text-amber-950 font-bold flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="animate-pulse">👉</span> Swipe horizontally to view all periods
+                                </span>
+                                <span className="font-mono text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-full border border-amber-300">
+                                  Mon – Sat
+                                </span>
+                              </div>
+
+                              <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+                                <table className="w-full border-collapse min-w-[900px]">
+                                  <thead>
+                                    <tr className="bg-[#1c1c1c] text-white">
+                                      <th className="p-3 text-left text-xs font-black uppercase tracking-wider border-r border-emerald-900/60 w-28">
+                                        Day / Period
+                                      </th>
+                                      {[
+                                        { period: 1, time: "10:30 – 11:00", label: "P1" },
+                                        { period: 2, time: "11:00 – 11:30", label: "P2" },
+                                        { period: 3, time: "11:30 – 12:00", label: "P3" },
+                                        { period: 4, time: "12:00 – 12:30", label: "P4" },
+                                        { period: 5, time: "12:30 – 13:00", label: "P5" },
+                                        { period: 6, time: "14:15 – 14:45", label: "P6" },
+                                        { period: 7, time: "14:45 – 15:15", label: "P7" },
+                                        { period: 8, time: "15:15 – 15:45", label: "P8" },
+                                        { period: 9, time: "15:45 – 16:15", label: "P9" },
+                                      ].map((p) => (
+                                        <th key={p.period} className="p-2.5 text-center border-r border-emerald-900/60 last:border-r-0 min-w-[110px]">
+                                          <div className="text-xs font-black text-amber-300">{p.label}</div>
+                                          <div className="text-[10px] font-mono opacity-80 mt-0.5">{p.time}</div>
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {[
+                                      { day: 1, name: "Monday" },
+                                      { day: 2, name: "Tuesday" },
+                                      { day: 3, name: "Wednesday" },
+                                      { day: 4, name: "Thursday" },
+                                      { day: 5, name: "Friday" },
+                                      { day: 6, name: "Saturday" },
+                                    ].map((d) => (
+                                      <tr key={d.day} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                        <td className="p-3 font-black text-xs text-slate-900 border-r border-slate-200/80 bg-slate-50/80">
+                                          {d.name}
                                         </td>
-                                      );
-                                    })}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((pNum) => {
+                                          const slot = (timetableData.slots || []).find(
+                                            (s: any) => s.dayOfWeek === d.day && s.period === pNum
+                                          );
+                                          return (
+                                            <td key={pNum} className="p-2 border-r border-slate-100 last:border-r-0 align-top">
+                                              {slot ? (
+                                                <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-50/70 to-slate-50 border border-emerald-200/70 shadow-2xs">
+                                                  <div className="text-xs font-black text-slate-900 leading-tight">
+                                                    {slot.subject}
+                                                  </div>
+                                                  <div className="text-[11px] text-emerald-800 font-semibold mt-1 truncate" title={slot.teacherName}>
+                                                    {slot.teacherName}
+                                                  </div>
+                                                  <div className="text-[9px] font-mono text-slate-400 mt-1">
+                                                    {slot.roomNumber || `Room ${timetableData.class.name}`}
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <div className="h-14 flex items-center justify-center text-[10px] text-slate-300 font-medium">
+                                                  —
+                                                </div>
+                                              )}
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}

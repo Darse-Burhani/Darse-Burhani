@@ -26,6 +26,17 @@ export interface PortalModulesState {
     profile: boolean;
     [key: string]: boolean;
   };
+  parent: {
+    dashboard: boolean;
+    activity: boolean;
+    tracking: boolean;
+    timetable: boolean;
+    library: boolean;
+    leave: boolean;
+    calendar: boolean;
+    settings: boolean;
+    [key: string]: boolean;
+  };
 }
 
 export interface RegionPermission {
@@ -63,6 +74,11 @@ export interface ProfilePermissionsState {
     masterVisible?: boolean;
     items: Record<string, TeacherItemPermission>;
   };
+  parent: {
+    masterEnabled: boolean;
+    masterVisible?: boolean;
+    items: Record<string, RegionPermission>;
+  };
   // Backwards compatibility top-level regions for older talabat calls
   personal: RegionPermission;
   academic: RegionPermission;
@@ -95,6 +111,16 @@ const defaultModules: PortalModulesState = {
     calendar: true,
     hifz: true,
     profile: true,
+  },
+  parent: {
+    dashboard: true,
+    activity: true,
+    tracking: true,
+    timetable: true,
+    library: true,
+    leave: true,
+    calendar: true,
+    settings: true,
   },
 };
 
@@ -176,6 +202,22 @@ const defaultPermissions: ProfilePermissionsState = {
       birthDateH: { id: "birthDateH", label: "BIRTHDT_H", description: "Hijri Date of Birth", isOpen: true, isVisible: true },
     },
   },
+  parent: {
+    masterEnabled: true,
+    masterVisible: true,
+    items: {
+      photo: { id: "photo", label: "Profile Photo", description: "Allow parents to upload and change portrait photo", isOpen: true, isVisible: true },
+      name: { id: "name", label: "Full Legal Name", description: "First and last name of the parent / guardian", isOpen: true, isVisible: true },
+      phone: { id: "phone", label: "Primary Mobile Phone", description: "Primary phone contact for campus notifications", isOpen: true, isVisible: true },
+      secondaryPhone: { id: "secondaryPhone", label: "Secondary Contact Phone", description: "Alternate emergency contact phone number", isOpen: true, isVisible: true },
+      occupation: { id: "occupation", label: "Profession & Occupation", description: "Parent professional details and designation", isOpen: true, isVisible: true },
+      address: { id: "address", label: "Residential Address & City", description: "Home address, city, and watan", isOpen: true, isVisible: true },
+      bloodGroup: { id: "bloodGroup", label: "Blood Group", description: "Parent blood group record", isOpen: true, isVisible: true },
+      relationType: { id: "relationType", label: "Relationship Type", description: "Father, Mother, Guardian, or other family relation", isOpen: true, isVisible: true },
+      notes: { id: "notes", label: "Family Notes & Remarks", description: "Special family instructions or medical notes", isOpen: true, isVisible: true },
+      leaveSubmission: { id: "leaveSubmission", label: "Student Leave Requests", description: "Permit parents to submit student leave applications", isOpen: true, isVisible: true },
+    },
+  },
   // Backwards compat aliases
   get personal() { return this.talabat.personal; },
   get academic() { return this.talabat.academic; },
@@ -205,6 +247,7 @@ currentPermissions.photo = currentPermissions.talabat.photo;
         currentPermissions.modules = {
           talabat: { ...defaultModules.talabat, ...(val.modules.talabat || {}) },
           teacher: { ...defaultModules.teacher, ...(val.modules.teacher || {}) },
+          parent: { ...defaultModules.parent, ...(val.modules.parent || {}) },
         };
       }
       if (val.talabat) {
@@ -220,6 +263,13 @@ currentPermissions.photo = currentPermissions.talabat.photo;
           masterEnabled: val.teacher.masterEnabled !== undefined ? val.teacher.masterEnabled : currentPermissions.teacher.masterEnabled,
           masterVisible: val.teacher.masterVisible !== undefined ? val.teacher.masterVisible : currentPermissions.teacher.masterVisible,
           items: { ...currentPermissions.teacher.items, ...(val.teacher.items || {}) },
+        };
+      }
+      if (val.parent) {
+        currentPermissions.parent = {
+          masterEnabled: val.parent.masterEnabled !== undefined ? val.parent.masterEnabled : currentPermissions.parent.masterEnabled,
+          masterVisible: val.parent.masterVisible !== undefined ? val.parent.masterVisible : currentPermissions.parent.masterVisible,
+          items: { ...currentPermissions.parent.items, ...(val.parent.items || {}) },
         };
       }
       currentPermissions.personal = currentPermissions.talabat.personal;
@@ -252,6 +302,12 @@ export async function updateProfilePermissions(
       currentPermissions.modules.teacher = {
         ...currentPermissions.modules.teacher,
         ...updates.modules.teacher,
+      };
+    }
+    if (updates.modules.parent) {
+      currentPermissions.modules.parent = {
+        ...currentPermissions.modules.parent,
+        ...updates.modules.parent,
       };
     }
   }
@@ -299,6 +355,28 @@ export async function updateProfilePermissions(
     }
   }
 
+  if (updates.parent && typeof updates.parent === "object") {
+    currentPermissions.parent.masterEnabled =
+      updates.parent.masterEnabled !== undefined
+        ? Boolean(updates.parent.masterEnabled)
+        : currentPermissions.parent.masterEnabled ?? true;
+    currentPermissions.parent.masterVisible =
+      updates.parent.masterVisible !== undefined
+        ? Boolean(updates.parent.masterVisible)
+        : currentPermissions.parent.masterVisible ?? true;
+
+    if (updates.parent.items && typeof updates.parent.items === "object") {
+      for (const [key, itemVal] of Object.entries(updates.parent.items)) {
+        if (itemVal && typeof itemVal === "object") {
+          currentPermissions.parent.items[key] = {
+            ...(currentPermissions.parent.items[key] || {}),
+            ...(itemVal as any),
+          };
+        }
+      }
+    }
+  }
+
   const legacyKeys = ["personal", "academic", "contact", "identifiers", "parents", "photo"];
   for (const k of legacyKeys) {
     if (updates[k] && typeof updates[k] === "object") {
@@ -321,6 +399,7 @@ export async function updateProfilePermissions(
       modules: currentPermissions.modules,
       talabat: currentPermissions.talabat,
       teacher: currentPermissions.teacher,
+      parent: currentPermissions.parent,
     }));
     await prisma.systemSetting.upsert({
       where: { key: "profile_permissions" },

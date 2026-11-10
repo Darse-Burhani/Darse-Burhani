@@ -37,6 +37,7 @@ import {
   AlertCircle,
   HelpCircle,
   ExternalLink,
+  Heart,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ interface TeacherItemPerm {
 interface PortalModulesConfig {
   talabat: Record<string, boolean>;
   teacher: Record<string, boolean>;
+  parent: Record<string, boolean>;
 }
 
 interface PermissionsData {
@@ -86,6 +88,11 @@ interface PermissionsData {
     masterEnabled: boolean;
     masterVisible?: boolean;
     items: Record<string, TeacherItemPerm>;
+  };
+  parent: {
+    masterEnabled: boolean;
+    masterVisible?: boolean;
+    items: Record<string, RegionPermission>;
   };
 }
 
@@ -142,6 +149,30 @@ const TALABAT_MODULES_LIST = [
   { key: "profile", label: "My Profile", desc: "Student credentials, contacts & bio", icon: User },
 ];
 
+const DEFAULT_PARENT_ITEMS: Record<string, { label: string; desc: string }> = {
+  photo: { label: "Profile Photo", desc: "Allow parents to upload and change portrait photo" },
+  name: { label: "Full Legal Name", desc: "First and last name of the parent / guardian" },
+  phone: { label: "Primary Mobile Phone", desc: "Primary phone contact for campus notifications" },
+  secondaryPhone: { label: "Secondary Contact Phone", desc: "Alternate emergency contact phone number" },
+  occupation: { label: "Profession & Occupation", desc: "Parent professional details and designation" },
+  address: { label: "Residential Address & City", desc: "Home address, city, and watan" },
+  bloodGroup: { label: "Blood Group", desc: "Parent blood group record" },
+  relationType: { label: "Relationship Type", desc: "Father, Mother, Guardian, or other family relation" },
+  notes: { label: "Family Notes & Remarks", desc: "Special family instructions or medical notes" },
+  leaveSubmission: { label: "Student Leave Requests", desc: "Permit parents to submit student leave applications" },
+};
+
+const PARENT_MODULES_LIST = [
+  { key: "dashboard", label: "Dashboard & Summary", desc: "Child overview, quick metrics & campus status", icon: Activity },
+  { key: "activity", label: "Activity Log", desc: "Full timeline of attendance scans, merits & library", icon: Clock },
+  { key: "tracking", label: "Biometric Scans & Telemetry", desc: "Live terminal check-ins, gates & 7-day strip", icon: Fingerprint },
+  { key: "timetable", label: "Class Timetable & Masool", desc: "Weekly darajah schedule, periods & faculty in-charge", icon: CalendarDays },
+  { key: "library", label: "Library Books", desc: "Active book loans, due dates, borrowing history & visits", icon: BookOpen },
+  { key: "leave", label: "Leave Applications", desc: "Apply for leaves, upload documents & track approval status", icon: CalendarDays },
+  { key: "calendar", label: "School Calendar", desc: "Fatimi Hijri calendar, miqaats & academic terms", icon: CalendarDays },
+  { key: "settings", label: "Account Settings & Profile", desc: "Parent profile details, password & preferences", icon: User },
+];
+
 const INITIAL_PERMS: PermissionsData = {
   modules: {
     talabat: {
@@ -165,6 +196,16 @@ const INITIAL_PERMS: PermissionsData = {
       calendar: true,
       profile: true,
     },
+    parent: {
+      dashboard: true,
+      activity: true,
+      tracking: true,
+      timetable: true,
+      library: true,
+      leave: true,
+      calendar: true,
+      settings: true,
+    },
   },
   talabat: {
     masterEnabled: true,
@@ -184,6 +225,14 @@ const INITIAL_PERMS: PermissionsData = {
       return acc;
     }, {} as Record<string, TeacherItemPerm>),
   },
+  parent: {
+    masterEnabled: true,
+    masterVisible: true,
+    items: Object.entries(DEFAULT_PARENT_ITEMS).reduce((acc, [k, it]) => {
+      acc[k] = { id: k, label: it.label, description: it.desc, isOpen: true, isVisible: true };
+      return acc;
+    }, {} as Record<string, RegionPermission>),
+  },
 };
 
 export default function AdminSettingsPage() {
@@ -191,7 +240,7 @@ export default function AdminSettingsPage() {
   const user = session?.user;
   const { refreshModules } = usePortalAccess();
 
-  const [activeTab, setActiveTab] = useState<"talabat" | "teacher" | "security">("talabat");
+  const [activeTab, setActiveTab] = useState<"talabat" | "teacher" | "parent" | "security">("talabat");
   const [loadingPerms, setLoadingPerms] = useState(true);
   const [savingPerms, setSavingPerms] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -227,6 +276,7 @@ export default function AdminSettingsPage() {
             modules: {
               talabat: { ...INITIAL_PERMS.modules.talabat, ...(d.modules?.talabat || {}) },
               teacher: { ...INITIAL_PERMS.modules.teacher, ...(d.modules?.teacher || {}) },
+              parent: { ...INITIAL_PERMS.modules.parent, ...(d.modules?.parent || {}) },
             },
             talabat: {
               ...INITIAL_PERMS.talabat,
@@ -239,6 +289,12 @@ export default function AdminSettingsPage() {
               masterEnabled: d.teacher?.masterEnabled !== undefined ? d.teacher.masterEnabled : true,
               masterVisible: d.teacher?.masterVisible !== undefined ? d.teacher.masterVisible : true,
               items: { ...INITIAL_PERMS.teacher.items, ...(d.teacher?.items || {}) },
+            },
+            parent: {
+              ...INITIAL_PERMS.parent,
+              masterEnabled: d.parent?.masterEnabled !== undefined ? d.parent.masterEnabled : true,
+              masterVisible: d.parent?.masterVisible !== undefined ? d.parent.masterVisible : true,
+              items: { ...INITIAL_PERMS.parent.items, ...(d.parent?.items || {}) },
             },
           };
           setPermissions(merged);
@@ -267,6 +323,7 @@ export default function AdminSettingsPage() {
           modules: permissions.modules,
           talabat: permissions.talabat,
           teacher: permissions.teacher,
+          parent: permissions.parent,
         }),
       });
       if (res.ok) {
@@ -297,7 +354,7 @@ export default function AdminSettingsPage() {
   };
 
   // ── Module Visibility Toggles ──
-  const toggleModule = (role: "teacher" | "talabat", key: string) => {
+  const toggleModule = (role: "teacher" | "talabat" | "parent", key: string) => {
     setPermissions((prev) => ({
       ...prev,
       modules: {
@@ -310,7 +367,7 @@ export default function AdminSettingsPage() {
     }));
   };
 
-  const setAllModules = (role: "teacher" | "talabat", visible: boolean) => {
+  const setAllModules = (role: "teacher" | "talabat" | "parent", visible: boolean) => {
     setPermissions((prev) => {
       const nextRoleMods: Record<string, boolean> = {};
       for (const k of Object.keys(prev.modules[role])) {
@@ -480,6 +537,97 @@ export default function AdminSettingsPage() {
     });
   };
 
+  // ── Parent Item Toggles ──
+  const toggleParentItemVisibility = (key: string) => {
+    setPermissions((prev) => {
+      const current = prev.parent.items[key] || {
+        id: key,
+        label: DEFAULT_PARENT_ITEMS[key]?.label || key,
+        description: DEFAULT_PARENT_ITEMS[key]?.desc || "",
+        isOpen: true,
+        isVisible: true,
+      };
+      const isCurrentlyVisible = current.isVisible !== false;
+      const nextVis = !isCurrentlyVisible;
+      return {
+        ...prev,
+        parent: {
+          ...prev.parent,
+          items: {
+            ...prev.parent.items,
+            [key]: {
+              ...current,
+              isVisible: nextVis,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const toggleParentItemEdit = (key: string) => {
+    setPermissions((prev) => {
+      const current = prev.parent.items[key] || {
+        id: key,
+        label: DEFAULT_PARENT_ITEMS[key]?.label || key,
+        description: DEFAULT_PARENT_ITEMS[key]?.desc || "",
+        isOpen: true,
+        isVisible: true,
+      };
+      return {
+        ...prev,
+        parent: {
+          ...prev.parent,
+          items: {
+            ...prev.parent.items,
+            [key]: {
+              ...current,
+              isOpen: !current.isOpen,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const setAllParentItemsVisibility = (visible: boolean) => {
+    setPermissions((prev) => {
+      const nextItems: Record<string, RegionPermission> = {};
+      for (const k of Object.keys(DEFAULT_PARENT_ITEMS)) {
+        const item = prev.parent.items[k] || {
+          id: k,
+          label: DEFAULT_PARENT_ITEMS[k].label,
+          description: DEFAULT_PARENT_ITEMS[k].desc,
+          isOpen: true,
+        };
+        nextItems[k] = { ...item, isVisible: visible };
+      }
+      return {
+        ...prev,
+        parent: { ...prev.parent, items: nextItems },
+      };
+    });
+  };
+
+  const setAllParentItemsEdit = (open: boolean) => {
+    setPermissions((prev) => {
+      const nextItems: Record<string, RegionPermission> = {};
+      for (const k of Object.keys(DEFAULT_PARENT_ITEMS)) {
+        const item = prev.parent.items[k] || {
+          id: k,
+          label: DEFAULT_PARENT_ITEMS[k].label,
+          description: DEFAULT_PARENT_ITEMS[k].desc,
+          isVisible: true,
+        };
+        nextItems[k] = { ...item, isOpen: open };
+      }
+      return {
+        ...prev,
+        parent: { ...prev.parent, items: nextItems },
+      };
+    });
+  };
+
   // ── Password Change Handler ──
   const handleAdminChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -561,10 +709,29 @@ export default function AdminSettingsPage() {
     });
   }, [searchQuery, filterMode, permissions.teacher.items]);
 
+  const filteredParentItems = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return Object.entries(DEFAULT_PARENT_ITEMS).filter(([key, meta]) => {
+      const perm = permissions.parent.items[key] || { id: key, label: meta.label, description: meta.desc, isOpen: true, isVisible: true };
+      const isVisible = perm.isVisible !== false;
+      const isOpen = perm.isOpen !== false;
+
+      const matchesSearch = !q || key.toLowerCase().includes(q) || meta.label.toLowerCase().includes(q) || meta.desc.toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+
+      if (filterMode === "visible") return isVisible;
+      if (filterMode === "hidden") return !isVisible;
+      if (filterMode === "editable") return isVisible && isOpen;
+      if (filterMode === "locked") return !isOpen || !isVisible;
+      return true;
+    });
+  }, [searchQuery, filterMode, permissions.parent.items]);
+
   // Overall statistics
   const stats = useMemo(() => {
     const talabatVisibleMods = Object.values(permissions.modules.talabat).filter(Boolean).length;
     const teacherVisibleMods = Object.values(permissions.modules.teacher).filter(Boolean).length;
+    const parentVisibleMods = Object.values(permissions.modules.parent).filter(Boolean).length;
 
     const talabatSectionsTotal = Object.keys(DEFAULT_TALABAT_ITEMS).length;
     const talabatSectionsVisible = Object.keys(DEFAULT_TALABAT_ITEMS).filter((k) => {
@@ -586,15 +753,29 @@ export default function AdminSettingsPage() {
       return p?.isOpen !== false && p?.isVisible !== false;
     }).length;
 
+    const parentItemsTotal = Object.keys(DEFAULT_PARENT_ITEMS).length;
+    const parentItemsVisible = Object.keys(DEFAULT_PARENT_ITEMS).filter((k) => {
+      const p = permissions.parent.items[k];
+      return p?.isVisible !== false;
+    }).length;
+    const parentItemsEditable = Object.keys(DEFAULT_PARENT_ITEMS).filter((k) => {
+      const p = permissions.parent.items[k];
+      return p?.isOpen !== false && p?.isVisible !== false;
+    }).length;
+
     return {
       talabatVisibleMods,
       teacherVisibleMods,
+      parentVisibleMods,
       talabatSectionsTotal,
       talabatSectionsVisible,
       talabatSectionsEditable,
       teacherItemsTotal,
       teacherItemsVisible,
       teacherItemsEditable,
+      parentItemsTotal,
+      parentItemsVisible,
+      parentItemsEditable,
     };
   }, [permissions]);
 
@@ -694,7 +875,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* ── Key Metrics Ribbon ── */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/15">
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6 pt-6 border-t border-white/15">
           <div className="bg-white/10 rounded-2xl p-3 backdrop-blur-sm border border-white/10">
             <span className="text-[11px] text-emerald-200 block font-medium">Talabat Sections</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
@@ -718,18 +899,31 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="bg-white/10 rounded-2xl p-3 backdrop-blur-sm border border-white/10">
-            <span className="text-[11px] text-emerald-200 block font-medium">Student Navigation</span>
+            <span className="text-[11px] text-emerald-200 block font-medium">Parent Fields</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-extrabold text-white">{stats.talabatVisibleMods}</span>
-              <span className="text-xs text-emerald-300">/ {TALABAT_MODULES_LIST.length} modules</span>
+              <span className="text-xl font-extrabold text-white">{stats.parentItemsVisible}</span>
+              <span className="text-xs text-emerald-300">/ {stats.parentItemsTotal} visible</span>
             </div>
-            <span className="text-[10px] text-emerald-200 font-medium mt-0.5 block">Active in sidebar</span>
+            <span className="text-[10px] text-amber-300 font-semibold mt-0.5 block">
+              {stats.parentItemsEditable} editable
+            </span>
           </div>
 
           <div className="bg-white/10 rounded-2xl p-3 backdrop-blur-sm border border-white/10">
+            <span className="text-[11px] text-emerald-200 block font-medium">Active Pages</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-extrabold text-white">
+                {stats.talabatVisibleMods + stats.teacherVisibleMods + stats.parentVisibleMods}
+              </span>
+              <span className="text-xs text-emerald-300">modules</span>
+            </div>
+            <span className="text-[10px] text-emerald-200 font-medium mt-0.5 block">Live in navigation</span>
+          </div>
+
+          <div className="bg-white/10 rounded-2xl p-3 backdrop-blur-sm border border-white/10 col-span-2 sm:col-span-1">
             <span className="text-[11px] text-emerald-200 block font-medium">Master Lock Status</span>
             <div className="flex items-center gap-1.5 mt-1">
-              {permissions.talabat.masterEnabled && permissions.teacher.masterEnabled ? (
+              {permissions.talabat.masterEnabled && permissions.teacher.masterEnabled && permissions.parent.masterEnabled ? (
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-400/30">
                   <Unlock className="w-3 h-3 text-emerald-300" /> Operational
                 </span>
@@ -747,34 +941,34 @@ export default function AdminSettingsPage() {
       {/* ── Tabs Navigation & Action Toolbar ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-3">
         {/* Segmented Tab Switcher */}
-        <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200/80 self-start">
+        <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200/80 max-w-full overflow-x-auto scrollbar-none touch-pan-x">
           <button
             type="button"
             onClick={() => setActiveTab("talabat")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
               activeTab === "talabat"
                 ? "bg-white text-emerald-900 shadow-sm border border-emerald-200/60"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <GraduationCap className="w-4 h-4 text-emerald-700" />
-            <span>Talabat (Student) Governance</span>
+            <span>Talabat Governance</span>
             <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0 px-1.5 border-emerald-200">
-              6 Sections
+              6 Blocks
             </Badge>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("teacher")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
               activeTab === "teacher"
                 ? "bg-white text-emerald-900 shadow-sm border border-emerald-200/60"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <User className="w-4 h-4 text-amber-700" />
-            <span>Teacher (Faculty) Governance</span>
+            <span>Teacher Governance</span>
             <Badge className="bg-amber-100 text-amber-900 text-[10px] py-0 px-1.5 border-amber-200">
               18 Fields
             </Badge>
@@ -782,8 +976,24 @@ export default function AdminSettingsPage() {
 
           <button
             type="button"
+            onClick={() => setActiveTab("parent")}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+              activeTab === "parent"
+                ? "bg-white text-rose-900 shadow-sm border border-rose-200/60"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Heart className="w-4 h-4 text-rose-600" />
+            <span>Parent Governance</span>
+            <Badge className="bg-rose-100 text-rose-900 text-[10px] py-0 px-1.5 border-rose-200">
+              10 Items
+            </Badge>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("security")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
               activeTab === "security"
                 ? "bg-white text-slate-900 shadow-sm border border-slate-200"
                 : "text-slate-600 hover:text-slate-900"
@@ -794,10 +1004,10 @@ export default function AdminSettingsPage() {
           </button>
         </div>
 
-        {/* Search & Filter Controls (for Talabat & Teacher tabs) */}
+        {/* Search & Filter Controls (for Talabat, Teacher & Parent tabs) */}
         {activeTab !== "security" && (
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-            <div className="relative min-w-[220px]">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-64 min-w-[180px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -1442,6 +1652,302 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         </div>
+      ) : activeTab === "parent" ? (
+        /* =================================================================== */
+        /* TAB 3: PARENT (GUARDIAN) PORTAL & PROFILE LOCKS                     */
+        /* =================================================================== */
+        <div className="space-y-8">
+          {/* Master Lock Switch Banner */}
+          <div className="p-5 rounded-3xl border border-rose-200/80 bg-gradient-to-r from-rose-50/80 via-amber-50/40 to-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl ${permissions.parent.masterEnabled ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}>
+                  {permissions.parent.masterEnabled ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    Parent Profile Editing Master Switch
+                    {permissions.parent.masterEnabled ? (
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] py-0 px-2">
+                        Open for Edits
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] py-0 px-2">
+                        Locked Institutional Mode
+                      </Badge>
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    When locked, parent profile alterations (contact info, address, photos, and leaves) are prohibited institutional-wide.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={permissions.parent.masterEnabled ? "outline" : "default"}
+                onClick={() =>
+                  setPermissions((prev) => ({
+                    ...prev,
+                    parent: { ...prev.parent, masterEnabled: !prev.parent.masterEnabled },
+                  }))
+                }
+                className={`text-xs h-9 px-4 rounded-xl font-bold shadow-xs ${
+                  permissions.parent.masterEnabled
+                    ? "border-amber-300 text-amber-900 hover:bg-amber-50"
+                    : "bg-rose-700 hover:bg-rose-800 text-white"
+                }`}
+              >
+                {permissions.parent.masterEnabled ? (
+                  <>
+                    <Lock className="w-3.5 h-3.5 mr-1.5 text-amber-700" />
+                    Lock Master Editing
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="w-3.5 h-3.5 mr-1.5" />
+                    Open Master Editing
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* SECTION 1: Parent Information & Profile Fields Governance */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-rose-700" />
+                  Parent Information &amp; Profile Fields Governance
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Manage individual parent data fields. Toggle <strong>Show/Hide (Visibility)</strong> and <strong>Allow/Restrict Edit</strong> access.
+                </p>
+              </div>
+
+              {/* Batch Presets */}
+              <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200/80">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllParentItemsVisibility(true)}
+                  className="text-[11px] h-7 px-2 text-emerald-800 hover:bg-emerald-100/60 font-semibold"
+                >
+                  <Eye className="w-3 h-3 mr-1" /> Show All
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllParentItemsVisibility(false)}
+                  className="text-[11px] h-7 px-2 text-rose-800 hover:bg-rose-100/60 font-semibold"
+                >
+                  <EyeOff className="w-3 h-3 mr-1" /> Hide All
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllParentItemsEdit(true)}
+                  className="text-[11px] h-7 px-2 text-amber-800 hover:bg-amber-100/60 font-semibold"
+                >
+                  <Unlock className="w-3 h-3 mr-1" /> Allow All Edit
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllParentItemsEdit(false)}
+                  className="text-[11px] h-7 px-2 text-slate-700 hover:bg-slate-200/60 font-semibold"
+                >
+                  <Lock className="w-3 h-3 mr-1" /> Restrict All Edit
+                </Button>
+              </div>
+            </div>
+
+            {/* Parent Items List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {filteredParentItems.map(([key, meta]) => {
+                const perm = permissions.parent.items[key] || { id: key, label: meta.label, description: meta.desc, isOpen: true, isVisible: true };
+                const isVisible = perm.isVisible !== false;
+                const isEditable = perm.isOpen !== false;
+
+                return (
+                  <div
+                    key={key}
+                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                      !isVisible
+                        ? "bg-slate-50/70 border-slate-200 opacity-70"
+                        : "bg-white border-slate-200/90 shadow-2xs hover:border-rose-300 hover:shadow-xs"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-sm text-slate-900">{meta.label}</span>
+                        <div className="flex items-center gap-1.5">
+                          {isVisible ? (
+                            <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px] py-0 px-1.5 font-bold">
+                              Visible
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-rose-50 text-rose-800 border-rose-300 text-[10px] py-0 px-1.5 font-bold">
+                              Hidden
+                            </Badge>
+                          )}
+                          {isVisible && (
+                            isEditable ? (
+                              <Badge className="bg-amber-50 text-amber-900 border-amber-300 text-[10px] py-0 px-1.5 font-bold">
+                                Editable
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] py-0 px-1.5 font-bold">
+                                Locked
+                              </Badge>
+                            )
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{meta.desc}</p>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant={isVisible ? "outline" : "secondary"}
+                        size="sm"
+                        onClick={() => toggleParentItemVisibility(key)}
+                        className={`h-7 text-xs font-bold px-3 rounded-xl ${
+                          isVisible
+                            ? "border-slate-300 text-slate-700 hover:bg-slate-100"
+                            : "bg-emerald-100 text-emerald-900 hover:bg-emerald-200 border border-emerald-300"
+                        }`}
+                      >
+                        {isVisible ? (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5 mr-1 text-slate-500" /> Hide
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3.5 h-3.5 mr-1 text-emerald-700" /> Show
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant={isEditable ? "outline" : "secondary"}
+                        size="sm"
+                        onClick={() => toggleParentItemEdit(key)}
+                        disabled={!isVisible}
+                        className={`h-7 text-xs font-bold px-3 rounded-xl ${
+                          !isVisible
+                            ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400"
+                            : isEditable
+                            ? "border-amber-300 text-amber-900 hover:bg-amber-50 bg-amber-50/50"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300"
+                        }`}
+                      >
+                        {isEditable ? (
+                          <>
+                            <Lock className="w-3.5 h-3.5 mr-1 text-amber-700" /> Restrict Edit
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="w-3.5 h-3.5 mr-1 text-slate-600" /> Allow Edit
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION 2: Parent Navigation Modules (Show / Hide Pages) */}
+          <div className="space-y-4 pt-6 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4 text-rose-700" />
+                  Parent Portal Navigation &amp; Page Modules (Show / Hide Pages)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Toggle sidebar page availability and dashboard tabs in the parent portal.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200/80">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllModules("parent", true)}
+                  className="text-[11px] h-7 px-2.5 text-emerald-800 hover:bg-emerald-100/60 font-semibold"
+                >
+                  <Eye className="w-3 h-3 mr-1" /> Show All
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllModules("parent", false)}
+                  className="text-[11px] h-7 px-2.5 text-rose-800 hover:bg-rose-100/60 font-semibold"
+                >
+                  <EyeOff className="w-3 h-3 mr-1" /> Hide All
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {PARENT_MODULES_LIST.map((m) => {
+                const IconComp = m.icon;
+                const isShown = permissions.modules.parent[m.key] !== false;
+
+                return (
+                  <div
+                    key={m.key}
+                    onClick={() => toggleModule("parent", m.key)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-3 ${
+                      isShown
+                        ? "bg-white border-rose-200/80 shadow-2xs hover:border-rose-400 hover:shadow-xs"
+                        : "bg-slate-50/80 border-slate-200 opacity-75 hover:opacity-95"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className={`p-2.5 rounded-xl ${isShown ? "bg-rose-100 text-rose-800" : "bg-slate-200 text-slate-600"}`}>
+                        <IconComp className="w-4 h-4" />
+                      </div>
+                      <Badge className={`text-[10px] py-0 px-2 font-bold ${isShown ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-slate-200 text-slate-600 border-slate-300"}`}>
+                        {isShown ? "Visible" : "Hidden"}
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-tight">{m.label}</h4>
+                      <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{m.desc}</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-mono text-[10px]">/parent/{m.key}</span>
+                      <span className={`font-bold ${isShown ? "text-rose-700" : "text-amber-800"}`}>
+                        {isShown ? "Click to Hide" : "Click to Show"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ) : (
         /* =================================================================== */
         /* TAB 3: ADMIN CREDENTIALS & SECURITY VAULT                           */
@@ -1576,7 +2082,7 @@ export default function AdminSettingsPage() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-xl"
+            className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-xl"
           >
             <div className="bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-amber-400/30 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">

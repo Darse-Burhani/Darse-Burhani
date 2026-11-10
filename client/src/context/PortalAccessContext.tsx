@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 export interface PortalModulesConfig {
   talabat: Record<string, boolean>;
   teacher: Record<string, boolean>;
+  parent: Record<string, boolean>;
 }
 
 const defaultModules: PortalModulesConfig = {
@@ -36,6 +37,16 @@ const defaultModules: PortalModulesConfig = {
     profile: true,
     pointMatrix: false,
     tilawatDua: true,
+  },
+  parent: {
+    dashboard: true,
+    activity: true,
+    tracking: true,
+    timetable: true,
+    library: true,
+    leave: true,
+    calendar: true,
+    settings: true,
   },
 };
 
@@ -153,6 +164,8 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
           res = await fetch("/api/teacher/profile/permissions");
         } else if (session?.user?.role === "STUDENT") {
           res = await fetch("/api/talabat/profile/permissions");
+        } else if (session?.user?.role === "PARENT") {
+          res = await fetch("/api/parent/profile/permissions");
         }
       }
 
@@ -161,8 +174,9 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         if (json.data) {
           if (json.data.modules) {
             setModules({
-              talabat: { ...defaultModules.talabat, ...(json.data.modules.talabat || json.data.modules || {}) },
-              teacher: { ...defaultModules.teacher, ...(json.data.modules.teacher || json.data.modules || {}) },
+              talabat: { ...defaultModules.talabat, ...(json.data.modules.talabat || {}) },
+              teacher: { ...defaultModules.teacher, ...(json.data.modules.teacher || {}) },
+              parent: { ...defaultModules.parent, ...(json.data.modules.parent || {}) },
             });
           } else if (session?.user?.role === "TEACHER" && json.data.modules) {
             setModules((prev) => ({
@@ -174,10 +188,16 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
               ...prev,
               talabat: { ...defaultModules.talabat, ...json.data.modules },
             }));
-          } else if (json.data.talabat || json.data.teacher) {
+          } else if (session?.user?.role === "PARENT" && json.data.modules) {
+            setModules((prev) => ({
+              ...prev,
+              parent: { ...defaultModules.parent, ...json.data.modules },
+            }));
+          } else if (json.data.talabat || json.data.teacher || json.data.parent) {
             setModules({
               talabat: { ...defaultModules.talabat, ...(json.data.talabat || {}) },
               teacher: { ...defaultModules.teacher, ...(json.data.teacher || {}) },
+              parent: { ...defaultModules.parent, ...(json.data.parent || {}) },
             });
           }
         }
@@ -410,7 +430,13 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
     (moduleKey: string, targetRole?: string) => {
       const role = (targetRole || session?.user?.role || "").toUpperCase();
       const bucket =
-        role === "TEACHER" ? modules.teacher : role === "STUDENT" ? modules.talabat : null;
+        role === "TEACHER"
+          ? modules.teacher
+          : role === "STUDENT"
+          ? modules.talabat
+          : role === "PARENT"
+          ? modules.parent
+          : null;
       if (!bucket) return true;
 
       // Check direct key first
@@ -460,7 +486,7 @@ export function ModuleLockGuard({
   children,
 }: {
   moduleKey: string;
-  role: "STUDENT" | "TEACHER";
+  role: "STUDENT" | "TEACHER" | "PARENT";
   title?: string;
   children: React.ReactNode;
 }) {
@@ -482,8 +508,8 @@ export function ModuleLockGuard({
 
   const visible = isModuleVisible(moduleKey, role);
   if (!visible) {
-    const returnPath = role === "STUDENT" ? "/talabat" : "/teacher";
-    const portalName = role === "STUDENT" ? "Talabat Portal" : "Teacher Portal";
+    const returnPath = role === "STUDENT" ? "/talabat" : role === "PARENT" ? "/parent" : "/teacher";
+    const portalName = role === "STUDENT" ? "Talabat Portal" : role === "PARENT" ? "Parent Portal" : "Teacher Portal";
 
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-6">
