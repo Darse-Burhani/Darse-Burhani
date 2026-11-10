@@ -283,6 +283,7 @@ export default function App() {
           }
         >
           <Route index element={<RequireAdminPageAccess pageKey="dashboard"><AdminDashboard /></RequireAdminPageAccess>} />
+          <Route path="dashboard" element={<Navigate to="/admin" replace />} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><AdminClasses /></RequireAdminPageAccess>} />
           <Route path="timetable" element={<RequireAdminPageAccess pageKey="timetable"><AdminTimetable /></RequireAdminPageAccess>} />
           <Route path="point-matrix" element={<RequireAdminPageAccess pageKey="point-matrix"><AdminPointMatrix /></RequireAdminPageAccess>} />
@@ -357,6 +358,7 @@ export default function App() {
           }
         >
           <Route index element={<TalabatDashboard />} />
+          <Route path="dashboard" element={<Navigate to="/talabat" replace />} />
           <Route path="timetable" element={<ModuleLockGuard moduleKey="timetable" role="STUDENT" title="Class Timetable"><TalabatTimetable /></ModuleLockGuard>} />
           <Route path="schedule" element={<Navigate to="/talabat/timetable" replace />} />
           <Route path="classes" element={<Navigate to="/talabat/timetable" replace />} />
@@ -403,6 +405,7 @@ export default function App() {
           }
         >
           <Route index element={<TeacherDashboard />} />
+          <Route path="dashboard" element={<Navigate to="/teacher" replace />} />
           <Route path="classes" element={<RequireAdminPageAccess pageKey="classes"><TeacherClasses /></RequireAdminPageAccess>} />
           <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="talabat-profiles"><TeacherTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="profile-1447" element={<Navigate to="/teacher/talabat-profiles" replace />} />
@@ -471,6 +474,7 @@ export default function App() {
           <Route path="tilawat-dua" element={<TeacherTilawatDua />} />
           <Route path="tilawat-dua/manage" element={<RequireAdminPageAccess pageKey="tilawat-dua"><AdminTilawatDua /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />
+          <Route path="*" element={<Navigate to="/teacher" replace />} />
         </Route>
 
         {/* ── Faculty Routes ── */}
@@ -501,16 +505,23 @@ export default function App() {
           }
         >
           <Route index element={<ModuleLockGuard moduleKey="dashboard" role="PARENT" title="Parent Dashboard"><ParentDashboard defaultTab="overview" /></ModuleLockGuard>} />
+          <Route path="dashboard" element={<Navigate to="/parent" replace />} />
+          <Route path="overview" element={<Navigate to="/parent" replace />} />
           <Route path="activity" element={<ModuleLockGuard moduleKey="activity" role="PARENT" title="Activity Log"><ParentActivity /></ModuleLockGuard>} />
           <Route path="tracking" element={<ModuleLockGuard moduleKey="tracking" role="PARENT" title="Attendance & Telemetry"><ParentDashboard defaultTab="tracking" /></ModuleLockGuard>} />
           <Route path="timetable" element={<ModuleLockGuard moduleKey="timetable" role="PARENT" title="Class Timetable"><ParentDashboard defaultTab="timetable" /></ModuleLockGuard>} />
           <Route path="library" element={<ModuleLockGuard moduleKey="library" role="PARENT" title="Library Books"><ParentDashboard defaultTab="library" /></ModuleLockGuard>} />
           <Route path="leave" element={<ModuleLockGuard moduleKey="leave" role="PARENT" title="Leave Applications"><ParentDashboard defaultTab="leave" /></ModuleLockGuard>} />
+          <Route path="leaves" element={<Navigate to="/parent/leave" replace />} />
+          <Route path="leave-request" element={<Navigate to="/parent/leave" replace />} />
           <Route path="attendance" element={<Navigate to="/parent/tracking" replace />} />
+          <Route path="scans" element={<Navigate to="/parent/tracking" replace />} />
           <Route path="calendar" element={<RequireCalendarAccess><Navigate to="/fatimi-calendar" replace /></RequireCalendarAccess>} />
           <Route path="yearly-profile" element={<TalabatProfile1447 />} />
           <Route path="profile-1447" element={<TalabatProfile1447 />} />
+          <Route path="profile" element={<Navigate to="/parent/settings" replace />} />
           <Route path="settings" element={<ModuleLockGuard moduleKey="settings" role="PARENT" title="Account Settings"><ParentSettings /></ModuleLockGuard>} />
+          <Route path="*" element={<Navigate to="/parent" replace />} />
         </Route>
 
         <Route path="/404" element={<NotFoundPage />} />

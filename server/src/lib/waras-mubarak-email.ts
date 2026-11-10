@@ -728,7 +728,7 @@ export async function sendWarasMubarakEmail(params: SendWarasMubarakParams): Pro
               body: `Waras Mubarak on the birthday of your child ${celebrant.fullName} (ITS: ${celebrant.studentId}). Heartiest congratulations from Idarah Darse Burhani Galiakot!`,
               type: "MILESTONE",
               priority: "HIGH",
-              link: "/parent/dashboard",
+              link: "/parent",
             },
           });
         }
