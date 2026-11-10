@@ -221,7 +221,7 @@ export default function LibraryTvPage() {
                         <div className="flex flex-wrap gap-1.5 mb-3 min-h-[22px]">
                           {shelf.categories.slice(0, 3).map((c) => (
                             <span key={c.name} className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-emerald-100/80">
-                              {c.name} · {c.count}
+                              {c.name} · {typeof c.count === "object" ? (c.count as any)?.id ?? 0 : c.count}
                             </span>
                           ))}
                         </div>

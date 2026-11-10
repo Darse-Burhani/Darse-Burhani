@@ -184,7 +184,7 @@ function ShelfCard({
                 key={cat.name}
                 className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium"
               >
-                {cat.name} ({cat.count})
+                {cat.name} ({typeof cat.count === "object" ? (cat.count as any)?.id ?? 0 : cat.count})
               </span>
             ))}
             {shelf.categories.length > 3 && (

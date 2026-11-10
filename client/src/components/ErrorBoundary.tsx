@@ -19,8 +19,7 @@ function isChunkLoadError(err: unknown): boolean {
     msg.includes("Strict MIME type checking") ||
     msg.includes("MIME type of \"text/html\"") ||
     msg.includes("ChunkLoadError") ||
-    msg.includes("Loading chunk") ||
-    msg.includes("invariant=31")
+    msg.includes("Loading chunk")
   );
 }
 

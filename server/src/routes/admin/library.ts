@@ -154,7 +154,10 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      categories: categories.map((c) => ({ name: c.category, count: c._count })),
+      categories: categories.map((c) => ({
+        name: c.category,
+        count: typeof c._count === "object" ? ((c._count as any)?.id ?? (c._count as any)?._all ?? 0) : (c._count || 0),
+      })),
     });
   } catch (error) {
     console.error("Library fetch error:", error);

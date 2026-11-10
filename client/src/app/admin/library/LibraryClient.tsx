@@ -1851,7 +1851,12 @@ interface InitialData {
 // ── Main Page (Client Component) ──
 export default function LibraryClient({ initialData }: { initialData?: InitialData }) {
   const [books, setBooks] = useState<LibraryBook[]>(initialData?.books || []);
-  const [categories, setCategories] = useState<Category[]>(initialData?.categories || []);
+  const [categories, setCategories] = useState<Category[]>(() => {
+    return (initialData?.categories || []).map((c: any) => ({
+      name: String(c.name || ""),
+      count: typeof c.count === "object" ? Number(c.count?.id ?? c.count?._all ?? 0) : Number(c.count || 0),
+    }));
+  });
   const [loading, setLoading] = useState(!initialData);
   const [stats, setStats] = useState(initialData?.stats || { total: 0, available: 0, borrowed: 0, restock: 0 });
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -1888,7 +1893,12 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
       
       if (data.success) {
         setBooks(data.data);
-        setCategories(data.categories || []);
+        const rawCats = data.categories || [];
+        const normalizedCats: Category[] = rawCats.map((c: any) => ({
+          name: String(c.name || ""),
+          count: typeof c.count === "object" ? Number(c.count?.id ?? c.count?._all ?? 0) : Number(c.count || 0),
+        }));
+        setCategories(normalizedCats);
         
         const total = data.data.length;
         const available = data.data.filter((b: LibraryBook) => b.status === "AVAILABLE").length;
@@ -2310,9 +2320,12 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                       <label htmlFor="filter-category" className="sr-only">Filter by category</label>
                       <select id="filter-category" name="filterCategory" value={categoryFilter} onChange={(e) => handleFilterChange("category", e.target.value)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-800">
                         <option value="">All Categories</option>
-                        {categories.map((cat) => (
-                          <option key={cat.name} value={cat.name}>{cat.name} ({cat.count})</option>
-                        ))}
+                        {categories.map((cat) => {
+                          const countVal = typeof cat.count === "object" ? (cat.count as any)?.id ?? (cat.count as any)?._all ?? 0 : cat.count;
+                          return (
+                            <option key={cat.name} value={cat.name}>{cat.name} ({countVal})</option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -2471,7 +2484,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                   isSelected ? "bg-amber-700 text-white" : "bg-slate-100 text-slate-600"
                 }`}>
-                  {cat.count}
+                  {typeof cat.count === "object" ? (cat.count as any)?.id ?? (cat.count as any)?._all ?? 0 : cat.count}
                 </span>
               </button>
             );

@@ -109,7 +109,10 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           overdue: overdueLoans,
           returned: returnedLoans,
         },
-        categories: categories.map((c) => ({ name: c.category, count: c._count })),
+        categories: categories.map((c) => ({
+          name: c.category,
+          count: typeof c._count === "object" ? ((c._count as any)?._all ?? (c._count as any)?.id ?? 0) : (c._count ?? 0),
+        })),
         recentLoans: recentLoans.map((l) => ({
           ...l,
           borrowedAt: l.borrowedAt.toISOString(),
@@ -120,8 +123,14 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           ...b,
           createdAt: undefined,
         })),
-        topBorrowers: topBorrowers.map((b) => ({ name: b.studentName, count: b._count })),
-        popularBooks: popularBooks.map((b) => ({ title: b.bookTitle, count: b._count })),
+        topBorrowers: topBorrowers.map((b) => ({
+          name: b.studentName,
+          count: typeof b._count === "object" ? ((b._count as any)?._all ?? (b._count as any)?.id ?? 0) : (b._count ?? 0),
+        })),
+        popularBooks: popularBooks.map((b) => ({
+          title: b.bookTitle,
+          count: typeof b._count === "object" ? ((b._count as any)?._all ?? (b._count as any)?.id ?? 0) : (b._count ?? 0),
+        })),
       },
     });
   } catch (error) {
