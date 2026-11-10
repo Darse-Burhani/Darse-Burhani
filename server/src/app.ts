@@ -540,6 +540,15 @@ export function createApp() {
     if (req.path.startsWith("/uploads/")) {
       return res.status(404).json({ success: false, error: "Upload file not found" });
     }
+    // Static assets (.js, .css, images, fonts) that do not exist in clientDist must return 404, NEVER index.html!
+    // Returning index.html (text/html) causes strict MIME type module failures in browsers.
+    if (
+      req.path.startsWith("/assets/") ||
+      /\.(js|mjs|cjs|css|map|wasm|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$/i.test(req.path)
+    ) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      return res.status(404).type("text/plain").send("Resource not found");
+    }
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(clientDist, "index.html"), (err) => {
       if (err) next();

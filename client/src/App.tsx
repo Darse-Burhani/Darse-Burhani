@@ -1,4 +1,36 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+
+/**
+ * Robust lazy import that auto-reloads once if a production deployment
+ * has replaced old hashed asset chunks, avoiding stale 404 / MIME type exceptions.
+ */
+function safeLazy<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    try {
+      return await factory();
+    } catch (err: any) {
+      const msg = err?.message || String(err || "");
+      const isChunk =
+        msg.includes("Failed to fetch dynamically imported module") ||
+        msg.includes("error loading dynamically imported module") ||
+        msg.includes("Failed to load module script") ||
+        msg.includes("Expected a JavaScript-or-Wasm module script") ||
+        msg.includes("MIME type of \"text/html\"") ||
+        msg.includes("Strict MIME type checking") ||
+        msg.includes("text/html");
+
+      const hasRetried = typeof window !== "undefined" ? sessionStorage.getItem("chunk_retry_in_progress") : null;
+      if (isChunk && !hasRetried && typeof window !== "undefined") {
+        sessionStorage.setItem("chunk_retry_in_progress", "true");
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw err;
+    }
+  });
+}
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useSession } from "next-auth/react";
 import PageSkeleton from "@/components/PageSkeleton";
@@ -7,113 +39,113 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DevLockGuard } from "@/components/DevLockGuard";
 
 // ── Public Pages ──
-const LoginPage = lazy(() => import("@/app/login/page"));
-const PrivacyPage = lazy(() => import("@/app/privacy/page"));
-const TermsPage = lazy(() => import("@/app/terms/page"));
-const FatimiCalendarPage = lazy(() => import("@/app/fatimi-calendar/page"));
-const LibraryTvPage = lazy(() => import("@/app/library-tv/page"));
-const NotificationsLayout = lazy(() => import("@/app/notifications/layout"));
-const NotificationsPage = lazy(() => import("@/app/notifications/page"));
-const NotFoundPage = lazy(() => import("@/app/not-found/page"));
-const ThankYouPage = lazy(() => import("@/app/thank-you/page"));
+const LoginPage = safeLazy(() => import("@/app/login/page"));
+const PrivacyPage = safeLazy(() => import("@/app/privacy/page"));
+const TermsPage = safeLazy(() => import("@/app/terms/page"));
+const FatimiCalendarPage = safeLazy(() => import("@/app/fatimi-calendar/page"));
+const LibraryTvPage = safeLazy(() => import("@/app/library-tv/page"));
+const NotificationsLayout = safeLazy(() => import("@/app/notifications/layout"));
+const NotificationsPage = safeLazy(() => import("@/app/notifications/page"));
+const NotFoundPage = safeLazy(() => import("@/app/not-found/page"));
+const ThankYouPage = safeLazy(() => import("@/app/thank-you/page"));
 
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-const CommandPalette = lazy(() => import("@/components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
+const CommandPalette = safeLazy(() => import("@/components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useAutoRouteSEO } from "@/components/SEO";
 import { SplashScreen } from "@/components/SplashScreen";
 import { WaitingInterface } from "@/components/WaitingInterface";
 
 // ── Admin Portal Pages ──
-const AdminLayout = lazy(() => import("@/app/admin/layout"));
-const AdminDashboard = lazy(() => import("@/app/admin/page"));
-const AdminClasses = lazy(() => import("@/app/admin/classes/page"));
-const AdminTimetable = lazy(() => import("@/app/admin/timetable/page"));
-const AdminPointMatrix = lazy(() => import("@/app/admin/point-matrix/page"));
-const AdminUsers = lazy(() => import("@/app/admin/users/page"));
-const AdminPasswords = lazy(() => import("@/app/admin/passwords/page"));
-const AdminStudents = lazy(() => import("@/app/admin/students/page"));
-const AdminParents = lazy(() => import("@/app/admin/parents/page"));
-const AdminParentsAssign = lazy(() => import("@/app/admin/parents/assign/page"));
-const AdminLibrary = lazy(() => import("@/app/admin/library/page"));
-const AdminLibraryOverview = lazy(() => import("@/app/admin/library/overview/page"));
-const AdminLibraryShelves = lazy(() => import("@/app/admin/library/shelves/page"));
-const AdminLibraryCheckout = lazy(() => import("@/app/admin/library/checkout/page"));
-const AdminLibraryAttendance = lazy(() => import("@/app/admin/library/attendance/page"));
-const AdminLibraryOverdue = lazy(() => import("@/app/admin/library/overdue/page"));
-const AdminLibraryAuditor = lazy(() => import("@/app/admin/library/auditor/page"));
-const AdminWarasMubarak = lazy(() => import("@/app/admin/waras-mubarak/page"));
-const AdminMakhzan = lazy(() => import("@/app/admin/makhzn/page"));
-const AdminPortalAssignments = lazy(() => import("@/app/admin/portal-assignments/page"));
-const AdminTakhteet = lazy(() => import("@/app/admin/takhteet/page"));
-const AdminBiometric = lazy(() => import("@/app/admin/biometric/page"));
-const AdminAttendanceSchedule = lazy(() => import("@/app/admin/attendance-schedule/page"));
-const AdminAttendanceEmails = lazy(() => import("@/app/admin/attendance-emails/page"));
-const AdminTracking = lazy(() => import("@/app/admin/tracking/page"));
-const AdminNotifications = lazy(() => import("@/app/admin/notifications/page"));
-const AdminSecurity = lazy(() => import("@/app/admin/security/page"));
-const AdminProcurement = lazy(() => import("@/app/admin/procurement/page"));
-const AdminLeave = lazy(() => import("@/app/admin/leave/page"));
-const AdminAttendanceLogs = lazy(() => import("@/app/admin/attendance-logs/page"));
-const AdminAttendanceHik = lazy(() => import("@/app/admin/attendance-hik/page"));
-const AdminManualAttendance = lazy(() => import("@/app/admin/manual-attendance/page"));
-const AdminGoogleSheets = lazy(() => import("@/app/admin/google-sheets/page"));
-const AdminWhatsApp = lazy(() => import("@/app/admin/whatsapp/page"));
-const AdminMailflare = lazy(() => import("@/app/admin/mailflare/page"));
-const AdminSettings = lazy(() => import("@/app/admin/settings/page"));
-const AdminTilawatDua = lazy(() => import("@/app/admin/tilawat-dua/page"));
-const TalabatTilawatDua = lazy(() => import("@/app/talabat/tilawat-dua/page"));
-const TeacherTilawatDua = lazy(() => import("@/app/teacher/tilawat-dua/page"));
-const FacultyTilawatDua = lazy(() => import("@/app/faculty/tilawat-dua/page"));
-const DirectProjectorPage = lazy(() => import("@/app/tilawat-dua/projector/page"));
-const FatimiDemoPage = lazy(() => import("@/app/fatimi-demo/page"));
+const AdminLayout = safeLazy(() => import("@/app/admin/layout"));
+const AdminDashboard = safeLazy(() => import("@/app/admin/page"));
+const AdminClasses = safeLazy(() => import("@/app/admin/classes/page"));
+const AdminTimetable = safeLazy(() => import("@/app/admin/timetable/page"));
+const AdminPointMatrix = safeLazy(() => import("@/app/admin/point-matrix/page"));
+const AdminUsers = safeLazy(() => import("@/app/admin/users/page"));
+const AdminPasswords = safeLazy(() => import("@/app/admin/passwords/page"));
+const AdminStudents = safeLazy(() => import("@/app/admin/students/page"));
+const AdminParents = safeLazy(() => import("@/app/admin/parents/page"));
+const AdminParentsAssign = safeLazy(() => import("@/app/admin/parents/assign/page"));
+const AdminLibrary = safeLazy(() => import("@/app/admin/library/page"));
+const AdminLibraryOverview = safeLazy(() => import("@/app/admin/library/overview/page"));
+const AdminLibraryShelves = safeLazy(() => import("@/app/admin/library/shelves/page"));
+const AdminLibraryCheckout = safeLazy(() => import("@/app/admin/library/checkout/page"));
+const AdminLibraryAttendance = safeLazy(() => import("@/app/admin/library/attendance/page"));
+const AdminLibraryOverdue = safeLazy(() => import("@/app/admin/library/overdue/page"));
+const AdminLibraryAuditor = safeLazy(() => import("@/app/admin/library/auditor/page"));
+const AdminWarasMubarak = safeLazy(() => import("@/app/admin/waras-mubarak/page"));
+const AdminMakhzan = safeLazy(() => import("@/app/admin/makhzn/page"));
+const AdminPortalAssignments = safeLazy(() => import("@/app/admin/portal-assignments/page"));
+const AdminTakhteet = safeLazy(() => import("@/app/admin/takhteet/page"));
+const AdminBiometric = safeLazy(() => import("@/app/admin/biometric/page"));
+const AdminAttendanceSchedule = safeLazy(() => import("@/app/admin/attendance-schedule/page"));
+const AdminAttendanceEmails = safeLazy(() => import("@/app/admin/attendance-emails/page"));
+const AdminTracking = safeLazy(() => import("@/app/admin/tracking/page"));
+const AdminNotifications = safeLazy(() => import("@/app/admin/notifications/page"));
+const AdminSecurity = safeLazy(() => import("@/app/admin/security/page"));
+const AdminProcurement = safeLazy(() => import("@/app/admin/procurement/page"));
+const AdminLeave = safeLazy(() => import("@/app/admin/leave/page"));
+const AdminAttendanceLogs = safeLazy(() => import("@/app/admin/attendance-logs/page"));
+const AdminAttendanceHik = safeLazy(() => import("@/app/admin/attendance-hik/page"));
+const AdminManualAttendance = safeLazy(() => import("@/app/admin/manual-attendance/page"));
+const AdminGoogleSheets = safeLazy(() => import("@/app/admin/google-sheets/page"));
+const AdminWhatsApp = safeLazy(() => import("@/app/admin/whatsapp/page"));
+const AdminMailflare = safeLazy(() => import("@/app/admin/mailflare/page"));
+const AdminSettings = safeLazy(() => import("@/app/admin/settings/page"));
+const AdminTilawatDua = safeLazy(() => import("@/app/admin/tilawat-dua/page"));
+const TalabatTilawatDua = safeLazy(() => import("@/app/talabat/tilawat-dua/page"));
+const TeacherTilawatDua = safeLazy(() => import("@/app/teacher/tilawat-dua/page"));
+const FacultyTilawatDua = safeLazy(() => import("@/app/faculty/tilawat-dua/page"));
+const DirectProjectorPage = safeLazy(() => import("@/app/tilawat-dua/projector/page"));
+const FatimiDemoPage = safeLazy(() => import("@/app/fatimi-demo/page"));
 
 // ── Talabat (Student) Portal Pages ──
-const TalabatLayout = lazy(() => import("@/app/talabat/layout"));
-const TalabatDashboard = lazy(() => import("@/app/talabat/page"));
-const TalabatAttendance = lazy(() => import("@/app/talabat/attendance/page"));
-const TalabatLeaveRequest = lazy(() => import("@/app/talabat/leave-request/page"));
-const TalabatScans = lazy(() => import("@/app/talabat/scans/page"));
-const TalabatBadges = lazy(() => import("@/app/talabat/badges/page"));
-const TalabatLibrary = lazy(() => import("@/app/talabat/library/page"));
-const TalabatProfile = lazy(() => import("@/app/talabat/profile/page"));
-const TalabatProfile1447 = lazy(() => import("@/app/talabat/profile-1447/page"));
-const TalabatSettings = lazy(() => import("@/app/talabat/settings/page"));
-const TalabatSkillTree = lazy(() => import("@/app/talabat/skill-tree/page"));
-const TalabatAssignments = lazy(() => import("@/app/talabat/assignments/page"));
-const TalabatHobbies = lazy(() => import("@/app/talabat/hobbies/page"));
-const TalabatTimetable = lazy(() => import("@/app/talabat/timetable/page"));
-const TalabatSupport = lazy(() => import("@/app/talabat/support/page"));
-const AdminAssignments = lazy(() => import("@/app/admin/assignments/page"));
-const AdminHobbies = lazy(() => import("@/app/admin/hobbies/page"));
-const AdminSkills = lazy(() => import("@/app/admin/skills/page"));
-const AdminTalabatProfiles = lazy(() => import("@/app/admin/talabat-profiles/page"));
-const TeacherTalabatProfiles = lazy(() => import("@/app/teacher/talabat-profiles/page"));
+const TalabatLayout = safeLazy(() => import("@/app/talabat/layout"));
+const TalabatDashboard = safeLazy(() => import("@/app/talabat/page"));
+const TalabatAttendance = safeLazy(() => import("@/app/talabat/attendance/page"));
+const TalabatLeaveRequest = safeLazy(() => import("@/app/talabat/leave-request/page"));
+const TalabatScans = safeLazy(() => import("@/app/talabat/scans/page"));
+const TalabatBadges = safeLazy(() => import("@/app/talabat/badges/page"));
+const TalabatLibrary = safeLazy(() => import("@/app/talabat/library/page"));
+const TalabatProfile = safeLazy(() => import("@/app/talabat/profile/page"));
+const TalabatProfile1447 = safeLazy(() => import("@/app/talabat/profile-1447/page"));
+const TalabatSettings = safeLazy(() => import("@/app/talabat/settings/page"));
+const TalabatSkillTree = safeLazy(() => import("@/app/talabat/skill-tree/page"));
+const TalabatAssignments = safeLazy(() => import("@/app/talabat/assignments/page"));
+const TalabatHobbies = safeLazy(() => import("@/app/talabat/hobbies/page"));
+const TalabatTimetable = safeLazy(() => import("@/app/talabat/timetable/page"));
+const TalabatSupport = safeLazy(() => import("@/app/talabat/support/page"));
+const AdminAssignments = safeLazy(() => import("@/app/admin/assignments/page"));
+const AdminHobbies = safeLazy(() => import("@/app/admin/hobbies/page"));
+const AdminSkills = safeLazy(() => import("@/app/admin/skills/page"));
+const AdminTalabatProfiles = safeLazy(() => import("@/app/admin/talabat-profiles/page"));
+const TeacherTalabatProfiles = safeLazy(() => import("@/app/teacher/talabat-profiles/page"));
 
 // ── Teacher Portal Pages ──
-const TeacherLayout = lazy(() => import("@/app/teacher/layout"));
-const TeacherDashboard = lazy(() => import("@/app/teacher/page"));
-const TeacherClasses = lazy(() => import("@/app/teacher/classes/page"));
-const TeacherAttendance = lazy(() => import("@/app/teacher/attendance/page"));
-const TeacherLeave = lazy(() => import("@/app/teacher/leave/page"));
-const TeacherTakhteet = lazy(() => import("@/app/teacher/takhteet/page"));
-const TeacherProfile = lazy(() => import("@/app/teacher/profile/page"));
-const TeacherMedicalDuty = lazy(() => import("@/app/teacher/medical-duty/page"));
-const TeacherTimetable = lazy(() => import("@/app/teacher/timetable/page"));
-const TeacherProcurement = lazy(() => import("@/app/teacher/procurement/page"));
-const TeacherSettings = lazy(() => import("@/app/teacher/settings/page"));
-const TeacherMyAttendance = lazy(() => import("@/app/teacher/my-attendance/page"));
-const TeacherAssignments = lazy(() => import("@/app/teacher/assignments/page"));
+const TeacherLayout = safeLazy(() => import("@/app/teacher/layout"));
+const TeacherDashboard = safeLazy(() => import("@/app/teacher/page"));
+const TeacherClasses = safeLazy(() => import("@/app/teacher/classes/page"));
+const TeacherAttendance = safeLazy(() => import("@/app/teacher/attendance/page"));
+const TeacherLeave = safeLazy(() => import("@/app/teacher/leave/page"));
+const TeacherTakhteet = safeLazy(() => import("@/app/teacher/takhteet/page"));
+const TeacherProfile = safeLazy(() => import("@/app/teacher/profile/page"));
+const TeacherMedicalDuty = safeLazy(() => import("@/app/teacher/medical-duty/page"));
+const TeacherTimetable = safeLazy(() => import("@/app/teacher/timetable/page"));
+const TeacherProcurement = safeLazy(() => import("@/app/teacher/procurement/page"));
+const TeacherSettings = safeLazy(() => import("@/app/teacher/settings/page"));
+const TeacherMyAttendance = safeLazy(() => import("@/app/teacher/my-attendance/page"));
+const TeacherAssignments = safeLazy(() => import("@/app/teacher/assignments/page"));
 
 // ── Faculty Portal Pages ──
-const FacultyLayout = lazy(() => import("@/app/faculty/layout"));
-const FacultyAttendance = lazy(() => import("@/app/faculty/attendance/page"));
+const FacultyLayout = safeLazy(() => import("@/app/faculty/layout"));
+const FacultyAttendance = safeLazy(() => import("@/app/faculty/attendance/page"));
 
 // ── Parent Portal Pages ──
-const ParentLayout = lazy(() => import("@/app/parent/layout"));
-const ParentDashboard = lazy(() => import("@/app/parent/page"));
-const ParentActivity = lazy(() => import("@/app/parent/activity/page"));
-const ParentSettings = lazy(() => import("@/app/parent/settings/page"));
+const ParentLayout = safeLazy(() => import("@/app/parent/layout"));
+const ParentDashboard = safeLazy(() => import("@/app/parent/page"));
+const ParentActivity = safeLazy(() => import("@/app/parent/activity/page"));
+const ParentSettings = safeLazy(() => import("@/app/parent/settings/page"));
 
 function SuspenseFallback() {
   return <WaitingInterface variant="fullscreen" />;
@@ -234,6 +266,13 @@ function RootRedirect() {
 
 export default function App() {
   useAutoRouteSEO();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("chunk_retry_in_progress");
+      sessionStorage.removeItem("chunk_retry_timestamp");
+    }
+  }, []);
 
   return (
     <ErrorBoundary>

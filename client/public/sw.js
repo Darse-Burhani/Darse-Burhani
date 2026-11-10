@@ -4,7 +4,7 @@
 // Caches core app shell & static assets for instant load and offline resilience
 // ─────────────────────────────────────────────────────────────
 
-const CACHE_NAME = "darse-burhani-pwa-v3";
+const CACHE_NAME = "darse-burhani-pwa-v4";
 const OFFLINE_URL = "/offline.html";
 
 // Essential static shell assets to pre-cache on install
@@ -142,35 +142,48 @@ self.addEventListener("fetch", (event) => {
   if (isStaticAsset) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
+        // If cached response exists, verify it is not an accidental HTML error page
+        const cachedContentType = cachedResponse?.headers?.get("content-type") || "";
+        const isHtmlMistake = cachedContentType.includes("text/html");
+
+        if (cachedResponse && !isHtmlMistake) {
           // Fetch updated version in background (Stale-While-Revalidate)
           fetch(request)
             .then((networkResponse) => {
               if (networkResponse && networkResponse.status === 200) {
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(request, networkResponse);
-                });
+                const ct = networkResponse.headers.get("content-type") || "";
+                if (!ct.includes("text/html")) {
+                  caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(request, networkResponse);
+                  });
+                }
               }
             })
             .catch(() => {});
           return cachedResponse;
         }
 
-        // Not in cache: fetch from network and store in cache
+        // If it was cached as HTML by mistake, remove it from cache immediately
+        if (isHtmlMistake) {
+          caches.open(CACHE_NAME).then((cache) => cache.delete(request));
+        }
+
+        // Not in cache (or removed): fetch from network and store only valid non-HTML assets
         return fetch(request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
-              const clone = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, clone);
-              });
+              const ct = networkResponse.headers.get("content-type") || "";
+              if (!ct.includes("text/html")) {
+                const clone = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(request, clone);
+                });
+              }
             }
             return networkResponse;
           })
           .catch(() => {
             // No cached copy and the network failed: surface a real network error.
-            // (Fabricating a 408 only pollutes the console — the asset is simply
-            // unavailable while offline.)
             return Response.error();
           });
       })
