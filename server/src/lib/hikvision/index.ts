@@ -69,7 +69,7 @@ export function toConnection(device: BiometricDevice): HikConnection {
 export function toDeviceDto(d: BiometricDevice) {
   const isPrivateIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|127\.)/.test(d.host);
   const isCloud = Boolean(process.env.RENDER || process.env.VERCEL || process.env.NODE_ENV === "production");
-  
+
   let effectiveStatus = d.status;
   if (d.enabled && (effectiveStatus === "OFFLINE" || effectiveStatus === "ERROR") && (isCloud || isPrivateIp)) {
     effectiveStatus = "ONLINE";
@@ -740,7 +740,7 @@ export async function fetchMembersFromDevice(id: string): Promise<FetchMembersRe
             where: { id: possibleUser.studentProfile.id },
             data: { biometricHash: empNo },
           });
-        } catch {}
+        } catch { }
         const fullName = `${possibleUser.firstName} ${possibleUser.lastName}`.trim();
         membersReport.push({
           employeeNo: empNo,
@@ -760,7 +760,7 @@ export async function fetchMembersFromDevice(id: string): Promise<FetchMembersRe
             where: { id: possibleUser.teacherProfile.id },
             data: { biometricHash: empNo },
           });
-        } catch {}
+        } catch { }
         const fullName = `${possibleUser.firstName} ${possibleUser.lastName}`.trim();
         membersReport.push({
           employeeNo: empNo,
@@ -1047,11 +1047,17 @@ function scheduleDevice(id: string, pollIntervalSeconds: number, host?: string):
     return;
   }
   const ms = Math.max(2000, (pollIntervalSeconds || 3) * 1000);
-  const timer = setInterval(() => {
-    pollDevice(id).catch(() => {});
+  const timer = setInterval(async () => {
+    // Strict runtime restriction: verify device is still enabled before every poll tick
+    const dev = await prisma.biometricDevice.findUnique({ where: { id }, select: { enabled: true } });
+    if (!dev || !dev.enabled) {
+      stopDevicePolling(id);
+      return;
+    }
+    pollDevice(id).catch(() => { });
   }, ms);
   timers.set(id, timer);
-  pollDevice(id).catch(() => {});
+  pollDevice(id).catch(() => { });
 }
 
 export function stopDevicePolling(id: string): void {
@@ -1220,7 +1226,7 @@ export async function deployAllStudentsToDevice(deviceId: string): Promise<{
         await prisma.studentProfile.update({
           where: { id: s.id },
           data: { biometricHash: empNo },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       successful++;
@@ -1270,7 +1276,7 @@ export async function deployAllTeachersToDevice(deviceId: string): Promise<{
         await prisma.teacherProfile.update({
           where: { id: t.id },
           data: { biometricHash: empNo },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       successful++;

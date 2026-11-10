@@ -315,13 +315,20 @@ export default function AdminAttendanceSchedulePage() {
       );
     }
 
-    // Audience filter
+    // Audience filter (handles FACULTY, BOTH, and ALL_STUDENTS)
     if (audienceFilter === "STUDENT") {
-      list = list.filter((w) => w.audience === "ALL_STUDENTS");
+      list = list.filter((w) => {
+        const isFaculty = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
+        const isDual = !isFaculty && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
+        return !isFaculty && !isDual;
+      });
     } else if (audienceFilter === "TEACHER") {
-      list = list.filter((w) => w.audience === "FACULTY");
+      list = list.filter((w) => w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY"));
     } else if (audienceFilter === "BOTH") {
-      list = list.filter((w) => w.audience === "BOTH");
+      list = list.filter((w) => {
+        const isFaculty = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
+        return !isFaculty && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
+      });
     }
 
     return list;
@@ -334,8 +341,8 @@ export default function AdminAttendanceSchedulePage() {
   ) => {
     if (w) {
       setEditingWindow(w);
-      const isFacultyOnly = w.audience === "FACULTY";
-      const isDual = w.audience === "BOTH" || w.hasFacultyTimer;
+      const isFacultyOnly = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
+      const isDual = !isFacultyOnly && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
       const initialAudience = isFacultyOnly ? "TEACHER" : isDual ? "BOTH" : "STUDENT";
       const hasSeparateFacultyTime = Boolean(
         w.facultyStartTime &&
@@ -418,12 +425,14 @@ export default function AdminAttendanceSchedulePage() {
       };
 
       if (windowForm.audience === "STUDENT") {
+        payload.audience = "ALL_STUDENTS";
         payload.applicableClassIds = windowForm.applicableClassIds;
         payload.facultyStartTime = null;
         payload.facultyEndTime = null;
         payload.facultyLateEndTime = null;
         payload.applicableTeacherIds = [];
       } else if (windowForm.audience === "TEACHER") {
+        payload.audience = "FACULTY";
         payload.applicableClassIds = [];
         payload.facultyStartTime = windowForm.startTime;
         payload.facultyEndTime = windowForm.endTime;
@@ -431,6 +440,7 @@ export default function AdminAttendanceSchedulePage() {
         payload.applicableTeacherIds = windowForm.applicableTeacherIds;
       } else {
         // BOTH (Talabat & Faculty)
+        payload.audience = "BOTH";
         payload.applicableClassIds = windowForm.applicableClassIds;
         payload.applicableTeacherIds = windowForm.applicableTeacherIds;
         if (!isManual && windowForm.useCustomFacultyTime) {
@@ -642,21 +652,21 @@ export default function AdminAttendanceSchedulePage() {
         <div className="flex items-center gap-1.5 px-2">
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Audience:</span>
           {[
-            { id: "ALL", label: "All Schedules", icon: Layers },
-            { id: "STUDENT", label: "Talabat Only", icon: GraduationCap },
-            { id: "TEACHER", label: "Faculty Only", icon: Shield },
-            { id: "BOTH", label: "Dual (Both)", icon: Zap },
+            { id: "ALL", label: "All Schedules", icon: Layers, activeCls: "bg-slate-900 text-white border-slate-900 shadow-sm" },
+            { id: "STUDENT", label: "Talabat Only", icon: GraduationCap, activeCls: "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/25" },
+            { id: "TEACHER", label: "Faculty Only", icon: Shield, activeCls: "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25" },
+            { id: "BOTH", label: "Dual (Both)", icon: Zap, activeCls: "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/25" },
           ].map((pill) => (
             <button
               key={pill.id}
               onClick={() => setAudienceFilter(pill.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
                 audienceFilter === pill.id
-                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 shadow-2xs"
+                  ? pill.activeCls
                   : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
               }`}
             >
-              <pill.icon className="w-3 h-3" />
+              <pill.icon className="w-3.5 h-3.5" />
               <span>{pill.label}</span>
             </button>
           ))}
@@ -706,7 +716,60 @@ export default function AdminAttendanceSchedulePage() {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
               const isFaculty = w.audience === "FACULTY";
               const isDual = w.audience === "BOTH" || w.hasFacultyTimer;
-              const accentColor = isFaculty ? "blue" : isDual ? "purple" : "emerald";
+
+              const theme = isFaculty
+                ? {
+                    stripe: "bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-500",
+                    borderActive: "border-blue-500/80 ring-2 ring-blue-500/20 shadow-blue-500/10",
+                    borderDefault: "border-blue-200/80 hover:border-blue-400 bg-blue-50/5",
+                    iconBox: "bg-blue-100 text-blue-800 border border-blue-200",
+                    badge: "bg-blue-50 text-blue-800 border-blue-200",
+                    badgeIcon: "text-blue-600",
+                    badgeLabel: "Faculty Only (Staff)",
+                    timeBoxIcon: "text-blue-800",
+                    timeBoxLabel: "Faculty Shift Timing",
+                    toggleActive: "bg-blue-600 shadow-sm",
+                    liveDot: "bg-blue-500",
+                    livePing: "bg-blue-400",
+                    livePill: "bg-blue-50 text-blue-900 border-blue-300",
+                    timerIcon: "text-blue-600",
+                    accent: "blue" as const,
+                  }
+                : isDual
+                ? {
+                    stripe: "bg-gradient-to-r from-purple-700 via-indigo-600 to-pink-500",
+                    borderActive: "border-purple-500/80 ring-2 ring-purple-500/20 shadow-purple-500/10",
+                    borderDefault: "border-purple-200/80 hover:border-purple-400 bg-purple-50/5",
+                    iconBox: "bg-purple-100 text-purple-800 border border-purple-200",
+                    badge: "bg-purple-50 text-purple-800 border-purple-200",
+                    badgeIcon: "text-purple-600",
+                    badgeLabel: "Dual: Talabat & Faculty",
+                    timeBoxIcon: "text-purple-800",
+                    timeBoxLabel: "Unified Gate Timing",
+                    toggleActive: "bg-purple-600 shadow-sm",
+                    liveDot: "bg-purple-500",
+                    livePing: "bg-purple-400",
+                    livePill: "bg-purple-50 text-purple-900 border-purple-300",
+                    timerIcon: "text-purple-600",
+                    accent: "purple" as const,
+                  }
+                : {
+                    stripe: "bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-400",
+                    borderActive: "border-emerald-500/80 ring-2 ring-emerald-500/20 shadow-emerald-500/10",
+                    borderDefault: "border-emerald-200/80 hover:border-emerald-400 bg-emerald-50/5",
+                    iconBox: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+                    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
+                    badgeIcon: "text-emerald-600",
+                    badgeLabel: "Talabat Only (Students)",
+                    timeBoxIcon: "text-emerald-800",
+                    timeBoxLabel: w.windowType === "MANUAL" ? "Live Marking Window" : "Student Timing",
+                    toggleActive: "bg-emerald-600 shadow-sm",
+                    liveDot: "bg-emerald-500",
+                    livePing: "bg-emerald-400",
+                    livePill: "bg-emerald-50 text-emerald-900 border-emerald-300",
+                    timerIcon: "text-emerald-600",
+                    accent: "emerald" as const,
+                  };
 
               return (
                 <Card
@@ -714,63 +777,53 @@ export default function AdminAttendanceSchedulePage() {
                   className={`group relative overflow-hidden transition-all duration-300 rounded-3xl border bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 ${
                     w.enabled
                       ? isLive
-                        ? "border-emerald-500/80 ring-2 ring-emerald-500/20 shadow-emerald-500/10"
-                        : "border-gray-200/90 hover:border-emerald-400"
+                        ? theme.borderActive
+                        : theme.borderDefault
                       : "opacity-60 bg-gray-50/80 border-gray-200"
                   }`}
                 >
                   <div
-                    className={`h-2 w-full ${
-                      !w.enabled
-                        ? "bg-gray-300"
-                        : isFaculty
-                        ? "bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400"
-                        : isDual
-                        ? "bg-gradient-to-r from-purple-600 via-indigo-500 to-emerald-400"
-                        : "bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-400"
+                    className={`h-2.5 w-full ${
+                      !w.enabled ? "bg-gray-300" : theme.stripe
                     }`}
                   />
                   <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
                       <div
                         className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
-                          isFaculty
-                            ? "bg-blue-100 text-blue-800 border border-blue-300"
-                            : isDual
-                            ? "bg-purple-100 text-purple-800 border border-purple-300"
-                            : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          theme.iconBox
                         }`}
                       >
-                        {isFaculty ? <Shield className="w-5 h-5" /> : isDual ? <Zap className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
+                        {isFaculty ? (
+                          <Shield className="w-5 h-5" />
+                        ) : isDual ? (
+                          <Zap className="w-5 h-5" />
+                        ) : (
+                          <GraduationCap className="w-5 h-5" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           {isLive && (
                             <span className="relative flex h-2.5 w-2.5 shrink-0">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${theme.livePing}`}></span>
+                              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${theme.liveDot}`}></span>
                             </span>
                           )}
                           <h3 className="font-bold text-base text-gray-900 leading-tight truncate">{w.name}</h3>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           {/* Audience Badge */}
-                          {isFaculty ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200 text-[10px] font-black flex items-center gap-1 py-0 px-2">
-                              <Shield className="w-2.5 h-2.5 text-blue-600" />
-                              <span>Faculty (Staff)</span>
-                            </Badge>
-                          ) : isDual ? (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200 text-[10px] font-black flex items-center gap-1 py-0 px-2">
-                              <Zap className="w-2.5 h-2.5 text-purple-600" />
-                              <span>Dual: Talabat &amp; Faculty</span>
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-black flex items-center gap-1 py-0 px-2">
-                              <GraduationCap className="w-2.5 h-2.5 text-emerald-600" />
-                              <span>Talabat (Students)</span>
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className={`${theme.badge} text-[10px] font-black flex items-center gap-1 py-0.5 px-2`}>
+                            {isFaculty ? (
+                              <Shield className={`w-2.5 h-2.5 ${theme.badgeIcon}`} />
+                            ) : isDual ? (
+                              <Zap className={`w-2.5 h-2.5 ${theme.badgeIcon}`} />
+                            ) : (
+                              <GraduationCap className={`w-2.5 h-2.5 ${theme.badgeIcon}`} />
+                            )}
+                            <span>{theme.badgeLabel}</span>
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -800,16 +853,12 @@ export default function AdminAttendanceSchedulePage() {
                     {/* Time Display */}
                     <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center text-emerald-800 shadow-2xs border border-gray-200/60">
+                        <div className={`w-7 h-7 rounded-xl bg-white flex items-center justify-center shadow-2xs border border-gray-200/60 ${theme.timeBoxIcon}`}>
                           <Clock className="w-4 h-4" />
                         </div>
                         <div>
                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                            {w.windowType === "MANUAL"
-                              ? "Live Marking Window"
-                              : isFaculty
-                              ? "Faculty Timing"
-                              : "Student Timing"}
+                            {theme.timeBoxLabel}
                           </p>
                           <p className="text-sm font-black text-gray-900 font-mono">
                             {w.startTime} &rarr; {w.endTime}
@@ -895,14 +944,14 @@ export default function AdminAttendanceSchedulePage() {
                       startTime={w.startTime}
                       endTime={w.endTime}
                       lateEndTime={w.lateEndTime}
-                      accent={accentColor}
+                      accent={theme.accent}
                       isManual={w.windowType === "MANUAL"}
                     />
 
                     {/* Grace Period & Live Status */}
                     <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-1.5 text-gray-600">
-                        <Timer className="w-4 h-4 text-emerald-600" />
+                        <Timer className={`w-4 h-4 ${theme.timerIcon}`} />
                         <span>
                           {w.windowType === "MANUAL" ? (
                             <strong className="text-emerald-800">Live Marking Window</strong>
@@ -920,13 +969,13 @@ export default function AdminAttendanceSchedulePage() {
                             !w.enabled
                               ? "bg-gray-100 text-gray-600 border-gray-300"
                               : isLive
-                              ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                              ? theme.livePill
                               : "bg-amber-50 text-amber-900 border-amber-300"
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              !w.enabled ? "bg-gray-400" : isLive ? "bg-emerald-600 animate-pulse" : "bg-amber-500"
+                              !w.enabled ? "bg-gray-400" : isLive ? `${theme.liveDot} animate-pulse` : "bg-amber-500"
                             }`}
                           />
                           {!w.enabled ? "Disabled" : isLive ? "Active Live" : "Closed"}
@@ -937,7 +986,7 @@ export default function AdminAttendanceSchedulePage() {
                           onClick={() => toggleWindowActive(w)}
                           aria-label="Toggle window active state"
                           className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ease-out select-none active:scale-95 ${
-                            w.enabled ? "bg-emerald-600 shadow-sm" : "bg-gray-300"
+                            w.enabled ? theme.toggleActive : "bg-gray-300"
                           }`}
                         >
                           <div
@@ -965,88 +1014,135 @@ export default function AdminAttendanceSchedulePage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 12 }}
               transition={{ type: "spring", stiffness: 350, damping: 26 }}
-              className="w-full max-w-3xl max-h-[92vh] bg-white rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.45)] border border-emerald-500/30 flex flex-col overflow-hidden"
+              className={`w-full max-w-3xl max-h-[92vh] bg-white rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.45)] border flex flex-col overflow-hidden transition-all duration-300 ${
+                windowForm.audience === "TEACHER"
+                  ? "border-blue-500/40"
+                  : windowForm.audience === "BOTH"
+                  ? "border-purple-500/40"
+                  : "border-emerald-500/40"
+              }`}
             >
               {/* 1. Modal Hero Header */}
-              <div className="relative overflow-hidden p-5 sm:p-6 bg-gradient-to-r from-[#0d0d0d] via-[#1c1c1c] to-[#0d0d0d] text-white shrink-0 border-b border-[#d4af37]/30">
-                <div className="pointer-events-none absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-[#d4af37]/15 blur-2xl" />
-                <div className="pointer-events-none absolute -left-10 -top-10 w-40 h-40 rounded-full bg-emerald-500/15 blur-2xl" />
+              {(() => {
+                const aud = windowForm.audience;
+                const isFormFaculty = aud === "TEACHER";
+                const isFormDual = aud === "BOTH";
+                const modalTheme = isFormFaculty
+                  ? {
+                      headerBg: "bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 border-b border-blue-500/40",
+                      glow1: "bg-blue-500/20",
+                      glow2: "bg-indigo-500/20",
+                      iconBox: "bg-gradient-to-br from-blue-500/30 to-indigo-500/20 border-blue-400/50 text-blue-300",
+                      badge: "bg-blue-500/20 text-blue-200 border-blue-400/40",
+                      badgeText: "Faculty Only (Staff)",
+                      subtext: "Configure faculty shift hours, biometric scanning windows, and eligible teacher rosters.",
+                      icon: Shield,
+                      tabActive: "bg-blue-600 text-white font-black shadow-md scale-[1.02]",
+                      tabInactive: "bg-white/10 text-blue-100 hover:bg-white/15",
+                    }
+                  : isFormDual
+                  ? {
+                      headerBg: "bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 border-b border-purple-500/40",
+                      glow1: "bg-purple-500/20",
+                      glow2: "bg-pink-500/20",
+                      iconBox: "bg-gradient-to-br from-purple-500/30 to-pink-500/20 border-purple-400/50 text-purple-300",
+                      badge: "bg-purple-500/20 text-purple-200 border-purple-400/40",
+                      badgeText: "Dual: Talabat & Faculty",
+                      subtext: "Synchronized dual gates covering student arrival and faculty shifts simultaneously.",
+                      icon: Zap,
+                      tabActive: "bg-purple-600 text-white font-black shadow-md scale-[1.02]",
+                      tabInactive: "bg-white/10 text-purple-100 hover:bg-white/15",
+                    }
+                  : {
+                      headerBg: "bg-gradient-to-r from-[#071d18] via-emerald-950 to-[#071d18] border-b border-emerald-500/40",
+                      glow1: "bg-[#d4af37]/15",
+                      glow2: "bg-emerald-500/20",
+                      iconBox: "bg-gradient-to-br from-emerald-500/30 to-teal-400/20 border-emerald-400/50 text-emerald-300",
+                      badge: "bg-emerald-500/20 text-emerald-200 border-emerald-400/40",
+                      badgeText: "Talabat Only (Students)",
+                      subtext: "Configure student arrival windows, late punch cutoffs, and classroom register roll-calls.",
+                      icon: GraduationCap,
+                      tabActive: "bg-emerald-600 text-white font-black shadow-md scale-[1.02]",
+                      tabInactive: "bg-white/10 text-emerald-100 hover:bg-white/15",
+                    };
+                const ModalHeaderIcon = modalTheme.icon;
 
-                <div className="relative z-10 flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#d4af37]/30 to-emerald-400/20 border border-[#d4af37]/50 flex items-center justify-center text-[#fde047] shadow-inner shrink-0">
-                      <Clock className="w-5 h-5 stroke-[2.2]" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg sm:text-xl font-black text-white font-display tracking-tight">
-                          {editingWindow ? "Edit Attendance Schedule" : "Create Attendance Schedule"}
-                        </h3>
-                        <Badge className="bg-[#d4af37]/20 text-[#fff4be] border-[#d4af37]/40 text-[10px] font-black uppercase tracking-wider">
-                          Schedule Engine
-                        </Badge>
+                return (
+                  <div className={`relative overflow-hidden p-5 sm:p-6 text-white shrink-0 transition-all duration-300 ${modalTheme.headerBg}`}>
+                    <div className={`pointer-events-none absolute -right-10 -bottom-10 w-44 h-44 rounded-full blur-2xl ${modalTheme.glow1}`} />
+                    <div className={`pointer-events-none absolute -left-10 -top-10 w-40 h-40 rounded-full blur-2xl ${modalTheme.glow2}`} />
+
+                    <div className="relative z-10 flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-inner shrink-0 ${modalTheme.iconBox}`}>
+                          <ModalHeaderIcon className="w-5 h-5 stroke-[2.2]" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg sm:text-xl font-black text-white font-display tracking-tight">
+                              {editingWindow ? "Edit Attendance Schedule" : "Create Attendance Schedule"}
+                            </h3>
+                            <Badge className={`${modalTheme.badge} text-[10px] font-black uppercase tracking-wider`}>
+                              {modalTheme.badgeText}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-white/80 font-medium mt-0.5">
+                            {modalTheme.subtext}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-emerald-100/80 font-medium mt-0.5">
-                        Configure timing shifts, hardware gates, and classroom roll-call scopes with live synchronization.
-                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => setWindowModalOpen(false)}
+                        className="text-white/70 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors active:scale-90 shrink-0"
+                        aria-label="Close modal"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* 2. Stepped Tab Navigation Strip */}
+                    <div className="relative z-10 grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10 text-xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setModalTab("basics")}
+                        className={cn(
+                          "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
+                          modalTab === "basics" ? modalTheme.tabActive : modalTheme.tabInactive
+                        )}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[10px] font-mono">1</span>
+                        <span className="truncate">Identity &amp; Channel</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setModalTab("timing")}
+                        className={cn(
+                          "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
+                          modalTab === "timing" ? modalTheme.tabActive : modalTheme.tabInactive
+                        )}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[10px] font-mono">2</span>
+                        <span className="truncate">Timing &amp; Grace</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setModalTab("scope")}
+                        className={cn(
+                          "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
+                          modalTab === "scope" ? modalTheme.tabActive : modalTheme.tabInactive
+                        )}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[10px] font-mono">3</span>
+                        <span className="truncate">Audience Scope</span>
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setWindowModalOpen(false)}
-                    className="text-emerald-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors active:scale-90 shrink-0"
-                    aria-label="Close modal"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* 2. Stepped Tab Navigation Strip */}
-                <div className="relative z-10 grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setModalTab("basics")}
-                    className={cn(
-                      "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
-                      modalTab === "basics"
-                        ? "bg-[#d4af37] text-slate-950 font-black shadow-md scale-[1.02]"
-                        : "bg-white/10 text-emerald-100 hover:bg-white/15"
-                    )}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px] font-mono">1</span>
-                    <span className="truncate">Identity &amp; Channel</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setModalTab("timing")}
-                    className={cn(
-                      "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
-                      modalTab === "timing"
-                        ? "bg-[#d4af37] text-slate-950 font-black shadow-md scale-[1.02]"
-                        : "bg-white/10 text-emerald-100 hover:bg-white/15"
-                    )}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px] font-mono">2</span>
-                    <span className="truncate">Timing &amp; Grace</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setModalTab("scope")}
-                    className={cn(
-                      "py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all select-none",
-                      modalTab === "scope"
-                        ? "bg-[#d4af37] text-slate-950 font-black shadow-md scale-[1.02]"
-                        : "bg-white/10 text-emerald-100 hover:bg-white/15"
-                    )}
-                  >
-                    <span className="w-4 h-4 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px] font-mono">3</span>
-                    <span className="truncate">Audience Scope</span>
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* 3. Modal Form Body */}
               <form onSubmit={saveWindow} className="flex flex-col flex-1 overflow-hidden">

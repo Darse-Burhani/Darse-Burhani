@@ -11,6 +11,7 @@ import {
   eventRangeForRole,
   hasFacultyTimer,
   isLegacyFacultyRow,
+  getAudienceType,
   getISTDetails,
   getStartOfDayIST,
   getWindowType,
@@ -157,13 +158,9 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
     let enriched = await Promise.all(
       windows.map(async (w) => {
         const ww = w as any;
-        const legacyFaculty = isLegacyFacultyRow(ww);
-        const unifiedFaculty = hasFacultyTimer(ww);
-        const audience: "FACULTY" | "ALL_STUDENTS" | "BOTH" = legacyFaculty
-          ? "FACULTY"
-          : unifiedFaculty
-            ? "BOTH"
-            : "ALL_STUDENTS";
+        const audience: "FACULTY" | "ALL_STUDENTS" | "BOTH" = getAudienceType(ww);
+        const legacyFaculty = audience === "FACULTY";
+        const unifiedFaculty = audience === "BOTH";
 
         const studentRange = eventRangeForRole(ww, "STUDENT");
         const facultyRange = eventRangeForRole(ww, "TEACHER");
@@ -347,6 +344,16 @@ router.post("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       exemptStudents.push("TYPE_HIKVISION");
     } else {
       exemptStudents.push("TYPE_BOTH");
+    }
+
+    const { audience: rawAudience } = req.body as Record<string, any>;
+    const normAudience = String(rawAudience || "").toUpperCase();
+    if (normAudience === "FACULTY" || normAudience === "TEACHER") {
+      exemptStudents.push("AUDIENCE_FACULTY");
+    } else if (normAudience === "ALL_STUDENTS" || normAudience === "STUDENT") {
+      exemptStudents.push("AUDIENCE_STUDENT");
+    } else if (normAudience === "BOTH") {
+      exemptStudents.push("AUDIENCE_BOTH");
     }
 
     const grace = Math.min(180, Math.max(0, Math.round(Number(graceMinutes) || 0)));
@@ -540,6 +547,21 @@ router.put("/windows/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => 
         currentExempt.push("TYPE_HIKVISION");
       } else {
         currentExempt.push("TYPE_BOTH");
+      }
+      updateData.exemptStudentIds = currentExempt;
+    }
+
+    const { audience: rawAudience } = req.body as Record<string, any>;
+    if (rawAudience !== undefined) {
+      const normAudience = String(rawAudience || "").toUpperCase();
+      let currentExempt: string[] = updateData.exemptStudentIds ?? existing.exemptStudentIds ?? [];
+      currentExempt = currentExempt.filter((id: string) => !id.startsWith("AUDIENCE_"));
+      if (normAudience === "FACULTY" || normAudience === "TEACHER") {
+        currentExempt.push("AUDIENCE_FACULTY");
+      } else if (normAudience === "ALL_STUDENTS" || normAudience === "STUDENT") {
+        currentExempt.push("AUDIENCE_STUDENT");
+      } else if (normAudience === "BOTH") {
+        currentExempt.push("AUDIENCE_BOTH");
       }
       updateData.exemptStudentIds = currentExempt;
     }

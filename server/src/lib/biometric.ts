@@ -192,6 +192,24 @@ export function isLegacyFacultyRow(w: ScanWindowRowLike): boolean {
   );
 }
 
+/** Determine whether an attendance schedule is ONLY FACULTY, ONLY TALABAT, or DUAL (BOTH). */
+export function getAudienceType(w: ScanWindowRowLike): "FACULTY" | "ALL_STUDENTS" | "BOTH" {
+  const exempt = w.exemptStudentIds || [];
+  if (exempt.includes("AUDIENCE_FACULTY") || isLegacyFacultyRow(w)) {
+    return "FACULTY";
+  }
+  if (exempt.includes("AUDIENCE_STUDENT")) {
+    return "ALL_STUDENTS";
+  }
+  if (exempt.includes("AUDIENCE_BOTH")) {
+    return "BOTH";
+  }
+  if (hasFacultyTimer(w)) {
+    return "BOTH";
+  }
+  return "ALL_STUDENTS";
+}
+
 /**
  * IST wall-clock range of an event for a role, in minutes since midnight.
  * Null when the event exposes no usable timer for that role (e.g. a
@@ -201,7 +219,12 @@ export function eventRangeForRole(
   w: ScanWindowRowLike,
   role: "STUDENT" | "TEACHER",
 ): { startMin: number; endMin: number; lateMin: number; enabled: boolean } | null {
+  const exempt = w.exemptStudentIds || [];
   if (role === "TEACHER") {
+    // Strictly exclude student-only rows
+    if (exempt.includes("AUDIENCE_STUDENT")) {
+      return null;
+    }
     if (hasFacultyTimer(w)) {
       if (w.facultyEnabled === false) return null;
       const s = toMinutes(w.facultyStartTime as string);
@@ -210,7 +233,7 @@ export function eventRangeForRole(
       return { startMin: s, endMin: e, lateMin: late, enabled: w.enabled };
     }
     // Legacy fallback: standalone faculty rows use their own columns.
-    if (isLegacyFacultyRow(w)) {
+    if (isLegacyFacultyRow(w) || exempt.includes("AUDIENCE_FACULTY")) {
       if (!w.enabled) return null;
       const s = toMinutes(w.startTime);
       const e = toMinutes(w.endTime);
@@ -227,7 +250,7 @@ export function eventRangeForRole(
     return null;
   }
   // Role === "STUDENT": strictly exclude faculty-only rows
-  if (isLegacyFacultyRow(w)) {
+  if (isLegacyFacultyRow(w) || exempt.includes("AUDIENCE_FACULTY")) {
     return null;
   }
   if (!w.enabled) return null;
@@ -988,6 +1011,34 @@ export async function processBiometricScan(
       timestamp: when.toISOString(),
       message: "Hikvision biometric terminal scan is disabled on Sunday (Institutional Holiday). All members marked on Holiday.",
     };
+  }
+
+  // Strict Biometric Device Restriction: If scan originated from a hardware terminal, verify device is enabled
+  if (deviceId && deviceId !== "simulator" && deviceId !== "admin-simulator" && !deviceId.startsWith("mock")) {
+    const rawHost = deviceId.replace(/^hikvision:(push:)?/, "").trim();
+    if (rawHost) {
+      const dev = await prisma.biometricDevice.findFirst({
+        where: {
+          OR: [
+            { id: rawHost },
+            { host: rawHost },
+            { name: { contains: rawHost } },
+          ],
+        },
+        select: { id: true, name: true, host: true, enabled: true },
+      });
+      if (dev && !dev.enabled) {
+        console.warn(`[biometric] Scan rejected from disabled terminal "${dev.name}" (${dev.host}): attendance polling restricted.`);
+        return {
+          id: `restricted-device-${Date.now()}`,
+          type: "SYSTEM",
+          fingerprint,
+          deviceId,
+          timestamp: when.toISOString(),
+          message: `Terminal "${dev.name}" (${dev.host}) is disabled. Attendance polling and scanning are strictly restricted.`,
+        };
+      }
+    }
   }
 
   // 1. Attempt to resolve Student
