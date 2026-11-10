@@ -44,23 +44,6 @@ import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import { usePWA, isPWAStandalone } from "@/lib/pwa";
 import { cn, getInitials } from "@/lib/utils";
 import { formatTalabatEmail } from "@/lib/student-email";
-import { nowISTMinutes } from "@/lib/attendance-window";
-
-function getLivePeriodStatus(now = new Date()): { label: string; timing: string; isPeriod: boolean } {
-  const m = nowISTMinutes(now);
-  if (m >= 450 && m < 630) return { label: "Sabah & Tilawat", timing: "07:30–10:30", isPeriod: true };
-  if (m >= 630 && m < 660) return { label: "Period 1", timing: "10:30–11:00", isPeriod: true };
-  if (m >= 660 && m < 690) return { label: "Period 2", timing: "11:00–11:30", isPeriod: true };
-  if (m >= 690 && m < 720) return { label: "Period 3", timing: "11:30–12:00", isPeriod: true };
-  if (m >= 720 && m < 750) return { label: "Period 4", timing: "12:00–12:30", isPeriod: true };
-  if (m >= 750 && m < 780) return { label: "Period 5", timing: "12:30–01:00", isPeriod: true };
-  if (m >= 780 && m < 855) return { label: "Zuhr & Lunch", timing: "01:00–02:15", isPeriod: false };
-  if (m >= 855 && m < 885) return { label: "Period 6", timing: "02:15–02:45", isPeriod: true };
-  if (m >= 885 && m < 915) return { label: "Period 7", timing: "02:45–03:15", isPeriod: true };
-  if (m >= 915 && m < 945) return { label: "Period 8", timing: "03:15–03:45", isPeriod: true };
-  if (m >= 945 && m < 975) return { label: "Period 9", timing: "03:45–04:15", isPeriod: true };
-  return { label: "Campus Standby", timing: "Active IST", isPeriod: false };
-}
 
 export interface PortalNavItem {
   label: string;
@@ -110,14 +93,9 @@ export function PortalShell({
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string>("ALL");
   const [istTime, setIstTime] = useState<string>("");
-  const [livePeriod, setLivePeriod] = useState<{ label: string; timing: string; isPeriod: boolean }>({
-    label: "Academic Hours",
-    timing: "IST",
-    isPeriod: false,
-  });
   const { theme: activeFatimiTheme, currentThemeId, setTheme, availableThemes } = useFatimiTheme();
 
-  // Live IST Clock & Academic Period Tracker
+  // Live IST Clock
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -128,7 +106,6 @@ export function PortalShell({
         hour12: true,
       });
       setIstTime(timeString);
-      setLivePeriod(getLivePeriodStatus(now));
     };
     updateTime();
     const timer = setInterval(updateTime, 15000);
@@ -496,15 +473,6 @@ export function PortalShell({
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-[0.16em] uppercase bg-amber-50 text-amber-950 border border-amber-300/80 shadow-2xs shrink-0">
                         {roleLabel}
                       </span>
-                      {/* Live Academic Slot / Period Indicator on Desktop */}
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-950 border border-amber-300/70 text-[10px] font-bold shadow-2xs shrink-0">
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-600"></span>
-                        </span>
-                        <span>{livePeriod.label}</span>
-                        <span className="text-[9.5px] text-amber-700 font-mono font-medium">({livePeriod.timing})</span>
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -696,14 +664,6 @@ export function PortalShell({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[9px] font-black tracking-[0.12em] uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-900 border border-amber-300/60 shrink-0 shadow-2xs">
                       {roleLabel}
-                    </span>
-                    {/* Live Academic Slot / Period Indicator */}
-                    <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300/70 text-[9px] font-bold shrink-0">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-600"></span>
-                      </span>
-                      <span>{livePeriod.label}</span>
                     </span>
                     {istTime && (
                       <span className="hidden sm:flex text-[9px] text-slate-500 font-mono font-semibold items-center gap-1 truncate">
@@ -1101,11 +1061,7 @@ export function PortalShell({
                     </div>
                     <div>
                       <h3 className="font-display font-bold text-sm text-white">Darse Burhani</h3>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-[10px] text-amber-300 font-semibold">{portalName}</p>
-                        <span className="text-[9px] text-white/40">•</span>
-                        <span className="text-[9px] text-amber-200/80 font-mono">{livePeriod.label}</span>
-                      </div>
+                      <p className="text-[10px] text-amber-300 font-semibold mt-0.5">{portalName}</p>
                     </div>
                   </div>
                   <button
