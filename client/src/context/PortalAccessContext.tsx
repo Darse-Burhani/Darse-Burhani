@@ -141,6 +141,7 @@ function navKeyToModuleConfigKey(navKey: string): string {
     navKey === "biometric"
   )
     return "attendance";
+  if (navKey === "overview") return "dashboard";
   return navKey;
 }
 
@@ -171,34 +172,31 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
 
       if (res.ok) {
         const json = await res.json();
-        if (json.data) {
-          if (json.data.modules) {
+        const role = session?.user?.role;
+        const candidateModules = json.data?.modules || json.modules || json.data;
+
+        if (candidateModules) {
+          if (candidateModules.talabat || candidateModules.teacher || candidateModules.parent) {
             setModules({
-              talabat: { ...defaultModules.talabat, ...(json.data.modules.talabat || {}) },
-              teacher: { ...defaultModules.teacher, ...(json.data.modules.teacher || {}) },
-              parent: { ...defaultModules.parent, ...(json.data.modules.parent || {}) },
+              talabat: { ...defaultModules.talabat, ...(candidateModules.talabat || {}) },
+              teacher: { ...defaultModules.teacher, ...(candidateModules.teacher || {}) },
+              parent: { ...defaultModules.parent, ...(candidateModules.parent || {}) },
             });
-          } else if (session?.user?.role === "TEACHER" && json.data.modules) {
+          } else if (role === "PARENT") {
             setModules((prev) => ({
               ...prev,
-              teacher: { ...defaultModules.teacher, ...json.data.modules },
+              parent: { ...defaultModules.parent, ...candidateModules },
             }));
-          } else if (session?.user?.role === "STUDENT" && json.data.modules) {
+          } else if (role === "STUDENT") {
             setModules((prev) => ({
               ...prev,
-              talabat: { ...defaultModules.talabat, ...json.data.modules },
+              talabat: { ...defaultModules.talabat, ...candidateModules },
             }));
-          } else if (session?.user?.role === "PARENT" && json.data.modules) {
+          } else if (role === "TEACHER") {
             setModules((prev) => ({
               ...prev,
-              parent: { ...defaultModules.parent, ...json.data.modules },
+              teacher: { ...defaultModules.teacher, ...candidateModules },
             }));
-          } else if (json.data.talabat || json.data.teacher || json.data.parent) {
-            setModules({
-              talabat: { ...defaultModules.talabat, ...(json.data.talabat || {}) },
-              teacher: { ...defaultModules.teacher, ...(json.data.teacher || {}) },
-              parent: { ...defaultModules.parent, ...(json.data.parent || {}) },
-            });
           }
         }
       }

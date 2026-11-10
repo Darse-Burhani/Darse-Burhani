@@ -42,6 +42,7 @@ import {
   UserCheck,
   Lock,
 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,15 +66,35 @@ const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.E
   { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
 ];
 
-export default function ParentDashboard() {
+export default function ParentDashboard({ defaultTab }: { defaultTab?: ParentTab }) {
+  const location = useLocation();
+  const initialResolvedTab: ParentTab = useMemo(() => {
+    if (defaultTab) return defaultTab;
+    const path = (location.pathname || "").toLowerCase();
+    if (path.includes("/tracking")) return "tracking";
+    if (path.includes("/timetable")) return "timetable";
+    if (path.includes("/library")) return "library";
+    if (path.includes("/leave")) return "leave";
+    const sp = new URLSearchParams(location.search);
+    const tabParam = sp.get("tab") as ParentTab;
+    if (tabParam && ["overview", "tracking", "library", "timetable", "leave"].includes(tabParam)) {
+      return tabParam;
+    }
+    return "overview";
+  }, [defaultTab, location.pathname, location.search]);
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ParentTab>("overview");
+  const [activeTab, setActiveTab] = useState<ParentTab>(initialResolvedTab);
   const [trackingLogs, setTrackingLogs] = useState<any[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
+
+  useEffect(() => {
+    setActiveTab(initialResolvedTab);
+  }, [initialResolvedTab]);
 
   // Class Timetable & Masool State
   const [timetableData, setTimetableData] = useState<any>(null);

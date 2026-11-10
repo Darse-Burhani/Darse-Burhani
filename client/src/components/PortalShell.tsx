@@ -288,7 +288,7 @@ export function PortalShell({
 
   return (
     <>
-      <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: theme.content }}>
+      <div className="min-h-[100dvh] flex flex-col lg:flex-row" style={{ background: theme.content }}>
         {/* ─────────────────────────────────────────────────────────────
            1. DESKTOP SIDEBAR (lg and up)
            ───────────────────────────────────────────────────────────── */}
@@ -458,7 +458,7 @@ export function PortalShell({
            ───────────────────────────────────────────────────────────── */}
         <div
           className={cn(
-            "flex-1 flex flex-col min-h-screen transition-all duration-300 min-w-0 max-w-full overflow-x-hidden",
+            "flex-1 flex flex-col min-h-[100dvh] transition-all duration-300 min-w-0 max-w-full overflow-x-hidden",
             "lg:ml-64",
             sidebarCollapsed && "lg:ml-[76px]"
           )}
@@ -671,7 +671,7 @@ export function PortalShell({
             </div>
 
             {/* ── REDESIGNED MOBILE APP BAR (below lg) ── */}
-            <div className="h-14 sm:h-16 lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-slate-200/70 safe-area-top shadow-2xs">
+            <div className="min-h-[3.75rem] sm:min-h-[4.25rem] h-auto lg:hidden flex items-center justify-between px-3 sm:px-4 bg-white/95 backdrop-blur-xl border-b border-slate-200/70 pt-[max(env(safe-area-inset-top,0px),0.5rem)] pb-2 shadow-2xs">
               {/* Left: Hamburger Drawer Trigger + Brand Logo + Title */}
               <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                 <button
@@ -718,8 +718,22 @@ export function PortalShell({
                 </div>
               </div>
 
-              {/* Right: Quick Search + Notifications + Profile */}
+              {/* Right: PWA Install + Quick Search + Notifications + Profile */}
               <div className="flex items-center gap-1.5 shrink-0">
+                {/* Mobile PWA Download/Install Button — unobtrusive header action */}
+                {canInstall && !isStandalone && (
+                  <button
+                    type="button"
+                    onClick={installPWA}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 text-[11px] font-black transition-all cursor-pointer shadow-xs shrink-0 touch-target-44"
+                    title="Install App"
+                    aria-label="Install App"
+                  >
+                    <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span className="hidden xs:inline">App</span>
+                  </button>
+                )}
+
                 {/* Live Biometric Pulse Badge for Tablet */}
                 <button
                   type="button"
@@ -818,7 +832,7 @@ export function PortalShell({
              5. ERGONOMIC NATIVE MOBILE ACCESS DOCK (Thumb Reachable)
              ───────────────────────────────────────────────────────────── */}
           <nav
-            className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-lg mx-auto px-3 pb-2 safe-area-bottom pointer-events-none"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-lg mx-auto px-3 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pointer-events-none"
             aria-label="Mobile Bottom App Bar"
           >
             <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_8px_32px_rgba(0,0,0,0.55)] px-2.5 py-1.5 flex items-center justify-around gap-1 mb-1 relative overflow-hidden">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { initAnalytics, trackEvent } from "@/lib/analytics";
+import { isPWAStandalone } from "@/lib/pwa";
 
 interface CookiePreferences {
   essential: boolean;
@@ -24,6 +25,10 @@ export function CookieConsentBanner() {
   });
 
   useEffect(() => {
+    if (isPWAStandalone()) {
+      setIsOpen(false);
+      return;
+    }
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) {
@@ -80,8 +85,8 @@ export function CookieConsentBanner() {
   if (!isOpen) return null;
 
   return (
-    <aside aria-label="Cookie Preferences" className="fixed inset-x-0 bottom-24 lg:bottom-0 z-50 p-3 sm:p-5 flex justify-center safe-area-bottom">
-      <div className="w-full max-w-2xl rounded-lg bg-[#0d0d0d] border border-[#2a2a2a] p-4 sm:p-5 text-[#f5f3ef] shadow-lg">
+    <aside aria-label="Cookie Preferences" className="fixed inset-x-0 bottom-0 z-50 p-2 sm:p-4 flex justify-center pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pointer-events-none">
+      <div className="w-full max-w-2xl rounded-2xl bg-[#0d0d0d]/95 backdrop-blur-xl border border-amber-400/40 p-3.5 sm:p-4 text-[#f5f3ef] shadow-2xl pointer-events-auto">
         {!showPreferences ? (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="text-xs space-y-1">

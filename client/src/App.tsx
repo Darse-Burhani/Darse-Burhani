@@ -186,6 +186,9 @@ function RequireCalendarAccess({ children }: { children: React.ReactNode }) {
   if (role === "TEACHER" && !isModuleVisible("calendar", "TEACHER")) {
     return <Navigate to="/teacher" replace />;
   }
+  if (role === "PARENT" && !isModuleVisible("calendar", "PARENT")) {
+    return <Navigate to="/parent" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -497,13 +500,17 @@ export default function App() {
             </RequireRole>
           }
         >
-          <Route index element={<ParentDashboard />} />
-          <Route path="activity" element={<ParentActivity />} />
-          <Route path="attendance" element={<Navigate to="/parent/activity" replace />} />
-          <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
+          <Route index element={<ModuleLockGuard moduleKey="dashboard" role="PARENT" title="Parent Dashboard"><ParentDashboard defaultTab="overview" /></ModuleLockGuard>} />
+          <Route path="activity" element={<ModuleLockGuard moduleKey="activity" role="PARENT" title="Activity Log"><ParentActivity /></ModuleLockGuard>} />
+          <Route path="tracking" element={<ModuleLockGuard moduleKey="tracking" role="PARENT" title="Attendance & Telemetry"><ParentDashboard defaultTab="tracking" /></ModuleLockGuard>} />
+          <Route path="timetable" element={<ModuleLockGuard moduleKey="timetable" role="PARENT" title="Class Timetable"><ParentDashboard defaultTab="timetable" /></ModuleLockGuard>} />
+          <Route path="library" element={<ModuleLockGuard moduleKey="library" role="PARENT" title="Library Books"><ParentDashboard defaultTab="library" /></ModuleLockGuard>} />
+          <Route path="leave" element={<ModuleLockGuard moduleKey="leave" role="PARENT" title="Leave Applications"><ParentDashboard defaultTab="leave" /></ModuleLockGuard>} />
+          <Route path="attendance" element={<Navigate to="/parent/tracking" replace />} />
+          <Route path="calendar" element={<RequireCalendarAccess><Navigate to="/fatimi-calendar" replace /></RequireCalendarAccess>} />
           <Route path="yearly-profile" element={<TalabatProfile1447 />} />
           <Route path="profile-1447" element={<TalabatProfile1447 />} />
-          <Route path="settings" element={<ParentSettings />} />
+          <Route path="settings" element={<ModuleLockGuard moduleKey="settings" role="PARENT" title="Account Settings"><ParentSettings /></ModuleLockGuard>} />
         </Route>
 
         <Route path="/404" element={<NotFoundPage />} />

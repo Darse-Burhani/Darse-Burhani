@@ -148,7 +148,10 @@ router.get("/permissions", requireRole("PARENT", "ADMIN"), (_req, res) => {
   const allPermissions = getProfilePermissions();
   return res.json({
     success: true,
-    data: allPermissions.parent,
+    data: {
+      ...allPermissions.parent,
+      modules: allPermissions.modules.parent,
+    },
     modules: allPermissions.modules.parent,
   });
 });

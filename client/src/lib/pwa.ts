@@ -109,7 +109,13 @@ export function isPWAStandalone(): boolean {
 
 // React hook for PWA status and installation banner
 export function usePWA() {
-  const [canInstall, setCanInstall] = useState<boolean>(() => !!deferredPrompt);
+  const [canInstall, setCanInstall] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    if (isPWAStandalone()) return false;
+    if (deferredPrompt) return true;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    return isIOS;
+  });
   const [isInstalled, setIsInstalled] = useState<boolean>(() => isPWAStandalone());
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true
@@ -157,15 +163,8 @@ export function usePWA() {
 
   const installPWA = useCallback(async () => {
     if (!deferredPrompt) {
-      // Fallback instruction for iOS / browsers without beforeinstallprompt
-      const isIOS =
-        typeof navigator !== "undefined" &&
-        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-        !(window as any).MSStream;
-      if (isIOS) {
-        alert(
-          "To install on iOS: Tap the Share button in Safari, then choose 'Add to Home Screen' (📲)."
-        );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("show-pwa-install-guide"));
       }
       return false;
     }

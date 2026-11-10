@@ -4,6 +4,10 @@ import {
   CalendarDays,
   Clock,
   Settings,
+  Fingerprint,
+  BookOpen,
+  Library,
+  CalendarCheck,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -13,10 +17,14 @@ export default function ParentLayout() {
 
   const allNavItems = useMemo(
     () => [
-      { key: "dashboard", label: "Dashboard", href: "/parent", icon: Activity },
-      { key: "activity", label: "Activity Log", href: "/parent/activity", icon: Clock },
-      { key: "calendar", label: "School Calendar", href: "/fatimi-calendar", icon: CalendarDays },
-      { key: "settings", label: "Account Settings", href: "/parent/settings", icon: Settings },
+      { key: "dashboard", label: "Dashboard", href: "/parent", icon: Activity, category: "Academics" },
+      { key: "activity", label: "Activity Log", href: "/parent/activity", icon: Clock, category: "Academics" },
+      { key: "tracking", label: "Attendance & Scans", href: "/parent/tracking", icon: Fingerprint, category: "Academics" },
+      { key: "timetable", label: "Class Timetable", href: "/parent/timetable", icon: BookOpen, category: "Academics" },
+      { key: "library", label: "Library Books", href: "/parent/library", icon: Library, category: "Academics" },
+      { key: "leave", label: "Leave Requests", href: "/parent/leave", icon: CalendarCheck, category: "Administration" },
+      { key: "calendar", label: "School Calendar", href: "/fatimi-calendar", icon: CalendarDays, category: "Administration" },
+      { key: "settings", label: "Account Settings", href: "/parent/settings", icon: Settings, category: "Profile" },
     ],
     []
   );
