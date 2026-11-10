@@ -477,7 +477,7 @@ export function ManualAttendanceModal({
                       </div>
 
                       {/* Status Selection Buttons */}
-                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                      <div className="grid grid-cols-2 sm:flex items-center gap-1 sm:gap-1.5 w-full sm:w-auto shrink-0 mt-2 sm:mt-0">
                         {statuses.map((st) => {
                           const conf = STATUS_CONFIG[st];
                           const isActive = item.currentStatus === st;
@@ -487,14 +487,14 @@ export function ManualAttendanceModal({
                               key={st}
                               type="button"
                               onClick={() => updateItemStatus(item.id, st)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-150 flex items-center gap-1.5 border active:scale-95 ${
+                              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-150 flex items-center justify-center gap-1 sm:gap-1.5 border active:scale-95 min-w-0 ${
                                 isActive
                                   ? conf.activeClass
                                   : "border-slate-200 bg-slate-50/80 text-slate-700 hover:bg-slate-100"
                               }`}
                             >
-                              <Icon className="w-3.5 h-3.5" />
-                              <span>{conf.label}</span>
+                              <Icon className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{conf.label}</span>
                             </button>
                           );
                         })}

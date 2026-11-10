@@ -546,7 +546,7 @@ export default function AdminManualAttendancePage() {
   }, [roster]);
 
   return (
-    <div className="p-3 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+    <div className="p-3 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 w-full min-w-0 max-w-full overflow-hidden pb-32">
       {/* ── Attendance Hub Navigation Tabs ── */}
       <AdminHubTabs
         hubTitle="Attendance & Biometric Center"
@@ -828,7 +828,7 @@ export default function AdminManualAttendancePage() {
         </div>
 
         {/* 1-Click Schedule Window Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 w-full min-w-0">
           {scheduledWindows.map((win) => {
             const isSelected = selectedScheduleId === win.id;
             return (
@@ -837,19 +837,19 @@ export default function AdminManualAttendancePage() {
                 type="button"
                 onClick={() => setSelectedScheduleId(win.id)}
                 className={cn(
-                  "p-3 rounded-2xl text-left border transition-all duration-150 relative overflow-hidden flex flex-col justify-between gap-1",
+                  "p-2.5 sm:p-3 rounded-2xl text-left border transition-all duration-150 relative overflow-hidden flex flex-col justify-between gap-1 min-w-0 active:scale-95",
                   isSelected
                     ? "bg-gradient-to-br from-[#d4af37] to-[#b8860b] text-slate-950 border-[#fde047] shadow-md ring-2 ring-amber-300"
                     : "bg-white/5 border-white/10 text-emerald-100 hover:bg-white/10"
                 )}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1 min-w-0">
                   <span className="text-xs font-black truncate">{win.name}</span>
                   {isSelected && (
-                    <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping" />
+                    <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping shrink-0" />
                   )}
                 </div>
-                <span className={cn("text-[10px] font-mono font-bold", isSelected ? "text-slate-900" : "text-emerald-300/80")}>
+                <span className={cn("text-[10px] font-mono font-bold truncate", isSelected ? "text-slate-900" : "text-emerald-300/80")}>
                   {win.startTime} - {win.endTime} IST
                 </span>
               </button>
@@ -859,18 +859,18 @@ export default function AdminManualAttendancePage() {
       </div>
 
       {/* ── Division Quick-Pills (Switch between All School and Specific Classes in 1 Click) ── */}
-      <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-            <GraduationCap className="w-4 h-4 text-emerald-600" />
+      <div className="p-3.5 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-2 w-full min-w-0 max-w-full overflow-hidden">
+        <div className="flex items-center justify-between min-w-0">
+          <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5 truncate">
+            <GraduationCap className="w-4 h-4 text-emerald-600 shrink-0" />
             Class / Division Selection:
           </span>
-          <span className="text-xs text-gray-400 font-medium">
+          <span className="text-xs text-gray-400 font-medium shrink-0">
             1-Click instant switch
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-h-36 overflow-y-auto pr-1">
           {/* All School */}
           <button
             type="button"
@@ -1149,9 +1149,9 @@ export default function AdminManualAttendancePage() {
         </div>
       ) : viewLayout === "table" ? (
         /* ── TABLE VIEW (Power Roll-Call List) ── */
-        <div className="rounded-3xl border border-gray-200/90 bg-white overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+        <div className="rounded-3xl border border-gray-200/90 bg-white overflow-hidden shadow-xs w-full min-w-0 max-w-full">
+          <div className="w-full overflow-x-auto min-w-0">
+            <table className="w-full min-w-[760px] text-left text-xs">
               <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-black uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="py-3.5 px-4">#</th>
@@ -1177,29 +1177,29 @@ export default function AdminManualAttendancePage() {
                     >
                       <td className="py-3 px-4 font-mono font-bold text-gray-400">{idx + 1}</td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="w-8 h-8 rounded-xl border border-emerald-100 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Avatar className="w-8 h-8 rounded-xl border border-emerald-100 shadow-2xs shrink-0">
                             {member.avatarUrl && <AvatarImage src={member.avatarUrl} alt={member.name} />}
                             <AvatarFallback className="text-[10px] font-black bg-emerald-800 text-white">
                               {getInitials(member.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-black text-slate-900 font-display">
+                          <span className="font-black text-slate-900 font-display truncate max-w-[200px]">
                             {member.name || member.its || member.identifier || "Member"}
                           </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-950 border border-amber-200 font-mono font-bold text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-950 border border-amber-200 font-mono font-bold text-[11px] whitespace-nowrap">
                           {member.its || member.identifier || "—"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-gray-600 font-semibold">
+                      <td className="py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">
                         {member.grade ? `Grade ${member.grade}-${member.section}` : member.department || "Faculty"}
                       </td>
                       <td className="py-3 px-4">
                         <span className={cn(
-                          "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                          "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border whitespace-nowrap",
                           STATUS_CONFIG.find((s) => s.key === member.status)?.badgeClass || "bg-gray-100 text-gray-600 border-gray-200"
                         )}>
                           {member.status === "NOT_MARKED" ? "Pending" : member.status}
@@ -1221,7 +1221,7 @@ export default function AdminManualAttendancePage() {
                                 }}
                                 title={`${btn.label} (Press ${btn.hotkey})`}
                                 className={cn(
-                                  "px-2 py-1 rounded-lg text-[10px] font-extrabold border transition-all flex items-center gap-1",
+                                  "px-2 py-1 rounded-lg text-[10px] font-extrabold border transition-all flex items-center gap-1 active:scale-95 shrink-0",
                                   isCurrent ? btn.bgActive : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
                                 )}
                               >
@@ -1253,7 +1253,7 @@ export default function AdminManualAttendancePage() {
         /* ── BENTO CARD GRID / KIOSK TOUCH VIEW ── */
         <div
           className={cn(
-            "grid gap-4",
+            "grid gap-3.5 sm:gap-4 w-full min-w-0 max-w-full",
             viewLayout === "kiosk"
               ? "grid-cols-1 md:grid-cols-2"
               : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
@@ -1273,7 +1273,7 @@ export default function AdminManualAttendancePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.16, delay: Math.min(idx * 0.012, 0.18) }}
                 className={cn(
-                  "p-4 rounded-3xl border transition-all duration-200 bg-white shadow-2xs relative flex flex-col justify-between cursor-pointer group select-none",
+                  "p-3.5 sm:p-4 rounded-3xl border transition-all duration-200 bg-white shadow-2xs relative flex flex-col justify-between cursor-pointer group select-none w-full min-w-0 max-w-full overflow-hidden",
                   isFocused && "ring-2 ring-emerald-500 border-emerald-400 shadow-md",
                   isMarked
                     ? "border-emerald-200/90 hover:border-emerald-400 hover:shadow-md"
@@ -1281,9 +1281,9 @@ export default function AdminManualAttendancePage() {
                 )}
               >
                 {/* Top Row: Avatar, Name, ITS, Status Badge */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Avatar className="w-12 h-12 rounded-2xl border-2 border-emerald-100 shadow-2xs shrink-0">
+                <div className="flex items-start justify-between gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border-2 border-emerald-100 shadow-2xs shrink-0">
                       {member.avatarUrl && (
                         <AvatarImage src={member.avatarUrl} alt={member.name} className="object-cover object-center" />
                       )}
@@ -1292,15 +1292,15 @@ export default function AdminManualAttendancePage() {
                       </AvatarFallback>
                     </Avatar>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4 className="text-sm font-black text-gray-900 leading-tight break-words min-w-0 font-display group-hover:text-emerald-900">
+                        <h4 className="text-sm font-black text-gray-900 leading-tight truncate min-w-0 font-display group-hover:text-emerald-900">
                           {member.name || member.its || member.identifier || "Student"}
                         </h4>
                         {member.grade && (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200"
+                            className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200 shrink-0"
                           >
                             Grade {member.grade}{member.section ? `-${member.section}` : ""}
                           </Badge>
@@ -1308,7 +1308,7 @@ export default function AdminManualAttendancePage() {
                         {member.targetType === "TEACHER" && (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-800 border-purple-200"
+                            className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full border bg-purple-50 text-purple-800 border-purple-200 shrink-0"
                           >
                             Faculty
                           </Badge>
@@ -1316,12 +1316,12 @@ export default function AdminManualAttendancePage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-950 border border-amber-300 text-[11px] font-mono font-black shadow-2xs">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-950 border border-amber-300 text-[11px] font-mono font-black shadow-2xs shrink-0">
                           <span className="text-[9px] uppercase font-bold text-amber-700 tracking-wider">ITS</span>
                           <span>{member.its || member.identifier || "—"}</span>
                         </span>
                         {member.department && member.targetType === "TEACHER" && (
-                          <span className="text-[11px] text-gray-600 font-semibold">
+                          <span className="text-[11px] text-gray-600 font-semibold truncate">
                             {member.department}
                           </span>
                         )}
@@ -1330,16 +1330,16 @@ export default function AdminManualAttendancePage() {
                   </div>
 
                   {/* Status Pill Badge */}
-                  <div>
+                  <div className="shrink-0">
                     {currentStatusConfig ? (
                       <span className={cn(
-                        "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-2xs",
+                        "px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider border shadow-2xs whitespace-nowrap",
                         currentStatusConfig.badgeClass
                       )}>
                         {currentStatusConfig.label}
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200">
+                      <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200 whitespace-nowrap">
                         Pending
                       </span>
                     )}
@@ -1348,8 +1348,8 @@ export default function AdminManualAttendancePage() {
 
                 {/* Status Selection Strip with Number Hotkeys (4 Statuses: Present, Late, Absent, Leave) */}
                 <div className={cn(
-                  "grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4",
-                  viewLayout === "kiosk" && "gap-2.5"
+                  "grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mt-3.5",
+                  viewLayout === "kiosk" && "gap-2"
                 )}>
                   {STATUS_CONFIG.map((btn) => {
                     const isSelected = member.status === btn.key;
@@ -1364,32 +1364,32 @@ export default function AdminManualAttendancePage() {
                           setFocusedIndex(idx);
                         }}
                         className={cn(
-                          "flex flex-col items-center justify-center p-2 rounded-2xl text-[11px] font-black border transition-all duration-150 select-none active:scale-95 relative",
-                          viewLayout === "kiosk" ? "py-3 text-xs" : "py-2.5",
+                          "flex flex-col items-center justify-center p-2 rounded-xl sm:rounded-2xl text-[11px] font-black border transition-all duration-150 select-none active:scale-95 relative min-w-0",
+                          viewLayout === "kiosk" ? "py-3 text-xs" : "py-2 sm:py-2.5",
                           isSelected
                             ? cn(btn.bgActive, btn.borderActive)
                             : "bg-slate-50/80 text-slate-700 border-slate-200/80 hover:bg-slate-100 hover:text-slate-900"
                         )}
                       >
-                        <span className="absolute top-1 right-1.5 text-[9px] opacity-50 font-mono font-bold">
+                        <span className="absolute top-1 right-1.5 text-[8.5px] opacity-50 font-mono font-bold">
                           {btn.hotkey}
                         </span>
-                        <Icon className={cn("w-4 h-4 mb-1 shrink-0", isSelected ? "text-white" : "opacity-80")} />
-                        <span className="leading-tight">{btn.label}</span>
+                        <Icon className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4 mb-0.5 sm:mb-1 shrink-0", isSelected ? "text-white" : "opacity-80")} />
+                        <span className="leading-tight truncate max-w-full text-center">{btn.label}</span>
                       </button>
                     );
                   })}
                 </div>
 
                 {/* Bottom Bar: Remarks Input & Source Indicator */}
-                <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center gap-2">
+                <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center gap-2 min-w-0">
                   <input
                     type="text"
                     placeholder="Add note / reason..."
                     value={member.remarks || ""}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => handleRemarksChange(member.id, e.target.value)}
-                    className="w-full h-8 px-2.5 text-[11px] font-medium rounded-xl border border-gray-200 bg-gray-50/40 text-gray-800 placeholder:text-gray-400 focus:bg-white focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none"
+                    className="w-full min-w-0 h-8 px-2.5 text-[11px] font-medium rounded-xl border border-gray-200 bg-gray-50/40 text-gray-800 placeholder:text-gray-400 focus:bg-white focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none"
                   />
                   {member.source && (
                     <Badge variant="outline" className="text-[9px] font-mono text-gray-400 shrink-0 uppercase px-1.5 py-0.5">

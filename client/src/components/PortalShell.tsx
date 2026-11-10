@@ -88,7 +88,6 @@ export function PortalShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [quickCommandOpen, setQuickCommandOpen] = useState(false);
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState<string>("ALL");
@@ -113,7 +112,6 @@ export function PortalShell({
   }, []);
 
   const handleOpenSearch = () => {
-    setQuickCommandOpen(false);
     window.dispatchEvent(
       new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true, bubbles: true })
     );
@@ -121,14 +119,13 @@ export function PortalShell({
 
   useEffect(() => {
     setMobileMenuOpen(false);
-    setQuickCommandOpen(false);
     setProfileMenuOpen(false);
     setMobileSearchQuery("");
   }, [pathname]);
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
-    if (mobileMenuOpen || quickCommandOpen) {
+    if (mobileMenuOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -136,7 +133,7 @@ export function PortalShell({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [mobileMenuOpen, quickCommandOpen]);
+  }, [mobileMenuOpen]);
 
   const rootPath = rootPathFor(role);
 
@@ -695,18 +692,17 @@ export function PortalShell({
                 )}
 
                 {/* Live Biometric Pulse Badge for Tablet */}
-                <button
-                  type="button"
-                  onClick={() => setQuickCommandOpen(true)}
-                  className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-[10px] font-bold active:scale-95 transition-all"
+                <Link
+                  href={attendanceItem?.href || rootPath}
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-[10px] font-bold active:scale-95 transition-all shadow-2xs hover:bg-emerald-100"
                   title="Live Biometric Terminals"
                 >
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                   </span>
-                  <span>Live</span>
-                </button>
+                  <span>Live Attendance</span>
+                </Link>
 
                 <button
                   type="button"
@@ -793,15 +789,15 @@ export function PortalShell({
            5. ERGONOMIC NATIVE MOBILE ACCESS DOCK (Thumb Reachable, True Fixed)
            ───────────────────────────────────────────────────────────── */}
         <nav
-          className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-lg mx-auto px-3 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pointer-events-none"
+          className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-md mx-auto px-4 pb-[max(env(safe-area-inset-bottom,0px),0.65rem)] pointer-events-none"
           aria-label="Mobile Bottom App Bar"
         >
-          <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_8px_32px_rgba(0,0,0,0.55)] px-2.5 py-1.5 flex items-center justify-around gap-1 mb-1 relative overflow-visible">
+          <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_10px_35px_rgba(0,0,0,0.6)] px-2 py-1.5 flex items-center justify-between gap-1 mb-1 relative overflow-hidden">
             {/* 1. Home */}
             <Link
               href={rootPath}
               className={cn(
-                "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
+                "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95",
                 isActive(rootPath) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
               )}
             >
@@ -828,7 +824,7 @@ export function PortalShell({
               <Link
                 href={attendanceItem.href}
                 className={cn(
-                  "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
+                  "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95",
                   isActive(attendanceItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
               >
@@ -846,74 +842,23 @@ export function PortalShell({
                       <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[64px]">
+                  <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[70px]">
                     {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
                   </span>
                 </div>
               </Link>
             )}
 
-            {/* 3. Center Easy-Access Quick Command Button */}
-            <div className="relative flex flex-col items-center px-1 z-20 -mt-6">
-              <button
-                type="button"
-                onClick={() => setQuickCommandOpen(!quickCommandOpen)}
+            {/* 3. Timetable / Secondary Module */}
+            {timetableItem && (
+              <Link
+                href={timetableItem.href}
                 className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 shadow-[0_4px_18px_rgba(243,184,51,0.65)] border-2 border-white ring-4 ring-slate-950 active:scale-90 transition-all cursor-pointer",
-                  quickCommandOpen ? "rotate-45" : ""
+                  "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95",
+                  isActive(timetableItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
-                aria-label="Quick Launch Center"
               >
-                {quickCommandOpen ? (
-                  <X className="w-5 h-5 text-slate-950 stroke-[2.5]" />
-                ) : (
-                  <Zap className="w-5 h-5 text-slate-950 fill-slate-950 stroke-[2.5]" />
-                )}
-              </button>
-              <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider mt-0.5">QUICK</span>
-            </div>
-
-              {/* 4. Timetable / Secondary Module */}
-              {timetableItem && (
-                <Link
-                  href={timetableItem.href}
-                  className={cn(
-                    "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90",
-                    isActive(timetableItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
-                  )}
-                >
-                  {isActive(timetableItem.href) && (
-                    <motion.div
-                      layoutId="mobileActiveDockPill"
-                      className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
-                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                    />
-                  )}
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <div className="relative">
-                      <timetableItem.icon className="w-5 h-5" strokeWidth={2} style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
-                      {isActive(timetableItem.href) && (
-                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
-                      )}
-                    </div>
-                    <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[64px]">
-                      {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
-                    </span>
-                  </div>
-                </Link>
-              )}
-
-              {/* 5. Modules Drawer Trigger */}
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className={cn(
-                  "relative flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 active:scale-90 cursor-pointer",
-                  mobileMenuOpen ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
-                )}
-                aria-label="Open all modules"
-              >
-                {mobileMenuOpen && (
+                {isActive(timetableItem.href) && (
                   <motion.div
                     layoutId="mobileActiveDockPill"
                     className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
@@ -922,118 +867,47 @@ export function PortalShell({
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <div className="relative">
-                    <Grid3X3 className="w-5 h-5" strokeWidth={2} style={mobileMenuOpen ? { color: GOLD } : undefined} />
-                    {mobileMenuOpen && (
+                    <timetableItem.icon className="w-5 h-5" strokeWidth={2} style={isActive(timetableItem.href) ? { color: GOLD } : undefined} />
+                    {isActive(timetableItem.href) && (
                       <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-0.5 font-bold">All</span>
-                </div>
-              </button>
-            </div>
-          </nav>
-
-          {/* ─────────────────────────────────────────────────────────────
-             6. QUICK LAUNCH CENTER BOTTOM SHEET (Spring-Up Native Panel)
-             ───────────────────────────────────────────────────────────── */}
-          {quickCommandOpen && (
-            <>
-              <div
-                className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in"
-                onClick={() => setQuickCommandOpen(false)}
-              />
-              <div className="lg:hidden fixed bottom-0 inset-x-0 max-w-lg mx-auto z-50 rounded-t-3xl bg-slate-950 text-white border-t border-amber-400/40 p-4 pb-[max(env(safe-area-inset-bottom,0px),1rem)] shadow-[0_-12px_40px_rgba(0,0,0,0.7)] animate-spring-up relative overflow-hidden max-h-[90dvh] flex flex-col">
-                {/* Fatimi Architectural Watermark Rosette */}
-                <FatimidRosette size={200} opacity={0.045} stroke="#f3b833" className="absolute -right-12 -bottom-12 pointer-events-none" />
-
-                {/* Drag Handle Indicator */}
-                <div className="w-12 h-1 rounded-full bg-white/25 mx-auto mb-3 shrink-0" />
-
-                {/* Sheet Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-black text-white tracking-wide uppercase">Quick Launch Hub</h3>
-                      <p className="text-[10px] text-amber-300 font-bold flex items-center gap-1">
-                        <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-                        <span>{roleLabel} Quick Actions</span>
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setQuickCommandOpen(false)}
-                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center justify-center active:scale-95 cursor-pointer touch-target-44"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Quick Action Matrix */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <Link
-                    href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : role === "PARENT" ? "/parent/tracking" : "/talabat/attendance"}
-                    onClick={() => setQuickCommandOpen(false)}
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-500/25 text-emerald-300 mb-1.5 group-hover:scale-105 transition-transform">
-                      <Fingerprint className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-black text-white leading-tight">Live Attendance</span>
-                    <span className="text-[9px] font-semibold text-emerald-300 mt-0.5">{role === "PARENT" ? "Child Telemetry" : "Biometric Telemetry"}</span>
-                  </Link>
-
-                  <Link
-                    href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : role === "PARENT" ? "/parent/leave" : "/talabat/leave-request"}
-                    onClick={() => setQuickCommandOpen(false)}
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-500/25 text-amber-300 mb-1.5 group-hover:scale-105 transition-transform">
-                      <ClipboardCheck className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-black text-white leading-tight">{role === "PARENT" ? "Leave Requests" : "Manual Register"}</span>
-                    <span className="text-[9px] font-semibold text-amber-200 mt-0.5">{role === "PARENT" ? "Submit Leave" : "Roll-Call & Leaves"}</span>
-                  </Link>
-
-                  <Link
-                    href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : role === "PARENT" ? "/parent/timetable" : "/talabat/timetable"}
-                    onClick={() => setQuickCommandOpen(false)}
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-sky-500/25 text-sky-300 mb-1.5 group-hover:scale-105 transition-transform">
-                      <CalendarDays className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-black text-white leading-tight">Timetable</span>
-                    <span className="text-[9px] font-semibold text-sky-200 mt-0.5">{role === "PARENT" ? "Class Schedule" : "Periods & Slots"}</span>
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={handleOpenSearch}
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-500/25 text-purple-300 mb-1.5 group-hover:scale-105 transition-transform">
-                      <Search className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-black text-white leading-tight">Spotlight Search</span>
-                    <span className="text-[9px] font-semibold text-purple-200 mt-0.5">Jump to Any Page</span>
-                  </button>
-                </div>
-
-                {/* Terminal Status Footer */}
-                <div className="px-3 py-2 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-between text-xs">
-                  <span className="text-emerald-300 font-bold flex items-center gap-1.5 text-[11px]">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    All Terminals Active
+                  <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[70px]">
+                    {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
                   </span>
-                  <span className="text-amber-300 font-mono font-bold text-[11px]">{istTime || "IST"}</span>
                 </div>
+              </Link>
+            )}
+
+            {/* 4. Modules Drawer Trigger */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className={cn(
+                "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95 cursor-pointer",
+                mobileMenuOpen ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
+              )}
+              aria-label="Open all modules"
+            >
+              {mobileMenuOpen && (
+                <motion.div
+                  layoutId="mobileActiveDockPill"
+                  className="absolute inset-0 rounded-2xl bg-amber-400/20 border border-amber-400/40"
+                  transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                />
+              )}
+              <div className="relative z-10 flex flex-col items-center justify-center">
+                <div className="relative">
+                  <Grid3X3 className="w-5 h-5" strokeWidth={2} style={mobileMenuOpen ? { color: GOLD } : undefined} />
+                  {mobileMenuOpen && (
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
+                  )}
+                </div>
+                <span className="text-[10px] tracking-tight mt-0.5 font-bold">All</span>
               </div>
-            </>
-          )}
+            </button>
+          </div>
+        </nav>
 
           {/* ─────────────────────────────────────────────────────────────
              7. FULL MOBILE APP DRAWER (Slide-in from Left)

@@ -618,7 +618,7 @@ export default function TeacherAttendancePage() {
   const presentPct = roster.length > 0 ? Math.round((summary.PRESENT / roster.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#faf7f0] space-y-5 pb-24">
+    <div className="min-h-screen bg-[#faf7f0] space-y-5 pb-36 w-full min-w-0 max-w-full overflow-hidden">
       {/* ── Hub Tabs ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <AdminHubTabs
@@ -827,7 +827,7 @@ export default function TeacherAttendancePage() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-h-36 overflow-y-auto pr-1">
             {classes.map((cls) => {
               const isSelected = classId === cls.id;
               const isAll = cls.grade === "All" || cls.name.toLowerCase().includes("general");
@@ -1193,30 +1193,33 @@ export default function TeacherAttendancePage() {
                       </div>
 
                       {/* Right: Instant 1-Click Status Buttons with Hotkey Hints */}
-                      <div className="grid grid-cols-4 sm:flex items-center gap-1.5 w-full sm:w-auto shrink-0">
-                        {STATUSES.map((cfg) => {
-                          const Icon = cfg.icon;
-                          const active = s.status === cfg.key;
-                          return (
-                            <button
-                              key={cfg.key}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setStatus(s.profileId, cfg.key);
-                                setFocusedIndex(idx);
-                              }}
-                              className={cn(
-                                "flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl border px-2 sm:px-3 py-1.5 text-xs font-black transition-all duration-150 active:scale-[0.96]",
-                                active ? cfg.active : cfg.idle
-                              )}
-                            >
-                              <Icon className="w-3.5 h-3.5 shrink-0" />
-                              <span>{cfg.label}</span>
-                              <span className="text-[10px] opacity-60 font-mono font-black ml-0.5">[{cfg.hotkey}]</span>
-                            </button>
-                          );
-                        })}
+                      <div className="w-full lg:w-auto shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-100">
+                        <div className="grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5 w-full">
+                          {STATUSES.map((cfg) => {
+                            const Icon = cfg.icon;
+                            const active = s.status === cfg.key;
+                            return (
+                              <button
+                                key={cfg.key}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setStatus(s.profileId, cfg.key);
+                                  setFocusedIndex(idx);
+                                }}
+                                className={cn(
+                                  "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 rounded-xl border px-1.5 sm:px-3 py-1.5 sm:py-1.5 text-[11px] sm:text-xs font-black transition-all duration-150 active:scale-95 min-w-0 text-center",
+                                  active ? cfg.active : cfg.idle
+                                )}
+                                title={`${cfg.label} (Press ${cfg.hotkey})`}
+                              >
+                                <Icon className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate">{cfg.label}</span>
+                                <span className="hidden sm:inline text-[10px] opacity-60 font-mono font-black ml-0.5">[{cfg.hotkey}]</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -1240,7 +1243,7 @@ export default function TeacherAttendancePage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%]"
+            className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%]"
           >
             <div className="rounded-2xl bg-slate-950/95 backdrop-blur-md border border-emerald-500/50 p-3 sm:p-4 text-white shadow-2xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">

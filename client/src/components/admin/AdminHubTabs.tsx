@@ -133,19 +133,19 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
   }, [activeIndex, resolvedTabs, router]);
 
   return (
-    <div className={cn("mb-6", className)}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200/80">
-        <div>
-          <h2 className="text-xl font-bold font-display text-gray-900 flex items-center gap-2">
+    <div className={cn("mb-6 w-full min-w-0 max-w-full overflow-hidden", className)}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200/80 min-w-0">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold font-display text-gray-900 flex items-center gap-2 truncate">
             {hubTitle}
           </h2>
           {hubDescription && (
-            <p className="text-xs text-gray-500 mt-0.5">{hubDescription}</p>
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{hubDescription}</p>
           )}
         </div>
 
         {/* Hub Status & Shortcut Utilities */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-950 border border-amber-300/80 shadow-2xs">
             <Zap className="w-3.5 h-3.5 text-amber-600" strokeWidth={2} />
             <span>Fast DB Active</span>
@@ -164,7 +164,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
       </div>
 
       {/* Sub-tab Pill Navigation */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto pt-3 pb-1.5 scrollbar-none touch-pan-x">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto pt-3 pb-1.5 scrollbar-none touch-pan-x w-full min-w-0">
         {resolvedTabs.map((tab, idx) => {
           const isActive =
             tab.targetHref === pathname ||
