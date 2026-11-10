@@ -30,7 +30,6 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
-import { CommandPalette } from "@/components/admin/CommandPalette";
 import { useSession } from "next-auth/react";
 
 const navItems: PortalNavItem[] = [
@@ -258,16 +257,13 @@ export default function AdminLayout() {
   }, [isTeacher, isPageAssigned]);
 
   return (
-    <>
-      <CommandPalette />
-      <PortalShell
-        role={isTeacher ? "TEACHER" : "ADMIN"}
-        portalName={isTeacher ? "Darse Burhani Management" : "Admin Portal"}
-        subtitle={isTeacher ? "Teacher & Admin Operations" : "Admin Command"}
-        roleLabel={isTeacher ? "Teacher (Admin Access)" : "Admin"}
-        navItems={displayNavItems}
-        searchPlaceholder="Search or jump..."
-      />
-    </>
+    <PortalShell
+      role={isTeacher ? "TEACHER" : "ADMIN"}
+      portalName={isTeacher ? "Darse Burhani Management" : "Admin Portal"}
+      subtitle={isTeacher ? "Teacher & Admin Operations" : "Admin Command"}
+      roleLabel={isTeacher ? "Teacher (Admin Access)" : "Admin"}
+      navItems={displayNavItems}
+      searchPlaceholder="Search or jump..."
+    />
   );
 }

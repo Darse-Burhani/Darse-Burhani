@@ -262,7 +262,7 @@ export function PortalShell({
   // fewer nav items, so never assume index 1/2 exist)
   const attendanceItem = useMemo<PortalNavItem | null>(() => {
     return (
-      navItems.find((n) => n?.href?.includes("attendance-hik") || n?.href?.includes("attendance")) ??
+      navItems.find((n) => n?.href?.includes("attendance-hik") || n?.href?.includes("attendance") || n?.href?.includes("tracking")) ??
       navItems[1] ??
       navItems[0] ??
       null
@@ -271,7 +271,7 @@ export function PortalShell({
 
   const timetableItem = useMemo<PortalNavItem | null>(() => {
     return (
-      navItems.find((n) => n?.href?.includes("timetable") || n?.href?.includes("classes")) ??
+      navItems.find((n) => n?.href?.includes("timetable") || n?.href?.includes("classes") || n?.href?.includes("leave")) ??
       navItems[2] ??
       navItems[1] ??
       navItems[0] ??
@@ -1014,7 +1014,7 @@ export function PortalShell({
                 {/* Quick Action Matrix */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <Link
-                    href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : role === "PARENT" ? "/parent" : "/talabat/attendance"}
+                    href={role === "ADMIN" ? "/admin/attendance-hik" : role === "TEACHER" ? "/teacher/attendance-hik" : role === "PARENT" ? "/parent/tracking" : "/talabat/attendance"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
                   >
@@ -1026,7 +1026,7 @@ export function PortalShell({
                   </Link>
 
                   <Link
-                    href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : role === "PARENT" ? "/parent" : "/talabat/attendance"}
+                    href={role === "ADMIN" ? "/admin/attendance-manual" : role === "TEACHER" ? "/teacher/attendance" : role === "PARENT" ? "/parent/leave" : "/talabat/leave-request"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
                   >
@@ -1038,7 +1038,7 @@ export function PortalShell({
                   </Link>
 
                   <Link
-                    href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : role === "PARENT" ? "/parent" : "/talabat/timetable"}
+                    href={role === "ADMIN" ? "/admin/timetable" : role === "TEACHER" ? "/teacher/timetable" : role === "PARENT" ? "/parent/timetable" : "/talabat/timetable"}
                     onClick={() => setQuickCommandOpen(false)}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-center active:scale-95 transition-all group"
                   >
