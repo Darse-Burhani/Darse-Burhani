@@ -1633,8 +1633,14 @@ router.post("/devices/:id/users/deploy-all", requireRole("ADMIN"), async (req, r
 // POST /api/biometric/deploy-all-to-all-devices - Background deploy to ALL enabled terminals
 router.post("/deploy-all-to-all-devices", requireRole("ADMIN"), async (_req, res) => {
   try {
-    const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
-    const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany();
+    const targetDevices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
+    if (targetDevices.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No enabled biometric terminals configured. Enable a terminal to deploy members.",
+        data: { deviceCount: 0, status: "RESTRICTED" },
+      });
+    }
 
     res.status(202).json({
       success: true,

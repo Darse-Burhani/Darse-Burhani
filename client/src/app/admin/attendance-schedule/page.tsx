@@ -844,6 +844,52 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
                     )}
 
+                    {/* Faculty Scanning Eligibility Scope */}
+                    {(isFaculty || isDual || (w.applicableTeacherIds && w.applicableTeacherIds.length > 0)) && (
+                      <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-blue-950 flex items-center gap-1.5">
+                            <Shield className="w-3.5 h-3.5 text-blue-700" />
+                            Faculty Scope:
+                          </span>
+                          {(!w.applicableTeacherIds || w.applicableTeacherIds.length === 0) ? (
+                            <Badge variant="outline" className="bg-white text-blue-800 border-blue-300 font-bold text-[10px]">
+                              All Faculty Eligible
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-blue-700 text-white font-bold text-[10px]">
+                              {w.applicableTeacherIds.length} Eligible Faculty Selected
+                            </Badge>
+                          )}
+                        </div>
+                        {w.applicableTeacherIds && w.applicableTeacherIds.length > 0 ? (
+                          <div className="space-y-1">
+                            <p className="text-[11px] text-blue-900 font-medium leading-tight">
+                              Only selected faculty eligible for scanning. Un-eligible faculty will <strong className="text-blue-950">never be marked absent</strong>.
+                            </p>
+                            {w.applicableTeachers && w.applicableTeachers.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {w.applicableTeachers.slice(0, 4).map((t) => (
+                                  <span key={t.id} className="text-[10px] bg-white border border-blue-200 text-blue-900 font-semibold px-2 py-0.5 rounded-md">
+                                    {t.name}
+                                  </span>
+                                ))}
+                                {w.applicableTeachers.length > 4 && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded-md">
+                                    +{w.applicableTeachers.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-blue-700 font-medium">
+                            All active faculty eligible for scanning during this schedule.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Timeline Bar */}
                     <ScheduleTimelineBar
                       startTime={w.startTime}
@@ -1497,46 +1543,32 @@ export default function AdminAttendanceSchedulePage() {
                       exit={{ opacity: 0, x: 8 }}
                       className="space-y-5"
                     >
-                      {/* For HIKVISION: All Talabat & Faculty are universally applicable (No suggestion names) */}
-                      {windowForm.windowType === "HIKVISION" ? (
-                        <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-50 via-indigo-50/50 to-white border-2 border-purple-200/80 space-y-4 shadow-sm">
-                          <div className="flex items-center gap-3.5">
-                            <div className="w-12 h-12 rounded-2xl bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-800 shadow-inner shrink-0">
-                              <Radio className="w-6 h-6 text-purple-700" />
+                      {/* If HIKVISION: Show Universal Gate Scope Banner for Students */}
+                      {windowForm.windowType === "HIKVISION" && (
+                        <div className="p-5 rounded-3xl bg-gradient-to-br from-purple-50 via-indigo-50/50 to-white border-2 border-purple-200/80 space-y-3 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-800 shadow-inner shrink-0">
+                              <Radio className="w-5 h-5 text-purple-700" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
                                 <h4 className="text-sm font-black uppercase tracking-wider text-purple-950 font-display">
-                                  Universal Gate Scanning Scope
+                                  Universal Gate Scanning Scope (Talabat)
                                 </h4>
                                 <Badge className="bg-purple-600 text-white text-[10px] font-black uppercase">
-                                  Hikvision Gate
+                                  Hikvision Terminal
                                 </Badge>
                               </div>
                               <p className="text-xs text-purple-800 font-medium mt-0.5">
-                                Automated Biometric Terminal &amp; Turnstile Ingestion
+                                All registered Talabat authenticate automatically at MinMoe gates without class restrictions.
                               </p>
                             </div>
                           </div>
-
-                          <div className="p-4 rounded-2xl bg-white border border-purple-100 shadow-xs space-y-2">
-                            <p className="text-xs text-gray-800 leading-relaxed font-semibold">
-                              All registered <strong>Talabat (Students)</strong> and <strong>Faculty (Staff)</strong> are automatically applicable for scanning during this Hikvision schedule window.
-                            </p>
-                            <p className="text-[11px] text-gray-500 leading-relaxed">
-                              Hardware terminals (MinMoe facial scanners, card turnstiles, and fingerprint units) will automatically authenticate punches for all enrolled members without individual name restrictions.
-                            </p>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs text-purple-900 font-bold bg-purple-100/60 p-3 rounded-xl border border-purple-200/60">
-                            <CheckCircle2 className="w-4 h-4 text-purple-700 shrink-0" />
-                            <span>Individual name suggestions and class restrictions are disabled for Hikvision hardware gates.</span>
-                          </div>
                         </div>
-                      ) : (
-                        <>
-                          {/* Talabat Class Scope (For Manual Classroom Register) */}
-                          {(windowForm.audience === "STUDENT" || windowForm.audience === "BOTH") && (
+                      )}
+
+                      {/* If NOT HIKVISION: Show Talabat Class Scope for manual/custom sessions */}
+                      {windowForm.windowType !== "HIKVISION" && (windowForm.audience === "STUDENT" || windowForm.audience === "BOTH") && (
                             <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <div className="flex items-center gap-1.5">
@@ -1635,115 +1667,113 @@ export default function AdminAttendanceSchedulePage() {
                             </div>
                           )}
 
-                          {/* Faculty Staff Scope (For Manual Roll-Call) */}
-                          {(windowForm.audience === "TEACHER" || windowForm.audience === "BOTH") && (
-                            <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3">
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <div className="flex items-center gap-1.5">
-                                  <Shield className="w-4 h-4 text-blue-700" />
-                                  <div>
-                                    <span className="text-xs font-black uppercase tracking-wider text-blue-950 block">
-                                      Faculty Member Scope (Eligible for Scanning)
-                                    </span>
-                                    <span className="text-[11px] text-blue-800/80 font-medium block">
-                                      Select faculty eligible for scanning. Un-eligible faculty will <strong>never be marked absent</strong>.
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-[10px] font-bold bg-white text-blue-800 border-blue-300">
-                                    {windowForm.applicableTeacherIds.length === 0
-                                      ? "All Faculty (Default)"
-                                      : `${windowForm.applicableTeacherIds.length} Eligible`}
-                                  </Badge>
-
-                                  {windowForm.applicableTeacherIds.length > 0 ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
-                                      className="text-[10px] font-bold text-rose-600 hover:underline"
-                                    >
-                                      Clear Selection
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setWindowForm({ ...windowForm, applicableTeacherIds: teachers.map((t) => t.id) })
-                                      }
-                                      className="text-[10px] font-bold text-blue-700 hover:underline"
-                                    >
-                                      Select Specific
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="relative">
-                                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                  type="text"
-                                  placeholder="Filter faculty by name, department, email..."
-                                  value={teacherFilterQuery}
-                                  onChange={(e) => setTeacherFilterQuery(e.target.value)}
-                                  className="w-full h-8 pl-8 pr-3 rounded-xl border border-blue-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-
-                              <div className="max-h-44 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-blue-100 shadow-inner custom-scrollbar">
-                                {teachers.length === 0 ? (
-                                  <p className="text-xs text-gray-400 p-2">All active faculty included by default.</p>
-                                ) : (
-                                  teachers
-                                    .filter((t) => {
-                                      if (!teacherFilterQuery.trim()) return true;
-                                      const q = teacherFilterQuery.toLowerCase();
-                                      return (
-                                        t.name.toLowerCase().includes(q) ||
-                                        t.email?.toLowerCase().includes(q) ||
-                                        t.department?.toLowerCase().includes(q)
-                                      );
-                                    })
-                                    .map((t) => {
-                                      const isChecked = windowForm.applicableTeacherIds.includes(t.id);
-                                      return (
-                                        <label
-                                          key={t.id}
-                                          className={cn(
-                                            "flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-all border",
-                                            isChecked
-                                              ? "bg-blue-50 border-blue-400 text-blue-950 font-bold"
-                                              : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100"
-                                          )}
-                                        >
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <input
-                                              type="checkbox"
-                                              checked={isChecked}
-                                              onChange={(e) =>
-                                                setWindowForm({
-                                                  ...windowForm,
-                                                  applicableTeacherIds: e.target.checked
-                                                    ? [...windowForm.applicableTeacherIds, t.id]
-                                                    : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
-                                                })
-                                              }
-                                              className="rounded border-blue-400 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                                            />
-                                            <span className="truncate">{t.name}</span>
-                                          </div>
-                                          <Badge variant="outline" className="text-[9px] font-mono text-gray-500 shrink-0">
-                                            {t.department || "Faculty"}
-                                          </Badge>
-                                        </label>
-                                      );
-                                    })
-                                )}
+                      {/* Faculty Scanning Eligibility Scope - Available for Hikvision AND any Faculty/Both schedule */}
+                      {(windowForm.windowType === "HIKVISION" || windowForm.audience === "TEACHER" || windowForm.audience === "BOTH") && (
+                        <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <Shield className="w-4 h-4 text-blue-700" />
+                              <div>
+                                <span className="text-xs font-black uppercase tracking-wider text-blue-950 block">
+                                  Faculty Scanning Eligibility Scope
+                                </span>
+                                <span className="text-[11px] text-blue-800/80 font-medium block">
+                                  Select faculty eligible for scanning. Un-eligible faculty will <strong className="text-blue-950">never be marked absent</strong>.
+                                </span>
                               </div>
                             </div>
-                          )}
-                        </>
+
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] font-bold bg-white text-blue-800 border-blue-300">
+                                {windowForm.applicableTeacherIds.length === 0
+                                  ? "All Faculty (Default)"
+                                  : `${windowForm.applicableTeacherIds.length} Eligible`}
+                              </Badge>
+
+                              {windowForm.applicableTeacherIds.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:underline"
+                                >
+                                  Clear Selection
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWindowForm({ ...windowForm, applicableTeacherIds: teachers.map((t) => t.id) })
+                                  }
+                                  className="text-[10px] font-bold text-blue-700 hover:underline"
+                                >
+                                  Select Specific
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Filter faculty by name, department, email..."
+                              value={teacherFilterQuery}
+                              onChange={(e) => setTeacherFilterQuery(e.target.value)}
+                              className="w-full h-8 pl-8 pr-3 rounded-xl border border-blue-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div className="max-h-48 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-blue-100 shadow-inner custom-scrollbar">
+                            {teachers.length === 0 ? (
+                              <p className="text-xs text-gray-400 p-2">All active faculty included by default.</p>
+                            ) : (
+                              teachers
+                                .filter((t) => {
+                                  if (!teacherFilterQuery.trim()) return true;
+                                  const q = teacherFilterQuery.toLowerCase();
+                                  return (
+                                    t.name.toLowerCase().includes(q) ||
+                                    t.email?.toLowerCase().includes(q) ||
+                                    t.department?.toLowerCase().includes(q)
+                                  );
+                                })
+                                .map((t) => {
+                                  const isChecked = windowForm.applicableTeacherIds.includes(t.id);
+                                  return (
+                                    <label
+                                      key={t.id}
+                                      className={cn(
+                                        "flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-all border",
+                                        isChecked
+                                          ? "bg-blue-50 border-blue-400 text-blue-950 font-bold"
+                                          : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) =>
+                                            setWindowForm({
+                                              ...windowForm,
+                                              applicableTeacherIds: e.target.checked
+                                                ? [...windowForm.applicableTeacherIds, t.id]
+                                                : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
+                                            })
+                                          }
+                                          className="rounded border-blue-400 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                                        />
+                                        <span className="truncate">{t.name}</span>
+                                      </div>
+                                      <Badge variant="outline" className="text-[9px] font-mono text-gray-500 shrink-0">
+                                        {t.department || "Faculty"}
+                                      </Badge>
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
                       )}
                     </motion.div>
                   )}

@@ -441,10 +441,22 @@ export async function forceSyncDeviceTime(id: string): Promise<{ ok: boolean; dr
   };
 }
 
-export async function syncDeviceScansNow(id: string): Promise<{ success: boolean; scansFetched: number; scansProcessed: number; error?: string }> {
+export async function syncDeviceScansNow(id: string): Promise<{ success: boolean; scansFetched: number; scansProcessed: number; error?: string; restricted?: boolean }> {
   try {
+    const device = await prisma.biometricDevice.findUnique({ where: { id }, select: { enabled: true, name: true, host: true } });
+    if (!device) return { success: false, scansFetched: 0, scansProcessed: 0, error: "Device not found" };
+    if (!device.enabled) {
+      logger.info(`[hikvision] Terminal "${device.name}" (${device.host}) is disabled — attendance polling restricted.`);
+      return {
+        success: false,
+        scansFetched: 0,
+        scansProcessed: 0,
+        restricted: true,
+        error: `Terminal "${device.name}" is disabled. Enable this device to open attendance polling.`,
+      };
+    }
     const res = await pollDevice(id, true);
-    return { success: true, scansFetched: res.scansFetched, scansProcessed: res.scansProcessed };
+    return { success: true, scansFetched: res.scansFetched, scansProcessed: res.scansProcessed, restricted: res.restricted };
   } catch (err: any) {
     return { success: false, scansFetched: 0, scansProcessed: 0, error: err?.message || String(err) };
   }
@@ -454,10 +466,16 @@ export async function pullDeviceScansForRange(
   id: string,
   fromDate: Date,
   toDate: Date = new Date(),
-): Promise<{ success: boolean; scansFetched: number; scansProcessed: number; error?: string }> {
+): Promise<{ success: boolean; scansFetched: number; scansProcessed: number; error?: string; restricted?: boolean }> {
   try {
+    const device = await prisma.biometricDevice.findUnique({ where: { id }, select: { enabled: true, name: true, host: true } });
+    if (!device) return { success: false, scansFetched: 0, scansProcessed: 0, error: "Device not found" };
+    if (!device.enabled) {
+      logger.info(`[hikvision] Terminal "${device.name}" (${device.host}) is disabled — polling restricted.`);
+      return { success: true, scansFetched: 0, scansProcessed: 0, restricted: true };
+    }
     const res = await pollDevice(id, true, fromDate, toDate);
-    return { success: true, scansFetched: res.scansFetched, scansProcessed: res.scansProcessed };
+    return { success: true, scansFetched: res.scansFetched, scansProcessed: res.scansProcessed, restricted: res.restricted };
   } catch (err: any) {
     return { success: false, scansFetched: 0, scansProcessed: 0, error: err?.message || String(err) };
   }
@@ -511,11 +529,20 @@ export async function pullAllDevicesScansForRange(
     effectiveFrom = tilawat?.startTimeIST ?? getStartOfTodayIST();
   }
 
-  const devices = await prisma.biometricDevice.findMany({
+  const targetDevices = await prisma.biometricDevice.findMany({
     where: { enabled: true },
     orderBy: { createdAt: "asc" },
   });
-  const targetDevices = devices.length > 0 ? devices : await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
+
+  if (targetDevices.length === 0) {
+    logger.info("[hikvision] No enabled HIK terminals configured for polling. Polling strictly restricted.");
+    return {
+      success: true,
+      totalFetched: 0,
+      totalProcessed: 0,
+      devices: [],
+    };
+  }
 
   // Terminals are pulled CONCURRENTLY: serial polling multiplied every device's
   // connect timeout and was the main reason /poll-now crossed the API budget.
@@ -850,14 +877,18 @@ export async function pollDevice(
   force = false,
   customFrom?: Date,
   customTo?: Date,
-): Promise<{ scansFetched: number; scansProcessed: number }> {
+): Promise<{ scansFetched: number; scansProcessed: number; restricted?: boolean }> {
   if (inFlight.has(id)) return { scansFetched: 0, scansProcessed: 0 };
   inFlight.add(id);
   let scansFetched = 0;
   let scansProcessed = 0;
   try {
     const device = await prisma.biometricDevice.findUnique({ where: { id } });
-    if (!device || (!device.enabled && !force)) return { scansFetched: 0, scansProcessed: 0 };
+    if (!device) return { scansFetched: 0, scansProcessed: 0 };
+    if (!device.enabled) {
+      logger.info(`[hikvision] Terminal "${device.name}" (${device.host}) is disabled — attendance polling restricted.`);
+      return { scansFetched: 0, scansProcessed: 0, restricted: true };
+    }
 
     const conn = toConnection(device);
 
@@ -1093,7 +1124,7 @@ export async function ensureBiometricDevicesConfigured(): Promise<void> {
         await prisma.biometricDevice.update({
           where: { id: existing.id },
           data: {
-            enabled: true,
+            // Preserve existing.enabled so admin's device toggle remains persistent!
             status: "ONLINE",
             lastError: null,
             model: existing.model || cfg.model,

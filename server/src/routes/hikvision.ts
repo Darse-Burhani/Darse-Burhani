@@ -141,6 +141,22 @@ const handleWebhookEvents = async (req: import("express").Request, res: import("
       return res.status(401).json({ success: false, error: "Invalid biometric secret" });
     }
 
+    // Check if the originating device IP matches a disabled biometric terminal
+    const clientIp = (req.ip || "").replace(/^::ffff:/, "");
+    if (clientIp) {
+      const disabledDev = await prisma.biometricDevice.findFirst({
+        where: { host: clientIp, enabled: false },
+      });
+      if (disabledDev) {
+        console.log(`[hikvision:push] Push ignored from disabled terminal "${disabledDev.name}" (${clientIp}): attendance polling restricted.`);
+        return res.json({
+          success: true,
+          acknowledged: true,
+          data: { received: 0, processed: 0, ignored: 1, message: "Device restricted: Attendance polling is disabled for this terminal." },
+        });
+      }
+    }
+
     // Automatically mark all enabled devices as ONLINE when receiving webhook traffic
     prisma.biometricDevice.updateMany({
       where: { enabled: true },

@@ -508,13 +508,15 @@ export async function getExpectedFacultyForDay(): Promise<
   })) as unknown as Array<{
     id: string;
     name: string;
+    enabled: boolean;
     applicableTeacherIds: string[];
+    exemptTeacherIds?: string[];
     facultyStartTime: string | null;
     facultyEndTime: string | null;
     facultyEnabled: boolean;
   }>;
-  // Hardware attendance roster only derives from automated windows (HIKVISION / BOTH)
-  const rows = rawRows.filter((w) => getWindowType(w as any) !== "MANUAL");
+  // Hardware attendance roster derives from active automated windows (HIKVISION / BOTH) that are enabled
+  const rows = rawRows.filter((w) => getWindowType(w as any) !== "MANUAL" && w.enabled !== false);
 
   const hasFacultyTimer = (w: { facultyStartTime: string | null; facultyEndTime: string | null }) =>
     Boolean(w.facultyStartTime && w.facultyEndTime);
@@ -523,13 +525,33 @@ export async function getExpectedFacultyForDay(): Promise<
     w.id === "faculty" ||
     /faculty|teacher|staff|asateezah/i.test(w.name);
 
-  const unified =
-    rows.find((w) => w.id === "default" && hasFacultyTimer(w)) ??
-    rows.find((w) => hasFacultyTimer(w) && w.facultyEnabled) ??
-    rows.find((w) => isLegacyFaculty(w));
+  // Active faculty-relevant windows
+  const facultyWindows = rows.filter(
+    (w) => hasFacultyTimer(w) || isLegacyFaculty(w) || (Array.isArray(w.applicableTeacherIds) && w.applicableTeacherIds.length > 0)
+  );
 
-  const applicable = unified?.applicableTeacherIds ?? [];
-  const exemptIds = ((unified as any)?.exemptTeacherIds ?? []) as string[];
+  // If any active schedule has specific eligible faculty configured, only those faculty are expected across schedules.
+  // Faculty not included in any active schedule's applicableTeacherIds will NOT be expected and will NEVER be marked absent.
+  const hasSpecificRoster = facultyWindows.some((w) => Array.isArray(w.applicableTeacherIds) && w.applicableTeacherIds.length > 0);
+  let applicable: string[] = [];
+  if (hasSpecificRoster) {
+    const applicableSet = new Set<string>();
+    for (const w of facultyWindows) {
+      if (Array.isArray(w.applicableTeacherIds) && w.applicableTeacherIds.length > 0) {
+        for (const tid of w.applicableTeacherIds) applicableSet.add(tid);
+      }
+    }
+    applicable = Array.from(applicableSet);
+  }
+
+  const exemptSet = new Set<string>();
+  for (const w of facultyWindows) {
+    if (Array.isArray(w.exemptTeacherIds)) {
+      for (const eid of w.exemptTeacherIds) exemptSet.add(eid);
+    }
+  }
+  const exemptIds = Array.from(exemptSet);
+
   const teachers = await prisma.teacherProfile.findMany({
     where: {
       user: { isActive: true },
