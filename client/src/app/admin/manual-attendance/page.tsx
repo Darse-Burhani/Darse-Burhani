@@ -312,13 +312,15 @@ export default function AdminManualAttendancePage() {
   }, [activeWindow]);
 
   // Status Change for candidate - purely marking status without time tracking
+  // Clicking an already marked status toggles it back to NOT_MARKED (undo accidental click)
   const handleStatusChange = (memberId: string, newStatus: AttendanceStatus) => {
     setRoster((prev) =>
       prev.map((m) => {
         if (m.id !== memberId) return m;
+        const nextStatus = m.status === newStatus ? "NOT_MARKED" : newStatus;
         return {
           ...m,
-          status: newStatus,
+          status: nextStatus,
         };
       })
     );

@@ -24,6 +24,8 @@ import {
   Layers,
   ArrowRight,
   ShieldCheck,
+  RotateCcw,
+  Undo2,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -268,18 +270,54 @@ export default function MaktabatAttendancePage() {
     }
   };
 
-  // ── Remove Entry ──
+  // ── Remove / Undo Entry (Revert student back to absent/unmarked) ──
   const handleDelete = async (id: string, name: string) => {
     try {
       const res = await fetch(`/api/admin/library/attendance/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast({ title: "Record Removed", description: `Removed arrival record for ${name}`, variant: "default" });
+        toast({ title: "Arrival Undone", description: `Reverted arrival record for ${name}. Marked absent.`, variant: "default" });
+        if (lastScannedResult?.name === name) {
+          setLastScannedResult(null);
+        }
         fetchAttendanceLog();
         fetchClassStudents();
       }
     } catch {
       toast({ title: "Error", description: "Failed to remove entry", variant: "destructive" });
+    }
+  };
+
+  // ── Undo Attendance by Student or Attendance ID ──
+  const handleUndoAttendance = async (attendanceId?: string | null, studentName?: string, studentId?: string) => {
+    try {
+      let res;
+      if (attendanceId) {
+        res = await fetch(`/api/admin/library/attendance/${attendanceId}`, { method: "DELETE" });
+      } else {
+        res = await fetch("/api/admin/library/attendance/undo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentId, date: selectedDate }),
+        });
+      }
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: "Attendance Undone",
+          description: `Arrival record reverted for ${studentName || "Talabat"}. Marked absent / pending.`,
+          variant: "default",
+        });
+        if (lastScannedResult && (lastScannedResult.its === studentId || lastScannedResult.name === studentName)) {
+          setLastScannedResult(null);
+        }
+        fetchAttendanceLog();
+        fetchClassStudents();
+      } else {
+        toast({ title: "Undo Failed", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to undo attendance record", variant: "destructive" });
     }
   };
 
@@ -566,8 +604,21 @@ export default function MaktabatAttendancePage() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-[11px] text-slate-500 shrink-0 font-mono bg-white/70 px-2.5 py-1 rounded-lg border border-slate-200">
-                    {lastScannedResult.alreadyCheckedIn ? "Recorded" : lastScannedResult.time}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-[11px] text-slate-500 font-mono bg-white/70 px-2.5 py-1 rounded-lg border border-slate-200">
+                      {lastScannedResult.alreadyCheckedIn ? "Recorded" : lastScannedResult.time}
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUndoAttendance(undefined, lastScannedResult.name, lastScannedResult.its)}
+                      className="text-xs h-7 px-2.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 font-bold rounded-lg flex items-center gap-1 cursor-pointer"
+                      title="Undo this check-in if marked by mistake"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Undo</span>
+                    </Button>
                   </div>
                 </motion.div>
               )}
@@ -717,16 +768,29 @@ export default function MaktabatAttendancePage() {
 
                       <div className="flex items-center gap-2 shrink-0">
                         {s.isCheckedIn ? (
-                          <div className="text-right">
-                            <span className="text-[10.5px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                              <Check className="w-3 h-3 text-emerald-700" />
-                              Arrived / Present
-                            </span>
-                            {s.checkInTime && (
-                              <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                Time: {new Date(s.checkInTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                              </p>
-                            )}
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <span className="text-[10.5px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-700" />
+                                Arrived
+                              </span>
+                              {s.checkInTime && (
+                                <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                  Time: {new Date(s.checkInTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUndoAttendance(s.attendanceId, s.name, s.studentId)}
+                              className="text-xs h-7 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 font-bold rounded-lg cursor-pointer flex items-center gap-1"
+                              title="Undo arrival / Mark absent (marked by mistake)"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Undo</span>
+                            </Button>
                           </div>
                         ) : (
                           <Button
@@ -804,11 +868,12 @@ export default function MaktabatAttendancePage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleDelete(r.id, r.studentName)}
-                          className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer shrink-0"
-                          title="Remove arrival record"
+                          onClick={() => handleUndoAttendance(r.id, r.studentName, r.studentId)}
+                          className="flex items-center gap-1 text-slate-500 hover:text-rose-600 transition-colors px-2 py-1 rounded-lg hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-xs font-semibold cursor-pointer shrink-0"
+                          title="Undo arrival record (revert back to absent/unmarked)"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Undo</span>
                         </button>
                       </div>
                     </div>

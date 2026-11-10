@@ -75,6 +75,55 @@ function getHijriString(date: Date): string {
   return `${hijri.day} ${mMeta.en} ${hijri.year} H`;
 }
 
+// GET /api/admin/library/checkout/active-loans?userId=... - List active loans for a specific member
+router.get("/active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const userId = String(req.query.userId || req.query.studentId || "").trim();
+    if (!userId) {
+      return res.status(400).json({ success: false, error: "userId or studentId required" });
+    }
+
+    const loans = await prisma.bookLoan.findMany({
+      where: {
+        studentId: userId,
+        status: "ACTIVE",
+      },
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            author: true,
+            barcode: true,
+            category: true,
+            coverImage: true,
+            rackNumber: true,
+            shelfNumber: true,
+          },
+        },
+      },
+      orderBy: { borrowedAt: "desc" },
+    });
+
+    const data = loans.map((l) => ({
+      id: l.id,
+      bookId: l.bookId,
+      bookTitle: l.bookTitle || l.book?.title || "Book",
+      barcode: l.bookBarcode || l.book?.barcode || "",
+      borrowedAt: l.borrowedAt,
+      dueAt: l.dueAt,
+      isOverdue: new Date(l.dueAt) < new Date(),
+      coverImage: l.book?.coverImage,
+      category: l.book?.category,
+    }));
+
+    return res.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Get active loans error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch active loans" });
+  }
+});
+
 // GET /api/admin/library/checkout/search-books - Fast search by Book Name / Title, Author, or Barcode
 router.get("/search-books", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
@@ -814,6 +863,86 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("Library checkout error:", error);
     return res.status(500).json({ success: false, error: "Failed to issue book" });
+  }
+});
+
+// ── DELETE /api/admin/library/checkout/loan/:id ──
+// Delete an issued loan record anytime and restore book stock
+router.delete("/loan/:id", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const loan = await prisma.bookLoan.findUnique({
+      where: { id },
+      include: { book: true },
+    });
+
+    if (!loan) {
+      return res.status(404).json({ success: false, error: "Loan record not found" });
+    }
+
+    // If the loan was active, restore available copy count
+    if (loan.status === "ACTIVE" && loan.bookId) {
+      await prisma.libraryBook.update({
+        where: { id: loan.bookId },
+        data: {
+          availableCopies: { increment: 1 },
+          status: "AVAILABLE",
+        },
+      });
+    }
+
+    // Delete loan record
+    await prisma.bookLoan.delete({
+      where: { id },
+    });
+
+    cache.invalidatePrefix("parent:dashboard");
+
+    return res.json({
+      success: true,
+      message: `Issued loan for "${loan.bookTitle}" has been deleted successfully and book copy restored.`,
+    });
+  } catch (error: any) {
+    console.error("Delete loan error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to delete loan" });
+  }
+});
+
+// Alias DELETE /:id
+router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const loan = await prisma.bookLoan.findUnique({
+      where: { id },
+    });
+
+    if (!loan) {
+      return res.status(404).json({ success: false, error: "Loan record not found" });
+    }
+
+    if (loan.status === "ACTIVE" && loan.bookId) {
+      await prisma.libraryBook.update({
+        where: { id: loan.bookId },
+        data: {
+          availableCopies: { increment: 1 },
+          status: "AVAILABLE",
+        },
+      });
+    }
+
+    await prisma.bookLoan.delete({
+      where: { id },
+    });
+
+    cache.invalidatePrefix("parent:dashboard");
+
+    return res.json({
+      success: true,
+      message: `Issued loan for "${loan.bookTitle}" has been deleted.`,
+    });
+  } catch (error: any) {
+    console.error("Delete loan error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to delete loan" });
   }
 });
 

@@ -500,6 +500,42 @@ router.post("/bulk", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   }
 });
 
+// ── POST /api/admin/library/attendance/undo ──
+// Undo attendance marked by mistake (by attendanceId or by studentId + date)
+router.post("/undo", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { attendanceId, studentId, date } = req.body || {};
+
+    if (attendanceId) {
+      await (prisma as any).libraryAttendance.delete({ where: { id: attendanceId } });
+      return res.json({ success: true, message: "Arrival record undone and reverted" });
+    }
+
+    if (studentId) {
+      const targetDate = date ? new Date(date) : new Date();
+      const dayStart = new Date(new Date(targetDate).setHours(0, 0, 0, 0));
+      const dayEnd = new Date(new Date(targetDate).setHours(23, 59, 59, 999));
+
+      const existing = await (prisma as any).libraryAttendance.findFirst({
+        where: {
+          studentId,
+          date: { gte: dayStart, lte: dayEnd },
+        },
+      });
+
+      if (existing) {
+        await (prisma as any).libraryAttendance.delete({ where: { id: existing.id } });
+        return res.json({ success: true, message: "Arrival record undone and reverted" });
+      }
+    }
+
+    return res.status(404).json({ success: false, error: "No matching attendance record found to undo" });
+  } catch (err: any) {
+    console.error("Undo library attendance error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to undo attendance" });
+  }
+});
+
 // ── DELETE /api/admin/library/attendance/:id ──
 // Remove attendance entry
 router.delete("/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {

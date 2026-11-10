@@ -38,6 +38,7 @@ import {
   Plus,
   PlusCircle,
   UserCheck,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -213,6 +214,32 @@ export default function CheckoutPage() {
   const [searchingBooks, setSearchingBooks] = useState(false);
   const [showBookDropdown, setShowBookDropdown] = useState(false);
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null);
+
+  // Return by Book Name & Active Loans
+  const [returnLoanResults, setReturnLoanResults] = useState<any[]>([]);
+  const [showReturnDropdown, setShowReturnDropdown] = useState(false);
+
+  const searchReturnLoansByName = async (q: string) => {
+    const term = q.trim();
+    if (!term || term.length < 2) {
+      setReturnLoanResults([]);
+      setShowReturnDropdown(false);
+      return;
+    }
+    setSearchingBooks(true);
+    try {
+      const res = await fetch(`/api/admin/library/return/search-active-loans?q=${encodeURIComponent(term)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setReturnLoanResults(data.data);
+        setShowReturnDropdown(data.data.length > 0);
+      }
+    } catch {
+      setReturnLoanResults([]);
+    } finally {
+      setSearchingBooks(false);
+    }
+  };
 
   // Direct Book Inserting & Instant Issue State
   const [insertTitle, setInsertTitle] = useState("");
@@ -401,13 +428,40 @@ export default function CheckoutPage() {
   // Fetch active loans for member
   const fetchActiveLoans = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/library?search=${encodeURIComponent(userId)}&status=BORROWED`);
+      const res = await fetch(`/api/admin/library/checkout/active-loans?userId=${encodeURIComponent(userId)}`);
       const data = await res.json();
-      if (data.success) {
-        setActiveLoans(data.data || []);
+      if (data.success && Array.isArray(data.data)) {
+        setActiveLoans(data.data);
+      } else {
+        setActiveLoans([]);
       }
     } catch {
-      // Ignore
+      setActiveLoans([]);
+    }
+  };
+
+  // Delete an issued loan record anytime
+  const handleDeleteLoan = async (loanId: string, bookTitle: string) => {
+    if (!confirm(`Are you sure you want to delete the issue record for "${bookTitle}"? This will cancel the loan and restore the volume to available inventory.`)) return;
+    try {
+      const res = await fetch(`/api/admin/library/checkout/loan/${loanId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: "Loan Record Deleted",
+          description: `Issue record for "${bookTitle}" has been deleted and book stock restored.`,
+          variant: "default",
+        });
+        if (member) {
+          fetchActiveLoans(member.id);
+          setMember((prev) => (prev ? { ...prev, activeLoans: Math.max(0, prev.activeLoans - 1) } : null));
+        }
+        fetchStackingRecords();
+      } else {
+        toast({ title: "Failed to delete loan", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error deleting loan", variant: "destructive" });
     }
   };
 
@@ -606,9 +660,14 @@ export default function CheckoutPage() {
   };
 
   // ── Handle Return ──
-  const handleReturn = async (barcodeToUse?: string, garamatDecision?: "COLLECTED" | "WAIVED" | "PENDING") => {
-    const barcode = (barcodeToUse || scannedBarcode).trim();
-    if (!barcode) return;
+  const handleReturn = async (
+    barcodeToUse?: string,
+    garamatDecision?: "COLLECTED" | "WAIVED" | "PENDING",
+    bookNameToUse?: string,
+    loanIdToUse?: string
+  ) => {
+    const term = (barcodeToUse || scannedBarcode).trim();
+    if (!term && !bookNameToUse && !loanIdToUse) return;
 
     setProcessing(true);
     try {
@@ -616,7 +675,9 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          barcode,
+          barcode: term,
+          bookName: bookNameToUse || term,
+          loanId: loanIdToUse,
           confirmRestock: false,
           garamatAction: garamatDecision || "COLLECTED",
         }),
@@ -626,6 +687,8 @@ export default function CheckoutPage() {
       if (data.success) {
         playScannerBeep("success");
         setScannedBarcode("");
+        setShowReturnDropdown(false);
+        setReturnLoanResults([]);
 
         if (data.data.isLate) {
           setLastOnTimeReturn(null);
@@ -633,7 +696,7 @@ export default function CheckoutPage() {
             // Open Garamat settlement dialog (Rate: ₹10/day)
             setPendingReturnGaramat({
               bookTitle: data.data.book.title,
-              barcode,
+              barcode: data.data.book?.barcode || term,
               borrowerName: data.data.loan.studentName,
               darjah: "Circulation",
               daysLate: data.data.daysLate,
@@ -646,7 +709,7 @@ export default function CheckoutPage() {
           setPendingReturnGaramat(null);
           setLastOnTimeReturn({
             bookTitle: data.data.book.title,
-            barcode,
+            barcode: data.data.book?.barcode || term,
             borrowerName: data.data.loan.studentName,
             borrowedAt: data.data.dates?.borrowedAt,
             dueAt: data.data.dates?.dueAt,
@@ -890,69 +953,138 @@ export default function CheckoutPage() {
                 <CardContent>
                   {member ? (
                     /* Selected Member Details Card */
-                    <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-50/60 p-4 shadow-xs">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3.5">
-                          {member.photo || member.avatarUrl ? (
-                            <img
-                              src={member.photo || member.avatarUrl!}
-                              alt={member.name}
-                              className="w-13 h-13 rounded-2xl object-cover border-2 border-emerald-600 shadow-xs shrink-0"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display = "none";
-                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (fallback) fallback.style.display = "flex";
-                              }}
-                            />
-                          ) : null}
-                          <div
-                            className="w-13 h-13 rounded-2xl bg-emerald-700 text-white font-extrabold text-lg flex items-center justify-center shadow-xs shrink-0"
-                            style={{ display: member.photo || member.avatarUrl ? "none" : "flex" }}
-                          >
-                            {member.firstName[0]}{member.lastName[0]}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-extrabold text-base text-slate-900">{member.name}</h3>
-                              {member.nameAr && <span className="font-arabic text-sm text-emerald-800 font-bold">{member.nameAr}</span>}
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-800 text-white">
-                                {member.roleLabel}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-600 mt-0.5">
-                              {member.className || member.roleLabel} &middot; ITS: <span className="font-mono font-bold">{member.its || "—"}</span>
-                              {member.trNo && <> &middot; TR No: <span className="font-mono font-bold">{member.trNo}</span></>}
-                            </p>
-                            {member.parentName && (
-                              <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5">
-                                <span className="font-semibold text-slate-700">Parent Assigned:</span>
-                                <span>{member.parentName}</span>
-                                {member.parentPhone && (
-                                  <span className="font-mono text-emerald-700 font-bold">({member.parentPhone})</span>
-                                )}
+                    <div className="space-y-3 w-full min-w-0 max-w-full">
+                      <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-50/60 p-4 sm:p-5 shadow-xs w-full min-w-0 max-w-full overflow-hidden">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
+                          <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
+                            {member.photo || member.avatarUrl ? (
+                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-emerald-600 shadow-sm shrink-0 bg-white">
+                                <img
+                                  src={member.photo || member.avatarUrl!}
+                                  alt={member.name}
+                                  className="w-full h-full object-cover object-center"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = "none";
+                                    const fallback = e.currentTarget.parentElement?.querySelector(".avatar-fallback") as HTMLElement;
+                                    if (fallback) fallback.style.display = "flex";
+                                  }}
+                                />
+                                <div
+                                  className="avatar-fallback w-full h-full bg-emerald-700 text-white font-extrabold text-lg items-center justify-center hidden"
+                                >
+                                  {member.firstName[0]}{member.lastName[0]}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-emerald-700 text-white font-extrabold text-xl flex items-center justify-center shadow-xs shrink-0">
+                                {member.firstName[0]}{member.lastName[0]}
+                              </div>
+                            )}
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-extrabold text-base sm:text-lg text-slate-900 leading-tight font-display">{member.name}</h3>
+                                {member.nameAr && <span className="font-arabic text-sm text-emerald-800 font-bold">{member.nameAr}</span>}
+                                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-800 text-white shrink-0">
+                                  {member.roleLabel}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 mt-1 font-medium">
+                                <span className="font-bold text-slate-800">{member.className || member.roleLabel}</span> &middot; ITS: <span className="font-mono font-bold text-slate-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">{member.its || "—"}</span>
+                                {member.trNo && <> &middot; TR No: <span className="font-mono font-bold text-slate-900">{member.trNo}</span></>}
                               </p>
+                              {member.parentName && (
+                                <p className="text-[11px] text-slate-600 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-slate-700">Parent Assigned:</span>
+                                  <span className="text-slate-900 font-medium">{member.parentName}</span>
+                                  {member.parentPhone && (
+                                    <span className="font-mono text-emerald-800 font-bold bg-white/70 px-1.5 py-0.2 rounded border border-emerald-200">({member.parentPhone})</span>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Loans Badge & Allowance */}
+                          <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-1.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-200/60">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold border shadow-2xs ${
+                              member.activeLoans >= member.maxAllowed
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : member.activeLoans > 0
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            }`}>
+                              <BookOpen className="w-3.5 h-3.5" />
+                              {member.activeLoans} / {member.maxAllowed} Active Volumes
+                            </span>
+                            {member.hasOverdue && (
+                              <span className="text-[10.5px] font-bold text-rose-700 bg-rose-100/90 border border-rose-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                ⚠️ Has Overdue Loans Pending
+                              </span>
                             )}
                           </div>
                         </div>
+                      </div>
 
-                        {/* Loans Badge & Allowance */}
-                        <div className="flex flex-col sm:items-end gap-1 shrink-0">
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-extrabold border ${
-                            member.activeLoans >= member.maxAllowed
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : member.activeLoans > 0
-                              ? "bg-amber-50 text-amber-800 border-amber-200"
-                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          }`}>
-                            <BookOpen className="w-3.5 h-3.5" />
-                            {member.activeLoans} / {member.maxAllowed} Active Volumes
+                      {/* Currently Issued Books for this Borrower (Admin can return or delete anytime) */}
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <BookOpen className="w-4 h-4 text-emerald-700" />
+                            <span>Currently Issued Books ({activeLoans.length}):</span>
                           </span>
-                          {member.hasOverdue && (
-                            <span className="text-[10px] font-bold text-rose-600 animate-pulse">
-                              ⚠️ Has Overdue Loans Pending
-                            </span>
-                          )}
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Admin can Return or Delete anytime
+                          </span>
                         </div>
+
+                        {activeLoans.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                            No books currently borrowed. This borrower has 0 active loans.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {activeLoans.map((loan) => (
+                              <div
+                                key={loan.id}
+                                className="p-3 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-all flex items-center justify-between gap-2.5 shadow-2xs"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-extrabold text-xs text-slate-900 truncate">{loan.bookTitle}</p>
+                                  <p className="text-[10.5px] text-slate-500 font-mono">
+                                    {loan.barcode ? `Barcode: ${loan.barcode}` : "Catalog Volume"}
+                                  </p>
+                                  <p className="text-[10px] text-slate-600 mt-0.5">
+                                    Due: {new Date(loan.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    {loan.isOverdue && <span className="text-rose-600 font-black ml-1.5">(OVERDUE)</span>}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => handleReturn(loan.barcode || loan.bookTitle, undefined, loan.bookTitle, loan.id)}
+                                    className="h-8 px-2.5 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg cursor-pointer"
+                                  >
+                                    Return
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDeleteLoan(loan.id, loan.bookTitle)}
+                                    className="h-8 px-2 text-xs border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300 font-bold rounded-lg cursor-pointer flex items-center gap-1"
+                                    title="Delete this issued loan record anytime"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                    <span>Delete</span>
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1268,11 +1400,15 @@ export default function CheckoutPage() {
                             setScannedBarcode(val);
                             if (mode === "checkout") {
                               searchBooksByName(val);
+                            } else if (mode === "return") {
+                              searchReturnLoansByName(val);
                             }
                           }}
                           onFocus={() => {
                             if (mode === "checkout" && scannedBarcode.trim().length >= 2) {
                               searchBooksByName(scannedBarcode);
+                            } else if (mode === "return" && scannedBarcode.trim().length >= 2) {
+                              searchReturnLoansByName(scannedBarcode);
                             }
                           }}
                           onKeyDown={handleKeyDown}
@@ -1281,7 +1417,7 @@ export default function CheckoutPage() {
                               ? bookInputMode === "search"
                                 ? "Type Book Name or Author (e.g. Nahjul Balagha, Lisaan, Science)..."
                                 : "Scan Barcode (e.g. 04-AL-KITAAB) or enter book name..."
-                              : "Scan returned book barcode or enter book title..."
+                              : "Scan barcode or type book name to return (e.g. Nahjul Balagha)..."
                           }
                           className="w-full rounded-xl border-2 border-emerald-600/40 pl-11 pr-10 py-3 text-base font-medium focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-white text-slate-900"
                           disabled={mode === "checkout" && !member}
@@ -1294,14 +1430,66 @@ export default function CheckoutPage() {
                       <Button
                         onClick={() => {
                           if (mode === "checkout") handleCheckout();
-                          else handleReturn();
+                          else handleReturn(scannedBarcode, undefined, scannedBarcode);
                         }}
                         disabled={!scannedBarcode.trim() || processing || (mode === "checkout" && !member)}
-                        className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-6 rounded-xl shadow-xs shrink-0"
+                        className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-6 rounded-xl shadow-xs shrink-0 cursor-pointer"
                       >
                         {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "checkout" ? "Issue Book" : "Return Book"}
                       </Button>
                     </div>
+
+                    {/* Return Mode: Matching Active Loans by Book Name Dropdown */}
+                    {mode === "return" && showReturnDropdown && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-emerald-200 shadow-xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-slate-100">
+                        <div className="px-3 py-1.5 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                          <span>Active Loans Matching Book Name ({returnLoanResults.length})</span>
+                          <span className="text-[10px] text-slate-400">Click to return directly</span>
+                        </div>
+
+                        {returnLoanResults.length === 0 ? (
+                          <div className="p-4 text-center">
+                            <p className="text-xs text-slate-500">No active loans found matching "{scannedBarcode}". You can still click "Return Book" to search catalog.</p>
+                          </div>
+                        ) : (
+                          returnLoanResults.map((l) => (
+                            <div
+                              key={l.loanId}
+                              onClick={() => handleReturn(l.barcode || l.bookTitle, undefined, l.bookTitle, l.loanId)}
+                              className="p-3 hover:bg-emerald-50/70 cursor-pointer transition-colors flex items-center justify-between gap-3 text-left"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
+                                  <BookOpen className="w-5 h-5 text-emerald-700" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-xs text-slate-900 truncate">{l.bookTitle}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">
+                                    Borrowed by <strong className="text-slate-800">{l.borrowerName}</strong> &middot; Barcode:{" "}
+                                    <span className="font-mono font-bold">{l.barcode || "N/A"}</span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-400">
+                                    Due: {new Date(l.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    {l.isOverdue && <span className="text-rose-600 font-bold ml-1">(OVERDUE)</span>}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReturn(l.barcode || l.bookTitle, undefined, l.bookTitle, l.loanId);
+                                }}
+                                className="h-7 text-xs px-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold shrink-0"
+                              >
+                                Return This Volume
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
 
                     {/* Interactive Book Search Dropdown Results */}
                     {showBookDropdown && (
@@ -2369,6 +2557,16 @@ export default function CheckoutPage() {
                                   <Mail className="w-3.5 h-3.5" />
                                 </button>
                               ) : null}
+
+                              {/* Delete Loan Record Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLoan(record.id, record.bookTitle)}
+                                className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors"
+                                title="Delete this loan record anytime"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>

@@ -28,45 +28,136 @@ function getHijriString(date: Date): string {
   return `${hijri.day} ${mMeta.en} ${hijri.year} H`;
 }
 
-// POST /api/admin/library/return - Process return with fast scan catch & automatic Garamat calculation
+// GET /api/admin/library/return/search-active-loans - Fast search active loans by Book Name, Barcode, or Borrower Name
+router.get("/search-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const q = String(req.query.q || req.query.query || "").trim();
+    const whereClause: any = { status: "ACTIVE" };
+
+    if (q) {
+      whereClause.OR = [
+        { bookTitle: { contains: q, mode: "insensitive" } },
+        { bookBarcode: { contains: q, mode: "insensitive" } },
+        { studentName: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
+    const loans = await prisma.bookLoan.findMany({
+      where: whereClause,
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            author: true,
+            barcode: true,
+            category: true,
+            coverImage: true,
+            shelfNumber: true,
+            rackNumber: true,
+          },
+        },
+      },
+      orderBy: { borrowedAt: "desc" },
+      take: 20,
+    });
+
+    const formatted = loans.map((l) => ({
+      loanId: l.id,
+      bookId: l.bookId,
+      bookTitle: l.bookTitle || l.book?.title || "Book",
+      barcode: l.bookBarcode || l.book?.barcode || "",
+      borrowerName: l.studentName,
+      borrowerId: l.studentId,
+      borrowedAt: l.borrowedAt,
+      dueAt: l.dueAt,
+      isOverdue: new Date(l.dueAt) < new Date(),
+      coverImage: l.book?.coverImage,
+      category: l.book?.category,
+    }));
+
+    return res.json({ success: true, data: formatted });
+  } catch (error: any) {
+    console.error("Search active loans error:", error);
+    return res.status(500).json({ success: false, error: "Failed to search active loans" });
+  }
+});
+
+// POST /api/admin/library/return - Process return with fast scan catch, manual book name support & automatic Garamat calculation
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
     const body = req.body as Record<string, any>;
     const {
       barcode,
+      bookName,
+      bookTitle,
+      loanId,
       confirmRestock = false,
       garamatAction = "COLLECTED", // "COLLECTED" | "WAIVED" | "PENDING"
       garamatAmountCustom,
       garamatNotes = "",
     } = body;
 
-    if (!barcode) {
-      return res.status(400).json({ success: false, error: "Book barcode is required" });
+    const searchTerm = (barcode || bookName || bookTitle || "").trim();
+    if (!searchTerm && !loanId) {
+      return res.status(400).json({ success: false, error: "Book barcode or book name is required" });
     }
 
-    // Find the book by barcode or ID
-    const book = await prisma.libraryBook.findFirst({
-      where: {
-        OR: [{ barcode }, { id: barcode }],
-      },
-    });
+    let activeLoan: any = null;
 
-    if (!book) {
-      return res.status(404).json({ success: false, error: `Book with barcode "${barcode}" not found in catalog` });
+    if (loanId) {
+      activeLoan = await prisma.bookLoan.findFirst({
+        where: { id: loanId, status: "ACTIVE" },
+        include: { book: true },
+      });
     }
 
-    // Find active loan
-    const activeLoan = await prisma.bookLoan.findFirst({
-      where: { bookId: book.id, status: "ACTIVE" },
-      orderBy: { borrowedAt: "desc" },
-    });
+    if (!activeLoan && searchTerm) {
+      // 1. Try finding book by barcode or title
+      const bookMatch = await prisma.libraryBook.findFirst({
+        where: {
+          OR: [
+            { barcode: searchTerm },
+            { id: searchTerm },
+            { title: { equals: searchTerm, mode: "insensitive" } },
+            { title: { contains: searchTerm, mode: "insensitive" } },
+          ],
+        },
+      });
+
+      if (bookMatch) {
+        activeLoan = await prisma.bookLoan.findFirst({
+          where: { bookId: bookMatch.id, status: "ACTIVE" },
+          include: { book: true },
+          orderBy: { borrowedAt: "desc" },
+        });
+      }
+
+      // 2. If not found, search directly by bookBarcode or bookTitle on bookLoan
+      if (!activeLoan) {
+        activeLoan = await prisma.bookLoan.findFirst({
+          where: {
+            status: "ACTIVE",
+            OR: [
+              { bookBarcode: { equals: searchTerm, mode: "insensitive" } },
+              { bookTitle: { equals: searchTerm, mode: "insensitive" } },
+              { bookTitle: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
+          include: { book: true },
+          orderBy: { borrowedAt: "desc" },
+        });
+      }
+    }
 
     if (!activeLoan) {
       return res.status(404).json({
         success: false,
-        error: `No active borrowing loan record found for "${book.title}" (${book.barcode || book.id})`,
+        error: `No active borrowing loan record found for "${searchTerm}"`,
       });
     }
+
+    const book = activeLoan.book || (activeLoan.bookId ? await prisma.libraryBook.findUnique({ where: { id: activeLoan.bookId } }) : null);
 
     const returnDate = new Date();
     const dueDate = new Date(activeLoan.dueAt);
