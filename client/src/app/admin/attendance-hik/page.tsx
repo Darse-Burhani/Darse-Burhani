@@ -1230,7 +1230,11 @@ export default function AdminAttendanceHikPage() {
                                 {r.biometricMethod === "FACIAL" ? "Facial Scan" : "Biometric Scan"}
                               </span>
                               <span className="text-[9.5px] text-slate-400 font-mono truncate">
-                                {r.remarks?.includes("192.168.0.5") ? "Secondary (192.168.0.5)" : "Main MinMoe (192.168.0.4)"}
+                                {r.remarks?.includes("192.168.0.11")
+                                  ? "Terminal 3 (192.168.0.11)"
+                                  : r.remarks?.includes("192.168.0.5")
+                                  ? "Secondary (192.168.0.5)"
+                                  : "Main MinMoe (192.168.0.4)"}
                               </span>
                             </>
                           ) : (
@@ -1448,10 +1452,18 @@ export default function AdminAttendanceHikPage() {
                           {hasScan ? (
                             <>
                               <div className="font-bold text-slate-800 truncate">
-                                {r.remarks?.includes("192.168.0.5") ? "Secondary Terminal" : "Main Entrance MinMoe"}
+                                {r.remarks?.includes("192.168.0.11")
+                                  ? "Terminal 3"
+                                  : r.remarks?.includes("192.168.0.5")
+                                  ? "Secondary Terminal"
+                                  : "Main Entrance MinMoe"}
                               </div>
                               <div className="text-[9.5px] text-slate-400">
-                                {r.remarks?.includes("192.168.0.5") ? "192.168.0.5" : "192.168.0.4"}
+                                {r.remarks?.includes("192.168.0.11")
+                                  ? "192.168.0.11"
+                                  : r.remarks?.includes("192.168.0.5")
+                                  ? "192.168.0.5"
+                                  : "192.168.0.4"}
                               </div>
                             </>
                           ) : (

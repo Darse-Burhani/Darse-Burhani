@@ -11,7 +11,7 @@ echo ================================================================
 echo   Status       : ACTIVE - Keep this window open 24/7
 echo   Working Dir  : %CD%
 echo   Target Cloud : https://darse-burhani.onrender.com
-echo   Terminals    : 192.168.0.4 (Entrance), 192.168.0.5 (Terminal 2)
+echo   Terminals    : 192.168.0.4 (Entrance), 192.168.0.5 (Terminal 2), 192.168.0.11 (Terminal 3)
 echo ================================================================
 echo.
 node scripts\hikvision-cloud-bridge.mjs %*

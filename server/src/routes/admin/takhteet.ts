@@ -79,6 +79,12 @@ router.get("/export", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // GET /api/admin/takhteet - Teachers with their classes + all plans (cached in-memory)
 router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    if (req.query._t || req.query.bust === "true") {
+      cache.invalidateKey("admin:takhteet");
+      cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
+    }
+
     const data = await cache.getOrSet(
       "admin:takhteet",
       async () => {
@@ -186,6 +192,23 @@ router.get("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
                 academicYear: p.academicYear,
                 updatedAt: p.updatedAt,
               })),
+              takhteetPlans: t.takhteetPlans.map((p) => ({
+                id: p.id,
+                title: p.title,
+                subject: p.subject,
+                progress: p.progress,
+                status: p.status,
+                month: p.month,
+                academicYear: p.academicYear,
+                updatedAt: p.updatedAt,
+              })),
+              user: {
+                id: t.user.id,
+                firstName: t.user.firstName,
+                lastName: t.user.lastName,
+                email: t.user.email,
+                avatarUrl: takhteetDisplay.avatarUrl,
+              },
               classes: t.classes.map((c) => ({
                 classId: c.id,
                 className: c.name,
@@ -295,6 +318,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     });
 
     cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
     return res.status(201).json({ success: true, data: plan });
   } catch (error) {
     console.error("Takhteet create error:", error);
@@ -357,6 +381,7 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
     }
 
     cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error("Takhteet update error:", error);
@@ -388,6 +413,7 @@ router.post("/bulk-assign", requireRole("ADMIN"), async (req, res) => {
     });
 
     cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
     return res.json({ success: true, count: result.count, message: `Successfully assigned ${result.count} portions to faculty.` });
   } catch (err: any) {
     console.error("Takhteet bulk-assign error:", err);
@@ -440,6 +466,7 @@ router.delete("/:id", requireRole("ADMIN"), async (req, res) => {
   try {
     await prisma.takhteetPlan.delete({ where: { id: req.params.id } });
     cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
     return res.json({ success: true });
   } catch (error) {
     console.error("Takhteet delete error:", error);

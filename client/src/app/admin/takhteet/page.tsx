@@ -90,7 +90,7 @@ export default function AdminTakhteetPage() {
   const fetchData = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
     try {
-      const res = await fetch("/api/admin/takhteet");
+      const res = await fetch(`/api/admin/takhteet${isManualRefresh ? `?_t=${Date.now()}` : ""}`);
       const data = await res.json();
       if (data.success) {
         setTeachers(data.data.teachers || []);

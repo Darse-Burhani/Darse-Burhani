@@ -302,6 +302,7 @@ router.put("/:id/progress", requireRole("TEACHER"), async (req, res) => {
     }
 
     cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error("Teacher takhteet progress error:", error);
@@ -409,6 +410,7 @@ router.put("/batch-progress", requireRole("TEACHER"), async (req, res) => {
     }
 
     cache.invalidateTag("takhteet");
+    cache.invalidateKey("admin:takhteet");
     return res.json({
       success: true,
       data: {

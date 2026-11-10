@@ -10,6 +10,7 @@ import {
   Loader2,
   CalendarDays,
   ClipboardList,
+  TrendingUp,
   CheckCircle2,
   Plus,
   RefreshCw,
@@ -531,8 +532,8 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
 
     try {
       const [resTimetable, resTakhteet] = await Promise.all([
-        fetch("/api/admin/timetable"),
-        fetch("/api/admin/takhteet"),
+        fetch(`/api/admin/timetable${isManual ? `?_t=${Date.now()}` : ""}`),
+        fetch(`/api/admin/takhteet${isManual ? `?_t=${Date.now()}` : ""}`),
       ]);
 
       const dataT = await resTimetable.json();
@@ -1547,6 +1548,17 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
     return (Array.isArray(teachers) ? teachers : []).find((t) => t && t.id === selectedTeacherId) || null;
   }, [teachers, selectedTeacherId]);
 
+  const activeTeacherTakhteet = useMemo(() => {
+    if (!activeTeacherObj) return null;
+    const list = Array.isArray(takhteetTeachers) ? takhteetTeachers : [];
+    return list.find((t: any) =>
+      t.id === activeTeacherObj.id ||
+      t.teacherProfileId === activeTeacherObj.id ||
+      (t.employeeId && activeTeacherObj.its && String(t.employeeId).trim() === String(activeTeacherObj.its).trim()) ||
+      (t.name && activeTeacherObj.name && t.name.toLowerCase().trim() === activeTeacherObj.name.toLowerCase().trim())
+    ) || null;
+  }, [activeTeacherObj, takhteetTeachers]);
+
   // TableMaster Subject Load Distribution & Stats for selected class
   const classSubjectStats = useMemo(() => {
     const classSlots = (Array.isArray(slots) ? slots : []).filter(
@@ -2552,6 +2564,28 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                                       </div>
                                     </div>
 
+                                    {/* Mini Takhteet Progress Tracker (Management Mode) */}
+                                    {viewMode === "management" && !slot.isBreak && slot.subject && (
+                                      <div className="mt-1.5 pt-1 border-t border-slate-200/50 flex items-center justify-between text-[9.5px]">
+                                        <span className="font-bold text-slate-500">Takhteet:</span>
+                                        {(() => {
+                                          const match = (takhteetList || []).find((p: any) =>
+                                            p && p.subject && p.subject.toLowerCase().trim() === slot.subject.toLowerCase().trim() &&
+                                            (p.className?.toLowerCase().includes(selectedClassName.toLowerCase()) || p.classId === slot.classId)
+                                          );
+                                          if (!match) return <span className="text-slate-400 font-mono text-[9px]">—</span>;
+                                          const prog = match.progress || 0;
+                                          return (
+                                            <span className={`font-mono font-black text-[9px] px-1.5 py-0.2 rounded ${
+                                              prog >= 100 ? "bg-emerald-100 text-emerald-800" : prog > 0 ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"
+                                            }`}>
+                                              {prog}%
+                                            </span>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
                                     {/* Faculty on Leave / Unavailable Alert */}
                                     {slot.isUnavailable && (
                                       <div className="mt-1.5 p-1.5 rounded-lg bg-rose-50 border border-rose-300 text-rose-950 flex flex-col gap-0.5 animate-pulse">
@@ -2862,6 +2896,30 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                       {activeTeacherObj.isUnavailable && (
                         <div className="text-[10px] font-bold text-rose-700 mt-0.5">
                           {activeTeacherObj.leaveReason} {activeTeacherObj.leaveDates ? `(${activeTeacherObj.leaveDates})` : ""}
+                        </div>
+                      )}
+                      {activeTeacherTakhteet && (
+                        <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center gap-2.5 flex-wrap">
+                          <div className="flex items-center gap-1 text-[11px] font-black text-slate-800">
+                            <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Takhteet Tracker:</span>
+                            <span className="font-mono text-emerald-900 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded text-[10.5px] font-black">
+                              {activeTeacherTakhteet.avgProgress ?? 0}%
+                            </span>
+                          </div>
+                          <div className="w-28 bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner">
+                            <div
+                              className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, Math.max(0, activeTeacherTakhteet.avgProgress || 0))}%` }}
+                            />
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1.5">
+                            <span className="text-emerald-700">{activeTeacherTakhteet.completedCount || 0} Done</span>
+                            <span>•</span>
+                            <span className="text-blue-700">{activeTeacherTakhteet.inProgressCount || 0} In Progress</span>
+                            <span>•</span>
+                            <span>{activeTeacherTakhteet.planCount || activeTeacherTakhteet.assignedPortions?.length || 0} Portions</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3606,6 +3664,18 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
               <Button
                 size="sm"
                 variant="outline"
+                onClick={() => fetchTimetableData(true)}
+                disabled={loading}
+                className="bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100 text-xs font-bold gap-1.5 rounded-xl cursor-pointer shrink-0"
+                title="Refresh live teacher progress logs from database"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-amber-700 ${loading ? "animate-spin" : ""}`} />
+                <span>Sync Progress</span>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={handleSyncTafseel}
                 disabled={syncingTafseel}
                 className="bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 text-xs font-bold gap-1.5 rounded-xl cursor-pointer shrink-0"
@@ -3647,37 +3717,48 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                   {takhteetTeachers
                     .filter((t) => {
                       if (!takhteetSearch.trim()) return true;
-                      const q = takhteetSearch.toLowerCase();
-                      const name = `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.toLowerCase();
-                      const subjects = (t.classes || []).map((c: any) => c.subject || c.name).join(" ").toLowerCase();
-                      const plans = (t.takhteetPlans || []).map((p: any) => p.title || p.subject).join(" ").toLowerCase();
-                      return name.includes(q) || subjects.includes(q) || plans.includes(q);
+                      const q = takhteetSearch.toLowerCase().trim();
+                      const name = (t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`).toLowerCase();
+                      const its = (t.employeeId || "").toLowerCase();
+                      const subjects = (t.classes || []).map((c: any) => c.subject || c.name || c.className).join(" ").toLowerCase();
+                      const plansList = (t.assignedPortions && t.assignedPortions.length > 0) ? t.assignedPortions : (t.takhteetPlans || []);
+                      const plansText = plansList.map((p: any) => `${p.title || ""} ${p.subject || ""}`).join(" ").toLowerCase();
+                      return name.includes(q) || its.includes(q) || subjects.includes(q) || plansText.includes(q);
                     })
                     .map((t) => {
-                      const teacherName = `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || "Faculty Member";
-                      const plans = t.takhteetPlans || [];
-                      const completedCount = plans.filter((p: any) => p.status === "COMPLETED").length;
-                      const inProgressCount = plans.filter((p: any) => p.status === "IN_PROGRESS").length;
-                      const avgProgress = plans.length > 0
+                      const teacherName = t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || "Faculty Member";
+                      const teacherEmail = t.email || t.user?.email || "Academic Faculty";
+                      const teacherAvatar = t.avatarUrl || t.user?.avatarUrl;
+                      const plans = (t.assignedPortions && t.assignedPortions.length > 0) ? t.assignedPortions : (t.takhteetPlans || []);
+                      const totalPlans = t.planCount !== undefined ? t.planCount : plans.length;
+                      const completedCount = t.completedCount !== undefined ? t.completedCount : plans.filter((p: any) => p.status === "COMPLETED" || (p.progress || 0) >= 100).length;
+                      const inProgressCount = t.inProgressCount !== undefined ? t.inProgressCount : plans.filter((p: any) => p.status === "IN_PROGRESS" || ((p.progress || 0) > 0 && (p.progress || 0) < 100)).length;
+                      const pendingCount = t.pendingCount !== undefined ? t.pendingCount : Math.max(0, totalPlans - completedCount - inProgressCount);
+                      const avgProgress = t.avgProgress !== undefined
+                        ? t.avgProgress
+                        : plans.length > 0
                         ? Math.round(plans.reduce((sum: number, p: any) => sum + (p.progress || 0), 0) / plans.length)
                         : 0;
 
                       return (
                         <div
-                          key={t.id}
+                          key={t.id || t.teacherProfileId}
                           className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow"
                         >
                           {/* Teacher Header */}
                           <div className="flex items-center gap-3">
                             <Avatar className="w-11 h-11 ring-2 ring-emerald-700/40 shrink-0">
-                              {t.user?.avatarUrl && <AvatarImage src={t.user.avatarUrl} alt={teacherName} />}
+                              {teacherAvatar && <AvatarImage src={teacherAvatar} alt={teacherName} />}
                               <AvatarFallback className="bg-gradient-to-br from-[#1c1c1c] to-[#1c1c1c] text-amber-300 font-bold text-xs">
                                 {getInitials(teacherName)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
                               <h4 className="text-sm font-extrabold text-slate-900 truncate">{teacherName}</h4>
-                              <p className="text-[11px] text-slate-500 truncate">{t.user?.email || "Academic Faculty"}</p>
+                              <p className="text-[11px] text-slate-500 truncate">{teacherEmail}</p>
+                              {t.employeeId && (
+                                <p className="text-[10px] font-mono text-slate-400">ITS: {t.employeeId}</p>
+                              )}
                             </div>
                           </div>
 
@@ -3692,10 +3773,10 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                               ) : (
                                 (t.classes || []).map((c: any) => (
                                   <span
-                                    key={c.id}
+                                    key={c.id || c.classId}
                                     className="px-2 py-0.5 rounded-lg text-[10.5px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-200"
                                   >
-                                    Class {c.name} {c.subject ? `• ${c.subject}` : ""}
+                                    Class {c.name || c.className} {c.subject ? `• ${c.subject}` : ""}
                                   </span>
                                 ))
                               )}
@@ -3705,54 +3786,84 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
                           {/* Syllabus Coverage Overall Progress Bar */}
                           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
                             <div className="flex items-center justify-between text-xs font-bold">
-                              <span className="text-slate-700">Portion Syllabus Progress</span>
-                              <span className="font-mono text-emerald-800 font-black">{avgProgress}%</span>
+                              <span className="text-slate-700 flex items-center gap-1.5">
+                                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Portion Syllabus Progress</span>
+                              </span>
+                              <span className="font-mono text-emerald-800 font-black px-2 py-0.5 rounded-md bg-emerald-100/80 border border-emerald-300 text-xs">
+                                {avgProgress}%
+                              </span>
                             </div>
-                            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden shadow-inner">
                               <div
-                                className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full transition-all duration-300"
-                                style={{ width: `${avgProgress}%` }}
+                                className="bg-gradient-to-r from-emerald-500 via-teal-500 to-[#b8541e] h-full rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, Math.max(0, avgProgress))}%` }}
                               />
                             </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold pt-1">
-                              <span>{plans.length} Total Portions</span>
-                              <span className="text-emerald-700 font-bold">{completedCount} Completed</span>
-                              <span className="text-blue-700 font-bold">{inProgressCount} In Progress</span>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold pt-1">
+                              <span>{totalPlans} Total Portions</span>
+                              <span className="text-emerald-700">{completedCount} Completed</span>
+                              <span className="text-blue-700">{inProgressCount} In Progress</span>
+                              <span className="text-amber-700">{pendingCount} Pending</span>
                             </div>
                           </div>
 
                           {/* Itemized Portion Breakdown */}
-                          {plans.length > 0 && (
+                          {plans.length > 0 ? (
                             <div className="space-y-1.5 pt-1 border-t border-slate-100">
-                              <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">
-                                Recent Portion Milestones
+                              <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">
+                                <span>Assigned Portion Tracker</span>
+                                <span>{plans.length} items</span>
                               </div>
-                              <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-                                {plans.slice(0, 4).map((p: any) => (
-                                  <div
-                                    key={p.id}
-                                    className="p-2 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between text-[11px]"
-                                  >
-                                    <div className="min-w-0 flex-1 pr-2">
-                                      <div className="font-bold text-slate-800 truncate">{p.title || p.subject}</div>
-                                      <div className="text-[9.5px] text-slate-400">
-                                        {p.subject} {p.month ? `• Month ${p.month}` : ""}
+                              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                                {plans.map((p: any) => {
+                                  const isComplete = p.status === "COMPLETED" || (p.progress || 0) >= 100;
+                                  const isInProgress = p.status === "IN_PROGRESS" || ((p.progress || 0) > 0 && (p.progress || 0) < 100);
+                                  return (
+                                    <div
+                                      key={p.id}
+                                      className="p-2.5 rounded-xl bg-slate-50/90 border border-slate-100 flex flex-col gap-1.5 text-[11px] hover:bg-slate-100/80 transition-colors"
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0 flex-1">
+                                          <div className="font-bold text-slate-800 truncate" title={p.title || p.subject}>
+                                            {p.title || p.subject}
+                                          </div>
+                                          <div className="text-[9.5px] text-slate-500 font-medium flex items-center gap-1.5">
+                                            <span className="text-slate-600 font-bold">{p.subject}</span>
+                                            {p.month && <span>• Month {p.month}</span>}
+                                            {p.academicYear && <span>• {p.academicYear}</span>}
+                                          </div>
+                                        </div>
+                                        <span
+                                          className={`px-2 py-0.5 rounded-full text-[9.5px] font-black font-mono shrink-0 border ${
+                                            isComplete
+                                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                              : isInProgress
+                                              ? "bg-blue-100 text-blue-800 border-blue-300"
+                                              : "bg-amber-100 text-amber-800 border-amber-300"
+                                          }`}
+                                        >
+                                          {p.progress || 0}%
+                                        </span>
+                                      </div>
+                                      {/* Individual portion mini progress gauge */}
+                                      <div className="w-full bg-slate-200/80 h-1 rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-300 ${
+                                            isComplete ? "bg-emerald-600" : isInProgress ? "bg-blue-600" : "bg-amber-500"
+                                          }`}
+                                          style={{ width: `${Math.min(100, Math.max(0, p.progress || 0))}%` }}
+                                        />
                                       </div>
                                     </div>
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
-                                        p.status === "COMPLETED"
-                                          ? "bg-emerald-100 text-emerald-800"
-                                          : p.status === "IN_PROGRESS"
-                                          ? "bg-blue-100 text-blue-800"
-                                          : "bg-amber-100 text-amber-800"
-                                      }`}
-                                    >
-                                      {p.progress || 0}%
-                                    </span>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
+                            </div>
+                          ) : (
+                            <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-400 text-center font-medium">
+                              No syllabus portions assigned to this faculty member yet.
                             </div>
                           )}
                         </div>

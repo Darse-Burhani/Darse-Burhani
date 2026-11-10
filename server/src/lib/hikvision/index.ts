@@ -1056,6 +1056,16 @@ export async function ensureBiometricDevicesConfigured(): Promise<void> {
         serialNo: "DS-K1T341CMF20240702V030315ENFU5715056",
         firmwareVersion: "V3.3.15 build 240702",
       },
+      {
+        name: "Attendance Terminal 3 (192.168.0.11)",
+        host: "192.168.0.11",
+        port: 80,
+        username: "admin",
+        password: process.env.HIKVISION_PASSWORD || "DARSEBURHANI5253",
+        model: "DS-K1T341CMF",
+        serialNo: "DS-K1T341CMF20250224V030340ENGT3336973",
+        firmwareVersion: "V3.3.40",
+      },
     ];
 
     for (const cfg of DEFAULT_DEVICES) {

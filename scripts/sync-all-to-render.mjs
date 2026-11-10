@@ -21,6 +21,7 @@ const WEBHOOK_URL = `${RENDER_BASE}/api/hikvision/events?secret=${encodeURICompo
 const DEVICES = [
   { id: 'dev-1', name: 'Main Entrance MinMoe', host: '192.168.0.4', port: 80, username: 'admin', password: 'DARSEBURHANI5253' },
   { id: 'dev-2', name: 'Secondary Terminal 2', host: '192.168.0.5', port: 80, username: 'admin', password: 'DARSEBURHANI5253' },
+  { id: 'dev-3', name: 'Attendance Terminal 3', host: '192.168.0.11', port: 80, username: 'admin', password: 'DARSEBURHANI5253' },
 ];
 
 function md5(str) {

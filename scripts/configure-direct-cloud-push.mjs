@@ -35,7 +35,7 @@ const targetHost = urlObj.hostname;
 const targetPort = urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80');
 const isHttps = urlObj.protocol === 'https:';
 
-const rawHosts = process.env.HIKVISION_HOSTS || process.env.HIKVISION_HOST || '192.168.0.4,192.168.0.5';
+const rawHosts = process.env.HIKVISION_HOSTS || process.env.HIKVISION_HOST || '192.168.0.4,192.168.0.5,192.168.0.11';
 const DEVICES = rawHosts
   .split(',')
   .map((h) => h.trim())

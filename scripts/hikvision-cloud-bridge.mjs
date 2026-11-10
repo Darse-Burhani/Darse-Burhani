@@ -97,7 +97,7 @@ let lastGoodHealthBase = RENDER_FALLBACK_BASE;
 
 
 // Terminal Device Roster
-const rawHosts = process.env.HIKVISION_HOSTS || process.env.HIKVISION_HOST || '192.168.0.4,192.168.0.5';
+const rawHosts = process.env.HIKVISION_HOSTS || process.env.HIKVISION_HOST || '192.168.0.4,192.168.0.5,192.168.0.11';
 const DEVICES = rawHosts
   .split(',')
   .map((h) => h.trim())
@@ -168,7 +168,7 @@ async function digestFetch(url, { method = 'GET', username, password, body, head
         chal = parseDigestHeader(authHeader.replace(/^digest\s+/i, ''));
         challengeCache.set(hostKey, chal);
       }
-    } catch {}
+    } catch { }
   }
 
   const reqHeaders = { ...headers };
@@ -433,7 +433,7 @@ export async function syncMonthDevicesToRender(monthStr) {
 
   // Ensure local DB has all records
   for (const ev of uniqueEvents) {
-    recordDirectScanInDatabase(ev).catch(() => {});
+    recordDirectScanInDatabase(ev).catch(() => { });
   }
 
   // Forward to Render Cloud in chunks of 15
@@ -605,7 +605,7 @@ export async function syncAllDevicesToRender(targetDateStr) {
 
   // Ensure local DB has all of them as well
   for (const ev of uniqueEvents) {
-    recordDirectScanInDatabase(ev).catch(() => {});
+    recordDirectScanInDatabase(ev).catch(() => { });
   }
 
   // Push to Render Cloud in concurrent batches of 15
@@ -994,7 +994,7 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
           lastGoodWebhookIndex = idx;
           stats.renderSynced++;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -1148,7 +1148,7 @@ async function listenAlertStream(dev) {
               });
             }
           }
-        } catch {}
+        } catch { }
         buffer = buffer.slice(jsonMatch.index + jsonMatch[0].length);
       }
 
@@ -1298,7 +1298,7 @@ async function loadOfficialPhoto(url) {
         return entry;
       }
     }
-  } catch {}
+  } catch { }
 
   const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`Photo fetch HTTP ${res.status}`);
@@ -1451,13 +1451,13 @@ async function startBridge() {
     if (clock.ok && clock.driftSeconds !== null && Math.abs(clock.driftSeconds) <= 45) {
       console.log(`🕒 [CLOCK OK] ${dev.name} (${dev.host}) drift ${clock.driftSeconds}s`);
     }
-    pollDeviceEvents(dev, 24, 60).catch(() => {});
+    pollDeviceEvents(dev, 24, 60).catch(() => { });
   }
 
   // 2. Official Galiakot-kgs staff photos → terminal face-database sync
   console.log('🧑‍💼 Syncing official staff photos to terminal face databases...');
-  syncOfficialFaceData().catch(() => {});
-  setInterval(() => syncOfficialFaceData().catch(() => {}), 30 * 60 * 1000);
+  syncOfficialFaceData().catch(() => { });
+  setInterval(() => syncOfficialFaceData().catch(() => { }), 30 * 60 * 1000);
 
   // 3. Launch persistent AlertStream listeners
   for (const dev of DEVICES) {
@@ -1472,14 +1472,14 @@ async function startBridge() {
   // 3. Launch rapid poller
   setInterval(() => {
     for (const dev of DEVICES) {
-      pollDeviceEvents(dev, 1, 3).catch(() => {});
+      pollDeviceEvents(dev, 1, 3).catch(() => { });
     }
   }, 4000);
 
   // 4. Clock checks every 30s
   setInterval(() => {
     for (const dev of DEVICES) {
-      syncDeviceClock(dev).catch(() => {});
+      syncDeviceClock(dev).catch(() => { });
     }
   }, 30000);
 
@@ -1507,7 +1507,7 @@ async function startBridge() {
 
   // Ping every 4 minutes during active hours (Render sleeps after 15m of inactivity)
   setInterval(pingRenderSchoolHours, 4 * 60 * 1000);
-  pingRenderSchoolHours().catch(() => {});
+  pingRenderSchoolHours().catch(() => { });
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');
   console.log('   All biometric punches from physical terminals are syncing to Render.');
@@ -1532,15 +1532,15 @@ function checkBridgeRateLimit(ip) {
 }
 
 function validateBridgeSecurity(req, reqUrl) {
-  const clientSecret = 
-    req.headers['x-biometric-secret'] || 
-    req.headers['x-bridge-token'] || 
-    reqUrl.searchParams.get('secret') || 
+  const clientSecret =
+    req.headers['x-biometric-secret'] ||
+    req.headers['x-bridge-token'] ||
+    reqUrl.searchParams.get('secret') ||
     reqUrl.searchParams.get('token');
 
-  const isActionEndpoint = 
-    reqUrl.pathname.startsWith('/api/sync') || 
-    reqUrl.pathname.startsWith('/api/clock') || 
+  const isActionEndpoint =
+    reqUrl.pathname.startsWith('/api/sync') ||
+    reqUrl.pathname.startsWith('/api/clock') ||
     reqUrl.pathname.startsWith('/api/restart');
 
   if (!isActionEndpoint) return { authorized: true };
@@ -1695,14 +1695,14 @@ function startStatusServer() {
         return;
       }
 
-    const uptimeMins = Math.floor(process.uptime() / 60);
-    const uptimeHours = Math.floor(uptimeMins / 60);
-    const uptimeDays = Math.floor(uptimeHours / 24);
-    const uptimeStr = uptimeDays > 0 
-      ? `${uptimeDays}d ${uptimeHours % 24}h ${uptimeMins % 60}m` 
-      : `${uptimeHours}h ${uptimeMins % 60}m ${Math.floor(process.uptime() % 60)}s`;
+      const uptimeMins = Math.floor(process.uptime() / 60);
+      const uptimeHours = Math.floor(uptimeMins / 60);
+      const uptimeDays = Math.floor(uptimeHours / 24);
+      const uptimeStr = uptimeDays > 0
+        ? `${uptimeDays}d ${uptimeHours % 24}h ${uptimeMins % 60}m`
+        : `${uptimeHours}h ${uptimeMins % 60}m ${Math.floor(process.uptime() % 60)}s`;
 
-    const html = `<!DOCTYPE html>
+      const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1792,24 +1792,24 @@ function startStatusServer() {
   </div>
 </body>
 </html>`;
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(html);
-  });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    });
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.warn(`\n⚠️  [INSTANCE ALREADY ACTIVE] Port ${STATUS_PORT} is in use.`);
-      console.warn('   Another 24/7 Hikvision Bridge instance is already running on this PC.');
-      console.warn(`   View live dashboard at: http://localhost:${STATUS_PORT}\n`);
-      process.exit(42);
-    }
-  });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`\n⚠️  [INSTANCE ALREADY ACTIVE] Port ${STATUS_PORT} is in use.`);
+        console.warn('   Another 24/7 Hikvision Bridge instance is already running on this PC.');
+        console.warn(`   View live dashboard at: http://localhost:${STATUS_PORT}\n`);
+        process.exit(42);
+      }
+    });
 
-  server.listen(STATUS_PORT, '127.0.0.1', () => {
-    console.log(`📊 Local Status Dashboard : http://localhost:${STATUS_PORT}`);
-    resolve(server);
+    server.listen(STATUS_PORT, '127.0.0.1', () => {
+      console.log(`📊 Local Status Dashboard : http://localhost:${STATUS_PORT}`);
+      resolve(server);
+    });
   });
-});
 }
 
 // 24/7 Resilience Guards: Prevent transient network drops/timeouts from terminating the process
