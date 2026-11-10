@@ -402,11 +402,11 @@ router.get("/student/:studentId", requireRole("ADMIN"), async (req, res) => {
           remarks: r.remarks,
           leave: r.leave
             ? {
-                id: r.leave.id,
-                type: r.leave.type,
-                reason: r.leave.reason,
-                status: r.leave.status,
-              }
+              id: r.leave.id,
+              type: r.leave.type,
+              reason: r.leave.reason,
+              status: r.leave.status,
+            }
             : null,
         })),
         recentLeaves: student.leaveRequests.map((l) => ({
