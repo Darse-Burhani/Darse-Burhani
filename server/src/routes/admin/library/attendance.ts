@@ -247,6 +247,26 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 
     const now = new Date();
     const session = req.auth!;
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    // Prevent duplicate arrival entries for the same student on the same day
+    const existing = await (prisma as any).libraryAttendance.findFirst({
+      where: {
+        studentId,
+        date: { gte: todayStart, lte: todayEnd },
+      },
+      orderBy: { checkInTime: "desc" },
+    });
+
+    if (existing) {
+      return res.json({
+        success: true,
+        alreadyCheckedIn: true,
+        message: `${studentName} is already marked present for today`,
+        data: existing,
+      });
+    }
 
     const record = await (prisma as any).libraryAttendance.create({
       data: {
@@ -278,6 +298,7 @@ router.post("/", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 router.post("/scan-checkin", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const rawQuery = String(req.body.query || "").trim();
+    const cleanQuery = rawQuery.replace(/^its[-:\s]*/i, "").trim();
     const sessionType = req.body.sessionType || "READING";
     const notes = req.body.notes || null;
 
@@ -294,7 +315,9 @@ router.post("/scan-checkin", requireRole("ADMIN", "TEACHER"), async (req, res) =
       where: {
         OR: [
           { its: rawQuery },
+          { its: cleanQuery },
           { studentId: rawQuery },
+          { studentId: cleanQuery },
           { id: rawQuery },
           { userId: rawQuery },
         ],
@@ -424,9 +447,31 @@ router.post("/bulk", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 
     const now = new Date();
     const session = req.auth!;
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const candidateIds = students.map((s) => s.studentId);
+    const alreadyAttended = await (prisma as any).libraryAttendance.findMany({
+      where: {
+        studentId: { in: candidateIds },
+        date: { gte: todayStart, lte: todayEnd },
+      },
+      select: { studentId: true },
+    });
+    const alreadySet = new Set((alreadyAttended as any[]).map((a: any) => a.studentId));
+    const toCreate = students.filter((s) => !alreadySet.has(s.studentId));
+
+    if (toCreate.length === 0) {
+      return res.json({
+        success: true,
+        count: 0,
+        message: "All students in this list are already marked present today",
+        data: [],
+      });
+    }
 
     const createdRecords = await prisma.$transaction(
-      students.map((s) =>
+      toCreate.map((s) =>
         (prisma as any).libraryAttendance.create({
           data: {
             studentId: s.studentId,

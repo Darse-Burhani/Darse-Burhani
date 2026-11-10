@@ -18,10 +18,14 @@ import {
   Library,
   ArrowUpRight,
   Sparkles,
+  UserCheck,
+  ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import Link from "next/link";
 
 const LibraryCategoryPie = lazy(() => import("@/components/admin/LibraryCategoryPie"));
@@ -145,6 +149,20 @@ export default function LibraryOverviewPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* ── Library Hub Navigation Tabs ── */}
+      <AdminHubTabs
+        hubTitle="Library & Circulation"
+        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
+        tabs={[
+          { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
+          { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
+          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
+          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
+          { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
+          { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
+        ]}
+      />
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

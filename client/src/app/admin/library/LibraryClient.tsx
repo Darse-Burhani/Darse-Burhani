@@ -454,7 +454,8 @@ function AddBookModal({ open, onOpenChange, onCreated, existingCategories }: {
               JsBarcode(svg, svg.dataset.barcode, { format: 'CODE128', width: 1.2, height: 30, displayValue: false, margin: 0 });
             } catch(e) {}
           });
-          setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 500);
+          window.addEventListener('afterprint', function() { window.close(); });
+          setTimeout(function() { window.print(); }, 400);
         <\/script>
       </body>
       </html>
@@ -1763,7 +1764,8 @@ function SingleBarcodeStickerModal({
             margin: 0,
             background: "#ffffff"
           });
-          setTimeout(() => { window.print(); window.close(); }, 350);
+          window.addEventListener('afterprint', function() { window.close(); });
+          setTimeout(function() { window.print(); }, 400);
         <\/script>
       </body>
       </html>

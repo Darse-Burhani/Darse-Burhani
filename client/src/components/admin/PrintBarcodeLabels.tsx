@@ -460,10 +460,8 @@ export default function PrintBarcodeLabels({
             }
           });
 
-          setTimeout(function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 600);
-          }, 600);
+          window.addEventListener('afterprint', function() { window.close(); });
+          setTimeout(function() { window.print(); }, 400);
         <\/script>
       </body>
       </html>

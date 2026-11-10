@@ -330,6 +330,8 @@ export default function BookScanModal({ open, initialBarcode, onOpenChange, onBo
               JsBarcode(svg, svg.dataset.barcode, { format: 'CODE128', width: 1.2, height: 30, displayValue: false, margin: 0 });
             } catch(e) {}
           });
+          window.addEventListener('afterprint', function() { window.close(); });
+          setTimeout(function() { window.print(); }, 400);
         <\/script>
       </body>
       </html>
