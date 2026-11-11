@@ -727,6 +727,91 @@ export async function isAnyHardwareWindowOpen(
   return { isOpen: false, activeWindows: [], reason: "All hardware scan windows are currently closed for today (or terminal is restricted for active window)" };
 }
 
+/**
+ * Strict hardware-schedule gate used by scan processing.
+ *
+ * Evaluates the hardware scan windows ACTIVE at `when` and answers three
+ * questions in one pass:
+ * - `open`             — is any hardware event running right now?
+ * - `facultyOnlyOpen`  — is the active event FACULTY-only (talabat excluded)?
+ * - `terminalRestricted` — is this terminal excluded from polling because the
+ *   active event restricts polling to specific terminals (applicableDeviceIds)?
+ *
+ * When `terminalRestricted` is true, scans arriving from that terminal must be
+ * acknowledged without marking attendance — strict polling enforcement at the
+ * single choke-point every scan path (ISAPI poller + webhook push) funnels
+ * through (processBiometricScan).
+ */
+export async function getHardwareWindowGate(
+  when: Date = new Date(),
+  deviceId?: string | null,
+  deviceHost?: string | null,
+  preBufferMinutes = 5,
+): Promise<{
+  open: boolean;
+  facultyOnlyOpen: boolean;
+  restricted: boolean;
+  eventName: string | null;
+}> {
+  const rows = (await prisma.biometricScanWindow.findMany({
+    orderBy: { startTime: "asc" },
+  })) as unknown as ScanWindowRowLike[];
+
+  const { scanMinutes } = getISTDetails(when);
+
+  const active = rows.filter((row) => {
+    if (!row.enabled) return false;
+    // Hardware events only — MANUAL roll-call rows never gate terminal polling
+    if (getWindowType(row) === "MANUAL") return false;
+    const studentRange = eventRangeForRole(row, "STUDENT");
+    const facultyRange = eventRangeForRole(row, "TEACHER");
+    const startMin = Math.min(
+      studentRange ? studentRange.startMin : Number.POSITIVE_INFINITY,
+      facultyRange ? facultyRange.startMin : Number.POSITIVE_INFINITY,
+    );
+    const lateMin = Math.max(
+      studentRange ? studentRange.lateMin : Number.NEGATIVE_INFINITY,
+      facultyRange ? facultyRange.lateMin : Number.NEGATIVE_INFINITY,
+    );
+    if (!Number.isFinite(startMin) || !Number.isFinite(lateMin)) return false;
+    return scanMinutes >= Math.max(0, startMin - preBufferMinutes) && scanMinutes <= lateMin;
+  });
+
+  if (active.length === 0) {
+    return { open: false, facultyOnlyOpen: false, restricted: false, eventName: null };
+  }
+
+  const facultyOnlyOpen = active.some((row) => getAudienceType(row) === "FACULTY");
+
+  // Terminal eligibility: an event with applicableDeviceIds limits polling to
+  // those terminals only. The terminal is allowed when at least one ACTIVE
+  // event lists it (or when none of the active events restrict terminals).
+  let restricted = false;
+  let eventName: string | null = null;
+  if (deviceId || deviceHost) {
+    const restricting = active.filter(
+      (row) => Array.isArray(row.applicableDeviceIds) && row.applicableDeviceIds.length > 0,
+    );
+    if (restricting.length > 0) {
+      const eligible = restricting.some(
+        (row) =>
+          (Boolean(deviceId) && row.applicableDeviceIds!.includes(deviceId as string)) ||
+          (Boolean(deviceHost) && row.applicableDeviceIds!.includes(deviceHost as string)),
+      );
+      if (!eligible) {
+        restricted = true;
+        eventName = restricting.map((row) => row.name).join(", ");
+      }
+    }
+  }
+
+  if (!eventName && facultyOnlyOpen) {
+    eventName = active.find((row) => getAudienceType(row) === "FACULTY")?.name ?? null;
+  }
+
+  return { open: true, facultyOnlyOpen, restricted, eventName };
+}
+
 const STUDENT_SELECT = {
   id: true,
   userId: true,
@@ -1077,6 +1162,26 @@ export async function processBiometricScan(
     }
   }
 
+  // ── Strict Terminal Polling Eligibility ──
+  // When the active schedule event restricts polling to specific terminals
+  // (applicableDeviceIds), scans from any other terminal are acknowledged
+  // WITHOUT marking attendance — only eligible terminals may poll.
+  if (matchedDevice) {
+    const gate = await getHardwareWindowGate(when, matchedDevice.id, matchedDevice.host).catch(() => null);
+    if (gate?.restricted) {
+      console.warn(
+        `[biometric] Scan rejected from terminal "${matchedDevice.name}" (${matchedDevice.host}): not eligible to poll during "${gate.eventName}".`,
+      );
+      return pushEvent({
+        type: "SYSTEM",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        message: `Terminal "${matchedDevice.name}" (${matchedDevice.host}) is not eligible to poll attendance during "${gate.eventName}". Scan acknowledged without marking.`,
+        verifyMode: method,
+      }, when, true);
+    }
+  }
+
   // 1. Attempt to resolve Student
   const student = await resolveStudent(fingerprint);
 
@@ -1121,13 +1226,13 @@ export async function processBiometricScan(
         (existingTeacherRecord &&
           (existingTeacherRecord.status === "ON_LEAVE" ||
             existingTeacherRecord.status === "MEDICAL" ||
-            existingTeacherRecord.status === "HOLIDAY"));
+            (existingTeacherRecord.status as any) === "HOLIDAY"));
 
       if (isFacultyOnLeaveOrExempt) {
         const isMedical =
           (activeMedical && /medical|sick|hospital|health/i.test(activeMedical.eventName || "")) ||
           existingTeacherRecord?.status === "MEDICAL";
-        const isHoliday = existingTeacherRecord?.status === "HOLIDAY";
+        const isHoliday = (existingTeacherRecord?.status as any) === "HOLIDAY";
         const preservedStatus = isMedical ? "MEDICAL" : isHoliday ? "HOLIDAY" : "ON_LEAVE";
         const reasonText =
           activeMedical?.reason ||
@@ -1458,6 +1563,28 @@ export async function processBiometricScan(
   const studentWindow = await getScanWindow("STUDENT", when, true, matchedDevice?.id, matchedDevice?.host);
   const studentWindowStatus = await isRoleWindowOpen("STUDENT", when, true);
 
+  // ── Faculty-only period guard ──
+  // When the active hardware event is FACULTY-only (e.g. a faculty-exclusive
+  // clearing session), talabat scans are acknowledged but NEVER marked — only
+  // eligible faculty are polled and marked for that period of scan.
+  if (!studentWindowStatus.isOpen) {
+    const gate = await getHardwareWindowGate(when, matchedDevice?.id, matchedDevice?.host).catch(() => null);
+    if (gate?.facultyOnlyOpen) {
+      console.log(
+        `[biometric] Talabat scan from ${studentInfo.name} acknowledged without marking — active event "${gate.eventName ?? "unknown"}" is faculty-only.`,
+      );
+      return pushEvent({
+        type: "SYSTEM",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Talabat scanning is not scheduled during "${gate.eventName ?? "the active event"}" (faculty-only session). Scan acknowledged without marking.`,
+        verifyMode: method,
+      }, when, true);
+    }
+  }
+
   // Ensure active class enrollment exists
   const activeClasses = await ensureStudentEnrollment(student);
 
@@ -1497,14 +1624,14 @@ export async function processBiometricScan(
     (existingRegistry &&
       (existingRegistry.status === "ON_LEAVE" ||
         existingRegistry.status === "MEDICAL" ||
-        existingRegistry.status === "HOLIDAY"));
+        (existingRegistry.status as any) === "HOLIDAY"));
 
   if (isStudentOnLeaveOrHoliday) {
     const isMedical =
       leave?.type === "MEDICAL" ||
       Boolean(activeStudentMedical) ||
       existingRegistry?.status === "MEDICAL";
-    const isHoliday = existingRegistry?.status === "HOLIDAY";
+    const isHoliday = (existingRegistry?.status as any) === "HOLIDAY";
     const leaveStatus = isMedical ? "MEDICAL" : isHoliday ? "HOLIDAY" : "ON_LEAVE";
     const leaveSource = isMedical ? "MEDICAL_LEAVE" : "LEAVE_APPROVED";
     const reasonText =
@@ -1570,6 +1697,7 @@ export async function processBiometricScan(
             verificationMethod: "BIOMETRIC",
             biometricMethod: method === "BIOMETRIC" ? "FACIAL" : method,
             biometricHash: fingerprint,
+            recordedById: student.userId,
           },
           update: {
             checkInTime: when,

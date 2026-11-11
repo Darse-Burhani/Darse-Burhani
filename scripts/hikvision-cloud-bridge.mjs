@@ -13,7 +13,8 @@
  *   🔄 3-Second Rapid Fallback Poller with 24-hour startup lookback
  *   ⏰ Automatic Terminal Clock Synchronization to Indian Standard Time (IST +05:30)
  *   🛡️ XML and JSON multipart payload auto-detection & parsing
- *   💓 Render Free-Tier Keep-Alive Pings during school hours (07:20 AM – 08:30 PM IST)
+ *   💓 Render Free-Tier Friendly: Wake-on-Demand — webhook fires only when scans
+ *       happen, no keep-alive pings, so Render sleeps when idle and saves hours
  * 
  * Usage:
  *   npm run hikvision:cloud-bridge
@@ -85,15 +86,6 @@ const WEBHOOK_FALLBACKS = [...new Set([
   `${RENDER_FALLBACK_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`,
 ])];
 let lastGoodWebhookIndex = 0;
-
-// Health/keep-alive bases: try every known deployment URL (custom domain may
-// have DNS/SSL outages; the onrender.com URL is always the guaranteed one).
-const CLOUD_HEALTH_BASES = [...new Set([
-  RENDER_BASE,
-  RENDER_FALLBACK_BASE,
-  process.env.PUBLIC_APP_URL && !/localhost|127\.0\.0\.1/.test(process.env.PUBLIC_APP_URL) ? process.env.PUBLIC_APP_URL.replace(/\/+$/, '') : null,
-].filter(Boolean))];
-let lastGoodHealthBase = RENDER_FALLBACK_BASE;
 
 
 // Terminal Device Roster
@@ -266,18 +258,109 @@ function getHikvisionTime(d = new Date()) {
 }
 
 /**
- * Check if current time falls within active school / portal hours in IST (07:15 AM - 08:30 PM, Mon-Sat).
- * Outside these hours and on Sundays, keep-alive pings pause so Render automatically sleeps,
- * limiting monthly usage to ~403 hours (well within the 750 free-tier budget).
+ * Check if current time falls within the hardcoded legacy attendance window in IST
+ * (07:20 AM - 08:35 AM, Mon-Sat). Used only as a fallback when the schedule
+ * windows cannot be read from the database.
  */
 function isSchoolHoursIST(d = new Date()) {
   if (process.env.FORCE_PING === 'true') return true;
   if (isSundayIST(d)) return false;
   const ist = getIstParts(d);
   const minutes = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
-  // STRICTLY ACTIVE FROM 07:20 AM TILL 08:30 AM FOR ATTENDANCE
+  // STRICTLY ACTIVE FROM 07:20 AM TILL 08:35 AM FOR ATTENDANCE
   // Strictly active 07:20 AM - 08:35 AM IST for biometric attendance
   return minutes >= (7 * 60 + 20) && minutes <= (8 * 60 + 35);
+}
+
+// ── Schedule-Driven Scan Window Gate ────────────────────────────────────────
+// Polling follows the ACTUAL attendance schedule windows configured in the
+// admin Attendance Schedule page (biometricScanWindow table) instead of a
+// hardcoded clock window, so no scheduled scan event is ever missed — and no
+// terminal (or Render instance) is woken outside scheduled events.
+
+let scheduleWindowsCache = { at: 0, rows: [] };
+
+async function loadScheduleWindows() {
+  const now = Date.now();
+  if (now - scheduleWindowsCache.at < 60_000 && scheduleWindowsCache.rows) {
+    return scheduleWindowsCache.rows;
+  }
+  try {
+    const rows = await prisma.biometricScanWindow.findMany({ orderBy: { startTime: 'asc' } });
+    scheduleWindowsCache = { at: now, rows };
+    return rows;
+  } catch (err) {
+    // Fall back to whatever we have (possibly empty → legacy clock window)
+    scheduleWindowsCache = { at: now, rows: scheduleWindowsCache.rows || [] };
+    return scheduleWindowsCache.rows;
+  }
+}
+
+function toMinutesHHMM(t) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '').trim());
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+/**
+ * True when ANY enabled hardware schedule event is currently active (or inside
+ * its pre-buffer / post-tail so early arrivals and stragglers are still polled).
+ * MANUAL roll-call rows never wake the terminals or Render.
+ */
+async function isScanWindowActiveIST(d = new Date()) {
+  if (process.env.FORCE_PING === 'true') return true;
+  if (isSundayIST(d)) return false;
+
+  const PRE_BUFFER_MIN = 10;  // wake slightly before the event opens
+  const POST_TAIL_MIN = 15;   // keep polling briefly after the event closes
+
+  try {
+    const rows = await loadScheduleWindows();
+    if (rows.length === 0) return isSchoolHoursIST(d); // no schedule data → legacy window
+
+    const ist = getIstParts(d);
+    const nowMin = parseInt(ist.hour, 10) * 60 + parseInt(ist.minute, 10);
+
+    for (const row of rows) {
+      if (!row.enabled) continue;
+      if (getWindowKind(row) === 'MANUAL') continue; // roll call: no terminal polling
+
+      const exempt = Array.isArray(row.exemptStudentIds) ? row.exemptStudentIds : [];
+      const audienceFacultyOnly = exempt.includes('AUDIENCE_FACULTY');
+      const audienceStudentOnly = exempt.includes('AUDIENCE_STUDENT');
+
+      const ranges = [];
+      if (!audienceFacultyOnly) {
+        const s = toMinutesHHMM(row.startTime);
+        const e = toMinutesHHMM(row.lateEndTime || row.endTime);
+        if (s !== null && e !== null) ranges.push([s, e]);
+      }
+      const hasFacultyTimer = Boolean(row.facultyStartTime && row.facultyEndTime);
+      if (!audienceStudentOnly && (hasFacultyTimer || audienceFacultyOnly)) {
+        const fs = toMinutesHHMM(hasFacultyTimer ? row.facultyStartTime : row.startTime);
+        const fe = toMinutesHHMM(hasFacultyTimer ? (row.facultyLateEndTime || row.facultyEndTime) : (row.lateEndTime || row.endTime));
+        if (fs !== null && fe !== null && row.facultyEnabled !== false) ranges.push([fs, fe]);
+      }
+
+      for (const [startMin, endMin] of ranges) {
+        if (nowMin >= Math.max(0, startMin - PRE_BUFFER_MIN) && nowMin <= endMin + POST_TAIL_MIN) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return isSchoolHoursIST(d);
+  }
+}
+
+function getWindowKind(row) {
+  const exempt = Array.isArray(row.exemptStudentIds) ? row.exemptStudentIds : [];
+  if (exempt.includes('TYPE_BOTH') || /\[both\]/i.test(row.name || '')) return 'BOTH';
+  if (exempt.includes('TYPE_HIKVISION') || /\[hikvision\]|\[hik\]/i.test(row.name || '')) return 'HIKVISION';
+  if (exempt.includes('TYPE_MANUAL') || /\[manual\]/i.test(row.name || '')) return 'MANUAL';
+  if (String(row.id || '').startsWith('manual_')) return 'MANUAL';
+  return 'HIKVISION';
 }
 
 /**
@@ -993,31 +1076,38 @@ async function processAndForwardScan({ employeeNo, name, cardNo, time, currentVe
   stats.totalPunches++;
   stats.lastPunch = { employeeNo, name, time: timeStr, currentVerifyMode, deviceHost };
 
-  // 1. Optional live webhook forward (disabled by default to let Render sleep and conserve 750 free-tier hours)
-  const shouldLivePush = process.env.LIVE_CLOUD_PUSH === 'true';
+  // 1. Live webhook forward to Render (wake-on-demand: fires only when a scan
+  //    actually happens, so Render sleeps whenever attendance is quiet).
+  //    Set LIVE_CLOUD_PUSH=false to run in sleep-only mode (direct DB writes only).
+  const shouldLivePush = process.env.LIVE_CLOUD_PUSH !== 'false';
   if (shouldLivePush) {
-    let webhookSuccess = false;
-    for (let attempt = 0; attempt < WEBHOOK_FALLBACKS.length && !webhookSuccess; attempt++) {
-      const idx = (lastGoodWebhookIndex + attempt) % WEBHOOK_FALLBACKS.length;
-      const target = WEBHOOK_FALLBACKS[idx];
-      try {
-        const res = await fetch(target, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-biometric-secret': SECRET,
-            'x-webhook-secret': SECRET,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(5000),
-        });
-        if (res.ok) {
-          webhookSuccess = true;
-          lastGoodWebhookIndex = idx;
-          stats.renderSynced++;
-        }
-      } catch (e) { }
-    }
+    // Fire-and-forget: never block the LAN poller while Render spins up from
+    // sleep (free-tier cold start can take ~1 minute — hence the 90s timeout).
+    // The punch is already safe via the direct-DB write below; this webhook
+    // wakes Render so dashboards, notifications and caches refresh instantly.
+    void (async () => {
+      for (let attempt = 0; attempt < WEBHOOK_FALLBACKS.length; attempt++) {
+        const idx = (lastGoodWebhookIndex + attempt) % WEBHOOK_FALLBACKS.length;
+        const target = WEBHOOK_FALLBACKS[idx];
+        try {
+          const res = await fetch(target, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-biometric-secret': SECRET,
+              'x-webhook-secret': SECRET,
+            },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(90_000),
+          });
+          if (res.ok) {
+            lastGoodWebhookIndex = idx;
+            stats.renderSynced++;
+            break;
+          }
+        } catch (e) { }
+      }
+    })();
   }
 
   // 2. Direct Supabase Database Write (Dual-Path Guarantee)
@@ -1215,8 +1305,8 @@ async function pollDeviceEvents(dev, lookbackHours = 3, maxPages = 10) {
   if (isSundayIST(new Date())) {
     return; // Sunday is institutional holiday — no device polling
   }
-  if (!isSchoolHoursIST(new Date())) {
-    return; // Outside scheduled scanning window: stop polling records so Render rests
+  if (!(await isScanWindowActiveIST(new Date()))) {
+    return; // No schedule event active: skip polling so terminals and Render both rest
   }
   const now = new Date();
   const past = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
@@ -1505,31 +1595,10 @@ async function startBridge() {
     }
   }, 30000);
 
-  // 5. Smart School-Hours Keep-Alive (07:15 AM - 08:30 PM IST, Mon-Sat):
-  // Keeps Render online and warm during all school & portal hours (instant punches & fast page loads).
-  // Automatically sleeps overnight and on Sundays, consuming only ~403 hours/month so Render never runs out of hours!
-  async function pingRenderSchoolHours() {
-    if (!isSchoolHoursIST()) return;
-    for (const base of CLOUD_HEALTH_BASES) {
-      try {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(`${base}/api/health`, { signal: controller.signal });
-        clearTimeout(t);
-        if (res.ok) {
-          lastGoodHealthBase = base;
-          console.log(`[bridge:ping] ⚡ Attendance keep-alive ping to ${base}/api/health OK (${res.status}) at ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`);
-          break;
-        }
-      } catch (err) {
-        // Fallback to next base
-      }
-    }
-  }
-
-  // Ping every 4 minutes during active hours (Render sleeps after 15m of inactivity)
-  setInterval(pingRenderSchoolHours, 4 * 60 * 1000);
-  pingRenderSchoolHours().catch(() => { });
+  // 5. Render Free-Tier Protection: keep-alive pings are intentionally DISABLED.
+  // Render is woken ONLY by real scan webhooks (wake-on-demand) and goes back to
+  // sleep 15 minutes after the last scan — saving the 750 free-tier hours/month.
+  // Admin can still wake/sync anytime via "Poll from Hik & Sync to Render".
 
   console.log('\n🚀 BRIDGE IS RUNNING LIVE! Keep this window open on the school PC.');
   console.log('   All biometric punches from physical terminals are syncing to Render.');

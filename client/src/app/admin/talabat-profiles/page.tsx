@@ -28,6 +28,13 @@ import {
   Plus,
   Trash2,
   Save,
+  HeartHandshake,
+  ArrowUpRight,
+  Check,
+  UserCheck,
+  Lock,
+  Unlock,
+  Shield,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
@@ -104,7 +111,8 @@ export default function AdminTalabatProfilesPage() {
   const [counsellingNotes, setCounsellingNotes] = useState<string>("");
 
   const [savingRemarks, setSavingRemarks] = useState(false);
-  const [modalViewTab, setModalViewTab] = useState<"fill" | "edit-profile" | "document">("fill");
+  const [savingCounsellor, setSavingCounsellor] = useState(false);
+  const [modalViewTab, setModalViewTab] = useState<"fill" | "counsellor" | "edit-profile" | "document">("fill");
   const [adminReviewStatus, setAdminReviewStatus] = useState<string>("REVIEWED");
   const [showStudentDetailsAbove, setShowStudentDetailsAbove] = useState(true);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -112,6 +120,114 @@ export default function AdminTalabatProfilesPage() {
   // Full admin editing state
   const [savingAdminProfile, setSavingAdminProfile] = useState(false);
   const [editProfileForm, setEditProfileForm] = useState<Partial<TalabatProfileData>>({});
+
+  // Teaching faculty assignments state (restricted strictly to teachers assigned subjects for teaching)
+  interface TeachingFacultyMember {
+    id: string;
+    teacherProfileId: string;
+    name: string;
+    email: string;
+    employeeId: string;
+    its: string;
+    department: string;
+    avatarUrl?: string | null;
+    subjects: string[];
+    classes: string[];
+    masoolClasses: string[];
+    canEditRemarks: boolean;
+    canEditCounsellor: boolean;
+    isMasterAdmin: boolean;
+  }
+
+  const [showAssignFacultyModal, setShowAssignFacultyModal] = useState(false);
+  const [loadingFaculty, setLoadingFaculty] = useState(false);
+  const [teachingFacultyList, setTeachingFacultyList] = useState<TeachingFacultyMember[]>([]);
+  const [facultySearchQuery, setFacultySearchQuery] = useState("");
+  const [facultyFilter, setFacultyFilter] = useState<"ALL" | "ENABLED" | "LOCKED">("ALL");
+  const [togglingFacultyId, setTogglingFacultyId] = useState<string | null>(null);
+  const [facultyMsg, setFacultyMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchTeachingFaculty = async () => {
+    try {
+      setLoadingFaculty(true);
+      const res = await fetch("/api/talabat-profile/teaching-faculty");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.faculty)) {
+        setTeachingFacultyList(data.faculty);
+      }
+    } catch (err) {
+      console.error("Failed to load teaching faculty", err);
+    } finally {
+      setLoadingFaculty(false);
+    }
+  };
+
+  const openAssignFacultyModal = () => {
+    setShowAssignFacultyModal(true);
+    setFacultyMsg(null);
+    fetchTeachingFaculty();
+  };
+
+  const handleToggleFacultyPermission = async (
+    teacher: TeachingFacultyMember,
+    permType: "remarks" | "counsellor"
+  ) => {
+    const newRemarks = permType === "remarks" ? !teacher.canEditRemarks : teacher.canEditRemarks;
+    const newCounsellor = permType === "counsellor" ? !teacher.canEditCounsellor : teacher.canEditCounsellor;
+
+    // Optimistic update
+    setTeachingFacultyList((prev) =>
+      prev.map((t) =>
+        t.id === teacher.id
+          ? {
+              ...t,
+              canEditRemarks: newRemarks,
+              canEditCounsellor: newCounsellor,
+            }
+          : t
+      )
+    );
+
+    try {
+      setTogglingFacultyId(teacher.id);
+      setFacultyMsg(null);
+      const res = await fetch("/api/talabat-profile/assign-faculty-remarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherUserId: teacher.id,
+          teacherProfileId: teacher.teacherProfileId,
+          canEditRemarks: permType === "remarks" ? newRemarks : undefined,
+          canEditCounsellor: permType === "counsellor" ? newCounsellor : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFacultyMsg({
+          type: "success",
+          text: `Permissions updated for ${teacher.name}: ${
+            permType === "remarks"
+              ? newRemarks ? "Remarks editing granted" : "Remarks editing locked"
+              : newCounsellor ? "Counsellor access granted" : "Counsellor access restricted"
+          }`,
+        });
+      } else {
+        // Rollback
+        setTeachingFacultyList((prev) =>
+          prev.map((t) => (t.id === teacher.id ? teacher : t))
+        );
+        setFacultyMsg({ type: "error", text: data.error || "Failed to update permission" });
+      }
+    } catch (err: any) {
+      // Rollback
+      setTeachingFacultyList((prev) =>
+        prev.map((t) => (t.id === teacher.id ? teacher : t))
+      );
+      setFacultyMsg({ type: "error", text: err.message || "Network error" });
+    } finally {
+      setTogglingFacultyId(null);
+    }
+  };
 
   // Real-time synchronization state
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
@@ -160,7 +276,7 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
-  const openStudentModal = async (studentId: string, defaultTab: "fill" | "edit-profile" | "document" = "fill") => {
+  const openStudentModal = async (studentId: string, defaultTab: "fill" | "counsellor" | "edit-profile" | "document" = "fill") => {
     setSelectedStudentId(studentId);
     setModalLoading(true);
     setFeedbackMsg(null);
@@ -282,6 +398,41 @@ export default function AdminTalabatProfilesPage() {
       setFeedbackMsg({ type: "error", text: err.message || "Network error" });
     } finally {
       setSavingRemarks(false);
+    }
+  };
+
+  const handleSaveCounsellorRemarks = async () => {
+    if (!selectedStudentId) return;
+    try {
+      setSavingCounsellor(true);
+      setFeedbackMsg(null);
+      const res = await fetch(`/api/talabat-profile/remarks/${selectedStudentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          remarksCounselling,
+          counsellingNotes,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeedbackMsg({ type: "success", text: "Counsellor remarks and guidance saved & synced successfully!" });
+        if (activeProfile) {
+          setActiveProfile({
+            ...activeProfile,
+            remarksCounselling,
+            counsellingNotes,
+            status: "REVIEWED",
+          });
+        }
+        fetchList(true);
+      } else {
+        setFeedbackMsg({ type: "error", text: data.error || "Failed to save counsellor remarks" });
+      }
+    } catch (err: any) {
+      setFeedbackMsg({ type: "error", text: err.message || "Network error while saving counsellor remarks" });
+    } finally {
+      setSavingCounsellor(false);
     }
   };
 
@@ -560,8 +711,17 @@ export default function AdminTalabatProfilesPage() {
           </div>
         </div>
 
-        {/* Sync Controls */}
-        <div className="flex items-center gap-2 self-start sm:self-center">
+        {/* Sync & Faculty Assignment Controls */}
+        <div className="flex items-center gap-2.5 self-start sm:self-center flex-wrap">
+          <button
+            onClick={openAssignFacultyModal}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 active:scale-95 text-slate-950 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
+            title="Assign remarks editing permissions to teaching faculty only"
+          >
+            <UserCheck className="w-4 h-4 text-slate-950" />
+            <span>Assign Remarks Access</span>
+          </button>
+
           <button
             onClick={() => fetchList(false)}
             disabled={loading || isRefreshing}
@@ -999,6 +1159,15 @@ export default function AdminTalabatProfilesPage() {
                     📝 Remarks &amp; Ratings
                   </button>
                   <button
+                    onClick={() => setModalViewTab("counsellor")}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      modalViewTab === "counsellor" ? "bg-purple-600 text-white font-bold" : "text-purple-300 hover:text-white"
+                    }`}
+                  >
+                    <HeartHandshake className="w-3.5 h-3.5" />
+                    <span>💬 Counsellor Remarks</span>
+                  </button>
+                  <button
                     onClick={() => setModalViewTab("edit-profile")}
                     className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                       modalViewTab === "edit-profile" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-300 hover:text-white"
@@ -1035,6 +1204,216 @@ export default function AdminTalabatProfilesPage() {
               ) : activeProfile ? (
                 modalViewTab === "document" ? (
                   <TalabatProfileDocument data={activeProfile} showPrintButton={true} />
+                ) : modalViewTab === "counsellor" ? (
+                  /* ════════════════════════════════════════════════════
+                      COUNSELLOR REMARKS & CAREER GUIDANCE (DARAJEH RABEA)
+                  ════════════════════════════════════════════════════ */
+                  <div className="space-y-6 max-w-4xl mx-auto">
+                    {/* Header Card */}
+                    <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-md border border-purple-800/40 relative overflow-hidden">
+                      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-purple-300 shadow-inner">
+                            <HeartHandshake className="w-7 h-7" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-400 text-purple-950">
+                                Darajah Rabea (Grade 4)
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-purple-200 border border-white/10">
+                                Counsellor Guidance
+                              </span>
+                            </div>
+                            <h2 className="text-xl font-black mt-1 text-white tracking-tight">
+                              Counsellor Remarks &amp; Career Trajectory
+                            </h2>
+                            <p className="text-xs text-purple-200/90 mt-0.5">
+                              Student: <strong className="text-white">{activeProfile?.name}</strong> • ITS: <strong className="text-white font-mono">{activeProfile?.itsNo}</strong>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSaveCounsellorRemarks}
+                            disabled={savingCounsellor}
+                            className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {savingCounsellor ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                                <span>Saving &amp; Syncing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Save Counsellor Remarks &amp; Sync</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Feedback message banner if present */}
+                    {feedbackMsg && (
+                      <div
+                        className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-semibold ${
+                          feedbackMsg.type === "success"
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                            : "bg-rose-50 border-rose-200 text-rose-800"
+                        }`}
+                      >
+                        {feedbackMsg.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />}
+                        <span>{feedbackMsg.text}</span>
+                      </div>
+                    )}
+
+                    {/* Main Form Fields Container */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+                      {/* Section 1: Recommended Further Studies (Counselling) */}
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <div>
+                            <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                              <span>1. Recommended Further Studies &amp; Academic Trajectory</span>
+                              <span className="text-xs font-normal text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 font-alkanz">
+                                توجيه الطالب (Counselling)
+                              </span>
+                            </label>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Institutional, higher academic, or vocational recommendation after Darajah Rabea.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Dynamic Recommendation Preset Chips */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Quick Suggestions:</span>
+                          {[
+                            "Al-Jamea Advanced Hifz & Qirat",
+                            "Higher Secondary Science / Pre-Medical",
+                            "Higher Secondary Commerce & Finance",
+                            "Advanced IT & Computer Engineering",
+                            "Intensive Lisan al-Dawat & Arabic Literature",
+                            "Vocational & Entrepreneurial Guidance",
+                          ].map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => {
+                                setRemarksCounselling((prev) => {
+                                  const trimmed = prev.trim();
+                                  return trimmed ? `${trimmed}\n• ${suggestion}` : `• ${suggestion}`;
+                                });
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-purple-100 hover:text-purple-900 text-slate-700 rounded-lg text-[11px] font-medium border border-slate-200 hover:border-purple-300 transition-colors cursor-pointer"
+                            >
+                              + {suggestion}
+                            </button>
+                          ))}
+                        </div>
+
+                        <textarea
+                          rows={4}
+                          dir="auto"
+                          value={remarksCounselling}
+                          onChange={(e) => setRemarksCounselling(e.target.value)}
+                          placeholder="Enter career counselling recommendations, academic roadmap, suggested institutions, or specialized streams for this student..."
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm leading-relaxed font-sans focus:ring-2 focus:ring-purple-600 focus:border-purple-600 focus:outline-none transition-all shadow-2xs"
+                        />
+                      </div>
+
+                      {/* Section 2: Sibling Details & Confidential Counsellor Notes */}
+                      <div className="space-y-3 pt-4 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <div>
+                            <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                              <span>2. Confidential Counsellor Notes &amp; Sibling Background</span>
+                              <span className="text-xs font-normal text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200 font-alkanz">
+                                ملاحظات المرشد (Mentoring Notes)
+                              </span>
+                            </label>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Family background, elder/younger sibling education, behavioral insights, and mentoring session notes.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Dynamic Sibling & Mentoring Preset Chips */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Quick Suggestions:</span>
+                          {[
+                            "Sibling currently enrolled at Al-Jamea",
+                            "Elder siblings in University / Degree studies",
+                            "High discipline & exemplary attitude in counselling",
+                            "Requires structured encouragement in language portion",
+                            "Parental mentoring consultation conducted",
+                            "Recommended for special leadership responsibilities",
+                          ].map((note) => (
+                            <button
+                              key={note}
+                              type="button"
+                              onClick={() => {
+                                setCounsellingNotes((prev) => {
+                                  const trimmed = prev.trim();
+                                  return trimmed ? `${trimmed}\n• ${note}` : `• ${note}`;
+                                });
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-900 text-slate-700 rounded-lg text-[11px] font-medium border border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
+                            >
+                              + {note}
+                            </button>
+                          ))}
+                        </div>
+
+                        <textarea
+                          rows={5}
+                          dir="auto"
+                          value={counsellingNotes}
+                          onChange={(e) => setCounsellingNotes(e.target.value)}
+                          placeholder={"Enter family/sibling educational background and counsellor guidance notes...\ne.g.\n• Elder Brother: Al-Jamea Graduate\n• Younger Sister: Class 2\n• Father's Profession: Business\n• Counsellor Notes: High potential in public speaking and memorization..."}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm leading-relaxed font-sans focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 focus:outline-none transition-all shadow-2xs"
+                        />
+                      </div>
+
+                      {/* Bottom Actions */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                          <span>Syncs instantly to Yearly Profile 1447 and official printable document.</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStudentId(null)}
+                            className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveCounsellorRemarks}
+                            disabled={savingCounsellor}
+                            className="px-6 py-2.5 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {savingCounsellor ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Saving &amp; Syncing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Save &amp; Sync Remarks</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ) : modalViewTab === "edit-profile" ? (
                   <div className="space-y-6 max-w-4xl mx-auto">
                     {/* Admin Profile Details Editor Header */}
@@ -2203,36 +2582,30 @@ export default function AdminTalabatProfilesPage() {
                           />
                         </div>
 
-                        {/* 10. Recommended Further Studies (Counselling) */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">10. Career Counselling &amp; Guidance</span>
-                            <span className="text-xs font-bold text-[#1c1c1c]">Recommended Further Studies (Counselling)</span>
+                        {/* Counsellor Guidance Tab Shortcut Banner */}
+                        <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
+                              <HeartHandshake className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-purple-950">10 &amp; 11. Counsellor Remarks &amp; Sibling Notes</span>
+                                <span className="px-2 py-0.5 bg-purple-200 text-purple-900 text-[10px] font-bold rounded-full">New Tab</span>
+                              </div>
+                              <p className="text-xs text-purple-700 mt-0.5">
+                                Dedicated confidential workspace for career counselling, roadmap, and sibling background.
+                              </p>
+                            </div>
                           </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            value={remarksCounselling}
-                            onChange={(e) => setRemarksCounselling(e.target.value)}
-                            placeholder="A note regarding the student's career counselling is provided below along with counselor remarks."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Section 11: Sibling Details & Family Background */}
-                        <div className="p-3.5 bg-amber-50/40 border border-amber-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-amber-950">11. Sibling &amp; Family Background Notes</span>
-                            <span className="text-[11px] text-amber-700">Elder/Younger siblings, Parents Career</span>
-                          </div>
-                          <textarea
-                            rows={3}
-                            dir="auto"
-                            value={counsellingNotes}
-                            onChange={(e) => setCounsellingNotes(e.target.value)}
-                            placeholder={"Elder Sister (Married)\nYounger Brother\nAbba - Software Engineering\n18 yrs, Ratlam"}
-                            className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm leading-relaxed font-mono focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => setModalViewTab("counsellor")}
+                            className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                          >
+                            <span>Open Counsellor Tab</span>
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -2275,6 +2648,296 @@ export default function AdminTalabatProfilesPage() {
                   </div>
                 )
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════
+          ASSIGN TEACHING FACULTY REMARKS MODAL
+          Strictly filters and shows only teachers assigned subjects for teaching
+      ════════════════════════════════════════════════════════════ */}
+      {showAssignFacultyModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-start justify-between border-b border-slate-700">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md">
+                  <UserCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-950">
+                      Teaching Faculty Only
+                    </span>
+                    <span className="text-xs text-slate-300">Yearly Profile Remarks Authority</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white mt-1">
+                    Assign Remarks Access (Faculty with Teaching Subjects)
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Only faculty assigned subjects for teaching are displayed below. Granted teachers can edit student remarks in Yearly Profile (1447 H).
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowAssignFacultyModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={facultySearchQuery}
+                  onChange={(e) => setFacultySearchQuery(e.target.value)}
+                  placeholder="Search faculty by name or subject (e.g. Maths, Lisan, Fiqh)..."
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 text-xs font-semibold">
+                  <button
+                    onClick={() => setFacultyFilter("ALL")}
+                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                      facultyFilter === "ALL" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    All ({teachingFacultyList.length})
+                  </button>
+                  <button
+                    onClick={() => setFacultyFilter("ENABLED")}
+                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                      facultyFilter === "ENABLED" ? "bg-emerald-600 text-white font-bold" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Authorized ({teachingFacultyList.filter((f) => f.canEditRemarks).length})
+                  </button>
+                  <button
+                    onClick={() => setFacultyFilter("LOCKED")}
+                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                      facultyFilter === "LOCKED" ? "bg-amber-600 text-white font-bold" : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Locked ({teachingFacultyList.filter((f) => !f.canEditRemarks).length})
+                  </button>
+                </div>
+
+                <button
+                  onClick={fetchTeachingFaculty}
+                  disabled={loadingFaculty}
+                  className="p-2 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-slate-600 cursor-pointer"
+                  title="Refresh list"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingFaculty ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Notification / Feedback Banner */}
+            {facultyMsg && (
+              <div
+                className={`px-5 py-3 text-xs font-semibold flex items-center justify-between border-b ${
+                  facultyMsg.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-rose-50 border-rose-200 text-rose-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {facultyMsg.type === "success" ? (
+                    <Check className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                  )}
+                  <span>{facultyMsg.text}</span>
+                </div>
+                <button
+                  onClick={() => setFacultyMsg(null)}
+                  className="text-xs underline hover:opacity-80 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Faculty List */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3 bg-slate-100/60">
+              {loadingFaculty ? (
+                <div className="py-20 text-center text-slate-500">
+                  <div className="w-8 h-8 border-3 border-[#1c1c1c] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  Loading teaching faculty...
+                </div>
+              ) : (
+                (() => {
+                  const filtered = teachingFacultyList.filter((f) => {
+                    const q = facultySearchQuery.toLowerCase();
+                    const matchesQuery =
+                      f.name.toLowerCase().includes(q) ||
+                      f.email.toLowerCase().includes(q) ||
+                      (f.employeeId && f.employeeId.toLowerCase().includes(q)) ||
+                      (f.its && f.its.includes(q)) ||
+                      f.subjects.some((sub) => sub.toLowerCase().includes(q));
+
+                    if (!matchesQuery) return false;
+                    if (facultyFilter === "ENABLED") return f.canEditRemarks;
+                    if (facultyFilter === "LOCKED") return !f.canEditRemarks;
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 p-8">
+                        <Users className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                        <h4 className="font-bold text-slate-800 text-sm">No Matching Teaching Faculty Found</h4>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Only faculty with assigned teaching subjects are eligible for Yearly Profile remarks editing.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((teacher) => (
+                    <div
+                      key={teacher.id}
+                      className={`p-4 bg-white rounded-2xl border transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        teacher.canEditRemarks
+                          ? "border-emerald-200 bg-gradient-to-r from-white to-emerald-50/20"
+                          : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {/* Teacher Details & Subjects */}
+                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-600 font-bold text-sm shadow-xs">
+                          {teacher.avatarUrl ? (
+                            <img
+                              src={normalizeImgSrc(teacher.avatarUrl)}
+                              alt={teacher.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            teacher.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .slice(0, 2)
+                              .join("")
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-sm text-slate-900 truncate">
+                              {teacher.name}
+                            </h4>
+                            {teacher.isMasterAdmin && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200">
+                                Universal Admin
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              ID: {teacher.employeeId || teacher.its}
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            {teacher.department} • {teacher.email}
+                          </div>
+
+                          {/* Assigned Teaching Subjects Badges */}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-0.5 flex items-center gap-1">
+                              <BookOpen className="w-3 h-3 text-slate-400" />
+                              Assigned Subjects:
+                            </span>
+                            {teacher.subjects.map((sub) => (
+                              <span
+                                key={sub}
+                                className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs"
+                              >
+                                {sub}
+                              </span>
+                            ))}
+                            {teacher.classes.length > 0 && (
+                              <span className="text-[10px] text-slate-500 font-medium ml-1">
+                                (Classes: {teacher.classes.join(", ")})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Controls for this teacher */}
+                      <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto justify-between md:justify-end">
+                        {/* Edit Remarks Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFacultyPermission(teacher, "remarks")}
+                          disabled={togglingFacultyId === teacher.id || teacher.isMasterAdmin}
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                            teacher.canEditRemarks
+                              ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                          }`}
+                          title={teacher.canEditRemarks ? "Revoke remarks editing" : "Grant remarks editing"}
+                        >
+                          {teacher.canEditRemarks ? (
+                            <>
+                              <Unlock className="w-3.5 h-3.5" />
+                              <span>Remarks Allowed</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Remarks Locked</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Counsellor Access Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFacultyPermission(teacher, "counsellor")}
+                          disabled={togglingFacultyId === teacher.id || teacher.isMasterAdmin}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
+                            teacher.canEditCounsellor
+                              ? "bg-purple-600 hover:bg-purple-700 text-white"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300"
+                          }`}
+                          title={teacher.canEditCounsellor ? "Revoke counsellor access" : "Grant counsellor access"}
+                        >
+                          <HeartHandshake className="w-3.5 h-3.5" />
+                          <span>{teacher.canEditCounsellor ? "Counsellor" : "No Counsellor"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ));
+                })()
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>
+                  <strong>{teachingFacultyList.filter((f) => f.canEditRemarks).length}</strong> of{" "}
+                  <strong>{teachingFacultyList.length}</strong> teaching faculty authorized to edit Yearly Profile remarks.
+                </span>
+              </div>
+
+              <button
+                onClick={() => setShowAssignFacultyModal(false)}
+                className="px-5 py-2 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

@@ -54,6 +54,8 @@ import {
   ArrowRightLeft,
   Lock,
   Unlock,
+  HeartHandshake,
+  Edit3,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Button } from "@/components/ui/button";
@@ -153,6 +155,20 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Community",
     description: "Talabat yearly profile, remarks & 1447 H records",
     icon: GraduationCap,
+  },
+  {
+    id: "talabat-profiles-remarks",
+    label: "Yearly Profile Remarks (Edit)",
+    category: "Community",
+    description: "Grant permission to edit Asateza remarks & ratings in Yearly Profile (Locked by default)",
+    icon: Edit3,
+  },
+  {
+    id: "counsellor-remarks",
+    label: "Counsellor Remarks & Guidance",
+    category: "Community",
+    description: "Access and edit Counsellor Remarks tab in Yearly Profile (Confidential)",
+    icon: HeartHandshake,
   },
   {
     id: "timetable",

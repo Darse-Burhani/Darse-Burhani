@@ -212,6 +212,7 @@ export default function AdminAttendanceSchedulePage() {
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [devices, setDevices] = useState<BiometricDeviceItem[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [windowModalOpen, setWindowModalOpen] = useState(false);
   const [editingWindow, setEditingWindow] = useState<ScanWindow | null>(null);
 
@@ -268,6 +269,7 @@ export default function AdminAttendanceSchedulePage() {
   // Fetch Attendance Windows
   const fetchWindows = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/admin/attendance/schedule/windows");
       if (res.ok) {
         const json = await res.json();
@@ -277,37 +279,77 @@ export default function AdminAttendanceSchedulePage() {
       }
     } catch {
       toast({ title: "Failed to load attendance windows", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // Fetch Class Directory & Faculty Directory
-  const fetchClassesAndTeachers = useCallback(async () => {
+  // Fetch Faculty Directory (Fast & Independent with Fallback)
+  const fetchTeachers = useCallback(async () => {
     try {
-      const [classRes, teacherRes] = await Promise.all([
-        fetch("/api/admin/attendance/schedule/classes").then((r) => r.json()),
-        fetch("/api/admin/attendance/schedule/teachers").then((r) => r.json()),
-      ]);
-
-      if (classRes.success && classRes.data?.classes) {
-        setClasses(classRes.data.classes || []);
+      setLoadingTeachers(true);
+      const res = await fetch("/api/admin/attendance/schedule/teachers");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setTeachers(json.data);
+          return;
+        }
       }
-      if (teacherRes.success && Array.isArray(teacherRes.data)) {
-        setTeachers(teacherRes.data);
+      // Immediate fallback to /api/teachers
+      const fb = await fetch("/api/teachers").then((r) => r.json()).catch(() => null);
+      if (fb?.success && Array.isArray(fb.data) && fb.data.length > 0) {
+        setTeachers(
+          fb.data.map((t: any) => ({
+            id: t.id,
+            name: t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim(),
+            email: t.email || t.user?.email || "",
+            department: t.department || "Faculty",
+          }))
+        );
+      }
+    } catch {
+      // silent fallback
+    } finally {
+      setLoadingTeachers(false);
+    }
+  }, []);
+
+  // Fetch Class Directory (Fast & Independent)
+  const fetchClasses = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/attendance/schedule/classes");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data?.classes) {
+          setClasses(json.data.classes || []);
+        }
       }
     } catch {
       // silent fallback
     }
   }, []);
 
-  // Fetch Configured Biometric Devices
+  // Fetch Configured Biometric Devices (Fast with Fallback)
   const fetchDevices = useCallback(async () => {
     try {
       setLoadingDevices(true);
+      // 1. Primary schedule endpoint
       const res = await fetch("/api/admin/attendance/schedule/devices");
       if (res.ok) {
         const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
           setDevices(json.data);
+          return;
+        }
+      }
+      // 2. Direct biometric devices endpoint fallback
+      const bioRes = await fetch("/api/biometric/devices");
+      if (bioRes.ok) {
+        const bioJson = await bioRes.json();
+        if (bioJson.success && Array.isArray(bioJson.data) && bioJson.data.length > 0) {
+          setDevices(bioJson.data);
+          return;
         }
       }
     } catch {
@@ -317,13 +359,13 @@ export default function AdminAttendanceSchedulePage() {
     }
   }, []);
 
-  const loadData = useCallback(async () => {
-    try {
-      await Promise.allSettled([fetchWindows(), fetchClassesAndTeachers(), fetchDevices()]);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchWindows, fetchClassesAndTeachers, fetchDevices]);
+  const loadData = useCallback(() => {
+    // Fire all fetches in parallel immediately without blocking each other
+    fetchWindows();
+    fetchTeachers();
+    fetchDevices();
+    fetchClasses();
+  }, [fetchWindows, fetchTeachers, fetchDevices, fetchClasses]);
 
   useEffect(() => {
     loadData();
@@ -367,6 +409,13 @@ export default function AdminAttendanceSchedulePage() {
       });
     }
 
+    // Sort: ACTIVE (live) schedules first, then UPCOMING, then CLOSED.
+    // Ties keep chronological order by start time.
+    const statusRank = (s?: string) => (s === "ACTIVE" ? 0 : s === "UPCOMING" ? 1 : 2);
+    list = [...list].sort(
+      (a, b) => statusRank(a.status) - statusRank(b.status) || a.startTime.localeCompare(b.startTime),
+    );
+
     return list;
   }, [windows, activeTab, audienceFilter]);
 
@@ -375,6 +424,11 @@ export default function AdminAttendanceSchedulePage() {
     w?: ScanWindow,
     presetWindowType?: "HIKVISION" | "MANUAL" | "BOTH"
   ) => {
+    // Proactively refresh auxiliary lists if empty
+    if (devices.length === 0) fetchDevices();
+    if (teachers.length === 0) fetchTeachers();
+    if (classes.length === 0) fetchClasses();
+
     if (w) {
       setEditingWindow(w);
       const isFacultyOnly = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
@@ -754,62 +808,77 @@ export default function AdminAttendanceSchedulePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredWindows.map((w) => {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
-              const isFaculty = w.audience === "FACULTY";
-              const isDual = w.audience === "BOTH" || w.hasFacultyTimer;
+              const isFaculty = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
+              const isDual = !isFaculty && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
 
               const theme = isFaculty
                 ? {
-                    stripe: "bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-500",
-                    borderActive: "border-blue-500/80 ring-2 ring-blue-500/20 shadow-blue-500/10",
-                    borderDefault: "border-blue-200/80 hover:border-blue-400 bg-blue-50/5",
-                    iconBox: "bg-blue-100 text-blue-800 border border-blue-200",
-                    badge: "bg-blue-50 text-blue-800 border-blue-200",
-                    badgeIcon: "text-blue-600",
+                    headerBg: "bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900",
+                    borderActive: "border-blue-500 ring-2 ring-blue-500/30 shadow-lg shadow-blue-500/15",
+                    borderDefault: "border-blue-200/90 hover:border-blue-400 shadow-sm hover:shadow-md",
+                    iconBox: "bg-white/20 text-white border border-white/30 backdrop-blur-xs",
+                    title: "text-white",
+                    badge: "bg-white/20 text-blue-100 border-white/30 backdrop-blur-xs",
+                    badgeIcon: "text-blue-200",
                     badgeLabel: "Faculty Only (Staff)",
+                    actionBtn: "text-white/80 hover:text-white hover:bg-white/20",
+                    actionBox: "bg-white/10 border border-white/20",
+                    timeBoxBg: "bg-blue-50/60 border-blue-200/70",
                     timeBoxIcon: "text-blue-800",
                     timeBoxLabel: "Faculty Shift Timing",
                     toggleActive: "bg-blue-600 shadow-sm",
-                    liveDot: "bg-blue-500",
-                    livePing: "bg-blue-400",
-                    livePill: "bg-blue-50 text-blue-900 border-blue-300",
+                    liveDot: "bg-emerald-400",
+                    livePing: "bg-emerald-300",
+                    livePill: "bg-blue-100 text-blue-950 border-blue-300 font-bold",
                     timerIcon: "text-blue-600",
                     accent: "blue" as const,
                   }
                 : isDual
                 ? {
-                    stripe: "bg-gradient-to-r from-purple-700 via-indigo-600 to-pink-500",
-                    borderActive: "border-purple-500/80 ring-2 ring-purple-500/20 shadow-purple-500/10",
-                    borderDefault: "border-purple-200/80 hover:border-purple-400 bg-purple-50/5",
-                    iconBox: "bg-purple-100 text-purple-800 border border-purple-200",
-                    badge: "bg-purple-50 text-purple-800 border-purple-200",
-                    badgeIcon: "text-purple-600",
+                    headerBg: "bg-gradient-to-r from-purple-800 via-indigo-800 to-fuchsia-900",
+                    borderActive: "border-purple-500 ring-2 ring-purple-500/30 shadow-lg shadow-purple-500/15",
+                    borderDefault: "border-purple-200/90 hover:border-purple-400 shadow-sm hover:shadow-md",
+                    iconBox: "bg-white/20 text-white border border-white/30 backdrop-blur-xs",
+                    title: "text-white",
+                    badge: "bg-white/20 text-purple-100 border-white/30 backdrop-blur-xs",
+                    badgeIcon: "text-purple-200",
                     badgeLabel: "Dual: Talabat & Faculty",
+                    actionBtn: "text-white/80 hover:text-white hover:bg-white/20",
+                    actionBox: "bg-white/10 border border-white/20",
+                    timeBoxBg: "bg-purple-50/60 border-purple-200/70",
                     timeBoxIcon: "text-purple-800",
                     timeBoxLabel: "Unified Gate Timing",
                     toggleActive: "bg-purple-600 shadow-sm",
-                    liveDot: "bg-purple-500",
-                    livePing: "bg-purple-400",
-                    livePill: "bg-purple-50 text-purple-900 border-purple-300",
+                    liveDot: "bg-emerald-400",
+                    livePing: "bg-emerald-300",
+                    livePill: "bg-purple-100 text-purple-950 border-purple-300 font-bold",
                     timerIcon: "text-purple-600",
                     accent: "purple" as const,
                   }
                 : {
-                    stripe: "bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-400",
-                    borderActive: "border-emerald-500/80 ring-2 ring-emerald-500/20 shadow-emerald-500/10",
-                    borderDefault: "border-emerald-200/80 hover:border-emerald-400 bg-emerald-50/5",
-                    iconBox: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-                    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
-                    badgeIcon: "text-emerald-600",
+                    headerBg: "bg-gradient-to-r from-emerald-700 via-teal-800 to-emerald-950",
+                    borderActive: "border-emerald-500 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/15",
+                    borderDefault: "border-emerald-200/90 hover:border-emerald-400 shadow-sm hover:shadow-md",
+                    iconBox: "bg-white/20 text-white border border-white/30 backdrop-blur-xs",
+                    title: "text-white",
+                    badge: "bg-white/20 text-emerald-100 border-white/30 backdrop-blur-xs",
+                    badgeIcon: "text-emerald-200",
                     badgeLabel: "Talabat Only (Students)",
+                    actionBtn: "text-white/80 hover:text-white hover:bg-white/20",
+                    actionBox: "bg-white/10 border border-white/20",
+                    timeBoxBg: "bg-emerald-50/60 border-emerald-200/70",
                     timeBoxIcon: "text-emerald-800",
                     timeBoxLabel: w.windowType === "MANUAL" ? "Live Marking Window" : "Student Timing",
                     toggleActive: "bg-emerald-600 shadow-sm",
-                    liveDot: "bg-emerald-500",
-                    livePing: "bg-emerald-400",
-                    livePill: "bg-emerald-50 text-emerald-900 border-emerald-300",
+                    liveDot: "bg-emerald-400",
+                    livePing: "bg-emerald-300",
+                    livePill: "bg-emerald-100 text-emerald-950 border-emerald-300 font-bold",
                     timerIcon: "text-emerald-600",
                     accent: "emerald" as const,
                   };
+
+              const hasStrictDevices = Array.isArray(w.applicableDeviceIds) && w.applicableDeviceIds.length > 0;
+              const hasStrictFaculty = Array.isArray(w.applicableTeacherIds) && w.applicableTeacherIds.length > 0;
 
               return (
                 <Card
@@ -819,40 +888,40 @@ export default function AdminAttendanceSchedulePage() {
                       ? isLive
                         ? theme.borderActive
                         : theme.borderDefault
-                      : "opacity-60 bg-gray-50/80 border-gray-200"
+                      : "opacity-65 bg-gray-50/90 border-gray-200"
                   }`}
                 >
-                  <div
-                    className={`h-2.5 w-full ${
-                      !w.enabled ? "bg-gray-300" : theme.stripe
+                  {/* Distinct Color-Coded Header (Faculty = Blue, Dual = Purple, Talabat = Emerald) */}
+                  <CardHeader
+                    className={`p-4 sm:p-5 flex flex-row items-start justify-between gap-3 text-white transition-all duration-300 rounded-t-3xl ${
+                      w.enabled ? theme.headerBg : "bg-gradient-to-r from-gray-700 to-gray-800"
                     }`}
-                  />
-                  <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
+                  >
                     <div className="flex items-start gap-3 min-w-0">
                       <div
-                        className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-105 ${
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-inner transition-transform group-hover:scale-105 ${
                           theme.iconBox
                         }`}
                       >
                         {isFaculty ? (
-                          <Shield className="w-5 h-5" />
+                          <Shield className="w-5 h-5 text-white stroke-[2.2]" />
                         ) : isDual ? (
-                          <Zap className="w-5 h-5" />
+                          <Zap className="w-5 h-5 text-white stroke-[2.2]" />
                         ) : (
-                          <GraduationCap className="w-5 h-5" />
+                          <GraduationCap className="w-5 h-5 text-white stroke-[2.2]" />
                         )}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 mb-1">
                           {isLive && (
                             <span className="relative flex h-2.5 w-2.5 shrink-0">
                               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${theme.livePing}`}></span>
                               <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${theme.liveDot}`}></span>
                             </span>
                           )}
-                          <h3 className="font-bold text-base text-gray-900 leading-tight truncate">{w.name}</h3>
+                          <h3 className="font-black text-base sm:text-lg text-white leading-tight truncate">{w.name}</h3>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {/* Audience Badge */}
                           <Badge variant="outline" className={`${theme.badge} text-[10px] font-black flex items-center gap-1 py-0.5 px-2`}>
                             {isFaculty ? (
@@ -864,16 +933,21 @@ export default function AdminAttendanceSchedulePage() {
                             )}
                             <span>{theme.badgeLabel}</span>
                           </Badge>
+                          {!w.enabled && (
+                            <Badge className="bg-black/30 text-white/90 border border-white/20 text-[9px] font-bold">
+                              Disabled
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100 shrink-0">
+                    <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 backdrop-blur-xs ${theme.actionBox}`}>
                       <button
                         type="button"
                         onClick={() => openWindowModal(w)}
-                        className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all active:scale-90"
-                        title="Edit Schedule"
+                        className={`p-1.5 rounded-lg transition-all active:scale-90 ${theme.actionBtn}`}
+                        title="Edit Schedule &amp; Scope"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -881,7 +955,7 @@ export default function AdminAttendanceSchedulePage() {
                         type="button"
                         onClick={() => deleteWindow(w.id)}
                         disabled={deletingId === w.id}
-                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-90 disabled:opacity-30"
+                        className="p-1.5 text-white/80 hover:text-rose-200 hover:bg-rose-500/30 rounded-lg transition-all active:scale-90 disabled:opacity-30"
                         title="Delete Schedule"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -889,9 +963,9 @@ export default function AdminAttendanceSchedulePage() {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-0 space-y-3.5">
+                  <CardContent className="p-4 sm:p-5 space-y-3.5">
                     {/* Time Display */}
-                    <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 flex items-center justify-between">
+                    <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${theme.timeBoxBg}`}>
                       <div className="flex items-center gap-2.5">
                         <div className={`w-7 h-7 rounded-xl bg-white flex items-center justify-center shadow-2xs border border-gray-200/60 ${theme.timeBoxIcon}`}>
                           <Clock className="w-4 h-4" />
@@ -935,31 +1009,33 @@ export default function AdminAttendanceSchedulePage() {
 
                     {/* Faculty Scanning Eligibility Scope */}
                     {(isFaculty || isDual || (w.applicableTeacherIds && w.applicableTeacherIds.length > 0)) && (
-                      <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-1.5 text-xs">
+                      <div className={`p-3 rounded-2xl border space-y-1.5 text-xs transition-all ${
+                        hasStrictFaculty ? "bg-blue-50/90 border-blue-300 text-blue-950 shadow-2xs" : "bg-blue-50/40 border-blue-200/60 text-blue-900"
+                      }`}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-blue-950 flex items-center gap-1.5">
+                          <span className="font-black text-blue-950 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
                             <Shield className="w-3.5 h-3.5 text-blue-700" />
                             Faculty Scope:
                           </span>
-                          {(!w.applicableTeacherIds || w.applicableTeacherIds.length === 0) ? (
+                          {!hasStrictFaculty ? (
                             <Badge variant="outline" className="bg-white text-blue-800 border-blue-300 font-bold text-[10px]">
-                              All Faculty Eligible
+                              All Active Faculty Eligible
                             </Badge>
                           ) : (
-                            <Badge className="bg-blue-700 text-white font-bold text-[10px]">
-                              {w.applicableTeacherIds.length} Eligible Faculty Selected
+                            <Badge className="bg-blue-700 text-white font-bold text-[10px] shadow-2xs">
+                              Strict: {w.applicableTeacherIds?.length} Faculty Eligible
                             </Badge>
                           )}
                         </div>
-                        {w.applicableTeacherIds && w.applicableTeacherIds.length > 0 ? (
+                        {hasStrictFaculty ? (
                           <div className="space-y-1">
                             <p className="text-[11px] text-blue-900 font-medium leading-tight">
-                              Only selected faculty eligible for scanning. Un-eligible faculty will <strong className="text-blue-950">never be marked absent</strong>.
+                              Only selected faculty eligible for scanning. Un-eligible faculty will <strong className="text-blue-950 underline decoration-blue-400">never be marked absent</strong>.
                             </p>
                             {w.applicableTeachers && w.applicableTeachers.length > 0 && (
                               <div className="flex flex-wrap gap-1 pt-0.5">
                                 {w.applicableTeachers.slice(0, 4).map((t) => (
-                                  <span key={t.id} className="text-[10px] bg-white border border-blue-200 text-blue-900 font-semibold px-2 py-0.5 rounded-md">
+                                  <span key={t.id} className="text-[10px] bg-white border border-blue-200 text-blue-900 font-semibold px-2 py-0.5 rounded-md shadow-2xs">
                                     {t.name}
                                   </span>
                                 ))}
@@ -979,33 +1055,35 @@ export default function AdminAttendanceSchedulePage() {
                       </div>
                     )}
 
-                    {/* Biometric Terminal Polling Scope */}
+                    {/* Biometric Terminal Polling Scope (Hikvision Devices) */}
                     {(w.windowType === "HIKVISION" || w.windowType === "BOTH" || w.id === "default" || w.id.startsWith("hik_")) && (
-                      <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80 space-y-1.5 text-xs">
+                      <div className={`p-3 rounded-2xl border space-y-1.5 text-xs transition-all ${
+                        hasStrictDevices ? "bg-purple-50/90 border-purple-300 text-purple-950 shadow-2xs" : "bg-purple-50/40 border-purple-200/60 text-purple-900"
+                      }`}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-purple-950 flex items-center gap-1.5">
+                          <span className="font-black text-purple-950 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
                             <Radio className="w-3.5 h-3.5 text-purple-700" />
-                            Terminal Polling Scope:
+                            HIK Polling Eligibility:
                           </span>
-                          {(!w.applicableDeviceIds || w.applicableDeviceIds.length === 0) ? (
+                          {!hasStrictDevices ? (
                             <Badge variant="outline" className="bg-white text-purple-800 border-purple-300 font-bold text-[10px]">
-                              All Terminals Polling
+                              Universal (All Terminals Poll)
                             </Badge>
                           ) : (
-                            <Badge className="bg-purple-700 text-white font-bold text-[10px]">
-                              {w.applicableDeviceIds.length} Eligible Terminal{w.applicableDeviceIds.length > 1 ? "s" : ""}
+                            <Badge className="bg-purple-700 text-white font-bold text-[10px] shadow-2xs">
+                              Strict: {w.applicableDeviceIds?.length} Terminal{w.applicableDeviceIds!.length > 1 ? "s" : ""}
                             </Badge>
                           )}
                         </div>
-                        {w.applicableDeviceIds && w.applicableDeviceIds.length > 0 ? (
+                        {hasStrictDevices ? (
                           <div className="space-y-1">
                             <p className="text-[11px] text-purple-900 font-medium leading-tight">
-                              Only selected terminals poll attendance for this schedule. Other terminals are strictly restricted.
+                              Only selected terminals poll attendance. <strong className="text-purple-950 underline decoration-purple-400">Other terminals are strictly restricted.</strong>
                             </p>
                             {w.applicableDevices && w.applicableDevices.length > 0 ? (
                               <div className="flex flex-wrap gap-1 pt-0.5">
                                 {w.applicableDevices.map((d) => (
-                                  <span key={d.id} className="text-[10px] bg-white border border-purple-200 text-purple-900 font-semibold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <span key={d.id} className="text-[10px] bg-white border border-purple-200 text-purple-900 font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
                                     <span className={`w-1.5 h-1.5 rounded-full ${d.enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
                                     {d.name}
                                   </span>
@@ -1013,8 +1091,8 @@ export default function AdminAttendanceSchedulePage() {
                               </div>
                             ) : (
                               <div className="flex flex-wrap gap-1 pt-0.5">
-                                {w.applicableDeviceIds.map((id) => (
-                                  <span key={id} className="text-[10px] bg-white border border-purple-200 text-purple-900 font-semibold px-2 py-0.5 rounded-md">
+                                {w.applicableDeviceIds?.map((id) => (
+                                  <span key={id} className="text-[10px] bg-white border border-purple-200 text-purple-900 font-semibold px-2 py-0.5 rounded-md shadow-2xs">
                                     {id}
                                   </span>
                                 ))}
@@ -1411,6 +1489,226 @@ export default function AdminAttendanceSchedulePage() {
                         </div>
                       </div>
 
+                      {/* Biometric Terminal Polling Eligibility Scope (Hikvision Devices) */}
+                      {(windowForm.windowType === "HIKVISION" || windowForm.windowType === "BOTH") && (
+                        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-purple-50/90 via-indigo-50/40 to-white border-2 border-purple-200/90 space-y-4 shadow-xs">
+                          {/* Master Toggle Bar: Strict HIK Polling vs Universal Polling */}
+                          <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-purple-200 flex items-center justify-between gap-3 shadow-2xs">
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Radio className="w-4 h-4 text-purple-700 shrink-0" />
+                                <span className="text-xs font-black uppercase tracking-wider text-purple-950">
+                                  Strict Hikvision Polling Toggle
+                                </span>
+                                {windowForm.applicableDeviceIds.length > 0 ? (
+                                  <Badge className="bg-purple-700 text-white font-bold text-[9px] shadow-2xs">
+                                    Strict Mode ({windowForm.applicableDeviceIds.length} of {devices.length || windowForm.applicableDeviceIds.length} Chosen)
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 font-bold text-[9px]">
+                                    Universal Mode (All {devices.length > 0 ? devices.length : 3} Terminals Active)
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-gray-500 font-medium leading-tight">
+                                {windowForm.applicableDeviceIds.length > 0
+                                  ? "Only the selected HIK terminals below are eligible to poll attendance. Other terminals are strictly restricted and blocked."
+                                  : "When disabled, all connected and enabled HIK terminals poll attendance universally for this window."}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (windowForm.applicableDeviceIds.length > 0) {
+                                  setWindowForm({ ...windowForm, applicableDeviceIds: [] });
+                                } else {
+                                  let curDevices = devices;
+                                  if (curDevices.length === 0) {
+                                    setLoadingDevices(true);
+                                    try {
+                                      const res = await fetch("/api/admin/attendance/schedule/devices");
+                                      if (res.ok) {
+                                        const json = await res.json();
+                                        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+                                          curDevices = json.data;
+                                          setDevices(curDevices);
+                                        }
+                                      }
+                                    } catch {}
+                                    setLoadingDevices(false);
+                                  }
+                                  setWindowForm((prev) => ({
+                                    ...prev,
+                                    applicableDeviceIds: curDevices.map((d) => d.id),
+                                  }));
+                                }
+                              }}
+                              aria-label="Toggle strict HIK device polling"
+                              className={cn(
+                                "w-12 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 select-none",
+                                windowForm.applicableDeviceIds.length > 0 ? "bg-purple-700 shadow-sm" : "bg-gray-300"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out",
+                                  windowForm.applicableDeviceIds.length > 0 ? "translate-x-6" : "translate-x-0"
+                                )}
+                              />
+                            </button>
+                          </div>
+
+                          {/* Controls & Quick Actions when Strict Mode is Active */}
+                          {windowForm.applicableDeviceIds.length > 0 && (
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                              <span className="text-[11px] font-bold text-purple-950">
+                                Select HIK terminals allowed to poll attendance:
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWindowForm({ ...windowForm, applicableDeviceIds: devices.map((d) => d.id) })
+                                  }
+                                  className="text-[10px] font-bold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 transition-all"
+                                >
+                                  Select All ({devices.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-800 px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all"
+                                >
+                                  Reset to All (Universal)
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quick Terminal Selection Cards */}
+                          {loadingDevices ? (
+                            <div className="p-4 bg-white rounded-2xl border border-purple-100 flex items-center justify-center gap-2 text-xs text-purple-700">
+                              <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                              <span>Loading biometric terminals...</span>
+                            </div>
+                          ) : devices.length === 0 ? (
+                            <div className="p-4 bg-white rounded-2xl border border-purple-100 flex items-center justify-between gap-3">
+                              <div className="text-xs text-purple-950 space-y-0.5">
+                                <p className="font-bold">No configured biometric terminals detected.</p>
+                                <p className="text-[11px] text-gray-500">
+                                  All active terminals will poll attendance by default.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => fetchDevices()}
+                                className="px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs font-bold transition-all shrink-0 flex items-center gap-1.5"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Reload Terminals
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {devices.map((dev) => {
+                                const isStrictOn = windowForm.applicableDeviceIds.length > 0;
+                                const isSelected = !isStrictOn || windowForm.applicableDeviceIds.includes(dev.id) || windowForm.applicableDeviceIds.includes(dev.host);
+                                return (
+                                  <label
+                                    key={dev.id}
+                                    className={cn(
+                                      "p-3 rounded-2xl border text-xs cursor-pointer transition-all flex items-start gap-3",
+                                      isSelected
+                                        ? "bg-white border-purple-500 shadow-sm ring-2 ring-purple-400/40"
+                                        : "bg-white/70 border-purple-100 hover:border-purple-300 hover:bg-white text-gray-700 opacity-70"
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          if (!isStrictOn) {
+                                            setWindowForm({
+                                              ...windowForm,
+                                              applicableDeviceIds: [dev.id],
+                                            });
+                                          } else {
+                                            setWindowForm({
+                                              ...windowForm,
+                                              applicableDeviceIds: [...windowForm.applicableDeviceIds, dev.id],
+                                            });
+                                          }
+                                        } else {
+                                          if (!isStrictOn) {
+                                            setWindowForm({
+                                              ...windowForm,
+                                              applicableDeviceIds: devices.filter((d) => d.id !== dev.id).map((d) => d.id),
+                                            });
+                                          } else {
+                                            setWindowForm({
+                                              ...windowForm,
+                                              applicableDeviceIds: windowForm.applicableDeviceIds.filter(
+                                                (id) => id !== dev.id && id !== dev.host
+                                              ),
+                                            });
+                                          }
+                                        }
+                                      }}
+                                      className="rounded border-purple-400 text-purple-600 focus:ring-purple-500 w-4 h-4 mt-0.5"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <p className="font-bold text-gray-900 truncate text-xs">{dev.name}</p>
+                                        <Badge
+                                          variant="outline"
+                                          className={`text-[9px] font-bold py-0 px-1.5 shrink-0 ${
+                                            dev.status === "ONLINE"
+                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                              : dev.status === "ERROR"
+                                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                                              : "bg-gray-50 text-gray-600 border-gray-200"
+                                          }`}
+                                        >
+                                          {dev.status}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-[10px] text-gray-500 font-mono mt-0.5 truncate">
+                                        {dev.host}:{dev.port} {dev.model ? `• ${dev.model}` : ""}
+                                      </p>
+                                      <div className="mt-1 flex items-center gap-1.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${dev.enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
+                                        <span className={`text-[10px] font-bold ${isSelected ? "text-purple-700" : "text-amber-700"}`}>
+                                          {isSelected ? "Eligible to Poll" : "Restricted / Blocked for this window"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="p-2.5 rounded-xl bg-white/90 border border-purple-100 flex items-center justify-between text-[11px] text-purple-900 shadow-2xs">
+                            <span className="font-medium">
+                              {windowForm.applicableDeviceIds.length === 0
+                                ? "Mode: Universal Polling (All active terminals poll attendance)"
+                                : `Mode: Strict Hardware Polling (${windowForm.applicableDeviceIds.length} terminal${windowForm.applicableDeviceIds.length > 1 ? "s" : ""} poll; other terminals restricted)`}
+                            </span>
+                            {windowForm.applicableDeviceIds.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
+                                className="font-bold underline text-purple-700 hover:text-purple-900 text-xs ml-2"
+                              >
+                                Switch to All
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Target Audience Scope */}
                       <div>
                         <label className="text-xs font-black uppercase tracking-wider text-gray-700 block mb-1.5">
@@ -1729,145 +2027,6 @@ export default function AdminAttendanceSchedulePage() {
                       exit={{ opacity: 0, x: 8 }}
                       className="space-y-5"
                     >
-                      {/* Biometric Terminal Polling Eligibility Scope (Hikvision Devices) */}
-                      {(windowForm.windowType === "HIKVISION" || windowForm.windowType === "BOTH") && (
-                        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-purple-50/90 via-indigo-50/40 to-white border-2 border-purple-200/90 space-y-3.5 shadow-xs">
-                          <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-2xl bg-purple-100 border border-purple-300 text-purple-800 flex items-center justify-center shadow-inner shrink-0">
-                                <Radio className="w-4 h-4 text-purple-700" />
-                              </div>
-                              <div>
-                                <span className="text-xs font-black uppercase tracking-wider text-purple-950 block">
-                                  Hikvision Terminal Polling Eligibility
-                                </span>
-                                <span className="text-[11px] text-purple-800/80 font-medium block">
-                                  Choose which biometric terminals are eligible to poll &amp; record attendance for this schedule.
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[10px] font-bold bg-white text-purple-900 border-purple-300 shadow-2xs">
-                                {windowForm.applicableDeviceIds.length === 0
-                                  ? "All Terminals Poll (Default)"
-                                  : `${windowForm.applicableDeviceIds.length} Eligible Terminal${windowForm.applicableDeviceIds.length > 1 ? "s" : ""}`}
-                              </Badge>
-
-                              {windowForm.applicableDeviceIds.length > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
-                                  className="text-[10px] font-bold text-rose-600 hover:underline"
-                                >
-                                  Clear (All Poll)
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setWindowForm({ ...windowForm, applicableDeviceIds: devices.map((d) => d.id) })
-                                  }
-                                  className="text-[10px] font-bold text-purple-700 hover:underline"
-                                >
-                                  Select Specific
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Quick Terminal Selection Cards */}
-                          {devices.length === 0 ? (
-                            <div className="p-3 bg-white rounded-2xl border border-purple-100 text-xs text-purple-700 space-y-1">
-                              <p className="font-bold">No configured biometric terminals detected.</p>
-                              <p className="text-[11px] text-gray-500">
-                                Active Hikvision gates will poll attendance by default. Add terminals in <strong className="text-purple-900">Device Hub</strong>.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              {devices.map((dev) => {
-                                const isSelected = windowForm.applicableDeviceIds.includes(dev.id) || windowForm.applicableDeviceIds.includes(dev.host);
-                                return (
-                                  <label
-                                    key={dev.id}
-                                    className={cn(
-                                      "p-3 rounded-2xl border text-xs cursor-pointer transition-all flex items-start gap-3",
-                                      isSelected
-                                        ? "bg-white border-purple-500 shadow-sm ring-2 ring-purple-400/40"
-                                        : "bg-white/80 border-purple-100 hover:border-purple-300 hover:bg-white text-gray-700"
-                                    )}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setWindowForm({
-                                            ...windowForm,
-                                            applicableDeviceIds: [...windowForm.applicableDeviceIds, dev.id],
-                                          });
-                                        } else {
-                                          setWindowForm({
-                                            ...windowForm,
-                                            applicableDeviceIds: windowForm.applicableDeviceIds.filter(
-                                              (id) => id !== dev.id && id !== dev.host
-                                            ),
-                                          });
-                                        }
-                                      }}
-                                      className="rounded border-purple-400 text-purple-600 focus:ring-purple-500 w-4 h-4 mt-0.5"
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center justify-between gap-1.5">
-                                        <p className="font-bold text-gray-900 truncate text-xs">{dev.name}</p>
-                                        <Badge
-                                          variant="outline"
-                                          className={`text-[9px] font-bold py-0 px-1.5 shrink-0 ${
-                                            dev.status === "ONLINE"
-                                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                              : dev.status === "ERROR"
-                                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                                              : "bg-gray-50 text-gray-600 border-gray-200"
-                                          }`}
-                                        >
-                                          {dev.status}
-                                        </Badge>
-                                      </div>
-                                      <p className="text-[10px] text-gray-500 font-mono mt-0.5 truncate">
-                                        {dev.host}:{dev.port} {dev.model ? `• ${dev.model}` : ""}
-                                      </p>
-                                      <div className="mt-1 flex items-center gap-1.5">
-                                        <span className={`w-1.5 h-1.5 rounded-full ${dev.enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
-                                        <span className={`text-[10px] font-bold ${isSelected ? "text-purple-700" : "text-gray-400"}`}>
-                                          {isSelected ? "Eligible to Poll" : "Restricted for this window"}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          <div className="p-2.5 rounded-xl bg-white/80 border border-purple-100 flex items-center justify-between text-[11px] text-purple-900">
-                            <span>
-                              {windowForm.applicableDeviceIds.length === 0
-                                ? "Mode: Universal Polling (All active terminals poll attendance)"
-                                : `Mode: Strict Hardware Polling (${windowForm.applicableDeviceIds.length} chosen terminal${windowForm.applicableDeviceIds.length > 1 ? "s" : ""} poll; other terminals restricted)`}
-                            </span>
-                            {windowForm.applicableDeviceIds.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
-                                className="font-bold underline text-purple-700 hover:text-purple-900 text-xs"
-                              >
-                                Reset to All Terminals
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
 
                       {/* If NOT HIKVISION: Show Talabat Class Scope for manual/custom sessions */}
                       {windowForm.windowType !== "HIKVISION" && (windowForm.audience === "STUDENT" || windowForm.audience === "BOTH") && (
@@ -1971,48 +2130,100 @@ export default function AdminAttendanceSchedulePage() {
 
                       {/* Faculty Scanning Eligibility Scope - Available for Hikvision AND any Faculty/Both schedule */}
                       {(windowForm.windowType === "HIKVISION" || windowForm.audience === "TEACHER" || windowForm.audience === "BOTH") && (
-                        <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-1.5">
-                              <Shield className="w-4 h-4 text-blue-700" />
-                              <div>
-                                <span className="text-xs font-black uppercase tracking-wider text-blue-950 block">
-                                  Faculty Scanning Eligibility Scope
+                        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border-2 border-blue-200/90 space-y-4 shadow-xs">
+                          {/* Master Toggle Bar: Strict Faculty Roster vs Universal Active Faculty */}
+                          <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-blue-200 flex items-center justify-between gap-3 shadow-2xs">
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Shield className="w-4 h-4 text-blue-700 shrink-0" />
+                                <span className="text-xs font-black uppercase tracking-wider text-blue-950">
+                                  Strict Faculty Attendance Eligibility
                                 </span>
-                                <span className="text-[11px] text-blue-800/80 font-medium block">
-                                  Select faculty eligible for scanning. Un-eligible faculty will <strong className="text-blue-950">never be marked absent</strong>.
-                                </span>
+                                {windowForm.applicableTeacherIds.length > 0 ? (
+                                  <Badge className="bg-blue-700 text-white font-bold text-[9px] shadow-2xs">
+                                    Strict Roster ({windowForm.applicableTeacherIds.length} of {teachers.length || windowForm.applicableTeacherIds.length} Eligible)
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-bold text-[9px]">
+                                    Universal Mode (All {teachers.length > 0 ? teachers.length : "Active"} Faculty)
+                                  </Badge>
+                                )}
                               </div>
+                              <p className="text-[11px] text-gray-500 font-medium leading-tight">
+                                {windowForm.applicableTeacherIds.length > 0
+                                  ? "Only selected faculty members below are eligible to scan. Un-eligible faculty will NEVER be marked absent."
+                                  : "When disabled, all active faculty members are eligible for attendance during this schedule window."}
+                              </p>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[10px] font-bold bg-white text-blue-800 border-blue-300">
-                                {windowForm.applicableTeacherIds.length === 0
-                                  ? "All Faculty (Default)"
-                                  : `${windowForm.applicableTeacherIds.length} Eligible`}
-                              </Badge>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (windowForm.applicableTeacherIds.length > 0) {
+                                  setWindowForm({ ...windowForm, applicableTeacherIds: [] });
+                                } else {
+                                  let curTeachers = teachers;
+                                  if (curTeachers.length === 0) {
+                                    setLoadingTeachers(true);
+                                    try {
+                                      const res = await fetch("/api/admin/attendance/schedule/teachers");
+                                      if (res.ok) {
+                                        const json = await res.json();
+                                        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+                                          curTeachers = json.data;
+                                          setTeachers(curTeachers);
+                                        }
+                                      }
+                                    } catch {}
+                                    setLoadingTeachers(false);
+                                  }
+                                  setWindowForm((prev) => ({
+                                    ...prev,
+                                    applicableTeacherIds: curTeachers.map((t) => t.id),
+                                  }));
+                                }
+                              }}
+                              aria-label="Toggle strict faculty eligibility"
+                              className={cn(
+                                "w-12 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 select-none",
+                                windowForm.applicableTeacherIds.length > 0 ? "bg-blue-700 shadow-sm" : "bg-gray-300"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out",
+                                  windowForm.applicableTeacherIds.length > 0 ? "translate-x-6" : "translate-x-0"
+                                )}
+                              />
+                            </button>
+                          </div>
 
-                              {windowForm.applicableTeacherIds.length > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
-                                  className="text-[10px] font-bold text-rose-600 hover:underline"
-                                >
-                                  Clear Selection
-                                </button>
-                              ) : (
+                          {/* Quick Selection Toolbar when Strict Mode is Active */}
+                          {windowForm.applicableTeacherIds.length > 0 && (
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                              <span className="text-[11px] font-bold text-blue-950">
+                                Choose which teachers are required &amp; eligible for this schedule:
+                              </span>
+                              <div className="flex items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={() =>
                                     setWindowForm({ ...windowForm, applicableTeacherIds: teachers.map((t) => t.id) })
                                   }
-                                  className="text-[10px] font-bold text-blue-700 hover:underline"
+                                  className="text-[10px] font-bold text-blue-700 hover:text-blue-900 px-2 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 transition-all"
                                 >
-                                  Select Specific
+                                  Select All ({teachers.length})
                                 </button>
-                              )}
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableTeacherIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-800 px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all"
+                                >
+                                  Reset to All (Universal)
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          )}
 
                           <div className="relative">
                             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -2021,13 +2232,28 @@ export default function AdminAttendanceSchedulePage() {
                               placeholder="Filter faculty by name, department, email..."
                               value={teacherFilterQuery}
                               onChange={(e) => setTeacherFilterQuery(e.target.value)}
-                              className="w-full h-8 pl-8 pr-3 rounded-xl border border-blue-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full h-9 pl-8 pr-3 rounded-xl border border-blue-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-blue-400/40"
                             />
                           </div>
 
-                          <div className="max-h-48 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-blue-100 shadow-inner custom-scrollbar">
-                            {teachers.length === 0 ? (
-                              <p className="text-xs text-gray-400 p-2">All active faculty included by default.</p>
+                          <div className="max-h-52 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-blue-100 shadow-inner custom-scrollbar">
+                            {loadingTeachers ? (
+                              <div className="p-4 flex items-center justify-center gap-2 text-xs text-blue-700">
+                                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                                <span>Loading faculty roster list...</span>
+                              </div>
+                            ) : teachers.length === 0 ? (
+                              <div className="p-3 flex items-center justify-between gap-2">
+                                <p className="text-xs text-gray-500">No faculty profiles loaded yet.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => fetchTeachers()}
+                                  className="px-2.5 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold transition-all flex items-center gap-1"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  Reload Roster
+                                </button>
+                              </div>
                             ) : (
                               teachers
                                 .filter((t) => {
@@ -2040,36 +2266,61 @@ export default function AdminAttendanceSchedulePage() {
                                   );
                                 })
                                 .map((t) => {
-                                  const isChecked = windowForm.applicableTeacherIds.includes(t.id);
+                                  const isStrictOn = windowForm.applicableTeacherIds.length > 0;
+                                  const isChecked = !isStrictOn || windowForm.applicableTeacherIds.includes(t.id);
                                   return (
                                     <label
                                       key={t.id}
                                       className={cn(
                                         "flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-all border",
                                         isChecked
-                                          ? "bg-blue-50 border-blue-400 text-blue-950 font-bold"
-                                          : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100"
+                                          ? "bg-blue-50/90 border-blue-400 text-blue-950 font-bold shadow-2xs"
+                                          : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100 opacity-60"
                                       )}
                                     >
-                                      <div className="flex items-center gap-2 min-w-0">
+                                      <div className="flex items-center gap-2.5 min-w-0">
                                         <input
                                           type="checkbox"
                                           checked={isChecked}
-                                          onChange={(e) =>
-                                            setWindowForm({
-                                              ...windowForm,
-                                              applicableTeacherIds: e.target.checked
-                                                ? [...windowForm.applicableTeacherIds, t.id]
-                                                : windowForm.applicableTeacherIds.filter((id) => id !== t.id),
-                                            })
-                                          }
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              if (!isStrictOn) {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableTeacherIds: [t.id],
+                                                });
+                                              } else {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableTeacherIds: [...windowForm.applicableTeacherIds, t.id],
+                                                });
+                                              }
+                                            } else {
+                                              if (!isStrictOn) {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableTeacherIds: teachers.filter((item) => item.id !== t.id).map((item) => item.id),
+                                                });
+                                              } else {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableTeacherIds: windowForm.applicableTeacherIds.filter((id) => id !== t.id),
+                                                });
+                                              }
+                                            }
+                                          }}
                                           className="rounded border-blue-400 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
                                         />
                                         <span className="truncate">{t.name}</span>
                                       </div>
-                                      <Badge variant="outline" className="text-[9px] font-mono text-gray-500 shrink-0">
-                                        {t.department || "Faculty"}
-                                      </Badge>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <Badge variant="outline" className="text-[9px] font-mono text-gray-500">
+                                          {t.department || "Faculty"}
+                                        </Badge>
+                                        <span className={`text-[10px] font-bold ${isChecked ? "text-blue-700" : "text-amber-700"}`}>
+                                          {isChecked ? "Eligible" : "Un-eligible (Never Absent)"}
+                                        </span>
+                                      </div>
                                     </label>
                                   );
                                 })

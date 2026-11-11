@@ -621,16 +621,14 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
 
     if (!studentUser && cleanTo) {
       const itsMatch = cleanTo.match(/\b\d{7,8}\b/)?.[0];
-      const nameParts = cleanTo.split("@")[0].split(/[._\s-]+/).filter((p) => p.length > 2);
+      const nameParts = cleanTo.split("@")[0].split(/[._\s-]+/).filter((p: string) => p.length > 2);
 
       studentUser = await prisma.user.findFirst({
         where: {
           role: "STUDENT",
           OR: [
-            { email: { equals: cleanTo, mode: "insensitive" } },
-            { email: { startsWith: cleanTo.split("@")[0], mode: "insensitive" } },
-            { username: { equals: cleanTo, mode: "insensitive" } },
-            ...(itsMatch ? [{ username: { equals: itsMatch, mode: "insensitive" } }] : []),
+            { email: { equals: cleanTo, mode: "insensitive" as const } },
+            { email: { startsWith: cleanTo.split("@")[0], mode: "insensitive" as const } },
             ...(itsMatch ? [{ studentProfile: { its: itsMatch } }, { studentProfile: { studentId: itsMatch } }] : []),
             { studentProfile: { its: cleanTo } },
             { studentProfile: { studentId: cleanTo } },
@@ -638,8 +636,8 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
               ? [
                 {
                   AND: [
-                    { firstName: { contains: nameParts[0], mode: "insensitive" } },
-                    { lastName: { contains: nameParts[nameParts.length - 1], mode: "insensitive" } },
+                    { firstName: { contains: nameParts[0], mode: "insensitive" as const } },
+                    { lastName: { contains: nameParts[nameParts.length - 1], mode: "insensitive" as const } },
                   ],
                 },
               ]

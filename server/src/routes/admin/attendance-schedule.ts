@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
+import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
 import {
   runAutoMarkAbsentJob,
@@ -155,123 +156,154 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       return null;
     };
 
-    let enriched = await Promise.all(
-      windows.map(async (w) => {
-        const ww = w as any;
-        const audience: "FACULTY" | "ALL_STUDENTS" | "BOTH" = getAudienceType(ww);
-        const legacyFaculty = audience === "FACULTY";
-        const unifiedFaculty = audience === "BOTH";
+    // Batch pre-fetch all referenced teachers, classes, and devices in single concurrent queries (eliminates N+1 latency)
+    const allTeacherIds = new Set<string>();
+    const allClassIds = new Set<string>();
+    const allDeviceIds = new Set<string>();
 
-        const studentRange = eventRangeForRole(ww, "STUDENT");
-        const facultyRange = eventRangeForRole(ww, "TEACHER");
+    for (const w of windows) {
+      const ww = w as any;
+      if (Array.isArray(ww.applicableTeacherIds)) {
+        ww.applicableTeacherIds.forEach((id: string) => { if (id) allTeacherIds.add(id); });
+      }
+      if (Array.isArray(ww.applicableClassIds)) {
+        ww.applicableClassIds.forEach((id: string) => { if (id) allClassIds.add(id); });
+      }
+      const appDevs: string[] = Array.isArray(ww.applicableDeviceIds) && ww.applicableDeviceIds.length > 0
+        ? ww.applicableDeviceIds
+        : (ww.exemptStudentIds || []).filter((s: string) => s.startsWith("DEV_")).map((s: string) => s.replace(/^DEV_/, ""));
+      appDevs.forEach((id: string) => { if (id) allDeviceIds.add(id); });
+    }
 
-        let status: "ACTIVE" | "UPCOMING" | "CLOSED" = "CLOSED";
-        let phase: "ON_TIME" | "LATE" | null = null;
-        if (!w.enabled) {
-          status = "CLOSED";
-        } else if (studentRange && nowMinutes >= studentRange.startMin && nowMinutes <= studentRange.endMin) {
-          status = "ACTIVE";
-          phase = "ON_TIME";
-        } else if (studentRange && nowMinutes > studentRange.endMin && nowMinutes <= studentRange.lateMin) {
-          status = "ACTIVE";
-          phase = "LATE";
-        } else if (facultyRange && nowMinutes >= facultyRange.startMin && nowMinutes <= facultyRange.lateMin) {
-          status = "ACTIVE";
-          phase = phaseOf(facultyRange);
-        } else if (
-          studentRange && nowMinutes < studentRange.startMin && studentRange.startMin - nowMinutes <= 120
-        ) {
-          status = "UPCOMING";
-        } else {
-          status = "CLOSED";
-        }
-
-        const facultyPhase = facultyRange && w.enabled ? phaseOf(facultyRange) : null;
-        const facultyStatus: "ACTIVE" | "UPCOMING" | "CLOSED" | "NONE" = !facultyRange
-          ? "NONE"
-          : !w.enabled || (ww.facultyEnabled === false && unifiedFaculty)
-            ? "CLOSED"
-            : facultyPhase
-              ? "ACTIVE"
-              : facultyRange.startMin - nowMinutes <= 120 && facultyRange.startMin > nowMinutes
-                ? "UPCOMING"
-                : "CLOSED";
-
-        let applicableTeachers: Array<{ id: string; name: string }> | undefined;
-        const applicableIds: string[] = ((w as any).applicableTeacherIds ?? []) as string[];
-        if ((audience === "FACULTY" || audience === "BOTH") && applicableIds.length > 0) {
-          const teachers = await prisma.teacherProfile.findMany({
-            where: { id: { in: applicableIds } },
-            include: { user: { select: { firstName: true, lastName: true } } },
-          });
-          applicableTeachers = teachers.map((t) => ({
-            id: t.id,
-            name: `${t.user.firstName} ${t.user.lastName}`.trim(),
-          }));
-        }
-
-        let applicableClasses: Array<{ id: string; name: string; grade: string; section: string }> | undefined;
-        const appClassIds: string[] = ((w as any).applicableClassIds ?? []) as string[];
-        if (appClassIds.length > 0) {
-          const classes = await prisma.class.findMany({
-            where: { id: { in: appClassIds } },
+    const [batchTeachers, batchClasses, batchDevices] = await Promise.all([
+      allTeacherIds.size > 0
+        ? prisma.teacherProfile.findMany({
+            where: { id: { in: Array.from(allTeacherIds) } },
+            select: { id: true, user: { select: { firstName: true, lastName: true } } },
+          })
+        : [],
+      allClassIds.size > 0
+        ? prisma.class.findMany({
+            where: { id: { in: Array.from(allClassIds) } },
             select: { id: true, name: true, grade: true, section: true },
-          });
-          applicableClasses = classes;
-        }
-
-        const exemptStudentIds: string[] = ((w as any).exemptStudentIds ?? []) as string[];
-        const exemptTeacherIds: string[] = ((w as any).exemptTeacherIds ?? []) as string[];
-
-        const applicableDeviceIds: string[] = (((w as any).applicableDeviceIds ?? []) as string[]).length > 0
-          ? ((w as any).applicableDeviceIds as string[])
-          : exemptStudentIds.filter((s: string) => s.startsWith("DEV_")).map((s: string) => s.replace(/^DEV_/, ""));
-
-        let applicableDevices: Array<{ id: string; name: string; host: string; status: string; enabled: boolean }> | undefined;
-        if (applicableDeviceIds.length > 0) {
-          applicableDevices = await prisma.biometricDevice.findMany({
-            where: {
-              OR: [
-                { id: { in: applicableDeviceIds } },
-                { host: { in: applicableDeviceIds } },
-              ],
-            },
-            select: { id: true, name: true, host: true, status: true, enabled: true },
-          });
-        }
-
-        const startMin = toMinutes(w.startTime);
-        const endMin = toMinutes(w.endTime);
-        const lateEndMin = Math.max(endMin, toMinutes((w as any).lateEndTime ?? w.endTime));
-        const windowType = getWindowType(w);
-
-        return {
-          ...w,
-          windowType,
-          lateEndTime: (w as any).lateEndTime ?? w.endTime,
-          facultyStartTime: ww.facultyStartTime ?? null,
-          facultyEndTime: ww.facultyEndTime ?? null,
-          facultyLateEndTime: ww.facultyLateEndTime ?? ww.facultyEndTime ?? null,
-          facultyEnabled: ww.facultyEnabled ?? true,
-          hasFacultyTimer: unifiedFaculty || legacyFaculty,
-          applicableTeacherIds: applicableIds,
-          exemptTeacherIds,
-          applicableClassIds: appClassIds,
-          exemptStudentIds,
-          applicableDeviceIds,
-          ...(applicableTeachers ? { applicableTeachers } : {}),
-          ...(applicableClasses ? { applicableClasses } : {}),
-          ...(applicableDevices ? { applicableDevices } : {}),
-          audience,
-          status,
-          phase,
-          facultyStatus,
-          facultyPhase,
-          durationMinutes: lateEndMin - startMin,
-          onTimeMinutes: endMin - startMin,
-        };
+          })
+        : [],
+      prisma.biometricDevice.findMany({
+        select: { id: true, name: true, host: true, status: true, enabled: true },
       }),
-    );
+    ]);
+
+    const teacherMap = new Map(batchTeachers.map((t) => [t.id, `${t.user.firstName} ${t.user.lastName}`.trim()]));
+    const classMap = new Map(batchClasses.map((c) => [c.id, c]));
+    const deviceMap = new Map<string, typeof batchDevices[0]>();
+    batchDevices.forEach((d) => {
+      deviceMap.set(d.id, d);
+      deviceMap.set(d.host, d);
+    });
+
+    let enriched = windows.map((w) => {
+      const ww = w as any;
+      const audience: "FACULTY" | "ALL_STUDENTS" | "BOTH" = getAudienceType(ww);
+      const legacyFaculty = audience === "FACULTY";
+      const unifiedFaculty = audience === "BOTH";
+
+      const studentRange = eventRangeForRole(ww, "STUDENT");
+      const facultyRange = eventRangeForRole(ww, "TEACHER");
+
+      let status: "ACTIVE" | "UPCOMING" | "CLOSED" = "CLOSED";
+      let phase: "ON_TIME" | "LATE" | null = null;
+      if (!w.enabled) {
+        status = "CLOSED";
+      } else if (studentRange && nowMinutes >= studentRange.startMin && nowMinutes <= studentRange.endMin) {
+        status = "ACTIVE";
+        phase = "ON_TIME";
+      } else if (studentRange && nowMinutes > studentRange.endMin && nowMinutes <= studentRange.lateMin) {
+        status = "ACTIVE";
+        phase = "LATE";
+      } else if (facultyRange && nowMinutes >= facultyRange.startMin && nowMinutes <= facultyRange.lateMin) {
+        status = "ACTIVE";
+        phase = phaseOf(facultyRange);
+      } else if (
+        studentRange && nowMinutes < studentRange.startMin && studentRange.startMin - nowMinutes <= 120
+      ) {
+        status = "UPCOMING";
+      } else {
+        status = "CLOSED";
+      }
+
+      const facultyPhase = facultyRange && w.enabled ? phaseOf(facultyRange) : null;
+      const facultyStatus: "ACTIVE" | "UPCOMING" | "CLOSED" | "NONE" = !facultyRange
+        ? "NONE"
+        : !w.enabled || (ww.facultyEnabled === false && unifiedFaculty)
+          ? "CLOSED"
+          : facultyPhase
+            ? "ACTIVE"
+            : facultyRange.startMin - nowMinutes <= 120 && facultyRange.startMin > nowMinutes
+              ? "UPCOMING"
+              : "CLOSED";
+
+      const applicableIds: string[] = ((w as any).applicableTeacherIds ?? []) as string[];
+      let applicableTeachers: Array<{ id: string; name: string }> | undefined;
+      if ((audience === "FACULTY" || audience === "BOTH") && applicableIds.length > 0) {
+        applicableTeachers = applicableIds
+          .map((id) => ({ id, name: teacherMap.get(id) || id }))
+          .filter((t) => t.name);
+      }
+
+      const appClassIds: string[] = ((w as any).applicableClassIds ?? []) as string[];
+      let applicableClasses: Array<{ id: string; name: string; grade: string; section: string }> | undefined;
+      if (appClassIds.length > 0) {
+        applicableClasses = appClassIds
+          .map((id) => classMap.get(id))
+          .filter(Boolean) as Array<{ id: string; name: string; grade: string; section: string }>;
+      }
+
+      const exemptStudentIds: string[] = ((w as any).exemptStudentIds ?? []) as string[];
+      const exemptTeacherIds: string[] = ((w as any).exemptTeacherIds ?? []) as string[];
+
+      const applicableDeviceIds: string[] = (((w as any).applicableDeviceIds ?? []) as string[]).length > 0
+        ? ((w as any).applicableDeviceIds as string[])
+        : exemptStudentIds.filter((s: string) => s.startsWith("DEV_")).map((s: string) => s.replace(/^DEV_/, ""));
+
+      let applicableDevices: Array<{ id: string; name: string; host: string; status: string; enabled: boolean }> | undefined;
+      if (applicableDeviceIds.length > 0) {
+        const found = applicableDeviceIds
+          .map((id) => deviceMap.get(id))
+          .filter(Boolean) as Array<{ id: string; name: string; host: string; status: string; enabled: boolean }>;
+        if (found.length > 0) applicableDevices = found;
+      }
+
+      const startMin = toMinutes(w.startTime);
+      const endMin = toMinutes(w.endTime);
+      const lateEndMin = Math.max(endMin, toMinutes((w as any).lateEndTime ?? w.endTime));
+      const windowType = getWindowType(w);
+
+      return {
+        ...w,
+        windowType,
+        lateEndTime: (w as any).lateEndTime ?? w.endTime,
+        facultyStartTime: ww.facultyStartTime ?? null,
+        facultyEndTime: ww.facultyEndTime ?? null,
+        facultyLateEndTime: ww.facultyLateEndTime ?? ww.facultyEndTime ?? null,
+        facultyEnabled: ww.facultyEnabled ?? true,
+        hasFacultyTimer: unifiedFaculty || legacyFaculty,
+        applicableTeacherIds: applicableIds,
+        exemptTeacherIds,
+        applicableClassIds: appClassIds,
+        exemptStudentIds,
+        applicableDeviceIds,
+        ...(applicableTeachers ? { applicableTeachers } : {}),
+        ...(applicableClasses ? { applicableClasses } : {}),
+        ...(applicableDevices ? { applicableDevices } : {}),
+        audience,
+        status,
+        phase,
+        facultyStatus,
+        facultyPhase,
+        durationMinutes: lateEndMin - startMin,
+        onTimeMinutes: endMin - startMin,
+      };
+    });
 
     if (windowTypeFilter === "HIKVISION") {
       enriched = enriched.filter((w) => w.windowType === "HIKVISION" || w.windowType === "BOTH");
@@ -695,7 +727,7 @@ router.get("/classes", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
           grade: s.class?.grade || "",
           section: s.class?.section || "",
           subject: s.subject || s.class?.subject || "",
-          teacherName: s.class ? `${s.class.teacher.user.firstName} ${s.class.teacher.user.lastName}` : "",
+          teacherName: s.class?.teacher?.user ? `${s.class.teacher.user.firstName} ${s.class.teacher.user.lastName}`.trim() : "",
           dayOfWeek: s.dayOfWeek,
           period: s.period,
           startTime: s.startTime,
@@ -710,7 +742,7 @@ router.get("/classes", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
           grade: c.grade,
           section: c.section,
           subject: c.subject,
-          teacherName: `${c.teacher.user.firstName} ${c.teacher.user.lastName}`,
+          teacherName: c.teacher?.user ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}`.trim() : "Unassigned",
         })),
       },
     });
@@ -720,47 +752,76 @@ router.get("/classes", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   }
 });
 
-// GET /api/admin/attendance/schedule/teachers - List all active faculty/teachers
+// GET /api/admin/attendance/schedule/teachers - List all active faculty/teachers (Cached)
 router.get("/teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
-    const teachers = await prisma.teacherProfile.findMany({
-      include: {
-        user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
-      },
-      orderBy: { user: { firstName: "asc" } },
-    });
-    return res.json({
-      success: true,
-      data: teachers.map((t) => ({
+    const list = await cache.getOrSet("attendance:schedule:teachers_list", async () => {
+      const teachers = await prisma.teacherProfile.findMany({
+        where: { user: { isActive: true } },
+        select: {
+          id: true,
+          department: true,
+          user: { select: { firstName: true, lastName: true, email: true } },
+        },
+        orderBy: { user: { firstName: "asc" } },
+      });
+      return teachers.map((t) => ({
         id: t.id,
         name: `${t.user.firstName} ${t.user.lastName}`.trim(),
         email: t.user.email,
         department: t.department || "Faculty",
-      })),
-    });
+      }));
+    }, { ttl: 60_000, tags: ["teachers", "attendance-schedule"] });
+
+    return res.json({ success: true, data: list });
   } catch (error) {
     console.error("Fetch teachers error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch teachers" });
   }
 });
 
-// GET /api/admin/attendance/schedule/devices - Configured Hikvision biometric devices
+// GET /api/admin/attendance/schedule/devices - Configured Hikvision biometric devices (Auto-healing & Cached)
 router.get("/devices", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   try {
-    const devices = await prisma.biometricDevice.findMany({
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        name: true,
-        host: true,
-        port: true,
-        model: true,
-        serialNo: true,
-        status: true,
-        enabled: true,
-        lastSeenAt: true,
-      },
-    });
+    const devices = await cache.getOrSet("attendance:schedule:devices_list", async () => {
+      let list = await prisma.biometricDevice.findMany({
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          host: true,
+          port: true,
+          model: true,
+          serialNo: true,
+          status: true,
+          enabled: true,
+          lastSeenAt: true,
+        },
+      });
+
+      // Auto-heal: If zero devices configured, seed the standard institutional terminals immediately
+      if (list.length === 0) {
+        const { ensureBiometricDevicesConfigured } = await import("../../lib/hikvision");
+        await ensureBiometricDevicesConfigured().catch(() => {});
+        list = await prisma.biometricDevice.findMany({
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            name: true,
+            host: true,
+            port: true,
+            model: true,
+            serialNo: true,
+            status: true,
+            enabled: true,
+            lastSeenAt: true,
+          },
+        });
+      }
+
+      return list;
+    }, { ttl: 15_000, tags: ["biometric_devices", "attendance-schedule"] });
+
     return res.json({ success: true, data: devices });
   } catch (error) {
     console.error("Fetch schedule devices error:", error);

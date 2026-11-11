@@ -100,6 +100,74 @@ function normalizePhotoUrl(val: any): string | null {
   return "/" + trimmed;
 }
 
+export async function getTeacherPermissions(userId: string, role: string) {
+  if (role === "ADMIN") {
+    return {
+      canEditRemarks: true,
+      canViewCounsellor: true,
+      canEditCounsellor: true,
+    };
+  }
+  if (role !== "TEACHER") {
+    return {
+      canEditRemarks: false,
+      canViewCounsellor: false,
+      canEditCounsellor: false,
+    };
+  }
+
+  const teacherProfile = await prisma.teacherProfile.findFirst({
+    where: { OR: [{ userId }, { id: userId }] },
+    include: { portalAssignments: true },
+  });
+
+  if (!teacherProfile) {
+    return {
+      canEditRemarks: false,
+      canViewCounsellor: false,
+      canEditCounsellor: false,
+    };
+  }
+
+  const activeAssignments = teacherProfile.portalAssignments.filter((a) => a.isActive);
+  const isAll = activeAssignments.some(
+    (a) => a.portalType === "ALL" || a.portalType === "*"
+  );
+
+  if (isAll) {
+    return {
+      canEditRemarks: true,
+      canViewCounsellor: true,
+      canEditCounsellor: true,
+    };
+  }
+
+  const assignedKeys = new Set(
+    activeAssignments.map((a) =>
+      a.portalType.trim().toLowerCase().replace(/^page:/, "")
+    )
+  );
+
+  const canEditRemarks =
+    assignedKeys.has("talabat-profiles-remarks") ||
+    assignedKeys.has("remarks-edit") ||
+    assignedKeys.has("talabat_profiles_remarks") ||
+    assignedKeys.has("yearly-profile-remarks");
+
+  const canCounsellor =
+    assignedKeys.has("counsellor-remarks") ||
+    assignedKeys.has("counsellor_remarks") ||
+    assignedKeys.has("counsellor") ||
+    assignedKeys.has("counselor") ||
+    assignedKeys.has("counselor-remarks");
+
+  return {
+    canEditRemarks,
+    canViewCounsellor: canCounsellor,
+    canEditCounsellor: canCounsellor,
+  };
+}
+
 function generatePrefilledProfile(sp: any, user: any, parent?: any) {
   return {
     id: "",
@@ -803,10 +871,13 @@ router.get("/list", requireAuth, async (req, res) => {
     updatedAt: s.talabatProfile1447?.updatedAt || null,
   }));
 
+  const perms = await getTeacherPermissions(session.user.id, session.user.role);
+
   return res.json({
     success: true,
     total: formatted.length,
     students: formatted,
+    permissions: perms,
   });
 });
 
@@ -897,9 +968,20 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
     if (reviewer) reviewerName = `${reviewer.firstName} ${reviewer.lastName}`.trim();
   }
 
+  const perms = await getTeacherPermissions(session.user.id, session.user.role);
+
+  let sanitizedProfile = profile;
+  if (!perms.canViewCounsellor && profile) {
+    sanitizedProfile = {
+      ...profile,
+      remarksCounselling: null,
+      counsellingNotes: null,
+    };
+  }
+
   return res.json({
     success: true,
-    profile,
+    profile: sanitizedProfile,
     studentInfo: {
       id: student.id,
       name: `${student.user.firstName} ${student.user.lastName}`.trim(),
@@ -910,16 +992,19 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
       avatarUrl: student.user.avatarUrl,
     },
     reviewerName,
+    permissions: perms,
   });
 });
 
 // ── PUT /api/talabat-profile/remarks/:studentId ──
-// For Admin and Teachers: Save Masul Collective Remarks & Ratings (1-5)
+// For Admin and Teachers: Save Masul Collective Remarks & Ratings (1-5) and/or Counsellor Remarks
 router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   const session = req.auth!;
   if (session.user.role !== "ADMIN" && session.user.role !== "TEACHER") {
     return res.status(403).json({ success: false, error: "Access denied" });
   }
+
+  const perms = await getTeacherPermissions(session.user.id, session.user.role);
 
   const { studentId } = req.params;
   const student = await prisma.studentProfile.findFirst({
@@ -938,34 +1023,76 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   }
 
   const body = req.body || {};
-  const behaviourRating = body.behaviourRating !== undefined ? parseInt(String(body.behaviourRating), 10) || null : undefined;
-  const communicationRating = body.communicationRating !== undefined ? parseInt(String(body.communicationRating), 10) || null : undefined;
-  const dedicationRating = body.dedicationRating !== undefined ? parseInt(String(body.dedicationRating), 10) || null : undefined;
-  const disciplineRating = body.disciplineRating !== undefined ? parseInt(String(body.disciplineRating), 10) || null : undefined;
-  
+
+  // Check whether faculty remarks/ratings are being updated
+  const hasFacultyRemarksUpdate =
+    body.behaviourRating !== undefined ||
+    body.communicationRating !== undefined ||
+    body.dedicationRating !== undefined ||
+    body.disciplineRating !== undefined ||
+    body.masoolRemarks !== undefined ||
+    body.remarksMasool !== undefined ||
+    body.remarksTahfeez !== undefined ||
+    body.remarksTaleem !== undefined ||
+    body.remarksTadeeb !== undefined ||
+    body.remarksTanzeem !== undefined ||
+    body.remarksSports !== undefined ||
+    body.remarksMaktabat !== undefined ||
+    body.remarksSkills !== undefined ||
+    body.remarksOtherExams !== undefined;
+
+  // Check whether counsellor remarks are being updated
+  const hasCounsellorUpdate =
+    body.remarksCounselling !== undefined ||
+    body.counsellingNotes !== undefined;
+
+  if (hasFacultyRemarksUpdate && !perms.canEditRemarks) {
+    return res.status(403).json({
+      success: false,
+      error: "Asateza remarks are locked. You need 'Yearly Profile Remarks (Edit)' assigned by administration to modify remarks.",
+    });
+  }
+
+  if (hasCounsellorUpdate && !perms.canEditCounsellor) {
+    return res.status(403).json({
+      success: false,
+      error: "Access denied. You need 'Counsellor Remarks & Guidance' assigned by administration to edit counsellor remarks.",
+    });
+  }
+
   const updateFields: any = {
     reviewedById: session.user.id,
     reviewedAt: new Date(),
     status: body.status || (student.talabatProfile1447?.status === "SUBMITTED" ? "REVIEWED" : student.talabatProfile1447?.status || "REVIEWED"),
   };
 
-  if (behaviourRating !== undefined) updateFields.behaviourRating = behaviourRating;
-  if (communicationRating !== undefined) updateFields.communicationRating = communicationRating;
-  if (dedicationRating !== undefined) updateFields.dedicationRating = dedicationRating;
-  if (disciplineRating !== undefined) updateFields.disciplineRating = disciplineRating;
-  
-  if (body.masoolRemarks !== undefined) updateFields.masoolRemarks = body.masoolRemarks;
-  if (body.remarksMasool !== undefined) updateFields.remarksMasool = body.remarksMasool;
-  if (body.remarksTahfeez !== undefined) updateFields.remarksTahfeez = body.remarksTahfeez;
-  if (body.remarksTaleem !== undefined) updateFields.remarksTaleem = body.remarksTaleem;
-  if (body.remarksTadeeb !== undefined) updateFields.remarksTadeeb = body.remarksTadeeb;
-  if (body.remarksTanzeem !== undefined) updateFields.remarksTanzeem = body.remarksTanzeem;
-  if (body.remarksSports !== undefined) updateFields.remarksSports = body.remarksSports;
-  if (body.remarksMaktabat !== undefined) updateFields.remarksMaktabat = body.remarksMaktabat;
-  if (body.remarksSkills !== undefined) updateFields.remarksSkills = body.remarksSkills;
-  if (body.remarksOtherExams !== undefined) updateFields.remarksOtherExams = body.remarksOtherExams;
-  if (body.remarksCounselling !== undefined) updateFields.remarksCounselling = body.remarksCounselling;
-  if (body.counsellingNotes !== undefined) updateFields.counsellingNotes = body.counsellingNotes;
+  if (perms.canEditRemarks) {
+    const behaviourRating = body.behaviourRating !== undefined ? parseInt(String(body.behaviourRating), 10) || null : undefined;
+    const communicationRating = body.communicationRating !== undefined ? parseInt(String(body.communicationRating), 10) || null : undefined;
+    const dedicationRating = body.dedicationRating !== undefined ? parseInt(String(body.dedicationRating), 10) || null : undefined;
+    const disciplineRating = body.disciplineRating !== undefined ? parseInt(String(body.disciplineRating), 10) || null : undefined;
+
+    if (behaviourRating !== undefined) updateFields.behaviourRating = behaviourRating;
+    if (communicationRating !== undefined) updateFields.communicationRating = communicationRating;
+    if (dedicationRating !== undefined) updateFields.dedicationRating = dedicationRating;
+    if (disciplineRating !== undefined) updateFields.disciplineRating = disciplineRating;
+    
+    if (body.masoolRemarks !== undefined) updateFields.masoolRemarks = body.masoolRemarks;
+    if (body.remarksMasool !== undefined) updateFields.remarksMasool = body.remarksMasool;
+    if (body.remarksTahfeez !== undefined) updateFields.remarksTahfeez = body.remarksTahfeez;
+    if (body.remarksTaleem !== undefined) updateFields.remarksTaleem = body.remarksTaleem;
+    if (body.remarksTadeeb !== undefined) updateFields.remarksTadeeb = body.remarksTadeeb;
+    if (body.remarksTanzeem !== undefined) updateFields.remarksTanzeem = body.remarksTanzeem;
+    if (body.remarksSports !== undefined) updateFields.remarksSports = body.remarksSports;
+    if (body.remarksMaktabat !== undefined) updateFields.remarksMaktabat = body.remarksMaktabat;
+    if (body.remarksSkills !== undefined) updateFields.remarksSkills = body.remarksSkills;
+    if (body.remarksOtherExams !== undefined) updateFields.remarksOtherExams = body.remarksOtherExams;
+  }
+
+  if (perms.canEditCounsellor) {
+    if (body.remarksCounselling !== undefined) updateFields.remarksCounselling = body.remarksCounselling;
+    if (body.counsellingNotes !== undefined) updateFields.counsellingNotes = body.counsellingNotes;
+  }
 
   const saved = await prisma.talabatProfile1447.upsert({
     where: { studentId: student.id },
@@ -1151,6 +1278,228 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
     success: true,
     data: saved,
     message: "Student profile updated successfully!",
+  });
+});
+
+// ── GET /api/talabat-profile/teaching-faculty ──
+// For Admin: Get all teachers who have assigned subjects for teaching
+router.get("/teaching-faculty", requireAuth, async (req, res) => {
+  const session = req.auth!;
+  if (session.user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+  }
+
+  const teachers = await prisma.teacherProfile.findMany({
+    where: {
+      user: { isActive: true, deletedAt: null },
+    },
+    include: {
+      user: {
+        select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, isActive: true },
+      },
+      portalAssignments: { where: { isActive: true } },
+      classes: { select: { id: true, name: true, grade: true } },
+      masoolClasses: { select: { id: true, name: true, grade: true } },
+    },
+    orderBy: { user: { firstName: "asc" } },
+  });
+
+  // Query timetable slots to identify assigned teaching subjects
+  const timetableSlots = await prisma.timetableSlot.findMany({
+    where: {
+      subject: { not: "" },
+    },
+    select: {
+      teacherId: true,
+      subject: true,
+    },
+  });
+
+  const slotsMap: Record<string, Set<string>> = {};
+  for (const slot of timetableSlots) {
+    if (slot.subject) {
+      const sub = slot.subject.trim();
+      if (slot.teacherId) {
+        if (!slotsMap[slot.teacherId]) slotsMap[slot.teacherId] = new Set();
+        slotsMap[slot.teacherId].add(sub);
+      }
+    }
+  }
+
+  // Filter and map ONLY teachers who have been assigned subjects for teaching
+  const teachingFaculty = teachers
+    .map((t) => {
+      const explicitSubjects = Array.isArray(t.subjects) ? t.subjects.filter(Boolean) : [];
+      const fromId = slotsMap[t.id] ? Array.from(slotsMap[t.id]) : [];
+      const fromUserId = slotsMap[t.userId] ? Array.from(slotsMap[t.userId]) : [];
+      const allSubjects = Array.from(new Set([...explicitSubjects, ...fromId, ...fromUserId]));
+
+      const activeAssignments = t.portalAssignments.map((a) =>
+        a.portalType.trim().toLowerCase().replace(/^page:/, "")
+      );
+      const isAll = t.portalAssignments.some((a) => a.portalType === "ALL" || a.portalType === "*");
+      const canEditRemarks =
+        isAll ||
+        activeAssignments.includes("talabat-profiles-remarks") ||
+        activeAssignments.includes("remarks-edit");
+      const canEditCounsellor =
+        isAll ||
+        activeAssignments.includes("counsellor-remarks") ||
+        activeAssignments.includes("counsellor");
+
+      return {
+        id: t.userId,
+        teacherProfileId: t.id,
+        name: `${t.user.firstName} ${t.user.lastName}`.trim(),
+        email: t.user.email,
+        employeeId: t.employeeId,
+        its: t.its || t.employeeId,
+        department: t.department || "Faculty",
+        avatarUrl: t.user.avatarUrl || t.photoUrl,
+        subjects: allSubjects,
+        hasAssignedSubjects: allSubjects.length > 0,
+        classes: t.classes.map((c) => c.name),
+        masoolClasses: t.masoolClasses.map((c) => c.name),
+        canEditRemarks,
+        canEditCounsellor,
+        isMasterAdmin: isAll,
+      };
+    })
+    .filter((t) => t.hasAssignedSubjects); // STRICTLY ONLY TEACHERS WITH ASSIGNED TEACHING SUBJECTS
+
+  return res.json({
+    success: true,
+    total: teachingFaculty.length,
+    faculty: teachingFaculty,
+  });
+});
+
+// ── POST /api/talabat-profile/assign-faculty-remarks ──
+// For Admin: Assign or revoke remarks editing and counsellor access for teaching faculty
+router.post("/assign-faculty-remarks", requireAuth, async (req, res) => {
+  const session = req.auth!;
+  if (session.user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+  }
+
+  const { teacherUserId, teacherProfileId, canEditRemarks, canEditCounsellor } = req.body || {};
+
+  const teacher = await prisma.teacherProfile.findFirst({
+    where: {
+      OR: [
+        { id: teacherProfileId || undefined },
+        { userId: teacherUserId || undefined },
+      ],
+    },
+    include: { user: true },
+  });
+
+  if (!teacher) {
+    return res.status(404).json({ success: false, error: "Teacher not found" });
+  }
+
+  // Manage talabat-profiles-remarks
+  if (canEditRemarks !== undefined) {
+    if (canEditRemarks) {
+      await prisma.teacherPortalAssignment.upsert({
+        where: {
+          teacherId_portalType: {
+            teacherId: teacher.id,
+            portalType: "PAGE:talabat-profiles-remarks",
+          },
+        },
+        create: {
+          teacherId: teacher.id,
+          portalType: "PAGE:talabat-profiles-remarks",
+          assignedById: session.user.id,
+          isActive: true,
+        },
+        update: {
+          isActive: true,
+          assignedById: session.user.id,
+        },
+      });
+      // Also ensure PAGE:talabat-profiles access exists so they can view the Yearly Profile page
+      await prisma.teacherPortalAssignment.upsert({
+        where: {
+          teacherId_portalType: {
+            teacherId: teacher.id,
+            portalType: "PAGE:talabat-profiles",
+          },
+        },
+        create: {
+          teacherId: teacher.id,
+          portalType: "PAGE:talabat-profiles",
+          assignedById: session.user.id,
+          isActive: true,
+        },
+        update: {
+          isActive: true,
+          assignedById: session.user.id,
+        },
+      });
+    } else {
+      await prisma.teacherPortalAssignment.deleteMany({
+        where: {
+          teacherId: teacher.id,
+          portalType: { in: ["PAGE:talabat-profiles-remarks", "talabat-profiles-remarks", "remarks-edit"] },
+        },
+      });
+    }
+  }
+
+  // Manage counsellor-remarks
+  if (canEditCounsellor !== undefined) {
+    if (canEditCounsellor) {
+      await prisma.teacherPortalAssignment.upsert({
+        where: {
+          teacherId_portalType: {
+            teacherId: teacher.id,
+            portalType: "PAGE:counsellor-remarks",
+          },
+        },
+        create: {
+          teacherId: teacher.id,
+          portalType: "PAGE:counsellor-remarks",
+          assignedById: session.user.id,
+          isActive: true,
+        },
+        update: {
+          isActive: true,
+          assignedById: session.user.id,
+        },
+      });
+      await prisma.teacherPortalAssignment.upsert({
+        where: {
+          teacherId_portalType: {
+            teacherId: teacher.id,
+            portalType: "PAGE:talabat-profiles",
+          },
+        },
+        create: {
+          teacherId: teacher.id,
+          portalType: "PAGE:talabat-profiles",
+          assignedById: session.user.id,
+          isActive: true,
+        },
+        update: {
+          isActive: true,
+          assignedById: session.user.id,
+        },
+      });
+    } else {
+      await prisma.teacherPortalAssignment.deleteMany({
+        where: {
+          teacherId: teacher.id,
+          portalType: { in: ["PAGE:counsellor-remarks", "counsellor-remarks", "counsellor"] },
+        },
+      });
+    }
+  }
+
+  return res.json({
+    success: true,
+    message: `Yearly Profile remarks privileges updated for ${teacher.user.firstName} ${teacher.user.lastName}`,
   });
 });
 

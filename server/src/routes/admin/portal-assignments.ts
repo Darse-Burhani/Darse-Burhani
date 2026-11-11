@@ -11,6 +11,8 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "dashboard", label: "Dashboard", category: "General", description: "Teacher main HUD & point analytics", path: "/teacher", icon: "LayoutDashboard" },
   { id: "classes", label: "Classes", category: "Academics", description: "Class student rosters & timetable", path: "/teacher/classes", icon: "BookOpen" },
   { id: "talabat-profiles", label: "Yearly Profile (1447 H)", category: "Community", description: "Talabat yearly profile, remarks & 1447 H records", path: "/teacher/talabat-profiles", icon: "GraduationCap" },
+  { id: "talabat-profiles-remarks", label: "Yearly Profile Remarks (Edit)", category: "Community", description: "Grant permission to edit Asateza remarks & ratings in Yearly Profile (Locked by default)", path: "/teacher/talabat-profiles", icon: "Edit3" },
+  { id: "counsellor-remarks", label: "Counsellor Remarks & Guidance", category: "Community", description: "Access and edit Counsellor Remarks tab in Yearly Profile (Confidential)", path: "/teacher/talabat-profiles", icon: "HeartHandshake" },
   { id: "timetable", label: "Timetable Matrix", category: "Academics", description: "Master timetable & schedule", path: "/teacher/timetable", icon: "CalendarDays" },
   { id: "badal", label: "Badal & Substitution Desk", category: "Academics", description: "Manage faculty substitution, proxy assignments & notification dispatches", path: "/teacher/timetable", icon: "ArrowRightLeft" },
   { id: "takhteet", label: "Takhteet (Curriculum Portion)", category: "Academics", description: "Curriculum pacing & syllabus tracking (Restricted to specific assigned faculty)", path: "/teacher/takhteet", icon: "Layers" },
@@ -75,6 +77,8 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "tracking" || clean === "analytics") return ["tracking"];
   if (clean === "classes" || clean === "class") return ["classes"];
   if (clean === "talabat-profiles" || clean === "talabat_profiles" || clean === "talabat-profile" || clean === "yearly-profile" || clean === "profile-1447" || clean === "profile1447") return ["talabat-profiles"];
+  if (clean === "talabat-profiles-remarks" || clean === "talabat_profiles_remarks" || clean === "profile-remarks" || clean === "yearly-profile-remarks" || clean === "remarks-edit") return ["talabat-profiles-remarks", "talabat-profiles"];
+  if (clean === "counsellor-remarks" || clean === "counsellor_remarks" || clean === "counsellor" || clean === "counselor" || clean === "counselor-remarks") return ["counsellor-remarks", "talabat-profiles"];
   if (clean === "timetable" || clean === "timetable-matrix" || clean === "schedule-matrix" || clean === "timetable-management" || clean === "matrix-management") return ["timetable"];
   if (clean === "badal" || clean === "badal-management" || clean === "substitution" || clean === "substitute") return ["badal", "timetable"];
   if (clean === "takhteet") return ["takhteet"];

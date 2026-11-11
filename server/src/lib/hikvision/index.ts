@@ -21,6 +21,12 @@ const ALGO = "aes-256-gcm";
 const SERIAL_DEDUPE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const MAX_SERIALS = 5000;
 
+const logger = {
+  info: (...args: any[]) => console.log(...args),
+  warn: (...args: any[]) => console.warn(...args),
+  error: (...args: any[]) => console.error(...args),
+};
+
 // ── Device credential encryption (AES-256-GCM keyed off NEXTAUTH_SECRET) ──
 
 function encKey(): Buffer {
@@ -544,10 +550,42 @@ export async function pullAllDevicesScansForRange(
     };
   }
 
+  // Strict Hardware Schedule Window Restrictions:
+  // If an active schedule window restricts polling to specific terminals (applicableDeviceIds),
+  // only eligible terminals are allowed to poll. Restricted terminals are skipped!
+  const { isAnyHardwareWindowOpen } = await import("../biometric");
+  const eligibleDevices: typeof targetDevices = [];
+  for (const dev of targetDevices) {
+    const hwStatus = await isAnyHardwareWindowOpen(toDate, 15, dev.id, dev.host).catch(() => ({ isOpen: true }));
+    if (hwStatus.isOpen) {
+      eligibleDevices.push(dev);
+    } else {
+      logger.info(`[hikvision] Terminal "${dev.name}" (${dev.host}) is restricted for the current schedule window — skipping polling.`);
+    }
+  }
+
+  if (eligibleDevices.length === 0) {
+    logger.info("[hikvision] All HIK terminals are currently restricted by attendance schedule windows.");
+    return {
+      success: true,
+      totalFetched: 0,
+      totalProcessed: 0,
+      devices: targetDevices.map((d) => ({
+        id: d.id,
+        name: d.name,
+        host: d.host,
+        success: true,
+        scansFetched: 0,
+        scansProcessed: 0,
+        error: "Restricted by active attendance schedule window",
+      })),
+    };
+  }
+
   // Terminals are pulled CONCURRENTLY: serial polling multiplied every device's
   // connect timeout and was the main reason /poll-now crossed the API budget.
   const results = await Promise.all(
-    targetDevices.map(async (dev) => {
+    eligibleDevices.map(async (dev) => {
       const res = await withDeadline(
         pullDeviceScansForRange(dev.id, effectiveFrom!, toDate),
         DEVICE_PULL_DEADLINE_MS,

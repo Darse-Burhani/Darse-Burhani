@@ -20,7 +20,9 @@ initWhatsAppBaileys().catch((err) =>
   console.warn("[whatsapp] Background engine startup notice:", (err as any)?.message || err)
 );
 
-// Ensure Tilawat al Dua schedule window applies to ALL Talabat without restrictive class filters
+// Ensure Tilawat al Dua schedule window applies to BOTH Faculty & Talabat:
+// 1. No restrictive class filters — every talab is covered
+// 2. Audience is locked to BOTH so faculty and talabat both scan the same event
 prisma.biometricScanWindow.updateMany({
   where: {
     OR: [
@@ -30,6 +32,37 @@ prisma.biometricScanWindow.updateMany({
   },
   data: { applicableClassIds: [] },
 }).catch((err) => console.warn("[startup] Scan window initialization notice:", (err as any)?.message || err));
+
+prisma.biometricScanWindow
+  .findMany({
+    where: {
+      OR: [
+        { id: "default" },
+        { name: { contains: "Tilawat", mode: "insensitive" } },
+      ],
+    },
+  })
+  .then(async (tilawatWindows) => {
+    for (const w of tilawatWindows) {
+      const exempt = Array.isArray((w as any).exemptStudentIds) ? ((w as any).exemptStudentIds as string[]) : [];
+      const hasAudienceTag = exempt.some((t) => t.startsWith("AUDIENCE_"));
+      if (hasAudienceTag && !exempt.includes("AUDIENCE_BOTH")) {
+        // Force Tilawat to BOTH: drop any faculty-only / student-only audience tag
+        await prisma.biometricScanWindow.update({
+          where: { id: w.id },
+          data: {
+            exemptStudentIds: [...exempt.filter((t) => !t.startsWith("AUDIENCE_")), "AUDIENCE_BOTH"],
+          },
+        }).catch(() => {});
+      } else if (!hasAudienceTag) {
+        await prisma.biometricScanWindow.update({
+          where: { id: w.id },
+          data: { exemptStudentIds: [...exempt, "AUDIENCE_BOTH"] },
+        }).catch(() => {});
+      }
+    }
+  })
+  .catch((err) => console.warn("[startup] Tilawat audience normalization notice:", (err as any)?.message || err));
 
 const port = Number(process.env.PORT || 4000);
 const host = "0.0.0.0";
