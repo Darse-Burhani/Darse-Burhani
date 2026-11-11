@@ -36,6 +36,13 @@ export interface ReviewLeaveInput {
   startDate?: Date | string | null;
   /** Optional custom end date override by administrator */
   endDate?: Date | string | null;
+  /**
+   * Re-run the full approval pipeline on an already-APPROVED leave.
+   * Used by the admin "Edit leave dates" flow so date changes on approved
+   * leaves actually update the record and re-sync attendance (without it,
+   * approved leaves return early and date edits are silently ignored).
+   */
+  forceResync?: boolean;
 }
 
 export interface AssignLeaveInput {
@@ -630,7 +637,7 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     throw new Error("Leave request not found");
   }
 
-  if (leave.status === LeaveStatus.APPROVED) {
+  if (leave.status === LeaveStatus.APPROVED && !input.forceResync) {
     return leave;
   }
 

@@ -32,5 +32,7 @@ services:
         value: "587"
       - key: LEAVE_SMTP_SECURE
         value: "false"
+      - key: RESEND_API_KEY
+        sync: false
 
 

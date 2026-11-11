@@ -1172,6 +1172,7 @@ router.patch("/:id/dates", requireRole("ADMIN"), async (req, res) => {
         endDate: end.toISOString(),
         reviewerNotes: notes || leave.reviewerNotes || undefined,
         reviewerId,
+        forceResync: true,
       });
 
       return res.json({

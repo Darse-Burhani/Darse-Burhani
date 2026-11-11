@@ -16,6 +16,7 @@ export interface SmtpConfigStatus {
   activeMailbox: string;
   hasDedicatedLeaveCreds: boolean;
   hasPrimaryCreds: boolean;
+  hasResend: boolean;
   adminMailbox: string;
   host: string;
   port: number;
@@ -24,7 +25,7 @@ export interface SmtpConfigStatus {
 export interface SmtpTestResult {
   ok: boolean;
   mailbox: string;
-  transportType: "dedicated_leave" | "primary" | "outlook" | "none";
+  transportType: "resend" | "dedicated_leave" | "primary" | "outlook" | "none";
   error?: string;
   message?: string;
 }
@@ -116,6 +117,80 @@ export const LEAVE_FROM =
   process.env.LEAVE_SMTP_FROM ||
   `Darse Burhani Galiakot <${cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org"}>`;
 
+export function isResendConfigured(): boolean {
+  return Boolean(cleanSecret(process.env.RESEND_API_KEY));
+}
+
+interface ResendDispatchResult {
+  ok: boolean;
+  error?: string;
+  messageId?: string;
+}
+
+/**
+ * HTTPS-first email dispatch through the Resend REST API (port 443).
+ *
+ * Render free web services block ALL outbound SMTP ports (25/465/587), so raw
+ * nodemailer transports hang until timeout in production. Resend travels over
+ * HTTPS and works on any host; SMTP transports remain available as fallbacks
+ * for local development.
+ */
+async function dispatchResend(mailOptions: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  headers?: Record<string, unknown>;
+}): Promise<ResendDispatchResult> {
+  const apiKey = cleanSecret(process.env.RESEND_API_KEY);
+  if (!apiKey) {
+    return { ok: false, error: "RESEND_API_KEY is not configured" };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: mailOptions.from,
+        to: [mailOptions.to],
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        ...(mailOptions.text ? { text: mailOptions.text } : {}),
+        ...(mailOptions.headers ? { headers: mailOptions.headers } : {}),
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      return {
+        ok: false,
+        error: `Resend API ${response.status}: ${detail.slice(0, 220) || response.statusText}`,
+      };
+    }
+
+    const data = (await response.json().catch(() => ({}))) as { id?: string };
+    return { ok: true, messageId: data.id };
+  } catch (err: any) {
+    return {
+      ok: false,
+      error:
+        err?.name === "AbortError"
+          ? "Resend API request timed out after 15s"
+          : err?.message || String(err),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function getSmtpConfigStatus(): SmtpConfigStatus {
   const leaveUser = cleanEmail(process.env.LEAVE_SMTP_USER || process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org");
   const leavePass = cleanSecret(process.env.LEAVE_SMTP_PASS);
@@ -124,12 +199,14 @@ export function getSmtpConfigStatus(): SmtpConfigStatus {
 
   const hasDedicated = Boolean(leavePass && !isPlaceholderSecret(leavePass));
   const hasPrimary = Boolean(primaryUser && primaryPass && !isPlaceholderSecret(primaryPass));
+  const hasResend = isResendConfigured();
 
   return {
-    configured: hasDedicated || hasPrimary,
+    configured: hasDedicated || hasPrimary || hasResend,
     activeMailbox: hasDedicated ? leaveUser : primaryUser || leaveUser,
     hasDedicatedLeaveCreds: hasDedicated,
     hasPrimaryCreds: hasPrimary,
+    hasResend,
     adminMailbox: cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org",
     host: process.env.LEAVE_SMTP_HOST || process.env.SMTP_HOST || "smtp.gmail.com",
     port: parseInt(process.env.LEAVE_SMTP_PORT || process.env.SMTP_PORT || "587"),
@@ -242,7 +319,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   const primary = getPrimaryTransporter() || getLeaveTransporter();
   const fallback = getFallbackTransporter();
 
-  if (!primary && !fallback) {
+  if (!primary && !fallback && !isResendConfigured()) {
     console.error("[email] No SMTP transporter configured — cannot send email");
     return false;
   }
@@ -256,6 +333,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     : cleanEmail(process.env.LEAVE_SMTP_USER || process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org";
   const from = options.from || process.env.SMTP_FROM || process.env.LEAVE_SMTP_FROM || `Darse Burhani <${fromEmail}>`;
   const mailOptions = buildMailOptions(options, from, fromEmail);
+
+  // HTTPS-first: Resend works on any host (Render blocks outbound SMTP ports)
+  if (isResendConfigured()) {
+    const resendResult = await dispatchResend(mailOptions);
+    if (resendResult.ok) return true;
+    console.warn(`[email] Resend dispatch failed for ${options.to}: ${resendResult.error}`);
+  }
 
   if (primary) {
     try {
@@ -301,6 +385,19 @@ export async function sendLeaveEmailDetailed(options: SendEmailOptions): Promise
   const payload = { ...options, transactional: true };
   const fromHeader = options.from || LEAVE_FROM;
   const mailOptions = buildMailOptions(payload, fromHeader, fromEmail);
+
+  // 0. HTTPS-first via Resend — outbound SMTP ports are blocked on Render free
+  //    web services, so raw SMTP transports hang until timeout in production.
+  let resendError: string | undefined;
+  if (isResendConfigured()) {
+    const resendResult = await dispatchResend(mailOptions);
+    if (resendResult.ok) {
+      console.log(`[email] Leave email delivered to ${options.to} via Resend HTTPS API [id=${resendResult.messageId}]`);
+      return { success: true, mailbox: fromEmail, messageId: resendResult.messageId };
+    }
+    resendError = resendResult.error;
+    console.error(`[email] Resend HTTPS dispatch failed for ${options.to}: ${resendError}`);
+  }
 
   // 1. Try dedicated Galiakot Leave Transport
   const leaveTransport = getLeaveTransporter();
@@ -348,8 +445,12 @@ export async function sendLeaveEmailDetailed(options: SendEmailOptions): Promise
 
   const rawPass = process.env.LEAVE_SMTP_PASS;
   let reason: string;
-  if (!rawPass || !rawPass.trim()) {
-    reason = "LEAVE_SMTP_PASS is not configured in environment variables. Please add a 16-character Google App Password in Render Dashboard.";
+  if (resendError && (!rawPass || !rawPass.trim())) {
+    reason = `Resend HTTPS dispatch failed: ${resendError}. LEAVE_SMTP_PASS is not configured as an SMTP fallback.`;
+  } else if (resendError) {
+    reason = `Resend HTTPS dispatch failed (${resendError}) and SMTP fallback also failed. Verify the sending domain in Resend and ensure LEAVE_SMTP_PASS is a genuine 16-character Google App Password.`;
+  } else if (!rawPass || !rawPass.trim()) {
+    reason = "LEAVE_SMTP_PASS is not configured in environment variables. Please add a 16-character Google App Password (or set RESEND_API_KEY) in Render Dashboard.";
   } else if (isPlaceholderSecret(rawPass)) {
     reason = "LEAVE_SMTP_PASS contains placeholder text ('your-app-password'). Please replace with a genuine 16-character Google App Password.";
   } else {
@@ -409,6 +510,44 @@ export async function testLeaveSmtpConnection(force = false): Promise<SmtpTestRe
   }
 
   let result: SmtpTestResult;
+
+  // HTTPS-first: verify Resend API key reachability (no mail sent)
+  if (isResendConfigured()) {
+    const mailbox = cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org";
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const resp = await fetch("https://api.resend.com/domains", {
+        headers: { Authorization: `Bearer ${cleanSecret(process.env.RESEND_API_KEY)}` },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        result = {
+          ok: true,
+          mailbox,
+          transportType: "resend",
+          message: "Resend HTTPS API reachable and API key valid",
+        };
+      } else {
+        result = {
+          ok: false,
+          mailbox,
+          transportType: "resend",
+          error: `Resend API responded with status ${resp.status} — check RESEND_API_KEY`,
+        };
+      }
+    } catch (err: any) {
+      result = {
+        ok: false,
+        mailbox,
+        transportType: "resend",
+        error: err?.name === "AbortError" ? "Resend API request timed out after 5s" : err?.message || String(err),
+      };
+    }
+    cachedSmtpResult = { result, expiresAt: now + (result.ok ? 60_000 : 30_000) };
+    return result;
+  }
 
   const leaveTransport = getLeaveTransporter();
   if (leaveTransport) {
@@ -490,7 +629,7 @@ export async function testLeaveSmtpConnection(force = false): Promise<SmtpTestRe
     ok: false,
     mailbox: cleanEmail(process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org"),
     transportType: "none",
-    error: "No SMTP credentials configured. Set LEAVE_SMTP_PASS in environment variables.",
+    error: "No email transport configured. Set RESEND_API_KEY (recommended for Render) or LEAVE_SMTP_PASS in environment variables.",
   };
   cachedSmtpResult = { result, expiresAt: now + 60_000 };
   return result;
