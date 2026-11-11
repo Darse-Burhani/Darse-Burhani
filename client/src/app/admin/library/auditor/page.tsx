@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Clock, ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
+import { Clock, ArrowRight, ShieldCheck, UserCheck, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──
@@ -212,6 +212,7 @@ export default function AuditorPage() {
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
+          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
         ]}
       />
 

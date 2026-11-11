@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
-import { Barcode, Layers, ShieldCheck, ArrowRight, UserCheck } from "lucide-react";
+import { Barcode, Layers, ShieldCheck, ArrowRight, UserCheck, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 
 // ── Types ──
@@ -258,6 +258,7 @@ export default function OverduePage() {
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
+          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
         ]}
       />
 

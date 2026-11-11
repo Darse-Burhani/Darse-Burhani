@@ -22,6 +22,7 @@ import {
   BookX,
   Layers,
   ShieldCheck,
+  LayoutDashboard,
   ArrowRight,
   Send,
   MessageSquare,
@@ -858,6 +859,7 @@ export default function CheckoutPage() {
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
+          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
         ]}
       />
 

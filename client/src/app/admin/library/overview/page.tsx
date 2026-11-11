@@ -21,6 +21,7 @@ import {
   UserCheck,
   ArrowRight,
   ShieldCheck,
+  LayoutDashboard,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +161,7 @@ export default function LibraryOverviewPage() {
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
+          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
         ]}
       />
 

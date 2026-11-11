@@ -34,6 +34,7 @@ import {
   CalendarDays,
   ArrowRight,
   ShieldCheck,
+  LayoutDashboard,
   QrCode,
   Copy,
   LayoutGrid,
@@ -2136,6 +2137,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
           { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
           { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
+          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
         ]}
       />
 
