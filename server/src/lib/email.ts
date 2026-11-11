@@ -17,6 +17,7 @@ export interface SmtpConfigStatus {
   hasDedicatedLeaveCreds: boolean;
   hasPrimaryCreds: boolean;
   hasResend: boolean;
+  hasBrevo: boolean;
   adminMailbox: string;
   host: string;
   port: number;
@@ -25,7 +26,7 @@ export interface SmtpConfigStatus {
 export interface SmtpTestResult {
   ok: boolean;
   mailbox: string;
-  transportType: "resend" | "dedicated_leave" | "primary" | "outlook" | "none";
+  transportType: "resend" | "brevo" | "dedicated_leave" | "primary" | "outlook" | "none";
   error?: string;
   message?: string;
 }
@@ -191,6 +192,84 @@ async function dispatchResend(mailOptions: {
   }
 }
 
+export function isBrevoConfigured(): boolean {
+  return Boolean(cleanSecret(process.env.BREVO_API_KEY));
+}
+
+/** Parses a `"Name <user@host>"` (or bare address) From header into Brevo's sender shape. */
+function parseFromHeader(from: string): { name: string; email: string } {
+  const match = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (match) {
+    const email = cleanEmail(match[2]);
+    return { name: match[1].trim() || email, email };
+  }
+  const email = cleanEmail(from);
+  return { name: email, email };
+}
+
+/**
+ * HTTPS email dispatch through the Brevo REST API (port 443), as a second
+ * provider alongside Resend. Whichever API key is configured first in the
+ * chain gets used; both are attempted before falling back to raw SMTP.
+ */
+async function dispatchBrevo(mailOptions: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  headers?: Record<string, unknown>;
+}): Promise<ResendDispatchResult> {
+  const apiKey = cleanSecret(process.env.BREVO_API_KEY);
+  if (!apiKey) {
+    return { ok: false, error: "BREVO_API_KEY is not configured" };
+  }
+
+  const sender = parseFromHeader(mailOptions.from);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email: cleanEmail(mailOptions.to) }],
+        subject: mailOptions.subject,
+        htmlContent: mailOptions.html,
+        ...(mailOptions.text ? { textContent: mailOptions.text } : {}),
+        ...(mailOptions.headers ? { headers: mailOptions.headers } : {}),
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      return {
+        ok: false,
+        error: `Brevo API ${response.status}: ${detail.slice(0, 220) || response.statusText}`,
+      };
+    }
+
+    const data = (await response.json().catch(() => ({}))) as { messageId?: string };
+    return { ok: true, messageId: data.messageId };
+  } catch (err: any) {
+    return {
+      ok: false,
+      error:
+        err?.name === "AbortError"
+          ? "Brevo API request timed out after 15s"
+          : err?.message || String(err),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function getSmtpConfigStatus(): SmtpConfigStatus {
   const leaveUser = cleanEmail(process.env.LEAVE_SMTP_USER || process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org");
   const leavePass = cleanSecret(process.env.LEAVE_SMTP_PASS);
@@ -200,13 +279,15 @@ export function getSmtpConfigStatus(): SmtpConfigStatus {
   const hasDedicated = Boolean(leavePass && !isPlaceholderSecret(leavePass));
   const hasPrimary = Boolean(primaryUser && primaryPass && !isPlaceholderSecret(primaryPass));
   const hasResend = isResendConfigured();
+  const hasBrevo = isBrevoConfigured();
 
   return {
-    configured: hasDedicated || hasPrimary || hasResend,
+    configured: hasDedicated || hasPrimary || hasResend || hasBrevo,
     activeMailbox: hasDedicated ? leaveUser : primaryUser || leaveUser,
     hasDedicatedLeaveCreds: hasDedicated,
     hasPrimaryCreds: hasPrimary,
     hasResend,
+    hasBrevo,
     adminMailbox: cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org",
     host: process.env.LEAVE_SMTP_HOST || process.env.SMTP_HOST || "smtp.gmail.com",
     port: parseInt(process.env.LEAVE_SMTP_PORT || process.env.SMTP_PORT || "587"),
@@ -341,6 +422,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     console.warn(`[email] Resend dispatch failed for ${options.to}: ${resendResult.error}`);
   }
 
+  // Second HTTPS provider: Brevo (whichever key is configured gets used)
+  if (isBrevoConfigured()) {
+    const brevoResult = await dispatchBrevo(mailOptions);
+    if (brevoResult.ok) return true;
+    console.warn(`[email] Brevo dispatch failed for ${options.to}: ${brevoResult.error}`);
+  }
+
   if (primary) {
     try {
       await primary.sendMail(mailOptions);
@@ -399,6 +487,18 @@ export async function sendLeaveEmailDetailed(options: SendEmailOptions): Promise
     console.error(`[email] Resend HTTPS dispatch failed for ${options.to}: ${resendError}`);
   }
 
+  // 0b. Second HTTPS provider: Brevo
+  let brevoError: string | undefined;
+  if (isBrevoConfigured()) {
+    const brevoResult = await dispatchBrevo(mailOptions);
+    if (brevoResult.ok) {
+      console.log(`[email] Leave email delivered to ${options.to} via Brevo HTTPS API [id=${brevoResult.messageId}]`);
+      return { success: true, mailbox: fromEmail, messageId: brevoResult.messageId };
+    }
+    brevoError = brevoResult.error;
+    console.error(`[email] Brevo HTTPS dispatch failed for ${options.to}: ${brevoError}`);
+  }
+
   // 1. Try dedicated Galiakot Leave Transport
   const leaveTransport = getLeaveTransporter();
   if (leaveTransport) {
@@ -444,13 +544,16 @@ export async function sendLeaveEmailDetailed(options: SendEmailOptions): Promise
   }
 
   const rawPass = process.env.LEAVE_SMTP_PASS;
+  const httpsIssues = [resendError ? `Resend: ${resendError}` : null, brevoError ? `Brevo: ${brevoError}` : null]
+    .filter(Boolean)
+    .join("; ");
   let reason: string;
-  if (resendError && (!rawPass || !rawPass.trim())) {
-    reason = `Resend HTTPS dispatch failed: ${resendError}. LEAVE_SMTP_PASS is not configured as an SMTP fallback.`;
-  } else if (resendError) {
-    reason = `Resend HTTPS dispatch failed (${resendError}) and SMTP fallback also failed. Verify the sending domain in Resend and ensure LEAVE_SMTP_PASS is a genuine 16-character Google App Password.`;
+  if (httpsIssues && (!rawPass || !rawPass.trim())) {
+    reason = `HTTPS email dispatch failed (${httpsIssues}). LEAVE_SMTP_PASS is not configured as an SMTP fallback.`;
+  } else if (httpsIssues) {
+    reason = `HTTPS email dispatch failed (${httpsIssues}) and SMTP fallback also failed. Verify your sender/domain in Resend or Brevo and ensure LEAVE_SMTP_PASS is a genuine 16-character Google App Password.`;
   } else if (!rawPass || !rawPass.trim()) {
-    reason = "LEAVE_SMTP_PASS is not configured in environment variables. Please add a 16-character Google App Password (or set RESEND_API_KEY) in Render Dashboard.";
+    reason = "LEAVE_SMTP_PASS is not configured in environment variables. Please add RESEND_API_KEY or BREVO_API_KEY (recommended for Render) or a 16-character Google App Password in Render Dashboard.";
   } else if (isPlaceholderSecret(rawPass)) {
     reason = "LEAVE_SMTP_PASS contains placeholder text ('your-app-password'). Please replace with a genuine 16-character Google App Password.";
   } else {
@@ -511,7 +614,8 @@ export async function testLeaveSmtpConnection(force = false): Promise<SmtpTestRe
 
   let result: SmtpTestResult;
 
-  // HTTPS-first: verify Resend API key reachability (no mail sent)
+  // HTTPS-first: verify Resend and Brevo API keys (no mail sent)
+  const httpsErrors: string[] = [];
   if (isResendConfigured()) {
     const mailbox = cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org";
     try {
@@ -529,23 +633,57 @@ export async function testLeaveSmtpConnection(force = false): Promise<SmtpTestRe
           transportType: "resend",
           message: "Resend HTTPS API reachable and API key valid",
         };
-      } else {
-        result = {
-          ok: false,
-          mailbox,
-          transportType: "resend",
-          error: `Resend API responded with status ${resp.status} — check RESEND_API_KEY`,
-        };
+        cachedSmtpResult = { result, expiresAt: now + 60_000 };
+        return result;
       }
+      httpsErrors.push(`Resend API responded with status ${resp.status} — check RESEND_API_KEY`);
     } catch (err: any) {
-      result = {
-        ok: false,
-        mailbox,
-        transportType: "resend",
-        error: err?.name === "AbortError" ? "Resend API request timed out after 5s" : err?.message || String(err),
-      };
+      httpsErrors.push(
+        err?.name === "AbortError"
+          ? "Resend API request timed out after 5s"
+          : `Resend: ${err?.message || String(err)}`
+      );
     }
-    cachedSmtpResult = { result, expiresAt: now + (result.ok ? 60_000 : 30_000) };
+  }
+
+  if (isBrevoConfigured()) {
+    const mailbox = cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org";
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const resp = await fetch("https://api.brevo.com/v3/account", {
+        headers: { "api-key": cleanSecret(process.env.BREVO_API_KEY)!, Accept: "application/json" },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        result = {
+          ok: true,
+          mailbox,
+          transportType: "brevo",
+          message: "Brevo HTTPS API reachable and API key valid",
+        };
+        cachedSmtpResult = { result, expiresAt: now + 60_000 };
+        return result;
+      }
+      httpsErrors.push(`Brevo API responded with status ${resp.status} — check BREVO_API_KEY`);
+    } catch (err: any) {
+      httpsErrors.push(
+        err?.name === "AbortError"
+          ? "Brevo API request timed out after 5s"
+          : `Brevo: ${err?.message || String(err)}`
+      );
+    }
+  }
+
+  if (httpsErrors.length > 0) {
+    result = {
+      ok: false,
+      mailbox: cleanEmail(process.env.LEAVE_ADMIN_EMAIL) || "admin.galiakot@darseburhani.org",
+      transportType: isResendConfigured() ? "resend" : "brevo",
+      error: httpsErrors.join("; "),
+    };
+    cachedSmtpResult = { result, expiresAt: now + 30_000 };
     return result;
   }
 
@@ -629,7 +767,7 @@ export async function testLeaveSmtpConnection(force = false): Promise<SmtpTestRe
     ok: false,
     mailbox: cleanEmail(process.env.LEAVE_ADMIN_EMAIL || "admin.galiakot@darseburhani.org"),
     transportType: "none",
-    error: "No email transport configured. Set RESEND_API_KEY (recommended for Render) or LEAVE_SMTP_PASS in environment variables.",
+    error: "No email transport configured. Set RESEND_API_KEY or BREVO_API_KEY (recommended for Render) or LEAVE_SMTP_PASS in environment variables.",
   };
   cachedSmtpResult = { result, expiresAt: now + 60_000 };
   return result;
