@@ -38,7 +38,8 @@ async function main() {
   for (const dev of devices) {
     console.log(`\n👉 Polling Terminal: "${dev.name}" (${dev.host}:${dev.port})...`);
     try {
-      const pollRes = await pollDevice(dev.id, false);
+      const pollFrom = dev.lastEventCursor ? new Date(dev.lastEventCursor.getTime() - 60_000) : startOfTodayIST;
+      const pollRes = await pollDevice(dev.id, true, pollFrom, now);
       console.log(`   ✅ Poll Completed: Fetched=${pollRes.scansFetched}, Processed=${pollRes.scansProcessed}`);
     } catch (err: any) {
       console.error(`   ❌ Failed polling device ${dev.host}:`, err?.message || err);
@@ -51,23 +52,12 @@ async function main() {
     include: { user: true }
   });
   if (murtazaJamali) {
-    const jamaliCheckIn = new Date("2026-11-10T02:37:31.000Z"); // 08:07:31 am IST
-    await prisma.teacherAttendanceRecord.upsert({
+    const existingRec = await prisma.teacherAttendanceRecord.findUnique({
       where: { teacherId_date: { teacherId: murtazaJamali.id, date: targetDate } },
-      create: {
-        teacherId: murtazaJamali.id,
-        date: targetDate,
-        status: "LATE",
-        checkInTime: jamaliCheckIn,
-        verificationMethod: "BIOMETRIC",
-      },
-      update: {
-        status: "LATE",
-        checkInTime: jamaliCheckIn,
-        verificationMethod: "BIOMETRIC",
-      },
     });
-    console.log(`✅ Shaikh Murtaza Jamali (30387984) attendance verified & updated to LATE (08:07 am IST).`);
+    if (existingRec) {
+      console.log(`✅ Shaikh Murtaza Jamali (30387984) attendance record found: ${existingRec.status} at ${existingRec.checkInTime}`);
+    }
   }
 
   // 2. Fetch all verified student check-ins from AttendanceRegistry for today
