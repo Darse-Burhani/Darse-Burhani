@@ -824,6 +824,49 @@ export async function updateAdminLeaveDates(
   });
 }
 
+export interface LeaveSmtpConfigStatus {
+  configured: boolean;
+  activeMailbox: string;
+  hasDedicatedLeaveCreds: boolean;
+  hasPrimaryCreds: boolean;
+  hasResend: boolean;
+  hasBrevo: boolean;
+  adminMailbox: string;
+  host: string;
+  port: number;
+}
+
+export interface LeaveSmtpTestResult {
+  ok: boolean;
+  mailbox: string;
+  transportType: string;
+  error?: string;
+  message?: string;
+}
+
+export async function getLeaveSmtpStatus(): Promise<{
+  config: LeaveSmtpConfigStatus;
+  live: LeaveSmtpTestResult;
+}> {
+  const res = await request<{ success: boolean; data: { config: LeaveSmtpConfigStatus; live: LeaveSmtpTestResult } }>(
+    "/api/admin/leave/smtp-status",
+    { method: "GET" }
+  );
+  return (res as any).data || (res as any);
+}
+
+export async function sendLeaveTestEmail(to?: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: LeaveSmtpTestResult & { to?: string };
+}> {
+  return request("/api/admin/leave/test-email", {
+    method: "POST",
+    body: JSON.stringify(to ? { to } : {}),
+  });
+}
+
 export async function deleteAdminLeave(leaveId: string): Promise<{ id: string; status: string }> {
   return request<{ id: string; status: string }>(`/api/admin/leave/${leaveId}`, {
     method: "DELETE",

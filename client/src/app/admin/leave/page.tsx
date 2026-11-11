@@ -20,6 +20,9 @@ import {
   Check,
   GraduationCap,
   Users,
+  Mail,
+  Send,
+  AlertTriangle,
 } from "lucide-react";
 import {
   getAdminLeaves,
@@ -33,6 +36,10 @@ import {
   assignAdminLeave,
   unassignAdminLeave,
   getFacultyLeaves,
+  getLeaveSmtpStatus,
+  sendLeaveTestEmail,
+  LeaveSmtpConfigStatus,
+  LeaveSmtpTestResult,
   LeaveRequestItem,
   AdminLeaveStats,
   PortalLeaveMember,
@@ -203,6 +210,51 @@ export default function AdminLeavePage() {
   const distinctGrades = Array.from(new Set(gradesSections.map((g) => g.grade))).sort();
   const distinctSections = Array.from(new Set(gradesSections.map((g) => g.section))).sort();
 
+  // ── Email service status (leave notification delivery) ──
+  const [smtpStatus, setSmtpStatus] = useState<{ config: LeaveSmtpConfigStatus; live: LeaveSmtpTestResult } | null>(null);
+  const [smtpChecking, setSmtpChecking] = useState(false);
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const refreshSmtpStatus = useCallback(async () => {
+    setSmtpChecking(true);
+    try {
+      setSmtpStatus(await getLeaveSmtpStatus());
+    } catch {
+      setSmtpStatus(null);
+    } finally {
+      setSmtpChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshSmtpStatus();
+  }, [refreshSmtpStatus]);
+
+  const handleSmtpTest = async () => {
+    setSmtpTesting(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await sendLeaveTestEmail();
+      if (res.success) {
+        setSmtpTestResult({ ok: true, text: res.message || "Test email dispatched successfully." });
+      } else {
+        setSmtpTestResult({ ok: false, text: res.error || "Test email failed." });
+      }
+    } catch (err: any) {
+      setSmtpTestResult({ ok: false, text: err.message || "Test email failed." });
+    } finally {
+      setSmtpTesting(false);
+      refreshSmtpStatus();
+    }
+  };
+
+  const providerChips = [
+    { label: "Resend", active: !!smtpStatus?.config.hasResend },
+    { label: "Brevo", active: !!smtpStatus?.config.hasBrevo },
+    { label: "Google SMTP", active: !!smtpStatus?.config.hasDedicatedLeaveCreds || !!smtpStatus?.config.hasPrimaryCreds },
+  ];
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* ── Page Header ── */}
@@ -230,6 +282,89 @@ export default function AdminLeavePage() {
             title="Refresh records"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Email Service Status ── */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+            <Mail className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-bold text-sm text-gray-900">Leave Email Service</p>
+              {smtpStatus?.config.configured ? (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wide">
+                  Ready
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wide">
+                  Not Configured
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+              {providerChips.map((chip) => (
+                <span
+                  key={chip.label}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    chip.active
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : "bg-gray-50 text-gray-400 border border-gray-100"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${chip.active ? "bg-emerald-500" : "bg-gray-300"}`} />
+                  {chip.label}
+                </span>
+              ))}
+              <span className="text-[11px] text-gray-500 truncate">
+                · {smtpStatus?.config.activeMailbox || "admin.galiakot@darseburhani.org"}
+              </span>
+            </div>
+            {smtpStatus && !smtpStatus.live.ok && (
+              <p className="text-[11px] text-amber-700 mt-1 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                <span className="truncate" title={smtpStatus.live.error}>
+                  Connectivity: {smtpStatus.live.error}
+                </span>
+              </p>
+            )}
+            {smtpTestResult && (
+              <p
+                className={`text-[11px] mt-1 flex items-start gap-1 ${
+                  smtpTestResult.ok ? "text-emerald-700" : "text-red-700"
+                }`}
+              >
+                {smtpTestResult.ok ? (
+                  <CheckCircle2 className="w-3 h-3 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                )}
+                <span>{smtpTestResult.text}</span>
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={refreshSmtpStatus}
+            disabled={smtpChecking}
+            className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
+            title="Re-check email connectivity"
+          >
+            <RefreshCw className={`w-4 h-4 ${smtpChecking ? "animate-spin text-emerald-600" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={handleSmtpTest}
+            disabled={smtpTesting || !smtpStatus?.config.configured}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {smtpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <span>Send Test Email</span>
           </button>
         </div>
       </div>
