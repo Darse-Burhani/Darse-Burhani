@@ -619,8 +619,20 @@ export function resolveScanStatus(
   scanMinutes: number,
 ): "TOO_EARLY" | "PRESENT" | "LATE" | "CLOSED" {
   if (scanMinutes < window.startMinutes) return "PRESENT"; // Early arrivals are PRESENT (on-time)
-  if (scanMinutes <= window.endMinutes) return "PRESENT";
-  if (scanMinutes <= window.lateEndMinutes) return "LATE";
+
+  // The admin-configured grace period extends the ON-TIME boundary: a scan
+  // after endTime but within endTime + graceMinutes still counts as PRESENT.
+  // The grace period was previously stored on the window but never applied, so
+  // scans inside the grace were wrongly marked LATE.
+  const grace = Math.max(0, window.graceMinutes || 0);
+  const presentUntil = window.endMinutes + grace;
+  if (scanMinutes <= presentUntil) return "PRESENT";
+
+  // Late zone still ends at the configured late boundary; a grace period can
+  // never push the late cut-off earlier than the on-time boundary itself.
+  const lateUntil = Math.max(window.lateEndMinutes, presentUntil);
+  if (scanMinutes <= lateUntil) return "LATE";
+
   return "CLOSED";
 }
 
@@ -669,7 +681,9 @@ export async function isRoleWindowOpen(
 
   const { scanMinutes } = getISTDetails(scanTime);
   const containing = usable.find(
-    (w) => scanMinutes >= w.startMinutes && scanMinutes <= w.lateEndMinutes,
+    (w) =>
+      scanMinutes >= w.startMinutes &&
+      scanMinutes <= Math.max(w.lateEndMinutes, w.endMinutes + Math.max(0, w.graceMinutes || 0)),
   );
   if (containing) {
     const phase = resolveScanStatus(containing, scanMinutes);

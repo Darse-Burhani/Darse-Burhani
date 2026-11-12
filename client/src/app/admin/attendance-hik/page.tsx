@@ -1279,13 +1279,13 @@ export default function AdminAttendanceHikPage() {
               onClick={() => handleStatusFilterChange("MEDICAL")}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                 statusFilter === "MEDICAL"
-                  ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                  : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
+                  ? "bg-cyan-600 text-white border-cyan-600 shadow-xs"
+                  : "bg-cyan-50 text-cyan-800 border-cyan-200 hover:bg-cyan-100"
               }`}
             >
               <Activity className="w-3.5 h-3.5 shrink-0" />
               <span>Medical</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "MEDICAL" ? "bg-white/20 text-white" : "bg-purple-200 text-purple-900 font-bold"}`}>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "MEDICAL" ? "bg-white/20 text-white" : "bg-cyan-200 text-cyan-900 font-bold"}`}>
                 {stats.medicalCount}
               </span>
             </button>
@@ -1296,13 +1296,13 @@ export default function AdminAttendanceHikPage() {
               onClick={() => handleStatusFilterChange("ON_LEAVE")}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                 statusFilter === "ON_LEAVE"
-                  ? "bg-sky-600 text-white border-sky-600 shadow-xs"
-                  : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
+                  ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                  : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
               }`}
             >
               <Briefcase className="w-3.5 h-3.5 shrink-0" />
               <span>On Leave</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "ON_LEAVE" ? "bg-white/20 text-white" : "bg-sky-200 text-sky-900 font-bold"}`}>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === "ON_LEAVE" ? "bg-white/20 text-white" : "bg-purple-200 text-purple-900 font-bold"}`}>
                 {stats.leaveCount}
               </span>
             </button>

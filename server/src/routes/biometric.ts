@@ -1039,7 +1039,9 @@ router.get("/window", requireRole("ADMIN"), async (req, res) => {
           name: "Tilawat al Dua",
           startTime: "07:00",
           endTime: "08:15",
-          lateEndTime: "08:15",
+          // Late zone must be wider than the on-time window, otherwise nothing
+          // can ever be LATE and post-08:15 scans are dropped entirely.
+          lateEndTime: "09:00",
           graceMinutes: 10,
           enabled: true,
           facultyStartTime: "07:30",
@@ -1155,7 +1157,7 @@ router.put("/window", requireRole("ADMIN"), async (req, res) => {
           name: typeof name === "string" && name.trim() ? name.trim() : "Tilawat al Dua",
           startTime: "07:30",
           endTime: "08:15",
-          lateEndTime: "08:15",
+          lateEndTime: "09:00",
           graceMinutes: 10,
           enabled: true,
         },

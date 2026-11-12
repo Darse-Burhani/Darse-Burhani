@@ -60,6 +60,27 @@ prisma.biometricScanWindow
           data: { exemptStudentIds: [...exempt, "AUDIENCE_BOTH"] },
         }).catch(() => {});
       }
+
+      // Self-heal the late zone. The event used to be created with
+      // lateEndTime === endTime, which makes LATE unreachable: every scan after
+      // the on-time boundary fell outside the window and was never recorded.
+      // Give such events a 45-minute late window so present / late / absent are
+      // all derivable from scan timing. Admin-set wider late zones are kept.
+      const toMin = (t?: string | null) => {
+        if (!t) return null;
+        const [h, m] = t.split(":").map((n) => parseInt(n, 10));
+        return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+      };
+      const endMin = toMin(w.endTime);
+      const lateEndMin = toMin((w as any).lateEndTime);
+      if (endMin !== null && (lateEndMin === null || lateEndMin <= endMin)) {
+        const healed = Math.min(23 * 60 + 59, endMin + 45);
+        const lateEndTime = `${String(Math.floor(healed / 60)).padStart(2, "0")}:${String(healed % 60).padStart(2, "0")}`;
+        await prisma.biometricScanWindow.update({
+          where: { id: w.id },
+          data: { lateEndTime },
+        }).catch(() => {});
+      }
     }
   })
   .catch((err) => console.warn("[startup] Tilawat audience normalization notice:", (err as any)?.message || err));

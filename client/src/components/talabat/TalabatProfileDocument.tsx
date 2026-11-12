@@ -2,8 +2,8 @@ import React, { useState, useRef } from "react";
 import { FileCheck2, Printer, GraduationCap, Sparkles, User, Award, CheckCircle2 } from "lucide-react";
 import { Twemoji } from "react-twemoji"
 import classNames from "classnames"
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+// html2canvas and jsPDF are large. They are imported lazily inside the
+// download handler so opening the document stays fast.
 
 export interface TalabatProfileData {
   id?: string;
@@ -99,6 +99,7 @@ export function TalabatProfileDocument({
   initialLayout = "a4-single",
 }: Props) {
   const [layoutMode, setLayoutMode] = useState<"a4-single" | "dossier">(initialLayout);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const handlePrint = () => {
     window.print();
@@ -107,10 +108,34 @@ export function TalabatProfileDocument({
   const handleDownloadPDF = async () => {
     const container = document.querySelector<HTMLElement>(".printable-document");
     if (!container) return;
+    if (generatingPdf) return;
+    setGeneratingPdf(true);
     try {
+      // Loaded on demand so the page itself never waits on them
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
       // Capture each page separately so multi-page documents keep all content
       const pageEls = Array.from(container.querySelectorAll<HTMLElement>(".doc-page"));
       const targets = pageEls.length > 0 ? pageEls : [container];
+
+      // Make sure every photo is decoded before capture, otherwise photos can
+      // land blank in the PDF.
+      await Promise.all(
+        targets.flatMap((el) =>
+          Array.from(el.querySelectorAll("img")).map((img) =>
+            img.complete
+              ? Promise.resolve()
+              : new Promise<void>((resolve) => {
+                  img.addEventListener("load", () => resolve(), { once: true });
+                  img.addEventListener("error", () => resolve(), { once: true });
+                  setTimeout(resolve, 4000);
+                }),
+          ),
+        ),
+      );
 
       const pdf = new jsPDF("p", "mm", "a4");
       const pageW = 210;
@@ -118,26 +143,55 @@ export function TalabatProfileDocument({
 
       for (let i = 0; i < targets.length; i++) {
         const canvas = await html2canvas(targets[i], {
-          scale: 2,
+          // 1.6 keeps text sharp while cutting capture time roughly in half
+          scale: 1.6,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
+          logging: false,
+          imageTimeout: 8000,
+          // Force the light theme on the clone: in dark mode the document's
+          // CSS variables paint large dark blocks into the PDF.
+          onclone: (clonedDoc) => {
+            clonedDoc.documentElement.classList.remove("dark");
+            clonedDoc.documentElement.setAttribute("data-theme", "light");
+            clonedDoc.body.classList.remove("dark");
+            clonedDoc.body.style.background = "#ffffff";
+          },
         });
-        const imgData = canvas.toDataURL("image/png");
-        const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
-        const imgW = canvas.width * ratio;
-        const imgH = canvas.height * ratio;
+
+        // JPEG at 0.92 is many times faster to encode and far smaller than PNG,
+        // and at 1.6x still prints cleanly.
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+
+        // Fill the sheet: scale to the full printable width and flow from the
+        // top. Only shrink further if the page would overflow A4 vertically.
+        const printableW = pageW - 8; // 4mm bleed on each side
+        let imgW = printableW;
+        let imgH = (canvas.height * printableW) / canvas.width;
+        if (imgH > pageH - 8) {
+          imgH = pageH - 8;
+          imgW = (canvas.width * imgH) / canvas.height;
+        }
         const x = (pageW - imgW) / 2;
-        const y = (pageH - imgH) / 2;
+        const y = 4;
 
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", x, y, imgW, imgH);
+        pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
       }
 
-      pdf.save("talabat-profile.pdf");
+      const safeName = (data.name || "talabat-profile")
+        .toString()
+        .trim()
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase();
+      pdf.save(`${safeName || "talabat-profile"}-profile.pdf`);
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF. Please try printing instead.");
+    } finally {
+      setGeneratingPdf(false);
     }
   };
 
@@ -355,10 +409,20 @@ const getProfileImgSrc = (url?: string | null): string => {
             <button
               onClick={handleDownloadPDF}
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm font-semibold text-xs transition-all cursor-pointer"
+              disabled={generatingPdf}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-70 disabled:cursor-wait text-white rounded-lg shadow-sm font-semibold text-xs transition-all cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h6a3 3 0 003-3v-1M14 5l7-7a3 3 0 00-5.972-5.972L18 10M18 10l1.046 5.953A2.998 2.998 0 0115.933 18h-5.933a2.998 2.998 0 01-2.825-2.137L2 21" /></svg>
-              Download PDF
+              {generatingPdf ? (
+                <>
+                  <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  Generating PDF…
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h6a3 3 0 003-3v-1M14 5l7-7a3 3 0 00-5.972-5.972L18 10M18 10l1.046 5.953A2.998 2.998 0 0115.933 18h-5.933a2.998 2.998 0 01-2.825-2.137L2 21" /></svg>
+                  Download PDF
+                </>
+              )}
             </button>
           )}
         </div>
@@ -416,7 +480,7 @@ const getProfileImgSrc = (url?: string | null): string => {
               {/* Student Identity & Passport Photo Hero Row */}
               <div className="flex items-stretch gap-3.5 p-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg mb-2.5">
                 {/* Photo */}
-                <div className="w-22 h-26 bg-white border-2 border-slate-400 rounded overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                <div className="w-[32mm] h-[40mm] bg-white border-2 border-slate-400 rounded overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
                   {isFilled(data.studentPhotoUrl) ? (
                     <img
                       src={normalizeImgSrc(data.studentPhotoUrl)}

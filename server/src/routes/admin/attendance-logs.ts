@@ -715,8 +715,14 @@ router.get("/", requireAuth, async (req, res) => {
     }
 
     // Filter by Status
+    // Members with no scan and no approved medical/leave are absent for the
+    // day, so an "ABSENT" filter must also return them — otherwise the filter
+    // silently drops exactly the people the admin is looking for.
     if (status && typeof status === "string" && status !== "ALL") {
-      filteredRecords = filteredRecords.filter((r) => r.status === status);
+      filteredRecords = filteredRecords.filter((r) => {
+        const effective = r.status === "NOT_MARKED" ? "ABSENT" : r.status;
+        return effective === status;
+      });
     }
 
     // Filter by Source
