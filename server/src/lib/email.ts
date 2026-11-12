@@ -307,7 +307,7 @@ async function dispatchGoogleScript(mailOptions: {
 
   const secret = cleanSecret(process.env.GOOGLE_SCRIPT_SECRET || "DARSEBURHANI_EMAIL_SECRET");
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20_000);
+  const timer = setTimeout(() => controller.abort(), 35_000);
 
   try {
     const response = await fetch(webhookUrl, {
