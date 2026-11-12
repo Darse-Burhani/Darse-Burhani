@@ -1046,7 +1046,7 @@ router.get("/window", requireRole("ADMIN"), async (req, res) => {
           enabled: true,
           facultyStartTime: "07:30",
           facultyEndTime: "08:45",
-          facultyLateEndTime: "08:45",
+          facultyLateEndTime: "09:30",
           facultyEnabled: true,
         },
       });

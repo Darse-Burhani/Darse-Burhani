@@ -71,14 +71,27 @@ prisma.biometricScanWindow
         const [h, m] = t.split(":").map((n) => parseInt(n, 10));
         return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
       };
+      const formatMin = (total: number) =>
+        `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+
       const endMin = toMin(w.endTime);
       const lateEndMin = toMin((w as any).lateEndTime);
+      const patch: Record<string, string> = {};
       if (endMin !== null && (lateEndMin === null || lateEndMin <= endMin)) {
-        const healed = Math.min(23 * 60 + 59, endMin + 45);
-        const lateEndTime = `${String(Math.floor(healed / 60)).padStart(2, "0")}:${String(healed % 60).padStart(2, "0")}`;
+        patch.lateEndTime = formatMin(Math.min(23 * 60 + 59, endMin + 45));
+      }
+
+      // Same fix for the faculty timer of dual-audience events.
+      const facEndMin = toMin((w as any).facultyEndTime);
+      const facLateEndMin = toMin((w as any).facultyLateEndTime);
+      if (facEndMin !== null && (facLateEndMin === null || facLateEndMin <= facEndMin)) {
+        patch.facultyLateEndTime = formatMin(Math.min(23 * 60 + 59, facEndMin + 45));
+      }
+
+      if (Object.keys(patch).length > 0) {
         await prisma.biometricScanWindow.update({
           where: { id: w.id },
-          data: { lateEndTime },
+          data: patch as any,
         }).catch(() => {});
       }
     }
