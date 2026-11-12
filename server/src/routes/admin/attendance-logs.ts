@@ -114,7 +114,18 @@ function resolveUserScheduledEvent(
 
   // 2. If no time match or unscanned, check if a specific eventWindowId was requested
   if (!targetWinObj && requestedEventWindowId && requestedEventWindowId !== "ALL") {
-    targetWinObj = windows.find((w) => w.id === requestedEventWindowId && w.enabled);
+    const requested = windows.find((w) => w.id === requestedEventWindowId && w.enabled);
+    // A student must never be attached to a faculty-only schedule (e.g. E-Learning),
+    // even when the caller explicitly requests that window.
+    const requestedIsFacultyOnly = Boolean(
+      requested &&
+        (isELearningWindow(requested as any) ||
+          isLegacyFacultyRow(requested as any) ||
+          getAudienceType(requested as any) === "FACULTY")
+    );
+    if (requested && (isFaculty || !requestedIsFacultyOnly)) {
+      targetWinObj = requested;
+    }
   }
 
   // 3. Fallback to the primary / active schedule window for this member's role
@@ -125,9 +136,9 @@ function resolveUserScheduledEvent(
       if (isFaculty) {
         return isELearningWindow(ww) || hasFacultyTimer(ww) || isLegacyFacultyRow(ww) || /tilawat/i.test(w.name);
       } else {
-        return !isELearningWindow(ww) && !isLegacyFacultyRow(ww);
+        return !isELearningWindow(ww) && !isLegacyFacultyRow(ww) && getAudienceType(ww) !== "FACULTY";
       }
-    }) || windows[0];
+    }) || (isFaculty ? windows[0] : null);
   }
 
   if (!targetWinObj) return null;
@@ -667,6 +678,10 @@ router.get("/", requireAuth, async (req, res) => {
     // 3. Filter by Event Window if specified
     if (eventWindowId && typeof eventWindowId === "string" && eventWindowId !== "ALL") {
       filteredRecords = filteredRecords.filter((r) => {
+        // Faculty-only windows (e.g. E-Learning) must never surface student scans,
+        // even when the member's time-based match resolved to this window.
+        if (isFacultyOnlyWindow && logType !== "MANUAL" && r.role !== "FACULTY") return false;
+
         // In MANUAL mode, preserve the full roster for the selected audience
         if (logType === "MANUAL") {
           if (isFacultyOnlyWindow) return r.role === "FACULTY";
