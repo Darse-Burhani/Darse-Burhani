@@ -2952,7 +2952,12 @@ export async function runELearningSheetSyncJobIfDue(now: Date = new Date()): Pro
     return { skipped: true, reason: "disabled via GOOGLE_SHEET_DAILY_SYNC=false" };
   }
   if (!isELearningSheetConfigured()) {
-    return { skipped: true, reason: "E-Learning sheet not configured" };
+    // Config may have been written by another process (or via env) after boot —
+    // refresh once before giving up so auto-sync does not silently stall.
+    await loadSheetConfigFromDb().catch(() => null);
+    if (!isELearningSheetConfigured()) {
+      return { skipped: true, reason: "E-Learning sheet not configured" };
+    }
   }
 
   const dayStart = dayStartUTC(now);
