@@ -2884,12 +2884,18 @@ export async function createELearningSpreadsheet(customTitle?: string): Promise<
       },
     });
   } catch (err) {
-    const e = err as { code?: number; message?: string; response?: { data?: { error?: { errors?: Array<{ reason?: string }> } } } };
-    const reason = e?.response?.data?.error?.errors?.[0]?.reason;
-    if (e?.code === 403 || /does not have permission/i.test(e?.message || "")) {
+    const e = err as {
+      code?: number;
+      message?: string;
+      response?: { data?: { error?: { errors?: Array<{ reason?: string; message?: string }> } } };
+    };
+    const detail = e?.response?.data?.error?.errors?.[0];
+    const reason = detail?.reason;
+    const quotaHit = reason === "storageQuotaExceeded" || /storage quota/i.test(detail?.message || e?.message || "");
+    if (quotaHit || e?.code === 403 || /does not have permission/i.test(e?.message || "")) {
       throw new Error(
-        `Google Drive API is not enabled for this service-account project (reason: ${reason || "permission denied"}). ` +
-          `Either enable the Drive API in Google Cloud Console, or create a spreadsheet in your own Drive, share it as Editor with ${saEmail}, then paste its URL into "Link Sheet".`,
+        `Google service accounts cannot own files — they have no Drive storage quota, so a new spreadsheet cannot be created by ${saEmail}. ` +
+          `Fix: open Google Drive, create a spreadsheet, click Share, add ${saEmail} as Editor, then paste its URL into "Link Sheet".`,
       );
     }
     throw err;

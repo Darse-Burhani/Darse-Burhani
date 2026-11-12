@@ -26,7 +26,6 @@ import {
   Activity,
   Mail,
   BookOpen,
-  Plus,
   Link2,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
@@ -42,7 +41,6 @@ import {
   syncAllRecordsSheet,
   getELearningSheetStatus,
   syncELearningSheet,
-  createELearningSpreadsheet,
   linkELearningSpreadsheet,
   SheetSyncStatusData,
   ELearningSheetStatusData,
@@ -80,7 +78,6 @@ export default function GoogleSheetsAdminPage() {
   const [elearningStatus, setElearningStatus] = useState<ELearningSheetStatusData | null>(null);
   const [elearningDate, setElearningDate] = useState(todayStr);
   const [syncingELearning, setSyncingELearning] = useState(false);
-  const [creatingELearning, setCreatingELearning] = useState(false);
   const [linkingELearning, setLinkingELearning] = useState(false);
   const [elearningLinkInput, setElearningLinkInput] = useState("");
   const [configELearningSpreadsheetId, setConfigELearningSpreadsheetId] = useState("");
@@ -393,27 +390,6 @@ export default function GoogleSheetsAdminPage() {
     }
   };
 
-  const handleCreateELearning = async () => {
-    try {
-      setCreatingELearning(true);
-      const res = await createELearningSpreadsheet();
-      toast({
-        title: "E-Learning Sheet Created",
-        description: `Created "${res.data?.title}". It is already shared with the service account.`,
-        variant: "success",
-      });
-      fetchStatus();
-    } catch (err: any) {
-      toast({
-        title: "Create Failed",
-        description: err?.message || "Could not create the E-Learning spreadsheet.",
-        variant: "destructive",
-      });
-    } finally {
-      setCreatingELearning(false);
-    }
-  };
-
   const handleLinkELearning = async () => {
     if (!elearningLinkInput.trim()) {
       toast({
@@ -711,7 +687,7 @@ export default function GoogleSheetsAdminPage() {
                 className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                E-Learning faculty scans go here, separate from the daily student log. You can also create or link one from the card below.
+                E-Learning faculty scans go here, separate from the daily student log. You can also link one from the card below.
               </p>
             </div>
 
@@ -1114,21 +1090,36 @@ export default function GoogleSheetsAdminPage() {
                       type="button"
                       onClick={handleLinkELearning}
                       disabled={linkingELearning || !elearningLinkInput.trim()}
-                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-black transition-all cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all cursor-pointer disabled:opacity-50"
                     >
                       <Link2 className="w-3.5 h-3.5" />
                       <span>{linkingELearning ? "Linking..." : "Link Sheet"}</span>
                     </button>
                     <button
                       type="button"
-                      onClick={handleCreateELearning}
-                      disabled={creatingELearning}
-                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all cursor-pointer disabled:opacity-50"
+                      onClick={() =>
+                        handleCopyEmail(
+                          elearningStatus?.fullServiceAccountEmail ||
+                            detectedEmail ||
+                            status?.fullServiceAccountEmail ||
+                            ""
+                        )
+                      }
+                      disabled={!(elearningStatus?.fullServiceAccountEmail || detectedEmail || status?.fullServiceAccountEmail)}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-black transition-all cursor-pointer disabled:opacity-50"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{creatingELearning ? "Creating..." : "Create New"}</span>
+                      {copiedEmail ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedEmail ? "Copied" : "Share Email"}</span>
                     </button>
                   </div>
+                  <p className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+                    Service accounts cannot create files. In Google Drive, create the E-Learning spreadsheet, click{" "}
+                    <span className="font-semibold">Share</span>, add{" "}
+                    <span className="font-mono text-slate-700 dark:text-slate-300">
+                      {elearningStatus?.fullServiceAccountEmail || detectedEmail || "the service account email"}
+                    </span>{" "}
+                    as <span className="font-semibold">Editor</span>, then paste its URL above.
+                  </p>
                   {elearningStatus && !elearningStatus.hasCredentials && (
                     <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                       Save your Service Account JSON key above first.
