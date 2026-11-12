@@ -786,7 +786,7 @@ export default function IvmsControlStation({
                           : "bg-amber-100 text-amber-800"
                       )}
                     >
-                      {latestScan.type === "STUDENT" ? "Talabat (Student)" : latestScan.type === "TEACHER" ? "Faculty" : "Unassigned"}
+                      {latestScan.type === "STUDENT" ? "Student" : latestScan.type === "TEACHER" ? "Faculty" : "Unassigned"}
                     </Badge>
                     <h4 className="text-lg font-black text-gray-950 truncate">{latestScan.name}</h4>
                     <div className="font-mono text-xs text-gray-500 font-semibold">
@@ -893,7 +893,7 @@ export default function IvmsControlStation({
                         : "hover:text-gray-900"
                     )}
                   >
-                    {filterType === "ALL" ? "All Scans" : filterType === "STUDENT" ? "Talabat" : "Faculty"}
+                    {filterType === "ALL" ? "All Scans" : filterType === "STUDENT" ? "Students" : "Faculty"}
                   </button>
                 ))}
               </div>
@@ -1000,7 +1000,7 @@ export default function IvmsControlStation({
                                     : "bg-amber-50 text-amber-800 border-amber-200"
                                 )}
                               >
-                                {isStudent ? "Talabat" : isTeacher ? "Faculty" : "Unmatched"}
+                                {isStudent ? "Student" : isTeacher ? "Faculty" : "Unmatched"}
                               </Badge>
                             </div>
 

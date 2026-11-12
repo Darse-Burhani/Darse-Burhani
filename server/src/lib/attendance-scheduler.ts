@@ -1092,8 +1092,15 @@ export async function syncGateRegistryToClassAttendance(targetDate?: Date): Prom
 
 let watchdogTimer: NodeJS.Timeout | null = null;
 let lastBackgroundHardwarePullMs = 0;
-// Throttle pulls to at least 5 minutes during open windows (prevents 60s CPU/token exhaustion)
-const BACKGROUND_PULL_THROTTLE_MS = 5 * 60 * 1000;
+// Keep terminal punches flowing into the feed promptly. The watchdog ticks
+// every 60s, so a 45s throttle guarantees a pull on every tick while still
+// preventing duplicate overlapping pulls. Override with
+// HARDWARE_PULL_THROTTLE_SECONDS if the terminals need a different cadence.
+const BACKGROUND_PULL_THROTTLE_MS = (() => {
+  const configured = Number(process.env.HARDWARE_PULL_THROTTLE_SECONDS);
+  const seconds = Number.isFinite(configured) && configured > 0 ? configured : 45;
+  return Math.max(15_000, seconds * 1000);
+})();
 let lastDormantLogDate = "";
 
 /**

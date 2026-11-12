@@ -146,6 +146,30 @@ export default function AdminAttendanceHikPage() {
   const [pollingMonth, setPollingMonth] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The selected schedule drives the audience toggle. E-Learning (and any other
+  // faculty-only window) must never expose a Talabat/student toggle.
+  const selectedEvent = useMemo(
+    () => (selectedEventId ? events.find((ev) => ev.id === selectedEventId) ?? null : null),
+    [events, selectedEventId]
+  );
+  const selectedEventIsFacultyOnly = selectedEvent?.audience === "FACULTY";
+
+  const handleSelectEvent = useCallback(
+    (eventId: string) => {
+      setSelectedEventId(eventId);
+      const ev = events.find((e) => e.id === eventId);
+      if (ev?.audience === "FACULTY") setAudience("FACULTY");
+      else if (ev?.audience === "STUDENT" || ev?.audience === "ALL_STUDENTS") setAudience("STUDENT");
+    },
+    [events]
+  );
+
+  useEffect(() => {
+    if (selectedEventIsFacultyOnly && audience !== "FACULTY") {
+      setAudience("FACULTY");
+    }
+  }, [selectedEventIsFacultyOnly, audience]);
+
   // Live state
   const [isLive, setIsLive] = useState<boolean>(true);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
@@ -204,7 +228,7 @@ export default function AdminAttendanceHikPage() {
 
       toast({
         title: "Attendance Overridden Successfully",
-        description: `Updated ${overrideTarget.name} (${overrideTarget.role === "FACULTY" ? "Faculty" : "Talabat"}) to ${overrideStatus} for ${date}.`,
+        description: `Updated ${overrideTarget.name} (${overrideTarget.role === "FACULTY" ? "Faculty" : "Student"}) to ${overrideStatus} for ${date}.`,
         variant: "success",
       });
 
@@ -802,7 +826,7 @@ export default function AdminAttendanceHikPage() {
               {stats.audienceFullStrength}
             </div>
             <div className="text-[10px] text-[#d4af37]/70 font-bold truncate">
-              {stats.overallRosterStudents} Talabat · {stats.overallRosterFaculty} Faculty
+              {stats.overallRosterStudents} Students · {stats.overallRosterFaculty} Faculty
             </div>
           </div>
 
@@ -879,7 +903,7 @@ export default function AdminAttendanceHikPage() {
             </div>
             <div className="text-[10px] text-sky-300/70 font-bold truncate">
               {stats.arrivalPct}% arrived · {audience === "STUDENT"
-                ? `${stats.studentPunched} Talabat`
+                ? `${stats.studentPunched} Students`
                 : audience === "FACULTY"
                 ? `${stats.facultyPunched} Faculty`
                 : `${stats.studentPunched} T / ${stats.facultyPunched} F`}
@@ -944,7 +968,7 @@ export default function AdminAttendanceHikPage() {
             const audienceTheme = isBoth
               ? {
                   pill: "bg-purple-100 text-purple-900 border-purple-300",
-                  label: "Both (Talabat & Faculty)",
+                  label: "Both (Students & Faculty)",
                   selectedBg: "bg-gradient-to-r from-purple-800 via-indigo-800 to-purple-900 text-white border-purple-700 shadow-md ring-2 ring-purple-600/30",
                   activeDot: "bg-purple-300",
                 }
@@ -957,7 +981,7 @@ export default function AdminAttendanceHikPage() {
                 }
               : {
                   pill: "bg-emerald-100 text-emerald-900 border-emerald-300",
-                  label: "Talabat Only",
+                  label: "Students Only",
                   selectedBg: "bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/30",
                   activeDot: "bg-emerald-300",
                 };
@@ -967,13 +991,7 @@ export default function AdminAttendanceHikPage() {
                 key={ev.id}
                 type="button"
                 onClick={() => {
-                  setSelectedEventId(ev.id);
-                  // Automatically adjust audience to match the schedule's target
-                  if (ev.audience === "FACULTY") {
-                    setAudience("FACULTY");
-                  } else if (ev.audience === "STUDENT") {
-                    setAudience("STUDENT");
-                  }
+                  handleSelectEvent(ev.id);
                 }}
                 className={`shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border text-xs font-black transition-all cursor-pointer shadow-xs min-h-[46px] touch-manipulation active:scale-[0.98] ${
                   isSelected
@@ -1080,7 +1098,7 @@ export default function AdminAttendanceHikPage() {
               </span>
               <select
                 value={selectedEventId}
-                onChange={(e) => setSelectedEventId(e.target.value)}
+                onChange={(e) => handleSelectEvent(e.target.value)}
                 className="bg-transparent text-xs font-black text-emerald-950 outline-none cursor-pointer pr-1"
               >
                 <option value="">All Schedule Windows (Full Strength)</option>
@@ -1111,9 +1129,18 @@ export default function AdminAttendanceHikPage() {
           <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">
             <Users className="w-3.5 h-3.5 text-slate-400" />
             <span>Audience:</span>
+            {selectedEventIsFacultyOnly && (
+              <span className="ml-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 text-[9px] font-black normal-case tracking-normal">
+                Faculty-only schedule
+              </span>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 sm:flex items-center gap-1.5 w-full sm:w-auto">
+          <div
+            className={`${
+              selectedEventIsFacultyOnly ? "grid grid-cols-2 sm:flex" : "grid grid-cols-3 sm:flex"
+            } items-center gap-1.5 w-full sm:w-auto`}
+          >
             <button
               type="button"
               onClick={() => setAudience("ALL")}
@@ -1126,18 +1153,22 @@ export default function AdminAttendanceHikPage() {
               All ({stats.overallRosterTotal} enrolled)
             </button>
 
-            <button
-              type="button"
-              onClick={() => setAudience("STUDENT")}
-              className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
-                audience === "STUDENT"
-                  ? "bg-emerald-700 text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-              <span>Talabat ({stats.overallRosterStudents})</span>
-            </button>
+            {/* Talabat/student toggle is intentionally hidden for faculty-only
+                schedules such as E-Learning, where only Asaatizah scan. */}
+            {!selectedEventIsFacultyOnly && (
+              <button
+                type="button"
+                onClick={() => setAudience("STUDENT")}
+                className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+                  audience === "STUDENT"
+                    ? "bg-emerald-700 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                <span>Students ({stats.overallRosterStudents})</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -1318,7 +1349,7 @@ export default function AdminAttendanceHikPage() {
                   <option value="name-asc">Name (A → Z)</option>
                   <option value="name-desc">Name (Z → A)</option>
                   <option value="status">Status Priority</option>
-                  <option value="type">Type (Talabat First)</option>
+                  <option value="type">Type (Students First)</option>
                   <option value="class">Class / Department</option>
                 </select>
               </div>
@@ -1443,7 +1474,7 @@ export default function AdminAttendanceHikPage() {
                                   : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               }`}
                             >
-                              {isFacultyMember ? "Faculty" : "Talabat"}
+                              {isFacultyMember ? "Faculty" : "Student"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-[10.5px] text-slate-500 font-mono mt-0.5">
@@ -1480,7 +1511,7 @@ export default function AdminAttendanceHikPage() {
                             ? "bg-blue-100 text-blue-900 border border-blue-300"
                             : "bg-emerald-100 text-emerald-900 border border-emerald-300"
                         }`}>
-                          {r.scheduledEvent?.audience === "BOTH" ? "Dual" : r.scheduledEvent?.audience === "FACULTY" ? "Faculty" : "Talabat"}
+                          {r.scheduledEvent?.audience === "BOTH" ? "Dual" : r.scheduledEvent?.audience === "FACULTY" ? "Faculty" : "Student"}
                         </span>
                         {hasScan && (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
@@ -1652,7 +1683,7 @@ export default function AdminAttendanceHikPage() {
                                   : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               }`}
                             >
-                              {isFacultyMember ? "Faculty" : "Talabat"}
+                              {isFacultyMember ? "Faculty" : "Student"}
                             </span>
                           </div>
                         </td>
@@ -1684,7 +1715,7 @@ export default function AdminAttendanceHikPage() {
                                   ? "bg-blue-100 text-blue-900 border-blue-300"
                                   : "bg-emerald-100 text-emerald-900 border-emerald-300"
                               }`}>
-                                {r.scheduledEvent?.audience === "BOTH" ? "Dual" : r.scheduledEvent?.audience === "FACULTY" ? "Faculty" : "Talabat"}
+                                {r.scheduledEvent?.audience === "BOTH" ? "Dual" : r.scheduledEvent?.audience === "FACULTY" ? "Faculty" : "Student"}
                               </span>
                             </div>
                             <span className="text-[10px] font-mono font-bold text-slate-600 mt-0.5">
@@ -1826,7 +1857,7 @@ export default function AdminAttendanceHikPage() {
                       {overrideTarget.name}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/30">
-                      {overrideTarget.role === "FACULTY" ? "Faculty" : "Talabat"}
+                      {overrideTarget.role === "FACULTY" ? "Faculty" : "Student"}
                     </span>
                   </div>
                   <p className="text-[11px] text-white/80 font-mono mt-0.5 truncate">

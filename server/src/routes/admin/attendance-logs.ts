@@ -19,7 +19,7 @@ import {
   saveSheetConfiguration,
   queueAutoSheetSync,
 } from "../../lib/google-attendance-sync";
-import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType, getAudienceType } from "../../lib/biometric";
+import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType, getAudienceType, isELearningWindow } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
 import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri } from "../../lib/fatimi-calendar";
 
@@ -123,9 +123,9 @@ function resolveUserScheduledEvent(
       if (!w.enabled) return false;
       const ww = w as any;
       if (isFaculty) {
-        return hasFacultyTimer(ww) || isLegacyFacultyRow(ww) || /tilawat/i.test(w.name);
+        return isELearningWindow(ww) || hasFacultyTimer(ww) || isLegacyFacultyRow(ww) || /tilawat/i.test(w.name);
       } else {
-        return !isLegacyFacultyRow(ww);
+        return !isELearningWindow(ww) && !isLegacyFacultyRow(ww);
       }
     }) || windows[0];
   }
@@ -192,6 +192,7 @@ router.get("/events", requireAuth, async (req, res) => {
       const ww = w as any;
       const windowType = getWindowType(ww);
       const isTilawatDua = /tilawat/i.test(w.name);
+      const isELearning = isELearningWindow(ww);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
       const audType = getAudienceType(ww);
@@ -229,8 +230,9 @@ router.get("/events", requireAuth, async (req, res) => {
         facultyEndTime: ww.facultyEndTime ?? null,
         facultyLateEndTime: ww.facultyLateEndTime ?? ww.facultyEndTime ?? null,
         facultyEnabled: ww.facultyEnabled ?? true,
-        hasFacultyTimer: unifiedFaculty || legacyFaculty || isTilawatDua,
+        hasFacultyTimer: unifiedFaculty || legacyFaculty || isTilawatDua || isELearning,
         isTilawatDua,
+        isELearning,
         enabled: w.enabled,
         audience,
         status,
@@ -273,7 +275,11 @@ router.get("/", requireAuth, async (req, res) => {
     );
     const isFacultyOnlyWindow = Boolean(
       !isTilawatFilter &&
-      (selectedWindow && (isLegacyFacultyRow(selectedWindow as any) || ((selectedWindow as any).facultyEnabled && !selectedWindow.enabled)))
+      (selectedWindow && (
+        isELearningWindow(selectedWindow as any) ||
+        isLegacyFacultyRow(selectedWindow as any) ||
+        ((selectedWindow as any).facultyEnabled && !selectedWindow.enabled)
+      ))
     );
     const isStudentOnlyWindow = Boolean(
       selectedWindow && !isFacultyOnlyWindow && !isTilawatFilter && !hasFacultyTimer(selectedWindow as any)

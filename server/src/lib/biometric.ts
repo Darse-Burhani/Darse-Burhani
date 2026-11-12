@@ -185,6 +185,15 @@ export function hasFacultyTimer(w: ScanWindowRowLike): boolean {
   return Boolean(w.facultyStartTime && w.facultyEndTime);
 }
 
+/**
+ * E-Learning sessions are faculty-only by policy: only Asaatizah scan into
+ * them. Talabat/student scans must never attach to an E-Learning schedule,
+ * even if the row still carries a stale student audience flag.
+ */
+export function isELearningWindow(w: ScanWindowRowLike): boolean {
+  return /e[\s._-]?learning/i.test(w.name || "");
+}
+
 /** Legacy standalone faculty rows (pre-unification) double as faculty timer source. */
 export function isLegacyFacultyRow(w: ScanWindowRowLike): boolean {
   return (
@@ -198,6 +207,12 @@ export function isLegacyFacultyRow(w: ScanWindowRowLike): boolean {
 /** Determine whether an attendance schedule is ONLY FACULTY, ONLY TALABAT, or DUAL (BOTH). */
 export function getAudienceType(w: ScanWindowRowLike): "FACULTY" | "ALL_STUDENTS" | "BOTH" {
   const exempt = w.exemptStudentIds || [];
+  // E-Learning is always faculty-only. This check deliberately runs before the
+  // stored audience flags so a legacy/incorrect student audience cannot leak
+  // Talabat scans into an E-Learning schedule.
+  if (isELearningWindow(w)) {
+    return "FACULTY";
+  }
   if (exempt.includes("AUDIENCE_BOTH")) {
     return "BOTH";
   }
@@ -230,8 +245,10 @@ export function eventRangeForRole(
 ): { startMin: number; endMin: number; lateMin: number; enabled: boolean } | null {
   const exempt = w.exemptStudentIds || [];
   if (role === "TEACHER") {
-    // Strictly exclude student-only rows
-    if (exempt.includes("AUDIENCE_STUDENT")) {
+    // Strictly exclude student-only rows. E-Learning is the exception: it is
+    // faculty-only by policy, so a stale AUDIENCE_STUDENT flag must not hide
+    // the faculty timer.
+    if (!isELearningWindow(w) && exempt.includes("AUDIENCE_STUDENT")) {
       return null;
     }
     if (hasFacultyTimer(w)) {
@@ -258,8 +275,9 @@ export function eventRangeForRole(
     }
     return null;
   }
-  // Role === "STUDENT": strictly exclude faculty-only rows
-  if (isLegacyFacultyRow(w) || exempt.includes("AUDIENCE_FACULTY")) {
+  // Role === "STUDENT": strictly exclude faculty-only rows.
+  // E-Learning schedules are faculty-only: no Talabat scan may ever attach.
+  if (isELearningWindow(w) || isLegacyFacultyRow(w) || exempt.includes("AUDIENCE_FACULTY")) {
     return null;
   }
   if (!w.enabled) return null;
@@ -566,7 +584,7 @@ export function toWindowConfig(w: ScanWindowRowLike, role: "STUDENT" | "TEACHER"
       ? (w.facultyLateEndTime || w.facultyEndTime || w.lateEndTime || w.endTime)
       : (w.lateEndTime ?? w.endTime);
   return {
-    name: `${w.name} — ${role === "TEACHER" ? "Faculty" : "Talabat"}`,
+    name: `${w.name} — ${role === "TEACHER" ? "Faculty" : "Students"}`,
     startTime,
     endTime,
     lateEndTime,
@@ -635,7 +653,7 @@ export async function isRoleWindowOpen(
   hardwareOnly = false,
 ): Promise<RoleWindowStatus> {
   const windows = await getRoleWindows(role, hardwareOnly);
-  const roleName = role === "STUDENT" ? "Talabat (Student)" : "Faculty (Teacher)";
+  const roleName = role === "STUDENT" ? "Students" : "Faculty (Teacher)";
 
   const usable = windows.filter((w) => w.enabled);
   if (usable.length === 0) {

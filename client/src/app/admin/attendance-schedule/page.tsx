@@ -680,13 +680,13 @@ export default function AdminAttendanceSchedulePage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#fff2b2] text-xs font-black tracking-wider uppercase mb-3 shadow-inner">
               <Sparkles className="w-3.5 h-3.5 text-[#fde047] animate-pulse" />
-              <span>Scanning Scope: Talabat &amp; Faculty</span>
+              <span>Scanning Scope: Students &amp; Faculty</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-display tracking-tight">
               Attendance Schedule &amp; Timing
             </h1>
             <p className="text-emerald-100/90 text-sm mt-1.5 max-w-2xl font-medium leading-relaxed">
-              Configure scanning windows for <strong>Talabat (Students)</strong>, <strong>Faculty (Teachers &amp; Staff)</strong>, or <strong>Dual (Both)</strong> with automated gate shifts and manual roll call registers.
+              Configure scanning windows for <strong>Students</strong>, <strong>Faculty (Teachers &amp; Staff)</strong>, or <strong>Dual (Both)</strong> with automated gate shifts and manual roll call registers.
             </p>
           </div>
 
@@ -752,7 +752,7 @@ export default function AdminAttendanceSchedulePage() {
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Audience:</span>
           {[
             { id: "ALL", label: "All Schedules", icon: Layers, activeCls: "bg-slate-900 text-white border-slate-900 shadow-sm" },
-            { id: "STUDENT", label: "Talabat Only", icon: GraduationCap, activeCls: "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/25" },
+            { id: "STUDENT", label: "Students Only", icon: GraduationCap, activeCls: "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/25" },
             { id: "TEACHER", label: "Faculty Only", icon: Shield, activeCls: "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25" },
             { id: "BOTH", label: "Dual (Both)", icon: Zap, activeCls: "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/25" },
           ].map((pill) => (
@@ -847,7 +847,7 @@ export default function AdminAttendanceSchedulePage() {
                     title: "text-white",
                     badge: "bg-white/20 text-purple-100 border-white/30 backdrop-blur-xs",
                     badgeIcon: "text-purple-200",
-                    badgeLabel: "Dual: Talabat & Faculty",
+                    badgeLabel: "Dual: Students & Faculty",
                     actionBtn: "text-white/80 hover:text-white hover:bg-white/20",
                     actionBox: "bg-white/10 border border-white/20",
                     timeBoxBg: "bg-purple-50/60 border-purple-200/70",
@@ -868,7 +868,7 @@ export default function AdminAttendanceSchedulePage() {
                     title: "text-white",
                     badge: "bg-white/20 text-emerald-100 border-white/30 backdrop-blur-xs",
                     badgeIcon: "text-emerald-200",
-                    badgeLabel: "Talabat Only (Students)",
+                    badgeLabel: "Students Only",
                     actionBtn: "text-white/80 hover:text-white hover:bg-white/20",
                     actionBox: "bg-white/10 border border-white/20",
                     timeBoxBg: "bg-emerald-50/60 border-emerald-200/70",
@@ -1227,7 +1227,7 @@ export default function AdminAttendanceSchedulePage() {
                       glow2: "bg-pink-500/20",
                       iconBox: "bg-gradient-to-br from-purple-500/30 to-pink-500/20 border-purple-400/50 text-purple-300",
                       badge: "bg-purple-500/20 text-purple-200 border-purple-400/40",
-                      badgeText: "Dual: Talabat & Faculty",
+                      badgeText: "Dual: Students & Faculty",
                       subtext: "Synchronized dual gates covering student arrival and faculty shifts simultaneously.",
                       icon: Zap,
                       tabActive: "bg-purple-600 text-white font-black shadow-md scale-[1.02]",
@@ -1239,7 +1239,7 @@ export default function AdminAttendanceSchedulePage() {
                       glow2: "bg-emerald-500/20",
                       iconBox: "bg-gradient-to-br from-emerald-500/30 to-teal-400/20 border-emerald-400/50 text-emerald-300",
                       badge: "bg-emerald-500/20 text-emerald-200 border-emerald-400/40",
-                      badgeText: "Talabat Only (Students)",
+                      badgeText: "Students Only",
                       subtext: "Configure student arrival windows, late punch cutoffs, and classroom register roll-calls.",
                       icon: GraduationCap,
                       tabActive: "bg-emerald-600 text-white font-black shadow-md scale-[1.02]",
@@ -1741,7 +1741,7 @@ export default function AdminAttendanceSchedulePage() {
                               <GraduationCap className="w-4 h-4" />
                             </span>
                             <div>
-                              <p className="font-bold text-xs text-emerald-950">Talabat Only</p>
+                              <p className="font-bold text-xs text-emerald-950">Students Only</p>
                               <p className="text-[10px] text-gray-500">Students roster only</p>
                             </div>
                           </button>
@@ -1780,7 +1780,7 @@ export default function AdminAttendanceSchedulePage() {
                             </span>
                             <div>
                               <p className="font-bold text-xs text-purple-950">Dual (Both)</p>
-                              <p className="text-[10px] text-gray-500">Talabat &amp; Faculty</p>
+                              <p className="text-[10px] text-gray-500">Students &amp; Faculty</p>
                             </div>
                           </button>
                         </div>
@@ -2047,7 +2047,7 @@ export default function AdminAttendanceSchedulePage() {
                                 <div className="flex items-center gap-1.5">
                                   <GraduationCap className="w-4 h-4 text-emerald-700" />
                                   <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
-                                    Talabat Class Scope
+                                    Students Class Scope
                                   </span>
                                 </div>
 

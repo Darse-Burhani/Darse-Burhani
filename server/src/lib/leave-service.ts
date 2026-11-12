@@ -851,6 +851,30 @@ export async function approveLeaveRequest(input: ReviewLeaveInput) {
     }
   });
 
+  // Always send an audit copy to the designated Galiakot administrative mailbox
+  sendLeaveEmail({
+    to: "admin.galiakot@darseburhani.org",
+    subject: reduced
+      ? `[Audit] Leave Approved (Reduced) — ${approvedStudentName}`
+      : `[Audit] Leave Approved — ${approvedStudentName}`,
+    html: leaveDecisionParentEmail({
+      leaveId: leave.id,
+      studentName: approvedStudentName,
+      parentName: "School Administration",
+      type: leave.type,
+      status: "APPROVED",
+      requestedStart: formatUtcDate(leave.startDate),
+      requestedEnd: formatUtcDate(leave.endDate),
+      requestedDays,
+      approvedDays: grantedDays,
+      grantedStart: formatUtcDate(grantedStart),
+      grantedEnd: formatUtcDate(grantedEnd),
+      reviewerName,
+      reviewerNotes: input.reviewerNotes?.trim() || null,
+      portalUrl: appUrl("/admin/leave"),
+    }),
+  }).catch((err) => console.warn("[leave-service] Admin audit approval copy failed:", err));
+
   // One-way WhatsApp notification dispatch to parent(s)
   try {
     const parentPhones = await getStudentParentPhones(leave.studentId);
@@ -1011,6 +1035,28 @@ export async function rejectLeaveRequest(input: ReviewLeaveInput) {
       );
     }
   });
+
+  // Always send an audit copy to the designated Galiakot administrative mailbox
+  sendLeaveEmail({
+    to: "admin.galiakot@darseburhani.org",
+    subject: `[Audit] Leave Rejected — ${rejectedStudentName}`,
+    html: leaveDecisionParentEmail({
+      leaveId: leave.id,
+      studentName: rejectedStudentName,
+      parentName: "School Administration",
+      type: leave.type,
+      status: "REJECTED",
+      requestedStart: formatUtcDate(leave.startDate),
+      requestedEnd: formatUtcDate(leave.endDate),
+      requestedDays: countLeaveDays(leave.startDate, leave.endDate),
+      approvedDays: null,
+      grantedStart: null,
+      grantedEnd: null,
+      reviewerName,
+      reviewerNotes: input.reviewerNotes?.trim() || null,
+      portalUrl: appUrl("/admin/leave"),
+    }),
+  }).catch((err) => console.warn("[leave-service] Admin audit rejection copy failed:", err));
 
   // One-way WhatsApp notification dispatch to parent(s)
   try {
@@ -1174,6 +1220,28 @@ export async function holdLeaveRequest(input: ReviewLeaveInput) {
       );
     }
   });
+
+  // Always send an audit copy to the designated Galiakot administrative mailbox
+  sendLeaveEmail({
+    to: "admin.galiakot@darseburhani.org",
+    subject: `[Audit] Leave Placed On Hold — ${holdStudentName}`,
+    html: leaveDecisionParentEmail({
+      leaveId: leave.id,
+      studentName: holdStudentName,
+      parentName: "School Administration",
+      type: leave.type,
+      status: "HOLD",
+      requestedStart: formatUtcDate(leave.startDate),
+      requestedEnd: formatUtcDate(leave.endDate),
+      requestedDays,
+      approvedDays: null,
+      grantedStart: null,
+      grantedEnd: null,
+      reviewerName,
+      reviewerNotes: input.reviewerNotes?.trim() || null,
+      portalUrl: appUrl("/admin/leave"),
+    }),
+  }).catch((err) => console.warn("[leave-service] Admin audit hold copy failed:", err));
 
   // One-way WhatsApp notification dispatch to parent(s)
   try {
@@ -1594,14 +1662,20 @@ export async function cancelLeaveRequest(leaveId: string, studentId?: string, is
   cache.invalidateTag("dashboard");
   queueAutoSheetSync(leave.startDate);
 
+  const studentName = leave.student ? `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim() : "Student";
   if (isAdmin) {
-    const studentName = leave.student ? `${leave.student.user.firstName} ${leave.student.user.lastName}`.trim() : "Student";
     await notifyParents(
       leave.studentId,
       "Leave Request Cancelled",
       `The leave application for ${studentName} was cancelled by school administration.`,
       "/parent"
     );
+  } else {
+    sendLeaveEmail({
+      to: "admin.galiakot@darseburhani.org",
+      subject: `[Audit] Leave Application Cancelled by Parent — ${studentName}`,
+      html: `<div style="font-family:sans-serif;padding:20px;color:#333;"><p>Parent has cancelled the pending leave application for <strong>${studentName}</strong> (${formatUtcDate(leave.startDate)} to ${formatUtcDate(leave.endDate)}).</p></div>`,
+    }).catch((err) => console.warn("[leave-service] Admin cancel notice failed:", err));
   }
 
   return updatedLeave;
