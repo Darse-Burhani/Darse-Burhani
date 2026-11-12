@@ -205,6 +205,19 @@ function generatePrefilledProfile(sp: any, user: any, parent?: any) {
     strengths: ["", "", ""],
     weaknesses: ["", "", ""],
     aboutMyself: "",
+    reallyGoodAt: sp.reallyGoodAt || "",
+    loveToStudy: sp.loveToStudy || "",
+    loveForFun: sp.loveForFun || "",
+    standard: sp.grade || "Darajah 4 (Rabea)",
+    grade: sp.grade || "4",
+    section: sp.section || "A",
+    studentStatus: sp.status ? String(sp.status) : (sp.hafizYear ? "Hafiz" : "Sanah"),
+    admissionYear: sp.admissionYear || "1444 H",
+    currentYear: sp.currentYear || "1447 H",
+    address: sp.address || "",
+    mobileNumber: sp.mobileNumber || "",
+    email: user?.email || "",
+    externalSchooling: sp.externalSchooling || "Regular Darse Burhani",
     behaviourRating: null,
     communicationRating: null,
     dedicationRating: null,
@@ -225,6 +238,36 @@ function generatePrefilledProfile(sp: any, user: any, parent?: any) {
     reviewedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+  };
+}
+
+function enrichProfileData(profile: any, sp: any, user: any) {
+  if (!profile) return profile;
+  return {
+    ...profile,
+    name: profile.name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
+    studentPhotoUrl: profile.studentPhotoUrl || user?.avatarUrl || null,
+    motherName: profile.motherName || sp?.motherName || "",
+    fatherName: profile.fatherName || sp?.fatherName || "",
+    fatherOccupation: profile.fatherOccupation || sp?.fatherOccupation || "",
+    standard: sp?.grade || "Darajah 4 (Rabea)",
+    grade: sp?.grade || "4",
+    section: sp?.section || "A",
+    studentStatus: sp?.status ? String(sp.status) : (sp?.hafizYear ? "Hafiz" : "Sanah"),
+    hafizYear: sp?.hafizYear || profile.hifzYear || "",
+    admissionYear: sp?.admissionYear || "1444 H",
+    currentYear: sp?.currentYear || profile.year || "1447 H",
+    age: profile.age || sp?.age || null,
+    itsNo: profile.itsNo || sp?.its || "",
+    watan: profile.vatan || sp?.watan || "",
+    residentCity: profile.jamaat || sp?.residentCity || sp?.watan || "",
+    address: sp?.address || "",
+    mobileNumber: sp?.mobileNumber || "",
+    email: user?.email || "",
+    externalSchooling: sp?.externalSchooling || "Regular Darse Burhani",
+    reallyGoodAt: profile.reallyGoodAt || sp?.reallyGoodAt || "",
+    loveToStudy: profile.loveToStudy || sp?.loveToStudy || "",
+    loveForFun: profile.loveForFun || sp?.loveForFun || "",
   };
 }
 
@@ -303,6 +346,8 @@ router.get("/me", requireAuth, async (req, res) => {
     let profile = sp.talabatProfile1447;
     if (!profile) {
       profile = generatePrefilledProfile(sp, sp.user, parent) as any;
+    } else {
+      profile = enrichProfileData(profile, sp, sp.user);
     }
 
     return res.json({
@@ -345,6 +390,8 @@ router.get("/me", requireAuth, async (req, res) => {
     let profile = sp.talabatProfile1447;
     if (!profile) {
       profile = generatePrefilledProfile(sp, sp.user) as any;
+    } else {
+      profile = enrichProfileData(profile, sp, sp.user);
     }
 
     return res.json({
@@ -401,6 +448,8 @@ router.get("/me", requireAuth, async (req, res) => {
   let profile = sp.talabatProfile1447;
   if (!profile) {
     profile = generatePrefilledProfile(sp, user) as any;
+  } else {
+    profile = enrichProfileData(profile, sp, user);
   }
 
   return res.json({
@@ -609,6 +658,9 @@ router.put("/me", requireAuth, async (req, res) => {
   if (strengths !== undefined) updateData.strengths = strengths;
   if (weaknesses !== undefined) updateData.weaknesses = weaknesses;
   if (body.aboutMyself !== undefined) updateData.aboutMyself = body.aboutMyself || null;
+  if (body.reallyGoodAt !== undefined) updateData.reallyGoodAt = body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null;
+  if (body.loveToStudy !== undefined) updateData.loveToStudy = body.loveToStudy ? String(body.loveToStudy).trim() : null;
+  if (body.loveForFun !== undefined) updateData.loveForFun = body.loveForFun ? String(body.loveForFun).trim() : null;
 
   const createData = {
     year: body.year || "1447 H",
@@ -643,6 +695,9 @@ router.put("/me", requireAuth, async (req, res) => {
     strengths: strengths || [],
     weaknesses: weaknesses || [],
     aboutMyself: body.aboutMyself || null,
+    reallyGoodAt: body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null,
+    loveToStudy: body.loveToStudy ? String(body.loveToStudy).trim() : null,
+    loveForFun: body.loveForFun ? String(body.loveForFun).trim() : null,
     ...updateData,
   };
 
@@ -662,6 +717,12 @@ router.put("/me", requireAuth, async (req, res) => {
   if (body.motherName) studentProfileUpdates.motherName = body.motherName.trim();
   if (body.vatan) studentProfileUpdates.watan = body.vatan.trim();
   if (body.jamaat) studentProfileUpdates.residentCity = body.jamaat.trim();
+  if (body.address) studentProfileUpdates.address = body.address.trim();
+  if (body.mobileNumber) studentProfileUpdates.mobileNumber = body.mobileNumber.trim();
+  if (body.externalSchooling) studentProfileUpdates.externalSchooling = body.externalSchooling.trim();
+  if (body.reallyGoodAt !== undefined) studentProfileUpdates.reallyGoodAt = body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null;
+  if (body.loveToStudy !== undefined) studentProfileUpdates.loveToStudy = body.loveToStudy ? String(body.loveToStudy).trim() : null;
+  if (body.loveForFun !== undefined) studentProfileUpdates.loveForFun = body.loveForFun ? String(body.loveForFun).trim() : null;
 
   if (Object.keys(studentProfileUpdates).length > 0) {
     await prisma.studentProfile.update({
@@ -911,52 +972,9 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
 
   let profile: any = student.talabatProfile1447;
   if (!profile) {
-    // Return placeholder
-    profile = {
-      id: "",
-      studentId: student.id,
-      year: "1447 H",
-      status: "NOT_STARTED",
-      studentPhotoUrl: student.user.avatarUrl || null,
-      name: `${student.user.firstName} ${student.user.lastName}`.trim(),
-      itsNo: student.its || "",
-      idNo: student.studentId || student.trNo || "",
-      jamaat: student.residentCity || student.watan || "",
-      vatan: student.watan || "",
-      nationality: "Indian",
-      dob: student.dobGregorian ? new Date(student.dobGregorian).toISOString().split("T")[0] : student.dobHijri || "",
-      age: student.age || null,
-      fatherPhotoUrl: null,
-      fatherName: student.fatherName || "",
-      fatherOccupation: student.fatherOccupation || "",
-      motherPhotoUrl: null,
-      motherName: student.motherName || "",
-      motherOccupation: "Homemaker",
-      result1444: "",
-      result1445: "",
-      result1446: "",
-      result1447: "",
-      hifzYear: student.hafizYear || "",
-      hifzTabaqa: "",
-      course1: "",
-      course2: "",
-      course3: "",
-      course4: "",
-      activities: "",
-      otherExams: "",
-      strengths: [],
-      weaknesses: [],
-      aboutMyself: "",
-      behaviourRating: null,
-      communicationRating: null,
-      dedicationRating: null,
-      disciplineRating: null,
-      masoolRemarks: null,
-      reviewedById: null,
-      reviewedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    profile = generatePrefilledProfile(student, student.user) as any;
+  } else {
+    profile = enrichProfileData(profile, student, student.user);
   }
 
   // If reviewed by someone, fetch reviewer name
@@ -990,7 +1008,24 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
       section: student.section,
       its: student.its,
       email: student.user.email,
-      avatarUrl: student.user.avatarUrl,
+      avatarUrl: sanitizedProfile.studentPhotoUrl || student.user.avatarUrl,
+      motherName: sanitizedProfile.motherName || student.motherName,
+      fatherName: sanitizedProfile.fatherName || student.fatherName,
+      fatherOccupation: sanitizedProfile.fatherOccupation || student.fatherOccupation,
+      standard: student.grade || "Darajah 4 (Rabea)",
+      studentStatus: student.status ? String(student.status) : (student.hafizYear ? "Hafiz" : "Sanah"),
+      hafizYear: student.hafizYear || sanitizedProfile.hifzYear,
+      admissionYear: student.admissionYear || "1444 H",
+      currentYear: student.currentYear || sanitizedProfile.year || "1447 H",
+      age: sanitizedProfile.age || student.age,
+      watan: sanitizedProfile.vatan || student.watan,
+      residentCity: sanitizedProfile.jamaat || student.residentCity,
+      address: student.address,
+      mobileNumber: student.mobileNumber,
+      externalSchooling: student.externalSchooling,
+      reallyGoodAt: sanitizedProfile.reallyGoodAt || student.reallyGoodAt,
+      loveToStudy: sanitizedProfile.loveToStudy || student.loveToStudy,
+      loveForFun: sanitizedProfile.loveForFun || student.loveForFun,
     },
     reviewerName,
     permissions: perms,
@@ -1186,6 +1221,9 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
       : [];
   }
   if (body.aboutMyself !== undefined) dataToUpdate.aboutMyself = body.aboutMyself || null;
+  if (body.reallyGoodAt !== undefined) dataToUpdate.reallyGoodAt = body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null;
+  if (body.loveToStudy !== undefined) dataToUpdate.loveToStudy = body.loveToStudy ? String(body.loveToStudy).trim() : null;
+  if (body.loveForFun !== undefined) dataToUpdate.loveForFun = body.loveForFun ? String(body.loveForFun).trim() : null;
   if (body.status !== undefined) dataToUpdate.status = body.status;
 
   const saved = await prisma.talabatProfile1447.upsert({
@@ -1209,6 +1247,12 @@ router.put("/admin/profile/:studentId", requireAuth, async (req, res) => {
   if (body.motherName) spUpdates.motherName = body.motherName.trim();
   if (body.vatan) spUpdates.watan = body.vatan.trim();
   if (body.jamaat) spUpdates.residentCity = body.jamaat.trim();
+  if (body.address) spUpdates.address = body.address.trim();
+  if (body.mobileNumber) spUpdates.mobileNumber = body.mobileNumber.trim();
+  if (body.externalSchooling) spUpdates.externalSchooling = body.externalSchooling.trim();
+  if (body.reallyGoodAt !== undefined) spUpdates.reallyGoodAt = body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null;
+  if (body.loveToStudy !== undefined) spUpdates.loveToStudy = body.loveToStudy ? String(body.loveToStudy).trim() : null;
+  if (body.loveForFun !== undefined) spUpdates.loveForFun = body.loveForFun ? String(body.loveForFun).trim() : null;
   if (Object.keys(spUpdates).length > 0) {
     await prisma.studentProfile.update({
       where: { id: student.id },

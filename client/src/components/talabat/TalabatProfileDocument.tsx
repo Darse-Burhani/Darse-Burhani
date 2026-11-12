@@ -1,5 +1,5 @@
-import React from "react";
-import { FileCheck2, Printer, GraduationCap } from "lucide-react";
+import React, { useState } from "react";
+import { FileCheck2, Printer, GraduationCap, Sparkles, User, Award, CheckCircle2 } from "lucide-react";
 
 export interface TalabatProfileData {
   id?: string;
@@ -43,6 +43,25 @@ export interface TalabatProfileData {
 
   aboutMyself?: string | null;
 
+  // Rabea Special Passion & Reflection Prompts
+  reallyGoodAt?: string | null;
+  loveToStudy?: string | null;
+  loveForFun?: string | null;
+
+  // Student Profile Demographics for Single-Page A4 Sheet
+  standard?: string | null;
+  grade?: string | null;
+  section?: string | null;
+  studentStatus?: string | null;
+  admissionYear?: string | null;
+  currentYear?: string | null;
+  watan?: string | null;
+  residentCity?: string | null;
+  address?: string | null;
+  mobileNumber?: string | null;
+  email?: string | null;
+  externalSchooling?: string | null;
+
   behaviourRating?: number | null;
   communicationRating?: number | null;
   dedicationRating?: number | null;
@@ -66,12 +85,16 @@ export interface TalabatProfileData {
 interface Props {
   data: TalabatProfileData;
   showPrintButton?: boolean;
+  initialLayout?: "a4-single" | "dossier";
 }
 
 export function TalabatProfileDocument({
   data,
   showPrintButton = true,
+  initialLayout = "a4-single",
 }: Props) {
+  const [layoutMode, setLayoutMode] = useState<"a4-single" | "dossier">(initialLayout);
+
   const handlePrint = () => {
     window.print();
   };
@@ -228,14 +251,39 @@ export function TalabatProfileDocument({
     <div className="talabat-profile-root w-full flex flex-col items-center">
       {/* ── Top Bar (Print Controls - Hidden on Print) ── */}
       <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-        {/* Status Indicator */}
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gradient-to-r from-[#1c1c1c] to-[#1c1c1c] text-amber-300 border border-amber-400/30 shadow-xs">
-            <FileCheck2 className="w-3.5 h-3.5" />
-            Official Profile Document Preview
-          </span>
-          <span className="hidden sm:inline-flex text-xs text-slate-500 font-medium">
-            (Displaying submitted &amp; verified sections only)
+        {/* Status Indicator & View Switcher */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setLayoutMode("a4-single")}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                layoutMode === "a4-single"
+                  ? "bg-slate-900 text-amber-300 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>📄</span>
+              <span>A4 Profile Sheet (1 Page)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode("dossier")}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                layoutMode === "dossier"
+                  ? "bg-slate-900 text-amber-300 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>📑</span>
+              <span>Full Dossier</span>
+            </button>
+          </div>
+
+          <span className="hidden lg:inline-flex text-[11px] text-slate-500 font-medium">
+            {layoutMode === "a4-single"
+              ? "• Formatted strictly for 1-Sheet A4 Printing & PDF Download"
+              : "• Complete Academic & Faculty Evaluation"}
           </span>
         </div>
 
@@ -256,37 +304,290 @@ export function TalabatProfileDocument({
 
       {/* ── Document Container ── */}
       <div className="printable-document flex flex-col gap-8 w-full max-w-[210mm]">
-        {/* ════════════════════════════════════════════════════════════
-            DOCUMENT VIEW: EDITED SECTIONS ONLY
-        ════════════════════════════════════════════════════════════ */}
-        <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
-          <div>
-            {/* ── Top Header ── */}
-            <div className="flex items-start justify-between border-b pb-4 mb-4 relative">
-              {/* Emblem / Logo */}
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="Darse Burhani Logo"
-                  className="w-16 h-16 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-              </div>
+        {layoutMode === "a4-single" ? (
+          /* ════════════════════════════════════════════════════════════
+             A4 SINGLE-SHEET INDIVIDUAL TALABAT PROFILE (RABEA)
+             Strictly formatted to fit onto exactly 1 A4 Page
+          ════════════════════════════════════════════════════════════ */
+          <div className="doc-page doc-page-single bg-white text-slate-900 border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden">
+            <div>
+              {/* Institutional Header */}
+              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo.png"
+                    alt="Darse Burhani Logo"
+                    className="w-13 h-13 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  <div>
+                    <h1 className="text-lg font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
+                      DARSE BURHANI
+                    </h1>
+                    <h2 className="text-xs font-extrabold text-emerald-950 tracking-wide mt-0.5">
+                      DARAJEH RABEA (GRADE 4) • STUDENT TALABAT PROFILE
+                    </h2>
+                    <div className="text-[10px] font-medium text-slate-600">
+                      Academic Year 1447 H • Official Individual Record Sheet
+                    </div>
+                  </div>
+                </div>
 
-              {/* Institution & Title */}
-              <div className="text-center flex-1 px-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#1c1c1c] font-serif uppercase">
-                  Darse Burhani
-                </h1>
-                <h2 className="text-base sm:text-lg font-extrabold text-[#1c1c1c] tracking-wider mt-0.5">
-                  TALABAT PROFILE – {data.year || "1447 H"}
-                </h2>
-                <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
-                  Academic Year 1447 H • Yearly Profile Submission
+                <div className="text-right flex flex-col items-end">
+                  <div className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl leading-snug" dir="rtl">
+                    الحمد لله على ما أنعم والشكر له على ما ألهم
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300">
+                      DARSE BURHANI
+                    </span>
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                      {data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Student Identity & Passport Photo Hero Row */}
+              <div className="flex items-stretch gap-3.5 p-2.5 bg-slate-50 border border-slate-300 rounded-lg mb-2.5">
+                {/* Photo */}
+                <div className="w-22 h-26 bg-white border-2 border-slate-400 rounded overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                  {isFilled(data.studentPhotoUrl) ? (
+                    <img
+                      src={normalizeImgSrc(data.studentPhotoUrl)}
+                      alt={data.name || "Student"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center p-2 text-slate-400">
+                      <GraduationCap className="w-7 h-7 mx-auto mb-0.5 text-slate-400" />
+                      <span className="text-[8.5px] font-bold uppercase block">Photo</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Main Name & Key Identifiers */}
+                <div className="flex-1 flex flex-col justify-between py-0.5">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 font-serif leading-tight">
+                      {data.name || "Student Full Name"}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-700">
+                      <span className="inline-flex items-center gap-1 font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300 text-[10.5px]">
+                        ITS: {data.itsNo || "—"}
+                      </span>
+                      <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[10.5px]">
+                        Standard: {data.standard || data.grade || "Darajah 4 (Rabea)"}
+                      </span>
+                      <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[10.5px]">
+                        Section: {data.section || "A"}
+                      </span>
+                      <span className="font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 text-[10.5px]">
+                        Status: {data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 mt-1.5 pt-1.5 border-t border-slate-200 text-[10.5px] text-slate-600">
+                    <div><span className="font-bold text-slate-800">Admission Year:</span> {data.admissionYear || "1444 H"}</div>
+                    <div><span className="font-bold text-slate-800">Current Year:</span> {data.currentYear || data.year || "1447 H"}</div>
+                    <div><span className="font-bold text-slate-800">Age:</span> {data.age ? `${data.age} Years` : "—"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Complete Demographic & Information Table */}
+              <div className="mb-2.5 border border-slate-300 rounded-lg overflow-hidden bg-white text-[11px]">
+                <div className="bg-[#1c1c1c] text-white px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider flex items-center justify-between">
+                  <span>Student Demographic &amp; Institutional Profile</span>
+                  <span className="text-amber-300 text-[9.5px] lowercase font-normal">official student dossier</span>
+                </div>
+                <div className="grid grid-cols-2 text-[10.5px] divide-y divide-x divide-slate-200">
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Student Name:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.name || "—"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Student ITS:</span>
+                    <span className="font-mono font-bold text-slate-900 text-right">{data.itsNo || "—"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Father Name:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.fatherName || "—"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Father's Occupation:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.fatherOccupation || "—"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Mother Name:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.motherName || "—"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Mother's Occupation:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.motherOccupation || "Homemaker"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Student's Standard:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.standard || data.grade || "Darajah 4 (Rabea)"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Class Section:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.section || "A"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Student Status:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Admission Year:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.admissionYear || "1444 H"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Current Year:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.currentYear || data.year || "1447 H"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Student Age:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.age ? `${data.age} Years` : "—"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Watan:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.vatan || data.watan || "—"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Resident City:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.jamaat || data.residentCity || "—"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600">Mobile Number:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.mobileNumber || "—"}</span>
+                  </div>
+                  <div className="p-1.5 flex justify-between bg-slate-50/50">
+                    <span className="font-bold text-slate-600">Email ID:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.email || "—"}</span>
+                  </div>
+
+                  <div className="col-span-2 p-1.5 flex justify-between bg-slate-50/30">
+                    <span className="font-bold text-slate-600">External Schooling Status:</span>
+                    <span className="font-semibold text-slate-900 text-right">{data.externalSchooling || "Regular Darse Burhani"}</span>
+                  </div>
+
+                  <div className="col-span-2 p-1.5 flex justify-between">
+                    <span className="font-bold text-slate-600 shrink-0 mr-2">Address:</span>
+                    <span className="font-medium text-slate-900 text-right leading-tight">{data.address || "—"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Special Prompts Section: Rabea Talabat Reflections & Passions */}
+              <div className="border-2 border-amber-400 bg-amber-50/30 rounded-lg p-2.5 mb-2.5">
+                <div className="flex items-center justify-between border-b border-amber-300/70 pb-1 mb-2">
+                  <span className="font-black text-[11px] text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                    ★ Talabat Personal Reflections &amp; Passions (Darajah Rabea)
+                  </span>
+                  <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                    Student Reflection Prompts
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="bg-white p-2 rounded border border-amber-200 shadow-xs">
+                    <div className="font-bold text-emerald-950 text-[10.5px] mb-0.5">
+                      1. I am really Good at ...
+                    </div>
+                    <div className="text-slate-900 italic pl-2 border-l-2 border-emerald-600 leading-snug font-serif">
+                      {isFilled(data.reallyGoodAt) ? data.reallyGoodAt : "— Not filled yet —"}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2 rounded border border-amber-200 shadow-xs">
+                    <div className="font-bold text-indigo-950 text-[10.5px] mb-0.5">
+                      2. I love to study about ... because ...
+                    </div>
+                    <div className="text-slate-900 italic pl-2 border-l-2 border-indigo-600 leading-snug font-serif">
+                      {isFilled(data.loveToStudy) ? data.loveToStudy : "— Not filled yet —"}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2 rounded border border-amber-200 shadow-xs">
+                    <div className="font-bold text-purple-950 text-[10.5px] mb-0.5">
+                      3. I really love to ..... For Fun
+                    </div>
+                    <div className="text-slate-900 italic pl-2 border-l-2 border-purple-600 leading-snug font-serif">
+                      {isFilled(data.loveForFun) ? data.loveForFun : "— Not filled yet —"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer & Official Signatures */}
+            <div className="pt-2 border-t-2 border-slate-900">
+              <div className="grid grid-cols-3 gap-6 pt-5 pb-1.5 text-center text-[10.5px]">
+                <div className="border-t border-slate-400 pt-1">
+                  <span className="font-bold text-slate-700 block text-[10px]">Student's Signature</span>
+                  <span className="text-[8.5px] text-slate-400">(Talib / Taliba)</span>
+                </div>
+                <div className="border-t border-slate-400 pt-1">
+                  <span className="font-bold text-slate-700 block text-[10px]">Parent / Guardian Signature</span>
+                  <span className="text-[8.5px] text-slate-400">(Father / Mother)</span>
+                </div>
+                <div className="border-t border-slate-400 pt-1">
+                  <span className="font-bold text-slate-700 block text-[10px]">Darajah Masul Signature &amp; Seal</span>
+                  <span className="text-[8.5px] text-slate-400">(Darse Burhani Administration)</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[9.5px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
+                <span>Darse Burhani Official Institutional Record • Darajah Rabea (Grade 4) • 1447 H</span>
+                <span className="font-alkanz dir-rtl text-[11px] text-slate-800" dir="rtl">
+                  الحمد لله على ما أنعم والشكر له على ما ألهم
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ════════════════════════════════════════════════════════════
+             DOCUMENT VIEW: EDITED SECTIONS ONLY (FULL DOSSIER)
+          ════════════════════════════════════════════════════════════ */
+          <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
+            <div>
+              {/* ── Top Header ── */}
+              <div className="flex items-start justify-between border-b pb-4 mb-4 relative">
+                {/* Emblem / Logo */}
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo.png"
+                    alt="Darse Burhani Logo"
+                    className="w-16 h-16 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
+
+                {/* Institution & Title */}
+                <div className="text-center flex-1 px-2">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-[#1c1c1c] font-serif uppercase">
+                    Darse Burhani
+                  </h1>
+                  <h2 className="text-base sm:text-lg font-extrabold text-[#1c1c1c] tracking-wider mt-0.5">
+                    TALABAT PROFILE – {data.year || "1447 H"}
+                  </h2>
+                  <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                    Academic Year 1447 H • Yearly Profile Submission
+                  </div>
+                </div>
 
                 {/* Right: Further Education Banner & Status Badge */}
                 <div className="text-right flex flex-col items-end">
@@ -625,6 +926,35 @@ export function TalabatProfileDocument({
                 </div>
               )}
 
+              {/* ── 5B. TALABAT REFLECTIONS & PASSIONS (Darajah Rabea Prompts) ── */}
+              {(isFilled(data.reallyGoodAt) || isFilled(data.loveToStudy) || isFilled(data.loveForFun)) && (
+                <div className="mb-4">
+                  <div className="bg-[#fef3c7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-amber-950">
+                    Personal Reflections &amp; Passions (Darajah Rabea)
+                  </div>
+                  <div className="border-x border-b border-slate-800 p-3 text-xs space-y-2 bg-amber-50/20">
+                    {isFilled(data.reallyGoodAt) && (
+                      <div>
+                        <span className="font-bold text-slate-800 block text-[11px]">1. I am really Good at ...</span>
+                        <p className="text-slate-900 italic pl-2 border-l-2 border-emerald-600 mt-0.5">{data.reallyGoodAt}</p>
+                      </div>
+                    )}
+                    {isFilled(data.loveToStudy) && (
+                      <div>
+                        <span className="font-bold text-slate-800 block text-[11px]">2. I love to study about ... because ...</span>
+                        <p className="text-slate-900 italic pl-2 border-l-2 border-indigo-600 mt-0.5">{data.loveToStudy}</p>
+                      </div>
+                    )}
+                    {isFilled(data.loveForFun) && (
+                      <div>
+                        <span className="font-bold text-slate-800 block text-[11px]">3. I really love to ..... For Fun</span>
+                        <p className="text-slate-900 italic pl-2 border-l-2 border-purple-600 mt-0.5">{data.loveForFun}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* ── 6. ADMINISTRATION & FACULTY EVALUATION (Only if reviewed/edited) ── */}
               {hasFacultyEvaluation && (
                 <div className="mb-4 mt-6">
@@ -718,6 +1048,7 @@ export function TalabatProfileDocument({
               </div>
             </div>
           </div>
+        )}
       </div>
 
       {/* ── Print Specific Styles ── */}
@@ -733,7 +1064,7 @@ export function TalabatProfileDocument({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 10mm;
+            margin: 8mm;
           }
           body {
             background: #ffffff !important;
@@ -757,7 +1088,17 @@ export function TalabatProfileDocument({
             box-shadow: none !important;
             margin-bottom: 0 !important;
             min-height: auto !important;
-            padding: 10mm 8mm !important;
+            padding: 8mm 8mm !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .doc-page-single {
+            height: 278mm !important;
+            max-height: 278mm !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }

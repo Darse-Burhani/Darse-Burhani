@@ -296,6 +296,11 @@ model StudentProfile {
   its              String?
   trNo             String?
 
+  // Rabea Special Passion & Reflection Prompts
+  reallyGoodAt     String?   @db.Text // 1. I am really good at ...
+  loveToStudy      String?   @db.Text // 2. I love to study about ... because ...
+  loveForFun       String?   @db.Text // 3. I really love to ..... for fun
+
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   parentLinks        ParentStudentLink[]
   classEnrollments   ClassEnrollment[]
@@ -1533,6 +1538,11 @@ model TalabatProfile1447 {
 
   // About Myself
   aboutMyself         String?   @db.Text
+
+  // Rabea Special Passion & Reflection Prompts
+  reallyGoodAt        String?   @db.Text // 1. I am really good at ...
+  loveToStudy         String?   @db.Text // 2. I love to study about ... because ...
+  loveForFun          String?   @db.Text // 3. I really love to ..... for fun
 
   // Darajah Masul & Darse Burhani Masul Collective Remarks
   behaviourRating     Int?

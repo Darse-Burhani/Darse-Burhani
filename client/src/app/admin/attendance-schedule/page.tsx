@@ -296,14 +296,14 @@ export default function AdminAttendanceSchedulePage() {
           return;
         }
       }
-      // Immediate fallback to /api/teachers
-      const fb = await fetch("/api/teachers").then((r) => r.json()).catch(() => null);
+      // Immediate fallback to /api/admin/leave/faculty/members
+      const fb = await fetch("/api/admin/leave/faculty/members").then((r) => r.json()).catch(() => null);
       if (fb?.success && Array.isArray(fb.data) && fb.data.length > 0) {
         setTeachers(
           fb.data.map((t: any) => ({
             id: t.id,
-            name: t.name || `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim(),
-            email: t.email || t.user?.email || "",
+            name: t.name || `${t.firstName || ""} ${t.lastName || ""}`.trim(),
+            email: t.email || "",
             department: t.department || "Faculty",
           }))
         );
@@ -369,7 +369,12 @@ export default function AdminAttendanceSchedulePage() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    // Auto-polling every 20 seconds for real-time schedule state & active shift synchronization
+    const timer = setInterval(() => {
+      fetchWindows();
+    }, 20000);
+    return () => clearInterval(timer);
+  }, [loadData, fetchWindows]);
 
   // Filter windows by Tab and Audience Filter
   const filteredWindows = useMemo(() => {
@@ -396,16 +401,20 @@ export default function AdminAttendanceSchedulePage() {
     // Audience filter (handles FACULTY, BOTH, and ALL_STUDENTS)
     if (audienceFilter === "STUDENT") {
       list = list.filter((w) => {
-        const isFaculty = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
-        const isDual = !isFaculty && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
+        const isDual = w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || /tilawat/i.test(w.name);
+        const isFaculty = !isDual && (w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY"));
         return !isFaculty && !isDual;
       });
     } else if (audienceFilter === "TEACHER") {
-      list = list.filter((w) => w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY"));
+      list = list.filter((w) => {
+        const isDual = w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || /tilawat/i.test(w.name);
+        const isFaculty = !isDual && (w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY"));
+        return isFaculty || isDual;
+      });
     } else if (audienceFilter === "BOTH") {
       list = list.filter((w) => {
-        const isFaculty = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
-        return !isFaculty && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
+        const isDual = w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || /tilawat/i.test(w.name);
+        return isDual;
       });
     }
 
@@ -804,8 +813,8 @@ export default function AdminAttendanceSchedulePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredWindows.map((w) => {
               const isLive = w.status === "ACTIVE" || w.status === "GRACE_PERIOD";
-              const isFaculty = w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY");
-              const isDual = !isFaculty && (w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || (Boolean(w.facultyStartTime && w.facultyEndTime) && (w.audience as any) !== "ALL_STUDENTS"));
+              const isDual = w.audience === "BOTH" || (w.exemptStudentIds || []).includes("AUDIENCE_BOTH") || /tilawat/i.test(w.name);
+              const isFaculty = !isDual && (w.audience === "FACULTY" || (w.exemptStudentIds || []).includes("AUDIENCE_FACULTY"));
 
               const theme = isFaculty
                 ? {
@@ -1024,22 +1033,29 @@ export default function AdminAttendanceSchedulePage() {
                           )}
                         </div>
                         {hasStrictFaculty ? (
-                          <div className="space-y-1">
-                            <p className="text-[11px] text-blue-900 font-medium leading-tight">
-                              Only selected faculty eligible for scanning. Un-eligible faculty will <strong className="text-blue-950 underline decoration-blue-400">never be marked absent</strong>.
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] text-blue-900 font-semibold leading-tight">
+                              Only selected faculty eligible for scanning. Non-selected faculty will <strong className="text-blue-950 underline decoration-blue-400">never be marked absent</strong>.
                             </p>
-                            {w.applicableTeachers && w.applicableTeachers.length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-0.5">
-                                {w.applicableTeachers.slice(0, 4).map((t) => (
-                                  <span key={t.id} className="text-[10px] bg-white border border-blue-200 text-blue-900 font-semibold px-2 py-0.5 rounded-md shadow-2xs">
-                                    {t.name}
-                                  </span>
-                                ))}
-                                {w.applicableTeachers.length > 4 && (
-                                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded-md">
-                                    +{w.applicableTeachers.length - 4} more
-                                  </span>
-                                )}
+                            {/* Display ALL Selected Faculty Names */}
+                            {((w.applicableTeachers && w.applicableTeachers.length > 0) || (teachers.length > 0 && w.applicableTeacherIds && w.applicableTeacherIds.length > 0)) && (
+                              <div className="max-h-36 overflow-y-auto pr-1 space-y-1 rounded-xl bg-white/90 p-2 border border-blue-200">
+                                <div className="text-[10px] font-black text-blue-950 uppercase tracking-wider">
+                                  Selected Faculty Names ({w.applicableTeacherIds?.length}):
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {(w.applicableTeachers && w.applicableTeachers.length > 0
+                                    ? w.applicableTeachers
+                                    : (w.applicableTeacherIds || []).map((id) => ({
+                                        id,
+                                        name: teachers.find((t) => t.id === id)?.name || id,
+                                      }))
+                                  ).map((t) => (
+                                    <span key={t.id} className="text-[10px] bg-blue-50 border border-blue-300 text-blue-900 font-bold px-2 py-0.5 rounded-lg shadow-2xs">
+                                      {t.name}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2260,6 +2276,13 @@ export default function AdminAttendanceSchedulePage() {
                                     t.email?.toLowerCase().includes(q) ||
                                     t.department?.toLowerCase().includes(q)
                                   );
+                                })
+                                .sort((a, b) => {
+                                  const aSelected = windowForm.applicableTeacherIds.includes(a.id);
+                                  const bSelected = windowForm.applicableTeacherIds.includes(b.id);
+                                  if (aSelected && !bSelected) return -1;
+                                  if (!aSelected && bSelected) return 1;
+                                  return a.name.localeCompare(b.name);
                                 })
                                 .map((t) => {
                                   const isStrictOn = windowForm.applicableTeacherIds.length > 0;

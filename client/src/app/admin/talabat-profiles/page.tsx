@@ -286,7 +286,32 @@ export default function AdminTalabatProfilesPage() {
       const res = await fetch(`/api/talabat-profile/view/${studentId}`);
       const data = await res.json();
       if (data.success && data.profile) {
-        const p = data.profile;
+        const info = data.studentInfo || {};
+        const p = {
+          ...data.profile,
+          name: data.profile.name || info.name,
+          itsNo: data.profile.itsNo || info.its,
+          studentPhotoUrl: data.profile.studentPhotoUrl || info.avatarUrl,
+          motherName: data.profile.motherName || info.motherName,
+          fatherName: data.profile.fatherName || info.fatherName,
+          fatherOccupation: data.profile.fatherOccupation || info.fatherOccupation,
+          standard: data.profile.standard || info.standard || info.grade,
+          grade: data.profile.grade || info.grade,
+          section: data.profile.section || info.section,
+          studentStatus: data.profile.studentStatus || info.studentStatus,
+          admissionYear: data.profile.admissionYear || info.admissionYear,
+          currentYear: data.profile.currentYear || info.currentYear,
+          age: data.profile.age || info.age,
+          watan: data.profile.vatan || data.profile.watan || info.watan,
+          residentCity: data.profile.jamaat || data.profile.residentCity || info.residentCity,
+          address: data.profile.address || info.address,
+          mobileNumber: data.profile.mobileNumber || info.mobileNumber,
+          email: data.profile.email || info.email,
+          externalSchooling: data.profile.externalSchooling || info.externalSchooling,
+          reallyGoodAt: data.profile.reallyGoodAt || info.reallyGoodAt,
+          loveToStudy: data.profile.loveToStudy || info.loveToStudy,
+          loveForFun: data.profile.loveForFun || info.loveForFun,
+        };
         setActiveProfile(p);
         setEditProfileForm({
           ...p,
@@ -1093,6 +1118,14 @@ export default function AdminTalabatProfilesPage() {
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openStudentModal(s.studentId, "document")}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          title="Print or download 1-Sheet A4 profile for this student"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Print A4 Sheet
+                        </button>
                         <button
                           onClick={() => openStudentModal(s.studentId, "fill")}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
@@ -1950,6 +1983,55 @@ export default function AdminTalabatProfilesPage() {
                       />
                     </div>
 
+                    {/* Section 6B: Special Darajah Rabea Reflection & Passion Prompts */}
+                    <div className="bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 p-5 rounded-2xl border border-amber-300 shadow-xs space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                        <h5 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                          Darajah Rabea Personal Reflections &amp; Passions (Printed on A4 Sheet)
+                        </h5>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          1. I am really Good at ...
+                        </label>
+                        <input
+                          type="text"
+                          value={editProfileForm.reallyGoodAt || ""}
+                          onChange={(e) => setEditProfileForm((p) => ({ ...p, reallyGoodAt: e.target.value }))}
+                          placeholder="e.g. History and Geography"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          2. I love to study about ... because ...
+                        </label>
+                        <input
+                          type="text"
+                          value={editProfileForm.loveToStudy || ""}
+                          onChange={(e) => setEditProfileForm((p) => ({ ...p, loveToStudy: e.target.value }))}
+                          placeholder="e.g. emotions, cognitive development because I'm a life long learner"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          3. I really love to ..... For Fun
+                        </label>
+                        <input
+                          type="text"
+                          value={editProfileForm.loveForFun || ""}
+                          onChange={(e) => setEditProfileForm((p) => ({ ...p, loveForFun: e.target.value }))}
+                          placeholder="e.g. write stories for fun"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none bg-white"
+                        />
+                      </div>
+                    </div>
+
                     {/* Save Footer Bar */}
                     <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                       <button
@@ -2289,6 +2371,30 @@ export default function AdminTalabatProfilesPage() {
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
                               <span className="font-bold text-slate-700 block mb-0.5">About Myself:</span>
                               <p className="text-slate-800">{activeProfile.aboutMyself}</p>
+                            </div>
+                          )}
+
+                          {/* Rabea Personal Reflections */}
+                          {(activeProfile.reallyGoodAt || activeProfile.loveToStudy || activeProfile.loveForFun) && (
+                            <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-xs space-y-1.5">
+                              <span className="font-bold text-amber-950 block text-[11px] uppercase tracking-wide">
+                                ★ Rabea Reflections (A4 Sheet):
+                              </span>
+                              {activeProfile.reallyGoodAt && (
+                                <p className="text-slate-800">
+                                  <span className="font-bold text-emerald-900">1. Good at:</span> {activeProfile.reallyGoodAt}
+                                </p>
+                              )}
+                              {activeProfile.loveToStudy && (
+                                <p className="text-slate-800">
+                                  <span className="font-bold text-indigo-900">2. Love to study:</span> {activeProfile.loveToStudy}
+                                </p>
+                              )}
+                              {activeProfile.loveForFun && (
+                                <p className="text-slate-800">
+                                  <span className="font-bold text-purple-900">3. For Fun:</span> {activeProfile.loveForFun}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>

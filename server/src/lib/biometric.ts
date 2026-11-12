@@ -198,14 +198,20 @@ export function isLegacyFacultyRow(w: ScanWindowRowLike): boolean {
 /** Determine whether an attendance schedule is ONLY FACULTY, ONLY TALABAT, or DUAL (BOTH). */
 export function getAudienceType(w: ScanWindowRowLike): "FACULTY" | "ALL_STUDENTS" | "BOTH" {
   const exempt = w.exemptStudentIds || [];
-  if (exempt.includes("AUDIENCE_FACULTY") || isLegacyFacultyRow(w)) {
+  if (exempt.includes("AUDIENCE_BOTH")) {
+    return "BOTH";
+  }
+  if (exempt.includes("AUDIENCE_FACULTY")) {
     return "FACULTY";
   }
   if (exempt.includes("AUDIENCE_STUDENT")) {
     return "ALL_STUDENTS";
   }
-  if (exempt.includes("AUDIENCE_BOTH")) {
+  if (/tilawat/i.test(w.name || "")) {
     return "BOTH";
+  }
+  if (isLegacyFacultyRow(w)) {
+    return "FACULTY";
   }
   if (hasFacultyTimer(w)) {
     return "BOTH";

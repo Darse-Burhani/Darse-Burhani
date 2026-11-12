@@ -244,7 +244,7 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 
       const applicableIds: string[] = ((w as any).applicableTeacherIds ?? []) as string[];
       let applicableTeachers: Array<{ id: string; name: string }> | undefined;
-      if ((audience === "FACULTY" || audience === "BOTH") && applicableIds.length > 0) {
+      if (applicableIds.length > 0) {
         applicableTeachers = applicableIds
           .map((id) => ({ id, name: teacherMap.get(id) || id }))
           .filter((t) => t.name);

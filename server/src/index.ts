@@ -188,11 +188,11 @@ if (useClustering && cluster.isPrimary) {
   });
 
   // Socket & Load Balancer Tuning
-  // 50,000 max connections, 65s keep-alive timeout
+  // 50,000 max connections, 65s keep-alive timeout, 120s request timeout to prevent 504 gateway timeouts on heavy/cold requests
   server.maxConnections = 50000;
   server.keepAliveTimeout = 65000;
-  server.headersTimeout = 66000;
-  server.requestTimeout = 30000;
+  server.headersTimeout = 125000;
+  server.requestTimeout = 120000;
 
   // Bind errors (EADDRINUSE / EACCES) are emitted on the server, not thrown.
   // Without this handler they surface as an uncaughtException, which the

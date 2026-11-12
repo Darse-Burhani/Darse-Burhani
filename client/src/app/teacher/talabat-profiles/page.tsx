@@ -173,7 +173,32 @@ export default function TeacherTalabatProfilesPage() {
       const res = await fetch(`/api/talabat-profile/view/${studentId}`);
       const data = await res.json();
       if (data.success && data.profile) {
-        const p = data.profile;
+        const info = data.studentInfo || {};
+        const p = {
+          ...data.profile,
+          name: data.profile.name || info.name,
+          itsNo: data.profile.itsNo || info.its,
+          studentPhotoUrl: data.profile.studentPhotoUrl || info.avatarUrl,
+          motherName: data.profile.motherName || info.motherName,
+          fatherName: data.profile.fatherName || info.fatherName,
+          fatherOccupation: data.profile.fatherOccupation || info.fatherOccupation,
+          standard: data.profile.standard || info.standard || info.grade,
+          grade: data.profile.grade || info.grade,
+          section: data.profile.section || info.section,
+          studentStatus: data.profile.studentStatus || info.studentStatus,
+          admissionYear: data.profile.admissionYear || info.admissionYear,
+          currentYear: data.profile.currentYear || info.currentYear,
+          age: data.profile.age || info.age,
+          watan: data.profile.vatan || data.profile.watan || info.watan,
+          residentCity: data.profile.jamaat || data.profile.residentCity || info.residentCity,
+          address: data.profile.address || info.address,
+          mobileNumber: data.profile.mobileNumber || info.mobileNumber,
+          email: data.profile.email || info.email,
+          externalSchooling: data.profile.externalSchooling || info.externalSchooling,
+          reallyGoodAt: data.profile.reallyGoodAt || info.reallyGoodAt,
+          loveToStudy: data.profile.loveToStudy || info.loveToStudy,
+          loveForFun: data.profile.loveForFun || info.loveForFun,
+        };
         setActiveProfile(p);
         setReviewerName(data.reviewerName || null);
         if (data.permissions) {
@@ -949,6 +974,14 @@ export default function TeacherTalabatProfilesPage() {
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openStudentModal(s.studentId, "document")}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          title="Print or download 1-Sheet A4 profile for this student"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Print A4 Sheet
+                        </button>
                         <button
                           onClick={() => openStudentModal(s.studentId, "fill")}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
