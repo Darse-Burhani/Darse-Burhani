@@ -34,18 +34,28 @@ function getPooledDatabaseUrl(): string | undefined {
     const isPort5432 = url.includes(":5432");
 
     // Optimize connection limit:
-    // Supabase session pooler on port 5432 limits max clients to 15. Keep connection limit low to prevent exhaustion.
-    const defaultLimit = process.env.RENDER ? (isSupabasePooler && isPort5432 ? "3" : "4") : "5";
+    // Supabase session pooler on port 5432 limits max clients to 15. Keep a
+    // modest per-instance pool, but large enough that the admin dashboard's
+    // parallel queries do not serialize behind three slots.
+    const defaultLimit = process.env.RENDER
+      ? isSupabasePooler && isPort5432
+        ? "5"
+        : "10"
+      : "5";
     const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || defaultLimit, 10);
     params.set("connection_limit", String(targetLimit));
 
-    // Connect & Pool timeouts — generous 30s timeouts for cloud cold-starts
+    // Connect & pool timeouts MUST stay well below the 30s API request guard
+    // (requestTimeoutMiddleware in app.ts). When they matched at 30s, a single
+    // dropped Supabase connection hung until the guard fired, so every request
+    // in flight returned 504 instead of letting the retry in this file recover
+    // on a fresh connection.
     const currentTimeout = parseInt(params.get("pool_timeout") || "0", 10);
-    if (!params.has("pool_timeout") || currentTimeout < 30) {
-      params.set("pool_timeout", "30");
+    if (!params.has("pool_timeout") || currentTimeout > 10) {
+      params.set("pool_timeout", "10");
     }
-    if (!params.has("connect_timeout") || parseInt(params.get("connect_timeout") || "0", 10) < 30) {
-      params.set("connect_timeout", "30");
+    if (!params.has("connect_timeout") || parseInt(params.get("connect_timeout") || "0", 10) > 12) {
+      params.set("connect_timeout", "12");
     }
 
     // Cloud Postgres requires SSL (e.g. Supabase, Render, Neon, etc.)

@@ -103,6 +103,9 @@ export function NotificationBell() {
   const menuRef = useRef<HTMLDivElement>(null);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
+  // Guards against stacking polls: a slow request must not be joined by the
+  // next interval tick, otherwise one tab can hold several 30s requests open.
+  const inFlightRef = useRef(false);
 
   // Request browser desktop notification permission on first user interaction
   useEffect(() => {
@@ -126,6 +129,9 @@ export function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     if (status !== "authenticated" || !session?.user) return;
+    if (inFlightRef.current) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    inFlightRef.current = true;
     try {
       const res = await fetch("/api/notifications");
       if (!res.ok) return;
@@ -176,6 +182,8 @@ export function NotificationBell() {
       }
     } catch {
       // silent
+    } finally {
+      inFlightRef.current = false;
     }
   }, [status, session]);
 

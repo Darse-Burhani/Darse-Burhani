@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
+import { cache } from "../lib/cache";
 import { requireAuth } from "../middleware";
 import { getVapidPublicKey, isPushConfigured } from "../lib/push";
 
@@ -14,20 +15,30 @@ router.get("/", requireAuth, async (req, res) => {
 
     const unreadOnly = (req.query.unreadOnly as string) === "true";
 
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: session.user.id,
-        ...(unreadOnly && { isRead: false }),
+    // The bell polls this endpoint every 10s from every open tab, so serve it
+    // from a short-lived per-user cache instead of two DB round-trips per poll.
+    const data = await cache.getOrSet(
+      `notifications:${session.user.id}:${unreadOnly ? "unread" : "all"}`,
+      async () => {
+        const notifications = await prisma.notification.findMany({
+          where: {
+            userId: session.user.id,
+            ...(unreadOnly && { isRead: false }),
+          },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        });
+
+        const unreadCount = await prisma.notification.count({
+          where: { userId: session.user.id, isRead: false },
+        });
+
+        return { notifications, unreadCount };
       },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+      { ttl: 5_000, tags: ["notifications"] }
+    );
 
-    const unreadCount = await prisma.notification.count({
-      where: { userId: session.user.id, isRead: false },
-    });
-
-    return res.json({ success: true, data: { notifications, unreadCount } });
+    return res.json({ success: true, data });
   } catch (error) {
     console.error("Notifications fetch error:", error);
     return res.json({ success: true, data: { notifications: [], unreadCount: 0 } });
@@ -52,6 +63,9 @@ router.put("/", requireAuth, async (req, res) => {
         data: { isRead: true },
       });
     }
+
+    // Unread counts just changed — drop the cached list so the next poll is fresh
+    cache.invalidateTag("notifications");
 
     return res.json({ success: true });
   } catch (error) {
