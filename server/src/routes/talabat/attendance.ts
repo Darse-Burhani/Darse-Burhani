@@ -3,7 +3,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { cache } from "../../lib/cache";
 import { requireRole } from "../../middleware";
-import { getScanWindow, getStartOfDayIST } from "../../lib/biometric";
+import { getScanWindow, getStartOfDayIST, getAudienceType } from "../../lib/biometric";
 import { isRabiAlAkhirDate } from "../../lib/fatimi-calendar";
 
 const router = Router();
@@ -204,7 +204,63 @@ router.get("/", requireRole("STUDENT"), async (req, res) => {
           take: 25,
         });
 
+        // Fetch all active scan schedules applicable to students (STUDENT or BOTH)
+        const allWindows = await prisma.biometricScanWindow.findMany({
+          where: { enabled: true },
+          orderBy: { startTime: "asc" },
+        });
+        const studentWindows = allWindows.filter((w) => {
+          const aud = getAudienceType(w);
+          return aud === "BOTH" || aud === "ALL_STUDENTS";
+        });
+        const schedules = studentWindows.map((w) => {
+          const aud = getAudienceType(w);
+          const [sh, sm] = (w.startTime || "07:00").split(":").map(Number);
+          const [eh, em] = (w.endTime || "08:15").split(":").map(Number);
+          const [lh, lm] = ((w as any).lateEndTime || w.endTime || "08:30").split(":").map(Number);
+          const sMin = (sh || 0) * 60 + (sm || 0);
+          const eMin = (eh || 0) * 60 + (em || 0);
+          const lMin = (lh || 0) * 60 + (lm || 0);
+
+          // Find scans matching this window
+          const matchedScans = biometricRecords.filter((r) => {
+            if (!r.checkInTime) return false;
+            const cd = new Date(r.checkInTime);
+            const punchMin = (cd.getUTCHours() * 60 + cd.getUTCMinutes() + 330) % 1440;
+            return punchMin >= Math.max(0, sMin - 120) && punchMin <= lMin;
+          });
+
+          const onTime = matchedScans.filter((r) => r.status === "PRESENT").length;
+          const late = matchedScans.filter((r) => r.status === "LATE").length;
+          const totalDays = biometricTotal || 1;
+          const percentage = totalDays > 0 ? Math.round(((onTime + late) / totalDays) * 100) : 0;
+
+          return {
+            id: w.id,
+            name: w.name,
+            startTime: w.startTime,
+            endTime: w.endTime,
+            lateEndTime: (w as any).lateEndTime || w.endTime,
+            audience: aud,
+            stats: {
+              total: totalDays,
+              present: onTime,
+              late,
+              missed: Math.max(0, totalDays - onTime - late),
+              percentage,
+            },
+            scans: matchedScans.slice(0, 15).map((r) => ({
+              id: r.id,
+              date: r.date.toISOString(),
+              checkInTime: r.checkInTime?.toISOString() || null,
+              status: r.status,
+              source: r.source || r.verificationMethod,
+            })),
+          };
+        });
+
         return {
+          schedules,
           stats: {
             month: {
               total: monthTotal,

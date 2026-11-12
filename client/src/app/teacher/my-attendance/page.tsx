@@ -54,12 +54,12 @@ interface TeacherInfo {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType; dot: string }> = {
-  PRESENT: { label: "Present", color: "text-emerald-700", bg: "bg-emerald-100", icon: CheckCircle2, dot: "bg-emerald-400" },
-  LATE: { label: "Late", color: "text-amber-700", bg: "bg-amber-100", icon: Clock, dot: "bg-amber-400" },
-  ABSENT: { label: "Absent", color: "text-red-600", bg: "bg-red-100", icon: XCircle, dot: "bg-red-400" },
-  EARLY_DEPARTURE: { label: "Early Departure", color: "text-orange-600", bg: "bg-orange-100", icon: AlertTriangle, dot: "bg-orange-400" },
-  MEDICAL: { label: "Medical", color: "text-violet-700", bg: "bg-violet-100", icon: ShieldCheck, dot: "bg-violet-400" },
-  ON_LEAVE: { label: "On Leave", color: "text-blue-600", bg: "bg-blue-100", icon: ShieldCheck, dot: "bg-blue-400" },
+  PRESENT: { label: "Present", color: "text-emerald-800", bg: "bg-emerald-100 border border-emerald-300", icon: CheckCircle2, dot: "bg-emerald-400" },
+  LATE: { label: "Late", color: "text-amber-900", bg: "bg-amber-100 border border-amber-300", icon: Clock, dot: "bg-amber-500" },
+  ABSENT: { label: "Absent", color: "text-rose-800", bg: "bg-rose-100 border border-rose-300", icon: XCircle, dot: "bg-rose-500" },
+  EARLY_DEPARTURE: { label: "Early Departure", color: "text-orange-800", bg: "bg-orange-100 border border-orange-300", icon: AlertTriangle, dot: "bg-orange-500" },
+  MEDICAL: { label: "Medical", color: "text-cyan-800", bg: "bg-cyan-100 border border-cyan-300", icon: ShieldCheck, dot: "bg-cyan-500" },
+  ON_LEAVE: { label: "On Leave", color: "text-purple-800", bg: "bg-purple-100 border border-purple-300", icon: ShieldCheck, dot: "bg-purple-500" },
 };
 
 const METHOD_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -81,6 +81,8 @@ export default function TeacherMyAttendancePage() {
   const [teacher, setTeacher] = useState<TeacherInfo | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>("all");
 
   // Month navigation
   const [viewDate, setViewDate] = useState(() => {
@@ -100,6 +102,9 @@ export default function TeacherMyAttendancePage() {
         setTeacher(json.data.teacher);
         setStats(json.data.stats);
         setRecords(json.data.records);
+        if (Array.isArray(json.data.schedules)) {
+          setSchedules(json.data.schedules);
+        }
       } else {
         toast({ variant: "destructive", title: "Error", description: json.error || "Failed to load" });
       }
@@ -152,6 +157,22 @@ export default function TeacherMyAttendancePage() {
       date: d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Asia/Kolkata" }),
     };
   };
+
+  const filteredRecords = useMemo(() => {
+    if (selectedScheduleId === "all") return records;
+    const sch = schedules.find((s) => s.id === selectedScheduleId);
+    if (!sch) return records;
+    const [sh, sm] = (sch.startTime || "07:00").split(":").map(Number);
+    const [lh, lm] = (sch.lateEndTime || sch.endTime || "08:30").split(":").map(Number);
+    const sMin = (sh || 0) * 60 + (sm || 0);
+    const lMin = (lh || 0) * 60 + (lm || 0);
+    return records.filter((r) => {
+      if (!r.checkInTime) return false;
+      const cd = new Date(r.checkInTime);
+      const punchMin = (cd.getUTCHours() * 60 + cd.getUTCMinutes() + 330) % 1440;
+      return punchMin >= Math.max(0, sMin - 120) && punchMin <= lMin;
+    });
+  }, [records, schedules, selectedScheduleId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
@@ -248,17 +269,62 @@ export default function TeacherMyAttendancePage() {
               </Button>
             </div>
 
+            {/* Dynamic Attendance Schedules Tabs for Faculty */}
+            {schedules.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-700">
+                    <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Faculty Attendance Schedules</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-indigo-600 font-bold">Time Synced</span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 touch-pan-x">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScheduleId("all")}
+                    className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border min-h-[40px] touch-manipulation active:scale-95 ${
+                      selectedScheduleId === "all"
+                        ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    All Shifts ({records.length})
+                  </button>
+                  {schedules.map((sch) => (
+                    <button
+                      key={sch.id}
+                      type="button"
+                      onClick={() => setSelectedScheduleId(sch.id)}
+                      className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border min-h-[40px] touch-manipulation active:scale-95 ${
+                        selectedScheduleId === sch.id
+                          ? "bg-indigo-700 text-white border-indigo-700 shadow-sm"
+                          : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>{sch.name}</span>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                        selectedScheduleId === sch.id ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-800"
+                      }`}>
+                        {sch.startTime}–{sch.lateEndTime || sch.endTime}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Records list */}
             <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Fingerprint className="h-4 w-4 text-indigo-500" />
-                  <h3 className="font-semibold text-slate-800 text-sm">Attendance Records ({records.length})</h3>
+                  <h3 className="font-semibold text-slate-800 text-sm">Attendance Records ({filteredRecords.length})</h3>
                 </div>
                 <span className="text-[11px] text-slate-400 font-mono">IST +05:30</span>
               </div>
 
-              {records.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <div className="text-center py-14 text-slate-400">
                   <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No records for {monthLabel}</p>
@@ -266,7 +332,7 @@ export default function TeacherMyAttendancePage() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {records.map((r, i) => {
+                  {filteredRecords.map((r, i) => {
                     const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.ABSENT;
                     const methodCfg = METHOD_CONFIG[r.verificationMethod?.toUpperCase()] ||
                       METHOD_CONFIG[r.biometricMethod?.toUpperCase() || ""] ||

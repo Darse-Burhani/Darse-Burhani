@@ -48,6 +48,8 @@ import {
   AttendanceLogsResponse,
   ScheduledEventWindow,
   AttendanceLogRecordItem,
+  overrideAttendanceLog,
+  overrideAttendanceRegistry,
 } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DayDetailDrawer } from "@/components/registry/DayDetailDrawer";
@@ -157,6 +159,68 @@ export default function AdminAttendanceHikPage() {
     role: "STUDENT" | "FACULTY";
     openOverride?: boolean;
   } | null>(null);
+
+  // Quick Override Modal State (Accessible for ALL users: Students & Faculty)
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  const [overrideTarget, setOverrideTarget] = useState<AttendanceLogRecordItem | null>(null);
+  const [overrideStatus, setOverrideStatus] = useState<string>("PRESENT");
+  const [overrideSource, setOverrideSource] = useState<string>("MANUAL");
+  const [overrideRemarks, setOverrideRemarks] = useState<string>("");
+  const [savingOverride, setSavingOverride] = useState(false);
+
+  const handleOpenOverride = (record: AttendanceLogRecordItem) => {
+    setOverrideTarget(record);
+    const initialStatus =
+      record.status === "NOT_MARKED" || record.status === "ABSENT" ? "PRESENT" : record.status;
+    setOverrideStatus(initialStatus);
+    setOverrideSource(record.source === "SCAN" || record.source === "BIOMETRIC" ? "SCAN" : "MANUAL");
+    setOverrideRemarks("");
+    setOverrideModalOpen(true);
+  };
+
+  const handleSubmitOverride = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!overrideTarget) return;
+
+    setSavingOverride(true);
+    try {
+      if (overrideTarget.role === "FACULTY") {
+        await overrideAttendanceLog({
+          teacherId: overrideTarget.memberId,
+          date,
+          status: overrideStatus,
+          source: overrideSource,
+          remarks: overrideRemarks.trim() || undefined,
+        });
+      } else {
+        await overrideAttendanceRegistry({
+          studentId: overrideTarget.memberId,
+          date,
+          status: overrideStatus,
+          source: overrideSource,
+          remarks: overrideRemarks.trim() || undefined,
+        });
+      }
+
+      toast({
+        title: "Attendance Overridden Successfully",
+        description: `Updated ${overrideTarget.name} (${overrideTarget.role === "FACULTY" ? "Faculty" : "Talabat"}) to ${overrideStatus} for ${date}.`,
+        variant: "success",
+      });
+
+      setOverrideModalOpen(false);
+      setOverrideTarget(null);
+      await loadAttendance(true);
+    } catch (err: any) {
+      toast({
+        title: "Override Failed",
+        description: err.message || "Failed to update attendance status",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingOverride(false);
+    }
+  };
 
   // Fetch events
   useEffect(() => {
@@ -532,65 +596,81 @@ export default function AdminAttendanceHikPage() {
     });
   }, [allRecords, audience, statusFilter, searchQuery, sortBy]);
 
-  // Helper for Status Badge Styling
+  // Helper for Status Badge Styling (Differential Colors: Green, Orange, Red, Cyan, Purple)
   const getStatusBadge = (status: string, hasScan: boolean) => {
     switch (status) {
       case "PRESENT":
         return {
           label: "PRESENT",
           bg: "bg-emerald-600 text-white font-black border-emerald-500 shadow-xs",
-          dot: "bg-emerald-200",
+          pill: "bg-emerald-50 text-emerald-900 border border-emerald-300 font-extrabold",
+          dot: "bg-emerald-300",
           icon: CheckCircle2,
+          colorCode: "emerald",
         };
       case "LATE":
         return {
           label: "LATE",
-          bg: "bg-amber-50 text-amber-800 border-amber-300",
-          dot: "bg-amber-500",
+          bg: "bg-amber-500 text-white font-black border-amber-600 shadow-xs",
+          pill: "bg-amber-50 text-amber-950 border border-amber-300 font-extrabold",
+          dot: "bg-amber-400",
           icon: Clock,
+          colorCode: "amber",
         };
       case "ABSENT":
         return {
           label: "ABSENT",
-          bg: "bg-rose-50 text-rose-800 border-rose-300",
-          dot: "bg-rose-500",
+          bg: "bg-rose-600 text-white font-black border-rose-700 shadow-xs",
+          pill: "bg-rose-50 text-rose-950 border border-rose-300 font-extrabold",
+          dot: "bg-rose-300",
           icon: XCircle,
+          colorCode: "rose",
         };
       case "MEDICAL":
         return {
           label: "MEDICAL",
-          bg: "bg-purple-50 text-purple-800 border-purple-300",
-          dot: "bg-purple-500",
+          bg: "bg-cyan-600 text-white font-black border-cyan-700 shadow-xs",
+          pill: "bg-cyan-50 text-cyan-950 border border-cyan-300 font-extrabold",
+          dot: "bg-cyan-300",
           icon: Activity,
+          colorCode: "cyan",
         };
       case "ON_LEAVE":
         return {
           label: "ON LEAVE",
-          bg: "bg-sky-50 text-sky-800 border-sky-300",
-          dot: "bg-sky-500",
+          bg: "bg-purple-600 text-white font-black border-purple-700 shadow-xs",
+          pill: "bg-purple-50 text-purple-950 border border-purple-300 font-extrabold",
+          dot: "bg-purple-300",
           icon: Briefcase,
+          colorCode: "purple",
         };
       case "HOLIDAY":
         return {
           label: "HOLIDAY",
-          bg: "bg-slate-100 text-slate-700 border-slate-300",
+          bg: "bg-slate-700 text-white font-black border-slate-600",
+          pill: "bg-slate-100 text-slate-800 border border-slate-300 font-bold",
           dot: "bg-slate-400",
           icon: Calendar,
+          colorCode: "slate",
         };
       case "EXEMPT":
       case "NOT_APPLICABLE":
         return {
           label: "EXEMPT · NOT ELIGIBLE",
-          bg: "bg-slate-100 text-slate-600 border-slate-300 font-bold",
+          bg: "bg-slate-600 text-white font-black border-slate-500",
+          pill: "bg-slate-100 text-slate-700 border border-slate-300 font-bold",
           dot: "bg-slate-400",
           icon: Shield,
+          colorCode: "slate",
         };
       default:
         return {
           label: hasScan ? "SCANNED" : "ABSENT · NO SCAN",
-          bg: "bg-slate-100 text-slate-700 border-slate-300",
+          bg: hasScan ? "bg-emerald-600 text-white font-black" : "bg-rose-50 text-rose-800 border-rose-300 font-bold",
+          pill: "bg-slate-100 text-slate-700 border border-slate-300",
           dot: "bg-slate-400",
           icon: HelpCircle,
+          colorCode: "gray",
         };
     }
   };
@@ -805,6 +885,145 @@ export default function AdminAttendanceHikPage() {
                 : `${stats.studentPunched} T / ${stats.facultyPunched} F`}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Dynamic Schedule Tabs Bar (PWA APK touch-friendly & auto-generated when admin creates schedules) ── */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+              Attendance Schedule Tabs
+            </span>
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+              {events.length} Active {events.length === 1 ? "Schedule" : "Schedules"}
+            </span>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-700 hidden sm:inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            Time Synced &amp; Auto-Scoped
+          </span>
+        </div>
+
+        {/* Scrollable Tab Strip */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5 touch-pan-x">
+          {/* Tab 0: Overview / All Schedules */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedEventId("");
+            }}
+            className={`shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border text-xs font-black transition-all cursor-pointer shadow-xs min-h-[46px] touch-manipulation active:scale-[0.98] ${
+              selectedEventId === ""
+                ? "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/20"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+            }`}
+          >
+            <div className={`w-2.5 h-2.5 rounded-full ${selectedEventId === "" ? "bg-amber-400" : "bg-slate-400"}`} />
+            <div className="text-left">
+              <div className="font-extrabold truncate">All Schedules (Overview)</div>
+              <div className={`text-[10px] font-medium truncate ${selectedEventId === "" ? "text-slate-300" : "text-slate-400"}`}>
+                Full Strength · All Roster
+              </div>
+            </div>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${
+              selectedEventId === "" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+            }`}>
+              {stats.audienceFullStrength}
+            </span>
+          </button>
+
+          {/* Dynamic Tabs: One per configured attendance schedule */}
+          {events.map((ev) => {
+            const isSelected = selectedEventId === ev.id;
+            const liveCount = data?.eventLiveCounts?.[ev.id] ?? 0;
+            const isBoth = ev.audience === "BOTH" || /tilawat/i.test(ev.name);
+            const isFacultyOnly = !isBoth && ev.audience === "FACULTY";
+
+            const audienceTheme = isBoth
+              ? {
+                  pill: "bg-purple-100 text-purple-900 border-purple-300",
+                  label: "Both (Talabat & Faculty)",
+                  selectedBg: "bg-gradient-to-r from-purple-800 via-indigo-800 to-purple-900 text-white border-purple-700 shadow-md ring-2 ring-purple-600/30",
+                  activeDot: "bg-purple-300",
+                }
+              : isFacultyOnly
+              ? {
+                  pill: "bg-blue-100 text-blue-900 border-blue-300",
+                  label: "Faculty Only",
+                  selectedBg: "bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white border-blue-600 shadow-md ring-2 ring-blue-500/30",
+                  activeDot: "bg-blue-300",
+                }
+              : {
+                  pill: "bg-emerald-100 text-emerald-900 border-emerald-300",
+                  label: "Talabat Only",
+                  selectedBg: "bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/30",
+                  activeDot: "bg-emerald-300",
+                };
+
+            return (
+              <button
+                key={ev.id}
+                type="button"
+                onClick={() => {
+                  setSelectedEventId(ev.id);
+                  // Automatically adjust audience to match the schedule's target
+                  if (ev.audience === "FACULTY") {
+                    setAudience("FACULTY");
+                  } else if (ev.audience === "STUDENT") {
+                    setAudience("STUDENT");
+                  }
+                }}
+                className={`shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border text-xs font-black transition-all cursor-pointer shadow-xs min-h-[46px] touch-manipulation active:scale-[0.98] ${
+                  isSelected
+                    ? audienceTheme.selectedBg
+                    : "bg-white text-slate-800 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
+                }`}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                  ev.status === "ACTIVE"
+                    ? "bg-emerald-400 animate-pulse ring-2 ring-emerald-400/50"
+                    : isSelected
+                    ? audienceTheme.activeDot
+                    : "bg-slate-300"
+                }`} />
+
+                <div className="text-left min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-extrabold truncate">{ev.name}</span>
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded border ${
+                      isSelected ? "bg-white/20 text-white border-white/30" : audienceTheme.pill
+                    }`}>
+                      {audienceTheme.label}
+                    </span>
+                  </div>
+                  <div className={`text-[10px] font-mono truncate mt-0.5 ${
+                    isSelected ? "text-white/80" : "text-slate-500"
+                  }`}>
+                    {ev.startTime} – {ev.lateEndTime || ev.endTime} IST
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-0.5 shrink-0 pl-1">
+                  {ev.status === "ACTIVE" && (
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full animate-pulse ${
+                      isSelected ? "bg-emerald-400 text-emerald-950" : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                    }`}>
+                      Live
+                    </span>
+                  )}
+                  {liveCount > 0 && (
+                    <span className={`text-[9.5px] font-mono font-black px-1.5 py-0.2 rounded-md ${
+                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+                    }`}>
+                      {liveCount} scans
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -1253,11 +1472,22 @@ export default function AdminAttendanceHikPage() {
                           <span className="font-mono text-[10.5px] font-bold text-slate-600">{r.scheduledEvent?.timeWindow || "07:00 - 12:30 IST"}</span>
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
-                        hasScan ? "bg-emerald-100 text-emerald-900 border border-emerald-300" : "bg-slate-200 text-slate-700"
-                      }`}>
-                        {hasScan ? "Synced" : "Awaiting Punch"}
-                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                          r.scheduledEvent?.audience === "BOTH"
+                            ? "bg-purple-100 text-purple-900 border border-purple-300"
+                            : r.scheduledEvent?.audience === "FACULTY"
+                            ? "bg-blue-100 text-blue-900 border border-blue-300"
+                            : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                        }`}>
+                          {r.scheduledEvent?.audience === "BOTH" ? "Dual" : r.scheduledEvent?.audience === "FACULTY" ? "Faculty" : "Talabat"}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                          hasScan ? "bg-emerald-100 text-emerald-900 border border-emerald-300" : "bg-slate-200 text-slate-700"
+                        }`}>
+                          {hasScan ? "Synced" : "Awaiting Punch"}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Middle Row: Exact Scan Timestamp & Verification Mode */}
@@ -1311,23 +1541,25 @@ export default function AdminAttendanceHikPage() {
                         {hijri.day} {hijri.monthNameShort} {hijri.year}H
                       </span>
                       <div className="flex items-center gap-1.5">
-                        {isFacultyMember && (
-                          <button
-                            type="button"
-                            onClick={() => handleMemberClick(r.memberId, r.role, true)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10.5px] font-black text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer shadow-2xs"
-                            title="Direct Faculty Attendance Override"
-                          >
-                            <Edit3 className="w-3 h-3 text-indigo-600 shrink-0" />
-                            <span>Override</span>
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenOverride(r)}
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-xs min-h-[38px] touch-manipulation active:scale-[0.97] ${
+                            isFacultyMember
+                              ? "text-indigo-900 bg-indigo-100 hover:bg-indigo-200 border border-indigo-300"
+                              : "text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300"
+                          }`}
+                          title={`Direct Attendance Override for ${r.name}`}
+                        >
+                          <Edit3 className="w-3.5 h-3.5 shrink-0" />
+                          <span>⚡ Override</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleMemberClick(r.memberId, r.role, false)}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer min-h-[38px] touch-manipulation active:scale-[0.97]"
                         >
-                          <span>Audit / View Logs</span>
+                          <span>Audit / Logs</span>
                         </button>
                       </div>
                     </div>
@@ -1451,9 +1683,20 @@ export default function AdminAttendanceHikPage() {
                         {/* Schedule Window & Time Sync */}
                         <td className="px-3 py-2.5">
                           <div className="flex flex-col">
-                            <span className="font-black text-slate-900 text-[11px] truncate">
-                              {r.scheduledEvent?.name || "Tilawat al Dua"}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-black text-slate-900 text-[11px] truncate">
+                                {r.scheduledEvent?.name || "Tilawat al Dua"}
+                              </span>
+                              <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.2 rounded border ${
+                                r.scheduledEvent?.audience === "BOTH"
+                                  ? "bg-purple-100 text-purple-900 border-purple-300"
+                                  : r.scheduledEvent?.audience === "FACULTY"
+                                  ? "bg-blue-100 text-blue-900 border-blue-300"
+                                  : "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              }`}>
+                                {r.scheduledEvent?.audience === "BOTH" ? "Dual" : r.scheduledEvent?.audience === "FACULTY" ? "Faculty" : "Talabat"}
+                              </span>
+                            </div>
                             <span className="text-[10px] font-mono font-bold text-slate-600 mt-0.5">
                               {r.scheduledEvent?.timeWindow || "07:00 - 12:30 IST"}
                             </span>
@@ -1545,21 +1788,23 @@ export default function AdminAttendanceHikPage() {
                         {/* Action */}
                         <td className="px-3 py-2.5 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
-                            {isFacultyMember && (
-                              <button
-                                type="button"
-                                onClick={() => handleMemberClick(r.memberId, r.role, true)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10.5px] font-black text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer shadow-2xs"
-                                title="Direct Faculty Attendance Override"
-                              >
-                                <Edit3 className="w-3 h-3 text-indigo-600 shrink-0" />
-                                <span>Override</span>
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOverride(r)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10.5px] font-black transition-all cursor-pointer shadow-2xs border ${
+                                isFacultyMember
+                                  ? "text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                                  : "text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                              }`}
+                              title={`Direct Attendance Override for ${r.name}`}
+                            >
+                              <Edit3 className="w-3 h-3 shrink-0" />
+                              <span>Override</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleMemberClick(r.memberId, r.role, false)}
-                              className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
+                              className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer"
                             >
                               View Logs
                             </button>
@@ -1574,6 +1819,160 @@ export default function AdminAttendanceHikPage() {
           </>
         )}
       </div>
+
+      {/* ── Quick Override Modal for ALL Users (PWA / Mobile APK Optimized) ── */}
+      {overrideModalOpen && overrideTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Header */}
+            <div className={`p-4 sm:p-5 text-white flex items-center justify-between ${
+              overrideTarget.role === "FACULTY"
+                ? "bg-gradient-to-r from-indigo-800 via-indigo-900 to-slate-900"
+                : "bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900"
+            }`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="w-11 h-11 rounded-2xl border-2 border-white/30 shrink-0 shadow-sm">
+                  <AvatarImage src={overrideTarget.avatarUrl || undefined} />
+                  <AvatarFallback className="bg-white/20 text-white font-black text-sm">
+                    {getInitials(overrideTarget.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-black text-sm sm:text-base text-white truncate">
+                      {overrideTarget.name}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/30">
+                      {overrideTarget.role === "FACULTY" ? "Faculty" : "Talabat"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/80 font-mono mt-0.5 truncate">
+                    ITS: {overrideTarget.its || "—"} · {overrideTarget.designationOrClass || "—"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setOverrideModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleSubmitOverride} className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Date of Override:</span>
+                <span className="font-mono font-black text-slate-900">{formatScanDateIST(date)} ({date})</span>
+              </div>
+
+              {/* Status Selector: Visual Differential Chips */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2">
+                  Select New Attendance Status:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: "PRESENT", label: "Present", color: "bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/30", unselected: "bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100", dot: "bg-emerald-400" },
+                    { id: "LATE", label: "Late", color: "bg-amber-500 text-white border-amber-600 ring-2 ring-amber-500/30", unselected: "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100", dot: "bg-amber-400" },
+                    { id: "ABSENT", label: "Absent", color: "bg-rose-600 text-white border-rose-700 ring-2 ring-rose-500/30", unselected: "bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100", dot: "bg-rose-400" },
+                    { id: "MEDICAL", label: "Medical", color: "bg-cyan-600 text-white border-cyan-700 ring-2 ring-cyan-500/30", unselected: "bg-cyan-50 text-cyan-900 border-cyan-200 hover:bg-cyan-100", dot: "bg-cyan-400" },
+                    { id: "ON_LEAVE", label: "On Leave", color: "bg-purple-600 text-white border-purple-700 ring-2 ring-purple-500/30", unselected: "bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100", dot: "bg-purple-400" },
+                    { id: "EXEMPT", label: "Exempt", color: "bg-slate-700 text-white border-slate-800 ring-2 ring-slate-500/30", unselected: "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200", dot: "bg-slate-400" },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setOverrideStatus(s.id)}
+                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-black transition-all cursor-pointer min-h-[44px] touch-manipulation active:scale-[0.98] ${
+                        overrideStatus === s.id ? s.color : s.unselected
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+                      <span>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Source & Reason */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
+                    Verification Method:
+                  </label>
+                  <select
+                    value={overrideSource}
+                    onChange={(e) => setOverrideSource(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500/20 min-h-[44px]"
+                  >
+                    <option value="MANUAL">Manual Admin Entry</option>
+                    <option value="SCAN">Hardware Biometric Scan</option>
+                    <option value="MEDICAL_LEAVE">Medical Exemption</option>
+                    <option value="LEAVE_APPROVED">Approved Leave</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
+                    Target Schedule Window:
+                  </label>
+                  <div className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 truncate min-h-[44px] flex items-center">
+                    {overrideTarget.scheduledEvent?.name || "Tilawat al Dua"} ({overrideTarget.scheduledEvent?.timeWindow || "07:00 - 12:30 IST"})
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
+                  Reason / Audit Remarks:
+                </label>
+                <input
+                  type="text"
+                  value={overrideRemarks}
+                  onChange={(e) => setOverrideRemarks(e.target.value)}
+                  placeholder="e.g. Scanned late due to transport delay, official seminar, or verified arrival"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white outline-none focus:ring-2 focus:ring-emerald-500/20 min-h-[44px]"
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOverrideModalOpen(false)}
+                  className="flex-1 py-3 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all min-h-[46px] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingOverride}
+                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-800 hover:from-emerald-700 hover:to-teal-900 text-white text-xs font-black shadow-lg shadow-emerald-700/25 transition-all flex items-center justify-center gap-2 min-h-[46px] cursor-pointer disabled:opacity-50"
+                >
+                  {savingOverride ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Saving Override...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-200" />
+                      <span>Save Status Override</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Student / Faculty Drawer ── */}
       {selectedMember && drawerOpen && (

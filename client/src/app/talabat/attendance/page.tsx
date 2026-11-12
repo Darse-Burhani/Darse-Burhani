@@ -126,6 +126,7 @@ export default function TalabatAttendancePage() {
   const [justifyReason, setJustifyReason] = useState("");
   const [justifySubmitting, setJustifySubmitting] = useState(false);
   const [justifyError, setJustifyError] = useState("");
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>("all");
 
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
@@ -563,52 +564,152 @@ export default function TalabatAttendancePage() {
               </Card>
             </motion.div>
 
-            {/* Tilawat al Dua Attendance Details */}
+            {/* Dynamic Attendance Schedules & Scan History Tabs */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="lg:col-span-2"
+              className="lg:col-span-2 space-y-4"
             >
-              <Card className="fatimi-card mt-6">
-                <div className="fatimi-card-header bg-gradient-to-r from-purple-500 to-indigo-600" />
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <BookOpen className="w-4 h-5 text-purple-500" />
-                    Tilawat al Dua Attendance ({data?.biometricStats?.windowName || "Tilawat al Dua"})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">On-Time Scans</p>
-                      <p className="text-xl font-extrabold text-emerald-700 mt-0.5">{data?.biometricStats?.present || 0}</p>
-                    </div>
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Late Scans</p>
-                      <p className="text-xl font-extrabold text-amber-700 mt-0.5">{data?.biometricStats?.late || 0}</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Missed</p>
-                      <p className="text-xl font-extrabold text-gray-700 mt-0.5">
-                        {((data?.biometricStats?.total || 0) - (data?.biometricStats?.present || 0) - (data?.biometricStats?.late || 0))}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Window</p>
-                      <p className="text-sm font-bold text-purple-700 mt-0.5 font-mono">
-                        {data?.biometricStats?.windowStart || "07:00"} – {data?.biometricStats?.windowEnd || "08:15"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-purple-50/50 border border-purple-200 rounded-xl">
-                    <p className="text-xs text-purple-700 font-medium flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5" />
-                      Daily morning recitation attendance (Tilawat al Dua) tracked via biometric scan.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              {(() => {
+                const currentSchedule =
+                  selectedScheduleId === "all"
+                    ? null
+                    : (data?.schedules || []).find((s: any) => s.id === selectedScheduleId);
+
+                const displayStats = currentSchedule
+                  ? currentSchedule.stats
+                  : {
+                      total: data?.biometricStats?.total || 0,
+                      present: data?.biometricStats?.present || 0,
+                      late: data?.biometricStats?.late || 0,
+                      missed: Math.max(
+                        0,
+                        (data?.biometricStats?.total || 0) -
+                          (data?.biometricStats?.present || 0) -
+                          (data?.biometricStats?.late || 0)
+                      ),
+                      percentage: data?.biometricStats?.percentage || 0,
+                    };
+
+                const displayWindow = currentSchedule
+                  ? `${currentSchedule.startTime} – ${currentSchedule.lateEndTime || currentSchedule.endTime}`
+                  : `${data?.biometricStats?.windowStart || "07:00"} – ${data?.biometricStats?.windowEnd || "08:15"}`;
+
+                return (
+                  <Card className="fatimi-card mt-6">
+                    <div className="fatimi-card-header bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600" />
+                    <CardHeader className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                          <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                          Attendance Schedules &amp; Scans ({currentSchedule?.name || "All Target Schedules"})
+                        </CardTitle>
+                        <span className="text-[11px] font-bold text-slate-500 font-mono">
+                          Target Audience Scoped
+                        </span>
+                      </div>
+
+                      {/* Horizontal Scrollable Tabs */}
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 touch-pan-x">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedScheduleId("all")}
+                          className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border min-h-[40px] touch-manipulation active:scale-95 ${
+                            selectedScheduleId === "all"
+                              ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          All Schedules Overview
+                        </button>
+                        {(data?.schedules || []).map((sch: any) => (
+                          <button
+                            key={sch.id}
+                            type="button"
+                            onClick={() => setSelectedScheduleId(sch.id)}
+                            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border min-h-[40px] touch-manipulation active:scale-95 ${
+                              selectedScheduleId === sch.id
+                                ? "bg-purple-700 text-white border-purple-700 shadow-sm"
+                                : "bg-purple-50/70 text-purple-900 border-purple-200 hover:bg-purple-100"
+                            }`}
+                          >
+                            <span>{sch.name}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                              selectedScheduleId === sch.id ? "bg-white/20 text-white" : "bg-purple-100 text-purple-800"
+                            }`}>
+                              {sch.stats?.percentage || 0}%
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">On-Time Scans</p>
+                          <p className="text-xl font-extrabold text-emerald-700 mt-0.5">{displayStats.present}</p>
+                          <p className="text-[10px] text-emerald-600 font-bold mt-0.5">Green Verified</p>
+                        </div>
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                          <p className="text-[10px] font-black text-amber-900 uppercase tracking-wider">Late Scans</p>
+                          <p className="text-xl font-extrabold text-amber-700 mt-0.5">{displayStats.late}</p>
+                          <p className="text-[10px] text-amber-600 font-bold mt-0.5">Orange Marked</p>
+                        </div>
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl">
+                          <p className="text-[10px] font-black text-rose-900 uppercase tracking-wider">Missed</p>
+                          <p className="text-xl font-extrabold text-rose-700 mt-0.5">{displayStats.missed}</p>
+                          <p className="text-[10px] text-rose-600 font-bold mt-0.5">Red Marked</p>
+                        </div>
+                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl">
+                          <p className="text-[10px] font-black text-purple-900 uppercase tracking-wider">Window (IST)</p>
+                          <p className="text-sm font-black text-purple-800 mt-1 font-mono truncate">{displayWindow}</p>
+                          <p className="text-[10px] text-purple-600 font-bold mt-0.5 truncate">
+                            {currentSchedule?.audience === "BOTH" ? "Dual: Talabat & Staff" : "Talabat Only"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Scans list for this schedule */}
+                      {currentSchedule?.scans && currentSchedule.scans.length > 0 && (
+                        <div className="space-y-2 pt-2 border-t border-slate-100">
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-700 block">
+                            Recent Scan History for {currentSchedule.name}:
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {currentSchedule.scans.map((s: any) => {
+                              const isPresent = s.status === "PRESENT";
+                              const isLate = s.status === "LATE";
+                              return (
+                                <div
+                                  key={s.id}
+                                  className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between text-xs shadow-2xs"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Clock className={`w-3.5 h-3.5 ${isPresent ? "text-emerald-600" : isLate ? "text-amber-600" : "text-rose-600"}`} />
+                                    <span className="font-mono font-bold text-slate-800">
+                                      {new Date(s.checkInTime || s.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short" })}
+                                    </span>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                    isPresent
+                                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                                      : isLate
+                                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                      : "bg-rose-100 text-rose-900 border border-rose-300"
+                                  }`}>
+                                    {s.status}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </motion.div>
 
             {/* Recent Activity */}

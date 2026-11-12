@@ -19,7 +19,7 @@ import {
   saveSheetConfiguration,
   queueAutoSheetSync,
 } from "../../lib/google-attendance-sync";
-import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType } from "../../lib/biometric";
+import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType, getAudienceType } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
 import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri } from "../../lib/fatimi-calendar";
 
@@ -73,14 +73,8 @@ function matchScheduledEvent(
   const matched = inWindow[0];
   const ww = matched as any;
   const windowType = getWindowType(ww);
-  const isTilawat = /tilawat/i.test(matched.name);
-  const eventAudience = isTilawat
-    ? "BOTH"
-    : isLegacyFacultyRow(ww)
-    ? "FACULTY"
-    : hasFacultyTimer(ww)
-    ? "BOTH"
-    : "STUDENT";
+  const audType = getAudienceType(ww);
+  const eventAudience = audType === "ALL_STUDENTS" ? "STUDENT" : audType;
 
   return {
     id: matched.id,
@@ -140,14 +134,8 @@ function resolveUserScheduledEvent(
 
   const ww = targetWinObj as any;
   const windowType = getWindowType(ww);
-  const isTilawat = /tilawat/i.test(targetWinObj.name);
-  const eventAudience = isTilawat
-    ? "BOTH"
-    : isLegacyFacultyRow(ww)
-    ? "FACULTY"
-    : hasFacultyTimer(ww)
-    ? "BOTH"
-    : "STUDENT";
+  const audType = getAudienceType(ww);
+  const eventAudience = audType === "ALL_STUDENTS" ? "STUDENT" : audType;
 
   const startTime = isFaculty && ww.facultyStartTime ? ww.facultyStartTime : targetWinObj.startTime;
   const endTime = isFaculty && (ww.facultyLateEndTime || ww.facultyEndTime)
@@ -206,13 +194,8 @@ router.get("/events", requireAuth, async (req, res) => {
       const isTilawatDua = /tilawat/i.test(w.name);
       const unifiedFaculty = hasFacultyTimer(ww);
       const legacyFaculty = isLegacyFacultyRow(ww);
-      const audience: "FACULTY" | "BOTH" | "STUDENT" = isTilawatDua
-        ? "BOTH"
-        : legacyFaculty
-        ? "FACULTY"
-        : unifiedFaculty
-        ? "BOTH"
-        : "STUDENT";
+      const audType = getAudienceType(ww);
+      const audience: "FACULTY" | "BOTH" | "STUDENT" = audType === "ALL_STUDENTS" ? "STUDENT" : audType;
 
       const studentRange = eventRangeForRole(ww, "STUDENT");
       const facultyRange = eventRangeForRole(ww, "TEACHER");

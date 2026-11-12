@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
+import { getAudienceType } from "../../lib/biometric";
 
 const router = Router();
 
@@ -56,6 +57,66 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
     const absent = records.filter((r) => r.status === "ABSENT").length;
     const onLeave = records.filter((r) => r.status === "ON_LEAVE" || r.status === "MEDICAL").length;
 
+    // Fetch all active scan schedules applicable to faculty (FACULTY or BOTH)
+    const allWindows = await prisma.biometricScanWindow.findMany({
+      where: { enabled: true },
+      orderBy: { startTime: "asc" },
+    });
+    const facultyWindows = allWindows.filter((w) => {
+      const aud = getAudienceType(w);
+      return aud === "BOTH" || aud === "FACULTY";
+    });
+
+    const schedules = facultyWindows.map((w) => {
+      const aud = getAudienceType(w);
+      const isCustomFaculty = Boolean(w.facultyStartTime && w.facultyEndTime);
+      const startTime = isCustomFaculty ? (w.facultyStartTime as string) : w.startTime;
+      const endTime = isCustomFaculty ? (w.facultyEndTime as string) : w.endTime;
+      const lateEndTime = isCustomFaculty ? ((w as any).facultyLateEndTime || w.facultyEndTime) : ((w as any).lateEndTime || w.endTime);
+
+      const [sh, sm] = (startTime || "07:00").split(":").map(Number);
+      const [lh, lm] = (lateEndTime || "08:30").split(":").map(Number);
+      const sMin = (sh || 0) * 60 + (sm || 0);
+      const lMin = (lh || 0) * 60 + (lm || 0);
+
+      const matchedRecords = records.filter((r) => {
+        if (!r.checkInTime) return false;
+        const cd = new Date(r.checkInTime);
+        const punchMin = (cd.getUTCHours() * 60 + cd.getUTCMinutes() + 330) % 1440;
+        return punchMin >= Math.max(0, sMin - 120) && punchMin <= lMin;
+      });
+
+      const onTime = matchedRecords.filter((r) => r.status === "PRESENT").length;
+      const lateCount = matchedRecords.filter((r) => r.status === "LATE").length;
+      const totalDays = total || 1;
+      const percentage = totalDays > 0 ? Math.round(((onTime + lateCount) / totalDays) * 100) : 0;
+
+      return {
+        id: w.id,
+        name: w.name,
+        startTime,
+        endTime,
+        lateEndTime,
+        audience: aud,
+        stats: {
+          total: totalDays,
+          present: onTime,
+          late: lateCount,
+          missed: Math.max(0, totalDays - onTime - lateCount),
+          percentage,
+        },
+        records: matchedRecords.slice(0, 15).map((r) => ({
+          id: r.id,
+          date: r.date.toISOString(),
+          status: r.status,
+          checkInTime: r.checkInTime?.toISOString() || null,
+          checkOutTime: r.checkOutTime?.toISOString() || null,
+          verificationMethod: r.verificationMethod || "MANUAL",
+          biometricMethod: r.biometricMethod || null,
+        })),
+      };
+    });
+
     return res.json({
       success: true,
       data: {
@@ -68,6 +129,7 @@ router.get("/", requireRole("TEACHER", "ADMIN"), async (req, res) => {
           its: teacherProfile.its,
           department: teacherProfile.department,
         },
+        schedules,
         stats: { total, present, late, absent, onLeave },
         records: records.map((r) => ({
           id: r.id,
