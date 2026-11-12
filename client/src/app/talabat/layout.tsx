@@ -15,6 +15,7 @@ import {
   Palette,
   GraduationCap,
   Mail,
+  Compass,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -26,6 +27,7 @@ const rawNavItems = [
   { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarCheck },
   { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
   { key: "yearly-profile", label: "Yearly Profile", href: "/talabat/yearly-profile", icon: GraduationCap },
+  { key: "knowing-myself", label: "Knowing Myself", href: "/talabat/knowing-myself", icon: Compass },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen },
   { key: "assignments", label: "Assignments", href: "/talabat/assignments", icon: ClipboardList },
   { key: "hobbies", label: "Hobbies & Skills", href: "/talabat/hobbies", icon: Palette },
@@ -78,11 +80,17 @@ export default function TalabatLayout() {
       if (isHafiz && item.key === "hifz") {
         return false;
       }
-      // Only show Yearly Profile to Grade 4 students
+      // Only show Yearly Profile and Knowing Myself to Grade 4 students
       if (item.key === "yearly-profile" && !isGrade4) {
         return false;
       }
       if (item.key === "yearly-profile") {
+        return true;
+      }
+      if (item.key === "knowing-myself" && !isGrade4) {
+        return false;
+      }
+      if (item.key === "knowing-myself") {
         return true;
       }
       if (item.key === "support") {

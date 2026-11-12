@@ -46,7 +46,7 @@ import { usePortalAccess } from "@/context/PortalAccessContext";
 // This bar survives only for the cross-role /notifications page. It
 // intentionally reuses the same emerald/gold tokens (no per-role colors)
 // so the UI speaks one visual language.
-const UNIFIED_GRADIENT = "from-emerald-600 to-teal-700";
+const UNIFIED_GRADIENT = "from-[var(--gold-600)] to-teal-700";
 const portalConfig: Record<
   string,
   {
@@ -200,10 +200,10 @@ export function NavigationBar() {
   // Single unified palette — one visual language across all roles.
   // (Previously four identical if/else branches; collapsed honestly.)
   const roleColors = {
-    bg: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
-    active: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
-    hover: "hover:bg-emerald-50 hover:text-emerald-600",
-    ring: "focus-visible:ring-emerald-500",
+    bg: "bg-[var(--gold-light)] text-[var(--gold-700)] border border-[var(--gold-border)]/60",
+    active: "bg-[var(--gold-light)] text-[var(--gold-700)] border border-[var(--gold-border)]/60",
+    hover: "hover:bg-[var(--gold-light)] hover:text-[var(--gold-600)]",
+    ring: "focus-visible:ring-[var(--gold-500)]",
   };
 
   return (
@@ -219,9 +219,9 @@ export function NavigationBar() {
             >
               <div className="relative w-9 h-9">
                 <div
-                  className={`absolute inset-0 rounded-xl blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${config?.gradient || "from-darse-burhani-500 to-emerald-700"}`}
+                  className={`absolute inset-0 rounded-xl blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br ${config?.gradient || "from-darse-burhani-500 to-[var(--gold-700)]"}`}
                 />
-                <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden bg-gradient-to-br ${config?.gradient || "from-darse-burhani-500 to-emerald-700"}`}
+                <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden bg-gradient-to-br ${config?.gradient || "from-darse-burhani-500 to-[var(--gold-700)]"}`}
                   style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
                 >
                   <FatimiLogo size={24} variant={config?.logoVariant || "gold"} />
@@ -401,18 +401,18 @@ export function NavigationBar() {
                         <>
                           <Link
                             href="/admin/tracking"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-[var(--gold-light)] rounded-lg transition-colors"
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <BarChart3 className="w-4 h-4 text-emerald-500" />
+                            <BarChart3 className="w-4 h-4 text-[var(--gold-500)]" />
                             Individual Tracking
                           </Link>
                           <Link
                             href="/admin/users"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-[var(--gold-light)] rounded-lg transition-colors"
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <Users className="w-4 h-4 text-emerald-500" />
+                            <Users className="w-4 h-4 text-[var(--gold-500)]" />
                             User Management
                           </Link>
                         </>
@@ -422,20 +422,20 @@ export function NavigationBar() {
                           {isModuleVisible("profile", "TEACHER") && (
                           <Link
                             href="/teacher/profile"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-[var(--gold-light)] rounded-lg transition-colors"
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <User className="w-4 h-4 text-emerald-500" />
+                            <User className="w-4 h-4 text-[var(--gold-500)]" />
                             My Profile
                           </Link>
                           )}
                           {isModuleVisible("classes", "TEACHER") && (
                           <Link
                             href="/teacher/classes"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-[var(--gold-light)] rounded-lg transition-colors"
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <BookOpen className="w-4 h-4 text-emerald-500" />
+                            <BookOpen className="w-4 h-4 text-[var(--gold-500)]" />
                             My Classes
                           </Link>
                           )}
@@ -445,10 +445,10 @@ export function NavigationBar() {
                         <>
                           <Link
                             href="/parent/activity"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-[var(--gold-light)] rounded-lg transition-colors"
                             onClick={() => setProfileMenuOpen(false)}
                           >
-                            <Activity className="w-4 h-4 text-emerald-500" />
+                            <Activity className="w-4 h-4 text-[var(--gold-500)]" />
                             Activity History
                           </Link>
                         </>

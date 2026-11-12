@@ -79,12 +79,16 @@
     --ratio-30-border: var(--border-subtle);
 
     /* ── 10% Gold / Amber Accent System ── */
+    --gold-100: #fdf6df;                     /* Faintest gold tint */
+    --gold-200: #f9e9b8;                     /* Soft gold tint */
+    --gold-300: #f5d98e;                     /* Light gold */
     --gold-400: #fcd468;                     /* Bright gold */
     --gold-500: #f3b833;                     /* Core brand gold */
     --gold-600: #ef9a33;                     /* Hover gold */
     --gold-700: #c59b27;                     /* Deep antique gold */
     --gold-800: #a37a1a;                     /* Burnished gold */
     --gold-900: #7a5a13;                     /* Dark rich gold */
+    --gold-950: #4a360c;                     /* Deepest gold shadow */
 
     --gold-light: #fef9e7;                   /* 10% tint for backgrounds */
     --gold-lighter: #fff8e7;                 /* 5% tint */
@@ -205,9 +209,11 @@
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    overflow-y: visible;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
+    /* Prevent horizontal cutoff on mobile - allow horizontal scroll if needed */
+    box-sizing: border-box;
   }
 
   /* ── Selection ── */
@@ -218,6 +224,24 @@
   ::-moz-selection {
     background-color: rgba(252, 212, 104, 0.25);
     color: var(--text-primary);
+  }
+
+  /* Mobile safe-area support – prevents cutting on notched iOS devices */
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 0.25rem) !important;
+  }
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem) !important;
+  }
+  .safe-area-left {
+    padding-left: max(env(safe-area-inset-left, 0px), 0.5rem) !important;
+  }
+  .safe-area-right {
+    padding-right: max(env(safe-area-inset-right, 0px), 0.5rem) !important;
+  }
+  .safe-area-x {
+    padding-left: max(env(safe-area-inset-left, 0px), 0.5rem) !important;
+    padding-right: max(env(safe-area-inset-right, 0px), 0.5rem) !important;
   }
 
   /* ── Scrollbar ── */
@@ -624,6 +648,43 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
+  }
+
+  /* Crisp, high-end Fatimi form inputs */
+  .fatimi-input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #0f172a;
+    background-color: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    outline: none;
+  }
+  .fatimi-input:focus {
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+  }
+  .fatimi-input:disabled {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    color: #64748b;
+    cursor: not-allowed;
+    opacity: 0.85;
+  }
+  .fatimi-input::placeholder {
+    color: #94a3b8;
+  }
+
+  /* Crisp distinct borders for profile cards */
+  .fatimi-card {
+    border: 1.5px solid #cbd5e1 !important;
+    background-color: #ffffff;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
   }
 }
 

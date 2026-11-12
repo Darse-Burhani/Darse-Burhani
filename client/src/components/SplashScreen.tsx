@@ -65,19 +65,19 @@ export function SplashScreen({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.05, filter: "blur(8px)" }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed inset-0 z-[999999] flex flex-col items-center justify-center select-none bg-gradient-to-br from-[#f8fafc] via-[#fff8e7] to-[#fef9c3]/70 text-slate-800 overflow-hidden"
+          className="fixed inset-0 z-[999999] flex flex-col items-center justify-center select-none bg-[var(--bg-canvas)] overflow-hidden"
           style={{ perspective: "1200px" }}
         >
           {/* ── 3D Ambient Radiant Atmosphere ── */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Luminous Central Radial Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] rounded-full bg-gradient-to-tr from-emerald-400/20 via-amber-300/25 to-teal-300/20 blur-3xl opacity-90 animate-pulse" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] rounded-full bg-gradient-to-tr from-[var(--gold-400)]/20] via-[var(--gold-light)]/25] to-[var(--gold-100)]/20] blur-3xl opacity-90 animate-pulse" />
             
             {/* Floating Top-Left Radiant Orb */}
-            <div className="absolute -top-24 -left-24 w-[520px] h-[520px] rounded-full bg-emerald-500/15 blur-3xl" />
+            <div className="absolute -top-24 -left-24 w-[520px] h-[520px] rounded-full bg-[var(--gold-light)]/15] blur-3xl" />
             
             {/* Floating Bottom-Right Warm Amber Radiance */}
-            <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-amber-500/20 blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-[var(--gold-light)]/20] blur-3xl" />
 
             {/* Sacred Islamic 8-Point Star Geometry Wireframe in 3D Metallic Gold */}
             <motion.div
@@ -85,8 +85,8 @@ export function SplashScreen({
               transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[540px] h-[540px] opacity-[0.22] border-2 border-dashed border-amber-600/40 rounded-full flex items-center justify-center"
             >
-              <div className="w-[430px] h-[430px] border border-emerald-700/30 rotate-45 rounded-lg" />
-              <div className="absolute w-[430px] h-[430px] border border-amber-700/30 rounded-lg" />
+              <div className="w-[430px] h-[430px] border border-[var(--gold-700)]/30] rotate-45 rounded-lg" />
+              <div className="absolute w-[430px] h-[430px] border border-[var(--gold-800)]/30] rounded-lg" />
             </motion.div>
           </div>
 
@@ -183,7 +183,7 @@ export function SplashScreen({
             >
               <h1 className="font-serif text-2xl sm:text-3xl font-black tracking-tight text-slate-900 drop-shadow-xs">
                 Darse Burhani{" "}
-                <span className="text-emerald-700 font-bold text-lg sm:text-xl">
+                <span className="text-[var(--gold-700)] font-bold text-lg sm:text-xl">
                   (Nisab)
                 </span>
               </h1>
@@ -203,8 +203,8 @@ export function SplashScreen({
               transition={{ delay: 0.22, duration: 0.4 }}
               className="mt-4"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-emerald-600/25 text-xs font-bold text-emerald-900 shadow-sm shadow-emerald-900/5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-emerald-600/25 text-xs font-bold text-[var(--gold-900)] shadow-sm shadow-emerald-900/5">
+                <Sparkles className="w-3.5 h-3.5 text-[var(--gold-600)] animate-pulse" />
                 <span>Entering {portalName}</span>
                 {userName && (
                   <span className="text-amber-700 font-extrabold">&bull; {userName}</span>
@@ -228,7 +228,7 @@ export function SplashScreen({
               {/* Stage Text & Percentage with High Contrast */}
               <div className="flex items-center justify-between text-xs font-semibold text-slate-700 px-0.5">
                 <span className="truncate pr-2 text-slate-600">{stageText}</span>
-                <span className="font-mono text-emerald-800 font-extrabold shrink-0">
+                <span className="font-mono text-[var(--gold-800)] font-extrabold shrink-0">
                   {progress}%
                 </span>
               </div>

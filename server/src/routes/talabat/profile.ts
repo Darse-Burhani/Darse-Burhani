@@ -2,6 +2,9 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth } from "../../middleware";
 import { getProfilePermissions } from "../../lib/profile-permissions";
+import path from "path";
+import fs from "fs";
+import { talabatUploadsDir } from "../../lib/paths";
 
 const router = Router();
 
@@ -390,6 +393,332 @@ router.post("/knowing-myself", requireAuth, async (req, res) => {
   } catch (err: any) {
     console.error("[knowing-myself] Submit error:", err);
     return res.status(500).json({ success: false, error: err?.message || "Failed to submit assessment" });
+  }
+});
+
+// POST /api/talabat/profile/download-pdf - Generate and download professional PDF
+router.post("/download-pdf", requireAuth, async (req, res) => {
+  try {
+    const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
+    const targetUserId = (isAdmin && (req.body.userId as string)) || session.user.id;
+    const targetStudentId = (isAdmin && (req.body.studentId as string)) || undefined;
+
+    let user = await prisma.user.findFirst({
+      where: targetStudentId
+        ? { studentProfile: { id: targetStudentId } }
+        : { id: targetUserId },
+      include: { studentProfile: { include: { talabatProfile1447: true } } },
+    });
+
+    if (!user || !user.studentProfile) {
+      return res.status(404).json({ error: "Student profile not found" });
+    }
+
+    const sp = user.studentProfile;
+    const tp = user.studentProfile.talabatProfile1447 || ({} as any);
+
+    // Get knowing myself data
+    const settingKey = `knowing_myself_${sp.id}`;
+    const setting = await prisma.systemSetting.findUnique({ where: { key: settingKey } });
+    const knowingMyselfData = (setting?.value as any) || null;
+
+    // Set PDF filename
+    const studentName = `${user.firstName} ${user.lastName}`.trim() || "student";
+    const safeName = studentName.replace(/[^a-zA-Z0-9]/g, "_");
+    const pdfFilename = "talabat-profile-" + safeName + "-" + Date.now() + ".pdf";
+    const pdfPath = path.join(talabatUploadsDir, pdfFilename);
+
+    // Create a new PDF document using pdfkit
+    const PDFDocument = (await import("pdfkit")).default as any;
+
+    // Create a new PDF document
+    const doc = new PDFDocument({
+      autoFirstPage: false,
+      autoPage: true,
+    });
+
+    // Write PDF to file
+    const stream = fs.createWriteStream(pdfPath);
+    doc.pipe(stream);
+
+    // Helper function to wrap text
+    const wrapText = (doc: any, text: string, x: number, y: number, maxWidth: number, fontSize: number, lineHeight: number) => {
+      const words = text.split(" ");
+      let line = "";
+      let lines = [];
+      let currentX = x;
+      let currentY = y;
+
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + " ";
+        const metrics = doc.getCurrentFont().measureText(testLine);
+        if (metrics.width > maxWidth && line !== "") {
+          lines.push(line);
+          line = words[n] + " ";
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line);
+
+      for (let i = 0; i < lines.length; i++) {
+        if (currentY > doc.page.height - 50) {
+          doc.addPage();
+          currentY = 50;
+        }
+        doc.fontSize(fontSize).text(lines[i], x, currentY);
+        currentY += lineHeight;
+      }
+
+      return currentY;
+    };
+
+    // ---- PAGE 1: A4 Profile (Profile & Demographics) ----
+    doc.addPage({ size: "A4" });
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 50;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Header
+    doc.fillColor("#1c1c1c");
+    doc.fontSize(18).font("Helvetica-Bold");
+    doc.text("DARSE BURHANI", margin, margin);
+    doc.fontSize(11).font("Helvetica");
+    doc.text("DARAJEH RABEA (GRADE 4) • STUDENT TALABAT PROFILE", margin, margin + 20);
+    doc.fontSize(9).font("Helvetica").text("Academic Year 1447 H • Official Individual Record Sheet", margin, margin + 30);
+
+    // Student Photo
+    let photoX = margin;
+    let photoY = margin + 45;
+    let photoWidth = 50;
+    let photoHeight = 60;
+
+    if (tp.studentPhotoUrl && tp.studentPhotoUrl.trim()) {
+      try {
+        const imgUrl = tp.studentPhotoUrl.startsWith("/") ? tp.studentPhotoUrl : "/" + tp.studentPhotoUrl;
+        doc.addImage ? doc.addImage(imgUrl, "PNG", photoX, photoY, photoWidth, photoHeight) : "";
+      } catch (e) {}
+    }
+
+    // Student Info Row
+    let infoY = margin + 45;
+    doc.fillColor("#1c1c1c");
+    doc.fontSize(10).font("Helvetica");
+
+    // Name
+    doc.font("Helvetica-Bold");
+    doc.text("Student Name:", photoX + photoWidth + 10, infoY);
+    doc.font("Helvetica");
+    doc.text((tp.name || `${user.firstName} ${user.lastName}`.trim() || "Student"), photoX + photoWidth + 60, infoY);
+
+    // ITS
+    doc.text("ITS:", photoX + photoWidth + 60, infoY + 12);
+    doc.text(sp.its || "—", photoX + photoWidth + 100, infoY + 12);
+
+    // Standard/Section
+    doc.text("Standard:", photoX + photoWidth + 60, infoY + 24);
+    doc.text((sp.grade || "Darajah 4 (Rabea)"), photoX + photoWidth + 100, infoY + 24);
+
+    // Section
+    doc.text("Section:", photoX + photoWidth + 60, infoY + 36);
+    doc.text(sp.section || "A", photoX + photoWidth + 100, infoY + 36);
+
+    // Status
+    doc.text("Status:", photoX + photoWidth + 60, infoY + 48);
+    doc.text((sp.status ? (sp.status === "HAFIZ" ? "Hafiz" : "Sanah") : ""), photoX + photoWidth + 100, infoY + 48);
+
+    // Demographics Table
+    infoY = margin + 110;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#1c1c1c");
+    doc.text("Student Demographic & Institutional Profile", margin, infoY);
+    doc.font("Helvetica").fontSize(8);
+
+    const demographics = [
+      ["Father Name:", tp.fatherName || sp.fatherName || "—"],
+      ["'s Occupation:", tp.fatherOccupation || sp.fatherOccupation || "—"],
+      ["Mother Name:", tp.motherName || sp.motherName || "—"],
+      ["Mother's Occupation:", tp.motherOccupation || "Homemaker"],
+      ["Admission Year:", tp.admissionYear || sp.admissionYear || "1444 H"],
+      ["Current Year:", tp.currentYear || sp.currentYear || "1447 H"],
+      ["Student Age:", sp.age ? sp.age + " Years" : "—"],
+      ["Watan:", tp.vatan || sp.watan || "—"],
+      ["Resident City:", tp.residentCity || sp.residentCity || "—"],
+      ["Mobile Number:", sp.mobileNumber || "—"],
+      ["Email ID:", user.email || "—"],
+    ];
+
+    let tableY = infoY + 15;
+    for (const [label, value] of demographics) {
+      doc.fontSize(7.5).text(label, margin, tableY);
+      doc.fontSize(7.5).text(value, margin + 80, tableY);
+      tableY += 8;
+    }
+
+    // ---- PAGE 2: Knowing Myself Assessment ----
+    let page2Y = margin;
+
+    doc.addPage();
+    doc.fillColor("#1c1c1c");
+    doc.fontSize(18).font("Helvetica-Bold");
+    doc.text("KNOWING MYSELF: MY IDENTITY AND ASPIRATIONS", margin, page2Y);
+    doc.fontSize(11).font("Helvetica");
+    doc.text("Darajeh Rabea (Grade 4) • Student Self-Reflection & Guidance Record (Page 2 of 2)", margin, page2Y + 20);
+    doc.fontSize(9).font("Helvetica").text("Darse Burhani Official Dossier • Page 2 of 2", margin, page2Y + 30);
+
+    // Student info on page 2
+    doc.fontSize(9).fillColor("#1c1c1c");
+    doc.text("Student:", margin, page2Y + 45);
+    doc.font("Helvetica-Bold");
+    doc.text((tp.name || user.firstName + " " + user.lastName || "Student"), margin + 40, page2Y + 45);
+    doc.font("Helvetica");
+    doc.text("ITS: " + (sp.its || "—"), margin + 80, page2Y + 45);
+
+    // Date of Assessment
+    const assessmentDate = knowingMyselfData?.dateOfAssessment || new Date().toISOString().slice(0, 10);
+    doc.text("Assessment Date:", margin, page2Y + 55);
+    doc.text(assessmentDate, margin + 70, page2Y + 55);
+
+    // Assessment submitted badge
+    if (knowingMyselfData?.submittedAt) {
+      doc.fillColor("#1a73e8").fontSize(7).font("Helvetica-Bold");
+      doc.text("✓ Compulsory Assessment Submitted", margin, page2Y + 65);
+    }
+
+    // Section A: Strengths, Enjoyed Activities & Aspirations
+    page2Y = margin + 75;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#1c1c1c");
+    doc.text("★ 3 Greatest Strengths", margin, page2Y);
+    page2Y += 12;
+
+    const strengths = knowingMyselfData?.threeStrengths || [];
+    for (let i = 0; i < 3; i++) {
+      doc.fontSize(8).text((i + 1) + ". " + (strengths[i] || "—"), margin, page2Y);
+      page2Y += 10;
+    }
+
+    // Things I Enjoy
+    page2Y += 5;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#1c1c1c");
+    doc.text("★ 3 Things I Enjoy Most", margin, page2Y);
+    page2Y += 12;
+
+    const thingsEnjoy = knowingMyselfData?.threeThingsEnjoy || [];
+    for (let i = 0; i < 3; i++) {
+      doc.fontSize(8).text((i + 1) + ". " + (thingsEnjoy[i] || "—"), margin, page2Y);
+      page2Y += 10;
+    }
+
+    // Core Accomplishment & Role Model
+    page2Y += 5;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#1c1c1c");
+    doc.text("★ Aspirations & Mentorship", margin, page2Y);
+    page2Y += 12;
+
+    const proudAccomplishment = knowingMyselfData?.proudAccomplishment || "—";
+    const improveBetterAt = knowingMyselfData?.improveBetterAt || "—";
+    const admirePersonWhy = knowingMyselfData?.admirePersonWhy || "—";
+
+    doc.fontSize(7.5).text("Proud Accomplishment:", margin, page2Y);
+    doc.fontSize(7.5).text(proudAccomplishment, margin + 50, page2Y);
+    page2Y += 9;
+    doc.fontSize(7.5).text("Area Want to Improve:", margin, page2Y);
+    doc.fontSize(7.5).text(improveBetterAt, margin + 50, page2Y);
+    page2Y += 9;
+    doc.fontSize(7.5).text("Person Admired & Why:", margin, page2Y);
+    doc.fontSize(7.5).text(admirePersonWhy, margin + 50, page2Y);
+
+    // Section B: Obstacles Identified
+    page2Y += 15;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#1c1c1c");
+    doc.text("Obstacles Identified:", margin, page2Y);
+    page2Y += 12;
+
+    const selectedObstacles = knowingMyselfData?.selectedObstacles || [];
+    for (const obs of selectedObstacles) {
+      doc.fontSize(7.5).text("• " + obs, margin + 10, page2Y);
+      page2Y += 8;
+    }
+
+    if (knowingMyselfData?.otherObstacle) {
+      doc.fontSize(7.5).text("Other: " + knowingMyselfData.otherObstacle, margin + 10, page2Y);
+      page2Y += 8;
+    }
+
+    // ✓ Submitted badge
+    if (knowingMyselfData?.submittedAt) {
+      doc.fillColor("#1a73e8").fontSize(7).font("Helvetica-Bold");
+      doc.text("✓ Compulsory Assessment Submitted", margin, page2Y + 5);
+    }
+
+    // Section C: In-Depth Self-Reflections (14 Questions)
+    page2Y += 15;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#1c1c1c");
+    doc.text("★ Self-Reflection Questionnaire (14 Compulsory Questions)", margin, page2Y);
+    page2Y += 12;
+
+    const questions = [
+      ["1. How do you respond when things get difficult?", knowingMyselfData?.difficultResponse || "—"],
+      ["2. What makes you want to give up?", knowingMyselfData?.wantToGiveUp || "—"],
+      ["3. What helps you recover after disappointment or failure?", knowingMyselfData?.recoverAfterDisappointment || "—"],
+      ["4. Who do you approach when you need support?", knowingMyselfData?.approachForSupport || "—"],
+      ["5. One obstacle you are willing to actively work on?", knowingMyselfData?.obstacleWillingToWorkOn || "—"],
+      ["6. What kind of behavior hurts you the most?", knowingMyselfData?.behaviorHurtsMost || "—"],
+      ["7. What do you wish others understood better about you?", knowingMyselfData?.wishOthersUnderstood || "—"],
+      ["8. What does it mean to be a successful person?", knowingMyselfData?.successfulPersonMeaning || "—"],
+      ["9. What does success look like beyond academic qualifications?", knowingMyselfData?.successBeyondQualifications || "—"],
+      ["10. What qualities make someone worthy of genuine respect?", knowingMyselfData?.qualitiesWorthyOfRespect || "—"],
+      ["11. Why is it important to continue learning throughout life?", knowingMyselfData?.continueLearningReason || "—"],
+      ["12. What does Khidmat mean to you personally?", knowingMyselfData?.khidmatMeaning || "—"],
+      ["13. How can you use your unique skills to benefit others?", knowingMyselfData?.useSkillsToBenefitOthers || "—"],
+      ["14. What kind of person do you want to be remembered as?", knowingMyselfData?.rememberedFor || "—"],
+    ];
+
+    for (const [question, answer] of questions) {
+      doc.fontSize(7).font("Helvetica-Bold").text(question, margin, page2Y);
+      doc.font("Helvetica").fontSize(7).text(answer, margin + 55, page2Y);
+      page2Y += 8;
+    }
+
+    // ---- Footer ----
+    const footerY = pageHeight - 40;
+    doc.fillColor("#888888").fontSize(7).font("Helvetica");
+    doc.text("Darse Burhani Official Institutional Record • Darajah Rabea (Grade 4) • 1447 H", margin, footerY);
+    doc.text("Knowing Myself Assessment • Darse Burhani Official Dossier • Darajah Rabea (Grade 4) • Page 2 of 2", margin, footerY + 8);
+    doc.fontSize(8).font("Helvetica-Bold").dir("rtl").text("الحمد لله على ما أنعم والشكر له على ما ألهم", pageWidth - margin, footerY, { align: "right" });
+
+    // Finalize PDF
+    doc.end();
+
+    // Wait for file to be written
+    await new Promise<void>((resolve, reject) => {
+      stream.on("finish", () => resolve());
+      stream.on("error", reject);
+    });
+
+    // Set headers for PDF download
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=\"" + pdfFilename + "\"");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+
+    // Send the PDF file
+    res.sendFile(path.resolve(pdfPath), (err) => {
+      if (err) {
+        console.error("Error sending PDF file:", err);
+        // Fallback: send the file as buffer
+        const pdfBuffer = fs.readFileSync(pdfPath);
+        res.type("application/pdf");
+        res.send(pdfBuffer);
+      }
+    });
+
+  } catch (err: any) {
+    console.error("Error generating talabat PDF:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Failed to generate PDF",
+    });
   }
 });
 

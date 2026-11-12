@@ -1,5 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { FileCheck2, Printer, GraduationCap, Sparkles, User, Award, CheckCircle2 } from "lucide-react";
+import { Twemoji } from "react-twemoji"
+import classNames from "classnames"
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 export interface TalabatProfileData {
   id?: string;
@@ -100,6 +104,43 @@ export function TalabatProfileDocument({
     window.print();
   };
 
+  const handleDownloadPDF = async () => {
+    const container = document.querySelector<HTMLElement>(".printable-document");
+    if (!container) return;
+    try {
+      // Capture each page separately so multi-page documents keep all content
+      const pageEls = Array.from(container.querySelectorAll<HTMLElement>(".doc-page"));
+      const targets = pageEls.length > 0 ? pageEls : [container];
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageW = 210;
+      const pageH = 297;
+
+      for (let i = 0; i < targets.length; i++) {
+        const canvas = await html2canvas(targets[i], {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+        });
+        const imgData = canvas.toDataURL("image/png");
+        const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
+        const imgW = canvas.width * ratio;
+        const imgH = canvas.height * ratio;
+        const x = (pageW - imgW) / 2;
+        const y = (pageH - imgH) / 2;
+
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", x, y, imgW, imgH);
+      }
+
+      pdf.save("talabat-profile.pdf");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try printing instead.");
+    }
+  };
+
   // Helper to detect if a value is non-empty
   const isFilled = (val?: string | number | null): boolean => {
     if (val === null || val === undefined) return false;
@@ -115,6 +156,16 @@ export function TalabatProfileDocument({
       return trimmed;
     }
     return "/" + trimmed;
+  };
+
+// Helper to get profile image with proper fallback
+const getProfileImgSrc = (url?: string | null): string => {
+    const src = normalizeImgSrc(url);
+    // If it's a relative path, prepend the base URL
+    if (src && !src.startsWith("http") && !src.startsWith("data:")) {
+      return "/uploads" + src;
+    }
+    return src;
   };
 
   // Helper to detect if text is predominantly Arabic/Lisan al-Dawat
@@ -249,19 +300,19 @@ export function TalabatProfileDocument({
     hasFacultyEvaluation;
 
   return (
-    <div className="talabat-profile-root w-full flex flex-col items-center">
+    <div className="talabat-profile-root w-full flex flex-col items-center bg-[var(--bg-canvas)]">
       {/* ── Top Bar (Print Controls - Hidden on Print) ── */}
-      <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+      <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-subtle)] shadow-lg">
         {/* Status Indicator & View Switcher */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-[var(--gold-lighter)] p-1 rounded-lg border border-slate-200">
             <button
               type="button"
               onClick={() => setLayoutMode("a4-single")}
               className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 layoutMode === "a4-single"
-                  ? "bg-slate-900 text-amber-300 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "text-[var(--text-inverted)] text-[var(--gold-400)] shadow-xs"
+                  : "text-[var(--text-secondary)] font-medium hover:text-[var(--text-primary)] font-medium"
               }`}
             >
               <span>📄</span>
@@ -272,8 +323,8 @@ export function TalabatProfileDocument({
               onClick={() => setLayoutMode("dossier")}
               className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 layoutMode === "dossier"
-                  ? "bg-slate-900 text-amber-300 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "text-[var(--text-inverted)] text-[var(--gold-400)] shadow-xs"
+                  : "text-[var(--text-secondary)] font-medium hover:text-[var(--text-primary)] font-medium"
               }`}
             >
               <span>📑</span>
@@ -281,14 +332,14 @@ export function TalabatProfileDocument({
             </button>
           </div>
 
-          <span className="hidden lg:inline-flex text-[11px] text-slate-500 font-medium">
+          <span className="hidden lg:inline-flex text-[11px] text-[var(--text-muted)] font-medium">
             {layoutMode === "a4-single"
               ? "• Page 1: Profile & Demographics | Page 2: Knowing Myself Assessment (A4 PDF)"
               : "• Complete Academic & Faculty Evaluation"}
           </span>
         </div>
 
-        {/* Print Button */}
+        {/* Print & Download Buttons */}
         <div className="flex items-center gap-3">
           {showPrintButton && (
             <button
@@ -298,6 +349,16 @@ export function TalabatProfileDocument({
             >
               <Printer className="w-4 h-4" />
               Print / Export PDF
+            </button>
+          )}
+          {(
+            <button
+              onClick={handleDownloadPDF}
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm font-semibold text-xs transition-all cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h6a3 3 0 003-3v-1M14 5l7-7a3 3 0 00-5.972-5.972L18 10M18 10l1.046 5.953A2.998 2.998 0 0115.933 18h-5.933a2.998 2.998 0 01-2.825-2.137L2 21" /></svg>
+              Download PDF
             </button>
           )}
         </div>
@@ -311,7 +372,7 @@ export function TalabatProfileDocument({
                A4 PAGE 1: STUDENT TALABAT PROFILE (DARAJEH RABEA)
                Demographics, Family, Contact, Academics & 3 Quick Prompts
             ════════════════════════════════════════════════════════════ */}
-            <div className="doc-page doc-page-single bg-white text-slate-900 border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden">
+            <div className="doc-page doc-page-single bg-white text-[var(--text-primary)] font-medium border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden">
             <div>
               {/* Institutional Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
@@ -328,10 +389,10 @@ export function TalabatProfileDocument({
                     <h1 className="text-lg font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
                       DARSE BURHANI
                     </h1>
-                    <h2 className="text-xs font-extrabold text-emerald-950 tracking-wide mt-0.5">
+                    <h2 className="text-xs font-extrabold text-[var(--gold-900)] tracking-wide mt-0.5">
                       DARAJEH RABEA (GRADE 4) • STUDENT TALABAT PROFILE
                     </h2>
-                    <div className="text-[10px] font-medium text-slate-600">
+                    <div className="text-[10px] font-medium text-[var(--text-secondary)] font-medium">
                       Academic Year 1447 H • Official Individual Record Sheet
                     </div>
                   </div>
@@ -342,10 +403,10 @@ export function TalabatProfileDocument({
                     الحمد لله على ما أنعم والشكر له على ما ألهم
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full text-[var(--text-inverted)] text-[var(--gold-400)]">
                       DARSE BURHANI
                     </span>
-                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--gold-light)] text-[var(--gold-900)] border border-emerald-300">
                       {data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}
                     </span>
                   </div>
@@ -353,7 +414,7 @@ export function TalabatProfileDocument({
               </div>
 
               {/* Student Identity & Passport Photo Hero Row */}
-              <div className="flex items-stretch gap-3.5 p-2.5 bg-slate-50 border border-slate-300 rounded-lg mb-2.5">
+              <div className="flex items-stretch gap-3.5 p-2.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg mb-2.5">
                 {/* Photo */}
                 <div className="w-22 h-26 bg-white border-2 border-slate-400 rounded overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
                   {isFilled(data.studentPhotoUrl) ? (
@@ -373,26 +434,23 @@ export function TalabatProfileDocument({
                 {/* Main Name & Key Identifiers */}
                 <div className="flex-1 flex flex-col justify-between py-0.5">
                   <div>
-                    <h3 className="text-base font-black text-slate-900 font-serif leading-tight">
+                    <h3 className="text-base font-black text-[var(--text-primary)] font-medium font-serif leading-tight">
                       {data.name || "Student Full Name"}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-700">
-                      <span className="inline-flex items-center gap-1 font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300 text-[10.5px]">
-                        ITS: {data.itsNo || "—"}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-700"><span className="inline-flex items-center gap-1 font-bold bg-[var(--gold-100)] text-[var(--gold-900)] px-2 py-0.5 rounded border border-[var(--gold-300)] text-[10.5px]">
+                        ITS: {data.itsNo || "—"}</span>
                       <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[10.5px]">
-                        Standard: {data.standard || data.grade || "Darajah 4 (Rabea)"}
-                      </span>
+                        Standard: {data.standard || data.grade || "Darajah 4 (Rabea)"}</span>
                       <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[10.5px]">
                         Section: {data.section || "A"}
                       </span>
-                      <span className="font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 text-[10.5px]">
+                      <span className="font-semibold bg-[var(--gold-light)] text-[var(--gold-800)] px-2 py-0.5 rounded border border-emerald-300 text-[10.5px]">
                         Status: {data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-1.5 pt-1.5 border-t border-slate-200 text-[10.5px] text-slate-600">
+                  <div className="grid grid-cols-3 gap-2 mt-1.5 pt-1.5 border-t border-slate-200 text-[10.5px] text-[var(--text-secondary)] font-medium">
                     <div><span className="font-bold text-slate-800">Admission Year:</span> {data.admissionYear || "1444 H"}</div>
                     <div><span className="font-bold text-slate-800">Current Year:</span> {data.currentYear || data.year || "1447 H"}</div>
                     <div><span className="font-bold text-slate-800">Age:</span> {data.age ? `${data.age} Years` : "—"}</div>
@@ -402,130 +460,150 @@ export function TalabatProfileDocument({
 
               {/* Complete Demographic & Information Table */}
               <div className="mb-2.5 border border-slate-300 rounded-lg overflow-hidden bg-white text-[11px]">
-                <div className="bg-[#1c1c1c] text-white px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-medium px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider flex items-center justify-between">
                   <span>Student Demographic &amp; Institutional Profile</span>
-                  <span className="text-amber-300 text-[9.5px] lowercase font-normal">official student dossier</span>
+                  <span className="text-[var(--gold-400)] text-[9.5px] lowercase font-normal">official student dossier</span>
                 </div>
-                <div className="grid grid-cols-2 text-[10.5px] divide-y divide-x divide-slate-200">
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Student Name:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.name || "—"}</span>
+                <div className="grid grid-cols-2 text-[10.5px] divide-y divide-x divide-border-subtle">
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Student Name:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.name || "—"}</span>
                   </div>
                   <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Student ITS:</span>
-                    <span className="font-mono font-bold text-slate-900 text-right">{data.itsNo || "—"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Student ITS:</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)] font-medium text-right">{data.itsNo || "—"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between items-center">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Father Name:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right flex items-center gap-1.5">
+                      {isFilled(data.fatherPhotoUrl) && (
+                        <img
+                          src={getProfileImgSrc(data.fatherPhotoUrl)}
+                          alt="Father"
+                          className="w-5 h-5 rounded-full object-cover border border-slate-400 shrink-0"
+                          onError={(e: any) => { e.target.style.display = "none"; }}
+                        />
+                      )}
+                      <span>{data.fatherName || "—"}</span>
+                    </span>
+                  </div>
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Father's Occupation:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.fatherOccupation || "—"}</span>
+                  </div>
+
+                  <div className="p-1.5 flex justify-between items-center bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Mother Name:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right flex items-center gap-1.5">
+                      {isFilled(data.motherPhotoUrl) && (
+                        <img
+                          src={getProfileImgSrc(data.motherPhotoUrl)}
+                          alt="Mother"
+                          className="w-5 h-5 rounded-full object-cover border border-slate-400 shrink-0"
+                          onError={(e: any) => { e.target.style.display = "none"; }}
+                        />
+                      )}
+                      <span>{data.motherName || "—"}</span>
+                    </span>
+                  </div>
+                  <div className="p-1.5 flex justify-between">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Mother's Occupation:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.motherOccupation || "Homemaker"}</span>
                   </div>
 
                   <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Father Name:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.fatherName || "—"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Student's Standard:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.standard || data.grade || "Darajah 4 (Rabea)"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Father's Occupation:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.fatherOccupation || "—"}</span>
-                  </div>
-
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Mother Name:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.motherName || "—"}</span>
-                  </div>
-                  <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Mother's Occupation:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.motherOccupation || "Homemaker"}</span>
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Class Section:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.section || "A"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Student's Standard:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.standard || data.grade || "Darajah 4 (Rabea)"}</span>
-                  </div>
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Class Section:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.section || "A"}</span>
-                  </div>
-
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Student Status:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}</span>
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Student Status:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}</span>
                   </div>
                   <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Admission Year:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.admissionYear || "1444 H"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Admission Year:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.admissionYear || "1444 H"}</span>
                   </div>
 
                   <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Current Year:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.currentYear || data.year || "1447 H"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Current Year:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.currentYear || data.year || "1447 H"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Student Age:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.age ? `${data.age} Years` : "—"}</span>
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Student Age:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.age ? `${data.age} Years` : "—"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Watan:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.vatan || data.watan || "—"}</span>
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Watan:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.vatan || data.watan || "—"}</span>
                   </div>
                   <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Resident City:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.jamaat || data.residentCity || "—"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Resident City:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.jamaat || data.residentCity || "—"}</span>
                   </div>
 
                   <div className="p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600">Mobile Number:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.mobileNumber || "—"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Mobile Number:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.mobileNumber || "—"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-slate-50/50">
-                    <span className="font-bold text-slate-600">Email ID:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.email || "—"}</span>
+                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">Email ID:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.email || "—"}</span>
                   </div>
 
-                  <div className="col-span-2 p-1.5 flex justify-between bg-slate-50/30">
-                    <span className="font-bold text-slate-600">External Schooling Status:</span>
-                    <span className="font-semibold text-slate-900 text-right">{data.externalSchooling || "Regular Darse Burhani"}</span>
+                  <div className="col-span-2 p-1.5 flex justify-between bg-[var(--gold-light)]/30">
+                    <span className="font-bold text-[var(--text-secondary)] font-medium">External Schooling Status:</span>
+                    <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.externalSchooling || "Regular Darse Burhani"}</span>
                   </div>
 
                   <div className="col-span-2 p-1.5 flex justify-between">
-                    <span className="font-bold text-slate-600 shrink-0 mr-2">Address:</span>
-                    <span className="font-medium text-slate-900 text-right leading-tight">{data.address || "—"}</span>
+                    <span className="font-bold text-[var(--text-secondary)] font-medium shrink-0 mr-2">Address:</span>
+                    <span className="font-medium text-[var(--text-primary)] font-medium text-right leading-tight">{data.address || "—"}</span>
                   </div>
                 </div>
               </div>
 
               {/* Special Prompts Section: Rabea Talabat Reflections & Passions */}
-              <div className="border-2 border-amber-400 bg-amber-50/30 rounded-lg p-2.5 mb-2.5">
-                <div className="flex items-center justify-between border-b border-amber-300/70 pb-1 mb-2">
+              <div className="border-2 border-amber-400 bg-[var(--gold-light)]/30 rounded-lg p-2.5 mb-2.5">
+                <div className="flex items-center justify-between border-b border-[var(--gold-300)]/70 pb-1 mb-2">
                   <span className="font-black text-[11px] text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
                     ★ Talabat Personal Reflections &amp; Passions (Darajah Rabea)
                   </span>
-                  <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                  <span className="text-[9px] font-bold text-[var(--gold-800)] bg-[var(--gold-100)] px-1.5 py-0.5 rounded border border-[var(--gold-300)]">
                     Student Reflection Prompts
                   </span>
                 </div>
 
                 <div className="space-y-1.5 text-[11px]">
-                  <div className="bg-white p-2 rounded border border-amber-200 shadow-xs">
-                    <div className="font-bold text-emerald-950 text-[10.5px] mb-0.5">
+                  <div className="bg-white p-2 rounded border border-[var(--border-subtle)] shadow-xs">
+                    <div className="font-bold text-[var(--gold-900)] text-[10.5px] mb-0.5">
                       1. I am really Good at ...
                     </div>
-                    <div className="text-slate-900 italic pl-2 border-l-2 border-emerald-600 leading-snug font-serif">
+                    <div className="text-[var(--text-primary)] font-medium italic pl-2 border-l-2 border-[var(--gold-600)] leading-snug font-serif">
                       {isFilled(data.reallyGoodAt) ? data.reallyGoodAt : "— Not filled yet —"}
                     </div>
                   </div>
 
-                  <div className="bg-white p-2 rounded border border-amber-200 shadow-xs">
+                  <div className="bg-white p-2 rounded border border-[var(--border-subtle)] shadow-xs">
                     <div className="font-bold text-indigo-950 text-[10.5px] mb-0.5">
                       2. I love to study about ... because ...
                     </div>
-                    <div className="text-slate-900 italic pl-2 border-l-2 border-indigo-600 leading-snug font-serif">
+                    <div className="text-[var(--text-primary)] font-medium italic pl-2 border-l-2 border-indigo-600 leading-snug font-serif">
                       {isFilled(data.loveToStudy) ? data.loveToStudy : "— Not filled yet —"}
                     </div>
                   </div>
 
-                  <div className="bg-white p-2 rounded border border-amber-200 shadow-xs">
-                    <div className="font-bold text-purple-950 text-[10.5px] mb-0.5">
+                  <div className="bg-white p-2 rounded border border-[var(--border-subtle)] shadow-xs">
+                    <div className="font-bold text-[var(--gold-900)] text-[10.5px] mb-0.5">
                       3. I really love to ..... For Fun
                     </div>
-                    <div className="text-slate-900 italic pl-2 border-l-2 border-purple-600 leading-snug font-serif">
+                    <div className="text-[var(--text-primary)] font-medium italic pl-2 border-l-2 border-[var(--gold-600)] leading-snug font-serif">
                       {isFilled(data.loveForFun) ? data.loveForFun : "— Not filled yet —"}
                     </div>
                   </div>
@@ -550,7 +628,7 @@ export function TalabatProfileDocument({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[9.5px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
+              <div className="flex items-center justify-between text-[9.5px] text-[var(--text-muted)] pt-1 border-t border-slate-200 mt-1">
                 <span>Darse Burhani Official Institutional Record • Darajah Rabea (Grade 4) • 1447 H</span>
                 <span className="font-alkanz dir-rtl text-[11px] text-slate-800" dir="rtl">
                   الحمد لله على ما أنعم والشكر له على ما ألهم
@@ -563,7 +641,7 @@ export function TalabatProfileDocument({
              A4 PAGE 2: KNOWING MYSELF — MY IDENTITY AND ASPIRATIONS
              Self-Reflection Questionnaire, Obstacles & Aspirations
           ════════════════════════════════════════════════════════════ */}
-          <div className="doc-page doc-page-page2 bg-white text-slate-900 border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden print:mt-0 mt-8">
+          <div className="doc-page doc-page-page2 bg-white text-[var(--text-primary)] font-medium border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden print:mt-0 mt-8">
             <div>
               {/* Institutional Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
@@ -580,10 +658,10 @@ export function TalabatProfileDocument({
                     <h1 className="text-lg font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
                       DARSE BURHANI
                     </h1>
-                    <h2 className="text-xs font-extrabold text-emerald-950 tracking-wide mt-0.5">
+                    <h2 className="text-xs font-extrabold text-[var(--gold-900)] tracking-wide mt-0.5">
                       KNOWING MYSELF: MY IDENTITY AND ASPIRATIONS
                     </h2>
-                    <div className="text-[10px] font-medium text-slate-600">
+                    <div className="text-[10px] font-medium text-[var(--text-secondary)] font-medium">
                       Darajeh Rabea (Grade 4) • Student Self-Reflection &amp; Guidance Record (Page 2 of 2)
                     </div>
                   </div>
@@ -594,13 +672,13 @@ export function TalabatProfileDocument({
                     الحمد لله على ما أنعم والشكر له على ما ألهم
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full text-[var(--text-inverted)] text-[var(--gold-400)]">
                       {data.name || "Student"}
                     </span>
-                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--gold-light)] text-[var(--gold-900)] border border-emerald-300">
                       ITS: {data.itsNo || "—"}
                     </span>
-                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--gold-100)] text-[var(--gold-900)] border border-[var(--gold-300)]">
                       {data.knowingMyself?.dateOfAssessment || "1447 H"}
                     </span>
                   </div>
@@ -610,9 +688,9 @@ export function TalabatProfileDocument({
               {/* Section A: Strengths, Enjoyed Activities & Aspirations */}
               <div className="grid grid-cols-12 gap-2 mb-2">
                 {/* Greatest Strengths */}
-                <div className="col-span-4 bg-emerald-50/50 border border-emerald-200 rounded-lg p-2">
-                  <div className="flex items-center justify-between border-b border-emerald-200/80 pb-1 mb-1">
-                    <span className="font-black text-[10px] text-emerald-950 uppercase tracking-wide">
+                <div className="col-span-4 bg-[var(--gold-light)]/25 border border-[var(--border-subtle)] rounded-lg p-2">
+                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)]/80 pb-1 mb-1">
+                    <span className="font-black text-[10px] text-[var(--gold-900)] uppercase tracking-wide">
                       ★ 3 Greatest Strengths
                     </span>
                   </div>
@@ -639,7 +717,7 @@ export function TalabatProfileDocument({
                 </div>
 
                 {/* Things Enjoyed */}
-                <div className="col-span-4 bg-indigo-50/50 border border-indigo-200 rounded-lg p-2">
+                <div className="col-span-4 bg-[var(--gold-light)]/50 border border-indigo-200 rounded-lg p-2">
                   <div className="flex items-center justify-between border-b border-indigo-200/80 pb-1 mb-1">
                     <span className="font-black text-[10px] text-indigo-950 uppercase tracking-wide">
                       ★ 3 Things I Enjoy Most
@@ -668,27 +746,27 @@ export function TalabatProfileDocument({
                 </div>
 
                 {/* Core Accomplishment & Role Model */}
-                <div className="col-span-4 bg-amber-50/50 border border-amber-200 rounded-lg p-2 flex flex-col justify-between">
+                <div className="col-span-4 bg-[var(--gold-light)]/25 border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col justify-between">
                   <div>
-                    <div className="font-black text-[10px] text-amber-950 uppercase tracking-wide border-b border-amber-200/80 pb-1 mb-1">
+                    <div className="font-black text-[10px] text-amber-950 uppercase tracking-wide border-b border-[var(--border-subtle)]/80 pb-1 mb-1">
                       ★ Aspirations &amp; Mentorship
                     </div>
                     <div className="space-y-1 text-[9.5px]">
                       <div>
                         <span className="font-bold text-slate-700">Proud Accomplishment: </span>
-                        <span className="font-medium text-slate-900 leading-tight">
+                        <span className="font-medium text-[var(--text-primary)] font-medium leading-tight">
                           {data.knowingMyself?.proudAccomplishment || "—"}
                         </span>
                       </div>
                       <div>
                         <span className="font-bold text-slate-700">Area Want to Improve: </span>
-                        <span className="font-medium text-slate-900 leading-tight">
+                        <span className="font-medium text-[var(--text-primary)] font-medium leading-tight">
                           {data.knowingMyself?.improveBetterAt || "—"}
                         </span>
                       </div>
                       <div>
                         <span className="font-bold text-slate-700">Person Admired &amp; Why: </span>
-                        <span className="font-medium text-slate-900 leading-tight">
+                        <span className="font-medium text-[var(--text-primary)] font-medium leading-tight">
                           {data.knowingMyself?.admirePersonWhy || "—"}
                         </span>
                       </div>
@@ -700,7 +778,7 @@ export function TalabatProfileDocument({
               {/* Section B: Obstacles Identified */}
               <div className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 mb-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-black text-[10px] text-slate-900 uppercase tracking-wider shrink-0">
+                  <span className="font-black text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wider shrink-0">
                     Obstacles Identified:
                   </span>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -708,23 +786,23 @@ export function TalabatProfileDocument({
                       data.knowingMyself.selectedObstacles.map((obs: string, idx: number) => (
                         <span
                           key={idx}
-                          className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 border border-slate-700 shadow-2xs"
+                          className="text-[9px] font-bold px-2 py-0.5 rounded-full text-[var(--text-inverted)] text-[var(--gold-400)] border border-slate-700 shadow-2xs"
                         >
                           {obs}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[9.5px] italic text-slate-500">None selected</span>
+                      <span className="text-[9.5px] italic text-[var(--text-muted)]">None selected</span>
                     )}
                     {data.knowingMyself?.otherObstacle && (
-                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[var(--gold-100)] text-[var(--gold-900)] border border-[var(--gold-300)]">
                         Other: {data.knowingMyself.otherObstacle}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 shrink-0">
+                <span className="text-[9px] font-bold text-[var(--gold-800)] bg-[var(--gold-light)] px-2 py-0.5 rounded border border-emerald-300 shrink-0">
                   {data.knowingMyself?.submittedAt ? "✓ Compulsory Assessment Submitted" : "Darajah 4 Dossier"}
                 </span>
               </div>
@@ -732,18 +810,18 @@ export function TalabatProfileDocument({
               {/* Section C: In-Depth Self-Reflections — All 14 Compulsory Questions */}
               <div className="border border-slate-300 rounded-lg p-2 bg-white">
                 <div className="border-b border-slate-200 pb-1 mb-1.5 flex items-center justify-between">
-                  <span className="font-black text-[10.5px] text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="font-black text-[10.5px] text-[var(--text-primary)] font-medium uppercase tracking-wider flex items-center gap-1.5">
                     ★ Self-Reflection Questionnaire (14 Compulsory Questions)
                   </span>
-                  <span className="text-[9px] font-medium text-slate-500">
+                  <span className="text-[9px] font-medium text-[var(--text-muted)]">
                     Standard Darse Burhani Taherabad Darajah Rabea Evaluation
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] leading-tight">
                   {/* Q1 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       1. How do you respond when things get difficult?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -752,8 +830,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q2 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       2. What makes you want to give up?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -763,7 +841,7 @@ export function TalabatProfileDocument({
 
                   {/* Q3 */}
                   <div className="p-1 rounded bg-slate-50/70 border-l-2 border-indigo-600">
-                    <div className="font-bold text-slate-900">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       3. What helps you recover after disappointment or failure?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -773,7 +851,7 @@ export function TalabatProfileDocument({
 
                   {/* Q4 */}
                   <div className="p-1 rounded bg-slate-50/70 border-l-2 border-indigo-600">
-                    <div className="font-bold text-slate-900">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       4. Who do you approach when you need support?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -783,7 +861,7 @@ export function TalabatProfileDocument({
 
                   {/* Q5 */}
                   <div className="p-1 rounded bg-slate-50/70 border-l-2 border-amber-600">
-                    <div className="font-bold text-slate-900">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       5. One obstacle you are willing to actively work on?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -793,7 +871,7 @@ export function TalabatProfileDocument({
 
                   {/* Q6 */}
                   <div className="p-1 rounded bg-slate-50/70 border-l-2 border-amber-600">
-                    <div className="font-bold text-slate-900">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       6. What kind of behavior hurts you the most?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -802,8 +880,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q7 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-rose-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       7. What do you wish others understood better about you?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -812,8 +890,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q8 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-purple-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       8. What does it mean to be a successful person?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -822,8 +900,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q9 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-purple-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       9. What does success look like beyond academic qualifications?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -832,8 +910,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q10 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-teal-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       10. What qualities make someone worthy of genuine respect?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -842,8 +920,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q11 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-teal-600">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       11. Why is it important to continue learning throughout life?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -852,8 +930,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q12 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-700">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-700)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       12. What does Khidmat mean to you personally?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -862,8 +940,8 @@ export function TalabatProfileDocument({
                   </div>
 
                   {/* Q13 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-700">
-                    <div className="font-bold text-slate-900">
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-700)]">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       13. How can you use your unique skills to benefit others?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -873,7 +951,7 @@ export function TalabatProfileDocument({
 
                   {/* Q14 */}
                   <div className="p-1 rounded bg-slate-50/70 border-l-2 border-slate-700">
-                    <div className="font-bold text-slate-900">
+                    <div className="font-bold text-[var(--text-primary)] font-medium">
                       14. What kind of person do you want to be remembered as?
                     </div>
                     <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
@@ -901,7 +979,7 @@ export function TalabatProfileDocument({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[9.5px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
+              <div className="flex items-center justify-between text-[9.5px] text-[var(--text-muted)] pt-1 border-t border-slate-200 mt-1">
                 <span>Knowing Myself Assessment • Darse Burhani Official Dossier • Darajah Rabea (Grade 4) • Page 2 of 2</span>
                 <span className="font-alkanz dir-rtl text-[11px] text-slate-800" dir="rtl">
                   الحمد لله على ما أنعم والشكر له على ما ألهم
@@ -914,7 +992,7 @@ export function TalabatProfileDocument({
           /* ════════════════════════════════════════════════════════════
              DOCUMENT VIEW: EDITED SECTIONS ONLY (FULL DOSSIER)
           ════════════════════════════════════════════════════════════ */
-          <div className="doc-page bg-white text-slate-900 border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
+          <div className="doc-page bg-white text-[var(--text-primary)] font-medium border border-slate-300 shadow-xl rounded-sm p-6 sm:p-9 min-h-[297mm] flex flex-col justify-between box-border">
             <div>
               {/* ── Top Header ── */}
               <div className="flex items-start justify-between border-b pb-4 mb-4 relative">
@@ -938,7 +1016,7 @@ export function TalabatProfileDocument({
                   <h2 className="text-base sm:text-lg font-extrabold text-[#1c1c1c] tracking-wider mt-0.5">
                     TALABAT PROFILE – {data.year || "1447 H"}
                   </h2>
-                  <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                  <div className="text-[11px] font-semibold text-[var(--text-secondary)] font-medium mt-0.5">
                     Academic Year 1447 H • Yearly Profile Submission
                   </div>
                 </div>
@@ -958,10 +1036,10 @@ export function TalabatProfileDocument({
                     <span
                       className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                         data.status === "SUBMITTED"
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                          ? "bg-[var(--gold-light)] text-[var(--gold-800)] border-emerald-300"
                           : data.status === "REVIEWED"
                           ? "bg-blue-50 text-blue-800 border-blue-300"
-                          : "bg-amber-50 text-amber-800 border-amber-300"
+                          : "bg-[var(--gold-light)] text-[var(--gold-800)] border-[var(--gold-300)]"
                       }`}
                     >
                       {data.status === "REVIEWED"
@@ -978,10 +1056,10 @@ export function TalabatProfileDocument({
 
               {/* ── Empty State: Nothing edited yet ── */}
               {!hasAnyEditedData && (
-                <div className="p-12 text-center bg-slate-50 border border-dashed border-slate-300 rounded-xl my-8">
+                <div className="p-12 text-center bg-[var(--gold-light)] border border-dashed border-[var(--border-subtle)] rounded-xl my-8">
                   <GraduationCap className="w-12 h-12 text-slate-400 mx-auto mb-3" />
                   <h3 className="font-bold text-slate-800 text-base">No Profile Information Edited Yet</h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+                  <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto mt-1 leading-relaxed">
                     This student has not yet entered or submitted details for the 1447 H Yearly Profile.
                     Once edited by the student or faculty, the submitted fields will appear here.
                   </p>
@@ -991,7 +1069,7 @@ export function TalabatProfileDocument({
               {/* ── 1. PERSONAL DETAILS (Only if edited) ── */}
               {hasPersonalDetails && (
                 <div className="mb-4">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-[var(--text-primary)] font-medium">
                     PERSONAL DETAILS
                   </div>
                   <div className="border-x border-b border-slate-800 flex flex-row">
@@ -1011,7 +1089,7 @@ export function TalabatProfileDocument({
                       {isFilled(data.name) && (
                         <div className="col-span-12 flex items-center">
                           <div className="w-24 sm:w-28 font-semibold p-1.5 bg-slate-50 border-r border-slate-800">Name:</div>
-                          <div className="flex-1 p-1.5 font-bold text-slate-900">{data.name}</div>
+                          <div className="flex-1 p-1.5 font-bold text-[var(--text-primary)] font-medium">{data.name}</div>
                         </div>
                       )}
 
@@ -1076,7 +1154,7 @@ export function TalabatProfileDocument({
               {/* ── 2. FAMILY DETAILS (Only if edited) ── */}
               {hasFamilyDetails && (
                 <div className="mb-4">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-[var(--text-primary)] font-medium">
                     FAMILY DETAILS
                   </div>
                   <div className="border-x border-b border-slate-800 flex flex-col divide-y divide-slate-800">
@@ -1094,12 +1172,12 @@ export function TalabatProfileDocument({
                         )}
                         <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
                           <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2.5">
-                            <span className="font-semibold text-slate-600 text-[11px]">Father Name:</span>
-                            <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.fatherName || "—"}</span>
+                            <span className="font-semibold text-[var(--text-secondary)] font-medium text-[11px]">Father Name:</span>
+                            <span className="font-bold text-[var(--text-primary)] font-medium text-xs sm:text-sm">{data.fatherName || "—"}</span>
                           </div>
                           <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2.5">
-                            <span className="font-semibold text-slate-600 text-[11px]">Father Occupation:</span>
-                            <span className="font-medium text-slate-900 text-xs">{data.fatherOccupation || "—"}</span>
+                            <span className="font-semibold text-[var(--text-secondary)] font-medium text-[11px]">Father Occupation:</span>
+                            <span className="font-medium text-[var(--text-primary)] font-medium text-xs">{data.fatherOccupation || "—"}</span>
                           </div>
                         </div>
                       </div>
@@ -1119,12 +1197,12 @@ export function TalabatProfileDocument({
                         )}
                         <div className="flex-1 grid grid-cols-12 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
                           <div className="col-span-12 sm:col-span-7 flex flex-col justify-center p-2">
-                            <span className="font-semibold text-slate-600 text-[11px]">Mother Name:</span>
-                            <span className="font-bold text-slate-900 text-xs sm:text-sm">{data.motherName || "—"}</span>
+                            <span className="font-semibold text-[var(--text-secondary)] font-medium text-[11px]">Mother Name:</span>
+                            <span className="font-bold text-[var(--text-primary)] font-medium text-xs sm:text-sm">{data.motherName || "—"}</span>
                           </div>
                           <div className="col-span-12 sm:col-span-5 flex flex-col justify-center p-2">
-                            <span className="font-semibold text-slate-600 text-[11px]">Mother Occupation:</span>
-                            <span className="font-medium text-slate-900 text-xs">{data.motherOccupation || "Homemaker"}</span>
+                            <span className="font-semibold text-[var(--text-secondary)] font-medium text-[11px]">Mother Occupation:</span>
+                            <span className="font-medium text-[var(--text-primary)] font-medium text-xs">{data.motherOccupation || "Homemaker"}</span>
                           </div>
                         </div>
                       </div>
@@ -1136,7 +1214,7 @@ export function TalabatProfileDocument({
               {/* ── 3. ACADEMICS DETAILS (Only if edited) ── */}
               {hasAcademicsDetails && (
                 <div className="mb-4">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-[var(--text-primary)] font-medium">
                     ACADEMICS DETAILS
                   </div>
                   <div className="border-x border-b border-slate-800 grid grid-cols-12 text-xs divide-x divide-slate-800">
@@ -1189,7 +1267,7 @@ export function TalabatProfileDocument({
                         <div className="flex flex-col divide-y divide-slate-800 flex-1">
                           {editedCourses.map((c, idx) => (
                             <div key={idx} className="flex items-center px-2 py-1 text-[11px]">
-                              <span className="font-semibold mr-1.5 text-slate-600">{idx + 1}.</span>
+                              <span className="font-semibold mr-1.5 text-[var(--text-secondary)] font-medium">{idx + 1}.</span>
                               <span className="font-medium">{c}</span>
                             </div>
                           ))}
@@ -1211,11 +1289,11 @@ export function TalabatProfileDocument({
                           </div>
                         )}
                         {hasOtherExams && (
-                          <div className="p-2 bg-slate-50/50 flex items-center justify-between">
+                          <div className="p-2 bg-[var(--gold-light)]/25 flex items-center justify-between">
                             <span className="font-alkanz font-bold text-xs text-[#1c1c1c] dir-rtl" dir="rtl">
                               الامتحانات الأخرى:
                             </span>
-                            <span className="font-bold text-xs text-slate-900">{data.otherExams}</span>
+                            <span className="font-bold text-xs text-[var(--text-primary)] font-medium">{data.otherExams}</span>
                           </div>
                         )}
                       </div>
@@ -1227,21 +1305,21 @@ export function TalabatProfileDocument({
               {/* ── 4. SELF – ASSESSMENT (Only if edited) ── */}
               {hasSelfAssessment && (
                 <div className="mb-4">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-[var(--text-primary)] font-medium">
                     SELF – ASSESSMENT
                   </div>
                   <div className="border-x border-b border-slate-800 grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-800 text-xs">
                     {/* Strengths */}
                     {editedStrengths.length > 0 && (
                       <div className="flex flex-col">
-                        <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50 text-emerald-900">
+                        <div className="border-b border-slate-800 p-1 text-center font-bold bg-slate-50 text-[var(--gold-900)]">
                           My Strengths
                         </div>
                         <div className="p-2.5 flex flex-col gap-1.5">
                           {editedStrengths.map((item, idx) => (
                             <div key={idx} className="flex items-start gap-1.5 text-[11px]">
                               <span className="font-bold text-emerald-700">{idx + 1}.</span>
-                              <span className="text-slate-900">{item}</span>
+                              <span className="text-[var(--text-primary)] font-medium">{item}</span>
                             </div>
                           ))}
                         </div>
@@ -1258,7 +1336,7 @@ export function TalabatProfileDocument({
                           {editedWeaknesses.map((item, idx) => (
                             <div key={idx} className="flex items-start gap-1.5 text-[11px]">
                               <span className="text-rose-500 font-bold">•</span>
-                              <span className="text-slate-900">{item}</span>
+                              <span className="text-[var(--text-primary)] font-medium">{item}</span>
                             </div>
                           ))}
                         </div>
@@ -1271,10 +1349,10 @@ export function TalabatProfileDocument({
               {/* ── 5. ABOUT MYSELF (Only if edited) ── */}
               {hasAboutMyself && (
                 <div className="mb-4">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-slate-900">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-[var(--text-primary)] font-medium">
                     About Myself (Hobbies, Interests &amp; Skills)
                   </div>
-                  <div className="border-x border-b border-slate-800 p-3 text-xs leading-relaxed text-slate-900 font-medium">
+                  <div className="border-x border-b border-slate-800 p-3 text-xs leading-relaxed text-[var(--text-primary)] font-medium font-medium">
                     {data.aboutMyself}
                   </div>
                 </div>
@@ -1283,7 +1361,7 @@ export function TalabatProfileDocument({
               {/* ── 6. ADMINISTRATION & FACULTY EVALUATION (Only if reviewed/edited) ── */}
               {hasFacultyEvaluation && (
                 <div className="mb-4 mt-6">
-                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs uppercase tracking-wider text-slate-900">
+                  <div className="bg-[#ddebf7] border border-slate-800 text-center py-1.5 font-bold text-xs uppercase tracking-wider text-[var(--text-primary)] font-medium">
                     ADMINISTRATION &amp; DARSE BURHANI MASUL COLLECTIVE EVALUATION
                   </div>
 
@@ -1291,30 +1369,30 @@ export function TalabatProfileDocument({
                   {hasRatings && (
                     <div className="border-x border-b border-slate-800 grid grid-cols-4 divide-x divide-slate-800 text-center">
                       <div className="flex flex-col">
-                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Behaviour</div>
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-[var(--text-primary)] font-medium">Behaviour</div>
                         <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        <div className="p-1.5 font-extrabold text-base text-[var(--gold-800)]">
                           {data.behaviourRating ? `${data.behaviourRating} / 5` : "—"}
                         </div>
                       </div>
                       <div className="flex flex-col">
-                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Communication</div>
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-[var(--text-primary)] font-medium">Communication</div>
                         <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        <div className="p-1.5 font-extrabold text-base text-[var(--gold-800)]">
                           {data.communicationRating ? `${data.communicationRating} / 5` : "—"}
                         </div>
                       </div>
                       <div className="flex flex-col">
-                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Dedication</div>
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-[var(--text-primary)] font-medium">Dedication</div>
                         <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        <div className="p-1.5 font-extrabold text-base text-[var(--gold-800)]">
                           {data.dedicationRating ? `${data.dedicationRating} / 5` : "—"}
                         </div>
                       </div>
                       <div className="flex flex-col">
-                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-slate-900">Discipline</div>
+                        <div className="border-b border-slate-800 p-1 font-extrabold text-xs text-[var(--text-primary)] font-medium">Discipline</div>
                         <div className="p-1 font-bold text-[10px] bg-slate-50 border-b border-slate-800">Rating (1-5)</div>
-                        <div className="p-1.5 font-extrabold text-base text-emerald-800">
+                        <div className="p-1.5 font-extrabold text-base text-[var(--gold-800)]">
                           {data.disciplineRating ? `${data.disciplineRating} / 5` : "—"}
                         </div>
                       </div>
@@ -1342,7 +1420,7 @@ export function TalabatProfileDocument({
                               <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">
                                 {cat.labelAr}
                               </span>
-                              <span className="text-[9px] text-slate-500 font-sans mt-0.5">{cat.labelEn}</span>
+                              <span className="text-[9px] text-[var(--text-muted)] font-sans mt-0.5">{cat.labelEn}</span>
                             </div>
                           </div>
                         ))}
@@ -1366,7 +1444,7 @@ export function TalabatProfileDocument({
             </div>
 
             {/* Official Document Footer */}
-            <div className="pt-4 mt-6 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+            <div className="pt-4 mt-6 border-t border-slate-200 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
               <div>Darse Burhani Official Institutional Document • 1447 H</div>
               <div className="font-alkanz dir-rtl text-xs text-[#1c1c1c]" dir="rtl">
                 الحمد لله على ما أنعم والشكر له على ما ألهم

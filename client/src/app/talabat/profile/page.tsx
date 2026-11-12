@@ -383,7 +383,7 @@ export default function TalabatProfilePage() {
         {/* Photo Upload Card */}
         {isPhotoVisible && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-            <Card className="fatimi-card">
+            <Card className="fatimi-card border-2 border-slate-300 shadow-sm rounded-2xl bg-white overflow-hidden">
               <div className="fatimi-card-header" />
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -478,7 +478,7 @@ export default function TalabatProfilePage() {
         {/* Personal Information */}
         {isPersonalVisible && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="fatimi-card">
+          <Card className="fatimi-card border-2 border-slate-300 shadow-sm rounded-2xl bg-white overflow-hidden">
             <div className="fatimi-card-header" />
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -622,7 +622,7 @@ export default function TalabatProfilePage() {
         {/* Student IDs & Identification */}
         {isIdentifiersVisible && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="fatimi-card">
+          <Card className="fatimi-card border-2 border-slate-300 shadow-sm rounded-2xl bg-white overflow-hidden">
             <div className="fatimi-card-header" />
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -676,7 +676,7 @@ export default function TalabatProfilePage() {
         {/* Academic Information */}
         {isAcademicVisible && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="fatimi-card">
+          <Card className="fatimi-card border-2 border-slate-300 shadow-sm rounded-2xl bg-white overflow-hidden">
             <div className="fatimi-card-header" />
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -870,20 +870,20 @@ export default function TalabatProfilePage() {
                   </div>
 
                   <div className="shrink-0 flex items-center">
-                    <Link href="/talabat/knowing-myself">
-                      <Button
-                        type="button"
-                        className={
-                          profile.knowingMyselfSubmitted
-                            ? "border-2 border-emerald-600 text-emerald-800 bg-white hover:bg-emerald-50 font-bold text-xs rounded-xl shadow-xs"
-                            : "fatimi-emerald-gradient text-white font-bold text-xs rounded-xl shadow-md hover:opacity-95"
-                        }
-                      >
-                        <Compass className="w-4 h-4 mr-1.5" />
+                    <Link
+                      href={`/talabat/knowing-myself${typeof window !== "undefined" ? window.location.search : ""}`}
+                      className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer ${
+                        profile.knowingMyselfSubmitted
+                          ? "border-2 border-emerald-600 text-emerald-800 bg-white hover:bg-emerald-50 shadow-xs"
+                          : "fatimi-emerald-gradient text-white hover:opacity-95"
+                      }`}
+                    >
+                      <Compass className="w-4 h-4" />
+                      <span>
                         {profile.knowingMyselfSubmitted
                           ? "Review / Edit Assessment →"
                           : "Fill Compulsory Assessment →"}
-                      </Button>
+                      </span>
                     </Link>
                   </div>
                 </div>
@@ -964,7 +964,7 @@ export default function TalabatProfilePage() {
         {/* Contact & Location */}
         {isContactVisible && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <Card className="fatimi-card">
+          <Card className="fatimi-card border-2 border-slate-300 shadow-sm rounded-2xl bg-white overflow-hidden">
             <div className="fatimi-card-header" />
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -1047,7 +1047,7 @@ export default function TalabatProfilePage() {
 
         {/* Change Password */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="fatimi-card">
+          <Card className="fatimi-card border-2 border-slate-300 shadow-sm rounded-2xl bg-white overflow-hidden">
             <div className="fatimi-card-header" />
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">

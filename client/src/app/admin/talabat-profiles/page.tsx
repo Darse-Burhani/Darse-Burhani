@@ -1121,11 +1121,11 @@ export default function AdminTalabatProfilesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openStudentModal(s.studentId, "document")}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                          title="Print or download 1-Sheet A4 profile for this student"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                          title="Print or download official profile PDF for this student"
                         >
                           <Printer className="w-3.5 h-3.5" />
-                          Print A4 Sheet
+                          Profile Download PDF
                         </button>
                         <button
                           onClick={() => openStudentModal(s.studentId, "fill")}

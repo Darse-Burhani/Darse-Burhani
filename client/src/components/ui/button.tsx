@@ -9,23 +9,23 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white border border-emerald-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(2,44,34,0.22)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(4,120,87,0.4)]",
+          "bg-gradient-to-br from-[var(--gold-900)] via-[var(--gold-800)] to-[var(--gold-950)] text-white border border-[var(--gold-border)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(205,155,39,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(205,155,39,0.4)]",
         destructive:
           "bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 text-white border border-rose-500/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_rgba(225,29,72,0.25)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(225,29,72,0.4)]",
         outline:
-          "border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-emerald-500/60 hover:text-emerald-950 dark:hover:text-white hover:-translate-y-0.5",
+          "border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-[var(--gold-500)]/60 hover:text-[var(--gold-900)] dark:hover:text-white hover:-translate-y-0.5",
         secondary:
           "bg-slate-100/95 hover:bg-slate-200/90 text-slate-800 border border-slate-200/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.04)] hover:-translate-y-0.5",
         ghost:
-          "text-slate-700 hover:bg-emerald-50/80 hover:text-emerald-950 active:bg-emerald-100/90",
+          "text-slate-700 hover:bg-[var(--gold-light)]/80 hover:text-[var(--gold-900)] active:bg-[var(--gold-100)]/90",
         link:
-          "text-emerald-800 underline-offset-4 hover:underline decoration-emerald-500/70 font-semibold",
+          "text-[var(--gold-800)] underline-offset-4 hover:underline decoration-[var(--gold-500)]/70 font-semibold",
 
         /* ── 2026 Fatimi Luxury Variants ── */
-        "fatimi-gold":
+        "fatimi-amber":
           "bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-white border border-amber-400/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45),0_3px_12px_rgba(217,119,6,0.3)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_10px_26px_-4px_rgba(217,119,6,0.42)]",
-        "fatimi-emerald":
-          "bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white border border-emerald-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(2,44,34,0.22)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(4,120,87,0.4)]",
+        "fatimi-gold":
+          "bg-gradient-to-br from-[var(--gold-900)] via-[var(--gold-800)] to-[var(--gold-950)] text-white border border-[var(--gold-border)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(205,155,39,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(205,155,39,0.4)]",
         "fatimi-lapis":
           "bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 text-white border border-indigo-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_rgba(79,70,229,0.25)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(79,70,229,0.4)]",
         "fatimi-yaqoot":
@@ -37,13 +37,13 @@ const buttonVariants = cva(
 
         /* ── Unified Portal Aliases ── */
         admin:
-          "bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white border border-emerald-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(2,44,34,0.22)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(4,120,87,0.4)]",
+          "bg-gradient-to-br from-[var(--gold-900)] via-[var(--gold-800)] to-[var(--gold-950)] text-white border border-[var(--gold-border)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(205,155,39,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(205,155,39,0.4)]",
         teacher:
-          "bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white border border-emerald-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(2,44,34,0.22)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(4,120,87,0.4)]",
+          "bg-gradient-to-br from-[var(--gold-900)] via-[var(--gold-800)] to-[var(--gold-950)] text-white border border-[var(--gold-border)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(205,155,39,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(205,155,39,0.4)]",
         student:
-          "bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white border border-emerald-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(2,44,34,0.22)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(4,120,87,0.4)]",
+          "bg-gradient-to-br from-[var(--gold-900)] via-[var(--gold-800)] to-[var(--gold-950)] text-white border border-[var(--gold-border)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(205,155,39,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(205,155,39,0.4)]",
         parent:
-          "bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white border border-emerald-700/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(2,44,34,0.22)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(4,120,87,0.4)]",
+          "bg-gradient-to-br from-[var(--gold-900)] via-[var(--gold-800)] to-[var(--gold-950)] text-white border border-[var(--gold-border)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3),0_3px_10px_0_rgba(205,155,39,0.4)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.4),0_8px_24px_-4px_rgba(205,155,39,0.4)]",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -110,6 +110,7 @@ const TalabatBadges = safeLazy(() => import("@/app/talabat/badges/page"));
 const TalabatLibrary = safeLazy(() => import("@/app/talabat/library/page"));
 const TalabatProfile = safeLazy(() => import("@/app/talabat/profile/page"));
 const TalabatProfile1447 = safeLazy(() => import("@/app/talabat/profile-1447/page"));
+const TalabatKnowingMyself = safeLazy(() => import("@/app/talabat/knowing-myself/page"));
 const TalabatSettings = safeLazy(() => import("@/app/talabat/settings/page"));
 const TalabatSkillTree = safeLazy(() => import("@/app/talabat/skill-tree/page"));
 const TalabatAssignments = safeLazy(() => import("@/app/talabat/assignments/page"));
@@ -380,6 +381,7 @@ export default function App() {
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="talabat-profiles" element={<RequireAdminPageAccess pageKey="talabat-profiles"><AdminTalabatProfiles /></RequireAdminPageAccess>} />
           <Route path="profile-1447" element={<Navigate to="/admin/talabat-profiles" replace />} />
+          <Route path="knowing-myself" element={<TalabatKnowingMyself />} />
           <Route path="tilawat-dua" element={<RequireAdminPageAccess pageKey="tilawat-dua"><AdminTilawatDua /></RequireAdminPageAccess>} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
           <Route path="portal-locks" element={<Navigate to="/admin/settings" replace />} />
@@ -410,6 +412,8 @@ export default function App() {
           <Route path="badges" element={<ModuleLockGuard moduleKey="badges" role="STUDENT" title="Badges"><TalabatBadges /></ModuleLockGuard>} />
           <Route path="library" element={<ModuleLockGuard moduleKey="library" role="STUDENT" title="Library"><TalabatLibrary /></ModuleLockGuard>} />
           <Route path="profile" element={<ModuleLockGuard moduleKey="profile" role="STUDENT" title="My Profile"><TalabatProfile /></ModuleLockGuard>} />
+          <Route path="knowing-myself" element={<TalabatKnowingMyself />} />
+          <Route path="profile/knowing-myself" element={<TalabatKnowingMyself />} />
           <Route path="yearly-profile" element={<TalabatProfile1447 />} />
           <Route path="profile-1447" element={<TalabatProfile1447 />} />
           <Route path="settings" element={<TalabatSettings />} />

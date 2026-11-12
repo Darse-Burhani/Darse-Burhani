@@ -249,7 +249,9 @@ export default function KnowingMyselfPage() {
           variant: "success",
         });
         // Redirect back to profile settings with ?submitted=knowing-myself query
-        router.push("/talabat/profile?submitted=knowing-myself");
+        const search = typeof window !== "undefined" ? window.location.search : "";
+        const sep = search ? `${search}&` : "?";
+        router.push(`/talabat/profile${sep}submitted=knowing-myself`);
       } else {
         const json = await res.json().catch(() => ({}));
         toast({
@@ -284,7 +286,7 @@ export default function KnowingMyselfPage() {
       {/* Back Link */}
       <div className="flex items-center justify-between">
         <Link
-          href="/talabat/profile"
+          href={`/talabat/profile${typeof window !== "undefined" ? window.location.search : ""}`}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

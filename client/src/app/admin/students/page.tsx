@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound, Cake } from "lucide-react";
+import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound, Cake, Printer, FileDown, X, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { getInitials } from "@/lib/utils";
+import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 
 interface StudentRecord {
   id: string;
@@ -83,6 +84,101 @@ export default function AdminStudentsPage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const fatherInputRef = useRef<HTMLInputElement>(null);
   const motherInputRef = useRef<HTMLInputElement>(null);
+
+  const [printStudent, setPrintStudent] = useState<StudentRecord | null>(null);
+  const [printDocData, setPrintDocData] = useState<TalabatProfileData | null>(null);
+  const [printLoading, setPrintLoading] = useState(false);
+
+  const openPrintProfile = async (s: StudentRecord) => {
+    setPrintStudent(s);
+    setPrintLoading(true);
+    try {
+      const res = await fetch(`/api/talabat-profile/view/${s.id || s.userId || s.studentId}`);
+      const data = await res.json();
+      if (data.success && data.profile) {
+        const info = data.studentInfo || {};
+        setPrintDocData({
+          ...data.profile,
+          name: data.profile.name || `${s.firstName} ${s.lastName}`.trim(),
+          itsNo: data.profile.itsNo || s.its || s.studentId,
+          studentPhotoUrl: data.profile.studentPhotoUrl || s.avatarUrl,
+          fatherName: data.profile.fatherName || s.fatherName,
+          fatherOccupation: data.profile.fatherOccupation || s.fatherOccupation,
+          fatherPhotoUrl: data.profile.fatherPhotoUrl || s.fatherPhotoUrl,
+          motherName: data.profile.motherName || s.motherName,
+          motherOccupation: data.profile.motherOccupation,
+          motherPhotoUrl: data.profile.motherPhotoUrl || s.motherPhotoUrl,
+          standard: data.profile.standard || info.standard || `Grade ${s.grade}${s.section ? ` (${s.section})` : ""}`,
+          grade: data.profile.grade || s.grade,
+          section: data.profile.section || s.section,
+          studentStatus: data.profile.studentStatus || s.status || (s.hafizYear ? "Hafiz" : "Sanah"),
+          admissionYear: data.profile.admissionYear || s.admissionYear || "1444 H",
+          currentYear: data.profile.currentYear || s.currentYear || "1447 H",
+          age: data.profile.age || s.age,
+          watan: data.profile.vatan || data.profile.watan || s.watan,
+          residentCity: data.profile.jamaat || data.profile.residentCity || s.residentCity,
+          address: data.profile.address || s.address,
+          mobileNumber: data.profile.mobileNumber || s.mobileNumber,
+          email: data.profile.email || s.email,
+          externalSchooling: data.profile.externalSchooling || s.externalSchooling,
+          reallyGoodAt: data.profile.reallyGoodAt,
+          loveToStudy: data.profile.loveToStudy,
+          loveForFun: data.profile.loveForFun,
+          knowingMyself: data.knowingMyself || null,
+        });
+      } else {
+        setPrintDocData({
+          name: `${s.firstName} ${s.lastName}`.trim(),
+          itsNo: s.its || s.studentId,
+          studentPhotoUrl: s.avatarUrl,
+          fatherName: s.fatherName,
+          fatherOccupation: s.fatherOccupation,
+          fatherPhotoUrl: s.fatherPhotoUrl,
+          motherName: s.motherName,
+          motherPhotoUrl: s.motherPhotoUrl,
+          standard: `Grade ${s.grade}${s.section ? ` (${s.section})` : ""}`,
+          grade: s.grade,
+          section: s.section,
+          studentStatus: s.status || (s.hafizYear ? "Hafiz" : "Sanah"),
+          admissionYear: s.admissionYear || "1444 H",
+          currentYear: s.currentYear || "1447 H",
+          age: s.age,
+          watan: s.watan,
+          residentCity: s.residentCity,
+          address: s.address,
+          mobileNumber: s.mobileNumber,
+          email: s.email,
+          externalSchooling: s.externalSchooling || "Regular Darse Burhani",
+        });
+      }
+    } catch {
+      setPrintDocData({
+        name: `${s.firstName} ${s.lastName}`.trim(),
+        itsNo: s.its || s.studentId,
+        studentPhotoUrl: s.avatarUrl,
+        fatherName: s.fatherName,
+        fatherOccupation: s.fatherOccupation,
+        fatherPhotoUrl: s.fatherPhotoUrl,
+        motherName: s.motherName,
+        motherPhotoUrl: s.motherPhotoUrl,
+        standard: `Grade ${s.grade}${s.section ? ` (${s.section})` : ""}`,
+        grade: s.grade,
+        section: s.section,
+        studentStatus: s.status || (s.hafizYear ? "Hafiz" : "Sanah"),
+        admissionYear: s.admissionYear || "1444 H",
+        currentYear: s.currentYear || "1447 H",
+        age: s.age,
+        watan: s.watan,
+        residentCity: s.residentCity,
+        address: s.address,
+        mobileNumber: s.mobileNumber,
+        email: s.email,
+        externalSchooling: s.externalSchooling || "Regular Darse Burhani",
+      });
+    } finally {
+      setPrintLoading(false);
+    }
+  };
 
   const openEdit = (s: StudentRecord) => {
     setEditSaved(false);
@@ -389,26 +485,41 @@ export default function AdminStudentsPage() {
         </div>
 
         {/* Grade Filters */}
-        <div className="flex gap-1.5 flex-wrap">
-          <Button
-            variant={gradeFilter === "ALL" ? "default" : "outline"}
-            size="sm"
-            className={gradeFilter === "ALL" ? "fatimi-emerald-gradient text-white text-xs h-8" : "border-emerald-200/60 text-gray-600 hover:bg-emerald-50 text-xs h-8"}
-            onClick={() => setGradeFilter("ALL")}
-          >
-            All Grades
-          </Button>
-          {grades.map((g) => (
+        <div className="flex gap-2 flex-wrap items-center justify-between w-full">
+          <div className="flex gap-1.5 flex-wrap">
             <Button
-              key={g}
-              variant={gradeFilter === g ? "default" : "outline"}
+              variant={gradeFilter === "ALL" ? "default" : "outline"}
               size="sm"
-              className={gradeFilter === g ? "fatimi-emerald-gradient text-white text-xs h-8" : "border-emerald-200/60 text-gray-600 hover:bg-emerald-50 text-xs h-8"}
-              onClick={() => setGradeFilter(g)}
+              className={gradeFilter === "ALL" ? "fatimi-emerald-gradient text-white text-xs h-8" : "border-emerald-200/60 text-gray-600 hover:bg-emerald-50 text-xs h-8"}
+              onClick={() => setGradeFilter("ALL")}
             >
-              Grade {g}
+              All Grades
             </Button>
-          ))}
+            {grades.map((g) => (
+              <Button
+                key={g}
+                variant={gradeFilter === g ? "default" : "outline"}
+                size="sm"
+                className={gradeFilter === g ? "fatimi-emerald-gradient text-white text-xs h-8" : "border-emerald-200/60 text-gray-600 hover:bg-emerald-50 text-xs h-8"}
+                onClick={() => setGradeFilter(g)}
+              >
+                Grade {g}
+              </Button>
+            ))}
+          </div>
+
+          {filtered.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openPrintProfile(filtered[0])}
+              className="border-2 border-emerald-600 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold rounded-xl h-8.5 shadow-2xs flex items-center gap-1.5"
+              title="Download official A4 profile PDF for talabat in this Darajah"
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Profile Download PDF {gradeFilter !== "ALL" ? `(Darajah ${gradeFilter})` : ""}</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -587,6 +698,20 @@ export default function AdminStudentsPage() {
                         <p className="text-sm font-bold text-gray-900">{s.counts.attendanceRecords}</p>
                         <p className="text-[10px] text-gray-400">Attendance</p>
                       </div>
+                    </div>
+
+                    {/* Profile Download PDF Button */}
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openPrintProfile(s)}
+                        className="w-full text-xs font-bold border-2 border-emerald-600 text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100 rounded-xl flex items-center justify-center gap-1.5 h-8.5 shadow-2xs transition-all"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Profile Download PDF</span>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -890,6 +1015,46 @@ export default function AdminStudentsPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* ── Official Profile Download PDF Modal ── */}
+      {printStudent && (
+        <Modal open={!!printStudent} onOpenChange={() => { setPrintStudent(null); setPrintDocData(null); }}>
+          <ModalContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 bg-slate-50 border-2 border-slate-900">
+            <ModalHeader className="flex flex-row items-center justify-between pb-3 border-b border-slate-200">
+              <div>
+                <ModalTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Printer className="w-4 h-4 text-emerald-700" />
+                  <span>Student Profile Document — {printStudent.firstName} {printStudent.lastName}</span>
+                </ModalTitle>
+                <ModalDescription className="text-xs text-slate-500">
+                  Grade {printStudent.grade}{printStudent.section ? ` (${printStudent.section})` : ""} • ITS: {printStudent.its || printStudent.studentId} • Official Darse Burhani Record
+                </ModalDescription>
+              </div>
+              <ModalClose asChild>
+                <Button variant="ghost" size="sm" onClick={() => { setPrintStudent(null); setPrintDocData(null); }}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </ModalClose>
+            </ModalHeader>
+
+            <div className="pt-4 flex justify-center">
+              {printLoading ? (
+                <div className="py-20 text-center text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-emerald-700" />
+                  <p className="text-sm font-semibold">Generating student profile record &amp; document...</p>
+                </div>
+              ) : printDocData ? (
+                <TalabatProfileDocument data={printDocData} showPrintButton={true} />
+              ) : (
+                <div className="py-12 text-center text-slate-500">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-amber-600" />
+                  <p className="text-sm">Unable to load student document.</p>
+                </div>
+              )}
+            </div>
+          </ModalContent>
+        </Modal>
+      )}
     </div>
   );
 }
