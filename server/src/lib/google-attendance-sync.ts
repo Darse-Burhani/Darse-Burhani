@@ -2868,19 +2868,32 @@ export async function createELearningSpreadsheet(customTitle?: string): Promise<
   const client = google.sheets({ version: "v4", auth: auth as never });
   const title = customTitle?.trim() || `Darse Burhani — E-Learning Attendance (${new Date().getFullYear()})`;
 
-  const res = await client.spreadsheets.create({
-    requestBody: {
-      properties: { title },
-      sheets: [
-        {
-          properties: {
-            title: ELEARNING_SUMMARY_TAB,
-            gridProperties: { rowCount: 250, columnCount: 7 },
+  let res;
+  try {
+    res = await client.spreadsheets.create({
+      requestBody: {
+        properties: { title },
+        sheets: [
+          {
+            properties: {
+              title: ELEARNING_SUMMARY_TAB,
+              gridProperties: { rowCount: 250, columnCount: 7 },
+            },
           },
-        },
-      ],
-    },
-  });
+        ],
+      },
+    });
+  } catch (err) {
+    const e = err as { code?: number; message?: string; response?: { data?: { error?: { errors?: Array<{ reason?: string }> } } } };
+    const reason = e?.response?.data?.error?.errors?.[0]?.reason;
+    if (e?.code === 403 || /does not have permission/i.test(e?.message || "")) {
+      throw new Error(
+        `Google Drive API is not enabled for this service-account project (reason: ${reason || "permission denied"}). ` +
+          `Either enable the Drive API in Google Cloud Console, or create a spreadsheet in your own Drive, share it as Editor with ${saEmail}, then paste its URL into "Link Sheet".`,
+      );
+    }
+    throw err;
+  }
 
   const spreadsheetId = res.data.spreadsheetId;
   if (!spreadsheetId) {

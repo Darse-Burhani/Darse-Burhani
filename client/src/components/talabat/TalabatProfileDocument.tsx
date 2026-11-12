@@ -80,6 +80,7 @@ export interface TalabatProfileData {
   remarksOtherExams?: string | null;  // عن الامتحانات الأخرى
   remarksCounselling?: string | null; // Recommended Further Studies (Counselling)
   counsellingNotes?: string | null;   // Sibling / Career notes
+  knowingMyself?: any;                // Knowing Myself Assessment (Page 2)
 }
 
 interface Props {
@@ -264,7 +265,7 @@ export function TalabatProfileDocument({
               }`}
             >
               <span>📄</span>
-              <span>A4 Profile Sheet (1 Page)</span>
+              <span>A4 Profile &amp; Assessment (2 Pages)</span>
             </button>
             <button
               type="button"
@@ -282,7 +283,7 @@ export function TalabatProfileDocument({
 
           <span className="hidden lg:inline-flex text-[11px] text-slate-500 font-medium">
             {layoutMode === "a4-single"
-              ? "• Formatted strictly for 1-Sheet A4 Printing & PDF Download"
+              ? "• Page 1: Profile & Demographics | Page 2: Knowing Myself Assessment (A4 PDF)"
               : "• Complete Academic & Faculty Evaluation"}
           </span>
         </div>
@@ -305,11 +306,12 @@ export function TalabatProfileDocument({
       {/* ── Document Container ── */}
       <div className="printable-document flex flex-col gap-8 w-full max-w-[210mm]">
         {layoutMode === "a4-single" ? (
-          /* ════════════════════════════════════════════════════════════
-             A4 SINGLE-SHEET INDIVIDUAL TALABAT PROFILE (RABEA)
-             Strictly formatted to fit onto exactly 1 A4 Page
-          ════════════════════════════════════════════════════════════ */
-          <div className="doc-page doc-page-single bg-white text-slate-900 border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden">
+          <>
+            {/* ════════════════════════════════════════════════════════════
+               A4 PAGE 1: STUDENT TALABAT PROFILE (DARAJEH RABEA)
+               Demographics, Family, Contact, Academics & 3 Quick Prompts
+            ════════════════════════════════════════════════════════════ */}
+            <div className="doc-page doc-page-single bg-white text-slate-900 border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden">
             <div>
               {/* Institutional Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
@@ -556,7 +558,359 @@ export function TalabatProfileDocument({
               </div>
             </div>
           </div>
-        ) : (
+
+          {/* ════════════════════════════════════════════════════════════
+             A4 PAGE 2: KNOWING MYSELF — MY IDENTITY AND ASPIRATIONS
+             Self-Reflection Questionnaire, Obstacles & Aspirations
+          ════════════════════════════════════════════════════════════ */}
+          <div className="doc-page doc-page-page2 bg-white text-slate-900 border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden print:mt-0 mt-8">
+            <div>
+              {/* Institutional Header */}
+              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo.png"
+                    alt="Darse Burhani Logo"
+                    className="w-13 h-13 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  <div>
+                    <h1 className="text-lg font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
+                      DARSE BURHANI
+                    </h1>
+                    <h2 className="text-xs font-extrabold text-emerald-950 tracking-wide mt-0.5">
+                      KNOWING MYSELF: MY IDENTITY AND ASPIRATIONS
+                    </h2>
+                    <div className="text-[10px] font-medium text-slate-600">
+                      Darajeh Rabea (Grade 4) • Student Self-Reflection &amp; Guidance Record (Page 2 of 2)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right flex flex-col items-end">
+                  <div className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl leading-snug" dir="rtl">
+                    الحمد لله على ما أنعم والشكر له على ما ألهم
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300">
+                      {data.name || "Student"}
+                    </span>
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                      ITS: {data.itsNo || "—"}
+                    </span>
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                      {data.knowingMyself?.dateOfAssessment || "1447 H"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section A: Strengths, Enjoyed Activities & Aspirations */}
+              <div className="grid grid-cols-12 gap-2 mb-2">
+                {/* Greatest Strengths */}
+                <div className="col-span-4 bg-emerald-50/50 border border-emerald-200 rounded-lg p-2">
+                  <div className="flex items-center justify-between border-b border-emerald-200/80 pb-1 mb-1">
+                    <span className="font-black text-[10px] text-emerald-950 uppercase tracking-wide">
+                      ★ 3 Greatest Strengths
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-[9.5px] text-slate-800">
+                    <div className="flex items-start gap-1">
+                      <span className="font-bold text-emerald-700">1.</span>
+                      <span className="font-medium leading-tight">
+                        {data.knowingMyself?.threeStrengths?.[0] || data.reallyGoodAt || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-1">
+                      <span className="font-bold text-emerald-700">2.</span>
+                      <span className="font-medium leading-tight">
+                        {data.knowingMyself?.threeStrengths?.[1] || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-1">
+                      <span className="font-bold text-emerald-700">3.</span>
+                      <span className="font-medium leading-tight">
+                        {data.knowingMyself?.threeStrengths?.[2] || "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Things Enjoyed */}
+                <div className="col-span-4 bg-indigo-50/50 border border-indigo-200 rounded-lg p-2">
+                  <div className="flex items-center justify-between border-b border-indigo-200/80 pb-1 mb-1">
+                    <span className="font-black text-[10px] text-indigo-950 uppercase tracking-wide">
+                      ★ 3 Things I Enjoy Most
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-[9.5px] text-slate-800">
+                    <div className="flex items-start gap-1">
+                      <span className="font-bold text-indigo-700">1.</span>
+                      <span className="font-medium leading-tight">
+                        {data.knowingMyself?.threeThingsEnjoy?.[0] || data.loveForFun || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-1">
+                      <span className="font-bold text-indigo-700">2.</span>
+                      <span className="font-medium leading-tight">
+                        {data.knowingMyself?.threeThingsEnjoy?.[1] || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-1">
+                      <span className="font-bold text-indigo-700">3.</span>
+                      <span className="font-medium leading-tight">
+                        {data.knowingMyself?.threeThingsEnjoy?.[2] || "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Core Accomplishment & Role Model */}
+                <div className="col-span-4 bg-amber-50/50 border border-amber-200 rounded-lg p-2 flex flex-col justify-between">
+                  <div>
+                    <div className="font-black text-[10px] text-amber-950 uppercase tracking-wide border-b border-amber-200/80 pb-1 mb-1">
+                      ★ Aspirations &amp; Mentorship
+                    </div>
+                    <div className="space-y-1 text-[9.5px]">
+                      <div>
+                        <span className="font-bold text-slate-700">Proud Accomplishment: </span>
+                        <span className="font-medium text-slate-900 leading-tight">
+                          {data.knowingMyself?.proudAccomplishment || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-700">Area Want to Improve: </span>
+                        <span className="font-medium text-slate-900 leading-tight">
+                          {data.knowingMyself?.improveBetterAt || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-700">Person Admired &amp; Why: </span>
+                        <span className="font-medium text-slate-900 leading-tight">
+                          {data.knowingMyself?.admirePersonWhy || "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section B: Obstacles Identified */}
+              <div className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-[10px] text-slate-900 uppercase tracking-wider shrink-0">
+                    Obstacles Identified:
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {Array.isArray(data.knowingMyself?.selectedObstacles) && data.knowingMyself.selectedObstacles.length > 0 ? (
+                      data.knowingMyself.selectedObstacles.map((obs: string, idx: number) => (
+                        <span
+                          key={idx}
+                          className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 border border-slate-700 shadow-2xs"
+                        >
+                          {obs}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[9.5px] italic text-slate-500">None selected</span>
+                    )}
+                    {data.knowingMyself?.otherObstacle && (
+                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                        Other: {data.knowingMyself.otherObstacle}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 shrink-0">
+                  {data.knowingMyself?.submittedAt ? "✓ Compulsory Assessment Submitted" : "Darajah 4 Dossier"}
+                </span>
+              </div>
+
+              {/* Section C: In-Depth Self-Reflections — All 14 Compulsory Questions */}
+              <div className="border border-slate-300 rounded-lg p-2 bg-white">
+                <div className="border-b border-slate-200 pb-1 mb-1.5 flex items-center justify-between">
+                  <span className="font-black text-[10.5px] text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    ★ Self-Reflection Questionnaire (14 Compulsory Questions)
+                  </span>
+                  <span className="text-[9px] font-medium text-slate-500">
+                    Standard Darse Burhani Taherabad Darajah Rabea Evaluation
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] leading-tight">
+                  {/* Q1 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-600">
+                    <div className="font-bold text-slate-900">
+                      1. How do you respond when things get difficult?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.difficultResponse || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q2 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-600">
+                    <div className="font-bold text-slate-900">
+                      2. What makes you want to give up?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.wantToGiveUp || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q3 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-indigo-600">
+                    <div className="font-bold text-slate-900">
+                      3. What helps you recover after disappointment or failure?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.recoverAfterDisappointment || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q4 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-indigo-600">
+                    <div className="font-bold text-slate-900">
+                      4. Who do you approach when you need support?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.approachForSupport || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q5 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-amber-600">
+                    <div className="font-bold text-slate-900">
+                      5. One obstacle you are willing to actively work on?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.obstacleWillingToWorkOn || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q6 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-amber-600">
+                    <div className="font-bold text-slate-900">
+                      6. What kind of behavior hurts you the most?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.behaviorHurtsMost || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q7 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-rose-600">
+                    <div className="font-bold text-slate-900">
+                      7. What do you wish others understood better about you?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.wishOthersUnderstood || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q8 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-purple-600">
+                    <div className="font-bold text-slate-900">
+                      8. What does it mean to be a successful person?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.successfulPersonMeaning || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q9 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-purple-600">
+                    <div className="font-bold text-slate-900">
+                      9. What does success look like beyond academic qualifications?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.successBeyondQualifications || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q10 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-teal-600">
+                    <div className="font-bold text-slate-900">
+                      10. What qualities make someone worthy of genuine respect?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.qualitiesWorthyOfRespect || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q11 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-teal-600">
+                    <div className="font-bold text-slate-900">
+                      11. Why is it important to continue learning throughout life?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.continueLearningReason || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q12 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-700">
+                    <div className="font-bold text-slate-900">
+                      12. What does Khidmat mean to you personally?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.khidmatMeaning || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q13 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-emerald-700">
+                    <div className="font-bold text-slate-900">
+                      13. How can you use your unique skills to benefit others?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.useSkillsToBenefitOthers || "—"}
+                    </div>
+                  </div>
+
+                  {/* Q14 */}
+                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-slate-700">
+                    <div className="font-bold text-slate-900">
+                      14. What kind of person do you want to be remembered as?
+                    </div>
+                    <div className="text-slate-800 italic pl-1 mt-0.5 font-serif">
+                      {data.knowingMyself?.rememberedFor || "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer & Official Signatures for Page 2 */}
+            <div className="pt-2 border-t-2 border-slate-900">
+              <div className="grid grid-cols-3 gap-6 pt-5 pb-1.5 text-center text-[10.5px]">
+                <div className="border-t border-slate-400 pt-1">
+                  <span className="font-bold text-slate-700 block text-[10px]">Student's Affirmation</span>
+                  <span className="text-[8.5px] text-slate-400">(Talib / Taliba Signature)</span>
+                </div>
+                <div className="border-t border-slate-400 pt-1">
+                  <span className="font-bold text-slate-700 block text-[10px]">Darajah Counsellor / Masool</span>
+                  <span className="text-[8.5px] text-slate-400">(Review &amp; Mentorship)</span>
+                </div>
+                <div className="border-t border-slate-400 pt-1">
+                  <span className="font-bold text-slate-700 block text-[10px]">Administration Seal</span>
+                  <span className="text-[8.5px] text-slate-400">(Darse Burhani Official)</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[9.5px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
+                <span>Knowing Myself Assessment • Darse Burhani Official Dossier • Darajah Rabea (Grade 4) • Page 2 of 2</span>
+                <span className="font-alkanz dir-rtl text-[11px] text-slate-800" dir="rtl">
+                  الحمد لله على ما أنعم والشكر له على ما ألهم
+                </span>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
           /* ════════════════════════════════════════════════════════════
              DOCUMENT VIEW: EDITED SECTIONS ONLY (FULL DOSSIER)
           ════════════════════════════════════════════════════════════ */
@@ -926,35 +1280,6 @@ export function TalabatProfileDocument({
                 </div>
               )}
 
-              {/* ── 5B. TALABAT REFLECTIONS & PASSIONS (Darajah Rabea Prompts) ── */}
-              {(isFilled(data.reallyGoodAt) || isFilled(data.loveToStudy) || isFilled(data.loveForFun)) && (
-                <div className="mb-4">
-                  <div className="bg-[#fef3c7] border border-slate-800 text-center py-1 font-bold text-xs uppercase tracking-wider text-amber-950">
-                    Personal Reflections &amp; Passions (Darajah Rabea)
-                  </div>
-                  <div className="border-x border-b border-slate-800 p-3 text-xs space-y-2 bg-amber-50/20">
-                    {isFilled(data.reallyGoodAt) && (
-                      <div>
-                        <span className="font-bold text-slate-800 block text-[11px]">1. I am really Good at ...</span>
-                        <p className="text-slate-900 italic pl-2 border-l-2 border-emerald-600 mt-0.5">{data.reallyGoodAt}</p>
-                      </div>
-                    )}
-                    {isFilled(data.loveToStudy) && (
-                      <div>
-                        <span className="font-bold text-slate-800 block text-[11px]">2. I love to study about ... because ...</span>
-                        <p className="text-slate-900 italic pl-2 border-l-2 border-indigo-600 mt-0.5">{data.loveToStudy}</p>
-                      </div>
-                    )}
-                    {isFilled(data.loveForFun) && (
-                      <div>
-                        <span className="font-bold text-slate-800 block text-[11px]">3. I really love to ..... For Fun</span>
-                        <p className="text-slate-900 italic pl-2 border-l-2 border-purple-600 mt-0.5">{data.loveForFun}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* ── 6. ADMINISTRATION & FACULTY EVALUATION (Only if reviewed/edited) ── */}
               {hasFacultyEvaluation && (
                 <div className="mb-4 mt-6">
@@ -1097,8 +1422,18 @@ export function TalabatProfileDocument({
             max-height: 278mm !important;
             box-sizing: border-box !important;
             overflow: hidden !important;
-            page-break-after: avoid !important;
-            break-after: avoid !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .doc-page-page2 {
+            height: 278mm !important;
+            max-height: 278mm !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-before: always !important;
+            break-before: page !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }

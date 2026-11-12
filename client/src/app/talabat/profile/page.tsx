@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   User,
@@ -18,6 +19,10 @@ import {
   Camera,
   UploadCloud,
   Trash2,
+  Sparkles,
+  Compass,
+  FileText,
+  ArrowRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +52,11 @@ interface TalabatProfileData {
   trNo: string;
   grade: string;
   section: string;
+  reallyGoodAt?: string;
+  loveToStudy?: string;
+  loveForFun?: string;
+  knowingMyselfSubmitted?: boolean;
+  knowingMyselfSubmittedAt?: string | null;
 }
 
 interface RegionPermission {
@@ -91,7 +101,14 @@ export default function TalabatProfilePage() {
     trNo: "",
     grade: "",
     section: "",
+    reallyGoodAt: "",
+    loveToStudy: "",
+    loveForFun: "",
+    knowingMyselfSubmitted: false,
+    knowingMyselfSubmittedAt: null,
   });
+
+  const [justSubmittedAssessment, setJustSubmittedAssessment] = useState(false);
 
   const isAdmin = user?.role === "ADMIN";
 
@@ -110,9 +127,22 @@ export default function TalabatProfilePage() {
   const isContactVisible = isAdmin || (permissions.contact?.isVisible !== false && permissions.contact?.isVisibleToStudent !== false);
   const isIdentifiersVisible = isAdmin || (permissions.identifiers?.isVisible !== false && permissions.identifiers?.isVisibleToStudent !== false);
 
+  const isDarajah4 =
+    isAdmin ||
+    profile.grade === "4" ||
+    profile.grade?.toLowerCase().includes("rabea") ||
+    profile.grade?.toLowerCase().includes("rabia") ||
+    profile.grade?.includes("4");
+
   useEffect(() => {
     fetchProfile();
     fetchPermissions();
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("submitted") === "knowing-myself") {
+        setJustSubmittedAssessment(true);
+      }
+    }
   }, []);
 
   const fetchPermissions = async () => {
@@ -159,6 +189,11 @@ export default function TalabatProfilePage() {
           trNo: data.trNo || "",
           grade: data.grade || "",
           section: data.section || "",
+          reallyGoodAt: data.reallyGoodAt || "",
+          loveToStudy: data.loveToStudy || "",
+          loveForFun: data.loveForFun || "",
+          knowingMyselfSubmitted: Boolean(data.knowingMyselfSubmitted),
+          knowingMyselfSubmittedAt: data.knowingMyselfSubmittedAt || null,
         });
       }
     } catch (error) {
@@ -296,6 +331,39 @@ export default function TalabatProfilePage() {
         title="Talabat Profile"
         subtitle="Manage your personal and academic profile information"
       />
+
+      {justSubmittedAssessment && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white shadow-lg border border-emerald-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          role="status"
+        >
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/30 border-2 border-emerald-300 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-6 h-6 text-emerald-200" />
+            </div>
+            <div>
+              <div className="font-bold text-base flex items-center gap-2 text-emerald-100">
+                <span>Knowing Myself Assessment Successfully Submitted!</span>
+                <span className="text-xs bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 px-2 py-0.5 rounded-full font-semibold">
+                  ✓ Recorded
+                </span>
+              </div>
+              <p className="text-xs text-emerald-200/90 mt-0.5 leading-relaxed">
+                Your responses have been recorded and synced to your Darajah 4 student profile and administrative record sheet.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setJustSubmittedAssessment(false)}
+            className="self-end sm:self-center text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-700/60 hover:bg-emerald-700 text-emerald-100 border border-emerald-500/40 transition-colors"
+          >
+            Dismiss
+          </button>
+        </motion.div>
+      )}
 
       {isAdmin && (
         <div className="mb-6 flex items-center gap-2.5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-sm font-semibold text-emerald-900" role="status">
@@ -742,6 +810,155 @@ export default function TalabatProfilePage() {
             </CardContent>
           </Card>
         </motion.div>
+        )}
+
+        {/* Darajah 4 Special: Identity Prompts & Knowing Myself Assessment */}
+        {isDarajah4 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+            <Card className="fatimi-card border-2 border-amber-300/80 shadow-md">
+              <div className="fatimi-card-header bg-gradient-to-r from-amber-500 via-emerald-600 to-amber-600" />
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                    <Sparkles className="w-4 h-4 text-[#b8541e]" />
+                  </div>
+                  <div>
+                    <span className="block text-base font-bold text-slate-900">
+                      Personal Reflections &amp; Aspirations
+                    </span>
+                    <span className="text-xs font-normal text-slate-500">
+                      Darajah 4 (Rabea) Special Profile Settings
+                    </span>
+                  </div>
+                </CardTitle>
+
+                {profile.knowingMyselfSubmitted ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>✓ Assessment Submitted</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Compulsory · Action Required</span>
+                  </span>
+                )}
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                {/* Knowing Myself Full Assessment Banner / Link */}
+                <div className="rounded-2xl p-4 sm:p-5 border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-900 bg-emerald-200/70 px-2 py-0.5 rounded-md">
+                        Compulsory Document
+                      </span>
+                      {profile.knowingMyselfSubmitted && (
+                        <span className="text-[11px] font-semibold text-emerald-800">
+                          {profile.knowingMyselfSubmittedAt
+                            ? `Submitted on ${new Date(profile.knowingMyselfSubmittedAt).toLocaleDateString()}`
+                            : "Recorded in Admin Dossier"}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900">
+                      Knowing Myself — My Identity and Aspirations
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                      Complete the full questionnaire covering your greatest strengths, activities you enjoy, overcoming obstacles, and aspirations for khidmat. All questions are compulsory for Darajah 4 talabat.
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex items-center">
+                    <Link href="/talabat/knowing-myself">
+                      <Button
+                        type="button"
+                        className={
+                          profile.knowingMyselfSubmitted
+                            ? "border-2 border-emerald-600 text-emerald-800 bg-white hover:bg-emerald-50 font-bold text-xs rounded-xl shadow-xs"
+                            : "fatimi-emerald-gradient text-white font-bold text-xs rounded-xl shadow-md hover:opacity-95"
+                        }
+                      >
+                        <Compass className="w-4 h-4 mr-1.5" />
+                        {profile.knowingMyselfSubmitted
+                          ? "Review / Edit Assessment →"
+                          : "Fill Compulsory Assessment →"}
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* 3 Core Quick Identity Prompts */}
+                <div className="space-y-4 pt-2">
+                  <div className="border-b border-slate-200 pb-2">
+                    <h5 className="text-sm font-bold text-slate-900">
+                      Core Identity &amp; Learning Prompts
+                    </h5>
+                    <p className="text-xs text-slate-500">
+                      These 3 core prompts will appear prominently on Page 1 of your official Darajah 4 A4 dossier sheet.
+                    </p>
+                  </div>
+
+                  {/* Prompt 1 */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="reallyGoodAt" className="block text-xs font-bold text-slate-800">
+                      1. I am really Good at ...
+                    </label>
+                    <input
+                      id="reallyGoodAt"
+                      name="reallyGoodAt"
+                      disabled={!isAcademicOpen}
+                      className="fatimi-input w-full disabled:bg-gray-100 disabled:opacity-75"
+                      placeholder="e.g. History and Geography, Problem solving, Public speaking"
+                      value={profile.reallyGoodAt || ""}
+                      onChange={(e) => handleChange("reallyGoodAt", e.target.value)}
+                    />
+                    <p className="text-[11px] text-slate-500 italic pl-1">
+                      Eg: I’m really good at History and Geography
+                    </p>
+                  </div>
+
+                  {/* Prompt 2 */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="loveToStudy" className="block text-xs font-bold text-slate-800">
+                      2. I love to study about ... because ...
+                    </label>
+                    <input
+                      id="loveToStudy"
+                      name="loveToStudy"
+                      disabled={!isAcademicOpen}
+                      className="fatimi-input w-full disabled:bg-gray-100 disabled:opacity-75"
+                      placeholder="e.g. emotions, cognitive development because I'm a life long learner"
+                      value={profile.loveToStudy || ""}
+                      onChange={(e) => handleChange("loveToStudy", e.target.value)}
+                    />
+                    <p className="text-[11px] text-slate-500 italic pl-1">
+                      Eg: I love to study about emotions, cognitive development because I’m a life long learner
+                    </p>
+                  </div>
+
+                  {/* Prompt 3 */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="loveForFun" className="block text-xs font-bold text-slate-800">
+                      3. I really love to ..... For Fun
+                    </label>
+                    <input
+                      id="loveForFun"
+                      name="loveForFun"
+                      disabled={!isAcademicOpen}
+                      className="fatimi-input w-full disabled:bg-gray-100 disabled:opacity-75"
+                      placeholder="e.g. write stories for fun, play football, read biographies"
+                      value={profile.loveForFun || ""}
+                      onChange={(e) => handleChange("loveForFun", e.target.value)}
+                    />
+                    <p className="text-[11px] text-slate-500 italic pl-1">
+                      Eg: I really love to write stories for fun
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         {/* Contact & Location */}

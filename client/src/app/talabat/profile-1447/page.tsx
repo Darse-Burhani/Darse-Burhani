@@ -1434,66 +1434,6 @@ export default function TalabatProfile1447Page() {
             </div>
           </div>
 
-          {/* ── Section 5B: Special Darajah Rabea Reflection & Passion Prompts ── */}
-          <div className="bg-gradient-to-br from-amber-50/60 via-white to-emerald-50/40 border-2 border-amber-300/80 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between border-b border-amber-200/80 pb-3 mb-5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-600" />
-                <h2 className="text-lg font-bold text-slate-900">
-                  Darajah Rabea Personal Reflections &amp; Passions
-                </h2>
-              </div>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full border border-amber-300">
-                A4 Profile Sheet Prompts
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-              These three reflections are printed directly on your official single-sheet A4 profile for mentors and administration to understand your core passions and strengths:
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  1. I am really Good at ...
-                </label>
-                <input
-                  type="text"
-                  value={formData.reallyGoodAt || ""}
-                  onChange={(e) => setFormData({ ...formData, reallyGoodAt: e.target.value })}
-                  placeholder="e.g. History and Geography"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none bg-white transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  2. I love to study about ... because ...
-                </label>
-                <input
-                  type="text"
-                  value={formData.loveToStudy || ""}
-                  onChange={(e) => setFormData({ ...formData, loveToStudy: e.target.value })}
-                  placeholder="e.g. emotions, cognitive development because I'm a life long learner"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none bg-white transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  3. I really love to ..... For Fun
-                </label>
-                <input
-                  type="text"
-                  value={formData.loveForFun || ""}
-                  onChange={(e) => setFormData({ ...formData, loveForFun: e.target.value })}
-                  placeholder="e.g. write stories for fun"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 focus:outline-none bg-white transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* ── Section 6: Faculty & Administration Remarks (Read-Only for Student) ── */}
           {(formData.behaviourRating || formData.masoolRemarks) && (
             <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 border border-blue-200 rounded-2xl p-6 shadow-sm">

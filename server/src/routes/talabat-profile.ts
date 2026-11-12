@@ -998,9 +998,17 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
     };
   }
 
+  // Load Knowing Myself assessment from SystemSetting
+  const knowingMyselfSetting = await prisma.systemSetting.findUnique({
+    where: { key: `knowing_myself_${student.id}` },
+  });
+  const knowingMyself = (knowingMyselfSetting?.value as any) || null;
+
   return res.json({
     success: true,
     profile: sanitizedProfile,
+    knowingMyself,
+    hasKnowingMyself: Boolean(knowingMyself),
     studentInfo: {
       id: student.id,
       name: `${student.user.firstName} ${student.user.lastName}`.trim(),

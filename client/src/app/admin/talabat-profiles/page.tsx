@@ -311,6 +311,7 @@ export default function AdminTalabatProfilesPage() {
           reallyGoodAt: data.profile.reallyGoodAt || info.reallyGoodAt,
           loveToStudy: data.profile.loveToStudy || info.loveToStudy,
           loveForFun: data.profile.loveForFun || info.loveForFun,
+          knowingMyself: data.knowingMyself || data.profile?.knowingMyself || null,
         };
         setActiveProfile(p);
         setEditProfileForm({
@@ -474,7 +475,7 @@ export default function AdminTalabatProfilesPage() {
       const data = await res.json();
       if (data.success && data.data) {
         setFeedbackMsg({ type: "success", text: "Student profile report updated and saved successfully!" });
-        setActiveProfile(data.data);
+        setActiveProfile((prev) => ({ ...data.data, knowingMyself: prev?.knowingMyself || null }));
         setEditProfileForm({
           ...data.data,
           strengths: Array.isArray(data.data.strengths) ? [...data.data.strengths] : ["", "", ""],
@@ -1210,11 +1211,14 @@ export default function AdminTalabatProfilesPage() {
                   </button>
                   <button
                     onClick={() => setModalViewTab("document")}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                       modalViewTab === "document" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-300 hover:text-white"
                     }`}
                   >
-                    👁️ Document &amp; Print
+                    <span>👁️ Document &amp; Print</span>
+                    <span className="text-[10px] bg-slate-900 text-amber-300 border border-slate-700 font-bold px-1.5 py-0.2 rounded-full">
+                      A4 PDF
+                    </span>
                   </button>
                 </div>
 
@@ -1983,55 +1987,6 @@ export default function AdminTalabatProfilesPage() {
                       />
                     </div>
 
-                    {/* Section 6B: Special Darajah Rabea Reflection & Passion Prompts */}
-                    <div className="bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 p-5 rounded-2xl border border-amber-300 shadow-xs space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-amber-600" />
-                        <h5 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                          Darajah Rabea Personal Reflections &amp; Passions (Printed on A4 Sheet)
-                        </h5>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          1. I am really Good at ...
-                        </label>
-                        <input
-                          type="text"
-                          value={editProfileForm.reallyGoodAt || ""}
-                          onChange={(e) => setEditProfileForm((p) => ({ ...p, reallyGoodAt: e.target.value }))}
-                          placeholder="e.g. History and Geography"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          2. I love to study about ... because ...
-                        </label>
-                        <input
-                          type="text"
-                          value={editProfileForm.loveToStudy || ""}
-                          onChange={(e) => setEditProfileForm((p) => ({ ...p, loveToStudy: e.target.value }))}
-                          placeholder="e.g. emotions, cognitive development because I'm a life long learner"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          3. I really love to ..... For Fun
-                        </label>
-                        <input
-                          type="text"
-                          value={editProfileForm.loveForFun || ""}
-                          onChange={(e) => setEditProfileForm((p) => ({ ...p, loveForFun: e.target.value }))}
-                          placeholder="e.g. write stories for fun"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none bg-white"
-                        />
-                      </div>
-                    </div>
-
                     {/* Save Footer Bar */}
                     <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                       <button
@@ -2371,30 +2326,6 @@ export default function AdminTalabatProfilesPage() {
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
                               <span className="font-bold text-slate-700 block mb-0.5">About Myself:</span>
                               <p className="text-slate-800">{activeProfile.aboutMyself}</p>
-                            </div>
-                          )}
-
-                          {/* Rabea Personal Reflections */}
-                          {(activeProfile.reallyGoodAt || activeProfile.loveToStudy || activeProfile.loveForFun) && (
-                            <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-xs space-y-1.5">
-                              <span className="font-bold text-amber-950 block text-[11px] uppercase tracking-wide">
-                                ★ Rabea Reflections (A4 Sheet):
-                              </span>
-                              {activeProfile.reallyGoodAt && (
-                                <p className="text-slate-800">
-                                  <span className="font-bold text-emerald-900">1. Good at:</span> {activeProfile.reallyGoodAt}
-                                </p>
-                              )}
-                              {activeProfile.loveToStudy && (
-                                <p className="text-slate-800">
-                                  <span className="font-bold text-indigo-900">2. Love to study:</span> {activeProfile.loveToStudy}
-                                </p>
-                              )}
-                              {activeProfile.loveForFun && (
-                                <p className="text-slate-800">
-                                  <span className="font-bold text-purple-900">3. For Fun:</span> {activeProfile.loveForFun}
-                                </p>
-                              )}
                             </div>
                           )}
                         </div>

@@ -34,6 +34,12 @@ router.get("/", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Student profile not found" });
   }
 
+  // Fetch Knowing Myself assessment if exists
+  const knowingMyselfSetting = await prisma.systemSetting.findUnique({
+    where: { key: `knowing_myself_${user.studentProfile.id}` },
+  });
+  const knowingMyselfData = (knowingMyselfSetting?.value as any) || null;
+
   const profile: any = {
     ...user.studentProfile,
     avatarUrl: user.avatarUrl,
@@ -41,6 +47,12 @@ router.get("/", requireAuth, async (req, res) => {
     lastName: user.lastName,
     name: `${user.firstName} ${user.lastName}`.trim(),
     email: user.email,
+    reallyGoodAt: user.studentProfile.reallyGoodAt || "",
+    loveToStudy: user.studentProfile.loveToStudy || "",
+    loveForFun: user.studentProfile.loveForFun || "",
+    knowingMyself: knowingMyselfData,
+    knowingMyselfSubmitted: Boolean(knowingMyselfData),
+    knowingMyselfSubmittedAt: knowingMyselfData?.submittedAt || null,
   };
 
   const permissions = getProfilePermissions();
@@ -198,6 +210,11 @@ router.put("/", requireAuth, async (req, res) => {
       if (body.fatherOccupation !== undefined) updateData.fatherOccupation = body.fatherOccupation ? String(body.fatherOccupation).trim() : null;
     }
 
+    // Darajah 4 / Rabea Personal Reflections & Prompts
+    if (body.reallyGoodAt !== undefined) updateData.reallyGoodAt = body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null;
+    if (body.loveToStudy !== undefined) updateData.loveToStudy = body.loveToStudy ? String(body.loveToStudy).trim() : null;
+    if (body.loveForFun !== undefined) updateData.loveForFun = body.loveForFun ? String(body.loveForFun).trim() : null;
+
     if (isAdmin) {
       if (body.firstName !== undefined && body.firstName.trim()) userUpdateData.firstName = body.firstName.trim();
       if (body.lastName !== undefined && body.lastName.trim()) userUpdateData.lastName = body.lastName.trim();
@@ -232,6 +249,147 @@ router.put("/", requireAuth, async (req, res) => {
       success: false,
       error: err.message || "Failed to update talabat profile",
     });
+  }
+});
+
+// GET /api/talabat/profile/knowing-myself — Get student's Knowing Myself assessment
+router.get("/knowing-myself", requireAuth, async (req, res) => {
+  try {
+    const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
+    const targetUserId = (isAdmin && (req.query.userId as string)) || session.user.id;
+    const targetStudentId = (isAdmin && (req.query.studentId as string)) || undefined;
+
+    const user = await prisma.user.findFirst({
+      where: targetStudentId
+        ? { studentProfile: { id: targetStudentId } }
+        : { id: targetUserId },
+      include: { studentProfile: true },
+    });
+
+    if (!user || !user.studentProfile) {
+      return res.status(404).json({ success: false, error: "Student profile not found" });
+    }
+
+    const sp = user.studentProfile;
+    const settingKey = `knowing_myself_${sp.id}`;
+    const setting = await prisma.systemSetting.findUnique({ where: { key: settingKey } });
+    const knowingMyselfData = (setting?.value as any) || null;
+
+    return res.json({
+      success: true,
+      data: knowingMyselfData,
+      isSubmitted: Boolean(knowingMyselfData),
+      student: {
+        id: sp.id,
+        userId: user.id,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        its: sp.its || "",
+        grade: sp.grade || "4",
+        section: sp.section || "A",
+        age: sp.age || null,
+        avatarUrl: user.avatarUrl || null,
+        reallyGoodAt: sp.reallyGoodAt || "",
+        loveToStudy: sp.loveToStudy || "",
+        loveForFun: sp.loveForFun || "",
+      },
+    });
+  } catch (err: any) {
+    console.error("[knowing-myself] Fetch error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to fetch assessment" });
+  }
+});
+
+// POST /api/talabat/profile/knowing-myself — Submit or update Knowing Myself assessment
+router.post("/knowing-myself", requireAuth, async (req, res) => {
+  try {
+    const session = req.auth!;
+    const isAdmin = session.user.role === "ADMIN";
+    const targetUserId = (isAdmin && (req.body.userId as string)) || session.user.id;
+    const targetStudentId = (isAdmin && (req.body.studentId as string)) || undefined;
+
+    const user = await prisma.user.findFirst({
+      where: targetStudentId
+        ? { studentProfile: { id: targetStudentId } }
+        : { id: targetUserId },
+      include: { studentProfile: true },
+    });
+
+    if (!user || !user.studentProfile) {
+      return res.status(404).json({ success: false, error: "Student profile not found" });
+    }
+
+    const sp = user.studentProfile;
+    const body = req.body || {};
+
+    const payload = {
+      studentId: sp.id,
+      userId: user.id,
+      studentName: body.studentName || `${user.firstName} ${user.lastName}`.trim(),
+      its: sp.its || "",
+      grade: sp.grade || "4",
+      section: sp.section || "A",
+      ageGrade: body.ageGrade || `${sp.age ? `${sp.age} Yrs` : ""} / Grade ${sp.grade || "4"}`.trim(),
+      dateOfAssessment: body.dateOfAssessment || new Date().toISOString().slice(0, 10),
+      submittedAt: new Date().toISOString(),
+
+      // Core strengths & aspirations
+      threeStrengths: Array.isArray(body.threeStrengths) ? body.threeStrengths : [body.strength1 || "", body.strength2 || "", body.strength3 || ""],
+      threeThingsEnjoy: Array.isArray(body.threeThingsEnjoy) ? body.threeThingsEnjoy : [body.enjoy1 || "", body.enjoy2 || "", body.enjoy3 || ""],
+      proudAccomplishment: String(body.proudAccomplishment || "").trim(),
+      improveBetterAt: String(body.improveBetterAt || "").trim(),
+      admirePersonWhy: String(body.admirePersonWhy || "").trim(),
+
+      // Obstacles (up to 3)
+      selectedObstacles: Array.isArray(body.selectedObstacles) ? body.selectedObstacles : [],
+      otherObstacle: String(body.otherObstacle || "").trim(),
+
+      // Further Reflections (14 compulsory questions)
+      difficultResponse: String(body.difficultResponse || "").trim(),
+      wantToGiveUp: String(body.wantToGiveUp || "").trim(),
+      recoverAfterDisappointment: String(body.recoverAfterDisappointment || "").trim(),
+      approachForSupport: String(body.approachForSupport || "").trim(),
+      obstacleWillingToWorkOn: String(body.obstacleWillingToWorkOn || "").trim(),
+      behaviorHurtsMost: String(body.behaviorHurtsMost || "").trim(),
+      wishOthersUnderstood: String(body.wishOthersUnderstood || "").trim(),
+      successfulPersonMeaning: String(body.successfulPersonMeaning || "").trim(),
+      successBeyondQualifications: String(body.successBeyondQualifications || "").trim(),
+      qualitiesWorthyOfRespect: String(body.qualitiesWorthyOfRespect || "").trim(),
+      continueLearningReason: String(body.continueLearningReason || "").trim(),
+      khidmatMeaning: String(body.khidmatMeaning || "").trim(),
+      useSkillsToBenefitOthers: String(body.useSkillsToBenefitOthers || "").trim(),
+      rememberedFor: String(body.rememberedFor || "").trim(),
+    };
+
+    // Save to SystemSetting
+    const settingKey = `knowing_myself_${sp.id}`;
+    await prisma.systemSetting.upsert({
+      where: { key: settingKey },
+      create: { key: settingKey, value: payload },
+      update: { value: payload },
+    });
+
+    // Also update 3 prompts on StudentProfile if provided
+    const spUpdates: Record<string, string | null> = {};
+    if (body.reallyGoodAt !== undefined) spUpdates.reallyGoodAt = body.reallyGoodAt ? String(body.reallyGoodAt).trim() : null;
+    if (body.loveToStudy !== undefined) spUpdates.loveToStudy = body.loveToStudy ? String(body.loveToStudy).trim() : null;
+    if (body.loveForFun !== undefined) spUpdates.loveForFun = body.loveForFun ? String(body.loveForFun).trim() : null;
+
+    if (Object.keys(spUpdates).length > 0) {
+      await prisma.studentProfile.update({
+        where: { id: sp.id },
+        data: spUpdates,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Knowing Myself assessment submitted successfully",
+      data: payload,
+    });
+  } catch (err: any) {
+    console.error("[knowing-myself] Submit error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to submit assessment" });
   }
 });
 
