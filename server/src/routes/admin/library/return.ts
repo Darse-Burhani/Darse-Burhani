@@ -28,6 +28,43 @@ function getHijriString(date: Date): string {
   return `${hijri.day} ${mMeta.en} ${hijri.year} H`;
 }
 
+// Resolve who actually holds a loan. Legacy loans can carry an empty or
+// bare-id studentName, which left the return screen showing no name at all.
+async function resolveBorrowerName(loan: { studentId: string; studentName?: string | null }) {
+  const stored = (loan.studentName || "").trim();
+  // A real name was stored at checkout — use it. Only a blank value or the raw
+  // member id falls through to a profile lookup.
+  if (stored && stored !== loan.studentId) return stored;
+
+  try {
+    const student = await prisma.studentProfile.findFirst({
+      where: {
+        OR: [{ userId: loan.studentId }, { id: loan.studentId }, { studentId: loan.studentId }],
+      },
+      select: { user: { select: { firstName: true, lastName: true } } },
+    });
+    const studentName = `${student?.user?.firstName || ""} ${student?.user?.lastName || ""}`.trim();
+    if (studentName) return studentName;
+  } catch {
+    // fall through
+  }
+
+  try {
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: {
+        OR: [{ userId: loan.studentId }, { id: loan.studentId }, { employeeId: loan.studentId }, { its: loan.studentId }],
+      },
+      select: { user: { select: { firstName: true, lastName: true } } },
+    });
+    const teacherName = `${teacher?.user?.firstName || ""} ${teacher?.user?.lastName || ""}`.trim();
+    if (teacherName) return teacherName;
+  } catch {
+    // fall through
+  }
+
+  return stored || "Unknown Person";
+}
+
 // GET /api/admin/library/return/search-active-loans - Fast search active loans by Book Name, Barcode, or Borrower Name
 router.get("/search-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
@@ -62,12 +99,14 @@ router.get("/search-active-loans", requireRole("ADMIN", "TEACHER"), async (req, 
       take: 20,
     });
 
-    const formatted = loans.map((l) => ({
+    const resolvedNames = await Promise.all(loans.map((l) => resolveBorrowerName(l)));
+
+    const formatted = loans.map((l, idx) => ({
       loanId: l.id,
       bookId: l.bookId,
       bookTitle: l.bookTitle || l.book?.title || "Book",
       barcode: l.bookBarcode || l.book?.barcode || "",
-      borrowerName: l.studentName,
+      borrowerName: resolvedNames[idx],
       borrowerId: l.studentId,
       borrowedAt: l.borrowedAt,
       dueAt: l.dueAt,
@@ -91,15 +130,18 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       barcode,
       bookName,
       bookTitle,
+      bookId,
       loanId,
-      confirmRestock = false,
+      // A returned copy goes straight back into circulation so it can be issued
+      // again from Maktabat. Pass confirmRestock:false to hold it in sorting.
+      confirmRestock = true,
       garamatAction = "COLLECTED", // "COLLECTED" | "WAIVED" | "PENDING"
       garamatAmountCustom,
       garamatNotes = "",
     } = body;
 
     const searchTerm = (barcode || bookName || bookTitle || "").trim();
-    if (!searchTerm && !loanId) {
+    if (!searchTerm && !loanId && !bookId) {
       return res.status(400).json({ success: false, error: "Book barcode or book name is required" });
     }
 
@@ -109,6 +151,16 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       activeLoan = await prisma.bookLoan.findFirst({
         where: { id: loanId, status: "ACTIVE" },
         include: { book: true },
+      });
+    }
+
+    // Return by internal book id — used by the Makhzan shelf scanner and the
+    // offline return queue, which only know the catalog id.
+    if (!activeLoan && bookId) {
+      activeLoan = await prisma.bookLoan.findFirst({
+        where: { bookId: String(bookId), status: "ACTIVE" },
+        include: { book: true },
+        orderBy: { borrowedAt: "desc" },
       });
     }
 
@@ -158,6 +210,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     }
 
     const book = activeLoan.book || (activeLoan.bookId ? await prisma.libraryBook.findUnique({ where: { id: activeLoan.bookId } }) : null);
+    const resolvedBookTitle = book?.title || activeLoan.bookTitle || "Book";
 
     const returnDate = new Date();
     const dueDate = new Date(activeLoan.dueAt);
@@ -213,23 +266,31 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       },
     });
 
-    // Update book inventory status
-    if (confirmRestock) {
-      await prisma.libraryBook.update({
-        where: { id: book.id },
-        data: {
-          status: "AVAILABLE",
-          availableCopies: { increment: 1 },
-        },
-      });
-    } else {
-      await prisma.libraryBook.update({
-        where: { id: book.id },
-        data: {
-          status: "RESTOCK_QUEUE",
-        },
-      });
+    // Update book inventory: the copy is back on the shelf and lendable again.
+    // availableCopies is capped at totalCopies so repeated/legacy returns can
+    // never leave the catalog with more copies than the library owns.
+    let updatedBook = book;
+    if (book) {
+      if (confirmRestock) {
+        const nextAvailable = Math.min(book.totalCopies, book.availableCopies + 1);
+        updatedBook = await prisma.libraryBook.update({
+          where: { id: book.id },
+          data: {
+            status: "AVAILABLE",
+            availableCopies: nextAvailable,
+          },
+        });
+      } else {
+        updatedBook = await prisma.libraryBook.update({
+          where: { id: book.id },
+          data: { status: "RESTOCK_QUEUE" },
+        });
+      }
     }
+
+    // Borrower identity for the return receipt / fine panel.
+    const borrowerName = await resolveBorrowerName(activeLoan);
+    const borrowerMeta = existingMeta || {};
 
     // Invalidate parent dashboard cache
     cache.invalidatePrefix("parent:dashboard");
@@ -249,7 +310,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 
       const notifyUserId = studentProfile?.userId || activeLoan.studentId;
 
-      let notifBody = `"${book.title}" was returned on ${returnDate.toLocaleDateString("en-US")} (${returnHijri}).`;
+      let notifBody = `"${resolvedBookTitle}" was returned on ${returnDate.toLocaleDateString("en-US")} (${returnHijri}).`;
       if (isLate) {
         notifBody += ` Overdue return completed. Shukran!`;
       } else {
@@ -280,8 +341,8 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       success: true,
       data: {
         message: isLate
-          ? `Returned "${book.title}". Overdue by ${daysLate} days — Garamat: ₹${garamatAmount} [${garamatAction}].`
-          : `Returned "${book.title}" on time.`,
+          ? `Returned "${resolvedBookTitle}" from ${borrowerName}. Overdue by ${daysLate} days — Garamat: ₹${garamatAmount} [${garamatAction}].`
+          : `Returned "${resolvedBookTitle}" from ${borrowerName} on time.`,
         isLate,
         daysLate,
         ratePerDay: 10,
@@ -295,11 +356,21 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
             }
           : null,
         restockRequired: !confirmRestock,
-        loan: updatedLoan,
+        // Borrower shown on the return receipt and the garamat panel.
+        borrower: {
+          name: borrowerName,
+          id: activeLoan.studentId,
+          darjah: borrowerMeta.borrowerDarjah || "General",
+          role: borrowerMeta.borrowerType || (/faculty/i.test(borrowerName) ? "FACULTY" : "STUDENT"),
+          phone: borrowerMeta.borrowerPhone || borrowerMeta.parentPhone || null,
+        },
+        // studentName is echoed here so every existing caller keeps working
+        // even when the stored value was blank.
+        loan: { ...updatedLoan, studentName: borrowerName },
         book: {
-          ...book,
+          ...(updatedBook || book),
           status: confirmRestock ? "AVAILABLE" : "RESTOCK_QUEUE",
-          availableCopies: confirmRestock ? book.availableCopies + 1 : book.availableCopies,
+          availableCopies: (updatedBook || book)?.availableCopies ?? 0,
         },
         dates: {
           borrowedAt: activeLoan.borrowedAt.toISOString(),

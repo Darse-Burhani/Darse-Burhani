@@ -680,7 +680,9 @@ export default function CheckoutPage() {
           barcode: term,
           bookName: bookNameToUse || term,
           loanId: loanIdToUse,
-          confirmRestock: false,
+          // Put the copy back into circulation immediately so it is available
+          // to issue again from Maktabat right after the return.
+          confirmRestock: true,
           garamatAction: garamatDecision || "COLLECTED",
         }),
       });
@@ -699,8 +701,8 @@ export default function CheckoutPage() {
             setPendingReturnGaramat({
               bookTitle: data.data.book.title,
               barcode: data.data.book?.barcode || term,
-              borrowerName: data.data.loan.studentName,
-              darjah: "Circulation",
+              borrowerName: data.data.borrower?.name || data.data.loan.studentName,
+              darjah: data.data.borrower?.darjah || "Circulation",
               daysLate: data.data.daysLate,
               garamatAmount: data.data.garamat.amount,
               action: "COLLECTED",
@@ -712,7 +714,7 @@ export default function CheckoutPage() {
           setLastOnTimeReturn({
             bookTitle: data.data.book.title,
             barcode: data.data.book?.barcode || term,
-            borrowerName: data.data.loan.studentName,
+            borrowerName: data.data.borrower?.name || data.data.loan.studentName,
             borrowedAt: data.data.dates?.borrowedAt,
             dueAt: data.data.dates?.dueAt,
             dueHijri: data.data.dates?.dueHijri,
@@ -2028,7 +2030,9 @@ export default function CheckoutPage() {
                     <div>
                       <h3 className="font-extrabold text-sm text-rose-950">Overdue Return Detected &middot; Garamat Fine Assessed</h3>
                       <p className="text-xs text-rose-800">
-                        &ldquo;{pendingReturnGaramat.bookTitle}&rdquo; [{pendingReturnGaramat.barcode}] was returned {pendingReturnGaramat.daysLate} day(s) late.
+                        &ldquo;{pendingReturnGaramat.bookTitle}&rdquo; [{pendingReturnGaramat.barcode}] was returned {pendingReturnGaramat.daysLate} day(s) late
+                        by <strong className="font-bold">{pendingReturnGaramat.borrowerName}</strong>
+                        {pendingReturnGaramat.darjah && pendingReturnGaramat.darjah !== "Circulation" ? ` (${pendingReturnGaramat.darjah})` : ""}.
                       </p>
                     </div>
                   </div>
