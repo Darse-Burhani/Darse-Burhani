@@ -388,35 +388,6 @@ router.post("/direct-insert-and-issue", requireRole("ADMIN"), async (req, res) =
 
     cache.invalidatePrefix("parent:dashboard");
 
-    // Auto-record Maktabat attendance for circulation visit
-    try {
-      const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
-      const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
-      const existingAtt = await (prisma as any).libraryAttendance.findFirst({
-        where: {
-          studentId: borrowerUserId,
-          date: { gte: todayStart, lte: todayEnd },
-        },
-      });
-      if (!existingAtt && borrowerType !== "FACULTY") {
-        await (prisma as any).libraryAttendance.create({
-          data: {
-            studentId: borrowerUserId,
-            studentName: borrowerName,
-            darjah: borrowerDarjah || "Circulation",
-            date: borrowedDate,
-            checkInTime: borrowedDate,
-            sessionType: "BOOK_EXCHANGE",
-            status: "PRESENT",
-            notes: `Auto-recorded on direct insert: "${newBook.title}"`,
-            recordedById: req.auth!.user.id,
-          },
-        });
-      }
-    } catch (attErr) {
-      console.warn("Auto-log library attendance error (non-fatal):", attErr);
-    }
-
     const dueDateLabel = finalDueDate.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -736,35 +707,6 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
 
     // Invalidate parent dashboard cache so parent portal updates immediately
     cache.invalidatePrefix("parent:dashboard");
-
-    // Auto-record Maktabat attendance for circulation visit
-    try {
-      const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
-      const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
-      const existingAtt = await (prisma as any).libraryAttendance.findFirst({
-        where: {
-          studentId: borrowerUserId,
-          date: { gte: todayStart, lte: todayEnd },
-        },
-      });
-      if (!existingAtt && borrowerType !== "FACULTY") {
-        await (prisma as any).libraryAttendance.create({
-          data: {
-            studentId: borrowerUserId,
-            studentName: borrowerName,
-            darjah: borrowerDarjah || "Circulation",
-            date: borrowedDate,
-            checkInTime: borrowedDate,
-            sessionType: "BOOK_EXCHANGE",
-            status: "PRESENT",
-            notes: `Auto-recorded on circulation issue: "${book.title}"`,
-            recordedById: req.auth!.user.id,
-          },
-        });
-      }
-    } catch (attErr) {
-      console.warn("Auto-log library attendance error (non-fatal):", attErr);
-    }
 
     const dueDateLabel = finalDueDate.toLocaleDateString("en-US", {
       month: "short",

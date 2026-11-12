@@ -41,6 +41,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
+import { TalabatBulkDownloadModal, BulkStudentTarget } from "@/components/talabat/TalabatBulkDownloadModal";
 
 const normalizeImgSrc = (url?: string | null): string => {
   if (!url || typeof url !== "string") return "";
@@ -88,6 +89,10 @@ export default function TeacherTalabatProfilesPage() {
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  // Bulk Selection & Download State
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false);
 
   // Review Modal State
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -501,6 +506,51 @@ export default function TeacherTalabatProfilesPage() {
     });
   }, [students, searchQuery, statusFilter]);
 
+  const handleToggleSelectStudent = (studentId: string) => {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) {
+        next.delete(studentId);
+      } else {
+        next.add(studentId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllFiltered = () => {
+    const allFilteredSelected =
+      filteredStudents.length > 0 &&
+      filteredStudents.every((s) => selectedStudentIds.has(s.studentId));
+
+    if (allFilteredSelected) {
+      setSelectedStudentIds((prev) => {
+        const next = new Set(prev);
+        filteredStudents.forEach((s) => next.delete(s.studentId));
+        return next;
+      });
+    } else {
+      setSelectedStudentIds((prev) => {
+        const next = new Set(prev);
+        filteredStudents.forEach((s) => next.add(s.studentId));
+        return next;
+      });
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedStudentIds(new Set());
+  };
+
+  const selectedStudentTargets: BulkStudentTarget[] = students
+    .filter((s) => selectedStudentIds.has(s.studentId))
+    .map((s) => ({
+      studentId: s.studentId,
+      name: s.name,
+      its: s.its,
+      idNo: s.idNo,
+    }));
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* ── Page Header Banner ── */}
@@ -755,6 +805,52 @@ export default function TeacherTalabatProfilesPage() {
         </div>
       </div>
 
+      {/* ── Bulk Action Banner (when students are selected) ── */}
+      {selectedStudentIds.size > 0 && (
+        <div className="mb-4 p-4 bg-gradient-to-r from-slate-950 via-[#1c1c1c] to-slate-900 border border-amber-500/40 text-white rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-sm shadow-md">
+              {selectedStudentIds.size}
+            </div>
+            <div>
+              <div className="text-sm font-extrabold text-amber-300 flex items-center gap-2">
+                <span>{selectedStudentIds.size} {selectedStudentIds.size === 1 ? "Student" : "Students"} Selected</span>
+                <span className="text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  {selectedStudentIds.size * 2} Pages Output
+                </span>
+              </div>
+              <div className="text-xs text-slate-300">
+                Ready to generate compiled 2-page A4 official profile PDF documents.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => setIsBulkDownloadOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Bulk Download Profiles PDF ({selectedStudentIds.size})</span>
+            </button>
+            <button
+              onClick={handleSelectAllFiltered}
+              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+            >
+              {filteredStudents.length > 0 && filteredStudents.every((s) => selectedStudentIds.has(s.studentId))
+                ? "Deselect All Filtered"
+                : `Select All Filtered (${filteredStudents.length})`}
+            </button>
+            <button
+              onClick={handleClearSelection}
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-xs font-medium cursor-pointer transition-colors"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Student List Table ── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         {loading ? (
@@ -771,6 +867,27 @@ export default function TeacherTalabatProfilesPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600">
                 <tr>
+                  <th className="py-3.5 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredStudents.length > 0 &&
+                        filteredStudents.every((s) => selectedStudentIds.has(s.studentId))
+                      }
+                      ref={(input) => {
+                        if (input) {
+                          const someSelected = filteredStudents.some((s) => selectedStudentIds.has(s.studentId));
+                          const allSelected =
+                            filteredStudents.length > 0 &&
+                            filteredStudents.every((s) => selectedStudentIds.has(s.studentId));
+                          input.indeterminate = someSelected && !allSelected;
+                        }
+                      }}
+                      onChange={handleSelectAllFiltered}
+                      className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 focus:ring-offset-0 cursor-pointer accent-amber-500"
+                      title="Select all currently visible students"
+                    />
+                  </th>
                   <th className="py-3.5 px-4">Talib Name &amp; ID</th>
                   <th className="py-3.5 px-4">ITS No.</th>
                   <th className="py-3.5 px-4">Parent Photos</th>
@@ -780,9 +897,26 @@ export default function TeacherTalabatProfilesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredStudents.map((s) => (
-                  <tr key={s.studentId} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4">
+                {filteredStudents.map((s) => {
+                  const isSelected = selectedStudentIds.has(s.studentId);
+                  return (
+                    <tr
+                      key={s.studentId}
+                      className={`transition-colors ${
+                        isSelected
+                          ? "bg-amber-50/70 hover:bg-amber-100/60"
+                          : "hover:bg-slate-50/80"
+                      }`}
+                    >
+                      <td className="py-3.5 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectStudent(s.studentId)}
+                          className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 focus:ring-offset-0 cursor-pointer accent-amber-500"
+                        />
+                      </td>
+                      <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         {s.avatarUrl ? (
                           <img
@@ -999,7 +1133,8 @@ export default function TeacherTalabatProfilesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
@@ -2033,6 +2168,15 @@ export default function TeacherTalabatProfilesPage() {
           </div>
         </div>
       )}
+      {/* ════════════════════════════════════════════════════════════
+          BULK DOWNLOAD PROFILES PDF MODAL
+      ════════════════════════════════════════════════════════════ */}
+      <TalabatBulkDownloadModal
+        isOpen={isBulkDownloadOpen}
+        onClose={() => setIsBulkDownloadOpen(false)}
+        selectedStudents={selectedStudentTargets}
+        onClearSelection={handleClearSelection}
+      />
     </div>
   );
 }
