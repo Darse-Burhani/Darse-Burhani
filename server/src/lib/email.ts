@@ -271,8 +271,14 @@ async function dispatchBrevo(mailOptions: {
   }
 }
 
+const DEFAULT_GOOGLE_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbxGM3JNRgcREfEp5u8gMqGx_7i6DqT_t5-t1v82R0UiOxhM5lkLkGSbRn-o42nj1fHQ/exec";
+
 export function isGoogleScriptConfigured(): boolean {
-  return Boolean(cleanSecret(process.env.GOOGLE_SCRIPT_EMAIL_URL || process.env.GMAIL_WEBHOOK_URL));
+  return Boolean(
+    cleanSecret(process.env.GOOGLE_SCRIPT_EMAIL_URL || process.env.GMAIL_WEBHOOK_URL) ||
+      DEFAULT_GOOGLE_SCRIPT_URL
+  );
 }
 
 /**
@@ -292,7 +298,9 @@ async function dispatchGoogleScript(mailOptions: {
   html: string;
   text?: string;
 }): Promise<ResendDispatchResult> {
-  const webhookUrl = cleanSecret(process.env.GOOGLE_SCRIPT_EMAIL_URL || process.env.GMAIL_WEBHOOK_URL);
+  const webhookUrl =
+    cleanSecret(process.env.GOOGLE_SCRIPT_EMAIL_URL || process.env.GMAIL_WEBHOOK_URL) ||
+    DEFAULT_GOOGLE_SCRIPT_URL;
   if (!webhookUrl) {
     return { ok: false, error: "GOOGLE_SCRIPT_EMAIL_URL is not configured" };
   }
