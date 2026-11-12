@@ -140,11 +140,47 @@ export function TalabatProfileDocument({
       const pdf = new jsPDF("p", "mm", "a4");
       const pageW = 210;
       const pageH = 297;
+      const marginMm = 5;
+      const printableW = pageW - marginMm * 2;
+      const printableH = pageH - marginMm * 2;
+
+      // A slice boundary can land in the middle of a line and cut it in half.
+      // Walk up from the boundary to the nearest blank row so lines stay whole.
+      const findSafeCut = (canvas: HTMLCanvasElement, targetY: number, minY: number): number => {
+        const ctx = canvas.getContext("2d");
+        const bandTop = Math.max(0, minY);
+        const bandHeight = targetY - bandTop;
+        if (!ctx || bandHeight <= 0) return targetY;
+        let data: Uint8ClampedArray;
+        try {
+          // One read for the whole band instead of one per row
+          data = ctx.getImageData(0, bandTop, canvas.width, bandHeight).data;
+        } catch {
+          return targetY;
+        }
+        const rowStride = canvas.width * 4;
+        const columnStep = 16; // sample every 4th pixel
+        for (let offset = bandHeight - 1; offset >= 0; offset--) {
+          const rowStart = offset * rowStride;
+          let hasInk = false;
+          for (let x = 0; x < rowStride; x += columnStep) {
+            const p = rowStart + x;
+            if (data[p] < 244 || data[p + 1] < 244 || data[p + 2] < 244) {
+              hasInk = true;
+              break;
+            }
+          }
+          if (!hasInk) return bandTop + offset;
+        }
+        return targetY;
+      };
+
+      let pdfPageWritten = false;
 
       for (let i = 0; i < targets.length; i++) {
         const canvas = await html2canvas(targets[i], {
-          // 1.6 keeps text sharp while cutting capture time roughly in half
-          scale: 1.6,
+          // 2x keeps small print genuinely readable after PDF scaling
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
@@ -160,24 +196,58 @@ export function TalabatProfileDocument({
           },
         });
 
-        // JPEG at 0.92 is many times faster to encode and far smaller than PNG,
-        // and at 1.6x still prints cleanly.
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        const pxPerMm = canvas.width / printableW;
+        const contentHmm = canvas.height / pxPerMm;
 
-        // Fill the sheet: scale to the full printable width and flow from the
-        // top. Only shrink further if the page would overflow A4 vertically.
-        const printableW = pageW - 8; // 4mm bleed on each side
-        let imgW = printableW;
-        let imgH = (canvas.height * printableW) / canvas.width;
-        if (imgH > pageH - 8) {
-          imgH = pageH - 8;
-          imgW = (canvas.width * imgH) / canvas.height;
+        if (contentHmm <= printableH) {
+          if (pdfPageWritten) pdf.addPage();
+          pdf.addImage(
+            canvas.toDataURL("image/jpeg", 0.95),
+            "JPEG",
+            marginMm,
+            marginMm,
+            printableW,
+            contentHmm,
+          );
+          pdfPageWritten = true;
+          continue;
         }
-        const x = (pageW - imgW) / 2;
-        const y = 4;
 
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
+        // Taller than one sheet: keep the text at its natural size and split
+        // the capture across several sheets instead of shrinking it down.
+        const maxSlicePx = Math.floor(printableH * pxPerMm);
+        let consumed = 0;
+        while (consumed < canvas.height) {
+          const remaining = canvas.height - consumed;
+          let slicePx = Math.min(maxSlicePx, remaining);
+          if (slicePx < remaining) {
+            const safe = findSafeCut(canvas, consumed + slicePx, consumed + Math.floor(maxSlicePx * 0.55));
+            // Only accept the nudge if it does not waste most of a sheet.
+            if (safe - consumed > slicePx * 0.5) slicePx = safe - consumed;
+          }
+          if (slicePx <= 0) break;
+
+          const slice = document.createElement("canvas");
+          slice.width = canvas.width;
+          slice.height = slicePx;
+          const sctx = slice.getContext("2d");
+          if (!sctx) break;
+          sctx.fillStyle = "#ffffff";
+          sctx.fillRect(0, 0, slice.width, slice.height);
+          sctx.drawImage(canvas, 0, consumed, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+
+          if (pdfPageWritten) pdf.addPage();
+          pdf.addImage(
+            slice.toDataURL("image/jpeg", 0.95),
+            "JPEG",
+            marginMm,
+            marginMm,
+            printableW,
+            slicePx / pxPerMm,
+          );
+          pdfPageWritten = true;
+          consumed += slicePx;
+        }
       }
 
       const safeName = (data.name || "talabat-profile")
@@ -436,7 +506,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                A4 PAGE 1: STUDENT TALABAT PROFILE (DARAJEH RABEA)
                Demographics, Family, Contact, Academics & 3 Quick Prompts
             ════════════════════════════════════════════════════════════ */}
-            <div className="doc-page doc-page-single bg-white text-[var(--text-primary)] font-medium border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden">
+            <div className="doc-page doc-page-single bg-white text-[var(--text-primary)] font-medium border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] flex flex-col justify-between box-border">
             <div>
               {/* Institutional Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
@@ -450,20 +520,20 @@ const getProfileImgSrc = (url?: string | null): string => {
                     }}
                   />
                   <div>
-                    <h1 className="text-lg font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
+                    <h1 className="text-xl font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
                       DARSE BURHANI
                     </h1>
-                    <h2 className="text-xs font-extrabold text-[var(--gold-900)] tracking-wide mt-0.5">
+                    <h2 className="text-[13px] font-extrabold text-[var(--gold-900)] tracking-wide mt-0.5">
                       DARAJEH RABEA (GRADE 4) • STUDENT TALABAT PROFILE
                     </h2>
-                    <div className="text-[10px] font-medium text-[var(--text-secondary)] font-medium">
+                    <div className="text-[11px] font-medium text-[var(--text-secondary)] font-medium">
                       Academic Year 1447 H • Official Individual Record Sheet
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right flex flex-col items-end">
-                  <div className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl leading-snug" dir="rtl">
+                  <div className="font-alkanz text-sm font-bold text-[#1c1c1c] dir-rtl leading-snug" dir="rtl">
                     الحمد لله على ما أنعم والشكر له على ما ألهم
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
@@ -498,23 +568,23 @@ const getProfileImgSrc = (url?: string | null): string => {
                 {/* Main Name & Key Identifiers */}
                 <div className="flex-1 flex flex-col justify-between py-0.5">
                   <div>
-                    <h3 className="text-base font-black text-[var(--text-primary)] font-medium font-serif leading-tight">
+                    <h3 className="text-xl font-black text-[var(--text-primary)] font-medium font-serif leading-tight">
                       {data.name || "Student Full Name"}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-700"><span className="inline-flex items-center gap-1 font-bold bg-[var(--gold-100)] text-[var(--gold-900)] px-2 py-0.5 rounded border border-[var(--gold-300)] text-[10.5px]">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-700"><span className="inline-flex items-center gap-1 font-bold bg-[var(--gold-100)] text-[var(--gold-900)] px-2 py-0.5 rounded border border-[var(--gold-300)] text-[11.5px]">
                         ITS: {data.itsNo || "—"}</span>
-                      <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[10.5px]">
+                      <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[11.5px]">
                         Standard: {data.standard || data.grade || "Darajah 4 (Rabea)"}</span>
-                      <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[10.5px]">
+                      <span className="font-semibold bg-white px-2 py-0.5 rounded border border-slate-300 text-[11.5px]">
                         Section: {data.section || "A"}
                       </span>
-                      <span className="font-semibold bg-[var(--gold-light)] text-[var(--gold-800)] px-2 py-0.5 rounded border border-emerald-300 text-[10.5px]">
+                      <span className="font-semibold bg-[var(--gold-light)] text-[var(--gold-800)] px-2 py-0.5 rounded border border-emerald-300 text-[11.5px]">
                         Status: {data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-1.5 pt-1.5 border-t border-slate-200 text-[10.5px] text-[var(--text-secondary)] font-medium">
+                  <div className="grid grid-cols-3 gap-2 mt-1.5 pt-1.5 border-t border-slate-200 text-[11.5px] text-[var(--text-secondary)] font-medium">
                     <div><span className="font-bold text-slate-800">Admission Year:</span> {data.admissionYear || "1444 H"}</div>
                     <div><span className="font-bold text-slate-800">Current Year:</span> {data.currentYear || data.year || "1447 H"}</div>
                     <div><span className="font-bold text-slate-800">Age:</span> {data.age ? `${data.age} Years` : "—"}</div>
@@ -523,22 +593,22 @@ const getProfileImgSrc = (url?: string | null): string => {
               </div>
 
               {/* Complete Demographic & Information Table */}
-              <div className="mb-2.5 border border-slate-300 rounded-lg overflow-hidden bg-white text-[11px]">
-                <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-medium px-2.5 py-0.5 font-bold text-[10px] uppercase tracking-wider flex items-center justify-between">
+              <div className="mb-2.5 border border-slate-300 rounded-lg overflow-hidden bg-white text-[12px]">
+                <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-medium px-2.5 py-1 font-bold text-[11px] uppercase tracking-wider flex items-center justify-between">
                   <span>Student Demographic &amp; Institutional Profile</span>
                   <span className="text-[var(--gold-400)] text-[9.5px] lowercase font-normal">official student dossier</span>
                 </div>
-                <div className="grid grid-cols-2 text-[10.5px] divide-y divide-x divide-border-subtle">
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                <div className="grid grid-cols-2 text-[11.5px] divide-y divide-x divide-border-subtle">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Student Name:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.name || "—"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Student ITS:</span>
                     <span className="font-mono font-bold text-[var(--text-primary)] font-medium text-right">{data.itsNo || "—"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between items-center">
+                  <div className="p-2 flex justify-between items-center">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Father Name:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right flex items-center gap-1.5">
                       {isFilled(data.fatherPhotoUrl) && (
@@ -552,12 +622,12 @@ const getProfileImgSrc = (url?: string | null): string => {
                       <span>{data.fatherName || "—"}</span>
                     </span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Father's Occupation:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.fatherOccupation || "—"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between items-center bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between items-center bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Mother Name:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right flex items-center gap-1.5">
                       {isFilled(data.motherPhotoUrl) && (
@@ -571,62 +641,62 @@ const getProfileImgSrc = (url?: string | null): string => {
                       <span>{data.motherName || "—"}</span>
                     </span>
                   </div>
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Mother's Occupation:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.motherOccupation || "Homemaker"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Student's Standard:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.standard || data.grade || "Darajah 4 (Rabea)"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Class Section:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.section || "A"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Student Status:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.studentStatus || (data.hifzYear ? "Hafiz" : "Sanah")}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Admission Year:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.admissionYear || "1444 H"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Current Year:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.currentYear || data.year || "1447 H"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Student Age:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.age ? `${data.age} Years` : "—"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Watan:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.vatan || data.watan || "—"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Resident City:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.jamaat || data.residentCity || "—"}</span>
                   </div>
 
-                  <div className="p-1.5 flex justify-between">
+                  <div className="p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Mobile Number:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.mobileNumber || "—"}</span>
                   </div>
-                  <div className="p-1.5 flex justify-between bg-[var(--gold-light)]/25">
+                  <div className="p-2 flex justify-between bg-[var(--gold-light)]/25">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">Email ID:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.email || "—"}</span>
                   </div>
 
-                  <div className="col-span-2 p-1.5 flex justify-between bg-[var(--gold-light)]/30">
+                  <div className="col-span-2 p-2 flex justify-between bg-[var(--gold-light)]/30">
                     <span className="font-bold text-[var(--text-secondary)] font-medium">External Schooling Status:</span>
                     <span className="font-semibold text-[var(--text-primary)] font-medium text-right">{data.externalSchooling || "Regular Darse Burhani"}</span>
                   </div>
 
-                  <div className="col-span-2 p-1.5 flex justify-between">
+                  <div className="col-span-2 p-2 flex justify-between">
                     <span className="font-bold text-[var(--text-secondary)] font-medium shrink-0 mr-2">Address:</span>
                     <span className="font-medium text-[var(--text-primary)] font-medium text-right leading-tight">{data.address || "—"}</span>
                   </div>
@@ -644,9 +714,9 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </span>
                 </div>
 
-                <div className="space-y-1.5 text-[11px]">
+                <div className="space-y-2 text-[12px]">
                   <div className="bg-white p-2 rounded border border-[var(--border-subtle)] shadow-xs">
-                    <div className="font-bold text-[var(--gold-900)] text-[10.5px] mb-0.5">
+                    <div className="font-bold text-[var(--gold-900)] text-[11.5px] mb-0.5">
                       1. I am really Good at ...
                     </div>
                     <div className="text-[var(--text-primary)] font-medium italic pl-2 border-l-2 border-[var(--gold-600)] leading-snug font-serif">
@@ -655,7 +725,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   <div className="bg-white p-2 rounded border border-[var(--border-subtle)] shadow-xs">
-                    <div className="font-bold text-indigo-950 text-[10.5px] mb-0.5">
+                    <div className="font-bold text-indigo-950 text-[11.5px] mb-0.5">
                       2. I love to study about ... because ...
                     </div>
                     <div className="text-[var(--text-primary)] font-medium italic pl-2 border-l-2 border-indigo-600 leading-snug font-serif">
@@ -664,7 +734,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   <div className="bg-white p-2 rounded border border-[var(--border-subtle)] shadow-xs">
-                    <div className="font-bold text-[var(--gold-900)] text-[10.5px] mb-0.5">
+                    <div className="font-bold text-[var(--gold-900)] text-[11.5px] mb-0.5">
                       3. I really love to ..... For Fun
                     </div>
                     <div className="text-[var(--text-primary)] font-medium italic pl-2 border-l-2 border-[var(--gold-600)] leading-snug font-serif">
@@ -677,18 +747,18 @@ const getProfileImgSrc = (url?: string | null): string => {
 
             {/* Footer & Official Signatures */}
             <div className="pt-2 border-t-2 border-slate-900">
-              <div className="grid grid-cols-3 gap-6 pt-5 pb-1.5 text-center text-[10.5px]">
+              <div className="grid grid-cols-3 gap-6 pt-5 pb-1.5 text-center text-[11.5px]">
                 <div className="border-t border-slate-400 pt-1">
-                  <span className="font-bold text-slate-700 block text-[10px]">Student's Signature</span>
-                  <span className="text-[8.5px] text-slate-400">(Talib / Taliba)</span>
+                  <span className="font-bold text-slate-700 block text-[11px]">Student's Signature</span>
+                  <span className="text-[9.5px] text-slate-400">(Talib / Taliba)</span>
                 </div>
                 <div className="border-t border-slate-400 pt-1">
-                  <span className="font-bold text-slate-700 block text-[10px]">Parent / Guardian Signature</span>
-                  <span className="text-[8.5px] text-slate-400">(Father / Mother)</span>
+                  <span className="font-bold text-slate-700 block text-[11px]">Parent / Guardian Signature</span>
+                  <span className="text-[9.5px] text-slate-400">(Father / Mother)</span>
                 </div>
                 <div className="border-t border-slate-400 pt-1">
-                  <span className="font-bold text-slate-700 block text-[10px]">Darajah Masul Signature &amp; Seal</span>
-                  <span className="text-[8.5px] text-slate-400">(Darse Burhani Administration)</span>
+                  <span className="font-bold text-slate-700 block text-[11px]">Darajah Masul Signature &amp; Seal</span>
+                  <span className="text-[9.5px] text-slate-400">(Darse Burhani Administration)</span>
                 </div>
               </div>
 
@@ -705,7 +775,7 @@ const getProfileImgSrc = (url?: string | null): string => {
              A4 PAGE 2: KNOWING MYSELF — MY IDENTITY AND ASPIRATIONS
              Self-Reflection Questionnaire, Obstacles & Aspirations
           ════════════════════════════════════════════════════════════ */}
-          <div className="doc-page doc-page-page2 bg-white text-[var(--text-primary)] font-medium border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] max-h-[285mm] flex flex-col justify-between box-border overflow-hidden print:mt-0 mt-8">
+          <div className="doc-page doc-page-page2 bg-white text-[var(--text-primary)] font-medium border-2 border-slate-900 shadow-xl rounded-none p-5 sm:p-6 min-h-[282mm] flex flex-col justify-between box-border print:mt-0 mt-8">
             <div>
               {/* Institutional Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5 mb-2.5 relative">
@@ -719,20 +789,20 @@ const getProfileImgSrc = (url?: string | null): string => {
                     }}
                   />
                   <div>
-                    <h1 className="text-lg font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
+                    <h1 className="text-xl font-black tracking-wider text-[#1c1c1c] font-serif uppercase leading-tight">
                       DARSE BURHANI
                     </h1>
-                    <h2 className="text-xs font-extrabold text-[var(--gold-900)] tracking-wide mt-0.5">
+                    <h2 className="text-[13px] font-extrabold text-[var(--gold-900)] tracking-wide mt-0.5">
                       KNOWING MYSELF: MY IDENTITY AND ASPIRATIONS
                     </h2>
-                    <div className="text-[10px] font-medium text-[var(--text-secondary)] font-medium">
+                    <div className="text-[11px] font-medium text-[var(--text-secondary)] font-medium">
                       Darajeh Rabea (Grade 4) • Student Self-Reflection &amp; Guidance Record (Page 2 of 2)
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right flex flex-col items-end">
-                  <div className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl leading-snug" dir="rtl">
+                  <div className="font-alkanz text-sm font-bold text-[#1c1c1c] dir-rtl leading-snug" dir="rtl">
                     الحمد لله على ما أنعم والشكر له على ما ألهم
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
@@ -754,11 +824,11 @@ const getProfileImgSrc = (url?: string | null): string => {
                 {/* Greatest Strengths */}
                 <div className="col-span-4 bg-[var(--gold-light)]/25 border border-[var(--border-subtle)] rounded-lg p-2">
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)]/80 pb-1 mb-1">
-                    <span className="font-black text-[10px] text-[var(--gold-900)] uppercase tracking-wide">
+                    <span className="font-black text-[11px] text-[var(--gold-900)] uppercase tracking-wide">
                       ★ 3 Greatest Strengths
                     </span>
                   </div>
-                  <div className="space-y-1 text-[9.5px] text-slate-800">
+                  <div className="space-y-1.5 text-[11px] text-slate-800">
                     <div className="flex items-start gap-1">
                       <span className="font-bold text-emerald-700">1.</span>
                       <span className="font-medium leading-tight">
@@ -783,11 +853,11 @@ const getProfileImgSrc = (url?: string | null): string => {
                 {/* Things Enjoyed */}
                 <div className="col-span-4 bg-[var(--gold-light)]/50 border border-indigo-200 rounded-lg p-2">
                   <div className="flex items-center justify-between border-b border-indigo-200/80 pb-1 mb-1">
-                    <span className="font-black text-[10px] text-indigo-950 uppercase tracking-wide">
+                    <span className="font-black text-[11px] text-indigo-950 uppercase tracking-wide">
                       ★ 3 Things I Enjoy Most
                     </span>
                   </div>
-                  <div className="space-y-1 text-[9.5px] text-slate-800">
+                  <div className="space-y-1.5 text-[11px] text-slate-800">
                     <div className="flex items-start gap-1">
                       <span className="font-bold text-indigo-700">1.</span>
                       <span className="font-medium leading-tight">
@@ -812,7 +882,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                 {/* Core Accomplishment & Role Model */}
                 <div className="col-span-4 bg-[var(--gold-light)]/25 border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col justify-between">
                   <div>
-                    <div className="font-black text-[10px] text-amber-950 uppercase tracking-wide border-b border-[var(--border-subtle)]/80 pb-1 mb-1">
+                    <div className="font-black text-[11px] text-amber-950 uppercase tracking-wide border-b border-[var(--border-subtle)]/80 pb-1 mb-1">
                       ★ Aspirations &amp; Mentorship
                     </div>
                     <div className="space-y-1 text-[9.5px]">
@@ -842,7 +912,7 @@ const getProfileImgSrc = (url?: string | null): string => {
               {/* Section B: Obstacles Identified */}
               <div className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 mb-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-black text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wider shrink-0">
+                  <span className="font-black text-[11px] text-[var(--text-primary)] font-medium uppercase tracking-wider shrink-0">
                     Obstacles Identified:
                   </span>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -850,13 +920,13 @@ const getProfileImgSrc = (url?: string | null): string => {
                       data.knowingMyself.selectedObstacles.map((obs: string, idx: number) => (
                         <span
                           key={idx}
-                          className="text-[9px] font-bold px-2 py-0.5 rounded-full text-[var(--text-inverted)] text-[var(--gold-400)] border border-slate-700 shadow-2xs"
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full text-[var(--text-inverted)] text-[var(--gold-400)] border border-slate-700 shadow-2xs"
                         >
                           {obs}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[9.5px] italic text-[var(--text-muted)]">None selected</span>
+                      <span className="text-[10.5px] italic text-[var(--text-muted)]">None selected</span>
                     )}
                     {data.knowingMyself?.otherObstacle && (
                       <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[var(--gold-100)] text-[var(--gold-900)] border border-[var(--gold-300)]">
@@ -866,7 +936,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
                 </div>
 
-                <span className="text-[9px] font-bold text-[var(--gold-800)] bg-[var(--gold-light)] px-2 py-0.5 rounded border border-emerald-300 shrink-0">
+                <span className="text-[10px] font-bold text-[var(--gold-800)] bg-[var(--gold-light)] px-2 py-0.5 rounded border border-emerald-300 shrink-0">
                   {data.knowingMyself?.submittedAt ? "✓ Compulsory Assessment Submitted" : "Darajah 4 Dossier"}
                 </span>
               </div>
@@ -874,17 +944,17 @@ const getProfileImgSrc = (url?: string | null): string => {
               {/* Section C: In-Depth Self-Reflections — All 14 Compulsory Questions */}
               <div className="border border-slate-300 rounded-lg p-2 bg-white">
                 <div className="border-b border-slate-200 pb-1 mb-1.5 flex items-center justify-between">
-                  <span className="font-black text-[10.5px] text-[var(--text-primary)] font-medium uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="font-black text-[11.5px] text-[var(--text-primary)] font-medium uppercase tracking-wider flex items-center gap-1.5">
                     ★ Self-Reflection Questionnaire (14 Compulsory Questions)
                   </span>
-                  <span className="text-[9px] font-medium text-[var(--text-muted)]">
+                  <span className="text-[10px] font-medium text-[var(--text-muted)]">
                     Standard Darse Burhani Taherabad Darajah Rabea Evaluation
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] leading-tight">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] leading-snug">
                   {/* Q1 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       1. How do you respond when things get difficult?
                     </div>
@@ -894,7 +964,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q2 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       2. What makes you want to give up?
                     </div>
@@ -904,7 +974,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q3 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-indigo-600">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-indigo-600">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       3. What helps you recover after disappointment or failure?
                     </div>
@@ -914,7 +984,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q4 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-indigo-600">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-indigo-600">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       4. Who do you approach when you need support?
                     </div>
@@ -924,7 +994,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q5 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-amber-600">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-amber-600">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       5. One obstacle you are willing to actively work on?
                     </div>
@@ -934,7 +1004,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q6 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-amber-600">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-amber-600">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       6. What kind of behavior hurts you the most?
                     </div>
@@ -944,7 +1014,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q7 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       7. What do you wish others understood better about you?
                     </div>
@@ -954,7 +1024,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q8 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       8. What does it mean to be a successful person?
                     </div>
@@ -964,7 +1034,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q9 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       9. What does success look like beyond academic qualifications?
                     </div>
@@ -974,7 +1044,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q10 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       10. What qualities make someone worthy of genuine respect?
                     </div>
@@ -984,7 +1054,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q11 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-600)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       11. Why is it important to continue learning throughout life?
                     </div>
@@ -994,7 +1064,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q12 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-700)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-700)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       12. What does Khidmat mean to you personally?
                     </div>
@@ -1004,7 +1074,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q13 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-[var(--gold-700)]">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-[var(--gold-700)]">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       13. How can you use your unique skills to benefit others?
                     </div>
@@ -1014,7 +1084,7 @@ const getProfileImgSrc = (url?: string | null): string => {
                   </div>
 
                   {/* Q14 */}
-                  <div className="p-1 rounded bg-slate-50/70 border-l-2 border-slate-700">
+                  <div className="p-1.5 rounded bg-slate-50/70 border-l-2 border-slate-700">
                     <div className="font-bold text-[var(--text-primary)] font-medium">
                       14. What kind of person do you want to be remembered as?
                     </div>
@@ -1028,18 +1098,18 @@ const getProfileImgSrc = (url?: string | null): string => {
 
             {/* Footer & Official Signatures for Page 2 */}
             <div className="pt-2 border-t-2 border-slate-900">
-              <div className="grid grid-cols-3 gap-6 pt-5 pb-1.5 text-center text-[10.5px]">
+              <div className="grid grid-cols-3 gap-6 pt-5 pb-1.5 text-center text-[11.5px]">
                 <div className="border-t border-slate-400 pt-1">
-                  <span className="font-bold text-slate-700 block text-[10px]">Student's Affirmation</span>
-                  <span className="text-[8.5px] text-slate-400">(Talib / Taliba Signature)</span>
+                  <span className="font-bold text-slate-700 block text-[11px]">Student's Affirmation</span>
+                  <span className="text-[9.5px] text-slate-400">(Talib / Taliba Signature)</span>
                 </div>
                 <div className="border-t border-slate-400 pt-1">
-                  <span className="font-bold text-slate-700 block text-[10px]">Darajah Counsellor / Masool</span>
-                  <span className="text-[8.5px] text-slate-400">(Review &amp; Mentorship)</span>
+                  <span className="font-bold text-slate-700 block text-[11px]">Darajah Counsellor / Masool</span>
+                  <span className="text-[9.5px] text-slate-400">(Review &amp; Mentorship)</span>
                 </div>
                 <div className="border-t border-slate-400 pt-1">
-                  <span className="font-bold text-slate-700 block text-[10px]">Administration Seal</span>
-                  <span className="text-[8.5px] text-slate-400">(Darse Burhani Official)</span>
+                  <span className="font-bold text-slate-700 block text-[11px]">Administration Seal</span>
+                  <span className="text-[9.5px] text-slate-400">(Darse Burhani Official)</span>
                 </div>
               </div>
 
@@ -1560,24 +1630,24 @@ const getProfileImgSrc = (url?: string | null): string => {
             break-inside: avoid !important;
           }
           .doc-page-single {
-            height: 278mm !important;
-            max-height: 278mm !important;
+            height: auto !important;
+            max-height: none !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             page-break-after: always !important;
             break-after: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
           }
           .doc-page-page2 {
-            height: 278mm !important;
-            max-height: 278mm !important;
+            height: auto !important;
+            max-height: none !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             page-break-before: always !important;
             break-before: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
           }
         }
       `}</style>
