@@ -18,6 +18,11 @@ import {
   testSheetConnection,
   saveSheetConfiguration,
   queueAutoSheetSync,
+  elearningSheetSyncStatus,
+  isELearningSheetConfigured,
+  syncELearningAttendanceToSheet,
+  createELearningSpreadsheet,
+  extractSpreadsheetId,
 } from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType, getAudienceType, isELearningWindow } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
@@ -1287,13 +1292,14 @@ router.post("/sync-sheet/test", requireRole("ADMIN"), async (req, res) => {
 // POST /api/admin/attendance-logs/sync-sheet/config — Save/Update Google Sheet sync configuration
 router.post("/sync-sheet/config", requireRole("ADMIN"), async (req, res) => {
   try {
-    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, manualSpreadsheetId, enabled, syncHourUtc, testNow } = req.body || {};
+    const { spreadsheetId, serviceAccountJson, serviceAccountEmail, serviceAccountPrivateKey, manualSpreadsheetId, elearningSpreadsheetId, enabled, syncHourUtc, testNow } = req.body || {};
     await saveSheetConfiguration({
       spreadsheetId,
       serviceAccountJson,
       serviceAccountEmail,
       serviceAccountPrivateKey,
       manualSpreadsheetId,
+      elearningSpreadsheetId,
       enabled,
       syncHourUtc,
     });
@@ -1362,6 +1368,81 @@ router.post("/sync-sheet", requireRole("ADMIN"), async (req, res) => {
   } catch (error) {
     console.error("[attendance-logs] sync-sheet error:", error);
     return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync Google Sheet" });
+  }
+});
+
+// GET /api/admin/attendance-logs/sync-elearning-sheet/status — Dedicated E-Learning sheet status
+router.get("/sync-elearning-sheet/status", requireAuth, async (_req, res) => {
+  try {
+    await loadSheetConfigFromDb();
+    return res.json({ success: true, data: elearningSheetSyncStatus() });
+  } catch (error) {
+    console.error("[attendance-logs] elearning-sheet status error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to read E-Learning sheet status" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-elearning-sheet — Push one day of E-Learning faculty scans
+router.post("/sync-elearning-sheet", requireRole("ADMIN"), async (req, res) => {
+  try {
+    await loadSheetConfigFromDb();
+    if (!isELearningSheetConfigured()) {
+      const status = elearningSheetSyncStatus();
+      return res.status(400).json({
+        success: false,
+        needsConfig: true,
+        error: !status.hasSpreadsheetId
+          ? "E-Learning Google Spreadsheet is not linked. Create or paste a dedicated E-Learning sheet first."
+          : "Google Service Account is not configured yet. Please paste your Service Account JSON key in Google Sheets Settings.",
+        data: status,
+      });
+    }
+    const raw = typeof req.body?.date === "string" ? req.body.date.trim() : "";
+    const target = raw ? new Date(`${raw}T00:00:00Z`) : new Date();
+    if (Number.isNaN(target.getTime())) {
+      return res.status(400).json({ success: false, error: "Invalid date (expected YYYY-MM-DD)" });
+    }
+    const result = await syncELearningAttendanceToSheet(target);
+    return res.json({
+      success: true,
+      message: `Synced ${result.rowsSynced} E-Learning faculty row(s) to tab '${result.tabTitle}'`,
+      data: result,
+    });
+  } catch (error) {
+    console.error("[attendance-logs] sync-elearning-sheet error:", error);
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to sync E-Learning Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-elearning-sheet/create — Create a dedicated E-Learning spreadsheet
+router.post("/sync-elearning-sheet/create", requireRole("ADMIN"), async (req, res) => {
+  try {
+    await loadSheetConfigFromDb();
+    const title = typeof req.body?.title === "string" ? req.body.title.trim() : undefined;
+    const result = await createELearningSpreadsheet(title);
+    return res.json({ success: true, message: `Created E-Learning spreadsheet "${result.title}"`, data: result });
+  } catch (error) {
+    console.error("[attendance-logs] create-elearning-sheet error:", error);
+    return res.status(400).json({ success: false, error: (error as Error)?.message || "Failed to create E-Learning Google Sheet" });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-elearning-sheet/link — Link an existing E-Learning spreadsheet
+router.post("/sync-elearning-sheet/link", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const cleanId = extractSpreadsheetId(String(req.body?.spreadsheetId || ""));
+    if (!cleanId) {
+      return res.status(400).json({ success: false, error: "Valid Google Sheet ID or URL is required" });
+    }
+    await saveSheetConfiguration({ elearningSpreadsheetId: cleanId });
+    return res.json({
+      success: true,
+      message: "E-Learning Google Sheet linked successfully",
+      data: elearningSheetSyncStatus(),
+    });
+  } catch (error) {
+    console.error("[attendance-logs] link-elearning-sheet error:", error);
+    return res.status(500).json({ success: false, error: (error as Error)?.message || "Failed to link E-Learning Google Sheet" });
   }
 });
 

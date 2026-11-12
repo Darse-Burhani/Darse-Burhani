@@ -25,6 +25,9 @@ import {
   Clock,
   Activity,
   Mail,
+  BookOpen,
+  Plus,
+  Link2,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -37,7 +40,12 @@ import {
   syncTalabatDirectorySheet,
   syncFacultyDirectorySheet,
   syncAllRecordsSheet,
+  getELearningSheetStatus,
+  syncELearningSheet,
+  createELearningSpreadsheet,
+  linkELearningSpreadsheet,
   SheetSyncStatusData,
+  ELearningSheetStatusData,
 } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -68,6 +76,15 @@ export default function GoogleSheetsAdminPage() {
   const [syncingFaculty, setSyncingFaculty] = useState(false);
   const [syncingAll, setSyncingAll] = useState(false);
 
+  // Dedicated E-Learning (faculty-only) sheet
+  const [elearningStatus, setElearningStatus] = useState<ELearningSheetStatusData | null>(null);
+  const [elearningDate, setElearningDate] = useState(todayStr);
+  const [syncingELearning, setSyncingELearning] = useState(false);
+  const [creatingELearning, setCreatingELearning] = useState(false);
+  const [linkingELearning, setLinkingELearning] = useState(false);
+  const [elearningLinkInput, setElearningLinkInput] = useState("");
+  const [configELearningSpreadsheetId, setConfigELearningSpreadsheetId] = useState("");
+
   // Config Drawer / Modal
   const [showConfig, setShowConfig] = useState(false);
   const [configSpreadsheetId, setConfigSpreadsheetId] = useState("");
@@ -79,7 +96,10 @@ export default function GoogleSheetsAdminPage() {
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getSheetSyncStatus();
+      const [data, elData] = await Promise.all([
+        getSheetSyncStatus(),
+        getELearningSheetStatus().catch(() => null),
+      ]);
       if (data) {
         setStatus(data);
         if (data.spreadsheetId) {
@@ -91,6 +111,12 @@ export default function GoogleSheetsAdminPage() {
         // Auto-open config if not configured
         if (!data.configured) {
           setShowConfig(true);
+        }
+      }
+      if (elData) {
+        setElearningStatus(elData);
+        if (elData.spreadsheetId) {
+          setConfigELearningSpreadsheetId(elData.spreadsheetId);
         }
       }
     } catch (err: any) {
@@ -201,15 +227,16 @@ export default function GoogleSheetsAdminPage() {
 
   const handleSaveConfig = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!configSpreadsheetId.trim()) {
-      toast({ title: "Validation Error", description: "Please enter a valid Google Spreadsheet ID or URL", variant: "destructive" });
+    if (!configSpreadsheetId.trim() && !configELearningSpreadsheetId.trim()) {
+      toast({ title: "Validation Error", description: "Enter a Google Spreadsheet ID/URL for the main sheet or the E-Learning sheet", variant: "destructive" });
       return;
     }
     try {
       setSavingConfig(true);
       const res = await saveSheetConfig({
-        spreadsheetId: configSpreadsheetId.trim(),
+        spreadsheetId: configSpreadsheetId.trim() || undefined,
         serviceAccountJson: configServiceAccountJson.trim() || undefined,
+        elearningSpreadsheetId: configELearningSpreadsheetId.trim() || undefined,
         testNow: true,
       });
 
@@ -342,6 +369,78 @@ export default function GoogleSheetsAdminPage() {
       });
     } finally {
       setSyncingFaculty(false);
+    }
+  };
+
+  const handleSyncELearning = async () => {
+    try {
+      setSyncingELearning(true);
+      const res = await syncELearningSheet(elearningDate);
+      toast({
+        title: "E-Learning Sheet Synced",
+        description: res.message || `Pushed E-Learning faculty attendance for ${elearningDate}.`,
+        variant: "success",
+      });
+      fetchStatus();
+    } catch (err: any) {
+      toast({
+        title: "Sync Error",
+        description: err?.message || "Failed to sync E-Learning sheet.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingELearning(false);
+    }
+  };
+
+  const handleCreateELearning = async () => {
+    try {
+      setCreatingELearning(true);
+      const res = await createELearningSpreadsheet();
+      toast({
+        title: "E-Learning Sheet Created",
+        description: `Created "${res.data?.title}". It is already shared with the service account.`,
+        variant: "success",
+      });
+      fetchStatus();
+    } catch (err: any) {
+      toast({
+        title: "Create Failed",
+        description: err?.message || "Could not create the E-Learning spreadsheet.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingELearning(false);
+    }
+  };
+
+  const handleLinkELearning = async () => {
+    if (!elearningLinkInput.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Paste the E-Learning Google Sheet URL or ID first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setLinkingELearning(true);
+      const res = await linkELearningSpreadsheet(elearningLinkInput.trim());
+      toast({
+        title: "E-Learning Sheet Linked",
+        description: res.message || "Dedicated E-Learning spreadsheet linked successfully.",
+        variant: "success",
+      });
+      setElearningLinkInput("");
+      fetchStatus();
+    } catch (err: any) {
+      toast({
+        title: "Link Failed",
+        description: err?.message || "Could not link the E-Learning spreadsheet.",
+        variant: "destructive",
+      });
+    } finally {
+      setLinkingELearning(false);
     }
   };
 
@@ -598,6 +697,24 @@ export default function GoogleSheetsAdminPage() {
               />
             </div>
 
+            {/* Field 1b: Dedicated E-Learning Spreadsheet (optional) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                E-Learning Spreadsheet URL or ID{" "}
+                <span className="text-slate-400 text-[10px] font-normal">(optional — dedicated faculty-only sheet)</span>
+              </label>
+              <input
+                type="text"
+                value={configELearningSpreadsheetId}
+                onChange={(e) => setConfigELearningSpreadsheetId(e.target.value)}
+                placeholder="Paste the E-Learning sheet URL or ID (leave blank to configure later)"
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                E-Learning faculty scans go here, separate from the daily student log. You can also create or link one from the card below.
+              </p>
+            </div>
+
             {/* Field 2: Service Account JSON */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -657,7 +774,7 @@ export default function GoogleSheetsAdminPage() {
               </button>
               <button
                 type="submit"
-                disabled={savingConfig || !configSpreadsheetId.trim()}
+                disabled={savingConfig || (!configSpreadsheetId.trim() && !configELearningSpreadsheetId.trim())}
                 className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md hover:shadow-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
               >
                 {savingConfig ? "Saving & Testing..." : "Save & Verify Connection"}
@@ -919,6 +1036,116 @@ export default function GoogleSheetsAdminPage() {
             >
               <RefreshCw className={cn("w-3.5 h-3.5", syncingFaculty && "animate-spin")} />
               <span>{syncingFaculty ? "Syncing..." : "Sync Faculty Roster"}</span>
+            </button>
+          </div>
+
+          {/* Card 6: Dedicated E-Learning Faculty Sheet */}
+          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-white dark:bg-[#141414] p-5 shadow-xs flex flex-col justify-between gap-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                      E-Learning Faculty Sheet
+                    </h3>
+                    <span className="text-[10px] text-slate-400 font-mono">Tab: E-Learning YYYY-MM-DD</span>
+                  </div>
+                </div>
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                    elearningStatus?.configured
+                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200/60"
+                      : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200/60"
+                  )}
+                >
+                  {elearningStatus?.configured ? "Dedicated Sheet" : "Not Linked"}
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Faculty-only E-Learning scans (07:20–07:35) pushed to a separate spreadsheet. Student scans never appear here. Auto-syncs after the window closes.
+              </p>
+
+              {elearningStatus?.configured ? (
+                <>
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="font-mono text-slate-500 truncate">
+                      {elearningStatus.maskedSpreadsheetId || "Linked"}
+                    </span>
+                    {elearningStatus.url && (
+                      <a
+                        href={elearningStatus.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 shrink-0"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Open
+                      </a>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      Target Date
+                    </label>
+                    <input
+                      type="date"
+                      value={elearningDate}
+                      onChange={(e) => setElearningDate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={elearningLinkInput}
+                    onChange={(e) => setElearningLinkInput(e.target.value)}
+                    placeholder="Paste existing E-Learning sheet URL or ID"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleLinkELearning}
+                      disabled={linkingELearning || !elearningLinkInput.trim()}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-black transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>{linkingELearning ? "Linking..." : "Link Sheet"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateELearning}
+                      disabled={creatingELearning}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{creatingELearning ? "Creating..." : "Create New"}</span>
+                    </button>
+                  </div>
+                  {elearningStatus && !elearningStatus.hasCredentials && (
+                    <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                      Save your Service Account JSON key above first.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSyncELearning}
+              disabled={syncingELearning || !elearningStatus?.configured}
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", syncingELearning && "animate-spin")} />
+              <span>{syncingELearning ? "Syncing..." : `Sync E-Learning (${elearningDate})`}</span>
             </button>
           </div>
         </div>

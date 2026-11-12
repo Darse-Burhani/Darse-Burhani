@@ -1319,6 +1319,8 @@ export async function saveSheetConfig(config: {
   serviceAccountJson?: string;
   serviceAccountEmail?: string;
   serviceAccountPrivateKey?: string;
+  manualSpreadsheetId?: string;
+  elearningSpreadsheetId?: string;
   enabled?: boolean;
   syncHourUtc?: number;
   testNow?: boolean;
@@ -1438,6 +1440,56 @@ export async function syncTalabatDirectorySheet(): Promise<{ success: boolean; m
 export async function syncFacultyDirectorySheet(): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; rowsSynced: number; url: string } }> {
   return request<{ success: boolean; message: string; data: { spreadsheetId: string; tabTitle: string; rowsSynced: number; url: string } }>("/api/admin/attendance-logs/sync-faculty-sheet", {
     method: "POST",
+  });
+}
+
+// ── Dedicated E-Learning (faculty-only) Google Sheet ──
+
+export interface ELearningSheetStatusData {
+  configured: boolean;
+  hasSpreadsheetId: boolean;
+  hasCredentials: boolean;
+  isDedicated: boolean;
+  spreadsheetId: string | null;
+  maskedSpreadsheetId: string | null;
+  serviceAccountEmail?: string | null;
+  fullServiceAccountEmail?: string | null;
+  url: string | null;
+  lastSyncedAt?: string | null;
+  lastSyncedDate?: string | null;
+}
+
+export interface ELearningSheetSyncResult {
+  spreadsheetId: string;
+  tabTitle: string;
+  rowsSynced: number;
+  url: string;
+  stats: { scanned: number; present: number; late: number };
+}
+
+export async function getELearningSheetStatus(): Promise<ELearningSheetStatusData> {
+  const res = await request<any>("/api/admin/attendance-logs/sync-elearning-sheet/status");
+  return ((res && res.data) ? res.data : res) as ELearningSheetStatusData;
+}
+
+export async function syncELearningSheet(date?: string): Promise<{ success: boolean; message: string; data: ELearningSheetSyncResult }> {
+  return request<{ success: boolean; message: string; data: ELearningSheetSyncResult }>("/api/admin/attendance-logs/sync-elearning-sheet", {
+    method: "POST",
+    body: JSON.stringify({ date }),
+  });
+}
+
+export async function createELearningSpreadsheet(title?: string): Promise<{ success: boolean; message: string; data: { spreadsheetId: string; url: string; title: string; serviceAccountEmail: string } }> {
+  return request<{ success: boolean; message: string; data: { spreadsheetId: string; url: string; title: string; serviceAccountEmail: string } }>("/api/admin/attendance-logs/sync-elearning-sheet/create", {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export async function linkELearningSpreadsheet(spreadsheetId: string): Promise<{ success: boolean; message: string; data: ELearningSheetStatusData }> {
+  return request<{ success: boolean; message: string; data: ELearningSheetStatusData }>("/api/admin/attendance-logs/sync-elearning-sheet/link", {
+    method: "POST",
+    body: JSON.stringify({ spreadsheetId }),
   });
 }
 

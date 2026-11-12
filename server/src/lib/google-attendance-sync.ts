@@ -27,7 +27,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import prisma from "./prisma";
-import { eventRangeForRole, getStartOfDayIST } from "./biometric";
+import { eventRangeForRole, getStartOfDayIST, isELearningWindow } from "./biometric";
 import { getHijriMonthInfo } from "./fatimi-calendar";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,10 +44,13 @@ export interface StoredGoogleSheetConfig {
   serviceAccountEmail?: string;
   serviceAccountPrivateKey?: string;
   manualSpreadsheetId?: string;
+  elearningSpreadsheetId?: string;
   enabled?: boolean;
   syncHourUtc?: number;
   lastSyncedAt?: string;
   lastSyncedDate?: string;
+  elearningLastSyncedAt?: string;
+  elearningLastSyncedDate?: string;
 }
 
 let cachedDbConfig: StoredGoogleSheetConfig | null = null;
@@ -78,6 +81,9 @@ export async function loadSheetConfigFromDb(): Promise<StoredGoogleSheetConfig |
       }
       if (cachedDbConfig.manualSpreadsheetId) {
         process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = cachedDbConfig.manualSpreadsheetId;
+      }
+      if (cachedDbConfig.elearningSpreadsheetId) {
+        process.env.GOOGLE_ELEARNING_SPREADSHEET_ID = cachedDbConfig.elearningSpreadsheetId;
       }
       if (cachedDbConfig.enabled !== undefined) {
         process.env.GOOGLE_SHEET_DAILY_SYNC = cachedDbConfig.enabled ? "true" : "false";
@@ -224,6 +230,21 @@ export function getManualAttendanceSpreadsheetId(): string {
   return extractSpreadsheetId(raw);
 }
 
+/**
+ * Dedicated spreadsheet for E-Learning faculty attendance. Deliberately does
+ * NOT fall back to the main daily attendance sheet — E-Learning must live in
+ * its own workbook so faculty-only sessions never mix with the student log.
+ */
+export function getELearningSpreadsheetId(): string {
+  const raw = (
+    cachedDbConfig?.elearningSpreadsheetId ||
+    process.env.GOOGLE_ELEARNING_SPREADSHEET_ID ||
+    process.env.GOOGLE_ELEARNING_SHEET_ID ||
+    ""
+  ).trim();
+  return extractSpreadsheetId(raw);
+}
+
 export function getServiceAccountCreds(): { email: string; key: string } | { json: string } | null {
   const jsonRaw = (
     cachedDbConfig?.serviceAccountJson ||
@@ -258,6 +279,10 @@ export function getServiceAccountCreds(): { email: string; key: string } | { jso
 
 export function isSheetSyncConfigured(): boolean {
   return Boolean(getAttendanceSpreadsheetId() && getServiceAccountCreds());
+}
+
+export function isELearningSheetConfigured(): boolean {
+  return Boolean(getELearningSpreadsheetId() && getServiceAccountCreds());
 }
 
 let lastSyncedAtIso: string | null = null;
@@ -307,6 +332,44 @@ export function sheetSyncStatus() {
     url: id ? `https://docs.google.com/spreadsheets/d/${id}` : null,
     lastSyncedAt: lastSyncedAtIso || cachedDbConfig?.lastSyncedAt || null,
     lastSyncedDate: lastSyncedDateKey || cachedDbConfig?.lastSyncedDate || null,
+  };
+}
+
+// ── Dedicated E-Learning (faculty-only) sheet status ───────────────────────
+
+let lastELearningSyncedAtIso: string | null = null;
+let lastELearningSyncedDateKey: string | null = null;
+
+export function markELearningSheetSyncRan(dateKey: string) {
+  lastELearningSyncedAtIso = new Date().toISOString();
+  lastELearningSyncedDateKey = dateKey;
+  if (cachedDbConfig) {
+    cachedDbConfig.elearningLastSyncedAt = lastELearningSyncedAtIso;
+    cachedDbConfig.elearningLastSyncedDate = lastELearningSyncedDateKey;
+  }
+}
+
+export function elearningSheetSyncStatus() {
+  const id = getELearningSpreadsheetId();
+  const creds = getServiceAccountCreds();
+  let saEmail: string | null = null;
+  if (creds) {
+    if ("email" in creds) saEmail = creds.email;
+    else if ("json" in creds) saEmail = parseServiceAccountJson(creds.json)?.client_email || null;
+  }
+
+  return {
+    configured: Boolean(id && creds),
+    hasSpreadsheetId: Boolean(id),
+    hasCredentials: Boolean(creds),
+    isDedicated: Boolean(process.env.GOOGLE_ELEARNING_SPREADSHEET_ID || cachedDbConfig?.elearningSpreadsheetId),
+    spreadsheetId: id || null,
+    maskedSpreadsheetId: id ? `${id.slice(0, 6)}…${id.slice(-4)}` : null,
+    serviceAccountEmail: saEmail ? `${saEmail.slice(0, 6)}…@${saEmail.split("@")[1] || "gserviceaccount.com"}` : null,
+    fullServiceAccountEmail: saEmail,
+    url: id ? `https://docs.google.com/spreadsheets/d/${id}` : null,
+    lastSyncedAt: lastELearningSyncedAtIso || cachedDbConfig?.elearningLastSyncedAt || null,
+    lastSyncedDate: lastELearningSyncedDateKey || cachedDbConfig?.elearningLastSyncedDate || null,
   };
 }
 
@@ -432,6 +495,7 @@ export async function saveSheetConfiguration(config: {
   serviceAccountEmail?: string;
   serviceAccountPrivateKey?: string;
   manualSpreadsheetId?: string;
+  elearningSpreadsheetId?: string;
   enabled?: boolean;
   syncHourUtc?: number;
 }): Promise<void> {
@@ -460,6 +524,11 @@ export async function saveSheetConfiguration(config: {
     cleanManualId = extractSpreadsheetId(config.manualSpreadsheetId);
   }
 
+  let cleanELearningId = "";
+  if (config.elearningSpreadsheetId) {
+    cleanELearningId = extractSpreadsheetId(config.elearningSpreadsheetId);
+  }
+
   let parsedEmail: string | undefined = config.serviceAccountEmail?.trim();
   let parsedKey: string | undefined = config.serviceAccountPrivateKey?.trim();
   let cleanJsonStr: string | undefined = undefined;
@@ -481,6 +550,9 @@ export async function saveSheetConfiguration(config: {
   if (cleanManualId) {
     process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID = cleanManualId;
   }
+  if (cleanELearningId) {
+    process.env.GOOGLE_ELEARNING_SPREADSHEET_ID = cleanELearningId;
+  }
   if (cleanJsonStr) {
     process.env.GOOGLE_SERVICE_ACCOUNT_JSON = cleanJsonStr;
   }
@@ -501,6 +573,7 @@ export async function saveSheetConfiguration(config: {
   cachedDbConfig = {
     spreadsheetId: cleanId || cachedDbConfig?.spreadsheetId || process.env.GOOGLE_ATTENDANCE_SPREADSHEET_ID,
     manualSpreadsheetId: cleanManualId || cachedDbConfig?.manualSpreadsheetId || process.env.GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID,
+    elearningSpreadsheetId: cleanELearningId || cachedDbConfig?.elearningSpreadsheetId || process.env.GOOGLE_ELEARNING_SPREADSHEET_ID,
     serviceAccountJson: cleanJsonStr || cachedDbConfig?.serviceAccountJson || process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
     serviceAccountEmail: parsedEmail || cachedDbConfig?.serviceAccountEmail || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     serviceAccountPrivateKey: parsedKey || cachedDbConfig?.serviceAccountPrivateKey || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
@@ -546,6 +619,7 @@ export async function saveSheetConfiguration(config: {
 
       if (cleanId) setEnvVar("GOOGLE_ATTENDANCE_SPREADSHEET_ID", `"${cleanId}"`);
       if (cleanManualId) setEnvVar("GOOGLE_MANUAL_ATTENDANCE_SPREADSHEET_ID", `"${cleanManualId}"`);
+      if (cleanELearningId) setEnvVar("GOOGLE_ELEARNING_SPREADSHEET_ID", `"${cleanELearningId}"`);
       if (cleanJsonStr) setEnvVar("GOOGLE_SERVICE_ACCOUNT_JSON", JSON.stringify(cleanJsonStr));
       if (parsedEmail) setEnvVar("GOOGLE_SERVICE_ACCOUNT_EMAIL", `"${parsedEmail}"`);
       if (parsedKey) {
@@ -2495,4 +2569,405 @@ export async function syncFacultyDirectoryToSheet(customSpreadsheetId?: string):
     url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// DEDICATED E-LEARNING (FACULTY-ONLY) GOOGLE SHEET SUPPORT
+// ════════════════════════════════════════════════════════════════════════════
+
+const ELEARNING_SUMMARY_TAB = "E-Learning Summary";
+
+export interface ELearningSheetData {
+  dateKey: string;
+  formattedDate: string;
+  windowLabel: string;
+  allValues: string[][];
+  scanned: number;
+  present: number;
+  late: number;
+  rows: number;
+}
+
+/**
+ * Builds the E-Learning faculty attendance matrix for one day. Only faculty
+ * punches whose check-in falls inside a faculty-only E-Learning window are
+ * included — students can never appear on this sheet.
+ */
+export async function buildELearningSheetData(targetDate?: Date): Promise<ELearningSheetData> {
+  const now = targetDate || new Date();
+  const dayStart = dayStartUTC(now);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const dateKey = dayStart.toISOString().slice(0, 10);
+  const formattedDate = fmtDateIST(dayStart);
+
+  const windows = await prisma.biometricScanWindow.findMany({ orderBy: { startTime: "asc" } });
+  const elWindows = windows.filter((w) => isELearningWindow(w as never));
+
+  const ranges = elWindows
+    .map((w) => {
+      const r = eventRangeForRole(w as never, "TEACHER") as {
+        enabled: boolean;
+        startMin: number;
+        endMin: number;
+        lateMin: number;
+      } | null;
+      return r && r.enabled ? { ...r, name: w.name } : null;
+    })
+    .filter(Boolean) as Array<{ enabled: boolean; startMin: number; endMin: number; lateMin: number; name: string }>;
+
+  const windowLabel = elWindows.length
+    ? elWindows
+        .map((w) => {
+          const start = w.facultyStartTime || w.startTime;
+          const end = w.facultyLateEndTime || w.facultyEndTime || w.lateEndTime || w.endTime;
+          return `${start}–${end}`;
+        })
+        .join(", ")
+    : "--";
+
+  const records = await prisma.teacherAttendanceRecord.findMany({
+    where: { date: { gte: dayStart, lt: dayEnd }, checkInTime: { not: null } },
+    include: {
+      teacher: {
+        include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+      },
+    },
+    orderBy: { checkInTime: "asc" },
+  });
+
+  const header = [
+    "Photo",
+    "Faculty Member Name",
+    "Employee ID / ITS",
+    "Department",
+    "Date",
+    "Check-in (IST)",
+    "E-Learning Window",
+    "Attendance Status",
+    "Late By (min)",
+    "Verification",
+    "Remarks",
+  ];
+
+  const rows: string[][] = [];
+  let present = 0;
+  let late = 0;
+
+  for (const rec of records) {
+    if (!rec.checkInTime) continue;
+    const t = istMinutesOf(new Date(rec.checkInTime));
+    const range = ranges.find((r) => t >= r.startMin && t <= r.lateMin);
+    if (!range) continue;
+
+    const isLate = t > range.endMin;
+    const lateBy = isLate ? Math.max(0, t - range.endMin) : 0;
+    const stored = String(rec.status || "");
+    const displayStatus =
+      stored === "ON_LEAVE" || stored === "MEDICAL" || stored === "HOLIDAY"
+        ? stored
+        : isLate
+          ? "LATE"
+          : "PRESENT";
+    if (displayStatus === "LATE") late++;
+    else if (displayStatus === "PRESENT") present++;
+
+    const teacher = rec.teacher as typeof rec.teacher & { its?: string | null };
+    const name = `${teacher.user.firstName} ${teacher.user.lastName}`.trim();
+    rows.push([
+      getPhotoFormula(name, teacher.user.avatarUrl, true),
+      name,
+      teacher.employeeId || teacher.its || "--",
+      teacher.department || "--",
+      formattedDate,
+      fmtTimeIST(rec.checkInTime),
+      range.name || "E-Learning",
+      displayStatus,
+      isLate ? String(lateBy) : "—",
+      rec.verificationMethod || "BIOMETRIC",
+      rec.notes || "—",
+    ]);
+  }
+
+  const allValues: string[][] = [
+    ["E-Learning Attendance — Faculty Only"],
+    [`${formattedDate} · Window ${windowLabel} IST`],
+    [`Scanned: ${rows.length} · Present: ${present} · Late: ${late}`],
+    [],
+    header,
+    ...(rows.length
+      ? rows
+      : [["", "No faculty scans recorded for this E-Learning session.", "", "", "", "", "", "", "", "", ""]]),
+  ];
+
+  return { dateKey, formattedDate, windowLabel, allValues, scanned: rows.length, present, late, rows: rows.length };
+}
+
+/**
+ * Pushes one day of E-Learning faculty attendance to its dedicated spreadsheet.
+ */
+export async function syncELearningAttendanceToSheet(
+  targetDate?: Date,
+  customSpreadsheetId?: string,
+): Promise<{
+  spreadsheetId: string;
+  tabTitle: string;
+  rowsSynced: number;
+  url: string;
+  stats: { scanned: number; present: number; late: number };
+}> {
+  const targetId = extractSpreadsheetId(customSpreadsheetId || getELearningSpreadsheetId());
+  if (!targetId) {
+    throw new Error(
+      "No Google Spreadsheet configured for E-Learning attendance. Create or link a dedicated E-Learning sheet first in Google Sheets Settings.",
+    );
+  }
+
+  const { sheets, spreadsheetId } = getWriteClient(targetId);
+  const data = await buildELearningSheetData(targetDate);
+  const tab = `E-Learning ${data.dateKey}`;
+  const sheetId = await ensureTab(sheets, spreadsheetId, tab, 250, 11);
+
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `'${tab}'!A1:K${Math.max(data.allValues.length + 50, 250)}`,
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tab}'!A1:K${data.allValues.length}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: data.allValues },
+  });
+
+  // Rolling summary: one row per day
+  await ensureTab(sheets, spreadsheetId, ELEARNING_SUMMARY_TAB, 250, 7);
+  const existing = await sheets.spreadsheets.values
+    .get({ spreadsheetId, range: `'${ELEARNING_SUMMARY_TAB}'!A:A` })
+    .catch(() => ({ data: { values: [] as string[][] } }));
+  const colA = existing.data.values || [];
+  if (colA.length === 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${ELEARNING_SUMMARY_TAB}'!A1:G1`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [["Date", "Window (IST)", "Scanned", "Present", "Late", "Attendance %", "Last Synced (IST)"]],
+      },
+    });
+  }
+  const rowIdx =
+    colA.length === 0
+      ? 2
+      : (() => {
+          const found = colA.findIndex((r) => String(r?.[0] || "").trim() === data.dateKey);
+          return found >= 0 ? found + 1 : colA.length + 1;
+        })();
+  const pct = data.scanned ? Math.round((data.present / data.scanned) * 1000) / 10 : 0;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${ELEARNING_SUMMARY_TAB}'!A${rowIdx}:G${rowIdx}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [
+        [
+          data.dateKey,
+          data.windowLabel,
+          data.scanned,
+          data.present,
+          data.late,
+          `${pct}%`,
+          new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        ],
+      ],
+    },
+  });
+
+  if (sheetId !== undefined) {
+    try {
+      const requests: Array<Record<string, unknown>> = [
+        {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: 5 } },
+            fields: "gridProperties.frozenRowCount",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+            cell: {
+              userEnteredFormat: {
+                textFormat: { bold: true, fontSize: 16, foregroundColor: { red: 0.02, green: 0.29, blue: 0.23 } },
+              },
+            },
+            fields: "userEnteredFormat.textFormat",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 4, endRowIndex: 5 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.02, green: 0.29, blue: 0.23 },
+                textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+          },
+        },
+      ];
+
+      const widths = [65, 210, 130, 140, 110, 125, 150, 120, 100, 120, 240];
+      widths.forEach((pixelSize, idx) => {
+        requests.push({
+          updateDimensionProperties: {
+            range: { sheetId, dimension: "COLUMNS", startIndex: idx, endIndex: idx + 1 },
+            properties: { pixelSize },
+            fields: "pixelSize",
+          },
+        });
+      });
+
+      if (data.rows > 0) {
+        requests.push({
+          repeatCell: {
+            range: { sheetId, startRowIndex: 5, endRowIndex: 5 + data.rows, startColumnIndex: 7, endColumnIndex: 8 },
+            cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { bold: true } } },
+            fields: "userEnteredFormat(horizontalAlignment,textFormat)",
+          },
+        });
+      }
+
+      await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } as never });
+    } catch (styleErr) {
+      console.warn("[elearning-sheet-sync] formatting notice:", (styleErr as Error)?.message || styleErr);
+    }
+  }
+
+  markELearningSheetSyncRan(data.dateKey);
+
+  return {
+    spreadsheetId,
+    tabTitle: tab,
+    rowsSynced: data.rows,
+    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+    stats: { scanned: data.scanned, present: data.present, late: data.late },
+  };
+}
+
+/**
+ * Creates a brand new spreadsheet dedicated to E-Learning attendance and
+ * persists its ID to the DB config + .env.
+ */
+export async function createELearningSpreadsheet(customTitle?: string): Promise<{
+  success: boolean;
+  spreadsheetId: string;
+  url: string;
+  title: string;
+  serviceAccountEmail: string;
+}> {
+  const { auth, email: saEmail } = createGoogleAuthClient();
+  const client = google.sheets({ version: "v4", auth: auth as never });
+  const title = customTitle?.trim() || `Darse Burhani — E-Learning Attendance (${new Date().getFullYear()})`;
+
+  const res = await client.spreadsheets.create({
+    requestBody: {
+      properties: { title },
+      sheets: [
+        {
+          properties: {
+            title: ELEARNING_SUMMARY_TAB,
+            gridProperties: { rowCount: 250, columnCount: 7 },
+          },
+        },
+      ],
+    },
+  });
+
+  const spreadsheetId = res.data.spreadsheetId;
+  if (!spreadsheetId) {
+    throw new Error("Failed to create Google Spreadsheet: empty spreadsheetId returned from Google");
+  }
+
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+
+  process.env.GOOGLE_ELEARNING_SPREADSHEET_ID = spreadsheetId;
+  cachedDbConfig = { ...(cachedDbConfig || {}), elearningSpreadsheetId: spreadsheetId };
+
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: "google_sheets_config" },
+      update: { value: { ...(cachedDbConfig || {}), elearningSpreadsheetId: spreadsheetId } as any },
+      create: { key: "google_sheets_config", value: { elearningSpreadsheetId: spreadsheetId } as any },
+    });
+  } catch (err) {
+    console.warn("[elearning-sheet-sync] Warning persisting E-Learning sheet ID to DB:", err);
+  }
+
+  try {
+    const envPath = path.resolve(repoRoot, ".env");
+    let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+    const reg = new RegExp(`^(?:#\\s*)?GOOGLE_ELEARNING_SPREADSHEET_ID=.*$`, "m");
+    if (reg.test(content)) {
+      content = content.replace(reg, `GOOGLE_ELEARNING_SPREADSHEET_ID="${spreadsheetId}"`);
+    } else {
+      content = content.trimEnd() + `\nGOOGLE_ELEARNING_SPREADSHEET_ID="${spreadsheetId}"\n`;
+    }
+    fs.writeFileSync(envPath, content, "utf8");
+  } catch (err) {
+    console.warn("[elearning-sheet-sync] Warning updating .env with E-Learning sheet ID:", err);
+  }
+
+  return { success: true, spreadsheetId, url: sheetUrl, title, serviceAccountEmail: saEmail };
+}
+
+/**
+ * Scheduler-safe auto-push: fires once per day, shortly after the E-Learning
+ * window closes, so the faculty sheet is ready without an admin click.
+ */
+export async function runELearningSheetSyncJobIfDue(now: Date = new Date()): Promise<{
+  skipped: boolean;
+  reason?: string;
+  tabTitle?: string;
+  rowsSynced?: number;
+}> {
+  if (process.env.GOOGLE_SHEET_DAILY_SYNC === "false") {
+    return { skipped: true, reason: "disabled via GOOGLE_SHEET_DAILY_SYNC=false" };
+  }
+  if (!isELearningSheetConfigured()) {
+    return { skipped: true, reason: "E-Learning sheet not configured" };
+  }
+
+  const dayStart = dayStartUTC(now);
+  const dateKey = dayStart.toISOString().slice(0, 10);
+  if (dayStart.getUTCDay() === 0) {
+    return { skipped: true, reason: "Sunday is institutional holiday" };
+  }
+  if (lastELearningSyncedDateKey === dateKey) {
+    return { skipped: true, reason: "already synced today" };
+  }
+
+  const windows = await prisma.biometricScanWindow.findMany({ orderBy: { startTime: "asc" } });
+  const ranges = windows
+    .filter((w) => isELearningWindow(w as never))
+    .map((w) => eventRangeForRole(w as never, "TEACHER") as { enabled: boolean; lateMin: number } | null)
+    .filter(Boolean) as Array<{ enabled: boolean; lateMin: number }>;
+
+  if (!ranges.length) {
+    return { skipped: true, reason: "no E-Learning window configured" };
+  }
+
+  const nowMin = istMinutesOf(now);
+  const latestLate = Math.max(...ranges.map((r) => r.lateMin));
+  if (nowMin <= latestLate) {
+    return { skipped: true, reason: "E-Learning window still open" };
+  }
+
+  try {
+    const r = await syncELearningAttendanceToSheet(now);
+    return { skipped: false, tabTitle: r.tabTitle, rowsSynced: r.rowsSynced };
+  } catch (err) {
+    console.error("[elearning-sheet-sync] auto push failed:", (err as Error)?.message || err);
+    return { skipped: true, reason: (err as Error)?.message || "push failed" };
+  }
+}
+
 

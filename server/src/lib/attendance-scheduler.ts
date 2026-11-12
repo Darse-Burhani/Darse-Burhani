@@ -1172,6 +1172,14 @@ export function startAttendanceScheduler() {
         }
       }
 
+      // D. E-Learning faculty sheet auto-push once the session closes
+      try {
+        const { runELearningSheetSyncJobIfDue } = await import("./google-attendance-sync");
+        await runELearningSheetSyncJobIfDue(now);
+      } catch {
+        // Non-critical — the manual sync button remains available.
+      }
+
       // C. Fallback evening auto-mark run (19:30 IST / 14:00 UTC) - skip on Sunday
       // Note: evaluated in IST minutes so UTC day boundaries never trigger a premature midnight run
       const autoMarkAbsentISTMinutes = (config.autoMarkAbsentHourUtc * 60 + 330) % 1440; // 14:00 UTC = 19:30 IST = 1170 min
