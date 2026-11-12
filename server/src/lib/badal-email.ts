@@ -280,10 +280,25 @@ export async function sendBadalEmailDetailed(options: SendBadalEmailOptions): Pr
 
   const transportInfo = await createBadalTransporter();
   if (!transportInfo) {
+    // Fall back to primary email engine (Google Apps Script HTTPS relay / Primary SMTP)
+    try {
+      const { sendEmail } = await import("./email");
+      const ok = await sendEmail({
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+        from: options.customFrom,
+      });
+      if (ok) {
+        console.log(`[badal-email] ✅ Delivered to ${options.to} via primary email relay`);
+        return { success: true, mailbox: "relay", messageId: `relay_${Date.now()}` };
+      }
+    } catch {}
     console.warn("[badal-email] No active Badal SMTP credentials configured");
     return {
       success: false,
-      error: "No active SMTP credentials configured. Please configure Badal Email in Settings.",
+      error: "No active SMTP credentials configured. Please configure Badal Email in Settings or set GOOGLE_SCRIPT_EMAIL_URL in environment.",
     };
   }
 
@@ -314,7 +329,22 @@ export async function sendBadalEmailDetailed(options: SendBadalEmailOptions): Pr
     };
   } catch (err: any) {
     const msg = err?.message || String(err);
-    console.error(`[badal-email] ❌ Failed to dispatch to ${options.to}:`, msg);
+    console.error(`[badal-email] ❌ Direct SMTP failed for ${options.to}:`, msg);
+    // Fallback to primary email engine
+    try {
+      const { sendEmail } = await import("./email");
+      const ok = await sendEmail({
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+        from: options.customFrom,
+      });
+      if (ok) {
+        console.log(`[badal-email] ✅ Delivered to ${options.to} via primary email relay fallback`);
+        return { success: true, mailbox: "relay-fallback", messageId: `relay_${Date.now()}` };
+      }
+    } catch {}
     return {
       success: false,
       mailbox: transportInfo.user,
